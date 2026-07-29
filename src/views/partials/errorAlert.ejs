@@ -1,0 +1,11 @@
+<% if (locals.dbError) { %>
+    <div class="alert alert-danger shadow-sm border-0 d-flex align-items-center mb-4" role="alert">
+        <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+        <div>
+            <strong>Connection Error:</strong> <%= errorMessage %>
+        </div>
+        <button type="button" class="btn-sm btn-outline-danger ms-auto" onclick="window.location.reload()">
+            <i class="bi bi-arrow-clockwise me-1"></i> Retry
+        </button>
+    </div>
+<% } %>

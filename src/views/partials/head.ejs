@@ -1,0 +1,66 @@
+<%- include('helpers') %>
+<meta charset="UTF-8" />
+<script>
+// Demo bridge — enables /demo/auto-demo.html to navigate and spotlight elements on this page
+;(function () {
+  function up(type, data) { try { window.parent.postMessage(Object.assign({ type }, data || {}), '*'); } catch (_) {} }
+  window.addEventListener('load', function () { up('DEMO_PAGE_READY'); });
+  window.addEventListener('message', function (e) {
+    if (!e.data || !e.data.type) return;
+    if (e.data.type === 'DEMO_FIND_ELEMENT') {
+      var el = document.querySelector(e.data.selector);
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(function () {
+        var r = el.getBoundingClientRect();
+        up('DEMO_ELEMENT_FOUND', { rect: { left: r.left, top: r.top, width: r.width, height: r.height } });
+      }, 500);
+    } else if (e.data.type === 'DEMO_CLICK') {
+      var el = document.querySelector(e.data.selector);
+      if (el) el.click();
+    } else if (e.data.type === 'DEMO_WAIT_UNTIL') {
+      var t = setInterval(function () {
+        var el = document.querySelector(e.data.selector);
+        if (el && (!e.data.text || el.textContent.includes(e.data.text))) { clearInterval(t); up('DEMO_WAIT_COMPLETE'); }
+      }, 300);
+    }
+  });
+})();
+</script>
+<meta name="csrf-token" content="<%= csrfToken %>">
+<script>
+  // Auto-inject CSRF token into every same-origin fetch with a state-changing method.
+  // This covers all POST/PUT/DELETE/PATCH calls in the app without per-call changes.
+  (function () {
+    const _fetch = window.fetch;
+    window.fetch = function (input, init = {}) {
+      const method = (init.method || 'GET').toUpperCase();
+      if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+        const token = document.querySelector('meta[name="csrf-token"]')?.content;
+        if (token) {
+          init.headers = Object.assign({ 'X-CSRF-Token': token }, init.headers || {});
+        }
+      }
+      return _fetch.call(this, input, init);
+    };
+  })();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title><%= title %></title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f172a'/%3E%3Cpolyline points='4,24 10,16 16,20 22,10 28,14' stroke='%2310b981' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<!-- Core Assets -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="<%= baseUrl %>/css/style.css" />
+<link rel="stylesheet" href="<%= baseUrl %>/css/decision-storyboard.css" />
+<style>
+  :root {
+    --success: #10b981;
+    --danger: #f43f5e;
+    --warning: #f59e0b;
+    --primary: #6366f1;
+    --dark: #0f172a;
+  }
+  .navbar { padding: 0.5rem 0; background: var(--dark) !important; }
+  .stale-badge { font-size: 0.65rem; border: 1px solid rgba(0,0,0,0.1); padding: 2px 6px; border-radius: 4px; }
+</style>

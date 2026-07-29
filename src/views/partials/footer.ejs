@@ -1,0 +1,25 @@
+<footer class="bg-dark text-white py-4 mt-5">
+  <div class="container text-center">
+    <p class="mb-0 small opacity-75">
+      📈 SEU Studio &copy; <%= new Date().getFullYear() %> | ⚠️ Disclaimer: This tool is work in progress.
+    </p>
+  </div>
+</footer>
+
+<!-- Session-expiry interceptor: redirect to login on any 401 instead of surfacing a JSON parse error -->
+<script>
+(function () {
+  var _fetch = window.fetch;
+  window.fetch = async function () {
+    var res = await _fetch.apply(this, arguments);
+    if (res.status === 401) {
+      window.location.replace('/aisworg/auth/login');
+      return new Promise(function () {}); // freeze caller — page is navigating away
+    }
+    return res;
+  };
+}());
+</script>
+<!-- Core Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<%- include('vm-debug-adv') %>

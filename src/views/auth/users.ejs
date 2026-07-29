@@ -1,0 +1,148 @@
+<%- include('../partials/head') %>
+<%- include('../partials/navbar') %>
+
+<main class="container my-5">
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <h4 class="mb-0">User Management</h4>
+    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
+      <i class="bi bi-person-plus me-1"></i> Create user
+    </button>
+  </div>
+
+  <% if (locals.flash?.error) { %>
+    <div class="alert alert-danger py-2 small"><%= flash.error %></div>
+  <% } %>
+  <% if (locals.flash?.info) { %>
+    <div class="alert alert-info py-2 small"><%= flash.info %></div>
+  <% } %>
+
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>User</th>
+            <th>Provider</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Last login</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (!users || users.length === 0) { %>
+            <tr><td colspan="6" class="text-center text-muted py-4">No users yet.</td></tr>
+          <% } else { users.forEach(u => { %>
+            <tr class="<%= !u.is_active ? 'table-secondary' : '' %>">
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <% if (u.avatar_url) { %>
+                    <img src="<%= u.avatar_url %>" width="28" height="28" class="rounded-circle" alt="">
+                  <% } else { %>
+                    <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white"
+                         style="width:28px;height:28px;font-size:0.75rem;"><%= (u.name||u.email)[0].toUpperCase() %></div>
+                  <% } %>
+                  <div>
+                    <div class="fw-semibold small"><%= u.name || '—' %></div>
+                    <div class="text-muted" style="font-size:0.78rem;"><%= u.email %></div>
+                  </div>
+                </div>
+              </td>
+              <td class="small text-capitalize align-middle"><%= u.auth_provider %></td>
+              <td class="align-middle">
+                <!-- <form method="POST" action="/finanaly/auth/users/role" class="d-inline"> -->
+                <form method="POST" action="/aisworg/auth/users/role" class="d-inline">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="email" value="<%= u.email %>">
+                  <select name="role" onchange="this.form.submit()"
+                          class="form-select form-select-sm py-0" style="width:auto;"
+                          <%= !currentUser || currentUser.email === u.email ? 'disabled' : '' %>>
+                    <option value="general" <%= u.role==='general' ? 'selected' : '' %>>General</option>
+                    <option value="power"   <%= u.role==='power'   ? 'selected' : '' %>>Power</option>
+                    <option value="super"   <%= u.role==='super'   ? 'selected' : '' %>>Super</option>
+                  </select>
+                </form>
+              </td>
+              <td class="align-middle">
+                <% if (u.is_active) { %>
+                  <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+                <% } else if (!u.password_hash && u.verification_token) { %>
+                  <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Pending</span>
+                <% } else { %>
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Disabled</span>
+                <% } %>
+              </td>
+              <td class="small text-muted align-middle">
+                <%= u.last_login ? new Date(u.last_login).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : 'Never' %>
+              </td>
+              <td class="align-middle text-end">
+                <div class="d-flex gap-1 justify-content-end flex-wrap">
+                  <% if (!u.is_active && !u.password_hash && u.verification_token) { %>
+                    <!-- <form method="POST" action="/finanaly/auth/users/resend"> -->
+                    <form method="POST" action="/aisworg/auth/users/resend">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <input type="hidden" name="email" value="<%= u.email %>">
+                      <button class="btn btn-xs btn-outline-secondary" style="font-size:0.75rem;padding:2px 8px;">Resend link</button>
+                    </form>
+                  <% } %>
+                  <% if (currentUser && currentUser.email !== u.email) { %>
+                    <!-- <form method="POST" action="/finanaly/auth/users/toggle"> -->
+                    <form method="POST" action="/aisworg/auth/users/toggle">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <input type="hidden" name="email" value="<%= u.email %>">
+                      <input type="hidden" name="action" value="<%= u.is_active ? 'disable' : 'enable' %>">
+                      <button class="btn btn-xs <%= u.is_active ? 'btn-outline-danger' : 'btn-outline-success' %>"
+                              style="font-size:0.75rem;padding:2px 8px;">
+                        <%= u.is_active ? 'Disable' : 'Enable' %>
+                      </button>
+                    </form>
+                  <% } %>
+                </div>
+              </td>
+            </tr>
+          <% }) } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- Create user modal -->
+<div class="modal fade" id="createModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <!-- <form method="POST" action="/finanaly/auth/users/create"> -->
+      <form method="POST" action="/aisworg/auth/users/create">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="modal-header">
+          <h5 class="modal-title">Create user</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Email *</label>
+            <input type="email" name="email" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Name</label>
+            <input type="text" name="name" class="form-control" placeholder="Optional">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Role *</label>
+            <select name="role" class="form-select" required>
+              <option value="power">Power</option>
+              <option value="super">Super</option>
+            </select>
+          </div>
+          <p class="text-muted small mb-0">A verification email will be sent so the user can set their own password.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm">Create &amp; send invite</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

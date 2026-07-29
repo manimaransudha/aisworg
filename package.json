@@ -1,0 +1,48 @@
+{
+  "name": "aisworg",
+  "version": "1.0.0",
+  "description": "AI SEU Platform",
+  "main": "src/app.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "node --watch src/app.js",
+    "test": "NODE_ENV=test node --test tests/**/*.test.js",
+    "test:spec": "NODE_ENV=test node --test --test-reporter=spec tests/**/*.test.js",
+    "test:junit": "NODE_ENV=test node --test --test-reporter=junit --test-reporter-destination=test-results.xml tests/**/*.test.js",
+    "test:mocha": "NODE_ENV=test mocha tests/**/*.test.js",
+    "test:coverage": "NODE_ENV=test c8 node --test tests/**/*.test.js"
+  },
+  "keywords": [],
+  "author": "Sudha Manimaran",
+  "license": "ISC",
+  "packageManager": "pnpm@10.28.1",
+  "dependencies": {
+    "express": "^5.2.1",
+    "axios": "^1.6.2",
+    "bcryptjs": "^3.0.3",
+    "compromise": "^14.15.1",
+    "cookie-parser": "^1.4.7",
+    "csrf-csrf": "^4.0.3",
+    "dotenv": "^16.3.1",
+    "ejs": "^3.1.9",
+    "express-rate-limit": "^8.5.2",
+    "express-session": "^1.17.3",
+    "fetch-cookie": "^3.2.0",
+    "marked": "^18.0.4",
+    "msedge-tts": "^2.0.5",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^8.0.7",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
+    "passport-local": "^1.0.0",
+    "pdf-parse": "^2.4.5",
+    "pg": "^8.19.0",
+    "sanitize-html": "^2.17.4",
+    "scrollama": "^3.2.0",
+    "tough-cookie": "^6.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

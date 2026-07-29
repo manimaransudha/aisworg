@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../partials/head') %>
+  <style>
+    body { background: #f8fafc; }
+    .category-card {
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+      background: #fff;
+      margin-bottom: 2rem;
+      overflow: hidden;
+    }
+    .category-header {
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      color: #fff;
+      font-weight: 600;
+      font-size: 1rem;
+      padding: 1rem 1.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .setting-item {
+      padding: 1.5rem;
+      border-bottom: 1px solid #f1f5f9;
+      transition: background 0.15s;
+    }
+    .setting-item:last-child {
+      border-bottom: none;
+    }
+    .setting-item:hover {
+      background: #fafafa;
+    }
+    .setting-title {
+      font-weight: 600;
+      color: #1e293b;
+      font-size: 0.95rem;
+    }
+    .setting-key {
+      font-family: monospace;
+      color: #6366f1;
+      font-size: 0.75rem;
+      background: #e0e7ff;
+      padding: 2px 6px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-top: 2px;
+    }
+    .setting-desc {
+      color: #64748b;
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+    }
+    .setting-type {
+      font-size: 0.7rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .save-btn {
+      border-radius: 6px;
+      padding: 0.4rem 1.2rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .input-control {
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <header><%- include('../partials/navbar') %></header>
+
+  <main class="container py-5" style="max-width: 900px;">
+    <% if (locals.error) { %>
+      <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i><%= error %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <% if (locals.saved) { %>
+      <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-check-circle me-2"></i>Successfully saved parameter: <code><%= saved %></code>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4 d-flex justify-content-between align-items-center">
+      <div>
+        <h2 class="h3 mb-1 text-dark fw-bold">System Configuration Settings</h2>
+        <p class="text-muted small mb-0">Tune thresholds and application variables dynamically.</p>
+      </div>
+    </div>
+
+    <% Object.keys(grouped).forEach(category => { %>
+      <div class="category-card">
+        <div class="category-header">
+          <i class="bi bi-gear-fill me-2"></i><%= category %>
+        </div>
+        <div>
+          <% grouped[category].forEach(row => { %>
+            <div class="setting-item row align-items-center">
+              <div class="col-md-7">
+                <div class="setting-title"><%= row.label || row.key %></div>
+                <div class="setting-key"><%= row.key %></div>
+                <% if (row.description) { %>
+                  <div class="setting-desc"><%= row.description %></div>
+                <% } %>
+              </div>
+              <div class="col-md-5 mt-3 mt-md-0">
+                <form method="POST" action="/aisworg/settings/<%= encodeURIComponent(row.key) %>" class="d-flex align-items-center gap-2">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <div class="flex-grow-1">
+                    <% if (row.value_type === 'boolean') { %>
+                      <select name="value" class="form-select form-select-sm input-control">
+                        <option value="true" <%= row.value === 'true' ? 'selected' : '' %>>True</option>
+                        <option value="false" <%= row.value === 'false' ? 'selected' : '' %>>False</option>
+                      </select>
+                    <% } else if (row.value_type === 'number') { %>
+                      <input type="number" name="value" value="<%= row.value %>" step="any" class="form-control form-control-sm input-control font-monospace">
+                    <% } else if (row.value_type === 'json') { %>
+                      <textarea name="value" class="form-control form-control-sm input-control font-monospace" rows="2" style="font-size:0.75rem;"><%= row.value %></textarea>
+                    <% } else { %>
+                      <input type="text" name="value" value="<%= row.value %>" class="form-control form-control-sm input-control">
+                    <% } %>
+                  </div>
+                  <div>
+                    <button type="submit" class="btn btn-sm btn-primary save-btn">
+                      <i class="bi bi-floppy me-1"></i>Save
+                    </button>
+                  </div>
+                </form>
+                <div class="text-end mt-1">
+                  <span class="setting-type"><%= row.value_type %></span>
+                </div>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    <% }) %>
+
+  </main>
+
+  <%- include('../partials/footer') %>
+</body>
+</html>

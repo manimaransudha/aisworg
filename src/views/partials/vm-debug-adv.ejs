@@ -1,0 +1,59 @@
+<% if (locals.showDebugVM) { %>
+<div class="container mt-5 mb-5">
+    <div class="card border-info shadow-sm">
+        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="bi bi-bug-fill me-2"></i>ViewModel Debug
+            </h5>
+            <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#vmDebugCollapse">
+                Toggle Debug Panel
+            </button>
+        </div>
+        <div class="collapse" id="vmDebugCollapse">
+            <div class="card-body bg-light">
+                <div class="row">
+                    <!-- Required Parameters -->
+                    <div class="col-md-6">
+                        <h6 class="text-primary fw-bold text-uppercase small border-bottom pb-2">Required (req)</h6>
+                        <% if (locals.req) { %>
+                            <pre class="bg-white p-3 rounded border small" style="max-height: 400px; overflow-y: auto;"><%= JSON.stringify(locals.req, null, 2) %></pre>
+                        <% } else { %>
+                            <p class="text-muted small">No structured 'req' object found.</p>
+                        <% } %>
+                    </div>
+                    <!-- Optional Parameters -->
+                    <div class="col-md-6">
+                        <h6 class="text-success fw-bold text-uppercase small border-bottom pb-2">Optional (opt)</h6>
+                        <% if (locals.opt) { %>
+                            <pre class="bg-white p-3 rounded border small" style="max-height: 400px; overflow-y: auto;"><%= JSON.stringify(locals.opt, null, 2) %></pre>
+                        <% } else { %>
+                            <p class="text-muted small">No structured 'opt' object found.</p>
+                        <% } %>
+                    </div>
+                </div>
+                <!-- Other Locals -->
+                <div class="mt-3">
+                    <h6 class="text-secondary fw-bold text-uppercase small border-bottom pb-2">Full Context (Locals)</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered bg-white">
+                            <thead class="table-light">
+                                <tr><th>Key</th><th>Value</th></tr>
+                            </thead>
+                            <tbody>
+                                <% Object.keys(locals).forEach(key => { 
+                                    if (['settings', '_locals', 'cache', 'req', 'opt'].includes(key)) return;
+                                %>
+                                    <tr>
+                                        <td class="small"><code><%= key %></code></td>
+                                        <td class="small"><pre class="mb-0"><%= JSON.stringify(locals[key], null, 2) %></pre></td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<% } %>
