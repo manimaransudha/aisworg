@@ -79,6 +79,36 @@ test("transitionEngine.evaluate rejects a transition with no Transition Definiti
   if (!outcome.allowed) assert.equal(outcome.reason, "no_transition_definition");
 });
 
+test("transitionEngine.evaluate handles the Objective entity type (Post-MVP Phase 1 — Ch.1 lifecycle)", async () => {
+  const allowed = await transitionEngine.evaluate({
+    entityType: "Objective",
+    fromState: "Proposed",
+    toState: "Active",
+    actorRole: "general",
+    context: {},
+  });
+  assert.equal(allowed.allowed, true);
+
+  const denied = await transitionEngine.evaluate({
+    entityType: "Objective",
+    fromState: "Proposed",
+    toState: "Active",
+    actorRole: "unregistered-role",
+    context: {},
+  });
+  assert.equal(denied.allowed, false);
+  if (!denied.allowed) assert.equal(denied.reason, "authority_denied");
+
+  const undefinedTransition = await transitionEngine.evaluate({
+    entityType: "Objective",
+    fromState: "Proposed",
+    toState: "Retired",
+    actorRole: "super",
+  });
+  assert.equal(undefinedTransition.allowed, false);
+  if (!undefinedTransition.allowed) assert.equal(undefinedTransition.reason, "no_transition_definition");
+});
+
 test("dependencyEngine: Deliverable-type edge becomes Satisfied only once the target reaches the required state", async () => {
   const { data: objective } = await objectivesDB.create({ statement: `engine-test-${randomUUID()}` });
   const { data: template } = await templatesDB.findByCode("template-web-application");

@@ -45,6 +45,14 @@ export async function commissionSeu(input: {
   if (profile.base_template_id !== template.id) {
     return { ok: false, stage: "validate_request", reason: "profile does not target the given template" };
   }
+  // Ch.1: an Objective must be Active to justify commissioning against it.
+  // Real now that Objective has a governed lifecycle (Post-MVP Phase 1) — a
+  // no-op for callers that create-and-commission an Objective in one shot,
+  // since that path creates it Active by default; a real check for anything
+  // still Proposed, or already Achieved/Superseded/Retired/Archived.
+  if (objective.status !== "Active") {
+    return { ok: false, stage: "validate_request", reason: `objective is not Active (status: ${objective.status}) — activate it before commissioning against it` };
+  }
 
   // Ch.2 §7 / Build Plan §5 item 8: 'Pending' is the pre-Commissioned working
   // state this plan adds so the pipeline has a row to attach the EBM and
@@ -205,6 +213,43 @@ export async function commissionFromForm(input: {
 
   return commissionSeu({
     objectiveId: objective.id,
+    templateId: template.id,
+    profileId: profile.id,
+    actorRole: input.actorRole,
+    requestedBy: input.requestedBy,
+  });
+}
+
+export type CommissionFromObjectiveResult =
+  | CommissionResult
+  | { ok: false; stage: "select_template"; reason: string };
+
+// The Objective-first path (Post-MVP Phase 1): commission against an
+// Objective that already exists — and is Active — instead of creating one
+// inline. Required Capabilities come from the Objective's own declared set,
+// not re-picked via checkboxes.
+export async function commissionFromExistingObjective(input: {
+  objectiveId: string;
+  actorRole: string;
+  requestedBy?: number | null;
+}): Promise<CommissionFromObjectiveResult> {
+  const { data: requiredCapabilities } = await objectivesDB.getRequiredCapabilities(input.objectiveId);
+  const capabilityCodes = (requiredCapabilities ?? []).map((c) => c.code);
+
+  const candidates = await findCandidateTemplates(capabilityCodes);
+  const template = candidates.find((c) => c.satisfies);
+  if (!template) {
+    return {
+      ok: false,
+      stage: "select_template",
+      reason: `no Template satisfies every required Capability (candidates checked: ${candidates.map((c) => c.code).join(", ") || "none"})`,
+    };
+  }
+
+  const profile = await createProfile({ templateId: template.id, environment: "development" });
+
+  return commissionSeu({
+    objectiveId: input.objectiveId,
     templateId: template.id,
     profileId: profile.id,
     actorRole: input.actorRole,

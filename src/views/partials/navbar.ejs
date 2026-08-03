@@ -19,7 +19,7 @@
         <% if (_isGeneral) { %>
           <!-- SEU Platform dropdown -->
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle <%= ['seu-dashboard','seu-seus','seu-seus-new','seu-seus-detail','seu-packs'].includes(currentPage) ? 'active' : '' %>"
+            <a class="nav-link dropdown-toggle <%= ['seu-dashboard','seu-objectives','seu-objectives-new','seu-objectives-detail','seu-seus','seu-seus-new','seu-seus-detail','seu-packs'].includes(currentPage) ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               SEU Platform
             </a>
@@ -30,6 +30,14 @@
               <li><a class="dropdown-item <%= currentPage === 'quickview' ? 'active' : '' %>" href="/aisworg/quickview">
                 <i class="bi bi-list-check me-2"></i>Commissioned SEUs
               </a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item <%= ['seu-objectives','seu-objectives-detail'].includes(currentPage) ? 'active' : '' %>" href="/aisworg/seu/objectives">
+                <i class="bi bi-bullseye me-2"></i>Objectives
+              </a></li>
+              <li><a class="dropdown-item <%= currentPage === 'seu-objectives-new' ? 'active' : '' %>" href="/aisworg/seu/objectives/new">
+                <i class="bi bi-plus-lg me-2"></i>New Objective
+              </a></li>
+              <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item <%= ['seu-seus','seu-seus-detail'].includes(currentPage) ? 'active' : '' %>" href="/aisworg/seu/seus">
                 <i class="bi bi-diagram-3 me-2"></i>All SEUs
               </a></li>

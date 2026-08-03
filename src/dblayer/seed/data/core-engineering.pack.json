@@ -41,7 +41,8 @@
     ],
     "authorityRules": [
       { "code": "authority-commission-seu", "governedTransition": "seu.commission", "authorisedRole": "general" },
-      { "code": "authority-transition-deliverable", "governedTransition": "deliverable.transition", "authorisedRole": "general" }
+      { "code": "authority-transition-deliverable", "governedTransition": "deliverable.transition", "authorisedRole": "general" },
+      { "code": "authority-transition-objective", "governedTransition": "objective.transition", "authorisedRole": "general" }
     ],
     "policies": [
       {
@@ -59,6 +60,15 @@
         "category": "Engineering",
         "constraintType": "Policy",
         "governedTransition": "deliverable.transition",
+        "condition": { "type": "always_true" },
+        "severity": "Low"
+      },
+      {
+        "code": "policy-objective-transition-baseline",
+        "name": "Objective transition baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "objective.transition",
         "condition": { "type": "always_true" },
         "severity": "Low"
       }

@@ -4,5 +4,12 @@
   { "entityType": "SEU", "fromState": "Configured", "toState": "Activated", "requiredAuthorityRuleCode": null, "requiredPolicyCodes": [] },
   { "entityType": "SEU", "fromState": "Activated", "toState": "Operational", "requiredAuthorityRuleCode": null, "requiredPolicyCodes": [] },
   { "entityType": "Deliverable", "fromState": "Defined", "toState": "In Progress", "requiredAuthorityRuleCode": "authority-transition-deliverable", "requiredPolicyCodes": ["policy-deliverable-transition-baseline"] },
-  { "entityType": "Deliverable", "fromState": "In Progress", "toState": "Approved", "requiredAuthorityRuleCode": "authority-transition-deliverable", "requiredPolicyCodes": ["policy-deliverable-transition-baseline"] }
+  { "entityType": "Deliverable", "fromState": "In Progress", "toState": "Approved", "requiredAuthorityRuleCode": "authority-transition-deliverable", "requiredPolicyCodes": ["policy-deliverable-transition-baseline"] },
+  { "entityType": "Objective", "fromState": "Proposed", "toState": "Active", "requiredAuthorityRuleCode": "authority-transition-objective", "requiredPolicyCodes": ["policy-objective-transition-baseline"] },
+  { "entityType": "Objective", "fromState": "Active", "toState": "Achieved", "requiredAuthorityRuleCode": "authority-transition-objective", "requiredPolicyCodes": ["policy-objective-transition-baseline"] },
+  { "entityType": "Objective", "fromState": "Active", "toState": "Superseded", "requiredAuthorityRuleCode": "authority-transition-objective", "requiredPolicyCodes": ["policy-objective-transition-baseline"] },
+  { "entityType": "Objective", "fromState": "Active", "toState": "Retired", "requiredAuthorityRuleCode": "authority-transition-objective", "requiredPolicyCodes": ["policy-objective-transition-baseline"] },
+  { "entityType": "Objective", "fromState": "Achieved", "toState": "Archived", "requiredAuthorityRuleCode": "authority-transition-objective", "requiredPolicyCodes": ["policy-objective-transition-baseline"] },
+  { "entityType": "Objective", "fromState": "Superseded", "toState": "Archived", "requiredAuthorityRuleCode": "authority-transition-objective", "requiredPolicyCodes": ["policy-objective-transition-baseline"] },
+  { "entityType": "Objective", "fromState": "Retired", "toState": "Archived", "requiredAuthorityRuleCode": "authority-transition-objective", "requiredPolicyCodes": ["policy-objective-transition-baseline"] }
 ]

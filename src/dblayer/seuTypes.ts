@@ -246,7 +246,7 @@ export interface PolicyRow {
   created_at: string;
 }
 
-export type TransitionEntityType = "SEU" | "Deliverable";
+export type TransitionEntityType = "SEU" | "Deliverable" | "Objective";
 
 export interface TransitionDefinitionRow {
   id: string;

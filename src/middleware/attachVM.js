@@ -38,6 +38,9 @@ export function attachVM(viewName) {
         if (url.includes('/seu/seus/new')) activePage = 'seu-seus-new';
         else if (/\/seu\/seus\/[^/]+$/.test(url.split('?')[0])) activePage = 'seu-seus-detail';
         else if (url.includes('/seu/seus')) activePage = 'seu-seus';
+        else if (url.includes('/seu/objectives/new')) activePage = 'seu-objectives-new';
+        else if (/\/seu\/objectives\/[^/]+$/.test(url.split('?')[0])) activePage = 'seu-objectives-detail';
+        else if (url.includes('/seu/objectives')) activePage = 'seu-objectives';
         else if (url.includes('/seu/packs')) activePage = 'seu-packs';
         else if (url.includes('/seu')) activePage = 'seu-dashboard';
         else if (url.includes('/stocks/data-viewer')) activePage = 'data-viewer';

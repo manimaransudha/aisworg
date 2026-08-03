@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+</head>
+<body>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5" style="max-width: 700px;">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <h2 class="h3 mb-1 text-dark fw-bold">New Objective</h2>
+    <p class="text-muted small mb-4">
+      Created as <strong>Proposed</strong> — activate it from its detail page before commissioning an SEU against it.
+      Checking Capabilities below happens automatically as you type the statement (a starting suggestion,
+      not the sole mechanism — review and adjust before saving).
+    </p>
+
+    <% if (capabilities.length === 0) { %>
+      <div class="alert alert-warning">No Capabilities are loaded yet — run <code>pnpm seed:seu</code> first.</div>
+    <% } else { %>
+      <form method="POST" action="/aisworg/seu/objectives" class="card border-0 shadow-sm p-4">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+        <div class="mb-3">
+          <label for="statement" class="form-label fw-semibold">Statement</label>
+          <textarea id="statement" name="statement" rows="3" class="form-control" required
+                    placeholder="e.g. Stand up a claims-processing platform for a retail insurance client"></textarea>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label for="tier" class="form-label fw-semibold">Tier</label>
+            <select id="tier" name="tier" class="form-select">
+              <option value="Strategic">Strategic</option>
+              <option value="Operational">Operational</option>
+              <option value="Engineering" selected>Engineering</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label for="parentObjectiveId" class="form-label fw-semibold">Parent Objective (optional)</label>
+            <select id="parentObjectiveId" name="parentObjectiveId" class="form-select">
+              <option value="">— none —</option>
+              <% parentOptions.forEach(function(p) { %>
+                <option value="<%= p.id %>"><%= p.tier %>: <%= p.statement.slice(0, 60) %></option>
+              <% }) %>
+            </select>
+            <div class="form-text">A child's tier can't be more strategic than its parent's.</div>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Required Capabilities</label>
+          <div id="capability-list">
+            <% capabilities.forEach(function(c) { %>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="requiredCapabilityCodes" value="<%= c.code %>"
+                       data-code="<%= c.code %>" id="cap-<%= c.code %>">
+                <label class="form-check-label" for="cap-<%= c.code %>">
+                  <%= c.name %> <code class="text-muted small"><%= c.code %></code>
+                </label>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Create Objective</button>
+        <a href="/aisworg/seu/objectives" class="btn btn-link text-muted">Cancel</a>
+      </form>
+    <% } %>
+  </main>
+
+  <script>
+    (function () {
+      var statement = document.getElementById('statement');
+      var debounceTimer;
+      function suggest() {
+        var text = statement.value.trim();
+        if (!text) return;
+        fetch('/aisworg/api/seu/objectives/suggest-capabilities?statement=' + encodeURIComponent(text))
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            (data.capabilityCodes || []).forEach(function (code) {
+              var box = document.querySelector('input[data-code="' + code + '"]');
+              if (box) box.checked = true;
+            });
+          })
+          .catch(function () { /* suggestion is best-effort — silent on failure */ });
+      }
+      if (statement) {
+        statement.addEventListener('blur', suggest);
+        statement.addEventListener('input', function () {
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(suggest, 800);
+        });
+      }
+    })();
+  </script>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>
