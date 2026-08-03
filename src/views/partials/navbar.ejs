@@ -17,19 +17,31 @@
         %>
 
         <% if (_isGeneral) { %>
-          <%
-            const portfolioPages = ['dashboard','quickview','kpi','investors-trend','donchian','bollinger','rsi','macd','confluence','portfolio','simulator','sector-compare','valuation-trend','multibagger','value-chain','dependency-map'];
-            const dataPages      = ['uploads','data-viewer','macroBoard','forensics'];
-          %>
-
-          <!-- Portfolio dropdown (General+, Trading items Super+) -->
+          <!-- SEU Platform dropdown -->
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle
+            <a class="nav-link dropdown-toggle <%= ['seu-dashboard','seu-seus','seu-seus-new','seu-seus-detail','seu-packs'].includes(currentPage) ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              Portfolio
+              SEU Platform
             </a>
+            <ul class="dropdown-menu dropdown-menu-dark">
+              <li><a class="dropdown-item <%= currentPage === 'seu-dashboard' ? 'active' : '' %>" href="/aisworg">
+                <i class="bi bi-speedometer2 me-2"></i>Dashboard
+              </a></li>
+              <li><a class="dropdown-item <%= currentPage === 'quickview' ? 'active' : '' %>" href="/aisworg/quickview">
+                <i class="bi bi-list-check me-2"></i>Commissioned SEUs
+              </a></li>
+              <li><a class="dropdown-item <%= ['seu-seus','seu-seus-detail'].includes(currentPage) ? 'active' : '' %>" href="/aisworg/seu/seus">
+                <i class="bi bi-diagram-3 me-2"></i>All SEUs
+              </a></li>
+              <li><a class="dropdown-item <%= currentPage === 'seu-seus-new' ? 'active' : '' %>" href="/aisworg/seu/seus/new">
+                <i class="bi bi-plus-lg me-2"></i>Commission new SEU
+              </a></li>
+              <li><a class="dropdown-item <%= currentPage === 'seu-packs' ? 'active' : '' %>" href="/aisworg/seu/packs">
+                <i class="bi bi-box-seam me-2"></i>Packs
+              </a></li>
+            </ul>
           </li>
- 
+
         <% } /* isGeneral */ %>
  
 

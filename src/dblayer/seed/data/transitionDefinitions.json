@@ -1,0 +1,8 @@
+[
+  { "entityType": "SEU", "fromState": "Pending", "toState": "Commissioned", "requiredAuthorityRuleCode": "authority-commission-seu", "requiredPolicyCodes": ["policy-commission-baseline"] },
+  { "entityType": "SEU", "fromState": "Commissioned", "toState": "Configured", "requiredAuthorityRuleCode": null, "requiredPolicyCodes": [] },
+  { "entityType": "SEU", "fromState": "Configured", "toState": "Activated", "requiredAuthorityRuleCode": null, "requiredPolicyCodes": [] },
+  { "entityType": "SEU", "fromState": "Activated", "toState": "Operational", "requiredAuthorityRuleCode": null, "requiredPolicyCodes": [] },
+  { "entityType": "Deliverable", "fromState": "Defined", "toState": "In Progress", "requiredAuthorityRuleCode": "authority-transition-deliverable", "requiredPolicyCodes": ["policy-deliverable-transition-baseline"] },
+  { "entityType": "Deliverable", "fromState": "In Progress", "toState": "Approved", "requiredAuthorityRuleCode": "authority-transition-deliverable", "requiredPolicyCodes": ["policy-deliverable-transition-baseline"] }
+]

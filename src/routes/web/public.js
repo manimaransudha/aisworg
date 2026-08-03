@@ -7,18 +7,27 @@ const router = express.Router();
 import { attachVM } from "../../middleware/attachVM.js";
 import { requireRole } from "../../middleware/auth.js";
 import { renderView } from "../../utils/viewModel.js";
-// import { getFlash } from "../../utils/flash.js";
+import { getFlash } from "../../utils/flash.js";
 // import { isConnectionError } from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { appConfig } from "../../config/appconfig.js";
 // import { redirects } from "../../middleware/redirects.js";
+import { getArchitectureLayers, getDashboardCounts } from "../seu/core/dashboard.js";
+import { getSeuQuickview } from "../seu/core/seus.js";
 
-/** GET / - Public Landing Page */
-router.get("/", attachVM("home"), async (req, res) => {
-
-  return renderView(req, res, "home/index", {
-    title: "Home"
-  });
+/** GET / — the SEU Commissioning Platform's home page: the architecture layers + live counts. */
+router.get("/", requireRole('general'), attachVM("seu/dashboard"), async (req, res, next) => {
+  try {
+    const [layers, counts] = await Promise.all([getArchitectureLayers(), getDashboardCounts()]);
+    req.vm.req.title = "SEU Platform";
+    req.vm.req.layers = layers;
+    req.vm.req.counts = counts;
+    req.vm.opt.flash = getFlash(req);
+    return renderView(req, res, "seu/dashboard", req.vm);
+  } catch (err) {
+    logger.error("[Home] GET / error:", err);
+    next(err);
+  }
 });
 
 /** GET /settings — display app settings */
@@ -76,10 +85,12 @@ router.post("/settings/:key", requireRole('super'), async (req, res, next) => {
   }
 });
 
-/** GET /quickview — display portfolio quickview */
+/** GET /quickview — post-login landing: progress on every commissioned SEU. */
 router.get("/quickview", requireRole('general'), attachVM("quickview/index"), async (req, res, next) => {
   try {
-    req.vm.req.title = "Portfolio QuickView";
+    req.vm.req.title = "Commissioned SEUs";
+    req.vm.req.seus = await getSeuQuickview();
+    req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "quickview/index", req.vm);
   } catch (err) {
     logger.error("[QuickView] GET error:", err);

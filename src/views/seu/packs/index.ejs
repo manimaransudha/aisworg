@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+  <style>
+    .classification-badge { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; padding: 0.2rem 0.5rem; border-radius: 999px; background: #ede9fe; color: #5b21b6; }
+  </style>
+</head>
+<body>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5" style="max-width: 1000px;">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-1 text-dark fw-bold">Packs</h2>
+      <p class="text-muted small mb-0">
+        Extension Framework — Pack Manager. Hand-authored JSON, loaded via <code>pnpm seed:seu</code> (no Pack SDK yet).
+      </p>
+    </div>
+
+    <% if (packs.length === 0) { %>
+      <div class="alert alert-warning">No Packs loaded — run <code>pnpm seed:seu</code>.</div>
+    <% } else { %>
+      <% packs.forEach(function(p) { %>
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <h5 class="mb-1"><%= p.name %> <code class="text-muted small"><%= p.code %></code></h5>
+                <p class="text-muted small mb-2">
+                  <%= p.category %> &middot; v<%= p.pack_version %> &middot; <%= p.status %>
+                </p>
+              </div>
+              <span class="classification-badge"><%= p.installation_classification %></span>
+            </div>
+            <div class="row small text-muted g-2">
+              <div class="col-auto"><i class="bi bi-diagram-3 me-1"></i><%= (p.contributions.capabilities || []).length %> Capabilities</div>
+              <div class="col-auto"><i class="bi bi-hand-index me-1"></i><%= (p.contributions.services || []).length %> Services</div>
+              <div class="col-auto"><i class="bi bi-shield-check me-1"></i><%= (p.contributions.authorityRules || []).length %> Authority Rules</div>
+              <div class="col-auto"><i class="bi bi-journal-check me-1"></i><%= (p.contributions.policies || []).length %> Policies</div>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    <% } %>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

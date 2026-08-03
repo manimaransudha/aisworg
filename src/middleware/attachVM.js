@@ -35,7 +35,12 @@ export function attachVM(viewName) {
         const url = req.originalUrl || '';
         let activePage = 'home';
 
-        if (url.includes('/stocks/data-viewer')) activePage = 'data-viewer';
+        if (url.includes('/seu/seus/new')) activePage = 'seu-seus-new';
+        else if (/\/seu\/seus\/[^/]+$/.test(url.split('?')[0])) activePage = 'seu-seus-detail';
+        else if (url.includes('/seu/seus')) activePage = 'seu-seus';
+        else if (url.includes('/seu/packs')) activePage = 'seu-packs';
+        else if (url.includes('/seu')) activePage = 'seu-dashboard';
+        else if (url.includes('/stocks/data-viewer')) activePage = 'data-viewer';
         else if (url.includes('/stocks')) activePage = 'stocks';
         else if (url.includes('/quickview')) activePage = 'quickview';
         else if (url.includes('/agent')) activePage = 'agent';
@@ -62,7 +67,7 @@ export function attachVM(viewName) {
         else if (url.includes('/investors'))   activePage = 'investors-trend';
         else if (url.includes('/forensics'))   activePage = 'forensics';
         else if (url.includes('/portfolio'))   activePage = 'portfolio';
-        else if (url === '/aisworg' || url === '/aisworg/') activePage = 'home';
+        else if (url === '/aisworg' || url === '/aisworg/') activePage = 'seu-dashboard';
 
         // Render using a hybrid object: both flat keys AND structured req/opt
         const viewData = {

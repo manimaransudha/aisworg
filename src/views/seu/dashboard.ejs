@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../partials/head') %>
+  <style>
+    .layer-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); background: #fff; margin-bottom: 1.5rem; overflow: hidden; }
+    .layer-header { background: linear-gradient(135deg, #4f46e5, #6366f1); color: #fff; font-weight: 600; font-size: 0.95rem; padding: 0.85rem 1.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .component-row { padding: 0.9rem 1.25rem; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+    .component-row:last-child { border-bottom: none; }
+    .component-name { font-weight: 600; color: #1e293b; font-size: 0.9rem; }
+    .component-note { color: #64748b; font-size: 0.78rem; margin-top: 0.15rem; }
+    .status-badge { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.22rem 0.55rem; border-radius: 999px; white-space: nowrap; }
+    .status-live { background: #dcfce7; color: #166534; }
+    .status-partial { background: #fef9c3; color: #854d0e; }
+    .status-deferred { background: #f1f5f9; color: #64748b; }
+    .stat-tile { border-radius: 12px; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.03); padding: 1.25rem; text-align: center; }
+    .stat-value { font-size: 2rem; font-weight: 700; color: #4f46e5; }
+    .stat-label { font-size: 0.8rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
+  </style>
+</head>
+<body>
+  <header><%- include('../partials/navbar') %></header>
+
+  <main class="container py-5" style="max-width: 1000px;">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-1 text-dark fw-bold">SEU Commissioning Platform</h2>
+      <p class="text-muted small mb-0">
+        Laid out against the platform's own architecture diagram
+        (<code>design/foundations/03_Book 3 (Refined)/Introduction.md</code> — "The architecture becomes").
+        <span class="status-badge status-live">Live</span> is built and working today,
+        <span class="status-badge status-partial">Partial</span> is a minimal real instance, not the full model,
+        <span class="status-badge status-deferred">Deferred</span> is out of MVP scope.
+      </p>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <a href="/aisworg/seu/seus" class="text-decoration-none">
+          <div class="stat-tile">
+            <div class="stat-value"><%= counts.seuCount %></div>
+            <div class="stat-label">SEUs Commissioned</div>
+          </div>
+        </a>
+      </div>
+      <div class="col-md-4">
+        <a href="/aisworg/seu/packs" class="text-decoration-none">
+          <div class="stat-tile">
+            <div class="stat-value"><%= counts.packCount %></div>
+            <div class="stat-label">Packs Loaded</div>
+          </div>
+        </a>
+      </div>
+      <div class="col-md-4">
+        <div class="stat-tile">
+          <div class="stat-value"><%= counts.eventCount %></div>
+          <div class="stat-label">Events Published</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end mb-3">
+      <a href="/aisworg/seu/seus/new" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Commission a new SEU</a>
+    </div>
+
+    <% layers.forEach(function(layer) { %>
+      <div class="layer-card">
+        <div class="layer-header"><%= layer.name %></div>
+        <div>
+          <% layer.components.forEach(function(c) { %>
+            <div class="component-row">
+              <div>
+                <div class="component-name">
+                  <% if (c.href) { %><a href="<%= c.href %>" class="text-decoration-none"><%= c.name %></a><% } else { %><%= c.name %><% } %>
+                </div>
+                <div class="component-note"><%= c.note %></div>
+              </div>
+              <span class="status-badge status-<%= c.status %>"><%= c.status %></span>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    <% }) %>
+
+    <% if (counts.recentEvents.length > 0) { %>
+      <div class="layer-card">
+        <div class="layer-header">Recent Runtime Kernel Events</div>
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead class="table-light"><tr><th>Type</th><th>Object</th><th>When</th></tr></thead>
+            <tbody>
+              <% counts.recentEvents.forEach(function(e) { %>
+                <tr>
+                  <td class="small"><code><%= e.event_type %></code></td>
+                  <td class="small text-muted"><%= e.originating_object_type %></td>
+                  <td class="small text-muted"><%= new Date(e.occurred_at).toLocaleString() %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% } %>
+  </main>
+
+  <%- include('../partials/footer') %>
+</body>
+</html>

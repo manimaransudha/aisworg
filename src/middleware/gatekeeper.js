@@ -1,8 +1,6 @@
 import { logger } from '../utils/logger.js';
 
 const PUBLIC_EXACT = new Set([
-  '/aisworg',
-  '/aisworg/',
   '/favicon.ico',
 ]);
 

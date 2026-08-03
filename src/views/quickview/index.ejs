@@ -1,11 +1,75 @@
-<%- include('../partials/head') %>
-<%- include('../partials/navbar') %>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../partials/head') %>
+  <style>
+    .card-tile { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); background: #fff; margin-bottom: 1rem; padding: 1.25rem; }
+    .state-badge { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; padding: 0.22rem 0.6rem; border-radius: 999px; }
+    .state-Operational { background: #dcfce7; color: #166534; }
+    .state-Pending, .state-Commissioned, .state-Configured, .state-Activated { background: #fef9c3; color: #854d0e; }
+    .state-Suspended, .state-Retired, .state-Archived { background: #f1f5f9; color: #64748b; }
+    .progress { height: 6px; border-radius: 999px; }
+  </style>
+</head>
+<body>
+  <header><%- include('../partials/navbar') %></header>
 
-<main class="container my-5 text-center">
-  <div class="py-5">
-    <h1 class="display-4 fw-bold text-primary">Portfolio QuickView</h1>
-    <p class="lead text-muted">Welcome to the Portfolio QuickView page.</p>
-  </div>
-</main>
+  <main class="container py-5" style="max-width: 900px;">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
 
-<%- include('../partials/footer') %>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h2 class="h3 mb-1 text-dark fw-bold">Commissioned SEUs</h2>
+        <p class="text-muted small mb-0">Where every Software Engineering Unit you've commissioned currently stands.</p>
+      </div>
+      <a href="/aisworg/seu/seus/new" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Commission a new SEU</a>
+    </div>
+
+    <% if (seus.length === 0) { %>
+      <div class="alert alert-light border text-center py-5">
+        <p class="mb-3 text-muted">No SEUs commissioned yet.</p>
+        <a href="/aisworg/seu/seus/new" class="btn btn-primary btn-sm">Commission your first one</a>
+      </div>
+    <% } else { %>
+      <% seus.forEach(function(s) { %>
+        <a href="/aisworg/seu/seus/<%= s.id %>" class="text-decoration-none text-reset">
+          <div class="card-tile">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div class="fw-semibold text-dark"><%= s.objectiveStatement %></div>
+              <span class="state-badge state-<%= s.lifecycleState %>"><%= s.lifecycleState %></span>
+            </div>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <div class="d-flex justify-content-between small text-muted mb-1">
+                  <span>Capabilities Fulfilled</span>
+                  <span><%= s.capabilitiesFulfilled %> / <%= s.capabilitiesTotal %></span>
+                </div>
+                <div class="progress">
+                  <div class="progress-bar bg-success" style="width: <%= s.capabilitiesTotal ? Math.round(100 * s.capabilitiesFulfilled / s.capabilitiesTotal) : 0 %>%"></div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="d-flex justify-content-between small text-muted mb-1">
+                  <span>Deliverables Advanced</span>
+                  <span><%= s.deliverablesAdvanced %> / <%= s.deliverablesTotal %></span>
+                </div>
+                <div class="progress">
+                  <div class="progress-bar bg-primary" style="width: <%= s.deliverablesTotal ? Math.round(100 * s.deliverablesAdvanced / s.deliverablesTotal) : 0 %>%"></div>
+                </div>
+              </div>
+            </div>
+            <div class="text-muted mt-2" style="font-size: 0.72rem;">Commissioned <%= new Date(s.createdAt).toLocaleString() %></div>
+          </div>
+        </a>
+      <% }) %>
+    <% } %>
+  </main>
+
+  <%- include('../partials/footer') %>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "code": "template-web-application",
+  "name": "Web Application",
+  "requiredCapabilityCodes": ["requirements-analysis", "architecture", "development"],
+  "mandatoryPackCodes": ["platform-core-engineering"],
+  "deliverableCatalogue": [
+    {
+      "code": "requirements-spec",
+      "name": "Requirements Specification",
+      "category": "Documentation",
+      "producingCapabilityCode": "requirements-analysis"
+    },
+    {
+      "code": "architecture-doc",
+      "name": "Architecture Document",
+      "category": "Documentation",
+      "producingCapabilityCode": "architecture",
+      "dependsOnDeliverableCodes": ["requirements-spec"]
+    }
+  ]
+}

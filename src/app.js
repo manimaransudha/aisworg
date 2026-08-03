@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 import { createRequire } from "module";
+import { fileURLToPath } from "url";
 const require = createRequire(import.meta.url);
 const express = require("express");
 const session = require("express-session");
@@ -23,6 +24,8 @@ import { doubleCsrf } from "csrf-csrf";
 import { router as publicRouter } from "./routes/web/public.js";
 import { router as authRouter } from "./routes/web/auth.js";
 import { router as demoRouter } from "./routes/web/demo.js";
+import { router as seuApiRouter } from "./routes/seu/api/index.js";
+import { router as seuWebRouter } from "./routes/seu/web/index.js";
 
 const app = express();
 const PORT = process.env.PORT || 4800;
@@ -47,6 +50,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 app.use(express.json({ limit: '500mb' }));
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(process.cwd(), "public")));
 app.use('/aisworg', express.static(path.join(process.cwd(), "public")));
@@ -78,9 +82,7 @@ app.use(session({
 if (process.env.NODE_ENV !== 'production') {
     app.use((req, res, next) => {
         const path = req.path;
-        const isPublic = 
-            path === '/aisworg' || 
-            path === '/aisworg/' || 
+        const isPublic =
             path === '/favicon.ico' ||
             path.startsWith('/css/') ||
             path.startsWith('/js/') ||
@@ -143,8 +145,11 @@ app.use((req, res, next) => {
 // // cannot embed a CSRF token, and they are already protected by session auth.
 // /aisworg/demo/* is exempted — those routes are called from static HTML that
 // cannot embed a CSRF token, and they are already protected by session auth.
+// /aisworg/api/seu/* is exempted for the same reason — it's a session-authenticated
+// JSON API meant to be called by any client (curl, test scripts, future non-browser
+// integrations), not a browser form that can carry a CSRF token (MVP Build Plan §2.3).
 app.use((req, res, next) => {
-    if (req.path.startsWith('/aisworg/demo/')) return next();
+    if (req.path.startsWith('/aisworg/demo/') || req.path.startsWith('/aisworg/api/seu/')) return next();
     return doubleCsrfProtection(req, res, next);
 });
 
@@ -171,6 +176,8 @@ app.use(requestLogger);
 app.use("/aisworg", publicRouter);
 app.use("/aisworg/auth", authRouter);
 app.use("/aisworg/demo", requireRole('general'), demoRouter);
+app.use("/aisworg/api/seu", requireRole('general'), seuApiRouter);
+app.use("/aisworg/seu", requireRole('general'), seuWebRouter);
 
 // ── Super-only routes ─────────────────────────────────────────────────────────
 // app.use("/aisworg/super", requireRole('super'), superRouter);
@@ -182,14 +189,21 @@ app.get("/", (req, res) => res.redirect("/aisworg"));
 
 app.use(errorHandler);
 
-app.listen(PORT, async () => {
-    await appConfig.init();
-    logger.info(`AI SEU running on ${PORT}`);
-    logger.info(`Environment: ${process.env.NODE_ENV || "development"}`);
-    logger.info(`Log Level: ${process.env.LOG_LEVEL || "info"}`);
-});
+// Only auto-listen when this file is the process entry point (`pnpm start` /
+// `pnpm dev`, both run `tsx src/app.js` directly). When imported as a module —
+// e.g. the M5 acceptance test importing `app` to boot it on an ephemeral port —
+// listening is the importer's responsibility, so tests don't collide with a
+// dev server already bound to PORT.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+    app.listen(PORT, async () => {
+        await appConfig.init();
+        logger.info(`AI SEU running on ${PORT}`);
+        logger.info(`Environment: ${process.env.NODE_ENV || "development"}`);
+        logger.info(`Log Level: ${process.env.LOG_LEVEL || "info"}`);
+    });
 
-process.on("SIGTERM", () => { logger.info("SIGTERM"); process.exit(0); });
-process.on("SIGINT", () => { logger.info("SIGINT"); process.exit(0); });
+    process.on("SIGTERM", () => { logger.info("SIGTERM"); process.exit(0); });
+    process.on("SIGINT", () => { logger.info("SIGINT"); process.exit(0); });
+}
 
 export default app;

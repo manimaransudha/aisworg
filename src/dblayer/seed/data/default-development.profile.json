@@ -1,0 +1,7 @@
+{
+  "code": "profile-default-development",
+  "name": "Default Development Profile",
+  "baseTemplateCode": "template-web-application",
+  "environment": "development",
+  "configParameters": {}
+}

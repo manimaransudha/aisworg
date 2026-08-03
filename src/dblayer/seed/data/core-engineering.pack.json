@@ -1,0 +1,67 @@
+{
+  "code": "platform-core-engineering",
+  "name": "Core Engineering Practices",
+  "category": "Platform",
+  "packVersion": "1.0.0",
+  "installationClassification": "Mandatory",
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "requirements-analysis",
+        "name": "Requirements Analysis",
+        "description": "Elicits and specifies engineering requirements.",
+        "category": "Engineering"
+      },
+      {
+        "code": "architecture",
+        "name": "Architecture",
+        "description": "Designs the technical solution structure.",
+        "category": "Engineering"
+      },
+      {
+        "code": "development",
+        "name": "Development",
+        "description": "Implements the solution against the approved architecture.",
+        "category": "Engineering"
+      }
+    ],
+    "services": [
+      {
+        "capabilityCode": "requirements-analysis",
+        "name": "Approved Requirements Specification",
+        "contractDescription": "A reviewed, approved statement of what the solution must do.",
+        "serviceLevel": { "qualityBar": "peer-reviewed" }
+      },
+      {
+        "capabilityCode": "architecture",
+        "name": "Approved Architecture",
+        "contractDescription": "A reviewed, approved technical design satisfying the approved requirements.",
+        "serviceLevel": { "qualityBar": "peer-reviewed" }
+      }
+    ],
+    "authorityRules": [
+      { "code": "authority-commission-seu", "governedTransition": "seu.commission", "authorisedRole": "general" },
+      { "code": "authority-transition-deliverable", "governedTransition": "deliverable.transition", "authorisedRole": "general" }
+    ],
+    "policies": [
+      {
+        "code": "policy-commission-baseline",
+        "name": "Commissioning baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "seu.commission",
+        "condition": { "type": "always_true" },
+        "severity": "Medium"
+      },
+      {
+        "code": "policy-deliverable-transition-baseline",
+        "name": "Deliverable transition baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "deliverable.transition",
+        "condition": { "type": "always_true" },
+        "severity": "Low"
+      }
+    ]
+  }
+}
