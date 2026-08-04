@@ -6,6 +6,7 @@ import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
 import { executionEngine } from "../../../domain/engine/executionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { checkSustainedQualityGateBlocking } from "./telemetry.js";
+import { raiseAttentionItem } from "./attentionItems.js";
 import type { DeliverableRow, DependencyEdgeRow } from "../../../dblayer/seuTypes.js";
 
 export async function createDeliverable(input: {
@@ -88,6 +89,19 @@ export async function transitionDeliverable(input: {
     // into routes/seu/core/, and the engine layer never calls back into core
     // (Build Plan §2.2's one-way "core orchestrates engine" split).
     await checkSustainedQualityGateBlocking({ qualityGateId: qualityGateResult.gate.id, gateName: qualityGateResult.gate.name, seuId: deliverable.seu_id, deliverableId: deliverable.id });
+    // Ch.34: not every Event needs attention (AM-002) — but a genuinely
+    // blocked governed transition is exactly the "Execution Engine can't
+    // automatically continue" case Ch.34's own worked examples call out as
+    // requiring it. Deduplicated per (SEU, Deliverable) so retries of the
+    // same blocked attempt don't flood the inbox.
+    await raiseAttentionItem({
+      seuId: deliverable.seu_id,
+      category: "Action Required",
+      title: `Deliverable "${deliverable.name}" is blocked by Quality Gate "${qualityGateResult.gate.name}"`,
+      description: qualityGateResult.reason,
+      relatedObjectType: "Deliverable",
+      relatedObjectId: deliverable.id,
+    });
     return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
   }
 

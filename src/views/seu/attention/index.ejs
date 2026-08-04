@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+  <style>
+    .section-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); background: #fff; margin-bottom: 1.5rem; overflow: hidden; }
+    .section-header { background: #0f172a; color: #fff; font-weight: 600; font-size: 0.9rem; padding: 0.85rem 1.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .priority-badge { font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
+    .priority-High { background: #fee2e2; color: #b91c1c; }
+    .priority-Medium { background: #fef3c7; color: #92400e; }
+    .priority-Low { background: #e2e8f0; color: #475569; }
+  </style>
+</head>
+<body>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5" style="max-width: 1100px;">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-1 text-dark fw-bold">Attention</h2>
+      <p class="text-muted small mb-0">
+        Ch.34 — a platform-wide inbox of Attention Items derived automatically from engineering events (Quality Gate
+        blocks, sustained blocking patterns, failed External Interactions). Nothing here is filed by hand — Attention
+        Items are raised by the system, and are minimised by deduplicating on the same open situation (AM-002).
+      </p>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">Attention Items</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th>Priority</th><th>Category</th><th>Title</th><th>Related To</th><th>Status</th><th>Transition</th></tr>
+          </thead>
+          <tbody>
+            <% if (attentionItems.length === 0) { %>
+              <tr><td colspan="6" class="text-muted small">No Attention Items — nothing has raised one yet.</td></tr>
+            <% } %>
+            <% attentionItems.forEach(function(a) { %>
+              <tr>
+                <td><span class="priority-badge priority-<%= a.attentionItem.priority %>"><%= a.attentionItem.priority %></span></td>
+                <td class="small"><%= a.attentionItem.category %></td>
+                <td class="small">
+                  <div class="fw-semibold"><%= a.attentionItem.title %></div>
+                  <% if (a.attentionItem.description) { %>
+                    <div class="text-muted"><%= a.attentionItem.description %></div>
+                  <% } %>
+                </td>
+                <td class="small text-muted">
+                  <% if (a.attentionItem.related_object_type) { %>
+                    <%= a.attentionItem.related_object_type %>
+                  <% } else { %>
+                    &mdash;
+                  <% } %>
+                </td>
+                <td><span class="state-badge state-<%= a.attentionItem.status.replace(/\s+/g, '-') %>"><%= a.attentionItem.status %></span></td>
+                <td>
+                  <% if (a.possibleNextStates.length === 0) { %>
+                    <span class="text-muted small">no further transitions defined</span>
+                  <% } else { %>
+                    <form method="POST" action="/aisworg/seu/attention/<%= a.attentionItem.id %>/transition"
+                          class="d-flex align-items-center gap-2">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <select name="targetState" class="form-select form-select-sm" style="width: auto;">
+                        <% a.possibleNextStates.forEach(function(s) { %>
+                          <option value="<%= s %>"><%= s %></option>
+                        <% }) %>
+                      </select>
+                      <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
+                    </form>
+                  <% } %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

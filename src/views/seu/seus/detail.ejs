@@ -479,6 +479,75 @@
     </div>
 
     <div class="section-card">
+      <div class="section-header">External Interactions</div>
+      <div class="p-3 border-bottom">
+        <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/external-interactions" class="row g-2 align-items-center">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <div class="col-auto">
+            <select name="deliverableId" class="form-select form-select-sm">
+              <option value="">(not tied to a Deliverable)</option>
+              <% detail.deliverables.forEach(function(d) { %>
+                <option value="<%= d.id %>"><%= d.name %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="col-auto">
+            <select name="direction" class="form-select form-select-sm">
+              <option value="Outbound">Outbound</option>
+              <option value="Inbound">Inbound</option>
+            </select>
+          </div>
+          <div class="col-auto">
+            <input type="text" name="interactionType" class="form-control form-control-sm" placeholder="Interaction type" required style="width: 160px;">
+          </div>
+          <div class="col-auto">
+            <input type="text" name="targetSystem" class="form-control form-control-sm" placeholder="Target system" required style="width: 160px;">
+          </div>
+          <div class="col-auto">
+            <input type="text" name="purpose" class="form-control form-control-sm" placeholder="Purpose" style="width: 200px;">
+          </div>
+          <div class="col-auto">
+            <button type="submit" class="btn btn-sm btn-primary">Record Interaction</button>
+          </div>
+        </form>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light"><tr><th>Deliverable</th><th>Type / Direction</th><th>Target System</th><th>Status</th><th>Transition</th></tr></thead>
+          <tbody>
+            <% if (detail.externalInteractions.length === 0) { %>
+              <tr><td colspan="5" class="text-muted small">No External Interactions recorded yet — Ch.36: a transition to "Failed" automatically raises an Attention Item.</td></tr>
+            <% } %>
+            <% detail.externalInteractions.forEach(function(ei) { %>
+              <tr>
+                <td class="small"><%= ei.deliverableName || '—' %></td>
+                <td class="small"><%= ei.interaction.interaction_type %> &middot; <%= ei.interaction.direction %></td>
+                <td class="small"><%= ei.interaction.target_system %><% if (ei.interaction.purpose) { %><br><span class="text-muted" style="font-size:0.72rem;"><%= ei.interaction.purpose %></span><% } %></td>
+                <td><span class="state-badge state-<%= ei.interaction.status.replace(/\s+/g, '-') %>"><%= ei.interaction.status %></span></td>
+                <td>
+                  <% if (ei.possibleNextStates.length === 0) { %>
+                    <span class="text-muted small">no further transitions defined</span>
+                  <% } else { %>
+                    <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/external-interactions/<%= ei.interaction.id %>/transition"
+                          class="d-flex align-items-center gap-2">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <select name="targetState" class="form-select form-select-sm" style="width: auto;">
+                        <% ei.possibleNextStates.forEach(function(s) { %>
+                          <option value="<%= s %>"><%= s %></option>
+                        <% }) %>
+                      </select>
+                      <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
+                    </form>
+                  <% } %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section-card">
       <div class="section-header">Events</div>
       <div class="table-responsive">
         <table class="table table-sm mb-0">

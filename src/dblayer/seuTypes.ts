@@ -265,7 +265,17 @@ export interface PolicyRow {
   created_at: string;
 }
 
-export type TransitionEntityType = "SEU" | "Deliverable" | "Objective" | "Obligation" | "Evidence" | "Knowledge" | "Decision" | "KnowledgeScope";
+export type TransitionEntityType =
+  | "SEU"
+  | "Deliverable"
+  | "Objective"
+  | "Obligation"
+  | "Evidence"
+  | "Knowledge"
+  | "Decision"
+  | "KnowledgeScope"
+  | "AttentionItem"
+  | "ExternalInteraction";
 
 export interface TransitionDefinitionRow {
   id: string;
@@ -443,4 +453,39 @@ export interface QualityGateLatencyRow {
   first_blocked_at: string | null;
   passed_at: string;
   latency_seconds: number;
+}
+
+// Post-MVP Phase 8 (Ch.34 Attention Management Model). status is not a fixed
+// union — same dynamic-validation-by-transitionEngine precedent as every
+// other governed entity. related_object_type/id are informational only, no
+// FK (see 009_attention_and_interaction.sql for why).
+export interface AttentionItemRow {
+  id: string;
+  seu_id: string;
+  category: string;
+  priority: string;
+  title: string;
+  description: string | null;
+  related_object_type: string | null;
+  related_object_id: string | null;
+  triggering_event_id: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type InteractionDirection = "Inbound" | "Outbound";
+
+// Post-MVP Phase 8 (Ch.36 External Interaction Model).
+export interface ExternalInteractionRow {
+  id: string;
+  seu_id: string;
+  deliverable_id: string | null;
+  interaction_type: string;
+  direction: InteractionDirection;
+  target_system: string;
+  purpose: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
 }

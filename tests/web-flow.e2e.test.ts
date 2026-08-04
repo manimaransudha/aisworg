@@ -488,3 +488,97 @@ test("Phase 7 — Flow and Governance Telemetry are real, and a sustained patter
   const telemetryAfter = await getPage(request, "/seu/telemetry");
   assert.match(telemetryAfter.html, /No Unresolved Obligations/);
 });
+
+function findExternalInteractionId(html: string): string {
+  const match = html.match(/external-interactions\/([a-f0-9-]+)\/transition/);
+  if (!match) throw new Error("could not find an External Interaction transition form on the page");
+  return match[1];
+}
+
+function findAttentionItemId(html: string): string {
+  const match = html.match(/attention\/([a-f0-9-]+)\/transition/);
+  if (!match) throw new Error("could not find an Attention Item transition form on the page");
+  return match[1];
+}
+
+// Post-MVP Phase 8 addition (Ch.34 Attention Management, Ch.36 External
+// Interaction). No "How this expands" pointer exists for Phase 8 in this
+// brief yet (Post-MVP Build Sequence.md's own Phase 8 entry has no "Done
+// when" line either — see that doc's Phase 8 completion notes for the
+// self-derived scope bar this test is built against), so this walks the same
+// two real browser flows the manual audit checked: (1) a blocked Quality Gate
+// automatically surfaces an Attention Item on the platform-wide inbox, and
+// (2) a manually-recorded External Interaction, transitioned to Failed,
+// automatically surfaces a second, Exception-category Attention Item —
+// the Ch.36 §13 -> Ch.34 cross-chapter integration point.
+test("Phase 8 — a blocked Quality Gate and a failed External Interaction both surface real Attention Items on the platform-wide inbox", async () => {
+  const request = newSession();
+  const { seuId, csrf } = await commissionSeu(request, "webflow-phase8");
+  const before1 = await getPage(request, `/seu/seus/${seuId}`);
+  const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
+  const deliverableId = findDeliverableId(before1.html, "Requirements Specification");
+
+  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantType: "AI", displayName: "WebFlow Analyst" });
+  await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "In Progress" });
+
+  const createdObligation = await postForm(request, `/seu/seus/${seuId}/obligations`, csrf, {
+    deliverableId,
+    category: "Engineering",
+    title: "WebFlow Phase8 blocker",
+  });
+  assert.equal(createdObligation.status, 302);
+
+  const blocked = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "Approved" });
+  assert.equal(blocked.status, 302, "a blocked transition is still a graceful redirect, not a 500");
+
+  const attentionAfterBlock = await getPage(request, "/seu/attention");
+  assert.equal(attentionAfterBlock.status, 200);
+  assert.match(attentionAfterBlock.html, /is blocked by Quality Gate/);
+  assert.match(attentionAfterBlock.html, /Action Required/);
+
+  // A repeated attempt against the same still-unresolved Obligation must not
+  // add a second row (AM-002 dedup, same discipline as Phase 7's Obligation
+  // dedup) — asserted through the seuId-scoped JSON API, since the platform-
+  // wide inbox page also carries other tests' fixtures sharing this same
+  // Deliverable name and can't be counted by substring alone.
+  await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "Approved" });
+  const scopedRes = await request(`${baseUrl}/api/seu/attention-items?seuId=${seuId}`);
+  assert.equal(scopedRes.status, 200);
+  const scopedBody = (await scopedRes.json()) as { attentionItems: Array<{ category: string; title: string }> };
+  const actionRequired = scopedBody.attentionItems.filter((a) => a.category === "Action Required");
+  assert.equal(actionRequired.length, 1, "one blocked situation must produce exactly one Attention Item, however many times it's retried");
+
+  const attentionAfterSecondBlock = await getPage(request, "/seu/attention");
+  // Walk that Attention Item through its own lifecycle.
+  const attentionItemId = findAttentionItemId(attentionAfterSecondBlock.html);
+  const attentionStep = await postForm(request, `/seu/attention/${attentionItemId}/transition`, csrf, { targetState: "Delivered" });
+  assert.equal(attentionStep.status, 302);
+  const afterAttentionStep = await getPage(request, "/seu/attention");
+  assert.match(afterAttentionStep.html, /alert-success/);
+
+  // External Interaction: record one against the same Deliverable, then fail it.
+  const interactionCreated = await postForm(request, `/seu/seus/${seuId}/external-interactions`, csrf, {
+    deliverableId,
+    interactionType: "API Call",
+    direction: "Outbound",
+    targetSystem: "WebFlow Phase8 Ticketing System",
+  });
+  assert.equal(interactionCreated.status, 302);
+  const afterInteractionCreated = await getPage(request, `/seu/seus/${seuId}`);
+  assert.match(afterInteractionCreated.html, /WebFlow Phase8 Ticketing System/);
+  const interactionId = findExternalInteractionId(afterInteractionCreated.html);
+
+  const toValidated = await postForm(request, `/seu/seus/${seuId}/external-interactions/${interactionId}/transition`, csrf, { targetState: "Validated" });
+  assert.equal(toValidated.status, 302);
+  const toDispatched = await postForm(request, `/seu/seus/${seuId}/external-interactions/${interactionId}/transition`, csrf, { targetState: "Dispatched" });
+  assert.equal(toDispatched.status, 302);
+  const toFailed = await postForm(request, `/seu/seus/${seuId}/external-interactions/${interactionId}/transition`, csrf, { targetState: "Failed" });
+  assert.equal(toFailed.status, 302, "a failing transition is still a graceful redirect, not a 500");
+
+  const afterFailed = await getPage(request, `/seu/seus/${seuId}`);
+  assert.match(afterFailed.html, /state-badge state-Failed">Failed/);
+
+  const attentionAfterFailure = await getPage(request, "/seu/attention");
+  assert.match(attentionAfterFailure.html, /External Interaction with[\s\S]*?WebFlow Phase8 Ticketing System[\s\S]*?failed/);
+  assert.match(attentionAfterFailure.html, /Exception/);
+});

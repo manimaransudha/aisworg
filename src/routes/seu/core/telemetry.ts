@@ -11,6 +11,7 @@ import { qualityGateEvaluationsDB } from "../../../dblayer/qualityGateEvaluation
 import { obligationsDB } from "../../../dblayer/obligationsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { createObligation } from "./obligations.js";
+import { raiseAttentionItem } from "./attentionItems.js";
 import type { DeliverableCycleTimeRow, ObligationRow, QualityGateLatencyRow } from "../../../dblayer/seuTypes.js";
 
 export interface FlowMetrics {
@@ -119,6 +120,20 @@ export async function checkSustainedQualityGateBlocking(input: {
     originatingObjectId: input.qualityGateId,
     correlationId: eventBus.newCorrelationId(),
     payload: { seuId: input.seuId, blockedCount, threshold: SUSTAINED_BLOCK_THRESHOLD, obligationId: obligation.id },
+  });
+
+  // Ch.34 §7: a sustained organisational pattern is exactly the "Escalation"
+  // category ("Requires management attention") — distinct from the
+  // per-attempt "Action Required" Attention Item transitionDeliverable
+  // already raises for the ordinary blocked-transition case.
+  await raiseAttentionItem({
+    seuId: input.seuId,
+    category: "Escalation",
+    priority: "High",
+    title: `Sustained pattern: Quality Gate "${input.gateName}" needs review`,
+    description: `Organisational Learning Obligation ${obligation.id} was raised after ${blockedCount} Blocked evaluations of this gate in this SEU.`,
+    relatedObjectType: "Obligation",
+    relatedObjectId: obligation.id,
   });
 
   return { raised: true, obligation };

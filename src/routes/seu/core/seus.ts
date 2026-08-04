@@ -15,6 +15,7 @@ import { listObligationsWithNextStates } from "./obligations.js";
 import { listEvidenceWithNextStates } from "./evidence.js";
 import { listKnowledgeItemsWithNextStates } from "./knowledge.js";
 import { listDecisionsWithNextStates } from "./decisions.js";
+import { listExternalInteractionsWithNextStates } from "./externalInteractions.js";
 import type {
   CommandRow,
   DecisionRow,
@@ -22,6 +23,7 @@ import type {
   EbmComposedPack,
   EventRow,
   EvidenceRow,
+  ExternalInteractionRow,
   KnowledgeItemRow,
   ObligationRow,
   ReadinessState,
@@ -170,6 +172,17 @@ export interface SeuDetailDecision {
   possibleNextStates: string[];
 }
 
+// Post-MVP Phase 8: External Interactions shown against the Deliverable they're
+// attached to (optional — unlike Obligation/Evidence/Knowledge/Decision, a
+// deliverable_id is not required, since not every interaction is about a
+// specific Deliverable, e.g. a general customer status update), same shape
+// as the other lifecycle-governed entities' own display.
+export interface SeuDetailExternalInteraction {
+  interaction: ExternalInteractionRow;
+  deliverableName: string | null;
+  possibleNextStates: string[];
+}
+
 export interface SeuDetailView {
   seu: SeuRow;
   objectiveStatement: string;
@@ -181,6 +194,7 @@ export interface SeuDetailView {
   evidence: SeuDetailEvidence[];
   knowledgeItems: SeuDetailKnowledgeItem[];
   decisions: SeuDetailDecision[];
+  externalInteractions: SeuDetailExternalInteraction[];
   events: EventRow[];
 }
 
@@ -300,6 +314,13 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     possibleNextStates,
   }));
 
+  const externalInteractionsWithNextStates = await listExternalInteractionsWithNextStates(seuId);
+  const externalInteractionViews: SeuDetailExternalInteraction[] = externalInteractionsWithNextStates.map(({ interaction, possibleNextStates }) => ({
+    interaction,
+    deliverableName: interaction.deliverable_id ? deliverableNameById.get(interaction.deliverable_id) ?? "(unknown Deliverable)" : null,
+    possibleNextStates,
+  }));
+
   return {
     seu,
     objectiveStatement: objective?.statement ?? "(objective not found)",
@@ -311,6 +332,7 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     evidence: evidenceViews,
     knowledgeItems: knowledgeItemViews,
     decisions: decisionViews,
+    externalInteractions: externalInteractionViews,
     events,
   };
 }

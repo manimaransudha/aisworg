@@ -16,8 +16,9 @@ import { createObligation, transitionObligation } from "../core/obligations.js";
 import { createEvidence, transitionEvidence } from "../core/evidence.js";
 import { createKnowledgeItem, promoteKnowledgeItemScope, transitionKnowledgeItem } from "../core/knowledge.js";
 import { createDecision, transitionDecision } from "../core/decisions.js";
+import { createExternalInteraction, transitionExternalInteraction } from "../core/externalInteractions.js";
 import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
-import type { AcquisitionScope, ParticipantType } from "../../../dblayer/seuTypes.js";
+import type { AcquisitionScope, InteractionDirection, ParticipantType } from "../../../dblayer/seuTypes.js";
 
 /** GET /aisworg/seu/seus — SEU Runtime: every commissioned SEU. */
 router.get("/seus", attachVM("seu/seus/index"), async (req: Request, res: Response, next: NextFunction) => {
@@ -372,6 +373,59 @@ router.post("/seus/:id/decisions/:decisionId/transition", async (req: Request, r
     return flashSuccess(req, res, backTo, `Decision moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`);
   } catch (err) {
     logger.error("[web/seu/seus] POST /seus/:id/decisions/:decisionId/transition error", err as Error);
+    return flashError(req, res, backTo, (err as Error).message);
+  }
+});
+
+/** POST /aisworg/seu/seus/:id/external-interactions — Ch.36: record an External Interaction, optionally against a Deliverable. */
+router.post("/seus/:id/external-interactions", async (req: Request, res: Response) => {
+  const seuId = String(req.params.id);
+  const backTo = `/aisworg/seu/seus/${seuId}`;
+  const { deliverableId, interactionType, direction, targetSystem, purpose } = req.body ?? {};
+
+  if (typeof interactionType !== "string" || !interactionType.trim() || typeof direction !== "string" || !direction.trim() || typeof targetSystem !== "string" || !targetSystem.trim()) {
+    return flashError(req, res, backTo, "Interaction type, direction and target system are required.");
+  }
+
+  try {
+    const interaction = await createExternalInteraction({
+      seuId,
+      deliverableId: deliverableId || null,
+      interactionType,
+      direction: direction as InteractionDirection,
+      targetSystem,
+      purpose,
+    });
+    return flashSuccess(req, res, backTo, `External Interaction with "${interaction.target_system}" recorded (${interaction.interaction_type}, ${interaction.direction}).`);
+  } catch (err) {
+    logger.error("[web/seu/seus] POST /seus/:id/external-interactions error", err as Error);
+    return flashError(req, res, backTo, (err as Error).message);
+  }
+});
+
+/** POST /aisworg/seu/seus/:id/external-interactions/:interactionId/transition — Ch.36 §9 lifecycle; a transition to Failed raises an Attention Item (Ch.36 §13). */
+router.post("/seus/:id/external-interactions/:interactionId/transition", async (req: Request, res: Response) => {
+  const seuId = String(req.params.id);
+  const backTo = `/aisworg/seu/seus/${seuId}`;
+  const { targetState } = req.body ?? {};
+
+  if (typeof targetState !== "string" || !targetState.trim()) {
+    return flashError(req, res, backTo, "Target state is required.");
+  }
+
+  try {
+    const result = await transitionExternalInteraction({
+      interactionId: String(req.params.interactionId),
+      targetState,
+      actorRole: req.session?.user?.role ?? "general",
+    });
+    if (!result.ok) {
+      const reason = "detail" in result ? result.detail : result.reason;
+      return flashError(req, res, backTo, `External Interaction transition blocked: ${reason}`);
+    }
+    return flashSuccess(req, res, backTo, `External Interaction moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`);
+  } catch (err) {
+    logger.error("[web/seu/seus] POST /seus/:id/external-interactions/:interactionId/transition error", err as Error);
     return flashError(req, res, backTo, (err as Error).message);
   }
 });
