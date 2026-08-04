@@ -1,0 +1,71 @@
+# Technology Decisions — SEU Commissioning Platform
+
+*A running log of implementation-level technology choices and rejections, and the reasoning behind them. Distinct from `03_Book 3 (Refined)/Architecture Catalog.md`, which is deliberately technology-independent by its own stated scope ("The catalogue intentionally excludes: Implementation technologies, Programming languages, Database products, Infrastructure choices"). This document is where those concrete choices live once they're actually made, so the reasoning doesn't get lost between sessions.*
+
+---
+
+## Rejected: Blockchain (as ledger/consensus layer for engineering state or events)
+
+**Decision:** Do not use blockchain for the Event Model, traceability log, or any cross-tenant/cross-organisation state.
+
+**Reasoning:**
+
+Blockchain solves one specific problem: multiple parties who don't trust each other, or a central authority, need to agree on shared state without one. Nothing in this platform has that shape. Book 3's own architectural principles say the opposite explicitly:
+
+- "Engineering state is authoritative," "State shall have exactly one authoritative owner" (Runtime Kernel / State Management, SM-002) — a single-trusted-owner model, not decentralized consensus.
+- The Multi-Tenancy design (Ch. 42, still to be built — see `Post-MVP Build Sequence.md` Phase 12) is Tenants trusting a single Platform operator to mediate isolation between them, not Tenants reaching consensus with each other.
+
+Blockchain's core premise — no single trusted party — is in tension with that foundational principle, not aligned with it.
+
+What actually motivates the "should we use blockchain" instinct is that the platform *wants* the properties blockchain is known for: immutable history, tamper-evidence, full traceability. Those are already architected in, not proposed:
+
+- "Events remain immutable" is a stated invariant (Reference Architecture, Ch. 45 §17).
+- The Engineering Knowledge Graph ADR treats every persistent object and relationship as one traceable graph.
+- The running MVP already implements this as an append-only, Postgres-backed event log — every commissioning action produces a permanent event row.
+
+Tamper-evidence is available far more cheaply than adopting blockchain, by making that log genuinely append-only (revoke UPDATE/DELETE at the database role level) and/or hash-chaining each event to the previous one (a Merkle log — the actually-useful idea inside "blockchain," separated from the decentralized-consensus machinery that isn't needed here). This avoids blockchain's throughput ceiling, latency, and key-management overhead entirely.
+
+**When to revisit this:** if the platform ever needs *independent Pack publishers who don't trust each other or the platform vendor* — e.g. multiple consulting firms publishing competing Organisation Packs with no single party willing to be the authoritative root. That is a real multi-party trust problem blockchain is built for. Nothing in Book 1 or Book 3 describes that scenario today; the Platform is consistently modelled as the trusted root that mediates everyone else. Revisit only if that assumption changes — not before.
+
+---
+
+## Stack additions — Node/Express/TypeScript/Postgres (existing core, kept as-is)
+
+The existing stack is a good fit for what this system needs — nothing in Book 3's architecture argues for anything more exotic. The additions below are tied to specific upcoming phases in `Post-MVP Build Sequence.md`, not a general modernization pass. Adopt each one at the point its phase actually needs it, not before.
+
+**`pg-boss` — durable Command/Work Item queue, for Phase 3.**
+Gives Command dispatch durability and retries without adding new infrastructure — built on Postgres's `SELECT ... FOR UPDATE SKIP LOCKED`, so it stays inside the database already in use. Preferred over a message broker (Kafka/RabbitMQ) at this stage. **Revisit only if** the platform ever needs multiple instances consuming the same queue concurrently — nothing in the current scope requires that.
+**Decision** — Not adopted. Phase 3 shipped fully synchronous and in-process: `executionEngine` generates a Command, `dispatchEngine` assigns it, and — because no autonomous Participant runtime exists yet (see the Anthropic SDK entry below) — Work Item execution is simulated synchronously in the same call, all inside the same request/transaction. There's nothing to queue: no separate worker consumes Commands, and nothing needs to survive a process restart yet. Revisit once a real asynchronous Participant runtime exists and Work Item execution actually takes long enough, or happens out-of-process enough, that dispatch needs to hand off and be picked up later rather than complete inline.
+
+**Zod — schema validation, any phase, adopt when convenient.**
+The Canonical Information Model defines strict entity shapes (Objective tiers, Deliverable Acquisition Scope enum, Constraint Type, etc.). Zod schemas keep runtime validation and TypeScript types defined once instead of twice, and compose with Express middleware for validating POST bodies.
+**Still not adopted (post-Phase 4):** Phase 4 added two more POST bodies (create Obligation, transition Obligation/Deliverable) validated with the same manual `typeof` checks as every prior phase. Still genuinely convenient to adopt whenever someone picks it up, but four phases in a row haven't needed it — the manual checks stay small and haven't caused a real bug yet.
+
+**Drizzle ORM — query layer, if not already using a type-safe one.**
+The domain model is relational and getting more so each phase (Objective decomposition, Obligation↔Deliverable↔Decision links, the Phase 5 Knowledge/Evidence/Decision chain). Drizzle stays close to SQL with strong TS inference and straightforward migrations — a better fit than a heavier ORM (TypeORM) or raw `pg` as join complexity grows. Not worth a mid-project swap just for its own sake if the current query layer is already working fine.
+**Decision** Stick to the dblayer structure I use.
+**Reconfirmed (post-Phase 4):** Obligation, Quality Gate and Quality Gate Evaluation — three more tables, one with a real FK to Deliverables — went in through the same hand-written migration + flat-file-per-table dblayer pattern with no friction (26 SEU-platform tables total now). Still nothing pointing at type drift between `seuTypes.ts` and the schema as an actual problem; see the conversation this decision came from for the full tradeoff if it needs re-litigating.
+**Reconfirmed (post-Phase 5):** Evidence, Knowledge and Decision — three more tables, with cross-references between them (Decision → Knowledge, Decision → Evidence, Knowledge → Evidence) — same pattern, no friction (29 SEU-platform tables now). One real bug did surface this phase, but it was in a migration's `ALTER TABLE ... CHECK` re-run safety, not in the dblayer/query layer itself — see `Post-MVP Build Sequence.md` Phase 5 notes.
+**Reconfirmed (post-Phase 6):** zero new tables this phase — Acquisition Scope promotion reuses `knowledge_items.acquisition_scope` (already there since Phase 5) as a second, independently-governed transition track, and Engineering Capital is a read-only query, not a new persistent object. The dblayer pattern flexes to "no schema change needed" just as easily as it flexed to "three new tables" in Phase 5 — still no friction either direction.
+**Reconfirmed (post-Phase 7):** zero new tables again, two phases running — every Telemetry metric is a read-only aggregate query (`FILTER`, `EXTRACT(EPOCH ...)`, `GROUP BY`) over tables that already existed for other reasons (`events`, `deliverables`, `quality_gate_evaluations`). Worth noting as a data point: not every phase needs new persisted state — some of Book 3's remaining scope is genuinely "new ways to read what's already being recorded," not new state to persist.
+
+**Playwright or `supertest` — integration tests, to operationalize the audit discipline.**
+`Post-MVP Build Sequence.md`'s closing note says to audit each phase as a real user before calling it done — currently that's manual curl (as demonstrated when the Dependency Engine gap was found). Automated integration tests that hit real routes, follow real redirects, and check real DB state would catch that same class of bug — a displayed status not matching enforced behaviour — on every change, not just when someone remembers to walk the flow manually.
+**Decision** - See Integration Test Handoff Brief.md
+
+**`pino` — structured application logging, any time.**
+Distinct from Phase 7's Engineering Telemetry, which is a domain concept (Deliverable cycle time, Quality Gate latency) and shouldn't be built on top of raw application logs. `pino` covers the separate, ordinary need for operational logs on the Node process itself.
+**Decision**: COntinue with logger. Not required now
+
+**`pgvector` — semantic search, for Phase 5.**
+When the Knowledge Model needs to find related Knowledge Items by meaning rather than keyword, this stays inside Postgres rather than standing up a separate vector database.
+**Decision** — Not adopted; "for Phase 5" was premature. Phase 5 built Knowledge as a real, governed persistent object (create, lifecycle, Acquisition Scope) but never built any *matching* feature — no "find related Knowledge Items," no cross-SEU reuse query. That's explicitly Phase 6 scope (`Post-MVP Build Sequence.md`: "Now that Knowledge exists (Phase 5), wire up the actual learning loop" — Engineering Capital querying, filtered by Capability/Enterprise/Platform scope) and even Phase 6's own "Done when" line only asks for a scoped query, not semantic similarity search. Revisit if and when a real feature needs "by meaning rather than keyword" — nothing built through Phase 5 does.
+**Reconfirmed (post-Phase 6):** Engineering Capital shipped as exactly the plain SQL Phase 5's note predicted it would be — a `WHERE acquisition_scope != 'SEU'` filter with two joins (Deliverable, for the contributing Capability; Objective, for display), no similarity search anywhere. Still nothing built needs "by meaning rather than keyword."
+
+**Materialized views + `pg_cron` — computed metrics, for Phase 7.**
+Try this before reaching for a dedicated analytics/time-series database for Engineering Telemetry. Postgres can carry computed metrics further than usually assumed at this scale.
+**Decision** — Not adopted; live queries sufficed, same as Engineering Capital in Phase 6. Both Flow (`deliverableCycleTimes`) and Governance (`qualityGateLatencies`) metrics are plain `SELECT`s with joins and `FILTER`/`EXTRACT(EPOCH ...)` aggregates over `events`/`quality_gate_evaluations` — computed on every request, no caching layer. At MVP data volumes (hundreds of rows, not millions) this stays fast; the `/aisworg/seu/telemetry` page audit measured real responses in the 50-150ms range against a dev database carrying this entire session's accumulated test history. Revisit materialized views + `pg_cron` if either query's `EXPLAIN ANALYZE` cost ever becomes visible to a user, not before — ET-002 ("no engineering metric shall require duplicate data entry") is satisfied more simply by not caching at all than by caching and having to reason about staleness.
+
+**Anthropic TypeScript SDK — AI Participant execution, once something actually needs to invoke a model. Not now.**
+Natural fit given the existing TS stack. Deliberately not detailed further here — pull current guidance on model choice, tool use, and integration patterns at the point this is actually being built, rather than locking in specifics now that may drift.
+**Update (post-Phase 3):** the original "for Phase 3" anchor was wrong — Phase 3 built the Command/Work Item/Dispatch *mechanics* (a Work Item really is generated and really is assigned to a Participant), but Work Item execution itself is simulated synchronously rather than invoking anything, since no phase in `Post-MVP Build Sequence.md` currently owns "make an AI Participant actually do the work." Nothing in the roadmap needs this SDK until that gap gets its own phase — flagging the gap here rather than silently deciding a phase for it.

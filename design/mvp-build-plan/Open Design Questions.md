@@ -1,3 +1,5 @@
+
+
 # Open Design Questions
 
 *Running log of design questions surfaced by building and testing the MVP, deliberately not resolved now — each is a real fork in how the full system (beyond this MVP) should behave, not a bug. Resolve these when the relevant fuller subsystem gets built, not before; recorded here so they aren't lost or silently decided by accident.*

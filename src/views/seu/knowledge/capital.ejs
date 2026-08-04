@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+  <style>
+    .scope-badge { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; padding: 0.22rem 0.6rem; border-radius: 999px; }
+    .scope-Platform { background: #ede9fe; color: #5b21b6; }
+    .scope-Enterprise { background: #dbeafe; color: #1e40af; }
+    .scope-Capability { background: #dcfce7; color: #166534; }
+    .cap-badge { font-size: 0.68rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 6px; background: #f1f5f9; color: #334155; }
+  </style>
+</head>
+<body>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5" style="max-width: 1000px;">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-1 text-dark fw-bold">Engineering Capital</h2>
+      <p class="text-muted small mb-0">
+        Ch.16 §13 / Book 1 Ch.21 §21.6 — the accumulated body of organisational understanding whose Acquisition Scope
+        outlives the SEU that produced it: every Knowledge Item promoted to Capability, Enterprise or Platform scope.
+        SEU-scoped Knowledge never appears here — it doesn't outlive its originating SEU, so it isn't Capital.
+      </p>
+    </div>
+
+    <% if (engineeringCapital.length === 0) { %>
+      <div class="alert alert-warning">
+        No Engineering Capital yet — promote a Published Knowledge Item's Acquisition Scope from an SEU's detail page.
+      </div>
+    <% } else { %>
+      <% engineeringCapital.forEach(function(k) { %>
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <h5 class="mb-1"><%= k.title %></h5>
+                <span class="scope-badge scope-<%= k.acquisition_scope %>"><%= k.acquisition_scope %></span>
+                <% if (k.capability_name) { %>
+                  <span class="cap-badge">via <%= k.capability_name %> <code><%= k.capability_code %></code></span>
+                <% } %>
+              </div>
+              <span class="text-muted small"><%= k.category %> &middot; <%= k.status %></span>
+            </div>
+            <% if (k.description) { %><p class="small text-muted mb-2"><%= k.description %></p><% } %>
+            <p class="small text-muted mb-0">
+              From <a href="/aisworg/seu/seus/<%= k.seu_id %>"><%= k.deliverable_name %></a>
+              (<%= k.objective_statement %>) &middot; <%= new Date(k.created_at).toLocaleDateString() %>
+            </p>
+          </div>
+        </div>
+      <% }) %>
+    <% } %>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

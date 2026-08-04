@@ -13,6 +13,7 @@ import { capabilitiesDB } from "../capabilitiesDB.js";
 import { servicesDB } from "../servicesDB.js";
 import { authorityRulesDB } from "../authorityRulesDB.js";
 import { policiesDB } from "../policiesDB.js";
+import { qualityGatesDB } from "../qualityGatesDB.js";
 import { templatesDB } from "../templatesDB.js";
 import { profilesDB } from "../profilesDB.js";
 import { transitionDefinitionsDB } from "../transitionDefinitionsDB.js";
@@ -120,6 +121,21 @@ async function seedPack(seed: PackSeed): Promise<{ packId: string; capabilityIdB
     if (error || !policyRow) throw error ?? new Error(`policy upsert failed: ${policy.code}`);
     policyIdByCode.set(policy.code, policyRow.id);
     logger.info(`[seed:seu]   policy ${policyRow.code} -> ${policyRow.id}`);
+  }
+
+  for (const gate of seed.contributions.qualityGates ?? []) {
+    const { data: qualityGate, error } = await qualityGatesDB.upsert({
+      code: gate.code,
+      name: gate.name,
+      category: gate.category,
+      entityType: gate.entityType,
+      fromState: gate.fromState,
+      toState: gate.toState,
+      criteria: gate.criteria,
+      originatingPackId: pack.id,
+    });
+    if (error || !qualityGate) throw error ?? new Error(`quality gate upsert failed: ${gate.code}`);
+    logger.info(`[seed:seu]   quality gate ${qualityGate.code} -> ${qualityGate.id}`);
   }
 
   return { packId: pack.id, capabilityIdByCode, authorityRuleIdByCode, policyIdByCode };

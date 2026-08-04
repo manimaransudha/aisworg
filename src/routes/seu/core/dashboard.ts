@@ -36,9 +36,9 @@ export function getArchitectureLayers(): ArchitectureLayer[] {
       components: [
         { name: "SEU Runtime", status: "live", note: "Commissioning pipeline + Ch.37 lifecycle (Pending → Operational).", href: "/aisworg/seu/seus" },
         { name: "Capability Runtime", status: "live", note: "Capability requirements + Capability Fulfilment; the Dispatch Engine consumes it (see Work Item Runtime).", href: "/aisworg/seu/seus" },
-        { name: "Governance Runtime", status: "partial", note: "Minimal Authority + Policy checks only — Quality Gate/Review/Compliance deferred." },
+        { name: "Governance Runtime", status: "partial", note: "Authority + Policy (with real Constraint Type: Policy blocks, Standard doesn't) + Obligation + Quality Gate are real (Ch.22-24, 26); Review and Compliance Packs remain deferred." },
         { name: "Work Item Runtime", status: "partial", note: "Command / Work Item Generator / Dispatch Engine pipeline is real (Ch.31-33); dispatch strategy is trivial 'whoever's assigned' — no cost/load/locality strategies yet." },
-        { name: "Knowledge Runtime", status: "deferred", note: "Knowledge, Evidence and Decision models are fully out of MVP scope." },
+        { name: "Knowledge Runtime", status: "partial", note: "Evidence, Knowledge and Decision are real (Ch.16-17, 19), each with their own governed lifecycle; a Deliverable transition can require accepted Evidence or an approved Decision. Acquisition Scope promotion is governed (Ch.16 §12) and raises an Organisational Learning Obligation (Ch.23 §7); Engineering Capital has a real platform-wide screen (Ch.16 §13). No Ontology (Ch.18) — categories stay free text.", href: "/aisworg/seu/knowledge/capital" },
         { name: "Workflow Runtime", status: "partial", note: "Dependency Engine sequences Deliverables; no separate Workflow abstraction." },
         { name: "Traceability Runtime", status: "partial", note: "Event log gives structural traceability; no Ontology/Traceability Model." },
       ],
@@ -56,6 +56,7 @@ export function getArchitectureLayers(): ArchitectureLayer[] {
       name: "Runtime Kernel",
       components: [
         { name: "Event Bus", status: "live", note: "In-process publish, Postgres-backed event log (Ch.30 minimal instance)." },
+        { name: "Observability", status: "partial", note: "Engineering Telemetry (Ch.35) is real: Flow (Deliverable cycle time) and Governance (Quality Gate latency) metrics, derived from real activity; sustained Quality Gate blocking raises an Organisational Learning Obligation automatically. No Runtime/Knowledge/Quality/Collaboration Telemetry categories yet, no Predictive or Cross-SEU comparison views.", href: "/aisworg/seu/telemetry" },
         { name: "Scheduling", status: "deferred", note: "Dependency-driven, not time-driven — by design (AP-004)." },
         { name: "Identity", status: "live", note: "Reuses the existing app's session/passport auth." },
         { name: "Security", status: "partial", note: "Session auth + one Authority Rule type; Dual Authority Model deferred." },

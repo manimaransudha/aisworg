@@ -10,6 +10,8 @@ import {seu_objectives_indexVM} from "./seu_objectives_index.js";
 import {seu_objectives_detailVM} from "./seu_objectives_detail.js";
 import {seu_objectives_newVM} from "./seu_objectives_new.js";
 import {seu_services_indexVM} from "./seu_services_index.js";
+import {seu_knowledge_capitalVM} from "./seu_knowledge_capital.js";
+import {seu_telemetry_indexVM} from "./seu_telemetry_index.js";
 
 // export const viewModels = {
 //   "auth/login": auth_loginVM,
@@ -28,5 +30,7 @@ export const viewModels = {
   "seu/objectives/index": seu_objectives_indexVM,
   "seu/objectives/detail": seu_objectives_detailVM,
   "seu/objectives/new": seu_objectives_newVM,
-  "seu/services/index": seu_services_indexVM
+  "seu/services/index": seu_services_indexVM,
+  "seu/knowledge/capital": seu_knowledge_capitalVM,
+  "seu/telemetry/index": seu_telemetry_indexVM
 };

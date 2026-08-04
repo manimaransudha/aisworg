@@ -11,7 +11,23 @@ import { workItemsDB } from "../../../dblayer/workItemsDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { dependencyEngine } from "../../../domain/engine/dependencyEngine.js";
 import { getSeuEvents } from "./events.js";
-import type { CommandRow, DependencyType, EbmComposedPack, EventRow, ReadinessState, SeuRow, WorkItemRow } from "../../../dblayer/seuTypes.js";
+import { listObligationsWithNextStates } from "./obligations.js";
+import { listEvidenceWithNextStates } from "./evidence.js";
+import { listKnowledgeItemsWithNextStates } from "./knowledge.js";
+import { listDecisionsWithNextStates } from "./decisions.js";
+import type {
+  CommandRow,
+  DecisionRow,
+  DependencyType,
+  EbmComposedPack,
+  EventRow,
+  EvidenceRow,
+  KnowledgeItemRow,
+  ObligationRow,
+  ReadinessState,
+  SeuRow,
+  WorkItemRow,
+} from "../../../dblayer/seuTypes.js";
 
 export interface SeuStatusView {
   seu: SeuRow;
@@ -124,6 +140,36 @@ export interface SeuDetailCommand {
   workItems: SeuDetailWorkItem[];
 }
 
+// Post-MVP Phase 4: Obligations shown against the Deliverable they're
+// attached to, with their own possible next lifecycle states, same shape as
+// Deliverables' own transition control.
+export interface SeuDetailObligation {
+  obligation: ObligationRow;
+  deliverableName: string;
+  possibleNextStates: string[];
+}
+
+// Post-MVP Phase 5: Evidence/Knowledge/Decision shown against the Deliverable
+// they're attached to, same shape as Obligations' own display.
+export interface SeuDetailEvidence {
+  evidence: EvidenceRow;
+  deliverableName: string;
+  possibleNextStates: string[];
+}
+
+export interface SeuDetailKnowledgeItem {
+  knowledgeItem: KnowledgeItemRow;
+  deliverableName: string;
+  possibleNextStates: string[];
+  possibleNextScopes: string[];
+}
+
+export interface SeuDetailDecision {
+  decision: DecisionRow;
+  deliverableName: string;
+  possibleNextStates: string[];
+}
+
 export interface SeuDetailView {
   seu: SeuRow;
   objectiveStatement: string;
@@ -131,6 +177,10 @@ export interface SeuDetailView {
   capabilities: Array<{ id: string; capabilityId: string; code: string; name: string; status: string }>;
   deliverables: SeuDetailDeliverable[];
   commands: SeuDetailCommand[];
+  obligations: SeuDetailObligation[];
+  evidence: SeuDetailEvidence[];
+  knowledgeItems: SeuDetailKnowledgeItem[];
+  decisions: SeuDetailDecision[];
   events: EventRow[];
 }
 
@@ -221,6 +271,35 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
       })),
   }));
 
+  const obligationsWithNextStates = await listObligationsWithNextStates(seuId);
+  const obligationViews: SeuDetailObligation[] = obligationsWithNextStates.map(({ obligation, possibleNextStates }) => ({
+    obligation,
+    deliverableName: deliverableNameById.get(obligation.deliverable_id) ?? "(unknown Deliverable)",
+    possibleNextStates,
+  }));
+
+  const [evidenceWithNextStates, knowledgeItemsWithNextStates, decisionsWithNextStates] = await Promise.all([
+    listEvidenceWithNextStates(seuId),
+    listKnowledgeItemsWithNextStates(seuId),
+    listDecisionsWithNextStates(seuId),
+  ]);
+  const evidenceViews: SeuDetailEvidence[] = evidenceWithNextStates.map(({ evidence, possibleNextStates }) => ({
+    evidence,
+    deliverableName: deliverableNameById.get(evidence.deliverable_id) ?? "(unknown Deliverable)",
+    possibleNextStates,
+  }));
+  const knowledgeItemViews: SeuDetailKnowledgeItem[] = knowledgeItemsWithNextStates.map(({ knowledgeItem, possibleNextStates, possibleNextScopes }) => ({
+    knowledgeItem,
+    deliverableName: deliverableNameById.get(knowledgeItem.deliverable_id) ?? "(unknown Deliverable)",
+    possibleNextStates,
+    possibleNextScopes,
+  }));
+  const decisionViews: SeuDetailDecision[] = decisionsWithNextStates.map(({ decision, possibleNextStates }) => ({
+    decision,
+    deliverableName: deliverableNameById.get(decision.deliverable_id) ?? "(unknown Deliverable)",
+    possibleNextStates,
+  }));
+
   return {
     seu,
     objectiveStatement: objective?.statement ?? "(objective not found)",
@@ -228,6 +307,10 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     capabilities: (capabilities ?? []).map((c) => ({ id: c.id, capabilityId: c.capability_id, code: c.capability_code, name: c.capability_name, status: c.status })),
     deliverables: deliverableViews,
     commands: commandViews,
+    obligations: obligationViews,
+    evidence: evidenceViews,
+    knowledgeItems: knowledgeItemViews,
+    decisions: decisionViews,
     events,
   };
 }

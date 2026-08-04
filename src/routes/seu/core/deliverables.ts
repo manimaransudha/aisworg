@@ -2,8 +2,10 @@ import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { dependencyEdgesDB } from "../../../dblayer/dependencyEdgesDB.js";
 import { dependencyEngine } from "../../../domain/engine/dependencyEngine.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
+import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
 import { executionEngine } from "../../../domain/engine/executionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
+import { checkSustainedQualityGateBlocking } from "./telemetry.js";
 import type { DeliverableRow, DependencyEdgeRow } from "../../../dblayer/seuTypes.js";
 
 export async function createDeliverable(input: {
@@ -38,6 +40,7 @@ export type TransitionDeliverableResult =
   | { ok: true; deliverable: DeliverableRow; appliedTransition: { fromState: string; toState: string } }
   | { ok: false; reason: "not_found" }
   | { ok: false; reason: "dependency_not_satisfied"; edges: DependencyEdgeRow[] }
+  | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition"; detail: string }
   | { ok: false; reason: "dispatch_deferred"; detail: string };
 
@@ -49,6 +52,14 @@ export type TransitionDeliverableResult =
 // Deliverable's lifecycle_state changes. If nobody currently fulfils the
 // Deliverable's producing Capability, the transition is deferred rather than
 // silently applied — a real behavioural change from the direct-POST MVP.
+//
+// Post-MVP Phase 4 (Ch.23/Ch.26): the Quality Gate check sits between
+// dependency readiness and Authority/Policy — a deliberately separate gate
+// from the Dependency Engine (Ch.26 §3's own architectural position: Policies/
+// Reviews/Evidence/Knowledge/Decisions/Obligations feed a Quality Gate, which
+// is itself an input to Governance). Evaluating it here, after dependency
+// readiness has already passed, is what makes an Obligation block
+// independently of the dependency graph testable and true at the same time.
 export async function transitionDeliverable(input: {
   deliverableId: string;
   targetState: string;
@@ -62,6 +73,24 @@ export async function transitionDeliverable(input: {
   if (!readiness.ready) return { ok: false, reason: "dependency_not_satisfied", edges: readiness.edges };
 
   const fromState = deliverable.lifecycle_state;
+
+  const qualityGateResult = await qualityGateEngine.evaluate({
+    entityType: "Deliverable",
+    entityId: deliverable.id,
+    seuId: deliverable.seu_id,
+    fromState,
+    toState: input.targetState,
+  });
+  if (qualityGateResult.outcome === "Blocked") {
+    // Ch.35 §11: a sustained pattern of blocking is Telemetry's concern, not
+    // the transition attempt's own — checked here (not inside
+    // qualityGateEngine itself) because raising an Obligation means calling
+    // into routes/seu/core/, and the engine layer never calls back into core
+    // (Build Plan §2.2's one-way "core orchestrates engine" split).
+    await checkSustainedQualityGateBlocking({ qualityGateId: qualityGateResult.gate.id, gateName: qualityGateResult.gate.name, seuId: deliverable.seu_id, deliverableId: deliverable.id });
+    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
+  }
+
   const gate = await transitionEngine.evaluate({
     entityType: "Deliverable",
     fromState,

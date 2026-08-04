@@ -1,6 +1,6 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import type { AcquisitionScope, DbResult, DeliverableRow } from "./seuTypes.js";
+import type { AcquisitionScope, DbResult, DeliverableCycleTimeRow, DeliverableRow } from "./seuTypes.js";
 
 export const deliverablesDB = {
   async create(input: {
@@ -40,6 +40,30 @@ export const deliverablesDB = {
       return { data: rows };
     } catch (err) {
       logger.error("[deliverablesDB] findBySeuId error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // Ch.35 §7 Flow Telemetry — "Deliverable cycle time": how long each
+  // Deliverable has taken to reach its current state, measured from creation
+  // to its most recent recorded transition. Platform-wide, same scoping
+  // choice as Engineering Capital (Phase 6). Deliverables with no transition
+  // yet (still Defined) have nothing to measure and are excluded.
+  async findCycleTimes(): Promise<DbResult<DeliverableCycleTimeRow[]>> {
+    try {
+      const { rows } = await query<DeliverableCycleTimeRow>(
+        `SELECT
+           d.id, d.name, d.seu_id, d.lifecycle_state, d.created_at,
+           MAX(e.occurred_at) AS last_transition_at,
+           EXTRACT(EPOCH FROM (MAX(e.occurred_at) - d.created_at)) AS cycle_time_seconds
+         FROM deliverables d
+         JOIN events e ON e.originating_object_type = 'Deliverable' AND e.originating_object_id = d.id AND e.event_type = 'DeliverableTransitioned'
+         GROUP BY d.id
+         ORDER BY cycle_time_seconds DESC`
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[deliverablesDB] findCycleTimes error", err as Error);
       return { error: err as Error };
     }
   },

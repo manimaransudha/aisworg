@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+  <style>
+    .metric-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); background: #fff; padding: 1.25rem; text-align: center; }
+    .metric-value { font-size: 1.8rem; font-weight: 700; color: #0f172a; }
+    .metric-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; }
+    .section-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); background: #fff; margin-bottom: 1.5rem; overflow: hidden; }
+    .section-header { background: #0f172a; color: #fff; font-weight: 600; font-size: 0.9rem; padding: 0.85rem 1.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  </style>
+</head>
+<body>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5" style="max-width: 1000px;">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-1 text-dark fw-bold">Engineering Telemetry</h2>
+      <p class="text-muted small mb-0">
+        Ch.35 — measures engineering flow and governance friction, not individual activity, derived automatically from
+        real Command/Work Item/Quality Gate activity (Phases 3-6). Nothing here is manually entered, and nothing here
+        changes engineering state — Telemetry informs, it never governs (ET-001).
+      </p>
+    </div>
+
+    <%
+      function fmtSeconds(s) {
+        if (s === null || s === undefined) return '—';
+        var n = Number(s);
+        if (n < 60) return n.toFixed(1) + 's';
+        if (n < 3600) return (n / 60).toFixed(1) + 'm';
+        return (n / 3600).toFixed(1) + 'h';
+      }
+    %>
+
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="metric-card">
+          <div class="metric-value"><%= fmtSeconds(flowMetrics.averageCycleTimeSeconds) %></div>
+          <div class="metric-label">Avg Deliverable Cycle Time</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="metric-card">
+          <div class="metric-value"><%= flowMetrics.deliverableCycleTimes.length %></div>
+          <div class="metric-label">Deliverables Measured</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="metric-card">
+          <div class="metric-value"><%= governanceMetrics.qualityGateLatencies.length %></div>
+          <div class="metric-label">Quality Gate Passes Measured</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">Flow Telemetry — Deliverable Cycle Time</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light"><tr><th>Deliverable</th><th>Current State</th><th>Cycle Time</th></tr></thead>
+          <tbody>
+            <% if (flowMetrics.deliverableCycleTimes.length === 0) { %>
+              <tr><td colspan="3" class="text-muted small">No Deliverable has transitioned yet — cycle time needs at least one transition to measure.</td></tr>
+            <% } %>
+            <% flowMetrics.deliverableCycleTimes.forEach(function(d) { %>
+              <tr>
+                <td class="small"><%= d.name %></td>
+                <td class="small"><%= d.lifecycle_state %></td>
+                <td class="small"><%= fmtSeconds(d.cycle_time_seconds) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">Governance Telemetry — Quality Gate Latency</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light"><tr><th>Quality Gate</th><th>Avg Latency</th><th>Sample Count</th></tr></thead>
+          <tbody>
+            <% if (governanceMetrics.latencyByGate.length === 0) { %>
+              <tr><td colspan="3" class="text-muted small">No Quality Gate has been passed yet.</td></tr>
+            <% } %>
+            <% governanceMetrics.latencyByGate.forEach(function(g) { %>
+              <tr>
+                <td class="small"><%= g.gateName %></td>
+                <td class="small"><%= fmtSeconds(g.averageLatencySeconds) %></td>
+                <td class="small"><%= g.sampleCount %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <p class="small text-muted p-3 mb-0 border-top">
+        Latency is friction, not calendar time: zero means every attempt passed the gate on the first try; higher
+        values mean Deliverables sat Blocked before finally passing. A gate blocked 3+ times against the same SEU
+        raises an Organisational Learning Obligation automatically (Ch.35 §11) — see that SEU's Obligations section.
+      </p>
+    </div>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

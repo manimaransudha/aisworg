@@ -44,7 +44,14 @@
     "authorityRules": [
       { "code": "authority-commission-seu", "governedTransition": "seu.commission", "authorisedRole": "general" },
       { "code": "authority-transition-deliverable", "governedTransition": "deliverable.transition", "authorisedRole": "general" },
-      { "code": "authority-transition-objective", "governedTransition": "objective.transition", "authorisedRole": "general" }
+      { "code": "authority-transition-objective", "governedTransition": "objective.transition", "authorisedRole": "general" },
+      { "code": "authority-transition-obligation", "governedTransition": "obligation.transition", "authorisedRole": "general" },
+      { "code": "authority-transition-evidence", "governedTransition": "evidence.transition", "authorisedRole": "general" },
+      { "code": "authority-transition-knowledge", "governedTransition": "knowledge.transition", "authorisedRole": "general" },
+      { "code": "authority-transition-decision", "governedTransition": "decision.transition", "authorisedRole": "general" },
+      { "code": "authority-promote-knowledge-to-capability", "governedTransition": "knowledgescope.transition", "authorisedRole": "general" },
+      { "code": "authority-promote-knowledge-to-enterprise", "governedTransition": "knowledgescope.transition", "authorisedRole": "power" },
+      { "code": "authority-promote-knowledge-to-platform", "governedTransition": "knowledgescope.transition", "authorisedRole": "super" }
     ],
     "policies": [
       {
@@ -73,6 +80,71 @@
         "governedTransition": "objective.transition",
         "condition": { "type": "always_true" },
         "severity": "Low"
+      },
+      {
+        "code": "policy-obligation-transition-baseline",
+        "name": "Obligation transition baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "obligation.transition",
+        "condition": { "type": "always_true" },
+        "severity": "Low"
+      },
+      {
+        "code": "policy-evidence-transition-baseline",
+        "name": "Evidence transition baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "evidence.transition",
+        "condition": { "type": "always_true" },
+        "severity": "Low"
+      },
+      {
+        "code": "policy-knowledge-transition-baseline",
+        "name": "Knowledge transition baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "knowledge.transition",
+        "condition": { "type": "always_true" },
+        "severity": "Low"
+      },
+      {
+        "code": "policy-decision-transition-baseline",
+        "name": "Decision transition baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "decision.transition",
+        "condition": { "type": "always_true" },
+        "severity": "Low"
+      },
+      {
+        "code": "policy-knowledgescope-transition-baseline",
+        "name": "Acquisition Scope promotion baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "knowledgescope.transition",
+        "condition": { "type": "always_true" },
+        "severity": "Medium"
+      }
+    ],
+    "qualityGates": [
+      {
+        "code": "qg-deliverable-in-progress-to-approved",
+        "name": "No Unresolved Obligations",
+        "category": "Exit",
+        "entityType": "Deliverable",
+        "fromState": "In Progress",
+        "toState": "Approved",
+        "criteria": { "type": "no_unresolved_obligations" }
+      },
+      {
+        "code": "qg-deliverable-approved-to-baselined",
+        "name": "Requires Accepted Evidence or Approved Decision",
+        "category": "Exit",
+        "entityType": "Deliverable",
+        "fromState": "Approved",
+        "toState": "Baselined",
+        "criteria": { "type": "requires_accepted_evidence_or_approved_decision" }
       }
     ]
   }

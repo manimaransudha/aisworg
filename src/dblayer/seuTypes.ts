@@ -62,6 +62,18 @@ export interface PackContributions {
     condition?: Record<string, unknown>;
     severity?: string;
   }>;
+  // Post-MVP Phase 4 (Ch.26 FR-26.2: "Quality Gates shall be contributed
+  // through Packs"). entityType/fromState/toState scope the gate to one
+  // specific governed transition, same granularity as transition_definitions.
+  qualityGates?: Array<{
+    code: string;
+    name: string;
+    category?: string;
+    entityType: TransitionEntityType;
+    fromState: string;
+    toState: string;
+    criteria?: Record<string, unknown>;
+  }>;
 }
 
 export interface PackRow {
@@ -253,7 +265,7 @@ export interface PolicyRow {
   created_at: string;
 }
 
-export type TransitionEntityType = "SEU" | "Deliverable" | "Objective";
+export type TransitionEntityType = "SEU" | "Deliverable" | "Objective" | "Obligation" | "Evidence" | "Knowledge" | "Decision" | "KnowledgeScope";
 
 export interface TransitionDefinitionRow {
   id: string;
@@ -303,4 +315,132 @@ export interface EventRow {
   payload: Record<string, unknown>;
   occurred_at: string;
   sequence: string; // BIGSERIAL comes back as string via pg's default int8 handling
+}
+
+// Post-MVP Phase 4 (Ch.23 Obligation Model). status is not a fixed union —
+// see Build Plan §2.3 precedent for Deliverable.lifecycle_state — validated
+// by transitionEngine, not the DB.
+export interface ObligationRow {
+  id: string;
+  seu_id: string;
+  deliverable_id: string;
+  category: string;
+  title: string;
+  description: string | null;
+  severity: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type QualityGateOutcomeValue = "Passed" | "Passed with Conditions" | "Blocked" | "Waived" | "Deferred" | "Not Applicable";
+
+// Post-MVP Phase 4 (Ch.26 Quality Gate Model). criteria is declarative but
+// MVP's qualityGateEngine only interprets one shape:
+// { type: "no_unresolved_obligations" }.
+export interface QualityGateRow {
+  id: string;
+  code: string;
+  name: string;
+  category: string;
+  entity_type: TransitionEntityType;
+  from_state: string;
+  to_state: string;
+  criteria: Record<string, unknown>;
+  originating_pack_id: string | null;
+  created_at: string;
+}
+
+export interface QualityGateEvaluationRow {
+  id: string;
+  quality_gate_id: string;
+  seu_id: string;
+  entity_type: string;
+  entity_id: string;
+  outcome: QualityGateOutcomeValue;
+  detail: Record<string, unknown>;
+  evaluated_at: string;
+}
+
+// Post-MVP Phase 5 (Ch.17 Evidence Model). status is not a fixed union — same
+// dynamic-validation-by-transitionEngine precedent as Deliverable/Obligation.
+export interface EvidenceRow {
+  id: string;
+  seu_id: string;
+  deliverable_id: string;
+  category: string;
+  title: string;
+  description: string | null;
+  source: string | null;
+  confidence_level: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Post-MVP Phase 5 (Ch.16 Knowledge Model). acquisition_scope reuses
+// AcquisitionScope (Ch.15 §9) — inherited by default from the producing
+// Deliverable.
+export interface KnowledgeItemRow {
+  id: string;
+  seu_id: string;
+  deliverable_id: string;
+  evidence_id: string | null;
+  category: string;
+  title: string;
+  description: string | null;
+  acquisition_scope: AcquisitionScope;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Post-MVP Phase 6 (Ch.16 §13 / Book 1 Ch.21 §21.6) — a KnowledgeItemRow
+// joined with just enough to display Engineering Capital meaningfully:
+// which Capability it's attributable to (via its Deliverable) and which SEU
+// it originated from.
+export interface EngineeringCapitalRow extends KnowledgeItemRow {
+  deliverable_name: string;
+  capability_code: string | null;
+  capability_name: string | null;
+  objective_statement: string;
+}
+
+// Post-MVP Phase 5 (Ch.19 Decision Model).
+export interface DecisionRow {
+  id: string;
+  seu_id: string;
+  deliverable_id: string;
+  knowledge_id: string | null;
+  evidence_id: string | null;
+  category: string;
+  title: string;
+  engineering_question: string | null;
+  selected_alternative: string | null;
+  rationale: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Post-MVP Phase 7 (Ch.35 §7 Flow Telemetry — "Deliverable cycle time").
+export interface DeliverableCycleTimeRow {
+  id: string;
+  name: string;
+  seu_id: string;
+  lifecycle_state: string;
+  created_at: string;
+  last_transition_at: string;
+  cycle_time_seconds: number;
+}
+
+// Post-MVP Phase 7 (Ch.35 §7 Governance Telemetry — "Quality Gate latency").
+export interface QualityGateLatencyRow {
+  quality_gate_id: string;
+  gate_name: string;
+  entity_id: string;
+  seu_id: string;
+  first_blocked_at: string | null;
+  passed_at: string;
+  latency_seconds: number;
 }

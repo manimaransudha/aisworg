@@ -46,9 +46,75 @@ As each phase in `Post-MVP Build Sequence.md` is built, add HTTP-level tests for
 - **Phase 4 (Governance depth):** a test that a Quality Gate actually blocks a transition until its criteria are met, and one that an Obligation blocks a Deliverable independently of the dependency graph — same "assert it's blocked, satisfy the condition, assert it's now allowed" pattern as the dependency-gating test above.
 - **Phase 5 (Knowledge/Evidence/Decision):** a test that a transition requiring accepted Evidence or a recorded Decision is blocked without it and allowed with it.
 - **Phase 6 (Organisational Learning Obligation):** a test that promoting a Knowledge Item's Acquisition Scope produces a visible Obligation.
+- **Phase 7 (Engineering Telemetry):** a test that Flow and Governance metrics reflect real activity (not placeholders), and that a sustained pattern of the same Quality Gate blocking raises exactly one Organisational Learning Obligation — not one per blocked attempt.
 
 Each new phase's "Done when" line in `Post-MVP Build Sequence.md` is close to a direct translation into one of these tests — use it as the starting spec, not just a checklist to eyeball.
 
 ## What not to do
 
 Don't retrofit these as a replacement for the direct-function unit tests — keep both layers. Don't reach for Playwright or a browser-automation tool unless a real need for rendered-page/client-JS coverage shows up later; nothing built so far needs it, and it would add a dependency and CI cost that isn't earning its keep yet.
+
+## Status — Initial regression suite ✅ Done (2026-08-04)
+
+Built as `tests/web-flow.e2e.test.ts`, alongside (not replacing) `tests/acceptance.e2e.test.ts` (which already covered the same journey over the CSRF-exempt JSON API — this new file covers the separate `routes/seu/web/` controller wiring instead, the layer the original Dependency Engine bug actually lived in). Same toolchain as the existing e2e test: `node --test` + Node's built-in `fetch()` + `fetch-cookie`/`tough-cookie` for session cookies, app booted on an ephemeral port via `app.listen(0)`, real Postgres, nothing mocked.
+
+**Re-walked all five flows by hand against the current, post-Phase-3 app before writing any test**, per the status note above — confirmed the web route contract is unchanged by Phase 3 (still a form POST → `302` + flash message; Phase 3 only changed what happens internally before that redirect):
+- Commissioning form: `GET /aisworg/seu/seus/new` (CSRF token in a hidden `_csrf` input) → `POST /aisworg/seu/seus` (`statement`, repeated `requiredCapabilityCodes`) → `302` to `/aisworg/seu/seus/:id`.
+- Capability Fulfilment: `POST /aisworg/seu/seus/:id/capabilities/:capabilityId/fulfil` (`participantType`, `displayName`) → `302`, capability badge flips to `Fulfilled`.
+- Deliverable transition: `POST /aisworg/seu/seus/:id/deliverables/:deliverableId/transition` (`targetState`) → `302` + flash (`alert-success` or `alert-danger` with the specific blocking reason in the message text).
+- All exactly as this brief assumed — no discrepancies found, nothing to correct.
+
+**One adaptation, not a discrepancy**: Flow 5 (dependency gating) now fulfils both Deliverables' producing Capabilities *before* attempting the blocked transition. Without that, a Phase-3-deferred transition (`dispatch_deferred`, no Participant assigned) and a dependency-blocked one (`dependency_not_satisfied`) would both just be "blocked," muddying which gate the test is actually proving works. Pre-fulfilling isolates the dependency gate specifically — the one the regression is about — so the test still fails the way it should if that exact bug ever comes back.
+
+**Phase 3 coverage added per "How this expands"**: one further test drives a transition twice — once with nobody fulfilling the producing Capability (asserts the flash message, asserts the Deliverable didn't move, and queries `commandsDB`/`workItemsDB` directly to confirm a real `Deferred` Command with no dispatched Work Item), then again after fulfilling it (asserts a second, `Completed` Command exists with exactly one `Disposed` Work Item assigned to the fulfilling Participant via the `sole-eligible-participant` strategy). This is the acceptance check that Command generation and Dispatch are real, not just present in the engine-level tests.
+
+Full suite: 29/29 passing (23 existing + 6 new).
+
+## Status — Phase 4 (Governance depth) ✅ Done (2026-08-04)
+
+Added one further test to `tests/web-flow.e2e.test.ts`, same "assert it's blocked, satisfy the condition, assert it's now allowed" pattern as Flow 5, per this brief's own §"How this expands" spec for Phase 4. Walked the flow by hand against the running app first, same discipline as before:
+
+- Obligation create: `POST /aisworg/seu/seus/:id/obligations` (`deliverableId`, `category`, `title`, `severity`) → `302` + flash success.
+- Obligation transition: `POST /aisworg/seu/seus/:id/obligations/:obligationId/transition` (`targetState`) → `302` + flash, same shape as the Deliverable transition endpoint.
+- A blocked Deliverable transition (Quality Gate) redirects `302` with `alert-danger` naming the gate and the unresolved Obligation(s) by title — confirmed graceful, not a `500`, matching Flow 4's bar.
+
+The test commissions an SEU, fulfils Requirements Specification's producing Capability, moves it to "In Progress", creates an Obligation against it, confirms the "In Progress" → "Approved" transition is now blocked by the seeded `qg-deliverable-in-progress-to-approved` Quality Gate (flash names the gate and the Obligation), walks the Obligation through its full lifecycle to "Verified", then confirms the same Deliverable transition now succeeds. Requirements Specification has zero dependency edges in the seeded Template (confirmed independently in `tests/governance-depth.test.ts`), so this test's block-then-unblock is provably the Quality Gate/Obligation, not the Dependency Engine — the same "independently of the dependency graph" bar this brief's Phase 4 pointer asked for.
+
+Full suite: 33/33 passing (29 existing + 1 new HTTP-level test + 3 new direct-function tests in `tests/governance-depth.test.ts`, added alongside per the "keep both layers" rule).
+
+## Status — Phase 5 (Knowledge, Evidence, Decision Models) ✅ Done (2026-08-04)
+
+Added one further test to `tests/web-flow.e2e.test.ts`, exactly per this brief's own §"How this expands" spec for Phase 5: "a test that a transition requiring accepted Evidence or a recorded Decision is blocked without it and allowed with it." Same block-then-unblock pattern as Flow 5 and the Phase 4 test; walked the flow by hand against the running app first:
+
+- Evidence create: `POST /aisworg/seu/seus/:id/evidence` (`deliverableId`, `category`, `title`, `source`, `confidenceLevel`) → `302` + flash success.
+- Evidence transition: `POST /aisworg/seu/seus/:id/evidence/:evidenceId/transition` (`targetState`) → `302` + flash, same shape as every other governed-entity transition endpoint.
+- A blocked Deliverable transition (the new "Approved" → "Baselined" Quality Gate) redirects `302` with `alert-danger` naming the gate and the reason — graceful, not a `500`.
+
+The test commissions an SEU, walks Requirements Specification all the way to "Approved" (fulfil Capability → "In Progress" → "Approved" — Phase 4's Obligation gate passes trivially since no Obligation is ever created), confirms "Approved" → "Baselined" is now blocked by the seeded `qg-deliverable-approved-to-baselined` Quality Gate, creates an Evidence Item, walks it to "Accepted", then confirms the same Deliverable transition now succeeds. A second scenario proving the "or" — an Approved Decision alone also satisfies the same gate, with no Evidence at all — is covered in `tests/trust-pipeline.test.ts` (direct-function layer) rather than duplicated at the HTTP layer, consistent with "keep both layers" rather than testing the same fact twice through two different mechanisms.
+
+Full suite: 38/38 passing (33 existing + 1 new HTTP-level test + 4 new direct-function tests in `tests/trust-pipeline.test.ts`).
+
+## Status — Phase 6 (Organisational Learning Obligation + Engineering Capital surfaces) ✅ Done (2026-08-04)
+
+Added one further test to `tests/web-flow.e2e.test.ts`, exactly per this brief's own §"How this expands" spec for Phase 6: "a test that promoting a Knowledge Item's scope produces a visible Organisational Learning Obligation." Walked the flow by hand against the running app first:
+
+- Knowledge Item create: `POST /aisworg/seu/seus/:id/knowledge` (`deliverableId`, `category`, `title`) → `302` + flash success, same shape as every other create endpoint.
+- Scope promotion: `POST /aisworg/seu/seus/:id/knowledge/:knowledgeItemId/promote-scope` (`targetScope`) → `302` + flash — new this phase, deliberately a *different* endpoint from `.../transition`, since Acquisition Scope and lifecycle status are governed as two independent tracks (Ch.16 §12 vs §9).
+- Engineering Capital: `GET /aisworg/seu/knowledge/capital` → `200`, platform-wide (not nested under a specific SEU).
+
+The test creates a Knowledge Item, confirms promoting its scope before it's Published is blocked with a clear message (not a `500`), walks it through its lifecycle to "Published", promotes it to "Capability" scope, confirms the flash message names a real Organisational Learning Obligation, confirms that Obligation is actually visible and actionable in the SEU detail page's Obligations section (not just named in a toast), then confirms the same Knowledge Item now appears on the Engineering Capital screen with the correct scope badge. Authority tiering (Capability requires `general`, Enterprise requires `power`, Platform requires `super`) and the monotonic-promotion-only rule (no skipping tiers, no demotion) are covered in `tests/engineering-capital.test.ts` (direct-function layer) rather than duplicated at the HTTP layer.
+
+Full suite: 44/44 passing (38 existing + 1 new HTTP-level test + 5 new direct-function tests in `tests/engineering-capital.test.ts`).
+
+## Status — Phase 7 (Engineering Telemetry) ✅ Done (2026-08-04)
+
+Added one further test to `tests/web-flow.e2e.test.ts`, per this brief's own newly-added Phase 7 pointer above (no phase-specific pointer existed for Phase 7 before this — derived directly from `Post-MVP Build Sequence.md`'s Phase 7 "Done when" line instead, per this brief's closing instruction to use that line "as the starting spec"). Walked the flow by hand against the running app first:
+
+- Telemetry: `GET /aisworg/seu/telemetry` → `200`, platform-wide (not nested under a specific SEU, same choice as Engineering Capital).
+- No new mutating endpoints — Telemetry is observational only (ET-001); the test drives the existing Deliverable-transition and Obligation-create endpoints and checks their effect shows up in Telemetry, rather than testing any Telemetry-specific POST route (there isn't one).
+
+**One real discrepancy found while writing this test, not present when the brief's spec line was written**: the naive assertion "exactly one occurrence of the Obligation's title text on the page" failed on the first run — not because a duplicate Obligation was raised, but because the raised Organisational Learning Obligation is itself an unresolved Obligation on the same Deliverable, so the *next* blocked attempt's own flash message correctly lists it by name alongside the original blocker (the Quality Gate is genuinely re-evaluating live data, which now includes the Obligation Telemetry just created). Not a bug — fixed by asserting against a second page fetch (after the one-shot flash has already been consumed) rather than the same response that triggered it. Logged here since it's exactly the kind of "assumed exactly-once, but real system state cascades" issue this brief exists to catch.
+
+The test commissions an SEU, transitions Requirements Specification to "In Progress," confirms it now appears on the Telemetry page (a real Flow metric, not a placeholder), creates an Obligation deliberately left unresolved, blocks the same Quality Gate 3 times in that SEU, confirms exactly one Organisational Learning Obligation appears (not one per attempt), confirms a 4th attempt doesn't raise a second one, and confirms the gate's name now appears in the platform-wide Telemetry page's Governance section with a real (non-placeholder) latency figure. The `QualityGateBlocked`/`QualityGatePassed` event-bus publications this phase added to `qualityGateEngine` (a real Ch.26 §15 gap found during this phase, previously silent) are covered directly in `tests/telemetry.test.ts` (direct-function layer) rather than duplicated at the HTTP layer.
+
+Full suite: 49/49 passing (44 existing + 1 new HTTP-level test + 4 new direct-function tests in `tests/telemetry.test.ts`).
