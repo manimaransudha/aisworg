@@ -53,7 +53,9 @@
       { "code": "authority-promote-knowledge-to-enterprise", "governedTransition": "knowledgescope.transition", "authorisedRole": "power" },
       { "code": "authority-promote-knowledge-to-platform", "governedTransition": "knowledgescope.transition", "authorisedRole": "super" },
       { "code": "authority-transition-attentionitem", "governedTransition": "attentionitem.transition", "authorisedRole": "general" },
-      { "code": "authority-transition-externalinteraction", "governedTransition": "externalinteraction.transition", "authorisedRole": "general" }
+      { "code": "authority-transition-externalinteraction", "governedTransition": "externalinteraction.transition", "authorisedRole": "general" },
+      { "code": "authority-transition-pack", "governedTransition": "pack.transition", "authorisedRole": "general" },
+      { "code": "authority-transition-pack-elevated", "governedTransition": "pack.transition", "authorisedRole": "power" }
     ],
     "policies": [
       {
@@ -143,6 +145,15 @@
         "category": "Engineering",
         "constraintType": "Policy",
         "governedTransition": "externalinteraction.transition",
+        "condition": { "type": "always_true" },
+        "severity": "Low"
+      },
+      {
+        "code": "policy-pack-transition-baseline",
+        "name": "Pack transition baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "pack.transition",
         "condition": { "type": "always_true" },
         "severity": "Low"
       }

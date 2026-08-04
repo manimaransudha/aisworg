@@ -67,7 +67,7 @@ test("Quality Gate blocks 'Approved' -> 'Baselined' until Evidence is Accepted, 
     }
   }
 
-  const evidence = await createEvidence({ seuId, deliverableId, category: "Validation Evidence", title: "Phase5 test: requirements sign-off", source: "Manual review" });
+  const evidence = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Validation Evidence", title: "Phase5 test: requirements sign-off", source: "Manual review" });
   assert.equal(evidence.status, "Collected");
 
   // Not yet Accepted — still blocked.
@@ -87,7 +87,7 @@ test("Quality Gate blocks 'Approved' -> 'Baselined' until Evidence is Accepted, 
 test("Quality Gate also accepts an Approved Decision as satisfying the same precondition (the 'or' in Evidence-or-Decision)", async () => {
   const { seuId, deliverableId } = await commissionAndApproveRequirementsSpec("phase5-decision-gate");
 
-  const decision = await createDecision({ seuId, deliverableId, category: "Engineering Decisions", title: "Phase5 test: baseline readiness", selectedAlternative: "Proceed to baseline" });
+  const decision = await createDecision({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering Decisions", title: "Phase5 test: baseline readiness", selectedAlternative: "Proceed to baseline" });
   assert.equal(decision.status, "Identified");
 
   for (const targetState of ["Analysed", "Proposed", "Reviewed", "Approved"]) {
@@ -102,7 +102,7 @@ test("Quality Gate also accepts an Approved Decision as satisfying the same prec
 test("Evidence, Knowledge and Decision each run their own governed lifecycle and reject an undefined transition", async () => {
   const { seuId, deliverableId } = await commissionAndApproveRequirementsSpec("phase5-lifecycles");
 
-  const evidence = await createEvidence({ seuId, deliverableId, category: "Analytical Evidence", title: "Phase5 lifecycle test evidence" });
+  const evidence = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: "Phase5 lifecycle test evidence" });
   const evidenceInvalid = await transitionEvidence({ evidenceId: evidence.id, targetState: "Referenced", actorRole: "super" });
   assert.equal(evidenceInvalid.ok, false);
   if (!evidenceInvalid.ok) assert.equal(evidenceInvalid.reason, "no_transition_definition");
@@ -112,7 +112,7 @@ test("Evidence, Knowledge and Decision each run their own governed lifecycle and
   assert.equal(knowledgeInvalid.ok, false);
   if (!knowledgeInvalid.ok) assert.equal(knowledgeInvalid.reason, "no_transition_definition");
 
-  const decision = await createDecision({ seuId, deliverableId, category: "Design Decisions", title: "Phase5 lifecycle test decision" });
+  const decision = await createDecision({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Design Decisions", title: "Phase5 lifecycle test decision" });
   const decisionInvalid = await transitionDecision({ decisionId: decision.id, targetState: "Approved", actorRole: "super" });
   assert.equal(decisionInvalid.ok, false);
   if (!decisionInvalid.ok) assert.equal(decisionInvalid.reason, "no_transition_definition");

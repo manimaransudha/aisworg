@@ -47,7 +47,7 @@ test("a Quality Gate block raises exactly one 'Action Required' Attention Item, 
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("phase8-attention-dedup");
   await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super" });
 
-  const obligation = await createObligation({ seuId, deliverableId, category: "Engineering", title: "Phase8 attention-dedup blocker (left unresolved)" });
+  const obligation = await createObligation({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase8 attention-dedup blocker (left unresolved)" });
 
   for (let i = 0; i < 3; i++) {
     const attempt = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super" });
@@ -66,7 +66,7 @@ test("a sustained pattern of Quality Gate blocking raises a High-priority 'Escal
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("phase8-attention-escalation");
   await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super" });
 
-  await createObligation({ seuId, deliverableId, category: "Engineering", title: "Phase8 escalation blocker (left unresolved)" });
+  await createObligation({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase8 escalation blocker (left unresolved)" });
 
   // Threshold is 3 (SUSTAINED_BLOCK_THRESHOLD) — cross it.
   for (let i = 0; i < 4; i++) {

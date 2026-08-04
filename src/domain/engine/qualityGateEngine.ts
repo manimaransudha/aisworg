@@ -37,7 +37,7 @@ export type QualityGateEvaluationResult =
 export const qualityGateEngine = {
   async evaluate(input: {
     entityType: TransitionEntityType;
-    entityId: string; // Deliverable id — the only entity type MVP's criteria types resolve
+    entityId: string;
     seuId: string;
     fromState: string;
     toState: string;
@@ -47,8 +47,16 @@ export const qualityGateEngine = {
 
     const criteriaType = (gate.criteria as { type?: string }).type;
 
+    // Post-completion fix (Open Design Questions.md #3): both criteria types
+    // below used to resolve Obligations/Evidence/Decisions by a Deliverable-
+    // only deliverable_id FK — meaning a Quality Gate on any other entity
+    // type could never mean anything, even though quality_gates.entity_type
+    // was never actually restricted to 'Deliverable'. Obligation/Evidence/
+    // Decision now carry a polymorphic (related_object_type, related_object_id)
+    // pair instead, resolved generically here against whatever entity this
+    // evaluation is actually for — no entity-type-specific branch needed.
     if (criteriaType === "no_unresolved_obligations") {
-      const { data: obligations } = await obligationsDB.findByDeliverableId(input.entityId);
+      const { data: obligations } = await obligationsDB.findByRelatedObject(input.entityType, input.entityId);
       const unresolved = (obligations ?? []).filter((o) => !RESOLVED_OBLIGATION_STATUSES.has(o.status));
       if (unresolved.length > 0) {
         return this.recordAndBlock(gate, input, `${unresolved.length} unresolved Obligation(s) (${unresolved.map((o) => o.title).join(", ")})`, {
@@ -60,13 +68,13 @@ export const qualityGateEngine = {
 
     if (criteriaType === "requires_accepted_evidence_or_approved_decision") {
       const [{ data: evidence }, { data: decisions }] = await Promise.all([
-        evidenceDB.findByDeliverableId(input.entityId),
-        decisionsDB.findByDeliverableId(input.entityId),
+        evidenceDB.findByRelatedObject(input.entityType, input.entityId),
+        decisionsDB.findByRelatedObject(input.entityType, input.entityId),
       ]);
       const qualifyingEvidence = (evidence ?? []).filter((e) => QUALIFYING_EVIDENCE_STATUSES.has(e.status));
       const qualifyingDecisions = (decisions ?? []).filter((d) => QUALIFYING_DECISION_STATUSES.has(d.status));
       if (qualifyingEvidence.length === 0 && qualifyingDecisions.length === 0) {
-        return this.recordAndBlock(gate, input, "no accepted Evidence or approved Decision found for this Deliverable", {});
+        return this.recordAndBlock(gate, input, "no accepted Evidence or approved Decision found for this entity", {});
       }
       return this.recordAndPass(gate, input);
     }

@@ -12,6 +12,7 @@ import { externalInteractionsDB } from "../../../dblayer/externalInteractionsDB.
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
+import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { raiseAttentionItem } from "./attentionItems.js";
 import type { ExternalInteractionRow, InteractionDirection } from "../../../dblayer/seuTypes.js";
@@ -67,6 +68,7 @@ export async function listExternalInteractionsWithNextStates(seuId: string): Pro
 export type TransitionExternalInteractionResult =
   | { ok: true; interaction: ExternalInteractionRow; appliedTransition: { fromState: string; toState: string } }
   | { ok: false; reason: "not_found" }
+  | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition"; detail: string };
 
 // Ch.36 §13: "Interaction failures shall... generate Attention Items where
@@ -78,6 +80,18 @@ export async function transitionExternalInteraction(input: { interactionId: stri
   if (!interaction) return { ok: false, reason: "not_found" };
 
   const fromState = interaction.status;
+
+  const qualityGateResult = await qualityGateEngine.evaluate({
+    entityType: "ExternalInteraction",
+    entityId: interaction.id,
+    seuId: interaction.seu_id,
+    fromState,
+    toState: input.targetState,
+  });
+  if (qualityGateResult.outcome === "Blocked") {
+    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
+  }
+
   const gate = await transitionEngine.evaluate({
     entityType: "ExternalInteraction",
     fromState,

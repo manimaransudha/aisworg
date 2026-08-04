@@ -14,6 +14,7 @@ import pool from "../src/utils/db.js";
 import { createObjective, getObjectiveDetail, transitionObjective, updateObjective, suggestCapabilityCodes } from "../src/routes/seu/core/objectives.js";
 import { createProfile } from "../src/routes/seu/core/profiles.js";
 import { commissionSeu, commissionFromExistingObjective } from "../src/routes/seu/core/commissioning.js";
+import { findCandidateTemplates } from "../src/routes/seu/core/templates.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 
 after(async () => {
@@ -128,4 +129,33 @@ test("commissionFromExistingObjective reuses the Objective's own declared Capabi
 test("suggestCapabilityCodes matches on word overlap with a Capability's name/description", async () => {
   const codes = await suggestCapabilityCodes("We need requirements analysis work done for this engagement");
   assert.ok(codes.includes("requirements-analysis"), `expected requirements-analysis in ${JSON.stringify(codes)}`);
+});
+
+// Bug fix regression: findCandidateTemplates correctly allows a Template
+// requiring MORE Capabilities than requested to satisfy (Ch.6 §11 — that's
+// intentional, not a mismatch). The real defect was in what happened when
+// more than one Template satisfies: the first alphabetically-sorted match
+// won, not the tightest fit. This only became observable once a second real
+// Template (requiring strictly more Capabilities than
+// template-web-application) existed in the Registry — see
+// seedEbookLibraryPilot.ts. Requesting exactly template-web-application's 3
+// required Capabilities must select it over any looser-fitting Template
+// that also happens to satisfy, regardless of code ordering.
+test("findCandidateTemplates picks the tightest-fitting satisfying Template, not whichever sorts first alphabetically", async () => {
+  const { data: webApp } = await templatesDB.findByCode("template-web-application");
+  assert.ok(webApp, "expected template-web-application to be seeded");
+  const { data: webAppCapabilities } = await templatesDB.getRequiredCapabilities(webApp!.id);
+  assert.ok(webAppCapabilities && webAppCapabilities.length > 0);
+
+  const candidates = await findCandidateTemplates(webAppCapabilities!.map((c) => c.code));
+  const satisfying = candidates.filter((c) => c.satisfies);
+  assert.ok(satisfying.length >= 1);
+
+  // Ascending by required-Capability count — the tightest fit is first.
+  for (let i = 1; i < satisfying.length; i++) {
+    assert.ok(satisfying[i]!.requiredCapabilityCount >= satisfying[i - 1]!.requiredCapabilityCount);
+  }
+
+  const selected = satisfying[0];
+  assert.equal(selected?.code, "template-web-application", `expected the exact-fit Template to win, got: ${selected?.code}`);
 });

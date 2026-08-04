@@ -107,7 +107,8 @@ export async function checkSustainedQualityGateBlocking(input: {
 
   const obligation = await createObligation({
     seuId: input.seuId,
-    deliverableId: input.deliverableId,
+    relatedObjectType: "Deliverable",
+    relatedObjectId: input.deliverableId,
     category: "Organisational Learning",
     title: `Recurring friction: Quality Gate "${input.gateName}" has blocked ${blockedCount} transition attempt(s) in this SEU`,
     description: `Ch.35 §11 sustained-pattern detection (${marker}): this Quality Gate has recorded ${blockedCount} Blocked evaluations in this SEU, at or past the sustained-pattern threshold (${SUSTAINED_BLOCK_THRESHOLD}). Telemetry does not decide the fix — only that the gate's criteria, or the Deliverables reaching it, warrant engineering review (Ch.23 §7 / Ch.35 §11).`,

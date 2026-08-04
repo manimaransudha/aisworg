@@ -115,6 +115,13 @@ export type TransitionObjectiveResult =
   | { ok: false; reason: "not_found" }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition"; detail: string };
 
+// Post-completion fix (Open Design Questions.md #3): every other SEU-scoped
+// entity type now runs its transition through qualityGateEngine.evaluate
+// first, same as transitionDeliverable always has. Objective deliberately
+// does not — it has no seu_id (an Objective can precede, or outlive, any
+// number of SEUs commissioned against it), and quality_gate_evaluations.seu_id
+// is NOT NULL, so there is nowhere to record an evaluation against. Logged
+// as a real, structural limitation, not silently skipped.
 export async function transitionObjective(input: { objectiveId: string; targetState: ObjectiveStatus; actorRole: string }): Promise<TransitionObjectiveResult> {
   const { data: objective } = await objectivesDB.findById(input.objectiveId);
   if (!objective) return { ok: false, reason: "not_found" };

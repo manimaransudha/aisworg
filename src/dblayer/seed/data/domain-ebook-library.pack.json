@@ -1,0 +1,53 @@
+{
+  "code": "domain-ebook-library",
+  "name": "E-Book Library Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Mandatory",
+  "dependencies": [
+    { "packCode": "platform-core-engineering", "version": "1.0.0", "type": "required" }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "catalog-management",
+        "name": "Catalog & Metadata Management",
+        "description": "Curates e-book catalog metadata (ISBN, title, author, format, licensed copy count) and catalog structure.",
+        "category": "Domain"
+      },
+      {
+        "code": "circulation-management",
+        "name": "Circulation Management",
+        "description": "Governs borrowing, returns, loan periods, and hold/waitlist rules when no licensed copies are available.",
+        "category": "Domain"
+      }
+    ],
+    "services": [
+      {
+        "code": "approved-catalog-metadata-design",
+        "capabilityCode": "catalog-management",
+        "name": "Approved Catalog Metadata Design",
+        "contractDescription": "A reviewed, approved data model and rule set for catalog titles and their metadata.",
+        "serviceLevel": { "qualityBar": "peer-reviewed" }
+      },
+      {
+        "code": "approved-circulation-rules",
+        "capabilityCode": "circulation-management",
+        "name": "Approved Circulation Rules",
+        "contractDescription": "A reviewed, approved specification of borrowing, return, and hold/waitlist rules.",
+        "serviceLevel": { "qualityBar": "peer-reviewed" }
+      }
+    ],
+    "policies": [
+      {
+        "code": "policy-library-isbn-metadata-standard",
+        "name": "ISBN Metadata Standard",
+        "category": "Domain Standard",
+        "constraintType": "Standard",
+        "governedTransition": "deliverable.transition",
+        "condition": { "type": "always_true" },
+        "severity": "Low"
+      }
+    ]
+  }
+}

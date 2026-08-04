@@ -1,0 +1,53 @@
+{
+  "code": "template-ebook-library-system",
+  "name": "E-Book Library Management System",
+  "requiredCapabilityCodes": [
+    "requirements-analysis",
+    "architecture",
+    "catalog-management",
+    "circulation-management",
+    "development",
+    "code-review"
+  ],
+  "mandatoryPackCodes": ["platform-core-engineering", "domain-ebook-library"],
+  "deliverableCatalogue": [
+    {
+      "code": "requirements-spec",
+      "name": "Requirements Specification",
+      "category": "Documentation",
+      "producingCapabilityCode": "requirements-analysis"
+    },
+    {
+      "code": "architecture-doc",
+      "name": "Architecture Document",
+      "category": "Documentation",
+      "producingCapabilityCode": "architecture",
+      "dependsOnDeliverableCodes": ["requirements-spec"],
+      "dependsOnCapabilityServiceCodes": ["requirements-analysis"]
+    },
+    {
+      "code": "catalog-metadata-design",
+      "name": "Catalog Metadata Design",
+      "category": "Documentation",
+      "producingCapabilityCode": "catalog-management",
+      "dependsOnDeliverableCodes": ["architecture-doc"],
+      "dependsOnCapabilityServiceCodes": ["architecture"]
+    },
+    {
+      "code": "circulation-rules-spec",
+      "name": "Circulation Rules Specification",
+      "category": "Documentation",
+      "producingCapabilityCode": "circulation-management",
+      "dependsOnDeliverableCodes": ["architecture-doc"],
+      "dependsOnCapabilityServiceCodes": ["architecture"]
+    },
+    {
+      "code": "source-code",
+      "name": "Source Code",
+      "category": "Implementation",
+      "producingCapabilityCode": "development",
+      "dependsOnDeliverableCodes": ["catalog-metadata-design", "circulation-rules-spec"],
+      "dependsOnCapabilityServiceCodes": ["catalog-management", "circulation-management", "code-review"]
+    }
+  ]
+}

@@ -74,7 +74,7 @@ test("Governance Telemetry: Quality Gate latency is zero on a first-try pass and
   // A second SEU, this time genuinely blocked once before passing.
   const { seuId: seuId2, deliverableId: deliverableId2 } = await commissionAndFulfilRequirementsSpec("phase7-governance-latency-blocked");
   await transitionDeliverable({ deliverableId: deliverableId2, targetState: "In Progress", actorRole: "super" });
-  const obligation = await createObligation({ seuId: seuId2, deliverableId: deliverableId2, category: "Engineering", title: "Phase7 latency test obligation" });
+  const obligation = await createObligation({ seuId: seuId2, relatedObjectType: "Deliverable", relatedObjectId: deliverableId2, category: "Engineering", title: "Phase7 latency test obligation" });
   const blocked = await transitionDeliverable({ deliverableId: deliverableId2, targetState: "Approved", actorRole: "super" });
   assert.equal(blocked.ok, false);
 
@@ -98,7 +98,7 @@ test("a sustained pattern of Quality Gate blocking raises exactly one Organisati
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("phase7-sustained-pattern");
   await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super" });
 
-  const obligation = await createObligation({ seuId, deliverableId, category: "Engineering", title: "Phase7 sustained-pattern blocker (left unresolved)" });
+  const obligation = await createObligation({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase7 sustained-pattern blocker (left unresolved)" });
 
   // Attempt the same blocked transition repeatedly — the Obligation above is
   // deliberately never resolved, so every attempt blocks again.
@@ -125,7 +125,7 @@ test("qualityGateEngine publishes QualityGateBlocked and QualityGatePassed on th
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("phase7-quality-gate-events");
   await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super" });
 
-  const obligation = await createObligation({ seuId, deliverableId, category: "Engineering", title: "Phase7 event test obligation" });
+  const obligation = await createObligation({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase7 event test obligation" });
   const blocked = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super" });
   assert.equal(blocked.ok, false);
   assert.ok(received.includes("QualityGateBlocked"));

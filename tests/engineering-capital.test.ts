@@ -63,7 +63,8 @@ test("promoting a Published Knowledge Item's scope raises a visible Organisation
     assert.equal(result.appliedTransition.toState, "Capability");
     assert.equal(result.obligation.category, "Organisational Learning");
     assert.match(result.obligation.title, /Capability-scoped Engineering Capital/);
-    assert.equal(result.obligation.deliverable_id, result.knowledgeItem.deliverable_id, "the Obligation must attach to the Knowledge Item's own originating Deliverable");
+    assert.equal(result.obligation.related_object_type, "Deliverable");
+    assert.equal(result.obligation.related_object_id, result.knowledgeItem.deliverable_id, "the Obligation must attach to the Knowledge Item's own originating Deliverable");
   }
 });
 

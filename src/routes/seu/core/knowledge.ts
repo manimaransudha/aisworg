@@ -5,6 +5,7 @@ import { knowledgeItemsDB } from "../../../dblayer/knowledgeItemsDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
+import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { createObligation } from "./obligations.js";
 import type { AcquisitionScope, EngineeringCapitalRow, KnowledgeItemRow, ObligationRow } from "../../../dblayer/seuTypes.js";
@@ -76,6 +77,7 @@ export async function listKnowledgeItemsWithNextStates(seuId: string): Promise<K
 export type TransitionKnowledgeItemResult =
   | { ok: true; knowledgeItem: KnowledgeItemRow; appliedTransition: { fromState: string; toState: string } }
   | { ok: false; reason: "not_found" }
+  | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition"; detail: string };
 
 export async function transitionKnowledgeItem(input: { knowledgeItemId: string; targetState: string; actorRole: string }): Promise<TransitionKnowledgeItemResult> {
@@ -83,6 +85,18 @@ export async function transitionKnowledgeItem(input: { knowledgeItemId: string; 
   if (!knowledgeItem) return { ok: false, reason: "not_found" };
 
   const fromState = knowledgeItem.status;
+
+  const qualityGateResult = await qualityGateEngine.evaluate({
+    entityType: "Knowledge",
+    entityId: knowledgeItem.id,
+    seuId: knowledgeItem.seu_id,
+    fromState,
+    toState: input.targetState,
+  });
+  if (qualityGateResult.outcome === "Blocked") {
+    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
+  }
+
   const gate = await transitionEngine.evaluate({
     entityType: "Knowledge",
     fromState,
@@ -171,7 +185,8 @@ export async function promoteKnowledgeItemScope(input: { knowledgeItemId: string
   // Deliverable, the only FK Obligation supports (Phase 4 scope).
   const obligation = await createObligation({
     seuId: knowledgeItem.seu_id,
-    deliverableId: knowledgeItem.deliverable_id,
+    relatedObjectType: "Deliverable",
+    relatedObjectId: knowledgeItem.deliverable_id,
     category: "Organisational Learning",
     title: `Codify "${knowledgeItem.title}" now that it is ${input.targetScope}-scoped Engineering Capital`,
     description: `Knowledge Item ${knowledgeItem.id} was promoted from ${fromScope} to ${input.targetScope} Acquisition Scope. Ch.16 §13: understanding at this scope should be formally codified into a Capability, Service or Policy rather than left as a queryable Knowledge Item.`,

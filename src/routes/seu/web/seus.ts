@@ -154,7 +154,7 @@ router.post("/seus/:id/obligations", async (req: Request, res: Response) => {
   }
 
   try {
-    const obligation = await createObligation({ seuId, deliverableId, category, title, description, severity });
+    const obligation = await createObligation({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category, title, description, severity });
     return flashSuccess(req, res, backTo, `Obligation "${obligation.title}" created (${obligation.category}, ${obligation.severity}).`);
   } catch (err) {
     logger.error("[web/seu/seus] POST /seus/:id/obligations error", err as Error);
@@ -200,7 +200,7 @@ router.post("/seus/:id/evidence", async (req: Request, res: Response) => {
   }
 
   try {
-    const evidence = await createEvidence({ seuId, deliverableId, category, title, description, source, confidenceLevel });
+    const evidence = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category, title, description, source, confidenceLevel });
     return flashSuccess(req, res, backTo, `Evidence "${evidence.title}" collected (${evidence.category}, confidence ${evidence.confidence_level}).`);
   } catch (err) {
     logger.error("[web/seu/seus] POST /seus/:id/evidence error", err as Error);
@@ -334,7 +334,8 @@ router.post("/seus/:id/decisions", async (req: Request, res: Response) => {
   try {
     const decision = await createDecision({
       seuId,
-      deliverableId,
+      relatedObjectType: "Deliverable",
+      relatedObjectId: deliverableId,
       knowledgeId: knowledgeId || null,
       evidenceId: evidenceId || null,
       category,

@@ -1,11 +1,12 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import type { DbResult, DecisionRow } from "./seuTypes.js";
+import type { DbResult, DecisionRow, TransitionEntityType } from "./seuTypes.js";
 
 export const decisionsDB = {
   async create(input: {
     seuId: string;
-    deliverableId: string;
+    relatedObjectType: TransitionEntityType;
+    relatedObjectId: string;
     knowledgeId?: string | null;
     evidenceId?: string | null;
     category: string;
@@ -16,12 +17,13 @@ export const decisionsDB = {
   }): Promise<DbResult<DecisionRow>> {
     try {
       const { rows } = await query<DecisionRow>(
-        `INSERT INTO decisions (seu_id, deliverable_id, knowledge_id, evidence_id, category, title, engineering_question, selected_alternative, rationale)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `INSERT INTO decisions (seu_id, related_object_type, related_object_id, knowledge_id, evidence_id, category, title, engineering_question, selected_alternative, rationale)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          RETURNING *`,
         [
           input.seuId,
-          input.deliverableId,
+          input.relatedObjectType,
+          input.relatedObjectId,
           input.knowledgeId ?? null,
           input.evidenceId ?? null,
           input.category,
@@ -48,12 +50,15 @@ export const decisionsDB = {
     }
   },
 
-  async findByDeliverableId(deliverableId: string): Promise<DbResult<DecisionRow[]>> {
+  async findByRelatedObject(relatedObjectType: TransitionEntityType, relatedObjectId: string): Promise<DbResult<DecisionRow[]>> {
     try {
-      const { rows } = await query<DecisionRow>("SELECT * FROM decisions WHERE deliverable_id = $1 ORDER BY created_at", [deliverableId]);
+      const { rows } = await query<DecisionRow>(
+        "SELECT * FROM decisions WHERE related_object_type = $1 AND related_object_id = $2 ORDER BY created_at",
+        [relatedObjectType, relatedObjectId]
+      );
       return { data: rows };
     } catch (err) {
-      logger.error("[decisionsDB] findByDeliverableId error", err as Error);
+      logger.error("[decisionsDB] findByRelatedObject error", err as Error);
       return { error: err as Error };
     }
   },

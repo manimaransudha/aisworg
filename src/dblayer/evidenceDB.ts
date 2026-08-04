@@ -1,6 +1,6 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import type { DbResult, EvidenceRow } from "./seuTypes.js";
+import type { DbResult, EvidenceRow, TransitionEntityType } from "./seuTypes.js";
 
 // Ch.17 EM-002/FR-17.5: Evidence is immutable after acceptance. Deliberately
 // no "update content" function here at all — create + lifecycle transition
@@ -9,7 +9,8 @@ import type { DbResult, EvidenceRow } from "./seuTypes.js";
 export const evidenceDB = {
   async create(input: {
     seuId: string;
-    deliverableId: string;
+    relatedObjectType: TransitionEntityType;
+    relatedObjectId: string;
     category: string;
     title: string;
     description?: string | null;
@@ -18,10 +19,10 @@ export const evidenceDB = {
   }): Promise<DbResult<EvidenceRow>> {
     try {
       const { rows } = await query<EvidenceRow>(
-        `INSERT INTO evidence (seu_id, deliverable_id, category, title, description, source, confidence_level)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO evidence (seu_id, related_object_type, related_object_id, category, title, description, source, confidence_level)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [input.seuId, input.deliverableId, input.category, input.title, input.description ?? null, input.source ?? null, input.confidenceLevel ?? "Medium"]
+        [input.seuId, input.relatedObjectType, input.relatedObjectId, input.category, input.title, input.description ?? null, input.source ?? null, input.confidenceLevel ?? "Medium"]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -40,12 +41,15 @@ export const evidenceDB = {
     }
   },
 
-  async findByDeliverableId(deliverableId: string): Promise<DbResult<EvidenceRow[]>> {
+  async findByRelatedObject(relatedObjectType: TransitionEntityType, relatedObjectId: string): Promise<DbResult<EvidenceRow[]>> {
     try {
-      const { rows } = await query<EvidenceRow>("SELECT * FROM evidence WHERE deliverable_id = $1 ORDER BY created_at", [deliverableId]);
+      const { rows } = await query<EvidenceRow>(
+        "SELECT * FROM evidence WHERE related_object_type = $1 AND related_object_id = $2 ORDER BY created_at",
+        [relatedObjectType, relatedObjectId]
+      );
       return { data: rows };
     } catch (err) {
-      logger.error("[evidenceDB] findByDeliverableId error", err as Error);
+      logger.error("[evidenceDB] findByRelatedObject error", err as Error);
       return { error: err as Error };
     }
   },

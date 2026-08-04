@@ -3,5 +3,6 @@
   "name": "Default Development Profile",
   "baseTemplateCode": "template-web-application",
   "environment": "development",
-  "configParameters": {}
+  "configParameters": {},
+  "optionalPackCodes": ["technology-nodejs"]
 }

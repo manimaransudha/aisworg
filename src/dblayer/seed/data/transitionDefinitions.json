@@ -50,5 +50,14 @@
   { "entityType": "ExternalInteraction", "fromState": "Dispatched", "toState": "Acknowledged", "requiredAuthorityRuleCode": "authority-transition-externalinteraction", "requiredPolicyCodes": ["policy-externalinteraction-transition-baseline"] },
   { "entityType": "ExternalInteraction", "fromState": "Dispatched", "toState": "Failed", "requiredAuthorityRuleCode": "authority-transition-externalinteraction", "requiredPolicyCodes": ["policy-externalinteraction-transition-baseline"] },
   { "entityType": "ExternalInteraction", "fromState": "Acknowledged", "toState": "Completed", "requiredAuthorityRuleCode": "authority-transition-externalinteraction", "requiredPolicyCodes": ["policy-externalinteraction-transition-baseline"] },
-  { "entityType": "ExternalInteraction", "fromState": "Completed", "toState": "Archived", "requiredAuthorityRuleCode": "authority-transition-externalinteraction", "requiredPolicyCodes": ["policy-externalinteraction-transition-baseline"] }
+  { "entityType": "ExternalInteraction", "fromState": "Completed", "toState": "Archived", "requiredAuthorityRuleCode": "authority-transition-externalinteraction", "requiredPolicyCodes": ["policy-externalinteraction-transition-baseline"] },
+  { "entityType": "Pack", "fromState": "Draft", "toState": "Validated", "requiredAuthorityRuleCode": "authority-transition-pack", "requiredPolicyCodes": ["policy-pack-transition-baseline"] },
+  { "entityType": "Pack", "fromState": "Validated", "toState": "Published", "requiredAuthorityRuleCode": "authority-transition-pack", "requiredPolicyCodes": ["policy-pack-transition-baseline"] },
+  { "entityType": "Pack", "fromState": "Published", "toState": "Active", "requiredAuthorityRuleCode": "authority-transition-pack-elevated", "requiredPolicyCodes": ["policy-pack-transition-baseline"] },
+  { "entityType": "Pack", "fromState": "Active", "toState": "Deprecated", "requiredAuthorityRuleCode": "authority-transition-pack-elevated", "requiredPolicyCodes": ["policy-pack-transition-baseline"] },
+  { "entityType": "Pack", "fromState": "Deprecated", "toState": "Retired", "requiredAuthorityRuleCode": "authority-transition-pack-elevated", "requiredPolicyCodes": ["policy-pack-transition-baseline"] },
+  { "entityType": "Pack", "fromState": "Retired", "toState": "Archived", "requiredAuthorityRuleCode": "authority-transition-pack-elevated", "requiredPolicyCodes": ["policy-pack-transition-baseline"] },
+  { "entityType": "Pack", "fromState": "Deprecated", "toState": "Active", "requiredAuthorityRuleCode": "authority-transition-pack-elevated", "requiredPolicyCodes": ["policy-pack-transition-baseline"] },
+  { "entityType": "Pack", "fromState": "Retired", "toState": "Active", "requiredAuthorityRuleCode": "authority-transition-pack-elevated", "requiredPolicyCodes": ["policy-pack-transition-baseline"] },
+  { "entityType": "Pack", "fromState": "Archived", "toState": "Active", "requiredAuthorityRuleCode": "authority-transition-pack-elevated", "requiredPolicyCodes": ["policy-pack-transition-baseline"] }
 ]

@@ -30,6 +30,7 @@ import app from "../src/app.js";
 import { appConfig } from "../src/config/appconfig.js";
 import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { workItemsDB } from "../src/dblayer/workItemsDB.js";
+import { publishPack } from "../src/routes/seu/core/packs.js";
 
 type Session = ReturnType<typeof fetchCookie>;
 
@@ -581,4 +582,45 @@ test("Phase 8 — a blocked Quality Gate and a failed External Interaction both 
   const attentionAfterFailure = await getPage(request, "/seu/attention");
   assert.match(attentionAfterFailure.html, /External Interaction with[\s\S]*?WebFlow Phase8 Ticketing System[\s\S]*?failed/);
   assert.match(attentionAfterFailure.html, /Exception/);
+});
+
+// Post-MVP Phase 9 addition (Ch.5 Pack Model, Ch.38 Pack Platform
+// Architecture, Ch.39 Pack SDK, Ch.41 Version Management). Packs are
+// SDK-only (SDK-001: "Every production Pack shall be created using the
+// SDK") — there is no web/API create form, so this test publishes the
+// fixture Pack directly through the real SDK entrypoint (the same function
+// `pnpm pack:publish` calls) rather than pretending an HTTP path exists, and
+// then exercises the two routes that *do* exist over real HTTP: the
+// Registry listing and the lifecycle-transition form.
+test("Phase 9 — a Pack published through the SDK is visible on the platform-wide Registry, and its lifecycle transitions over real HTTP", async () => {
+  const request = newSession();
+  const seed = {
+    code: `webflow-phase9-pack-${randomUUID()}`,
+    name: "WebFlow Phase9 Test Pack",
+    category: "Technology" as const,
+    packVersion: "1.0.0",
+    installationClassification: "Optional" as const,
+    contributions: {},
+  };
+  const published = await publishPack({ seed, actorRole: "power", activate: true });
+  assert.equal(published.ok, true, !published.ok ? JSON.stringify(published.errors) : undefined);
+  assert.equal(published.pack!.status, "Active");
+
+  const registryPage = await getPage(request, "/seu/packs");
+  assert.equal(registryPage.status, 200);
+  assert.match(registryPage.html, new RegExp(seed.code));
+  assert.match(registryPage.html, /v1\.0\.0/);
+  const csrf = extractCsrf(registryPage.html);
+
+  const transition = await postForm(request, `/seu/packs/${published.pack!.id}/transition`, csrf, { targetState: "Deprecated" });
+  assert.equal(transition.status, 302);
+
+  const afterTransition = await getPage(request, "/seu/packs");
+  assert.match(afterTransition.html, /alert-success/);
+  // Two occurrences of the code exist post-transition: the flash message and
+  // the Pack's own card below it — the card (not the flash) is what needs to
+  // show the new state, so match the *last* occurrence's nearby state badge.
+  const packCardMatches = [...afterTransition.html.matchAll(new RegExp(`${seed.code}[\\s\\S]{0,400}?state-badge state-(\\w+)`, "g"))];
+  assert.ok(packCardMatches.length > 0, "expected to find the fixture Pack's card on the Registry page");
+  assert.equal(packCardMatches[packCardMatches.length - 1]![1], "Deprecated");
 });

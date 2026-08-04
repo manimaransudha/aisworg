@@ -1,0 +1,34 @@
+{
+  "code": "technology-nodejs",
+  "name": "Node.js Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    { "packCode": "platform-core-engineering", "version": "1.0.0", "type": "required" }
+  ],
+  "contributions": {
+    "capabilities": [
+      { "code": "code-review", "name": "Code Review", "description": "Peer review of Source Code changes before merge.", "category": "Quality" }
+    ],
+    "services": [
+      {
+        "code": "code-review",
+        "capabilityCode": "code-review",
+        "name": "Code Review Service",
+        "contractDescription": "Peer review of Source Code changes before merge, per Node.js Engineering Practices."
+      }
+    ],
+    "policies": [
+      {
+        "code": "policy-nodejs-lint-standard",
+        "name": "Node.js Lint Standard",
+        "category": "Coding Standard",
+        "constraintType": "Standard",
+        "governedTransition": "deliverable.transition",
+        "condition": { "type": "always_true" },
+        "severity": "Low"
+      }
+    ]
+  }
+}

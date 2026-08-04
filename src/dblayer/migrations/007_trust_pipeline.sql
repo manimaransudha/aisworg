@@ -37,7 +37,16 @@ CREATE TABLE IF NOT EXISTS evidence (
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_evidence_deliverable ON evidence (deliverable_id);
+-- Guarded: 011_polymorphic_governance_objects.sql later drops deliverable_id
+-- once related_object_type/related_object_id replace it — on a rerun against
+-- an already-migrated database, this file's own CREATE INDEX would otherwise
+-- fail against a column that no longer exists.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'evidence' AND column_name = 'deliverable_id') THEN
+    CREATE INDEX IF NOT EXISTS idx_evidence_deliverable ON evidence (deliverable_id);
+  END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS idx_evidence_seu ON evidence (seu_id);
 
 -- Ch.16. acquisition_scope reuses the exact CHECK deliverables.acquisition_scope
@@ -83,7 +92,16 @@ CREATE TABLE IF NOT EXISTS decisions (
   updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_decisions_deliverable ON decisions (deliverable_id);
+-- Guarded: 011_polymorphic_governance_objects.sql later drops deliverable_id
+-- once related_object_type/related_object_id replace it — on a rerun against
+-- an already-migrated database, this file's own CREATE INDEX would otherwise
+-- fail against a column that no longer exists.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'decisions' AND column_name = 'deliverable_id') THEN
+    CREATE INDEX IF NOT EXISTS idx_decisions_deliverable ON decisions (deliverable_id);
+  END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS idx_decisions_seu ON decisions (seu_id);
 
 -- Extend the generic transitionEngine's entity types (Ch.29 §10) to admit
@@ -91,9 +109,9 @@ CREATE INDEX IF NOT EXISTS idx_decisions_seu ON decisions (seu_id);
 -- SEU/Deliverable/Objective/Obligation already use.
 ALTER TABLE transition_definitions DROP CONSTRAINT IF EXISTS transition_definitions_entity_type_check;
 ALTER TABLE transition_definitions ADD CONSTRAINT transition_definitions_entity_type_check
-  CHECK (entity_type IN ('SEU', 'Deliverable', 'Objective', 'Obligation', 'Evidence', 'Knowledge', 'Decision', 'KnowledgeScope', 'AttentionItem', 'ExternalInteraction'));
+  CHECK (entity_type IN ('SEU', 'Deliverable', 'Objective', 'Obligation', 'Evidence', 'Knowledge', 'Decision', 'KnowledgeScope', 'AttentionItem', 'ExternalInteraction', 'Pack'));
 
 -- quality_gates.entity_type mirrors the same set.
 ALTER TABLE quality_gates DROP CONSTRAINT IF EXISTS quality_gates_entity_type_check;
 ALTER TABLE quality_gates ADD CONSTRAINT quality_gates_entity_type_check
-  CHECK (entity_type IN ('SEU', 'Deliverable', 'Objective', 'Obligation', 'Evidence', 'Knowledge', 'Decision', 'KnowledgeScope', 'AttentionItem', 'ExternalInteraction'));
+  CHECK (entity_type IN ('SEU', 'Deliverable', 'Objective', 'Obligation', 'Evidence', 'Knowledge', 'Decision', 'KnowledgeScope', 'AttentionItem', 'ExternalInteraction', 'Pack'));

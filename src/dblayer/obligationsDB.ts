@@ -1,11 +1,12 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import type { DbResult, ObligationRow } from "./seuTypes.js";
+import type { DbResult, ObligationRow, TransitionEntityType } from "./seuTypes.js";
 
 export const obligationsDB = {
   async create(input: {
     seuId: string;
-    deliverableId: string;
+    relatedObjectType: TransitionEntityType;
+    relatedObjectId: string;
     category: string;
     title: string;
     description?: string | null;
@@ -13,10 +14,10 @@ export const obligationsDB = {
   }): Promise<DbResult<ObligationRow>> {
     try {
       const { rows } = await query<ObligationRow>(
-        `INSERT INTO obligations (seu_id, deliverable_id, category, title, description, severity)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO obligations (seu_id, related_object_type, related_object_id, category, title, description, severity)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING *`,
-        [input.seuId, input.deliverableId, input.category, input.title, input.description ?? null, input.severity ?? "Medium"]
+        [input.seuId, input.relatedObjectType, input.relatedObjectId, input.category, input.title, input.description ?? null, input.severity ?? "Medium"]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -35,12 +36,15 @@ export const obligationsDB = {
     }
   },
 
-  async findByDeliverableId(deliverableId: string): Promise<DbResult<ObligationRow[]>> {
+  async findByRelatedObject(relatedObjectType: TransitionEntityType, relatedObjectId: string): Promise<DbResult<ObligationRow[]>> {
     try {
-      const { rows } = await query<ObligationRow>("SELECT * FROM obligations WHERE deliverable_id = $1 ORDER BY created_at", [deliverableId]);
+      const { rows } = await query<ObligationRow>(
+        "SELECT * FROM obligations WHERE related_object_type = $1 AND related_object_id = $2 ORDER BY created_at",
+        [relatedObjectType, relatedObjectId]
+      );
       return { data: rows };
     } catch (err) {
-      logger.error("[obligationsDB] findByDeliverableId error", err as Error);
+      logger.error("[obligationsDB] findByRelatedObject error", err as Error);
       return { error: err as Error };
     }
   },

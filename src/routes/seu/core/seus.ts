@@ -285,10 +285,20 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
       })),
   }));
 
+  // Obligation/Evidence/Decision now attach to any governed entity, not just
+  // a Deliverable (Open Design Questions.md #3) — the SEU detail page still
+  // only ever creates them against a Deliverable today, so this resolves a
+  // real Deliverable name in the common case and falls back to a generic
+  // label otherwise, same pattern SeuDetailCommand.entityLabel already uses.
+  function relatedObjectLabel(relatedObjectType: string, relatedObjectId: string): string {
+    if (relatedObjectType === "Deliverable") return deliverableNameById.get(relatedObjectId) ?? "(unknown Deliverable)";
+    return `${relatedObjectType} ${relatedObjectId.slice(0, 8)}`;
+  }
+
   const obligationsWithNextStates = await listObligationsWithNextStates(seuId);
   const obligationViews: SeuDetailObligation[] = obligationsWithNextStates.map(({ obligation, possibleNextStates }) => ({
     obligation,
-    deliverableName: deliverableNameById.get(obligation.deliverable_id) ?? "(unknown Deliverable)",
+    deliverableName: relatedObjectLabel(obligation.related_object_type, obligation.related_object_id),
     possibleNextStates,
   }));
 
@@ -299,7 +309,7 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
   ]);
   const evidenceViews: SeuDetailEvidence[] = evidenceWithNextStates.map(({ evidence, possibleNextStates }) => ({
     evidence,
-    deliverableName: deliverableNameById.get(evidence.deliverable_id) ?? "(unknown Deliverable)",
+    deliverableName: relatedObjectLabel(evidence.related_object_type, evidence.related_object_id),
     possibleNextStates,
   }));
   const knowledgeItemViews: SeuDetailKnowledgeItem[] = knowledgeItemsWithNextStates.map(({ knowledgeItem, possibleNextStates, possibleNextScopes }) => ({
@@ -310,7 +320,7 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
   }));
   const decisionViews: SeuDetailDecision[] = decisionsWithNextStates.map(({ decision, possibleNextStates }) => ({
     decision,
-    deliverableName: deliverableNameById.get(decision.deliverable_id) ?? "(unknown Deliverable)",
+    deliverableName: relatedObjectLabel(decision.related_object_type, decision.related_object_id),
     possibleNextStates,
   }));
 

@@ -6,15 +6,16 @@ const router = express.Router();
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { createEvidence, listEvidenceBySeu, transitionEvidence } from "../core/evidence.js";
+import type { TransitionEntityType } from "../../../dblayer/seuTypes.js";
 
-/** POST /evidence — Ch.17: collect an Evidence Item against a Deliverable. */
+/** POST /evidence — Ch.17: collect an Evidence Item against any governed entity (relatedObjectType/relatedObjectId — polymorphic, Open Design Questions.md #3). */
 router.post("/evidence", async (req: Request, res: Response) => {
   try {
-    const { seuId, deliverableId, category, title, description, source, confidenceLevel } = req.body ?? {};
-    if (typeof seuId !== "string" || typeof deliverableId !== "string" || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
-      return res.status(400).json({ error: "seuId, deliverableId, category and title are required" });
+    const { seuId, relatedObjectType, relatedObjectId, category, title, description, source, confidenceLevel } = req.body ?? {};
+    if (typeof seuId !== "string" || typeof relatedObjectType !== "string" || typeof relatedObjectId !== "string" || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
+      return res.status(400).json({ error: "seuId, relatedObjectType, relatedObjectId, category and title are required" });
     }
-    const evidence = await createEvidence({ seuId, deliverableId, category, title, description, source, confidenceLevel });
+    const evidence = await createEvidence({ seuId, relatedObjectType: relatedObjectType as TransitionEntityType, relatedObjectId, category, title, description, source, confidenceLevel });
     res.status(201).json({ evidence });
   } catch (err) {
     logger.error("[api/seu/evidence] POST error", err as Error);

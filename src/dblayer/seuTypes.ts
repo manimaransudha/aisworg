@@ -275,7 +275,8 @@ export type TransitionEntityType =
   | "Decision"
   | "KnowledgeScope"
   | "AttentionItem"
-  | "ExternalInteraction";
+  | "ExternalInteraction"
+  | "Pack";
 
 export interface TransitionDefinitionRow {
   id: string;
@@ -330,10 +331,15 @@ export interface EventRow {
 // Post-MVP Phase 4 (Ch.23 Obligation Model). status is not a fixed union —
 // see Build Plan §2.3 precedent for Deliverable.lifecycle_state — validated
 // by transitionEngine, not the DB.
+// Post-completion fix (Open Design Questions.md #3): related_object_type/id
+// replace a single Deliverable-only FK, same polymorphic pattern
+// attention_items already uses and for the same reason — no FK constraint is
+// possible once the related object can be any governed entity type.
 export interface ObligationRow {
   id: string;
   seu_id: string;
-  deliverable_id: string;
+  related_object_type: TransitionEntityType;
+  related_object_id: string;
   category: string;
   title: string;
   description: string | null;
@@ -377,7 +383,8 @@ export interface QualityGateEvaluationRow {
 export interface EvidenceRow {
   id: string;
   seu_id: string;
-  deliverable_id: string;
+  related_object_type: TransitionEntityType;
+  related_object_id: string;
   category: string;
   title: string;
   description: string | null;
@@ -420,7 +427,8 @@ export interface EngineeringCapitalRow extends KnowledgeItemRow {
 export interface DecisionRow {
   id: string;
   seu_id: string;
-  deliverable_id: string;
+  related_object_type: TransitionEntityType;
+  related_object_id: string;
   knowledge_id: string | null;
   evidence_id: string | null;
   category: string;

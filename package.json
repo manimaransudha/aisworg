@@ -10,6 +10,8 @@
     "typecheck": "tsc -p tsconfig.json",
     "migrate:seu": "tsx src/dblayer/migrations/run.ts",
     "seed:seu": "tsx src/dblayer/seed/seedSeu.ts",
+    "pack:validate": "tsx src/dblayer/seed/pack-sdk-cli.ts validate",
+    "pack:publish": "tsx src/dblayer/seed/pack-sdk-cli.ts publish",
     "test": "NODE_ENV=test node --import tsx --test tests/**/*.test.js tests/**/*.test.ts",
     "test:spec": "NODE_ENV=test node --import tsx --test --test-reporter=spec tests/**/*.test.js tests/**/*.test.ts",
     "test:junit": "NODE_ENV=test node --import tsx --test --test-reporter=junit --test-reporter-destination=test-results.xml tests/**/*.test.js tests/**/*.test.ts",

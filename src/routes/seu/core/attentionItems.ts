@@ -4,6 +4,7 @@
 import { attentionItemsDB } from "../../../dblayer/attentionItemsDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
+import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import type { AttentionItemRow } from "../../../dblayer/seuTypes.js";
 
@@ -82,6 +83,7 @@ export async function listAttentionItemsWithNextStates(items: AttentionItemRow[]
 export type TransitionAttentionItemResult =
   | { ok: true; attentionItem: AttentionItemRow; appliedTransition: { fromState: string; toState: string } }
   | { ok: false; reason: "not_found" }
+  | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition"; detail: string };
 
 export async function transitionAttentionItem(input: { attentionItemId: string; targetState: string; actorRole: string }): Promise<TransitionAttentionItemResult> {
@@ -89,6 +91,18 @@ export async function transitionAttentionItem(input: { attentionItemId: string; 
   if (!attentionItem) return { ok: false, reason: "not_found" };
 
   const fromState = attentionItem.status;
+
+  const qualityGateResult = await qualityGateEngine.evaluate({
+    entityType: "AttentionItem",
+    entityId: attentionItem.id,
+    seuId: attentionItem.seu_id,
+    fromState,
+    toState: input.targetState,
+  });
+  if (qualityGateResult.outcome === "Blocked") {
+    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
+  }
+
   const gate = await transitionEngine.evaluate({
     entityType: "AttentionItem",
     fromState,

@@ -4,6 +4,7 @@
   <%- include('../../partials/head') %>
   <style>
     .classification-badge { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; padding: 0.2rem 0.5rem; border-radius: 999px; background: #ede9fe; color: #5b21b6; }
+    .version-badge { font-size: 0.68rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 4px; background: #f1f5f9; color: #334155; }
   </style>
 </head>
 <body>
@@ -20,31 +21,58 @@
     <div class="mb-4">
       <h2 class="h3 mb-1 text-dark fw-bold">Packs</h2>
       <p class="text-muted small mb-0">
-        Extension Framework — Pack Manager. Hand-authored JSON, loaded via <code>pnpm seed:seu</code> (no Pack SDK yet).
+        Pack Registry (Ch.38 §10) — every published Version of every Pack, published through the real Pack SDK
+        (<code>pnpm pack:publish</code>, Ch.39), not hand-edited JSON. Each Version is an immutable row (Ch.41
+        VM-002); publishing a new version of an existing Pack creates a new row and supersedes the previously-Active
+        one rather than mutating it in place. Only the SDK creates Packs (SDK-001) — this page transitions their
+        lifecycle once they exist.
       </p>
     </div>
 
     <% if (packs.length === 0) { %>
-      <div class="alert alert-warning">No Packs loaded — run <code>pnpm seed:seu</code>.</div>
+      <div class="alert alert-warning">No Packs published — run <code>pnpm seed:seu</code> or <code>pnpm pack:publish &lt;file&gt; --activate</code>.</div>
     <% } else { %>
       <% packs.forEach(function(p) { %>
         <div class="card border-0 shadow-sm mb-3">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-start">
               <div>
-                <h5 class="mb-1"><%= p.name %> <code class="text-muted small"><%= p.code %></code></h5>
+                <h5 class="mb-1">
+                  <%= p.pack.name %> <code class="text-muted small"><%= p.pack.code %></code>
+                  <span class="version-badge ms-1">v<%= p.pack.pack_version %></span>
+                </h5>
                 <p class="text-muted small mb-2">
-                  <%= p.category %> &middot; v<%= p.pack_version %> &middot; <%= p.status %>
+                  <%= p.pack.category %> &middot; <span class="state-badge state-<%= p.pack.status %>"><%= p.pack.status %></span>
                 </p>
               </div>
-              <span class="classification-badge"><%= p.installation_classification %></span>
+              <span class="classification-badge"><%= p.pack.installation_classification %></span>
             </div>
-            <div class="row small text-muted g-2">
-              <div class="col-auto"><i class="bi bi-diagram-3 me-1"></i><%= (p.contributions.capabilities || []).length %> Capabilities</div>
-              <div class="col-auto"><i class="bi bi-hand-index me-1"></i><%= (p.contributions.services || []).length %> Services</div>
-              <div class="col-auto"><i class="bi bi-shield-check me-1"></i><%= (p.contributions.authorityRules || []).length %> Authority Rules</div>
-              <div class="col-auto"><i class="bi bi-journal-check me-1"></i><%= (p.contributions.policies || []).length %> Policies</div>
+            <div class="row small text-muted g-2 mb-2">
+              <div class="col-auto"><i class="bi bi-diagram-3 me-1"></i><%= (p.pack.contributions.capabilities || []).length %> Capabilities</div>
+              <div class="col-auto"><i class="bi bi-hand-index me-1"></i><%= (p.pack.contributions.services || []).length %> Services</div>
+              <div class="col-auto"><i class="bi bi-shield-check me-1"></i><%= (p.pack.contributions.authorityRules || []).length %> Authority Rules</div>
+              <div class="col-auto"><i class="bi bi-journal-check me-1"></i><%= (p.pack.contributions.policies || []).length %> Policies</div>
+              <div class="col-auto"><i class="bi bi-check2-square me-1"></i><%= (p.pack.contributions.qualityGates || []).length %> Quality Gates</div>
             </div>
+            <% if ((p.pack.dependencies || []).length > 0) { %>
+              <p class="small text-muted mb-2">
+                <i class="bi bi-link-45deg me-1"></i>Depends on:
+                <% p.pack.dependencies.forEach(function(d, i) { %><code><%= d.packCode %>@<%= d.version %></code><%= i < p.pack.dependencies.length - 1 ? ', ' : '' %><% }) %>
+              </p>
+            <% } %>
+            <% if (p.possibleNextStates.length > 0) { %>
+              <form method="POST" action="/aisworg/seu/packs/<%= p.pack.id %>/transition" class="d-flex align-items-center gap-2">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <select name="targetState" class="form-select form-select-sm" style="width: auto;">
+                  <% p.possibleNextStates.forEach(function(s) { %>
+                    <option value="<%= s %>"><%= s %></option>
+                  <% }) %>
+                </select>
+                <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
+              </form>
+            <% } else { %>
+              <span class="text-muted small">no further transitions defined</span>
+            <% } %>
           </div>
         </div>
       <% }) %>
