@@ -45,6 +45,16 @@ export const eventsDB = {
     }
   },
 
+  async findByCorrelationId(correlationId: string): Promise<DbResult<EventRow[]>> {
+    try {
+      const { rows } = await query<EventRow>("SELECT * FROM events WHERE correlation_id = $1 ORDER BY sequence", [correlationId]);
+      return { data: rows };
+    } catch (err) {
+      logger.error("[eventsDB] findByCorrelationId error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findRecent(limit: number): Promise<DbResult<EventRow[]>> {
     try {
       const { rows } = await query<EventRow>("SELECT * FROM events ORDER BY sequence DESC LIMIT $1", [limit]);

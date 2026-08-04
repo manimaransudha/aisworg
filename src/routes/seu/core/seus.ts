@@ -6,9 +6,12 @@ import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsD
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { objectivesDB } from "../../../dblayer/objectivesDB.js";
 import { servicesDB } from "../../../dblayer/servicesDB.js";
+import { commandsDB } from "../../../dblayer/commandsDB.js";
+import { workItemsDB } from "../../../dblayer/workItemsDB.js";
+import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { dependencyEngine } from "../../../domain/engine/dependencyEngine.js";
 import { getSeuEvents } from "./events.js";
-import type { DependencyType, EbmComposedPack, EventRow, ReadinessState, SeuRow } from "../../../dblayer/seuTypes.js";
+import type { CommandRow, DependencyType, EbmComposedPack, EventRow, ReadinessState, SeuRow, WorkItemRow } from "../../../dblayer/seuTypes.js";
 
 export interface SeuStatusView {
   seu: SeuRow;
@@ -99,12 +102,35 @@ export interface SeuDetailDeliverable {
   dependencyEdges: SeuDetailDependencyEdge[];
 }
 
+// Post-MVP Phase 3: the Command/Work Item/Dispatch pipeline's own audit
+// surface — makes the previously-invisible internal steps between "governance
+// allowed this transition" and "the Deliverable actually moved" visible,
+// same discipline as Phase 2's edge target-naming fix.
+export interface SeuDetailWorkItem {
+  id: string;
+  status: WorkItemRow["status"];
+  dispatchStrategy: string | null;
+  participantLabel: string | null;
+}
+
+export interface SeuDetailCommand {
+  id: string;
+  entityLabel: string;
+  commandType: string;
+  fromState: string;
+  toState: string;
+  status: CommandRow["status"];
+  createdAt: string;
+  workItems: SeuDetailWorkItem[];
+}
+
 export interface SeuDetailView {
   seu: SeuRow;
   objectiveStatement: string;
   composedPacks: EbmComposedPack[];
   capabilities: Array<{ id: string; capabilityId: string; code: string; name: string; status: string }>;
   deliverables: SeuDetailDeliverable[];
+  commands: SeuDetailCommand[];
   events: EventRow[];
 }
 
@@ -167,12 +193,41 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     })
   );
 
+  const { data: commands } = await commandsDB.findBySeuId(seuId);
+  const { data: workItems } = await workItemsDB.findByCommandIds((commands ?? []).map((c) => c.id));
+  const participantIds = [...new Set((workItems ?? []).map((w) => w.participant_id).filter((id): id is string => id !== null))];
+  const participantLabelById = new Map(
+    (await Promise.all(participantIds.map(async (id) => {
+      const { data: participant } = await participantsDB.findById(id);
+      return [id, participant ? `${participant.display_name} (${participant.type})` : "(unknown Participant)"] as const;
+    }))).map(([id, label]) => [id, label])
+  );
+
+  const commandViews: SeuDetailCommand[] = (commands ?? []).map((command) => ({
+    id: command.id,
+    entityLabel: command.entity_type === "Deliverable" ? deliverableNameById.get(command.entity_id) ?? "(unknown Deliverable)" : `${command.entity_type} ${command.entity_id.slice(0, 8)}`,
+    commandType: command.command_type,
+    fromState: command.from_state,
+    toState: command.to_state,
+    status: command.status,
+    createdAt: command.created_at,
+    workItems: (workItems ?? [])
+      .filter((w) => w.command_id === command.id)
+      .map((w) => ({
+        id: w.id,
+        status: w.status,
+        dispatchStrategy: w.dispatch_strategy,
+        participantLabel: w.participant_id ? participantLabelById.get(w.participant_id) ?? null : null,
+      })),
+  }));
+
   return {
     seu,
     objectiveStatement: objective?.statement ?? "(objective not found)",
     composedPacks: ebm?.composed_packs ?? [],
     capabilities: (capabilities ?? []).map((c) => ({ id: c.id, capabilityId: c.capability_id, code: c.capability_code, name: c.capability_name, status: c.status })),
     deliverables: deliverableViews,
+    commands: commandViews,
     events,
   };
 }

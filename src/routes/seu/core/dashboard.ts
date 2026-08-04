@@ -35,9 +35,9 @@ export function getArchitectureLayers(): ArchitectureLayer[] {
       name: "SEU Runtime Layer",
       components: [
         { name: "SEU Runtime", status: "live", note: "Commissioning pipeline + Ch.37 lifecycle (Pending → Operational).", href: "/aisworg/seu/seus" },
-        { name: "Capability Runtime", status: "live", note: "Capability requirements + direct Capability Fulfilment (no Dispatch Engine).", href: "/aisworg/seu/seus" },
+        { name: "Capability Runtime", status: "live", note: "Capability requirements + Capability Fulfilment; the Dispatch Engine consumes it (see Work Item Runtime).", href: "/aisworg/seu/seus" },
         { name: "Governance Runtime", status: "partial", note: "Minimal Authority + Policy checks only — Quality Gate/Review/Compliance deferred." },
-        { name: "Work Item Runtime", status: "deferred", note: "No Command/Work Item/Dispatch Engine pipeline — direct API/UI actions instead." },
+        { name: "Work Item Runtime", status: "partial", note: "Command / Work Item Generator / Dispatch Engine pipeline is real (Ch.31-33); dispatch strategy is trivial 'whoever's assigned' — no cost/load/locality strategies yet." },
         { name: "Knowledge Runtime", status: "deferred", note: "Knowledge, Evidence and Decision models are fully out of MVP scope." },
         { name: "Workflow Runtime", status: "partial", note: "Dependency Engine sequences Deliverables; no separate Workflow abstraction." },
         { name: "Traceability Runtime", status: "partial", note: "Event log gives structural traceability; no Ontology/Traceability Model." },

@@ -36,7 +36,8 @@ router.post("/deliverables/:id/transition", async (req: Request, res: Response) 
       return res.status(400).json({ error: "targetState is required" });
     }
     const actorRole = req.session?.user?.role ?? "general";
-    const result = await transitionDeliverable({ deliverableId: String(req.params.id), targetState, actorRole });
+    const requestedBy = req.session?.user?.id ?? null;
+    const result = await transitionDeliverable({ deliverableId: String(req.params.id), targetState, actorRole, requestedBy });
 
     if (!result.ok) {
       if (result.reason === "not_found") return res.status(404).json({ error: "deliverable not found" });

@@ -125,6 +125,7 @@ router.post("/seus/:id/deliverables/:deliverableId/transition", async (req: Requ
       deliverableId: String(req.params.deliverableId),
       targetState,
       actorRole: req.session?.user?.role ?? "general",
+      requestedBy: req.session?.user?.id ?? null,
     });
     if (!result.ok) {
       const reason = result.reason === "dependency_not_satisfied" ? "one or more dependencies aren't Satisfied yet" : "detail" in result ? result.detail : result.reason;

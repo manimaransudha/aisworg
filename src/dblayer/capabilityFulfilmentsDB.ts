@@ -21,4 +21,20 @@ export const capabilityFulfilmentsDB = {
       return { error: err as Error };
     }
   },
+
+  // Ch.33 §7's dispatch input: the eligible-Participant pool for a Capability,
+  // narrowed to whichever fulfilment is currently active. Today Capability
+  // Fulfilment is 1:1 per SEU Capability, so this is the entire pool.
+  async findActiveBySeuCapabilityId(seuCapabilityId: string): Promise<DbResult<CapabilityFulfilmentRow | null>> {
+    try {
+      const { rows } = await query<CapabilityFulfilmentRow>(
+        "SELECT * FROM capability_fulfilments WHERE seu_capability_id = $1 AND revoked_at IS NULL ORDER BY established_at DESC LIMIT 1",
+        [seuCapabilityId]
+      );
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[capabilityFulfilmentsDB] findActiveBySeuCapabilityId error", err as Error);
+      return { error: err as Error };
+    }
+  },
 };

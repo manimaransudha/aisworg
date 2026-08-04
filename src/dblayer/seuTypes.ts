@@ -264,6 +264,35 @@ export interface TransitionDefinitionRow {
   required_policy_ids: string[];
 }
 
+export type CommandStatus = "Generated" | "Dispatched" | "Completed" | "Deferred" | "Cancelled" | "Failed";
+
+export interface CommandRow {
+  id: string;
+  seu_id: string;
+  entity_type: TransitionEntityType;
+  entity_id: string;
+  command_type: string;
+  from_state: string;
+  to_state: string;
+  status: CommandStatus;
+  requested_by: number | null;
+  correlation_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type WorkItemStatus = "Generated" | "Assigned" | "Executing" | "Completed" | "Cancelled" | "Disposed";
+
+export interface WorkItemRow {
+  id: string;
+  command_id: string;
+  participant_id: string | null;
+  status: WorkItemStatus;
+  dispatch_strategy: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface EventRow {
   id: string;
   event_type: string;
