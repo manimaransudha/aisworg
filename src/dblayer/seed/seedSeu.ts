@@ -81,6 +81,7 @@ async function seedPack(seed: PackSeed): Promise<{ packId: string; capabilityIdB
     const capabilityId = capabilityIdByCode.get(svc.capabilityCode);
     if (!capabilityId) throw new Error(`service ${svc.name} references unknown capability ${svc.capabilityCode}`);
     const { error } = await servicesDB.upsertFromPack({
+      code: svc.code,
       providingCapabilityId: capabilityId,
       name: svc.name,
       contractDescription: svc.contractDescription,

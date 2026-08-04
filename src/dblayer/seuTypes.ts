@@ -34,6 +34,7 @@ export type ServiceStatus = "Defined" | "Published" | "Active" | "Deprecated" | 
 
 export interface ServiceRow {
   id: string;
+  code: string;
   providing_capability_id: string;
   name: string;
   contract_description: string;
@@ -50,7 +51,7 @@ export type PackClassification = "Mandatory" | "Recommended" | "Optional" | "Con
 
 export interface PackContributions {
   capabilities?: Array<{ code: string; name: string; description?: string; category?: string }>;
-  services?: Array<{ capabilityCode: string; name: string; contractDescription: string; serviceLevel?: Record<string, unknown> }>;
+  services?: Array<{ code: string; capabilityCode: string; name: string; contractDescription: string; serviceLevel?: Record<string, unknown> }>;
   authorityRules?: Array<{ code: string; governedTransition: string; authorisedRole: string }>;
   policies?: Array<{
     code: string;
@@ -82,6 +83,12 @@ export interface TemplateDeliverableSeed {
   category: string;
   producingCapabilityCode?: string;
   dependsOnDeliverableCodes?: string[]; // other codes within the same catalogue, required state 'Approved'
+  // Post-MVP Phase 2 (Ch.9 §8 / Ch.11 §9): capability codes whose declared
+  // Service this Deliverable depends on — distinct from dependsOnDeliverableCodes.
+  // A Deliverable edge asks "is the upstream artefact in the right state?"; a
+  // Capability edge asks "is anyone actually assigned to that upstream
+  // Capability for this SEU?" Both can be true for the same pair of Deliverables.
+  dependsOnCapabilityServiceCodes?: string[];
 }
 
 export interface TemplateRow {

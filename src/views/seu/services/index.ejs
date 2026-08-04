@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+  <style>
+    .sl-badge { font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 6px; background: #f1f5f9; color: #334155; margin: 0.15rem 0.25rem 0.15rem 0; display: inline-block; }
+    .cap-badge { font-size: 0.68rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 6px; background: #ede9fe; color: #5b21b6; }
+  </style>
+</head>
+<body>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5" style="max-width: 900px;">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-1 text-dark fw-bold">Services</h2>
+      <p class="text-muted small mb-0">
+        Ch.11 — the declared, contracted output through which a Capability exposes what it delivers, without
+        exposing how. Dependency edges reference these directly, not the bare Capability (Ch.9 §8).
+      </p>
+    </div>
+
+    <% if (services.length === 0) { %>
+      <div class="alert alert-warning">No Services loaded — run <code>pnpm seed:seu</code>.</div>
+    <% } else { %>
+      <% services.forEach(function(s) { %>
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <h5 class="mb-1"><%= s.name %></h5>
+                <span class="cap-badge">provided by <%= s.providingCapabilityName %> <code><%= s.providingCapabilityCode %></code></span>
+              </div>
+              <span class="text-muted small">v<%= s.version %> &middot; <%= s.status %></span>
+            </div>
+            <p class="small text-muted mb-2">"<%= s.contractDescription %>"</p>
+            <div>
+              <% var slKeys = Object.keys(s.serviceLevel || {}); %>
+              <% if (slKeys.length === 0) { %>
+                <span class="text-muted small">No Service Level declared.</span>
+              <% } else { %>
+                <% slKeys.forEach(function(k) { %>
+                  <span class="sl-badge"><%= k %>: <%= s.serviceLevel[k] %></span>
+                <% }) %>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    <% } %>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

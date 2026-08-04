@@ -10,6 +10,7 @@ import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { seuCapabilitiesDB } from "../../../dblayer/seuCapabilitiesDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { dependencyEdgesDB } from "../../../dblayer/dependencyEdgesDB.js";
+import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
@@ -135,6 +136,20 @@ export async function commissionSeu(input: {
       const toId = deliverableIdByCode.get(dependsOnCode);
       if (toId) {
         await dependencyEdgesDB.createDeliverableEdge({ seuId: seu.id, fromDeliverableId: fromId, toDeliverableId: toId, requiredState: "Approved" });
+      }
+    }
+    // Ch.9 §8 / Ch.11 §9 (Post-MVP Phase 2): a Capability edge names the
+    // specific Service, not the bare Capability — satisfied once the SEU's
+    // requirement for that Service's providing Capability is Fulfilled.
+    // Distinct from the Deliverable edge above: that asks whether the
+    // upstream artefact reached a state; this asks whether anyone is actually
+    // assigned to the upstream Capability at all.
+    for (const capabilityCode of seed.dependsOnCapabilityServiceCodes ?? []) {
+      const capability = (requiredCapabilities ?? []).find((c) => c.code === capabilityCode);
+      if (!capability) continue;
+      const { data: services } = await servicesDB.findByCapabilityId(capability.id);
+      for (const service of services ?? []) {
+        await dependencyEdgesDB.createCapabilityEdge({ seuId: seu.id, fromDeliverableId: fromId, toServiceId: service.id });
       }
     }
   }

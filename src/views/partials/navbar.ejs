@@ -19,7 +19,7 @@
         <% if (_isGeneral) { %>
           <!-- SEU Platform dropdown -->
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle <%= ['seu-dashboard','seu-objectives','seu-objectives-new','seu-objectives-detail','seu-seus','seu-seus-new','seu-seus-detail','seu-packs'].includes(currentPage) ? 'active' : '' %>"
+            <a class="nav-link dropdown-toggle <%= ['seu-dashboard','seu-objectives','seu-objectives-new','seu-objectives-detail','seu-seus','seu-seus-new','seu-seus-detail','seu-packs','seu-services'].includes(currentPage) ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               SEU Platform
             </a>
@@ -46,6 +46,9 @@
               </a></li>
               <li><a class="dropdown-item <%= currentPage === 'seu-packs' ? 'active' : '' %>" href="/aisworg/seu/packs">
                 <i class="bi bi-box-seam me-2"></i>Packs
+              </a></li>
+              <li><a class="dropdown-item <%= currentPage === 'seu-services' ? 'active' : '' %>" href="/aisworg/seu/services">
+                <i class="bi bi-hand-index-thumb me-2"></i>Services
               </a></li>
             </ul>
           </li>

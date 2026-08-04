@@ -15,7 +15,16 @@
       "name": "Architecture Document",
       "category": "Documentation",
       "producingCapabilityCode": "architecture",
-      "dependsOnDeliverableCodes": ["requirements-spec"]
+      "dependsOnDeliverableCodes": ["requirements-spec"],
+      "dependsOnCapabilityServiceCodes": ["requirements-analysis"]
+    },
+    {
+      "code": "source-code",
+      "name": "Source Code",
+      "category": "Implementation",
+      "producingCapabilityCode": "development",
+      "dependsOnDeliverableCodes": ["architecture-doc"],
+      "dependsOnCapabilityServiceCodes": ["architecture"]
     }
   ]
 }

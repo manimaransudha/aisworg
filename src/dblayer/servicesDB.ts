@@ -4,6 +4,7 @@ import type { DbResult, ServiceRow } from "./seuTypes.js";
 
 export const servicesDB = {
   async upsertFromPack(input: {
+    code: string;
     providingCapabilityId: string;
     name: string;
     contractDescription: string;
@@ -12,10 +13,17 @@ export const servicesDB = {
   }): Promise<DbResult<ServiceRow>> {
     try {
       const { rows } = await query<ServiceRow>(
-        `INSERT INTO services (providing_capability_id, name, contract_description, service_level, originating_pack_id)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO services (code, providing_capability_id, name, contract_description, service_level, originating_pack_id)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (code) DO UPDATE
+           SET providing_capability_id = EXCLUDED.providing_capability_id,
+               name = EXCLUDED.name,
+               contract_description = EXCLUDED.contract_description,
+               service_level = EXCLUDED.service_level,
+               originating_pack_id = EXCLUDED.originating_pack_id
          RETURNING *`,
         [
+          input.code,
           input.providingCapabilityId,
           input.name,
           input.contractDescription,
@@ -46,6 +54,16 @@ export const servicesDB = {
       return { data: rows[0] ?? null };
     } catch (err) {
       logger.error("[servicesDB] findById error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async findAll(): Promise<DbResult<ServiceRow[]>> {
+    try {
+      const { rows } = await query<ServiceRow>("SELECT * FROM services ORDER BY name");
+      return { data: rows };
+    } catch (err) {
+      logger.error("[servicesDB] findAll error", err as Error);
       return { error: err as Error };
     }
   },

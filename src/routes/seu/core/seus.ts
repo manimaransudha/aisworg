@@ -5,9 +5,10 @@ import { dependencyEdgesDB } from "../../../dblayer/dependencyEdgesDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { objectivesDB } from "../../../dblayer/objectivesDB.js";
+import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { dependencyEngine } from "../../../domain/engine/dependencyEngine.js";
 import { getSeuEvents } from "./events.js";
-import type { DependencyEdgeRow, EbmComposedPack, EventRow, SeuRow } from "../../../dblayer/seuTypes.js";
+import type { DependencyType, EbmComposedPack, EventRow, ReadinessState, SeuRow } from "../../../dblayer/seuTypes.js";
 
 export interface SeuStatusView {
   seu: SeuRow;
@@ -76,6 +77,18 @@ export async function getSeuQuickview(): Promise<SeuQuickviewItem[]> {
   );
 }
 
+// Post-MVP Phase 2: names what a dependency edge actually points at, instead
+// of a bare "Deliverable" / "Capability" label — the raw target ids meant
+// nothing to a human reader (Ch.9 §8 / Ch.11 §9: edges reference the specific
+// Deliverable or Service, and that should be visible, not just structurally true).
+export interface SeuDetailDependencyEdge {
+  id: string;
+  dependencyType: DependencyType;
+  requiredState: string | null;
+  readinessState: ReadinessState;
+  targetLabel: string;
+}
+
 export interface SeuDetailDeliverable {
   id: string;
   name: string;
@@ -83,7 +96,7 @@ export interface SeuDetailDeliverable {
   lifecycleState: string;
   acquisitionScope: string;
   possibleNextStates: string[];
-  dependencyEdges: DependencyEdgeRow[];
+  dependencyEdges: SeuDetailDependencyEdge[];
 }
 
 export interface SeuDetailView {
@@ -110,6 +123,8 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     getSeuEvents(seuId),
   ]);
 
+  const deliverableNameById = new Map((deliverables ?? []).map((d) => [d.id, d.name]));
+
   const deliverableViews: SeuDetailDeliverable[] = await Promise.all(
     (deliverables ?? []).map(async (d) => {
       const [{ data: edges }, { data: nextStates }] = await Promise.all([
@@ -122,6 +137,24 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
       // on every plain page load. See design/mvp-build-plan/Open Design
       // Questions.md for the related, still-open scope-of-gating question.
       const refreshedEdges = await Promise.all((edges ?? []).map((edge) => dependencyEngine.refreshEdge(edge)));
+      const enrichedEdges: SeuDetailDependencyEdge[] = await Promise.all(
+        refreshedEdges.map(async (edge) => {
+          let targetLabel: string;
+          if (edge.dependency_type === "Deliverable") {
+            targetLabel = (edge.to_deliverable_id && deliverableNameById.get(edge.to_deliverable_id)) || "(unknown Deliverable)";
+          } else {
+            const { data: service } = edge.to_service_id ? await servicesDB.findById(edge.to_service_id) : { data: null };
+            targetLabel = service ? `Service: ${service.name}` : "(unknown Service)";
+          }
+          return {
+            id: edge.id,
+            dependencyType: edge.dependency_type,
+            requiredState: edge.required_state,
+            readinessState: edge.readiness_state,
+            targetLabel,
+          };
+        })
+      );
       return {
         id: d.id,
         name: d.name,
@@ -129,7 +162,7 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
         lifecycleState: d.lifecycle_state,
         acquisitionScope: d.acquisition_scope,
         possibleNextStates: nextStates ?? [],
-        dependencyEdges: refreshedEdges,
+        dependencyEdges: enrichedEdges,
       };
     })
   );

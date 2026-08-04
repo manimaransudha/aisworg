@@ -7,10 +7,12 @@ import { router as dashboardRouter } from "./dashboard.js";
 import { router as seusRouter } from "./seus.js";
 import { router as packsRouter } from "./packs.js";
 import { router as objectivesRouter } from "./objectives.js";
+import { router as servicesRouter } from "./services.js";
 
 router.use(dashboardRouter);
 router.use(objectivesRouter);
 router.use(seusRouter);
 router.use(packsRouter);
+router.use(servicesRouter);
 
 export { router };

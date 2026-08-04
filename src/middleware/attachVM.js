@@ -42,6 +42,7 @@ export function attachVM(viewName) {
         else if (/\/seu\/objectives\/[^/]+$/.test(url.split('?')[0])) activePage = 'seu-objectives-detail';
         else if (url.includes('/seu/objectives')) activePage = 'seu-objectives';
         else if (url.includes('/seu/packs')) activePage = 'seu-packs';
+        else if (url.includes('/seu/services')) activePage = 'seu-services';
         else if (url.includes('/seu')) activePage = 'seu-dashboard';
         else if (url.includes('/stocks/data-viewer')) activePage = 'data-viewer';
         else if (url.includes('/stocks')) activePage = 'stocks';

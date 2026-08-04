@@ -27,12 +27,14 @@
     ],
     "services": [
       {
+        "code": "approved-requirements-specification",
         "capabilityCode": "requirements-analysis",
         "name": "Approved Requirements Specification",
         "contractDescription": "A reviewed, approved statement of what the solution must do.",
         "serviceLevel": { "qualityBar": "peer-reviewed" }
       },
       {
+        "code": "approved-architecture",
         "capabilityCode": "architecture",
         "name": "Approved Architecture",
         "contractDescription": "A reviewed, approved technical design satisfying the approved requirements.",

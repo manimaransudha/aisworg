@@ -99,8 +99,8 @@
                   <% } else { %>
                     <% d.dependencyEdges.forEach(function(e) { %>
                       <div class="edge-note">
-                        <%= e.dependency_type %><% if (e.required_state) { %> &rarr; <%= e.required_state %><% } %>:
-                        <span class="state-badge state-<%= e.readiness_state %>"><%= e.readiness_state %></span>
+                        <%= e.targetLabel %><% if (e.requiredState) { %> &rarr; <%= e.requiredState %><% } %>:
+                        <span class="state-badge state-<%= e.readinessState %>"><%= e.readinessState %></span>
                       </div>
                     <% }) %>
                   <% } %>
