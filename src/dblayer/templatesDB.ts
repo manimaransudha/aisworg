@@ -1,6 +1,6 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import type { CapabilityRow, DbResult, PackRow, TemplateDeliverableSeed, TemplateRow } from "./seuTypes.js";
+import type { CapabilityRow, DbResult, TemplateDeliverableSeed, TemplateRow } from "./seuTypes.js";
 
 // Also owns template_capabilities (required Capabilities) and template_packs
 // (mandatory Packs only — see Build Plan §5 item 6 for the Template/Profile split).
@@ -88,11 +88,15 @@ export const templatesDB = {
     }
   },
 
-  async setMandatoryPacks(templateId: string, packIds: string[]): Promise<DbResult<void>> {
+  // Stores the Pack's *code*, not a specific row id — bug fix, see
+  // 013_template_profile_pack_by_code.sql. A Template names which Pack
+  // codes it requires; which Version that resolves to is decided fresh at
+  // every commissioning (compositionEngine.compose), not frozen here.
+  async setMandatoryPacks(templateId: string, packCodes: string[]): Promise<DbResult<void>> {
     try {
       await query("DELETE FROM template_packs WHERE template_id = $1", [templateId]);
-      for (const packId of packIds) {
-        await query("INSERT INTO template_packs (template_id, pack_id) VALUES ($1, $2)", [templateId, packId]);
+      for (const packCode of packCodes) {
+        await query("INSERT INTO template_packs (template_id, pack_code) VALUES ($1, $2)", [templateId, packCode]);
       }
       return { data: undefined };
     } catch (err) {
@@ -101,18 +105,15 @@ export const templatesDB = {
     }
   },
 
-  async getMandatoryPacks(templateId: string): Promise<DbResult<PackRow[]>> {
+  async getMandatoryPackCodes(templateId: string): Promise<DbResult<string[]>> {
     try {
-      const { rows } = await query<PackRow>(
-        `SELECT p.* FROM packs p
-         JOIN template_packs tp ON tp.pack_id = p.id
-         WHERE tp.template_id = $1
-         ORDER BY p.code`,
+      const { rows } = await query<{ pack_code: string }>(
+        "SELECT pack_code FROM template_packs WHERE template_id = $1 ORDER BY pack_code",
         [templateId]
       );
-      return { data: rows };
+      return { data: rows.map((r) => r.pack_code) };
     } catch (err) {
-      logger.error("[templatesDB] getMandatoryPacks error", err as Error);
+      logger.error("[templatesDB] getMandatoryPackCodes error", err as Error);
       return { error: err as Error };
     }
   },

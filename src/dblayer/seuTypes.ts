@@ -248,6 +248,12 @@ export interface AuthorityRuleRow {
   authorised_role: string;
   originating_pack_id: string | null;
   created_at: string;
+  // Phase 10 (badge model, design/mvp-build-plan/Phase 10 - User Management
+  // and Dual Authority Design.md §9) — replaces authorised_role for
+  // migrated entity types. Deliverable is the first; authorised_role stays
+  // live for everything not yet migrated.
+  required_badge_type: string | null;
+  required_rank: number | null;
 }
 
 export type ConstraintType = "Policy" | "Standard";
@@ -496,4 +502,66 @@ export interface ExternalInteractionRow {
   status: string;
   created_at: string;
   updated_at: string;
+}
+
+// Phase 10 (badge model) — design/mvp-build-plan/Phase 10 - User Management
+// and Dual Authority Design.md. An identity holds a *set* of badges
+// (badge_grants), not one flat role. §8: Layer 1 Platform, Layer 2a Tenant
+// Admin, Layer 2b Engineering (Creator/Reviewer/Approver).
+
+export interface TenantRow {
+  id: string;
+  code: string;
+  name: string;
+  status: string;
+  created_at: string;
+}
+
+// scope_kind: what a grant of this badge type must be scoped by.
+// 'SEU_or_Pack' is an implementation resolution, not in the design doc's own
+// table verbatim — see 012_badge_model.sql's header comment for why: §8.4
+// allows a Creator/Reviewer/Approver grant to be scoped to either one SEU or
+// one Pack, which only reconciles with §9's "one scope_kind per badge type"
+// framing if that badge type's scope_kind itself spans both.
+export type BadgeScopeKind = "None" | "Tenant" | "SEU" | "Pack" | "SEU_or_Pack";
+
+export interface BadgeTypeRow {
+  id: string;
+  tenant_id: string | null;
+  code: string;
+  name: string;
+  scope_kind: BadgeScopeKind;
+  derived_from: string | null; // not a real FK — badge_types.code isn't globally unique; see badgeTypesDB.ts
+  tiered: boolean;
+  is_registration_default: boolean;
+  created_at: string;
+}
+
+export interface CanonicalRankRow {
+  rank: number;
+  name: string;
+}
+
+export interface BadgeTierRow {
+  id: string;
+  tenant_id: string | null;
+  code: string;
+  name: string;
+  rank: number;
+  created_at: string;
+}
+
+export type BadgeGrantStatus = "Active" | "Suspended" | "Revoked";
+
+export interface BadgeGrantRow {
+  id: string;
+  holder_type: string; // "User" is the only real value built now (§9)
+  holder_id: string;
+  badge_type: string; // badge_types.code — not a real FK, see badgeTypesDB.ts
+  governed_entity_type: TransitionEntityType | null;
+  capability_id: string | null;
+  tier: string | null; // reserved, unused for now
+  scope_id: string | null;
+  status: BadgeGrantStatus;
+  created_at: string;
 }

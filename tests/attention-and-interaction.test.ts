@@ -45,12 +45,12 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
 
 test("a Quality Gate block raises exactly one 'Action Required' Attention Item, deduplicated across repeated attempts (AM-002)", async () => {
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("phase8-attention-dedup");
-  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super" });
+  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
 
   const obligation = await createObligation({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase8 attention-dedup blocker (left unresolved)" });
 
   for (let i = 0; i < 3; i++) {
-    const attempt = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super" });
+    const attempt = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
     assert.equal(attempt.ok, false);
   }
 
@@ -64,13 +64,13 @@ test("a Quality Gate block raises exactly one 'Action Required' Attention Item, 
 
 test("a sustained pattern of Quality Gate blocking raises a High-priority 'Escalation' Attention Item alongside the Organisational Learning Obligation", async () => {
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("phase8-attention-escalation");
-  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super" });
+  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
 
   await createObligation({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase8 escalation blocker (left unresolved)" });
 
   // Threshold is 3 (SUSTAINED_BLOCK_THRESHOLD) — cross it.
   for (let i = 0; i < 4; i++) {
-    const attempt = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super" });
+    const attempt = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
     assert.equal(attempt.ok, false);
   }
 

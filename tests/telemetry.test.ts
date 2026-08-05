@@ -47,7 +47,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
 
 test("Flow Telemetry: Deliverable cycle time is a real, non-negative number derived from real transitions", async () => {
   const { deliverableId } = await commissionAndFulfilRequirementsSpec("phase7-flow");
-  const toInProgress = await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super" });
+  const toInProgress = await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
   assert.equal(toInProgress.ok, true);
 
   const flow = await getFlowMetrics();
@@ -59,10 +59,10 @@ test("Flow Telemetry: Deliverable cycle time is a real, non-negative number deri
 
 test("Governance Telemetry: Quality Gate latency is zero on a first-try pass and positive after being blocked first", async () => {
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("phase7-governance-latency");
-  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super" });
+  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
 
   // No Obligation attached — passes the "no_unresolved_obligations" gate on the first try.
-  const firstTry = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super" });
+  const firstTry = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
   assert.equal(firstTry.ok, true, !firstTry.ok ? JSON.stringify(firstTry) : undefined);
 
   const governance = await getGovernanceMetrics();
@@ -73,16 +73,16 @@ test("Governance Telemetry: Quality Gate latency is zero on a first-try pass and
 
   // A second SEU, this time genuinely blocked once before passing.
   const { seuId: seuId2, deliverableId: deliverableId2 } = await commissionAndFulfilRequirementsSpec("phase7-governance-latency-blocked");
-  await transitionDeliverable({ deliverableId: deliverableId2, targetState: "In Progress", actorRole: "super" });
+  await transitionDeliverable({ deliverableId: deliverableId2, targetState: "In Progress", actorRole: "super", actorId: "1" });
   const obligation = await createObligation({ seuId: seuId2, relatedObjectType: "Deliverable", relatedObjectId: deliverableId2, category: "Engineering", title: "Phase7 latency test obligation" });
-  const blocked = await transitionDeliverable({ deliverableId: deliverableId2, targetState: "Approved", actorRole: "super" });
+  const blocked = await transitionDeliverable({ deliverableId: deliverableId2, targetState: "Approved", actorRole: "super", actorId: "1" });
   assert.equal(blocked.ok, false);
 
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
     const step = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super" });
     assert.equal(step.ok, true);
   }
-  const secondTry = await transitionDeliverable({ deliverableId: deliverableId2, targetState: "Approved", actorRole: "super" });
+  const secondTry = await transitionDeliverable({ deliverableId: deliverableId2, targetState: "Approved", actorRole: "super", actorId: "1" });
   assert.equal(secondTry.ok, true, !secondTry.ok ? JSON.stringify(secondTry) : undefined);
 
   const governanceAfter = await getGovernanceMetrics();
@@ -96,14 +96,14 @@ test("Governance Telemetry: Quality Gate latency is zero on a first-try pass and
 
 test("a sustained pattern of Quality Gate blocking raises exactly one Organisational Learning Obligation, not one per attempt (FR-35.8)", async () => {
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("phase7-sustained-pattern");
-  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super" });
+  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
 
   const obligation = await createObligation({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase7 sustained-pattern blocker (left unresolved)" });
 
   // Attempt the same blocked transition repeatedly — the Obligation above is
   // deliberately never resolved, so every attempt blocks again.
   for (let i = 0; i < 4; i++) {
-    const attempt = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super" });
+    const attempt = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
     assert.equal(attempt.ok, false);
   }
 
@@ -123,17 +123,17 @@ test("qualityGateEngine publishes QualityGateBlocked and QualityGatePassed on th
   });
 
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("phase7-quality-gate-events");
-  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super" });
+  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
 
   const obligation = await createObligation({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase7 event test obligation" });
-  const blocked = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super" });
+  const blocked = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
   assert.equal(blocked.ok, false);
   assert.ok(received.includes("QualityGateBlocked"));
 
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
     await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super" });
   }
-  const passed = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super" });
+  const passed = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
   assert.equal(passed.ok, true);
   assert.ok(received.includes("QualityGatePassed"));
 });

@@ -130,6 +130,7 @@ router.post("/seus/:id/deliverables/:deliverableId/transition", async (req: Requ
       deliverableId: String(req.params.deliverableId),
       targetState,
       actorRole: req.session?.user?.role ?? "general",
+      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
       requestedBy: req.session?.user?.id ?? null,
     });
     if (!result.ok) {

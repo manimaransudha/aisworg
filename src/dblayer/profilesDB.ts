@@ -1,6 +1,6 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import type { DbResult, PackRow, ProfileRow } from "./seuTypes.js";
+import type { DbResult, ProfileRow } from "./seuTypes.js";
 
 // Also owns profile_packs — Profile owns everything selectable/optional on top
 // of the Template's mandatory set (Build Plan §5 item 6).
@@ -69,11 +69,15 @@ export const profilesDB = {
     }
   },
 
-  async setOptionalPacks(profileId: string, packIds: string[]): Promise<DbResult<void>> {
+  // Stores the Pack's *code*, not a specific row id — bug fix, see
+  // 013_template_profile_pack_by_code.sql. Same reasoning as
+  // templatesDB.setMandatoryPacks: which Version a code resolves to is
+  // decided fresh at every commissioning, not frozen here.
+  async setOptionalPacks(profileId: string, packCodes: string[]): Promise<DbResult<void>> {
     try {
       await query("DELETE FROM profile_packs WHERE profile_id = $1", [profileId]);
-      for (const packId of packIds) {
-        await query("INSERT INTO profile_packs (profile_id, pack_id) VALUES ($1, $2)", [profileId, packId]);
+      for (const packCode of packCodes) {
+        await query("INSERT INTO profile_packs (profile_id, pack_code) VALUES ($1, $2)", [profileId, packCode]);
       }
       return { data: undefined };
     } catch (err) {
@@ -82,18 +86,15 @@ export const profilesDB = {
     }
   },
 
-  async getOptionalPacks(profileId: string): Promise<DbResult<PackRow[]>> {
+  async getOptionalPackCodes(profileId: string): Promise<DbResult<string[]>> {
     try {
-      const { rows } = await query<PackRow>(
-        `SELECT p.* FROM packs p
-         JOIN profile_packs pp ON pp.pack_id = p.id
-         WHERE pp.profile_id = $1
-         ORDER BY p.code`,
+      const { rows } = await query<{ pack_code: string }>(
+        "SELECT pack_code FROM profile_packs WHERE profile_id = $1 ORDER BY pack_code",
         [profileId]
       );
-      return { data: rows };
+      return { data: rows.map((r) => r.pack_code) };
     } catch (err) {
-      logger.error("[profilesDB] getOptionalPacks error", err as Error);
+      logger.error("[profilesDB] getOptionalPackCodes error", err as Error);
       return { error: err as Error };
     }
   },

@@ -37,7 +37,9 @@ router.post("/deliverables/:id/transition", async (req: Request, res: Response) 
     }
     const actorRole = req.session?.user?.role ?? "general";
     const requestedBy = req.session?.user?.id ?? null;
-    const result = await transitionDeliverable({ deliverableId: String(req.params.id), targetState, actorRole, requestedBy });
+    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
+    const actingBadgeGrantId = typeof req.body?.actingBadgeGrantId === "string" ? req.body.actingBadgeGrantId : undefined;
+    const result = await transitionDeliverable({ deliverableId: String(req.params.id), targetState, actorRole, actorId, actingBadgeGrantId, requestedBy });
 
     if (!result.ok) {
       if (result.reason === "not_found") return res.status(404).json({ error: "deliverable not found" });

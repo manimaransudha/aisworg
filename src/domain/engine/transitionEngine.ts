@@ -7,6 +7,7 @@
 import { authorityRulesDB } from "../../dblayer/authorityRulesDB.js";
 import { policiesDB } from "../../dblayer/policiesDB.js";
 import { transitionDefinitionsDB } from "../../dblayer/transitionDefinitionsDB.js";
+import { badgeAuthorityEngine } from "./badgeAuthorityEngine.js";
 import type { TransitionEntityType } from "../../dblayer/seuTypes.js";
 
 // Mirrors src/middleware/auth.js's ROLE_LEVEL — kept local rather than importing,
@@ -37,7 +38,12 @@ function evaluateCondition(condition: PolicyCondition, context: Record<string, u
 export type TransitionOutcome =
   | { allowed: true; entityType: TransitionEntityType; fromState: string; toState: string }
   | { allowed: false; reason: "no_transition_definition" }
-  | { allowed: false; reason: "authority_denied"; authorityRuleCode: string; requiredRole: string; actorRole: string }
+  // requiredRole/actorRole populated on the legacy role path; badgeDenialReason
+  // (naming badgeAuthorityEngine's own outcome) populated on the Phase 10
+  // badge-model path (§11) — never both, but kept as one variant so existing
+  // callers narrowing on `reason === "authority_denied"` don't need a second
+  // discriminant to stay type-correct.
+  | { allowed: false; reason: "authority_denied"; authorityRuleCode: string; requiredRole?: string; actorRole?: string; badgeDenialReason?: string }
   | { allowed: false; reason: "policy_blocked"; policyCode: string };
 
 export const transitionEngine = {
@@ -46,6 +52,12 @@ export const transitionEngine = {
     fromState: string;
     toState: string;
     actorRole: string;
+    // Phase 10 (badge model, §9/§11) — required only when the resolved
+    // Authority Rule sets required_badge_type; every action still declares
+    // exactly one acting badge (§9), never inferred from everything the
+    // actor holds.
+    actingBadge?: { grantId: string; actorId: string };
+    scopeContext?: { seuId?: string | null; packCode?: string | null; capabilityId?: string | null };
     context?: Record<string, unknown>;
   }): Promise<TransitionOutcome> {
     const { data: definition } = await transitionDefinitionsDB.find(input.entityType, input.fromState, input.toState);
@@ -54,10 +66,30 @@ export const transitionEngine = {
     if (definition.required_authority_rule_id) {
       const { data: rule } = await authorityRulesDB.findById(definition.required_authority_rule_id);
       if (!rule) return { allowed: false, reason: "no_transition_definition" };
-      const requiredLevel = ROLE_LEVEL[rule.authorised_role] ?? 99;
-      const actorLevel = ROLE_LEVEL[input.actorRole] ?? 0;
-      if (actorLevel < requiredLevel) {
-        return { allowed: false, reason: "authority_denied", authorityRuleCode: rule.code, requiredRole: rule.authorised_role, actorRole: input.actorRole };
+
+      if (rule.required_badge_type) {
+        // Badge-model path (§9/§11) — entity types not yet migrated never
+        // reach here, since their Authority Rules never set required_badge_type.
+        if (!input.actingBadge) {
+          return { allowed: false, reason: "authority_denied", authorityRuleCode: rule.code, badgeDenialReason: "no_acting_badge_declared" };
+        }
+        const badgeOutcome = await badgeAuthorityEngine.evaluate({
+          requiredBadgeType: rule.required_badge_type,
+          entityType: input.entityType,
+          actingBadge: input.actingBadge,
+          scopeContext: input.scopeContext ?? {},
+        });
+        if (!badgeOutcome.allowed) {
+          return { allowed: false, reason: "authority_denied", authorityRuleCode: rule.code, badgeDenialReason: badgeOutcome.reason };
+        }
+      } else {
+        // Legacy role path — unchanged, still live for every entity type
+        // this pass doesn't migrate.
+        const requiredLevel = ROLE_LEVEL[rule.authorised_role] ?? 99;
+        const actorLevel = ROLE_LEVEL[input.actorRole] ?? 0;
+        if (actorLevel < requiredLevel) {
+          return { allowed: false, reason: "authority_denied", authorityRuleCode: rule.code, requiredRole: rule.authorised_role, actorRole: input.actorRole };
+        }
       }
     }
 

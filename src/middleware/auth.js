@@ -33,6 +33,17 @@ export function requireRole(minRole) {
       logger.debug(`[requireRole] Not logged in — redirect to login (path: ${req.path})`);
       return res.redirect('/aisworg/login');
     }
+    // ─── TESTING BYPASS — remove this block to revert ───────────────────────
+    // For testing convenience only, not part of the design (Phase 10's badge
+    // model is deliberately a separate axis from this legacy role check —
+    // see the design doc's §5 correction). Holding the root badge passes any
+    // requireRole() check too, so "root" really does mean full access to
+    // everything while testing, not just badge-gated surfaces. Delete this
+    // block to go back to requireRole() reading only users.role, unrelated
+    // to badges.
+    if ((user.platformBadges ?? []).includes('root')) return next();
+    // ─── end testing bypass ──────────────────────────────────────────────────
+
     const userLevel = ROLE_LEVEL[user.role] ?? 0;
     const needLevel = ROLE_LEVEL[minRole] ?? 99;
     if (userLevel >= needLevel) return next();

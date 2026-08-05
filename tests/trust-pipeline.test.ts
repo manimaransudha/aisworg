@@ -46,9 +46,9 @@ async function commissionAndApproveRequirementsSpec(statementPrefix: string) {
   assert.ok(requirementsSpec && reqAnalysisCapability);
 
   await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantType: "AI", displayName: "Phase5 Test Analyst" });
-  const toInProgress = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super" });
+  const toInProgress = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: "1" });
   assert.equal(toInProgress.ok, true, !toInProgress.ok ? JSON.stringify(toInProgress) : undefined);
-  const toApproved = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "Approved", actorRole: "super" });
+  const toApproved = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "Approved", actorRole: "super", actorId: "1" });
   assert.equal(toApproved.ok, true, !toApproved.ok ? JSON.stringify(toApproved) : undefined);
 
   return { seuId, deliverableId: requirementsSpec.id };
@@ -57,7 +57,7 @@ async function commissionAndApproveRequirementsSpec(statementPrefix: string) {
 test("Quality Gate blocks 'Approved' -> 'Baselined' until Evidence is Accepted, then allows it", async () => {
   const { seuId, deliverableId } = await commissionAndApproveRequirementsSpec("phase5-evidence-gate");
 
-  const blocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super" });
+  const blocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: "1" });
   assert.equal(blocked.ok, false);
   if (!blocked.ok) {
     assert.equal(blocked.reason, "quality_gate_blocked");
@@ -71,7 +71,7 @@ test("Quality Gate blocks 'Approved' -> 'Baselined' until Evidence is Accepted, 
   assert.equal(evidence.status, "Collected");
 
   // Not yet Accepted — still blocked.
-  const stillBlocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super" });
+  const stillBlocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: "1" });
   assert.equal(stillBlocked.ok, false);
 
   const toValidated = await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorRole: "super" });
@@ -79,7 +79,7 @@ test("Quality Gate blocks 'Approved' -> 'Baselined' until Evidence is Accepted, 
   const toAccepted = await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorRole: "super" });
   assert.equal(toAccepted.ok, true);
 
-  const unblocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super" });
+  const unblocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: "1" });
   assert.equal(unblocked.ok, true, !unblocked.ok ? JSON.stringify(unblocked) : undefined);
   if (unblocked.ok) assert.equal(unblocked.deliverable.lifecycle_state, "Baselined");
 });
@@ -95,7 +95,7 @@ test("Quality Gate also accepts an Approved Decision as satisfying the same prec
     assert.equal(step.ok, true, !step.ok ? `Decision transition to ${targetState} failed: ${JSON.stringify(step)}` : undefined);
   }
 
-  const unblocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super" });
+  const unblocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: "1" });
   assert.equal(unblocked.ok, true, !unblocked.ok ? JSON.stringify(unblocked) : undefined);
 });
 

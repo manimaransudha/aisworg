@@ -9,6 +9,7 @@ import { passport }    from '../../domain/auth/passportConfig.js';
 import { userDB }      from '../../dblayer/userDB.js';
 import { emailService } from '../../domain/auth/emailService.js';
 import { buildSessionUser, requireRole } from '../../middleware/auth.js';
+import { ensureBadgeBootstrap, getPlatformBadges } from '../../domain/identity/badgeBootstrap.js';
 import { logger }      from '../../utils/logger.js';
 import { rateLimit }   from 'express-rate-limit';
 
@@ -40,7 +41,7 @@ router.get('/login', (req, res) => {
 
 // ── Local login ──────────────────────────────────────────────────────────────
 router.post('/login', loginLimiter, (req, res, next) => {
-  passport.authenticate('local', (err, user, info) => {
+  passport.authenticate('local', async (err, user, info) => {
     if (err) return next(err);
 
 //     if (!user) {
@@ -59,6 +60,8 @@ router.post('/login', loginLimiter, (req, res, next) => {
     }
 
     req.session.user = buildSessionUser(user);
+    await ensureBadgeBootstrap(user);
+    req.session.user.platformBadges = await getPlatformBadges(String(user.id));
     logger.info(`[Auth] Local login: ${user.email} (${user.role})`);
     return res.redirect('/aisworg/quickview');
   })(req, res, next);
@@ -78,9 +81,11 @@ router.get('/google/callback',
 //     res.redirect('/finanaly/quickview');
 //   }
   passport.authenticate('google', { session: false, failureRedirect: '/aisworg/login' }),
-  (req, res) => {
+  async (req, res) => {
     if (!req.user) return res.redirect('/aisworg/auth/disabled');
     req.session.user = buildSessionUser(req.user);
+    await ensureBadgeBootstrap(req.user);
+    req.session.user.platformBadges = await getPlatformBadges(String(req.user.id));
     logger.info(`[Auth] Google login: ${req.user.email} (${req.user.role})`);
     res.redirect('/aisworg/quickview');
   }
@@ -149,6 +154,8 @@ router.post('/verify', loginLimiter, async (req, res) => {
   const activated = await userDB.activateWithPassword(user.email, hash);
 
   req.session.user = buildSessionUser(activated);
+  await ensureBadgeBootstrap(activated);
+  req.session.user.platformBadges = await getPlatformBadges(String(activated.id));
   logger.info(`[Auth] Account activated: ${activated.email} (${activated.role})`);
 //   res.redirect('/finanaly/quickview');
   res.redirect('/aisworg/quickview');

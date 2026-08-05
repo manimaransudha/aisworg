@@ -11,6 +11,7 @@ import { router as servicesRouter } from "./services.js";
 import { router as knowledgeRouter } from "./knowledge.js";
 import { router as telemetryRouter } from "./telemetry.js";
 import { router as attentionRouter } from "./attention.js";
+import { router as identityRouter } from "./identity.js";
 
 router.use(dashboardRouter);
 router.use(objectivesRouter);
@@ -20,5 +21,6 @@ router.use(servicesRouter);
 router.use(knowledgeRouter);
 router.use(telemetryRouter);
 router.use(attentionRouter);
+router.use(identityRouter);
 
 export { router };

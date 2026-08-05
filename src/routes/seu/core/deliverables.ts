@@ -1,5 +1,6 @@
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { dependencyEdgesDB } from "../../../dblayer/dependencyEdgesDB.js";
+import { badgeGrantsDB } from "../../../dblayer/badgeGrantsDB.js";
 import { dependencyEngine } from "../../../domain/engine/dependencyEngine.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
@@ -8,6 +9,30 @@ import { eventBus } from "../../../domain/engine/eventBus.js";
 import { checkSustainedQualityGateBlocking } from "./telemetry.js";
 import { raiseAttentionItem } from "./attentionItems.js";
 import type { DeliverableRow, DependencyEdgeRow } from "../../../dblayer/seuTypes.js";
+
+// Phase 10 (badge model) — §10's badge-switcher UI isn't built yet (§17.2,
+// deliberately deferred to when Participant deployment/provisioning is
+// revisited). Interim, honest resolution for this pass: if the actor holds
+// exactly one badge that could plausibly satisfy this Deliverable transition
+// (root, or a Creator/Approver grant scoped to this SEU+Capability), use it
+// without asking — real per-action selection among *multiple* qualifying
+// badges is the piece still deferred, not this auto-resolution itself.
+async function resolveAutoActingBadge(actorId: string, deliverable: DeliverableRow): Promise<string | null> {
+  const { data: grants } = await badgeGrantsDB.findActiveForHolder(actorId);
+  if (!grants) return null;
+
+  const root = grants.find((g) => g.badge_type === "root");
+  if (root) return root.id;
+
+  const qualifying = grants.filter(
+    (g) =>
+      (g.badge_type === "creator" || g.badge_type === "approver") &&
+      g.governed_entity_type === "Deliverable" &&
+      g.capability_id === deliverable.producing_capability_id &&
+      g.scope_id === deliverable.seu_id
+  );
+  return qualifying.length === 1 ? qualifying[0].id : null;
+}
 
 export async function createDeliverable(input: {
   seuId: string;
@@ -64,7 +89,17 @@ export type TransitionDeliverableResult =
 export async function transitionDeliverable(input: {
   deliverableId: string;
   targetState: string;
-  actorRole: string;
+  // Phase 10 (badge model, design/mvp-build-plan/Phase 10 - User Management
+  // and Dual Authority Design.md §9/§11): Deliverable is the first entity
+  // type migrated off the legacy role check. actingBadgeGrantId/actorId are
+  // the real check now — every action declares which one held badge it's
+  // performed under, never inferred from everything the actor holds.
+  // actorRole is kept only because transitionEngine.evaluate's input still
+  // accepts it generically for entity types not yet migrated; it's ignored
+  // for Deliverable now that its Authority Rules set required_badge_type.
+  actorRole?: string;
+  actingBadgeGrantId?: string;
+  actorId?: string;
   requestedBy?: number | null;
 }): Promise<TransitionDeliverableResult> {
   const { data: deliverable } = await deliverablesDB.findById(input.deliverableId);
@@ -105,16 +140,28 @@ export async function transitionDeliverable(input: {
     return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
   }
 
+  let actingBadgeGrantId = input.actingBadgeGrantId ?? null;
+  if (!actingBadgeGrantId && input.actorId) {
+    actingBadgeGrantId = await resolveAutoActingBadge(input.actorId, deliverable);
+  }
+
   const gate = await transitionEngine.evaluate({
     entityType: "Deliverable",
     fromState,
     toState: input.targetState,
-    actorRole: input.actorRole,
+    actorRole: input.actorRole ?? "general",
+    actingBadge: actingBadgeGrantId && input.actorId ? { grantId: actingBadgeGrantId, actorId: input.actorId } : undefined,
+    scopeContext: { seuId: deliverable.seu_id, capabilityId: deliverable.producing_capability_id },
     context: { deliverable },
   });
   if (!gate.allowed) {
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Deliverable ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires role ${gate.requiredRole}, actor has ${gate.actorRole}` };
+    if (gate.reason === "authority_denied") {
+      const detail = gate.badgeDenialReason
+        ? `acting badge check failed: ${gate.badgeDenialReason}`
+        : `requires role ${gate.requiredRole}, actor has ${gate.actorRole}`;
+      return { ok: false, reason: "authority_denied", detail };
+    }
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }
 

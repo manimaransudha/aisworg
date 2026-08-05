@@ -98,7 +98,17 @@ if (process.env.NODE_ENV !== 'production') {
                 email: 'manimaransudha@gmail.com',
                 name: 'Sudha Manimaran',
                 role: 'super',
-                is_active: true
+                is_active: true,
+                // Phase 10 (badge model): this shim bypasses the real login
+                // flow entirely, so ensureBadgeBootstrap/getPlatformBadges
+                // (routes/web/auth.js) never run for it. Hardcoded here to
+                // match the root badge_grants row 012_badge_model.sql seeds
+                // for this same fixed dev identity (holder_id '1') — without
+                // this, requirePlatformBadge('root') denies every request
+                // from this identity silently (no flash message, redirects
+                // back to referer), which looks like "nothing happens" on
+                // click rather than an actual permission error.
+                platformBadges: ['root']
             };
         }
         next();

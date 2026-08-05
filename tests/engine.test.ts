@@ -57,11 +57,11 @@ test("compositionEngine.compose resolves a Template's mandatory Pack plus a Prof
 
   const { data: template } = await templatesDB.upsert({ code: `test-compose-template-${randomUUID()}`, name: "Compose Test Template" });
   assert.ok(template);
-  await templatesDB.setMandatoryPacks(template!.id, [mandatory.pack!.id]);
+  await templatesDB.setMandatoryPacks(template!.id, [mandatory.pack!.code]);
 
   const { data: profile } = await profilesDB.upsert({ code: `test-compose-profile-${randomUUID()}`, name: "Compose Test Profile", baseTemplateId: template!.id, environment: "development", configParameters: {} });
   assert.ok(profile);
-  await profilesDB.setOptionalPacks(profile!.id, [optional.pack!.id]);
+  await profilesDB.setOptionalPacks(profile!.id, [optional.pack!.code]);
 
   const first = await compositionEngine.compose({ templateId: template!.id, profileId: profile!.id });
   const second = await compositionEngine.compose({ templateId: template!.id, profileId: profile!.id });

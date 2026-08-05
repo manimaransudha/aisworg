@@ -63,21 +63,23 @@ async function run(): Promise<void> {
     });
     await templatesDB.setRequiredCapabilities(template.id, requiredCapabilityIds);
 
-    // Real finding during this pilot (2026-08-04): platform-core-engineering
-    // is currently status='Archived' in this shared dev DB (see Ebook
-    // Library Dry Run.md), so findActiveByCode('platform-core-engineering')
-    // returns null even though the platform composes it fine everywhere
-    // else — compositionEngine never filters by status. Resolving by known
-    // code+version instead of requiring Active, matching what composition
-    // actually needs (a valid Pack row id).
-    const mandatoryPackIds: string[] = [];
+    // Bug fix (013_template_profile_pack_by_code.sql): template_packs/
+    // profile_packs now store the Pack's code, resolved to whichever Version
+    // is currently Active at commissioning time, not a frozen row pinned
+    // here. This is exactly what this file's own earlier workaround for the
+    // "platform-core-engineering was Archived when this pilot was seeded"
+    // finding (2026-08-04, Ebook Library Dry Run.md) needed — that workaround
+    // is gone because the underlying bug it was routing around is fixed:
+    // whichever Version is Active when an SEU is actually commissioned from
+    // this Template/Profile is what composes, not whatever was Active (or
+    // wasn't) at seed time. Still validated against a real, known Pack code
+    // here so a typo fails loudly at seed time, not silently at first
+    // commissioning.
     for (const code of templateSeed.mandatoryPackCodes) {
-      const { data: active } = await packsDB.findActiveByCode(code);
-      const pack = active ?? (await packsDB.findByCodeAndVersion(code, "1.0.0")).data;
+      const { data: pack } = await packsDB.findByCode(code);
       if (!pack) throw new Error(`template ${templateSeed.code} requires unknown pack ${code}`);
-      mandatoryPackIds.push(pack.id);
     }
-    await templatesDB.setMandatoryPacks(template.id, mandatoryPackIds);
+    await templatesDB.setMandatoryPacks(template.id, templateSeed.mandatoryPackCodes);
 
     logger.info(`[seed:ebook-library-pilot] template ${template.code} -> ${template.id}`);
 
@@ -90,16 +92,14 @@ async function run(): Promise<void> {
     });
     if (profileErr || !profile) throw profileErr ?? new Error(`profile upsert failed: ${profileSeed.code}`);
 
-    const optionalPackIds: string[] = [];
-    for (const code of profileSeed.optionalPackCodes ?? []) {
-      const { data: active } = await packsDB.findActiveByCode(code);
-      const pack = active ?? (await packsDB.findByCodeAndVersion(code, "1.0.0")).data;
+    const optionalPackCodes = profileSeed.optionalPackCodes ?? [];
+    for (const code of optionalPackCodes) {
+      const { data: pack } = await packsDB.findByCode(code);
       if (!pack) throw new Error(`profile ${profileSeed.code} requires unknown pack ${code}`);
-      optionalPackIds.push(pack.id);
     }
-    await profilesDB.setOptionalPacks(profile.id, optionalPackIds);
+    await profilesDB.setOptionalPacks(profile.id, optionalPackCodes);
 
-    logger.info(`[seed:ebook-library-pilot] profile ${profile.code} -> ${profile.id} (${optionalPackIds.length} optional Pack(s))`);
+    logger.info(`[seed:ebook-library-pilot] profile ${profile.code} -> ${profile.id} (${optionalPackCodes.length} optional Pack(s))`);
     logger.info("[seed:ebook-library-pilot] done.");
   } catch (err) {
     logger.error("[seed:ebook-library-pilot] failed", err as Error);

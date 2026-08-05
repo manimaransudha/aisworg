@@ -49,7 +49,7 @@ interface TransitionDefinitionSeed {
   requiredPolicyCodes: string[];
 }
 
-async function seedTemplate(seed: TemplateSeed, capabilityIdByCode: Map<string, string>, packIdByCode: Map<string, string>): Promise<string> {
+async function seedTemplate(seed: TemplateSeed, capabilityIdByCode: Map<string, string>, knownPackCodes: Set<string>): Promise<string> {
   const { data: template, error } = await templatesDB.upsert({
     code: seed.code,
     name: seed.name,
@@ -64,18 +64,20 @@ async function seedTemplate(seed: TemplateSeed, capabilityIdByCode: Map<string, 
   });
   await templatesDB.setRequiredCapabilities(template.id, requiredCapabilityIds);
 
-  const mandatoryPackIds = seed.mandatoryPackCodes.map((code) => {
-    const id = packIdByCode.get(code);
-    if (!id) throw new Error(`template ${seed.code} requires unknown pack ${code}`);
-    return id;
-  });
-  await templatesDB.setMandatoryPacks(template.id, mandatoryPackIds);
+  // Stores codes directly (bug fix, 013_template_profile_pack_by_code.sql) —
+  // which Version each code resolves to is decided at commissioning time,
+  // not here. Still validated against known codes so a typo fails loudly at
+  // seed time, not silently at first commissioning.
+  for (const code of seed.mandatoryPackCodes) {
+    if (!knownPackCodes.has(code)) throw new Error(`template ${seed.code} requires unknown pack ${code}`);
+  }
+  await templatesDB.setMandatoryPacks(template.id, seed.mandatoryPackCodes);
 
   logger.info(`[seed:seu] template ${template.code} -> ${template.id}`);
   return template.id;
 }
 
-async function seedProfile(seed: ProfileSeed, templateId: string, packIdByCode: Map<string, string>): Promise<string> {
+async function seedProfile(seed: ProfileSeed, templateId: string, knownPackCodes: Set<string>): Promise<string> {
   const { data: profile, error } = await profilesDB.upsert({
     code: seed.code,
     name: seed.name,
@@ -85,14 +87,13 @@ async function seedProfile(seed: ProfileSeed, templateId: string, packIdByCode: 
   });
   if (error || !profile) throw error ?? new Error(`profile upsert failed: ${seed.code}`);
 
-  const optionalPackIds = (seed.optionalPackCodes ?? []).map((code) => {
-    const id = packIdByCode.get(code);
-    if (!id) throw new Error(`profile ${seed.code} requires unknown optional pack ${code}`);
-    return id;
-  });
-  await profilesDB.setOptionalPacks(profile.id, optionalPackIds);
+  const optionalPackCodes = seed.optionalPackCodes ?? [];
+  for (const code of optionalPackCodes) {
+    if (!knownPackCodes.has(code)) throw new Error(`profile ${seed.code} requires unknown optional pack ${code}`);
+  }
+  await profilesDB.setOptionalPacks(profile.id, optionalPackCodes);
 
-  logger.info(`[seed:seu] profile ${profile.code} -> ${profile.id} (${optionalPackIds.length} optional Pack(s))`);
+  logger.info(`[seed:seu] profile ${profile.code} -> ${profile.id} (${optionalPackCodes.length} optional Pack(s))`);
   return profile.id;
 }
 
@@ -167,13 +168,10 @@ async function run(): Promise<void> {
     if (!nodejsResult.ok || !nodejsResult.pack) throw new Error(`technology-nodejs pack publish failed: ${nodejsResult.errors?.join("; ")}`);
     logger.info(`[seed:seu] pack ${nodejsResult.pack.code}@${nodejsResult.pack.pack_version} -> ${nodejsResult.pack.status}`);
 
-    const packIdByCode = new Map<string, string>([
-      [coreAdvanced.pack.code, coreAdvanced.pack.id],
-      [nodejsResult.pack.code, nodejsResult.pack.id],
-    ]);
+    const knownPackCodes = new Set<string>([coreAdvanced.pack.code, nodejsResult.pack.code]);
 
-    const templateId = await seedTemplate(templateSeed, capabilityIdByCode, packIdByCode);
-    await seedProfile(profileSeed, templateId, packIdByCode);
+    const templateId = await seedTemplate(templateSeed, capabilityIdByCode, knownPackCodes);
+    await seedProfile(profileSeed, templateId, knownPackCodes);
 
     logger.info("[seed:seu] done.");
   } catch (err) {

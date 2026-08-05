@@ -45,6 +45,7 @@ test("transitionDeliverable defers the transition when nobody fulfils the produc
     deliverableId: requirementsSpec.id,
     targetState: "In Progress",
     actorRole: "super",
+    actorId: "1", // badge model (Phase 10): "1" holds root (012_badge_model.sql), matching the pre-existing dev/test-identity convention
   });
   assert.equal(deferred.ok, false);
   if (!deferred.ok) assert.equal(deferred.reason, "dispatch_deferred", "governance passed (no dependencies, authorised role) — only Dispatch should block this");
@@ -65,6 +66,7 @@ test("transitionDeliverable defers the transition when nobody fulfils the produc
     deliverableId: requirementsSpec.id,
     targetState: "In Progress",
     actorRole: "super",
+    actorId: "1",
   });
   assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : undefined);
   if (dispatched.ok) assert.equal(dispatched.deliverable.lifecycle_state, "In Progress");
@@ -84,7 +86,7 @@ test("a dispatched transition leaves a traceable Command and a Completed/Dispose
     displayName: "Phase3 Trace Analyst",
   });
 
-  const result = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super" });
+  const result = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: "1" });
   assert.equal(result.ok, true);
 
   const after1 = await getSeuDetailView(seuId);

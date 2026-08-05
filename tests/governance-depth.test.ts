@@ -66,7 +66,7 @@ test("Quality Gate blocks a Deliverable transition while an Obligation is unreso
 
   await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantType: "AI", displayName: "Phase4 Test Analyst" });
 
-  const toInProgress = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super" });
+  const toInProgress = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: "1" });
   assert.equal(toInProgress.ok, true, !toInProgress.ok ? JSON.stringify(toInProgress) : undefined);
 
   const obligation = await createObligation({
@@ -84,7 +84,7 @@ test("Quality Gate blocks a Deliverable transition while an Obligation is unreso
   const readinessBeforeBlock = await dependencyEngine.isDeliverableReady(requirementsSpec.id);
   assert.equal(readinessBeforeBlock.ready, true);
 
-  const blocked = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "Approved", actorRole: "super" });
+  const blocked = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "Approved", actorRole: "super", actorId: "1" });
   assert.equal(blocked.ok, false);
   if (!blocked.ok) {
     assert.equal(blocked.reason, "quality_gate_blocked");
@@ -96,7 +96,7 @@ test("Quality Gate blocks a Deliverable transition while an Obligation is unreso
 
   await verifyObligation(obligation.id);
 
-  const unblocked = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "Approved", actorRole: "super" });
+  const unblocked = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "Approved", actorRole: "super", actorId: "1" });
   assert.equal(unblocked.ok, true, !unblocked.ok ? JSON.stringify(unblocked) : undefined);
   if (unblocked.ok) assert.equal(unblocked.deliverable.lifecycle_state, "Approved");
 });
