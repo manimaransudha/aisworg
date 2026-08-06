@@ -64,4 +64,30 @@ export const qualityGatesDB = {
       return { error: err as Error };
     }
   },
+
+  // SDK UI Layer Plan — Transition Definition's requiredQualityGateCodes[]
+  // resolves codes to ids at publish time (findByCode), and
+  // qualityGateEngine.evaluateByIds resolves those ids back at evaluation
+  // time (findByIds) — explicit reference replacing the coincidental
+  // (entityType, fromState, toState) match, per the plan's "Schema" decision.
+  async findByCode(code: string): Promise<DbResult<QualityGateRow | null>> {
+    try {
+      const { rows } = await query<QualityGateRow>("SELECT * FROM quality_gates WHERE code = $1", [code]);
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[qualityGatesDB] findByCode error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async findByIds(ids: string[]): Promise<DbResult<QualityGateRow[]>> {
+    try {
+      if (ids.length === 0) return { data: [] };
+      const { rows } = await query<QualityGateRow>("SELECT * FROM quality_gates WHERE id = ANY($1::uuid[])", [ids]);
+      return { data: rows };
+    } catch (err) {
+      logger.error("[qualityGatesDB] findByIds error", err as Error);
+      return { error: err as Error };
+    }
+  },
 };

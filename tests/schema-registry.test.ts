@@ -14,38 +14,48 @@ after(async () => {
   await pool.end();
 });
 
-// Deliberately targets TransitionDefinition, not Pack/Template/Profile —
-// those three are live (schema_definitions.findLatest drives what the real
-// authoring UI generates its form from), and this test's whole point is
-// creating an extra version. TransitionDefinition has no bootstrap Template
-// or authoring surface yet (Build order step 6), so bumping its "latest"
-// pointer here can never regress anything real — the mistake this test used
-// to make, caught and fixed after it broke Pack's own "latest" pointer.
+// All four entity kinds are load-bearing now (each has a real, live
+// authoring surface whose generated form reads schema_definitions.findLatest
+// directly) — there is no "safe," permanently-unused kind left to target the
+// way TransitionDefinition briefly was. Learned the hard way, twice: this
+// test (and, separately, an HTTP smoke test of the Registry's own creation
+// form) left a stray minimal schema as TransitionDefinition's "latest"
+// after it went live, silently breaking its real authoring form until
+// caught and republished correctly. Self-healing now: republishes `before`'s
+// exact content as one more version at the end, so this test always leaves
+// "latest" pointing at real, correct content — the same "publish forward to
+// fix," not "delete," discipline the feature itself is built on.
 const TEST_KIND = "TransitionDefinition";
 
 test("Schema Registry: a new version is additive — the previous version stays untouched and resolvable", async () => {
   const { data: before } = await schemaDefinitionsDB.findLatest(TEST_KIND);
+  assert.ok(before, `expected ${TEST_KIND} to already have a real, seeded schema version`);
 
-  const created = await createSchemaVersion({
-    entityKind: TEST_KIND,
-    schemaJson: JSON.stringify({ type: "object", required: ["code"], properties: { code: { type: "string" } } }),
-  });
-  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
-  if (!created.ok) return;
-  assert.equal(created.schema.version, (before?.version ?? 0) + 1);
+  try {
+    const created = await createSchemaVersion({
+      entityKind: TEST_KIND,
+      schemaJson: JSON.stringify({ type: "object", required: ["code"], properties: { code: { type: "string" } } }),
+    });
+    assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
+    if (!created.ok) return;
+    assert.equal(created.schema.version, before!.version + 1);
 
-  if (before) {
     // The prior version's own row is untouched, still fetchable by id.
-    const stillThere = await getSchemaDefinition(before.id);
+    const stillThere = await getSchemaDefinition(before!.id);
     assert.ok(stillThere);
-    assert.deepEqual(stillThere!.schema, before.schema);
+    assert.deepEqual(stillThere!.schema, before!.schema);
+
+    const { data: latest } = await schemaDefinitionsDB.findLatest(TEST_KIND);
+    assert.equal(latest!.id, created.schema.id);
+
+    const all = await listSchemaDefinitions();
+    assert.ok(all.some((s) => s.id === created.schema.id));
+  } finally {
+    // Restore "latest" to before's real content, regardless of pass/fail —
+    // never leave the shared dev database's live authoring surface pointed
+    // at this test's own throwaway schema.
+    await createSchemaVersion({ entityKind: TEST_KIND, schemaJson: JSON.stringify(before!.schema) });
   }
-
-  const { data: latest } = await schemaDefinitionsDB.findLatest(TEST_KIND);
-  assert.equal(latest!.id, created.schema.id);
-
-  const all = await listSchemaDefinitions();
-  assert.ok(all.some((s) => s.id === created.schema.id));
 });
 
 test("Schema Registry: rejects invalid JSON and an unknown entity kind, without writing a row", async () => {

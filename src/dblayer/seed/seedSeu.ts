@@ -143,11 +143,8 @@ async function seedTransitionDefinitions(
 
 // SDK UI Layer Plan's Core Principle — each of Pack/Template/Profile/
 // Transition Definition is authored via its own small bootstrap Template
-// producing exactly one Deliverable. Transition Definition isn't seeded here
-// yet (Build order step 6 — needs the transitionEngine/qualityGateEngine
-// generalisation first); the other three get added the same way once their
-// own schema_definitions row exists (015_sdk_authoring_template_profile.sql).
-const SDK_AUTHORING_KINDS: SchemaDefinitionEntityKind[] = ["Pack", "Template", "Profile"];
+// producing exactly one Deliverable.
+const SDK_AUTHORING_KINDS: SchemaDefinitionEntityKind[] = ["Pack", "Template", "Profile", "TransitionDefinition"];
 
 async function seedSdkAuthoringBootstrap(knownPackCodes: Set<string>): Promise<void> {
   for (const kind of SDK_AUTHORING_KINDS) {

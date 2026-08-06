@@ -8,6 +8,7 @@ import { authorityRulesDB } from "../../dblayer/authorityRulesDB.js";
 import { policiesDB } from "../../dblayer/policiesDB.js";
 import { transitionDefinitionsDB } from "../../dblayer/transitionDefinitionsDB.js";
 import { badgeAuthorityEngine } from "./badgeAuthorityEngine.js";
+import { qualityGateEngine } from "./qualityGateEngine.js";
 import type { TransitionEntityType } from "../../dblayer/seuTypes.js";
 
 // Mirrors src/middleware/auth.js's ROLE_LEVEL — kept local rather than importing,
@@ -36,7 +37,13 @@ function evaluateCondition(condition: PolicyCondition, context: Record<string, u
 }
 
 export type TransitionOutcome =
-  | { allowed: true; entityType: TransitionEntityType; fromState: string; toState: string }
+  // createsObligation: the transition_definitions row's own declared value
+  // (an Obligation category, or null) — surfaced for the caller to act on,
+  // not created here (the engine layer never calls back into core, same
+  // boundary raiseAttentionItem already respects). Stored and returned;
+  // not yet consumed by any caller (SDK UI Layer Plan, Transition Definition
+  // section — logged as not yet mechanically enforced).
+  | { allowed: true; entityType: TransitionEntityType; fromState: string; toState: string; createsObligation: string | null }
   | { allowed: false; reason: "no_transition_definition" }
   // requiredRole/actorRole populated on the legacy role path; badgeDenialReason
   // (naming badgeAuthorityEngine's own outcome) populated on the Phase 10
@@ -44,7 +51,13 @@ export type TransitionOutcome =
   // callers narrowing on `reason === "authority_denied"` don't need a second
   // discriminant to stay type-correct.
   | { allowed: false; reason: "authority_denied"; authorityRuleCode: string; requiredRole?: string; actorRole?: string; badgeDenialReason?: string }
-  | { allowed: false; reason: "policy_blocked"; policyCode: string };
+  | { allowed: false; reason: "policy_blocked"; policyCode: string }
+  // SDK UI Layer Plan, Transition Definition section — generic Quality Gate
+  // check, opt-in per row via required_quality_gate_ids (empty for every
+  // pre-existing row, so this reason is unreachable for the 9 entity types
+  // that still run their own separate qualityGateEngine.evaluate call before
+  // ever reaching this function, e.g. Deliverable's).
+  | { allowed: false; reason: "quality_gate_blocked"; gateCode: string; gateName: string; detail: string };
 
 export const transitionEngine = {
   async evaluate(input: {
@@ -59,6 +72,11 @@ export const transitionEngine = {
     actingBadge?: { grantId: string; actorId: string };
     scopeContext?: { seuId?: string | null; packCode?: string | null; capabilityId?: string | null };
     context?: Record<string, unknown>;
+    // Only required when the resolved Transition Definition declares
+    // required_quality_gate_ids — every pre-existing row has none, so
+    // existing callers that never pass these keep working unchanged.
+    entityId?: string;
+    seuId?: string;
   }): Promise<TransitionOutcome> {
     const { data: definition } = await transitionDefinitionsDB.find(input.entityType, input.fromState, input.toState);
     if (!definition) return { allowed: false, reason: "no_transition_definition" };
@@ -105,6 +123,17 @@ export const transitionEngine = {
       }
     }
 
-    return { allowed: true, entityType: input.entityType, fromState: input.fromState, toState: input.toState };
+    if (definition.required_quality_gate_ids.length > 0 && input.entityId && input.seuId) {
+      const qualityGateResult = await qualityGateEngine.evaluateByIds(definition.required_quality_gate_ids, {
+        entityType: input.entityType,
+        entityId: input.entityId,
+        seuId: input.seuId,
+      });
+      if (qualityGateResult.outcome === "Blocked") {
+        return { allowed: false, reason: "quality_gate_blocked", gateCode: qualityGateResult.gate.code, gateName: qualityGateResult.gate.name, detail: qualityGateResult.reason };
+      }
+    }
+
+    return { allowed: true, entityType: input.entityType, fromState: input.fromState, toState: input.toState, createsObligation: definition.creates_obligation };
   },
 };

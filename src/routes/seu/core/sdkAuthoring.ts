@@ -35,6 +35,7 @@ import { transitionDeliverable, type TransitionDeliverableResult } from "./deliv
 import { publishPack, validatePackSeed, type PackSeedInput } from "./packs.js";
 import { publishTemplate, validateTemplateSeed, type TemplateSeedInput } from "./templates.js";
 import { publishProfile, validateProfileSeed, type ProfileSeedInput } from "./profiles.js";
+import { publishTransitionDefinition, validateTransitionDefinitionSeed, type TransitionDefinitionSeedInput } from "./transitionDefinitions.js";
 import type { DeliverableAuthoringContentRow, DeliverableRow, SchemaDefinitionEntityKind, SchemaDefinitionRow, SeuRow } from "../../../dblayer/seuTypes.js";
 
 import { AUTHORING_SCOPE_PACK_CODE } from "../../../domain/sdk/authoringScope.js";
@@ -216,21 +217,28 @@ function toProfileSeedInput(content: Record<string, unknown>): ProfileSeedInput 
   };
 }
 
-// Structural + referential validation, per kind — Pack/Template/Profile each
-// already have their own (validatePackSeed etc., same reasoning as
-// createPackDraft calling validatePackSeed today). Transition Definition has
-// no bootstrap Template seeded yet (Build order step 6), so it's not in this
-// map — startAuthoring already fails loudly for an unseeded kind.
+function toTransitionDefinitionSeedInput(content: Record<string, unknown>): TransitionDefinitionSeedInput {
+  return {
+    ...(content as unknown as TransitionDefinitionSeedInput),
+    requiredPolicyCodes: (content.requiredPolicyCodes as string[]) ?? [],
+    requiredQualityGateCodes: (content.requiredQualityGateCodes as string[]) ?? [],
+  };
+}
+
+// Structural + referential validation, per kind — each has its own
+// (validatePackSeed etc., same reasoning as createPackDraft calling
+// validatePackSeed today).
 async function validateAuthoredContent(kind: SchemaDefinitionEntityKind, content: Record<string, unknown>): Promise<{ ok: true } | { ok: false; errors: string[] }> {
   if (kind === "Pack") return validatePackSeed(toPackSeedInput(content));
   if (kind === "Template") return validateTemplateSeed(toTemplateSeedInput(content));
   if (kind === "Profile") return validateProfileSeed(toProfileSeedInput(content));
+  if (kind === "TransitionDefinition") return validateTransitionDefinitionSeed(toTransitionDefinitionSeedInput(content));
   return { ok: false, errors: [`no validator wired for kind "${kind}" yet`] };
 }
 
 // "Publish" (plan's Core Principle: reaching Baselined calls publishPack —
-// or the Template/Profile equivalent — as glue on that one transition, not a
-// new mechanism).
+// or the Template/Profile/Transition-Definition equivalent — as glue on
+// that one transition, not a new mechanism).
 async function publishAuthoredContentByKind(kind: SchemaDefinitionEntityKind, content: Record<string, unknown>): Promise<{ ok: true } | { ok: false; errors: string[] }> {
   if (kind === "Pack") {
     const result = await publishPack({ seed: toPackSeedInput(content), actorRole: "power", activate: true });
@@ -242,6 +250,10 @@ async function publishAuthoredContentByKind(kind: SchemaDefinitionEntityKind, co
   }
   if (kind === "Profile") {
     const result = await publishProfile(toProfileSeedInput(content));
+    return result.ok ? { ok: true } : { ok: false, errors: result.errors };
+  }
+  if (kind === "TransitionDefinition") {
+    const result = await publishTransitionDefinition(toTransitionDefinitionSeedInput(content));
     return result.ok ? { ok: true } : { ok: false, errors: result.errors };
   }
   return { ok: false, errors: [`no publisher wired for kind "${kind}" yet`] };

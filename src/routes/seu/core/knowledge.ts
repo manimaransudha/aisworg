@@ -107,6 +107,7 @@ export async function transitionKnowledgeItem(input: { knowledgeItemId: string; 
   if (!gate.allowed) {
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Knowledge ${fromState} -> ${input.targetState}` };
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires role ${gate.requiredRole}, actor has ${gate.actorRole}` };
+    if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }
 
@@ -137,6 +138,7 @@ export type PromoteKnowledgeItemScopeResult =
   | { ok: true; knowledgeItem: KnowledgeItemRow; appliedTransition: { fromState: string; toState: string }; obligation: ObligationRow }
   | { ok: false; reason: "not_found" }
   | { ok: false; reason: "not_published"; detail: string }
+  | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition"; detail: string };
 
 export async function promoteKnowledgeItemScope(input: { knowledgeItemId: string; targetScope: AcquisitionScope; actorRole: string }): Promise<PromoteKnowledgeItemScopeResult> {
@@ -163,6 +165,7 @@ export async function promoteKnowledgeItemScope(input: { knowledgeItemId: string
       return { ok: false, reason: "no_transition_definition", detail: `Acquisition Scope cannot move from ${fromScope} to ${input.targetScope} — promotion is one tier at a time (SEU → Capability → Enterprise → Platform) and never demotes` };
     }
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires role ${gate.requiredRole}, actor has ${gate.actorRole}` };
+    if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }
 

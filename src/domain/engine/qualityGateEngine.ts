@@ -34,6 +34,8 @@ export type QualityGateEvaluationResult =
   | { outcome: "Passed"; gate: QualityGateRow }
   | { outcome: "Blocked"; gate: QualityGateRow; reason: string };
 
+export type QualityGateListEvaluationResult = { outcome: "Passed" | "NotApplicable" } | { outcome: "Blocked"; gate: QualityGateRow; reason: string };
+
 export const qualityGateEngine = {
   async evaluate(input: {
     entityType: TransitionEntityType;
@@ -44,7 +46,36 @@ export const qualityGateEngine = {
   }): Promise<QualityGateEvaluationResult> {
     const { data: gate } = await qualityGatesDB.find(input.entityType, input.fromState, input.toState);
     if (!gate) return { outcome: "NotApplicable" };
+    return this.evaluateGate(gate, input);
+  },
 
+  // SDK UI Layer Plan, Transition Definition section, "Mechanism — resolved"
+  // — explicit gate references (transition_definitions.required_quality_gate_ids)
+  // replace the coincidental (entityType, fromState, toState) match above,
+  // for any transition_definitions row that declares them. Called from
+  // transitionEngine.evaluate itself, generically, for any entity type — not
+  // a per-entity-type qualityGateEngine.evaluate call the way the 9 existing
+  // entity types' own core/*.ts functions still do it (unchanged, still
+  // live). All gates must pass; short-circuits and reports the first one
+  // that blocks, same "first blocking gate wins" semantics evaluate's own
+  // single-gate check already has.
+  async evaluateByIds(
+    gateIds: string[],
+    input: { entityType: TransitionEntityType; entityId: string; seuId: string }
+  ): Promise<QualityGateListEvaluationResult> {
+    if (gateIds.length === 0) return { outcome: "NotApplicable" };
+    const { data: gates } = await qualityGatesDB.findByIds(gateIds);
+    for (const gate of gates ?? []) {
+      const result = await this.evaluateGate(gate, input);
+      if (result.outcome === "Blocked") return result;
+    }
+    return { outcome: "Passed" };
+  },
+
+  async evaluateGate(
+    gate: QualityGateRow,
+    input: { entityType: TransitionEntityType; entityId: string; seuId: string }
+  ): Promise<QualityGateEvaluationResult> {
     const criteriaType = (gate.criteria as { type?: string }).type;
 
     // Post-completion fix (Open Design Questions.md #3): both criteria types

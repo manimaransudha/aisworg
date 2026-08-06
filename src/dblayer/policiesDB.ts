@@ -40,6 +40,18 @@ export const policiesDB = {
     }
   },
 
+  // SDK UI Layer Plan — Transition Definition authoring resolves policy
+  // codes to ids at publish time, same pattern as requiredAuthorityRuleCode.
+  async findByCode(code: string): Promise<DbResult<PolicyRow | null>> {
+    try {
+      const { rows } = await query<PolicyRow>("SELECT * FROM policies WHERE code = $1", [code]);
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[policiesDB] findByCode error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findByIds(ids: string[]): Promise<DbResult<PolicyRow[]>> {
     try {
       if (ids.length === 0) return { data: [] };

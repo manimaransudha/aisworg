@@ -19,7 +19,7 @@
         <% if (_isGeneral) { %>
           <!-- SEU Platform dropdown -->
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle <%= ['seu-dashboard','seu-objectives','seu-objectives-new','seu-objectives-detail','seu-seus','seu-seus-new','seu-seus-detail','seu-packs','seu-services','seu-knowledge-capital','seu-telemetry','seu-attention','seu-identity','seu-sdk-pack-authoring','seu-sdk-template-authoring','seu-sdk-profile-authoring','seu-sdk-schema-registry'].includes(currentPage) ? 'active' : '' %>"
+            <a class="nav-link dropdown-toggle <%= ['seu-dashboard','seu-objectives','seu-objectives-new','seu-objectives-detail','seu-seus','seu-seus-new','seu-seus-detail','seu-packs','seu-services','seu-knowledge-capital','seu-telemetry','seu-attention','seu-identity','seu-sdk-pack-authoring','seu-sdk-template-authoring','seu-sdk-profile-authoring','seu-sdk-transition-definition-authoring','seu-sdk-schema-registry'].includes(currentPage) ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               SEU Platform
             </a>
@@ -58,6 +58,9 @@
               </a></li>
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-profile-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/profile-authoring">
                 <i class="bi bi-file-earmark-code me-2"></i>Profile Authoring
+              </a></li>
+              <li><a class="dropdown-item <%= currentPage === 'seu-sdk-transition-definition-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/transition-definition-authoring">
+                <i class="bi bi-file-earmark-code me-2"></i>Transition Definition Authoring
               </a></li>
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-schema-registry' ? 'active' : '' %>" href="/aisworg/seu/sdk/schema-registry">
                 <i class="bi bi-braces me-2"></i>Schema Registry

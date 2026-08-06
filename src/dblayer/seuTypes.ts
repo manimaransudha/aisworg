@@ -299,6 +299,12 @@ export interface TransitionDefinitionRow {
   // qualityGateEngine (forking the lookup key by category was considered and
   // rejected; Quality Gates apply uniformly regardless of category).
   category: string | null;
+  // SDK UI Layer Plan, Transition Definition section — explicit references,
+  // opt-in per row (default []), read by transitionEngine.evaluate itself.
+  required_quality_gate_ids: string[];
+  // An Obligation category to raise on a successful transition, or null for
+  // none ("creates, does not block"). Stored; not yet mechanically enforced.
+  creates_obligation: string | null;
 }
 
 export type CommandStatus = "Generated" | "Dispatched" | "Completed" | "Deferred" | "Cancelled" | "Failed";

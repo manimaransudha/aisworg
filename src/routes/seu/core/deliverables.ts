@@ -162,6 +162,13 @@ export async function transitionDeliverable(input: {
     // resolveAutoActingBadge above for the same reasoning).
     scopeContext: { seuId: deliverable.seu_id, capabilityId: deliverable.producing_capability_id, packCode: AUTHORING_SCOPE_PACK_CODE },
     context: { deliverable },
+    // Deliverable's own transition_definitions rows never set
+    // required_quality_gate_ids (Deliverable keeps using its existing
+    // separate qualityGateEngine.evaluate call above), so this never
+    // actually fires for Deliverable today — passed for correctness now
+    // that the generic mechanism exists (SDK UI Layer Plan).
+    entityId: deliverable.id,
+    seuId: deliverable.seu_id,
   });
   if (!gate.allowed) {
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Deliverable ${fromState} -> ${input.targetState}` };
@@ -171,6 +178,7 @@ export async function transitionDeliverable(input: {
         : `requires role ${gate.requiredRole}, actor has ${gate.actorRole}`;
       return { ok: false, reason: "authority_denied", detail };
     }
+    if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }
 

@@ -113,6 +113,11 @@ export async function updateObjective(id: string, input: { statement?: string; t
 export type TransitionObjectiveResult =
   | { ok: true; objective: ObjectiveRow; appliedTransition: { fromState: string; toState: string } }
   | { ok: false; reason: "not_found" }
+  // Structurally unreachable today (Objective has no seu_id — see the doc
+  // comment below), but transitionEngine.evaluate's return type now includes
+  // this reason unconditionally (SDK UI Layer Plan), so it's handled here
+  // for type-correctness even though nothing can currently produce it.
+  | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition"; detail: string };
 
 // Post-completion fix (Open Design Questions.md #3): every other SEU-scoped
@@ -137,6 +142,7 @@ export async function transitionObjective(input: { objectiveId: string; targetSt
   if (!gate.allowed) {
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Objective ${fromState} -> ${input.targetState}` };
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires role ${gate.requiredRole}, actor has ${gate.actorRole}` };
+    if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }
 

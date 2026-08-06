@@ -33,6 +33,7 @@ const KIND_BY_SLUG: Record<string, SchemaDefinitionEntityKind> = {
   "pack-authoring": "Pack",
   "template-authoring": "Template",
   "profile-authoring": "Profile",
+  "transition-definition-authoring": "TransitionDefinition",
 };
 const PUBLISH_REDIRECT_BY_KIND: Record<SchemaDefinitionEntityKind, string> = {
   Pack: "/aisworg/seu/packs",
