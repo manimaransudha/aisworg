@@ -33,6 +33,7 @@ import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { seuCapabilitiesDB } from "../src/dblayer/seuCapabilitiesDB.js";
+import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 
 after(async () => {
@@ -142,4 +143,55 @@ test("Capability shortage: findUnfulfilledByCapability surfaces real SEUs missin
       assert.ok(result.obligation.seu_id);
     }
   }
+});
+
+// Real bug found in production data, fixed 2026-08-06: dedup used to search
+// obligationsDB.findBySeuId(representativeSeuId), but the representative SEU
+// is deliberately the *most recently affected* one (newest-first ordering)
+// — it shifts every time a new SEU is commissioned leaving the same
+// Capability unfulfilled, so a SEU-scoped dedup search always looked at a
+// SEU that had never had this Obligation before. Confirmed live: 6 real
+// chronic shortages had produced 37 Obligations. This proves the fix
+// (dedupScope: "platform") holds across an actual shift, not just a
+// same-representative repeat call.
+test("Capability shortage: dedup survives the representative SEU actually shifting between checks (the real bug)", async () => {
+  const marker = "capabilityShortage:";
+  const countMarked = async () => {
+    const { data } = await obligationsDB.findByCategory("Organisational Learning");
+    return (data ?? []).filter((o) => o.description?.includes(marker)).length;
+  };
+
+  const seuIds = [
+    await commissionTestSeu("capability-shortage-shift-a"),
+    await commissionTestSeu("capability-shortage-shift-b"),
+    await commissionTestSeu("capability-shortage-shift-c"),
+  ];
+  // Deliberately leave "architecture" unfulfilled on all three, same as the
+  // test above — first pass establishes (or confirms already-deduplicated)
+  // the pattern for "architecture".
+  const before = await checkSustainedCapabilityShortages();
+  void before;
+  const afterFirstPass = await countMarked();
+
+  const { data: shortagesBefore } = await seuCapabilitiesDB.findUnfulfilledByCapability();
+  const architectureBefore = (shortagesBefore ?? []).find((s) => s.capability_code === "architecture");
+  assert.ok(architectureBefore);
+  const representativeBefore = architectureBefore!.seu_ids[0];
+
+  // Commission one more SEU leaving "architecture" unfulfilled — newer than
+  // all three above, so it becomes the new representative (newest-first).
+  const newestSeuId = await commissionTestSeu("capability-shortage-shift-newest");
+
+  const { data: shortagesAfter } = await seuCapabilitiesDB.findUnfulfilledByCapability();
+  const architectureAfter = (shortagesAfter ?? []).find((s) => s.capability_code === "architecture");
+  assert.ok(architectureAfter);
+  const representativeAfter = architectureAfter!.seu_ids[0];
+  assert.equal(representativeAfter, newestSeuId, "expected the newly-commissioned SEU to become the new representative");
+  assert.notEqual(representativeAfter, representativeBefore, "expected the representative to have actually shifted — the scenario this test exists to cover");
+
+  await checkSustainedCapabilityShortages();
+  const afterSecondPass = await countMarked();
+
+  assert.equal(afterSecondPass, afterFirstPass, "the representative shifting must not raise a duplicate Obligation for the same capability shortage");
+  void seuIds;
 });

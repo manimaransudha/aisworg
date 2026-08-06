@@ -59,6 +59,20 @@ export const obligationsDB = {
     }
   },
 
+  // Platform-wide, not SEU-scoped — for dedup checks against a genuinely
+  // cross-SEU pattern (Ch.35 §11 capability shortage), where no single SEU
+  // id is stable enough to search by. See telemetry.ts's
+  // raiseSustainedPatternObligation dedupScope: "platform".
+  async findByCategory(category: string): Promise<DbResult<ObligationRow[]>> {
+    try {
+      const { rows } = await query<ObligationRow>("SELECT * FROM obligations WHERE category = $1 ORDER BY created_at", [category]);
+      return { data: rows };
+    } catch (err) {
+      logger.error("[obligationsDB] findByCategory error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async updateStatus(id: string, status: string): Promise<DbResult<ObligationRow>> {
     try {
       const { rows } = await query<ObligationRow>(

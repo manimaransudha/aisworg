@@ -159,9 +159,27 @@ export type SustainedPatternCheckResult = { raised: false } | { raised: true; ob
 // — the same "small, searchable, no schema change" tradeoff Phase 6 made
 // for scope promotion — so repeat detections of the same pattern don't
 // raise duplicate Obligations.
+//
+// Real bug, fixed 2026-08-06: dedup used to search obligationsDB.findBySeuId
+// (input.seuId), which is correct only when seuId is stable across repeated
+// checks for the same pattern — true for checkSustainedQualityGateBlocking
+// (the real SEU that blocked) and checkSustainedPolicyWaivers (the real SEU
+// that waived), but false for checkSustainedCapabilityShortages, whose
+// seuId (and relatedObjectId — the same value there) is a shifting "most
+// recently affected" representative pick by design. Every time the
+// representative shifted, the SEU-scoped dedup search looked at a SEU that
+// had never had this Obligation before and missed — confirmed live: 6 real
+// chronic shortages had produced 37 Obligations. The only thing actually
+// stable across checks for that caller is the capability id baked into
+// `marker` itself, which no per-SEU or per-related-object search can reach
+// — fixed by adding an explicit `dedupScope`: "seu" (default, unchanged
+// behaviour for the other two callers) searches obligationsDB.findBySeuId;
+// "platform" searches every Organisational Learning Obligation regardless
+// of SEU, for the one caller whose pattern genuinely isn't SEU-scoped.
 async function raiseSustainedPatternObligation(input: {
   marker: string;
   seuId: string;
+  dedupScope?: "seu" | "platform";
   relatedObjectType: TransitionEntityType;
   relatedObjectId: string;
   originatingObjectType: string;
@@ -172,7 +190,8 @@ async function raiseSustainedPatternObligation(input: {
   attentionDescription: string;
   eventPayload: Record<string, unknown>;
 }): Promise<SustainedPatternCheckResult> {
-  const { data: existingObligations } = await obligationsDB.findBySeuId(input.seuId);
+  const { data: existingObligations } =
+    input.dedupScope === "platform" ? await obligationsDB.findByCategory("Organisational Learning") : await obligationsDB.findBySeuId(input.seuId);
   const alreadyRaised = (existingObligations ?? []).some((o) => o.category === "Organisational Learning" && o.description?.includes(input.marker));
   if (alreadyRaised) return { raised: false };
 
@@ -283,11 +302,13 @@ export async function checkSustainedPolicyWaivers(): Promise<SustainedPatternChe
 // ordered newest-first by seuCapabilitiesDB.findUnfulfilledByCapability),
 // with the description naming the true cross-SEU count — the artifact
 // lives on one SEU because the schema requires it to, not because the
-// pattern is actually specific to that SEU. A real limitation, not hidden:
-// if the "most recent" SEU changes between checks, a second Obligation can
-// end up raised for the same underlying shortage under a different
-// representative SEU — accepted for this pass rather than building a
-// platform-wide dedup registry for one bottleneck type.
+// pattern is actually specific to that SEU. The representative SEU
+// genuinely does shift between checks as new SEUs are commissioned with the
+// same unfulfilled Capability, so dedup can't be scoped to it or to
+// relatedObjectId (the same shifting value) — dedupScope: "platform" (see
+// raiseSustainedPatternObligation's own comment, fixed 2026-08-06) searches
+// every Organisational Learning Obligation platform-wide for this caller
+// instead, matching on the stable capability id already baked into `marker`.
 export async function checkSustainedCapabilityShortages(): Promise<SustainedPatternCheckResult[]> {
   const { data: shortages } = await seuCapabilitiesDB.findUnfulfilledByCapability();
   const results: SustainedPatternCheckResult[] = [];
@@ -298,6 +319,7 @@ export async function checkSustainedCapabilityShortages(): Promise<SustainedPatt
     const result = await raiseSustainedPatternObligation({
       marker,
       seuId: representativeSeuId,
+      dedupScope: "platform",
       relatedObjectType: "SEU",
       relatedObjectId: representativeSeuId,
       originatingObjectType: "Capability",
