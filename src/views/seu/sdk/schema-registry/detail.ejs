@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../../partials/head') %>
+</head>
+<body>
+  <header><%- include('../../../partials/navbar') %></header>
+
+  <main class="container py-5" style="max-width: 900px;">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <p class="text-muted small mb-1"><a href="/aisworg/seu/sdk/schema-registry">&larr; Schema Registry</a></p>
+      <h2 class="h3 mb-1 text-dark fw-bold"><%= schema.entityKind %> — v<%= schema.version %></h2>
+      <p class="text-muted small mb-0">Created <%= new Date(schema.createdAt).toLocaleString() %>. Immutable — a new edit is always a new version, never a change to this row.</p>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <pre class="mb-0 small" style="white-space: pre-wrap;"><%= schema.schemaJson %></pre>
+      </div>
+    </div>
+  </main>
+
+  <%- include('../../../partials/footer') %>
+</body>
+</html>

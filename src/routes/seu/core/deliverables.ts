@@ -8,6 +8,7 @@ import { executionEngine } from "../../../domain/engine/executionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { checkSustainedQualityGateBlocking } from "./telemetry.js";
 import { raiseAttentionItem } from "./attentionItems.js";
+import { AUTHORING_SCOPE_PACK_CODE } from "../../../domain/sdk/authoringScope.js";
 import type { DeliverableRow, DependencyEdgeRow } from "../../../dblayer/seuTypes.js";
 
 // Phase 10 (badge model) — §10's badge-switcher UI isn't built yet (§17.2,
@@ -29,7 +30,11 @@ async function resolveAutoActingBadge(actorId: string, deliverable: DeliverableR
       (g.badge_type === "creator" || g.badge_type === "approver") &&
       g.governed_entity_type === "Deliverable" &&
       g.capability_id === deliverable.producing_capability_id &&
-      g.scope_id === deliverable.seu_id
+      // SDK UI Layer Plan — an authoring Deliverable's grant is scoped to the
+      // shared sdk-authoring-scope placeholder Pack, not this one bootstrap
+      // SEU's id (014_sdk_authoring.sql's header comment: one grant should
+      // cover every bootstrap SEU an author touches, not just this one).
+      (g.scope_id === deliverable.seu_id || g.scope_id === AUTHORING_SCOPE_PACK_CODE)
   );
   return qualifying.length === 1 ? qualifying[0].id : null;
 }
@@ -151,7 +156,11 @@ export async function transitionDeliverable(input: {
     toState: input.targetState,
     actorRole: input.actorRole ?? "general",
     actingBadge: actingBadgeGrantId && input.actorId ? { grantId: actingBadgeGrantId, actorId: input.actorId } : undefined,
-    scopeContext: { seuId: deliverable.seu_id, capabilityId: deliverable.producing_capability_id },
+    // packCode: always offered, not just for authoring Deliverables — safe,
+    // since matchesPack only ever fires for a grant whose own scope_id is
+    // literally this constant, which no non-SDK-authoring grant is (see
+    // resolveAutoActingBadge above for the same reasoning).
+    scopeContext: { seuId: deliverable.seu_id, capabilityId: deliverable.producing_capability_id, packCode: AUTHORING_SCOPE_PACK_CODE },
     context: { deliverable },
   });
   if (!gate.allowed) {

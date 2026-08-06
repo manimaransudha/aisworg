@@ -24,7 +24,11 @@ import type { AcquisitionScope, InteractionDirection, ParticipantType } from "..
 router.get("/seus", attachVM("seu/seus/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "SEUs";
-    req.vm.req.seus = await listSeus();
+    const platformBadges: string[] = req.session?.user?.platformBadges ?? [];
+    req.vm.req.seus = await listSeus({
+      userId: req.session?.user?.id ?? null,
+      isAdmin: platformBadges.includes("root") || platformBadges.includes("tenant_admin"),
+    });
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/seus/index", req.vm);
   } catch (err) {

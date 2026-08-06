@@ -54,3 +54,15 @@ Is that the right semantics, or should starting work be allowed to proceed in pa
 **Why this waits:** making Pack/Objective Quality-Gate-capable means either (a) making `quality_gate_evaluations.seu_id` nullable and deciding what a SEU-less evaluation record even means for Telemetry/Attention Item raising (both currently assume a SEU), or (b) inventing a different evaluation-record shape for SEU-less entities — either is a real, separate design decision, not a follow-on of this fix.
 
 **Resolve when:** revisited during Phase 10 (Security Architecture depth) or whenever Pack/Objective governance actually needs a real precondition beyond Authority + Policy — nothing built so far needs it.
+
+---
+
+## 4. Template and Profile are now authored under real governance (SDK UI Layer Plan) — but the underlying row still isn't immutably versioned like Pack
+
+**Surfaced:** 2026-08-06, building the SDK UI Layer Plan's Template/Profile authoring surfaces. The plan's own Template section says "reaching Baselined is what registers the real, immutable Template version" — but `templatesDB.upsert`/`profilesDB.upsert` still do a plain `ON CONFLICT (code) DO UPDATE`, overwriting the same row in place. Re-publishing a Template/Profile through the new authoring UI (`publishTemplate`/`publishProfile`, `core/templates.ts`/`core/profiles.ts`) mutates the existing row exactly like the old seed-script path always has — `template_version`/no version column at all on `profiles` sit unused. Pack's own `(code, packVersion)` immutable-versioning (Ch.41 VM-002) was never retrofitted onto either.
+
+**What was fixed:** the authoring *workflow* now has real governance — Create/Review/Approve/Publish through Deliverable's own lifecycle, Quality-Gate- and Authority-checked, exactly like the plan specifies. What wasn't touched: the *artifact's* own mutability. A second "Publish" of the same Template code today still silently overwrites the first version's row, with no history kept and no `findActiveByCode`-equivalent needed (there's only ever one row per code).
+
+**Why this waits:** giving Template/Profile the same `(code, version)` immutable-versioning as Pack — a new composite key, a real `findActiveByCode`-style resolution, deciding what "Active" even means for a Template that nothing else references by version — is real, separate schema and engine work the SDK UI Layer Plan doesn't spec out. Deciding it now, against the first two authoring surfaces built, risks guessing at a shape Pack's own Ch.41 pattern would just have to redo.
+
+**Resolve when:** a real re-publish scenario actually needs history (someone wants to see what a Template looked like before an edit, or two SEUs need to have been commissioned against provably different Template versions) — nothing built so far needs it, same reasoning as item 2's still-open first question.

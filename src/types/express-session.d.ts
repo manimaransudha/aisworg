@@ -13,6 +13,9 @@ declare module "express-session" {
       avatar_url: string | null;
       role: string;
       is_active: boolean;
+      // Phase 10 (badge model) — cached at login (buildSessionUser +
+      // ensureBadgeBootstrap), not re-derived per request.
+      platformBadges?: string[];
     };
     flash?: unknown;
     _t?: number;

@@ -3,13 +3,13 @@ import { logger } from "../utils/logger.js";
 import type { DbResult, ParticipantRow, ParticipantType } from "./seuTypes.js";
 
 export const participantsDB = {
-  async create(input: { seuId: string; type: ParticipantType; displayName: string }): Promise<DbResult<ParticipantRow>> {
+  async create(input: { seuId: string; type: ParticipantType; displayName: string; userId?: number | null }): Promise<DbResult<ParticipantRow>> {
     try {
       const { rows } = await query<ParticipantRow>(
-        `INSERT INTO participants (seu_id, type, display_name, state)
-         VALUES ($1, $2, $3, 'Assigned')
+        `INSERT INTO participants (seu_id, type, display_name, state, user_id)
+         VALUES ($1, $2, $3, 'Assigned', $4)
          RETURNING *`,
-        [input.seuId, input.type, input.displayName]
+        [input.seuId, input.type, input.displayName, input.userId ?? null]
       );
       return { data: rows[0] };
     } catch (err) {

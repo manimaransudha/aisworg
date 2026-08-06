@@ -15,7 +15,8 @@ import { capabilitiesDB } from "../capabilitiesDB.js";
 import { authorityRulesDB } from "../authorityRulesDB.js";
 import { policiesDB } from "../policiesDB.js";
 import { createPackDraft, advancePackLifecycle, publishPack, type PackSeedInput } from "../../routes/seu/core/packs.js";
-import type { PackRow, TemplateDeliverableSeed, TransitionEntityType } from "../seuTypes.js";
+import { AUTHORING_CAPABILITY_CODE, AUTHORING_CATEGORY, BOOTSTRAP_TEMPLATE_CODE, bootstrapProfileCode } from "../../routes/seu/core/sdkAuthoring.js";
+import type { PackRow, TemplateDeliverableSeed, TransitionEntityType, SchemaDefinitionEntityKind } from "../seuTypes.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "data");
@@ -97,13 +98,32 @@ async function seedProfile(seed: ProfileSeed, templateId: string, knownPackCodes
   return profile.id;
 }
 
+// authorityRuleIdByCode only covers codes contributed by the bootstrap Pack's
+// own JSON — a code seeded directly by a migration instead (Phase 10's
+// authority-deliverable-creator/-approver, 012_badge_model.sql) needs a live
+// DB lookup as fallback. Previously this silently fell back to `null` on any
+// miss — the bug that let a re-run of this seed script quietly clobber
+// migration 012's badge-model repoint of Deliverable's own transitions back
+// to legacy role-based authority (found while re-running this script to add
+// the SDK UI Layer Plan's bootstrap Templates). Failing loudly on a genuinely
+// unresolvable code, instead of silently nulling required_authority_rule_id,
+// matches every other lookup in this file (seedTemplate/seedProfile already
+// throw on an unknown code rather than seeding a broken row).
+async function resolveAuthorityRuleId(code: string, authorityRuleIdByCode: Map<string, string>): Promise<string> {
+  const fromPack = authorityRuleIdByCode.get(code);
+  if (fromPack) return fromPack;
+  const { data: rule } = await authorityRulesDB.findByCode(code);
+  if (!rule) throw new Error(`transition definition references unknown authority rule ${code}`);
+  return rule.id;
+}
+
 async function seedTransitionDefinitions(
   seeds: TransitionDefinitionSeed[],
   authorityRuleIdByCode: Map<string, string>,
   policyIdByCode: Map<string, string>
 ): Promise<void> {
   for (const seed of seeds) {
-    const requiredAuthorityRuleId = seed.requiredAuthorityRuleCode ? authorityRuleIdByCode.get(seed.requiredAuthorityRuleCode) ?? null : null;
+    const requiredAuthorityRuleId = seed.requiredAuthorityRuleCode ? await resolveAuthorityRuleId(seed.requiredAuthorityRuleCode, authorityRuleIdByCode) : null;
     const requiredPolicyIds = seed.requiredPolicyCodes.map((code) => {
       const id = policyIdByCode.get(code);
       if (!id) throw new Error(`transition definition references unknown policy ${code}`);
@@ -119,6 +139,56 @@ async function seedTransitionDefinitions(
     if (error) throw error;
     logger.info(`[seed:seu] transition ${seed.entityType} ${seed.fromState} -> ${seed.toState}`);
   }
+}
+
+// SDK UI Layer Plan's Core Principle — each of Pack/Template/Profile/
+// Transition Definition is authored via its own small bootstrap Template
+// producing exactly one Deliverable. Transition Definition isn't seeded here
+// yet (Build order step 6 — needs the transitionEngine/qualityGateEngine
+// generalisation first); the other three get added the same way once their
+// own schema_definitions row exists (015_sdk_authoring_template_profile.sql).
+const SDK_AUTHORING_KINDS: SchemaDefinitionEntityKind[] = ["Pack", "Template", "Profile"];
+
+async function seedSdkAuthoringBootstrap(knownPackCodes: Set<string>): Promise<void> {
+  for (const kind of SDK_AUTHORING_KINDS) {
+    const capabilityCode = AUTHORING_CAPABILITY_CODE[kind];
+    const { data: capabilities } = await capabilitiesDB.findByCodes([capabilityCode]);
+    const capability = capabilities?.[0];
+    if (!capability) throw new Error(`seedSdkAuthoringBootstrap: unknown capability ${capabilityCode} — did migration 014 run?`);
+
+    const templateCode = BOOTSTRAP_TEMPLATE_CODE[kind];
+    const { data: template, error } = await templatesDB.upsert({
+      code: templateCode,
+      name: `${kind} Authoring (bootstrap)`,
+      deliverableCatalogue: [
+        {
+          code: `${kind.toLowerCase()}-definition`,
+          name: `${kind} Definition`,
+          category: AUTHORING_CATEGORY[kind],
+          producingCapabilityCode: capabilityCode,
+        },
+      ],
+    });
+    if (error || !template) throw error ?? new Error(`bootstrap template upsert failed: ${templateCode}`);
+    await templatesDB.setRequiredCapabilities(template.id, [capability.id]);
+    await templatesDB.setMandatoryPacks(template.id, []);
+    logger.info(`[seed:seu] sdk-authoring template ${template.code} -> ${template.id}`);
+
+    const { data: profile, error: profileErr } = await profilesDB.upsert({
+      code: bootstrapProfileCode(kind),
+      name: `${kind} Authoring (bootstrap profile)`,
+      baseTemplateId: template.id,
+      environment: "platform",
+      configParameters: {},
+    });
+    if (profileErr || !profile) throw profileErr ?? new Error(`bootstrap profile upsert failed for ${kind}`);
+    await profilesDB.setOptionalPacks(profile.id, []);
+    logger.info(`[seed:seu] sdk-authoring profile ${profile.code} -> ${profile.id}`);
+  }
+  // knownPackCodes unused today (bootstrap Templates carry no mandatory
+  // Packs) — kept as a parameter so a future kind that does can validate
+  // against it the same way seedTemplate does.
+  void knownPackCodes;
 }
 
 async function run(): Promise<void> {
@@ -172,6 +242,8 @@ async function run(): Promise<void> {
 
     const templateId = await seedTemplate(templateSeed, capabilityIdByCode, knownPackCodes);
     await seedProfile(profileSeed, templateId, knownPackCodes);
+
+    await seedSdkAuthoringBootstrap(knownPackCodes);
 
     logger.info("[seed:seu] done.");
   } catch (err) {

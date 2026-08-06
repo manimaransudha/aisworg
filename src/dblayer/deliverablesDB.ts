@@ -44,6 +44,19 @@ export const deliverablesDB = {
     }
   },
 
+  // SDK UI Layer Plan — lists authoring sessions for one of the four kinds
+  // (category is set from the bootstrap Template's own Deliverable Catalogue
+  // entry, e.g. "Pack Definition"), newest first.
+  async findByCategory(category: string): Promise<DbResult<DeliverableRow[]>> {
+    try {
+      const { rows } = await query<DeliverableRow>("SELECT * FROM deliverables WHERE category = $1 ORDER BY created_at DESC", [category]);
+      return { data: rows };
+    } catch (err) {
+      logger.error("[deliverablesDB] findByCategory error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   // Ch.35 §7 Flow Telemetry — "Deliverable cycle time": how long each
   // Deliverable has taken to reach its current state, measured from creation
   // to its most recent recorded transition. Platform-wide, same scoping

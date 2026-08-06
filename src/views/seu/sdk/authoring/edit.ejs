@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../../partials/head') %>
+</head>
+<body>
+  <header><%- include('../../../partials/navbar') %></header>
+
+  <main class="container py-5" style="max-width: 1000px;">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4 d-flex justify-content-between align-items-start">
+      <div>
+        <h2 class="h3 mb-1 text-dark fw-bold"><%= kindLabel %> Definition</h2>
+        <p class="text-muted small mb-0">
+          Schema v<%= deliverable.schemaVersion %> — generated from <code>schema_definitions</code>, not a hand-built
+          form (SDK UI Layer Plan). <a href="/aisworg/seu/sdk/<%= slug %>">&larr; All sessions</a> ·
+          <a href="/aisworg/seu/seus/<%= deliverable.seuId %>">Underlying SEU</a> — attach Evidence/Decision there if
+          Review or Publish is blocked by a Quality Gate.
+        </p>
+      </div>
+      <span class="state-badge state-<%= deliverable.lifecycleState.replace(/\s+/g,'') %> align-self-center"><%= deliverable.lifecycleState %></span>
+    </div>
+
+    <% if (locals.errors && errors.length) { %>
+      <div class="alert alert-danger border-0 shadow-sm mb-4">
+        <strong>Could not proceed:</strong>
+        <ul class="mb-0"><% errors.forEach(function(e) { %><li><%= e %></li><% }) %></ul>
+      </div>
+    <% } %>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body">
+        <h6 class="text-uppercase text-muted small fw-bold mb-3">Generated form</h6>
+        <form method="POST" action="/aisworg/seu/sdk/<%= slug %>/<%= deliverable.id %>/save">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+          <% fields.forEach(function(f) { %>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold"><%= f.label %><% if (f.required) { %> <span class="text-danger">*</span><% } %></label>
+
+              <% if (f.kind === 'string') { %>
+                <input name="<%= f.name %>" class="form-control form-control-sm" value="<%= f.value %>" <%- f.required ? 'required' : '' %> <%- canEdit ? '' : 'disabled' %>>
+                <% if (f.help) { %><div class="form-text small"><%= f.help %></div><% } %>
+
+              <% } else if (f.kind === 'select') { %>
+                <select name="<%= f.name %>" class="form-select form-select-sm" <%- f.required ? 'required' : '' %> <%- canEdit ? '' : 'disabled' %>>
+                  <option value="">— select —</option>
+                  <% f.options.forEach(function(opt) { %>
+                    <option value="<%= opt %>" <%= f.value === opt ? 'selected' : '' %>><%= opt %></option>
+                  <% }) %>
+                </select>
+
+              <% } else if (f.kind === 'referential-select') { %>
+                <select name="<%= f.name %>" class="form-select form-select-sm" <%- f.required ? 'required' : '' %> <%- canEdit ? '' : 'disabled' %>>
+                  <option value="">— select —</option>
+                  <% ((locals.referentialOptions || {})[f.referentialSource] || []).forEach(function(opt) { %>
+                    <option value="<%= opt %>" <%= f.value === opt ? 'selected' : '' %>><%= opt %></option>
+                  <% }) %>
+                </select>
+                <% if (f.help) { %><div class="form-text small"><%= f.help %></div><% } %>
+
+              <% } else if (f.kind === 'json') { %>
+                <textarea name="<%= f.name %>" class="form-control form-control-sm font-monospace" rows="8" <%- canEdit ? '' : 'disabled' %>><%= f.value %></textarea>
+                <% if (f.help) { %><div class="form-text small"><%= f.help %></div><% } %>
+
+              <% } else if (f.kind === 'referential-list') { %>
+                <div class="border rounded p-2">
+                  <% f.rows.forEach(function(row, i) { %>
+                    <div class="row g-2 mb-1">
+                      <% f.itemFields.forEach(function(itemField) { %>
+                        <div class="col-auto">
+                          <% if (itemField.referentialSource) { %>
+                            <select name="<%= f.name %>[<%= i %>][<%= itemField.name %>]" class="form-select form-select-sm" style="min-width: 200px;" <%- canEdit ? '' : 'disabled' %>>
+                              <option value="">— <%= itemField.name %> —</option>
+                              <% ((locals.referentialOptions || {})[itemField.referentialSource] || []).forEach(function(opt) { %>
+                                <option value="<%= opt %>" <%= row[itemField.name] === opt ? 'selected' : '' %>><%= opt %></option>
+                              <% }) %>
+                            </select>
+                          <% } else { %>
+                            <input name="<%= f.name %>[<%= i %>][<%= itemField.name %>]" class="form-control form-control-sm" placeholder="<%= itemField.name %>" value="<%= row[itemField.name] %>" <%- canEdit ? '' : 'disabled' %>>
+                          <% } %>
+                        </div>
+                      <% }) %>
+                    </div>
+                  <% }) %>
+                  <div class="form-text small">Registry-backed fields are live-validated widgets, not bare text — blank rows are ignored.</div>
+                </div>
+              <% } %>
+            </div>
+          <% }) %>
+
+          <% if (canEdit) { %>
+            <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-save me-1"></i>Save draft</button>
+          <% } %>
+        </form>
+      </div>
+    </div>
+
+    <% if (canEdit) { %>
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+          <h6 class="text-uppercase text-muted small fw-bold mb-2">JSON import</h6>
+          <p class="text-muted small mb-2">First-class entry point, not a fallback — replaces the whole document.</p>
+          <form method="POST" action="/aisworg/seu/sdk/<%= slug %>/<%= deliverable.id %>/import">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <textarea name="importedJson" class="form-control form-control-sm font-monospace mb-2" rows="6" placeholder="Paste a JSON document..."><%= contentJson %></textarea>
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Import</button>
+          </form>
+        </div>
+      </div>
+    <% } %>
+
+    <div class="d-flex gap-2">
+      <% if (canApprove) { %>
+        <form method="POST" action="/aisworg/seu/sdk/<%= slug %>/<%= deliverable.id %>/approve">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-check2-circle me-1"></i>Approve</button>
+        </form>
+      <% } %>
+      <% if (canPublish) { %>
+        <form method="POST" action="/aisworg/seu/sdk/<%= slug %>/<%= deliverable.id %>/publish">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-cloud-upload me-1"></i>Publish</button>
+        </form>
+      <% } %>
+    </div>
+  </main>
+
+  <%- include('../../../partials/footer') %>
+</body>
+</html>

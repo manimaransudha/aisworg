@@ -14,6 +14,10 @@ import {seu_knowledge_capitalVM} from "./seu_knowledge_capital.js";
 import {seu_telemetry_indexVM} from "./seu_telemetry_index.js";
 import {seu_attention_indexVM} from "./seu_attention_index.js";
 import {seu_identity_indexVM} from "./seu_identity_index.js";
+import {seu_sdk_authoring_indexVM} from "./seu_sdk_authoring_index.js";
+import {seu_sdk_authoring_editVM} from "./seu_sdk_authoring_edit.js";
+import {seu_sdk_schema_registry_indexVM} from "./seu_sdk_schema_registry_index.js";
+import {seu_sdk_schema_registry_detailVM} from "./seu_sdk_schema_registry_detail.js";
 
 // export const viewModels = {
 //   "auth/login": auth_loginVM,
@@ -36,5 +40,9 @@ export const viewModels = {
   "seu/knowledge/capital": seu_knowledge_capitalVM,
   "seu/telemetry/index": seu_telemetry_indexVM,
   "seu/attention/index": seu_attention_indexVM,
-  "seu/identity/index": seu_identity_indexVM
+  "seu/identity/index": seu_identity_indexVM,
+  "seu/sdk/authoring/index": seu_sdk_authoring_indexVM,
+  "seu/sdk/authoring/edit": seu_sdk_authoring_editVM,
+  "seu/sdk/schema-registry/index": seu_sdk_schema_registry_indexVM,
+  "seu/sdk/schema-registry/detail": seu_sdk_schema_registry_detailVM
 };

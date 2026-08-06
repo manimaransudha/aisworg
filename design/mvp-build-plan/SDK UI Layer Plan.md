@@ -1,94 +1,147 @@
 # SDK / Authoring UI Layer — Plan
 
-*Which authoring surfaces currently have no UI, what Book 3 says each one's fields should be, and what's actually implemented today. Scoped deliberately to "build the UI for what is present as-is" per Sudha's instruction — every field list below is split into **Implemented now** (build UI for this) and **Chapter-specified, not yet implemented** (reference only, do not build UI for these until the underlying schema/logic exists). Sudha has more questions on this before it's final.*
+*Which authoring surfaces have no UI, what each one's schema should cover, and how they should be built so version changes stay cheap. Rewritten 2026-08-06 around four principles Sudha set: these four are governed deliverables in their own right, not a separate category; their grammar and their validators are versioned independently of any one instance; **the grammar decides the UI layout — forms are generated from the schema, not hand-built**; and dependency/reference checks, which the grammar structurally cannot express, are layered on top of specific generated fields as live-validated widgets, never baked into the grammar itself.*
 
-## Why more than just Pack SDK
+## Core principle: Pack, Template, Profile, Transition Definition are deliverables too
 
-Pack SDK was the explicit ask, but it's not the only authoring surface with no UI — and it's arguably not the most urgent one. Ordered by how much tooling already exists (least first, since that's the biggest gap):
+As far as the platform is concerned, these four are produced, governed artifacts of its own engineering process — the same kind of thing a Deliverable is, not a separate category needing separate machinery. Pack already proves this works: it's a real `TransitionEntityType`, immutably versioned (VM-002), governed through the exact same `transitionEngine` every other entity type already uses (`Draft → Validated → Published → Active → Deprecated → Retired → Archived`).
 
-1. **Template** — no CLI, no UI. Nothing but hand-edited JSON consumed by a seed script.
-2. **Profile** — same: no CLI, no UI.
-3. **Transition Definition** — same: no CLI, no UI, and it's the lowest-level of the four (declares the Authority/Policy/Quality-Gate wiring every other transition depends on).
-4. **Pack** — has a CLI (`pnpm pack:validate` / `pnpm pack:publish`), just no UI or JSON-import affordance yet. The most-built of the four.
+Template and Profile currently aren't treated this way — a Template row just exists or doesn't, with no governed lifecycle and no real versioning. That's not a gap specific to either of them; it's the same gap, twice.
 
-## 1. Pack
+**Decided 2026-08-06, simplified from an earlier draft of this section: the fix is not a second lifecycle — it's using the one Deliverable already has, directly, with no new `TransitionEntityType` for Template or Profile at all.** Create/Review/Publish map onto Deliverable's own existing states: `Defined → In Progress` (create), `In Progress → Approved` (review — Quality-Gate-checked, same machinery as everything else), `Approved → Baselined` (publish). Mechanically:
+
+- **A small, minimal bootstrap Template (and Profile) exists per thing being authored** — a "Pack-authoring Template," a "Template-authoring Template," a "Profile-authoring Template," a "Transition-Definition-authoring Template" — each with a Deliverable Catalogue producing exactly one Deliverable: a Pack Definition, a Template Definition, and so on. A simple Platform/Tenant-scoped lookup API returns the right one for whichever of the four the new UI is authoring.
+- **"Create/Save" commissions an SEU against that bootstrap Template** — the existing, proven commissioning pipeline, not new engine code.
+- **"Publish" is where the real artifact gets registered** — reaching `Baselined` on the authoring Deliverable calls `publishPack` (or the Template/Profile/Transition-Definition equivalent) as a small, targeted piece of glue code on that one transition, not a new mechanism.
+
+Pack already proves the underlying engine works — it's a real `TransitionEntityType`, immutably versioned (VM-002), governed through the exact `transitionEngine` every entity type already uses. What's new for Template, Profile, and Transition Definition isn't a second copy of that; it's the bootstrap-Template + publish-on-Baselined pattern above, reusing Deliverable's lifecycle rather than building a parallel one — all three, the same way, none of them an exception.
+
+## Access control: who may author these four
+
+Same badge model as everything else (Phase 10) — Creator/Reviewer/Approver, scoped by `governed_entity_type` (`Pack`, `Template`, `Profile`, `TransitionDefinition`), not new badge types. "`pack_creator`," "`pack_reviewer`" is readable shorthand for that combination — a Creator/Reviewer grant scoped to `governed_entity_type = Pack` — not a proposal to bring back entity-specific badges; the generalisation already decided (§8.4 of the Phase 10 design) stands as-is.
+
+**Only Platform and Tenant Admin badge holders should hold these grants.** SEU-scoped Engineering users — ordinary Creator/Reviewer/Approver grants scoped to `governed_entity_type = Deliverable`, doing the actual engineering work inside a commissioned SEU — should never also hold a Pack/Template/Profile/Transition-Definition-scoped grant. Their role is composition: selecting which Template, and which Packs a Profile brings in, when commissioning an SEU — not authoring or modifying the four things being composed.
+
+This is a granting-policy rule, not a new technical constraint — worth being precise about, since it follows the same shape as every other guardrail in this badge model (§14a of the Phase 10 design already makes the same distinction for Creator/Approver co-grants: the schema makes something *possible*, discipline in who grants what is what actually holds the line). The top-down chain already established (Platform badge holder → grants Tenant Admin → Tenant Admin grants Engineering badges) means an ordinary SEU Engineering user was never in the granting path for a Pack/Template/Profile/Transition-Definition badge to begin with — nothing stops a Tenant Admin from granting one anyway, the same way nothing stops them from co-granting Creator and Approver to the same person. Both are the same kind of guardrail: represented and expected, not mechanically enforced.
+
+## Grammar and validators are versioned separately from any one instance
+
+Each of Pack, Template, Profile, and Transition Definition has a grammar: a schema describing what shape it's legal for an instance to take. That schema needs its own version, independent of any specific instance's version — **Pack 1.0.0 and Pack 1.0.1 are two instances, possibly of the same schema version; Schema v1 and Schema v2 are two different grammars.** Conflating schema version with instance version would mean every grammar change forces every already-published instance to be touched. It shouldn't.
+
+**The schema and its validator share one version, not two.** They're not independently-tracked artifacts that happen to reference each other — a validator's entire job is checking conformance to one specific schema, so treating them as two numbers that could drift out of sync (schema at v3, its validator still checking against v2) is a bug waiting to happen, not a real degree of freedom. One version number covers both together: Schema+Validator v1, v2, and so on. An instance declares which one of these it was authored against, and gets checked against exactly that pair, permanently — so an old, already-Active Pack keeps validating against the grammar (and validator) it was actually authored against, never silently against whatever's newest. Schema+validator evolution is additive to what's possible going forward, not retroactive to what already exists. 
+
+## The grammar generates the form; dependency fields get a live widget on top
+
+**The UI is not hand-built per entity — it's rendered directly from each entity's versioned grammar.** A field's type in the schema (string, enum, array of strings, nested object) determines what control renders for it — a text input, a dropdown, a repeatable row group — the same way any schema-driven form renderer works. This is what actually delivers "minimal code for version changes": add a field to the grammar, the form has it, without a hand-edit to a form template.
+
+That covers structure. It does not, and structurally cannot, cover the other kind of validation these grammars need:
+
+- **Structural (grammar) validation** — static, self-contained, no database lookup needed: required fields, types, enums, duplicate-code detection within the same document. The schema expresses this directly, and the generated form enforces it directly.
+- **Referential (dependency) validation** — whether something the definition *points at* actually exists right now: a Pack dependency resolving against the Registry, a Deliverable Catalogue entry referencing an earlier entry in the same catalogue, a Capability code that has to exist for a Template to require it. A grammar can declare that `mandatoryPackCodes` is an array of strings — it cannot declare that those strings currently resolve to Active Packs, because that depends on live Registry state at the moment of authoring, not on the shape of the document. **This is not the grammar's job, and it doesn't need a separate, hand-built form to get one** — it's a widget attached to that specific generated field (a Registry-backed picker with live validation, in place of a bare text input), not a bypass of generation.
+
+This isn't a new split — it's already how `validatePackSeed` works today: duplicate-code and shape checks are separate from the `packsDB.findByCode(dep.packCode)` Registry lookup. The change is generating the form from the grammar directly, and attaching live-validated widgets to the specific fields that need one, instead of hand-building four separate forms that each reimplement both kinds of checking from scratch.
+
+## Schema Registry — the schema itself is data, not a hardcoded file
+
+Everything above assumes a schema exists somewhere for the generator and validator to read. It can't be a file in the codebase, needing a deploy to change — that would leave "minimal code changes for version changes" only half-delivered: the form and validator auto-update from the schema, but the schema driving them still wouldn't. Persist schemas as data instead, versioned and managed the same way Pack itself already is — this isn't a new pattern for this project, it's the one Phase 10 already proved out for `badge_types`/`badge_tiers`, applied to one more thing.
+
+**One entity, `schema_definitions`** — one row per (entity type, schema version): Pack's grammar, Template's, Profile's, Transition Definition's, each independently versioned per the point above (Schema+Validator share one version, evolution additive, never retroactive). Content stored as a standard JSON Schema document — `type`, `enum`, `pattern`, `required`, `uniqueItems`, nested `properties` — not a custom format, since standard vocabulary already expresses most of today's actual validation rules (semver pattern, category enum, duplicate-code via `uniqueItems`) as pure data, with no custom code needed for those cases.
+
+**UI:** a Schema Registry screen listing every (entity type, version); a detail view rendering the JSON Schema readably; a JSON editor for creating/editing one (a schema is itself structured enough that hand-authoring the JSON Schema document is the natural path here, the same way JSON import is a first-class path for the four entities themselves, not a fallback); and import, for bringing in a schema authored elsewhere. No separate "generated form for editing the schema" — that would need a schema for the schema, which is a real thing (JSON Schema has one, the meta-schema) but not worth chasing for this pass.
+
+**What actually goes generic once this exists:** the form generator and validator for Pack/Template/Profile/Transition Definition stop reading a compiled TypeScript type and start reading whichever `schema_definitions` row an instance declares conformance to, at runtime. This is real, new work — a genuinely generic interpreter, not a config-file reader — but it's one interpreter, built once, serving all four entities, not four.
+
+**Bootstrap:** the first schema version for each of the four is seeded directly via migration — the same reasoning already settled for everything else with this shape in this project (Pack's own bootstrap Pack, `root`'s `SUPERUSER_EMAIL` grant). There's no UI path to create the very first schema from nothing; the Schema Registry manages every version from that point forward, the same way Identity Management manages every badge after `root` exists.
+
+## Where authored content lives while In Progress
+
+The bootstrap Deliverable itself (Core Principle) only carries lifecycle state — it has nowhere to hold the actual in-progress Pack/Template/Profile/Transition Definition document being edited. **New table, `deliverable_authoring_content`** — one row per authoring Deliverable: `deliverable_id` (FK, unique), `schema_definition_id` (FK to `schema_definitions` — which grammar version this content was authored against, per the versioning section above), `content JSONB` (the document itself), `updated_at`. Not a column on `deliverables` — this is specific to the four authoring surfaces, and `deliverables` is a heavily-shared core table that shouldn't carry a purpose this narrow.
+
+Starting content on Create is either an imported JSON file or a blank document shaped by the schema's defaults ("picked from DB," not a hardcoded default — the schema itself, already in `schema_definitions`, is the source of that shape). `Baselined`'s glue code (`publishPack` etc.) reads this row, not the Deliverable.
+
+## SEU Registry visibility: participant and author scoping
+
+A side effect of these four having real SEUs behind them (Core Principle) is that authoring an entity commissions a real SEU — today's Registry (`/aisworg/seu/seus`) shows literally every SEU, unfiltered, to every user. That was tolerable with a handful of hand-made SEUs; it stops being tolerable once every Pack/Template/Profile/Transition Definition authored goes through one too.
+
+**Decided 2026-08-06:** a user should see a SEU if they requested it or are a Participant on it — not all SEUs. `seus.requested_by` already covers the first case. The second doesn't exist yet: `participants` (`seu_id`, `type`, `display_name`, `state`) has no link to a real user account — `display_name` is a free-text string, not a `users.id` reference. **New column, `participants.user_id`** (nullable INTEGER REFERENCES users — nullable because AI/External participants aren't real accounts). Registry query becomes: show a SEU if `requested_by = current user` OR a `participants` row on it has `user_id = current user`; Platform/Tenant Admin badge holders see everything, same exception pattern as Identity Management.
+
+This is an explicit stopgap, not a final design — noted as such when decided: Participant assignment is still the "partial" piece of the Workflow Runtime (per the platform's own dashboard label), and this filtering will likely get cleaner once real Participant deployment exists. Building it now anyway because leaving the Registry unfiltered while these four generate real SEUs constantly is worse than a stopgap.
+
+## The four entities
+
+### 1. Pack
 
 **Book 3 grounding:** Ch.5 (Pack Model), §8 Pack Metadata, §9 Pack Contributions, §10 Pack Dependencies, §11 Pack Lifecycle.
 
-**Implemented now** (`PackSeedInput`, `src/routes/seu/core/packs.ts`):
-- `code`, `name`, `category` (`Platform | Organisation | Domain | Compliance | Technology | Integration`), `packVersion` (semver), `installationClassification` (`Mandatory | Recommended | Optional | Conditional`)
-- `dependencies[]`: `packCode`, `version`, `type` (`required` only, currently)
-- `contributions.capabilities[]`: `code`, `name`, `description`, `category`
-- `contributions.services[]`: `code`, `capabilityCode`, `name`, `contractDescription`, `serviceLevel`
-- `contributions.authorityRules[]`: `code`, `governedTransition`, `authorisedRole`
-- `contributions.policies[]`: `code`, `name`, `category`, `constraintType` (`Policy | Standard`), `governedTransition`, `condition`, `severity`
-- `contributions.qualityGates[]`: `code`, `name`, `category`, `entityType`, `fromState`, `toState`, `criteria`
-- Lifecycle (system-managed, not authored): `Draft → Validated → Published → Active → Deprecated → Retired → Archived`
+**Already has the full treatment** — real grammar (`PackSeedInput`), a real governed lifecycle, real immutable versioning. The template for the other three, not a fourth thing alongside them.
 
-**Chapter-specified, not yet implemented** (§8): Description, Owner, Publisher, Composition Strategy, Supported Platform Version. (§9, contribution types not yet real): Behaviour, Decision Rules, Ontology, Knowledge Assets, User Interface Components, Templates-as-contributions, Checklists, Review Gates, Obligation Definitions, Metrics. (§10): dependency types `Optional`/`Conditional`/`Incompatible` — only `required` exists today.
+**Grammar, implemented now:** `code`, `name`, `category`, `packVersion`, `installationClassification`, `dependencies[]` (`packCode`, `version`, `type: required`), `contributions.capabilities[]`, `.services[]`, `.authorityRules[]`, `.policies[]`, `.qualityGates[]`.
 
-**UI shape:**
-- **Registry** (exists, `/aisworg/seu/packs`) — keep, it's already real.
-- **New: Create/Publish screen.** Two entry points into the same `validatePackSeed`/`publishPack` pipeline the CLI already uses:
-  - **Form path**: one section per contribution type (Capabilities, Services, Authority Rules, Policies, Quality Gates), add/remove rows, client-side mirrors the same validation rules as `validatePackSeed` (duplicate-code detection, service→capability cross-reference, dependency resolution against the Registry) before submit.
-  - **JSON import path**: paste or upload a file in exactly the CLI's `PackSeedInput` shape, run it through `validatePackSeed` server-side, show errors inline, publish on confirm. This is the one Sudha named explicitly — cheapest to build first, since it needs no new form logic, just a textarea/file-upload wired to the existing validate/publish functions.
-  - Both paths end at the same `Draft → Validated → Published → (Active)` flow already on the Registry's per-row transition control — no new lifecycle UI needed, just a new entry point into it.
+**Chapter-specified, not yet in the grammar:** Description, Owner, Publisher, Composition Strategy, Supported Platform Version (§8); Behaviour, Decision Rules, Ontology, Knowledge Assets, Checklists, Review Gates, Obligation Definitions, Metrics as contribution types (§9); dependency types beyond `required` (§10). These are grammar additions when they're needed — schema-versioned, not code rewrites.
 
-## 2. Template
+**UI:** a form generated directly from this grammar (one section per contribution type, because that's the grammar's own shape) plus JSON import, both feeding the "Pack Definition" Deliverable that Create/Save commissions (Core Principle) — `In Progress → Approved` is where the same validation `validatePackSeed` already does runs as this Deliverable's Quality Gate, `Approved → Baselined` is what actually calls `publishPack`. The one hand-built piece: live-validated widgets on the referential fields — `dependencies[].packCode` and `contributions.services[].capabilityCode` resolve against the Registry/this-document as the form is filled in, not at submit time. JSON import doubles as the "start from an existing version" path — pre-fill with the current Active version's JSON, edit, publish as a new version.
 
-**Book 3 grounding:** Ch.6 (Template Model), §7 Template Structure, §10 Deliverable Catalogue, §11 Capability Catalogue, §13 Commissioning Parameters.
+### 2. Template
 
-**Implemented now** (`seedTemplate`, `src/dblayer/seed/seedEbookLibraryPilot.ts` / `seedSeu.ts`):
-- `code`, `name`
-- `requiredCapabilityCodes[]` (§11 Capability Catalogue)
-- `mandatoryPackCodes[]` (§7's "Mandatory Packs")
-- `deliverableCatalogue[]` (§10): `code`, `name`, `category`, `producingCapabilityCode`, `dependsOnDeliverableCodes[]`, `dependsOnCapabilityServiceCodes[]`
-- No lifecycle of its own currently — a Template row exists or doesn't; `findAllActive` implies a `status` column but nothing transitions it.
+**Book 3 grounding:** Ch.6 (Template Model), §7 Structure, §10 Deliverable Catalogue, §11 Capability Catalogue.
 
-**Chapter-specified, not yet implemented** (§7): Description, Version, Purpose, Objectives, Lifecycle (a governed one, distinct from the untouched `status` column), Default Roles, Recommended Packs (only *Mandatory* exists), Default Workflows, Commissioning Parameters (§13 — methodology/stack/environment/domain/compliance selection at commissioning time). (§9): Template Inheritance — none exists; every Template is authored from scratch. (§12): Workflow Definitions.
+**Authored as a Deliverable, per the Core Principle above — no new `TransitionEntityType`.** A "Template Definition" Deliverable, produced by a small bootstrap "Template-authoring Template," goes through Deliverable's own `Defined → In Progress → Approved → Baselined` — reaching `Baselined` is what registers the real, immutable Template version. No bespoke lifecycle to design.
 
-**UI shape:**
-- **New: Registry/list screen** — doesn't exist at all today, unlike Pack.
-- **New: Create screen** — form for the six implemented fields above, plus the same JSON-import path as Pack (this pilot's own `ebook-library.template.json` is exactly the shape a JSON-import box would accept). The Deliverable Catalogue section is the one genuinely complex part of the form — needs a graph-aware builder (each Deliverable row picks its producing Capability, then multi-selects which already-added Deliverables/Capability-Services it depends on) since order matters and forward references should be caught before submit, not at commissioning time.
-- No transition control needed yet — there's no governed lifecycle to expose until one is built.
+**Grammar, implemented now:** `code`, `name`, `requiredCapabilityCodes[]`, `mandatoryPackCodes[]`, `deliverableCatalogue[]` (`code`, `name`, `category`, `producingCapabilityCode`, `dependsOnDeliverableCodes[]`, `dependsOnCapabilityServiceCodes[]`).
 
-## 3. Profile
+**Chapter-specified, not yet in the grammar:** Description, Purpose, Objectives, Default Roles, Recommended (not just Mandatory) Packs, Default Workflows, Commissioning Parameters (§13); Template Inheritance (§9).
 
-**Book 3 grounding:** Ch.7 (Profile Model), §7 Profile Structure, §10 Configuration Parameters, §11 Feature Selection, §12 Organisation Composition.
+**Referential checks that belong at the UI layer, not in the grammar:** every `mandatoryPackCode` resolves against the Pack Registry by code (already fixed to resolve the current Active version at commissioning time, not a frozen row — `013_template_profile_pack_by_code.sql`); every Deliverable Catalogue entry's `dependsOnDeliverableCodes` must reference an entry that appears earlier in the *same* catalogue, checked live as each row is added, not as a schema constraint (schemas don't express "must have appeared earlier in this array").
 
-**Implemented now** (`seedProfile`):
-- `code`, `name`, `baseTemplateCode`, `environment`, `configParameters` (free-form object, not yet schema-validated per-Pack), `optionalPackCodes[]`
+**UI:** generated from the grammar (Capabilities and Mandatory Packs render as multi-selects because they're arrays of codes; the Deliverable Catalogue renders as a repeatable row group because it's an array of objects) plus JSON import — same pattern as Pack. The hand-built layer: Mandatory Packs' picker is Registry-backed, and each Deliverable Catalogue row's `dependsOnDeliverableCodes` picker only offers rows already added above it, live, as the form is built — not something the grammar can express, so it's UI logic attached to that field, not a different kind of form. No Registry or list screen exists yet; both are new.
 
-**Chapter-specified, not yet implemented** (§7): Description, Version, Selected Technologies / Selected Domains / Selected Compliance Packs / Integration Packs as *distinct* categories — today they're all flattened into one undifferentiated `optionalPackCodes[]` list, Feature Flags, Composition Options. (§9): Profile Inheritance. (§11): Feature Selection as its own concept, separate from Pack selection.
+### 3. Profile
 
-**UI shape:**
-- **New: Registry/list screen** — doesn't exist, same gap as Template.
-- **New: Create screen** — Base Template picker (populated from the Template registry above), Environment field, an Optional-Packs multi-select (populated from the Pack Registry, filtered to Packs whose `dependencies` are satisfiable given the chosen Template's mandatory set), and a raw `configParameters` JSON editor until/unless it's ever schema-driven per-Pack. Same JSON-import path as the other two.
+**Book 3 grounding:** Ch.7 (Profile Model), §7 Structure, §10 Configuration Parameters, §12 Organisation Composition.
 
-## 4. Transition Definition
+**Same fix as Template — a Deliverable produced by its own bootstrap "Profile-authoring Template," not a new `TransitionEntityType`, same reasoning, not repeated here.**
+
+**Grammar, implemented now:** `code`, `name`, `baseTemplateCode`, `environment`, `configParameters` (free-form object), `optionalPackCodes[]`.
+
+**Chapter-specified, not yet in the grammar:** Description; Selected Technologies/Domains/Compliance Packs/Integration Packs as distinct categories (today flattened into one `optionalPackCodes[]` list); Feature Flags; Composition Options; Profile Inheritance (§9).
+
+**Referential checks at the UI layer:** `baseTemplateCode` must exist and be Active in the Template Registry; each `optionalPackCode` must exist and, ideally, be compatible with the chosen Template's mandatory set — checked live against the Registry as the Profile is built, not encoded as a grammar rule.
+
+**UI:** generated from the grammar plus JSON import, same pattern. Hand-built layer: the Base Template picker and Optional Packs multi-select are both Registry-backed, live-validated widgets on those two specific fields, same reasoning as Template's.
+
+### 4. Transition Definition
 
 **Book 3 grounding:** Ch.29 (State Management), §9 State Transitions, §10 Transition Definitions.
 
-**Implemented now** (`transitionDefinitionsDB`, seeded from `transitionDefinitions.json`):
-- `entityType` (one of the 11 governed types), `fromState`, `toState`, `requiredAuthorityRuleCode` (nullable), `requiredPolicyCodes[]`
+**No longer the odd one out — corrected 2026-08-06.** This section used to say Transition Definition doesn't get the "become a `TransitionEntityType`" fix the way Pack/Template/Profile do, because it's one level further down — the mechanism *other* entities' transitions are checked against, not itself a produced artifact. That distinction is stale: none of the four become a new `TransitionEntityType` anymore (Core Principle) — all four, Transition Definition included, are authored as Deliverables via their own bootstrap Template. What *was* genuinely different about this one — its grammar being the most incomplete relative to what Ch.29 §10 asks for (applicable Quality Gates, required Reviews, mandatory Evidence, blocking Obligations — none real fields until this pass) — is resolved below, same as the other three.
 
-**Chapter-specified, not yet implemented** (§10 — this is the same gap already flagged in the bug list, item 4): "applicable Quality Gates," "required Reviews," "mandatory Evidence," "blocking Obligations," "applicable Engineering Behavior Model rules" are all stated as things every Transition Definition **shall** specify — none of these are fields on `transition_definitions` today; Quality Gate applicability is inferred only by coincidentally matching `(entityType, fromState, toState)`, and nothing routes Reviews/Evidence/Obligations through the Transition Definition at all except Deliverable's two hand-seeded Quality Gates.
+**Grammar, implemented now:** `entityType`, `fromState`, `toState`, `requiredAuthorityRuleCode`, `requiredPolicyCodes[]`.
 
-**UI shape:** Lowest priority of the four to build UI for right now — precisely because the fields the chapter says it should carry (Quality Gates, Evidence, Obligations, Reviews) mostly don't exist as real relationships yet (bug list item 4). Building a UI for today's narrow shape (Authority + Policy only) risks looking finished when the underlying model isn't. Worth deferring until item 4's design decision is made, so the UI is built once, for the real shape, not twice.
+**The Quality-Gate/Evidence/Obligation/Review generalisation — worked through 2026-08-06, mostly resolved, one piece still genuinely open:**
 
-## Not a fifth surface: Telemetry's sustained-pattern threshold
+- **Mechanism — resolved.** `qualityGateEngine.evaluate` is called from exactly one place today, `transitionDeliverable` — every other entity type transitions on Authority + Policy alone, with no possibility of a Quality Gate. The fix is moving that call into the generic `transitionEngine.evaluate` itself, reading whatever a given `transition_definitions` row declares, for any `entityType`. Wiring `qualityGateEngine` into each entity's own `core/*.ts` function individually — floated earlier as an alternative — is the wrong option; it reintroduces a per-entity-type decision the generic fix correctly removes.
+- **Scope — dissolves, isn't a separate decision.** Once the mechanism is generic, "should Obligation get Quality Gates" stops being an entity-type-wide question. Quality Gates were never entity-type-wide even for Deliverable — only two of its transitions (`In Progress → Approved`, `Approved → Baselined`) ever got one; `Defined → In Progress` didn't. It only *looked* entity-type-wide because the mechanism only ever fired for Deliverable. Applicability is a per-transition-definition-row fact, the same granularity already used for the one entity type that has it today.
+- **Schema — decided 2026-08-06: explicit, not coincidental.** `transition_definitions` gets real fields declaring its applicable Quality Gate(s) and required Evidence directly, replacing today's coincidental match on shared `(entityType, fromState, toState)` values with `quality_gates`. This is the grammar addition that unblocks this entity's UI.
+- **Per-category Quality Gate overrides — considered and rejected, 2026-08-06.** The obvious follow-on question: does a Pack Definition Deliverable need different required Quality Gates than a Requirements Specification Deliverable, given both share `entityType = 'Deliverable'`? Considered forking `transition_definitions`' key to `(entityType, fromState, toState, category)` to allow a category-specific override row — rejected as unnecessary machinery. Instead: `transition_definitions` gains a nullable `category` column, for reference only, not part of the lookup key — every Deliverable at a given transition faces the *same* required Quality Gates regardless of category. If a bootstrap-authored Deliverable can't satisfy one, it gets `Blocked` exactly the way any Deliverable does today, and the existing `raiseAttentionItem` call already fires (deduplicated per SEU+Deliverable) — see the failure-path bullet below. No new mechanism, no forked lookup.
+- **Obligation field, semantics decided 2026-08-06 — creates, does not block.** A `null` value means this transition creates no new Obligation on completion. This is a *different* mechanism from an *existing* unresolved Obligation blocking a transition, which is already built and unchanged (the `no_unresolved_obligations` Quality Gate criteria). The new field generalises what Knowledge Scope promotion already does today as bespoke code — raising an Organisational Learning Obligation as a side effect of a specific transition succeeding — into something any Transition Definition can declare, instead of one-off code per transition that needs it.
+- **What the schema does *not* need to solve:** instance-specific conditions (a Security-category Obligation needing different handling than a Compliance-category one) aren't a matching-granularity problem — `category` lives on the instance, not the transition shape. A Quality Gate's `criteria` is already instance-aware and can check it directly, the same way `no_unresolved_obligations`/`requires_accepted_evidence_or_approved_decision` already do — a category-specific check is a new `criteria.type`, not a schema change.
+- **The failure path is already uniform, and stays that way.** Whatever a Quality Gate blocks on, the response is the same generic `raiseAttentionItem` call already built and already used for Deliverable — no per-category, per-entity-type variants needed.
 
-Raised 2026-08-05 — a concrete case that should exercise Pack's own Policy-contribution section (§1), not a new authoring surface of its own.
+**Grammar addition, decided:** `entityType`, `fromState`, `toState`, `requiredAuthorityRuleCode`, `requiredPolicyCodes[]`, plus `requiredQualityGateIds[]`, `requiredEvidenceCategories[]` (or similar — exact shape TBD at implementation), and `createsObligation` (nullable, an Obligation category or null). Mechanism (generalise `transitionEngine.evaluate`) and schema (explicit reference) are both now decided — this entity's UI is unblocked, moving off "held" in the build order below.
 
-**Current state, worse than "JSON or seeded":** `SUSTAINED_BLOCK_THRESHOLD = 3` (`core/telemetry.ts`) is a hardcoded TypeScript constant — changing it needs a code change and redeploy, not even a data-file edit. Phase 7's own build notes already flagged this as a deliberate, documented cut, citing the chapter directly: Ch.35 §11 — *"What counts as 'sustained' ... is a Pack-contributed policy, not fixed by this chapter."*
+## Build order
 
-**The fix is not a new UI.** The chapter already names where this belongs: an ordinary Policy, reusing the `condition` JSON field Policy already has for exactly this kind of parameterized rule, contributed by a Pack the same way `policy-nodejs-lint-standard` and the two Ch.24 baseline Policies already are. Once §1's Pack Create/Publish screen exists — its Policies section, specifically — authoring this threshold is already covered; no separate Telemetry-settings screen is needed.
+Each step below is one coherent, complete piece of UI — generated form and JSON import together, as two entry points into the same screen — not a fragment that ships alone and gets integrated later.
 
-**What's still needed, separately, in code:** `core/telemetry.ts`'s `checkSustainedQualityGateBlocking` needs to read the threshold from the resolved Policy's `condition` instead of the hardcoded constant. Small and contained, but only worth doing once the Pack UI's Policy-authoring section actually exists to author it through — sequence this after §1, not before.
+1. **Done, 2026-08-06.** The `schema_definitions` table, `deliverable_authoring_content`, `transition_definitions.category`, `participants.user_id`, and the Registry-filtering query change all landed in `014_sdk_authoring.sql`/`015_sdk_authoring_template_profile.sql`, seeded with Pack/Template/Profile's grammars. The Registry's own screen (`/aisworg/seu/sdk/schema-registry`, root-only — a wrong schema affects every future authoring session of a kind, more platform-administrative than the sdk_creator/sdk_approver badges that gate authoring itself) shipped separately, same day: list every version, view one readably, and add a new one by hand-authoring or pasting JSON — always additive, `createSchemaVersion` (`core/schemaRegistry.ts`) can only INSERT, never touches an existing row. Tested (additivity, malformed-input rejection) and smoke-tested over real HTTP.
+2. **Done, 2026-08-06.** `domain/sdk/formGenerator.ts` — reads a `schema_definitions` row, produces fields (string/select/json/referential-select/referential-list), plus `parseFormBody`/`validateAgainstSchema`. One generator, genuinely shared — not per-entity.
+3. **Done, 2026-08-06.** Pack's Create/Publish UI (`/aisworg/seu/sdk/pack-authoring`) — `validatePackSeed` runs before Review and again before Publish, `Baselined` calls `publishPack`. Tested end-to-end (root actor, a non-root flat-badge holder, structural-validation blocking) and smoke-tested over real HTTP.
+4. **Done, 2026-08-06.** Template (`/aisworg/seu/sdk/template-authoring`) — new `validateTemplateSeed`/`publishTemplate` (`core/templates.ts`), came from the *same* generator and the *same* generic route/view as Pack (`routes/seu/web/sdkAuthoring.ts`, kind-parametrized) — this is where the generator actually paid for itself: no new view files, no new route file. Tested end-to-end including a referential-validation rejection.
+5. **Done, 2026-08-06.** Profile (`/aisworg/seu/sdk/profile-authoring`) — new `validateProfileSeed`/`publishProfile` (`core/profiles.ts`), same generic route/view, `baseTemplateCode` as a real Registry-backed dropdown. Tested end-to-end referencing a real seeded Template by code.
+6. **Not started.** Transition Definition needs the mechanism/schema work in its own section above (generalising `transitionEngine.evaluate` to call `qualityGateEngine` for any entity type, the new `requiredQualityGateIds[]`/`requiredEvidenceCategories[]`/`createsObligation` fields) before its authoring surface can exist — that's real engine work, not just a fourth `schema_definitions` row and a bootstrap Template.
 
-## Suggested build order
-
-1. **Pack — JSON import path only**, into the existing `validatePackSeed`/`publishPack` functions. Smallest change, reuses everything, directly what was asked for.
-2. **Template create screen** (JSON import + basic form) — closes the biggest actual gap (no tooling at all today), and unblocks dry runs like this one from needing a one-off script next time.
-3. **Profile create screen** — same reasoning, smaller than Template since it has fewer/simpler fields.
-4. **Transition Definition** — hold until the item-4 design decision (Quality Gate/Evidence/Obligation/Review generalisation) is made, then build the UI for the real shape once.
+**Found while building steps 1-5, not anticipated by this plan (see Open Design Questions.md for the two logged as genuinely deferred, not just fixed in passing):**
+- `transitionDeliverable`'s badge check and Work Item dispatch are both scoped per-SEU, which doesn't fit "grant someone Pack Creator once, they author many Packs over time" — resolved with two new flat badges (`sdk_creator`/`sdk_approver`) plus a shared scope-anchor Pack (`sdk-authoring-scope`); see `014_sdk_authoring.sql`'s header comment and `core/sdkAuthoring.ts`.
+- Re-running `pnpm seed:seu` (needed to add each kind's bootstrap Template) silently clobbered Phase 10's badge-model authority repoint for Deliverable transitions back to the legacy role rule — a real, pre-existing latent bug, fixed alongside this work (`seedTransitionDefinitions` now fails loudly on an unresolvable authority rule code instead of silently nulling it).
+- Template/Profile's own rows still aren't immutably versioned like Pack — logged as Open Design Questions.md item 4.
+- `schema_definitions.findLatest` is live, shared, mutable state — this project's own dev/test database, not an isolated one, so a Schema Registry test that creates a new "latest" version for a *real* kind (Pack/Template/Profile) breaks that kind's actual authoring form for everyone, not just itself. Caught when it did exactly that to Pack (a stray v2 with only a `code` field became "latest," found before it shipped). Fixed by targeting the still-unused TransitionDefinition kind in that test instead, and by publishing a corrected v3 through the Registry's own mechanism to restore Pack's real grammar as latest — the same "additive, never delete" discipline the feature itself is built on is what made the fix clean.

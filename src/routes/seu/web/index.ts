@@ -12,6 +12,8 @@ import { router as knowledgeRouter } from "./knowledge.js";
 import { router as telemetryRouter } from "./telemetry.js";
 import { router as attentionRouter } from "./attention.js";
 import { router as identityRouter } from "./identity.js";
+import { router as sdkAuthoringRouter } from "./sdkAuthoring.js";
+import { router as schemaRegistryRouter } from "./schemaRegistry.js";
 
 router.use(dashboardRouter);
 router.use(objectivesRouter);
@@ -22,5 +24,7 @@ router.use(knowledgeRouter);
 router.use(telemetryRouter);
 router.use(attentionRouter);
 router.use(identityRouter);
+router.use(schemaRegistryRouter);
+router.use(sdkAuthoringRouter);
 
 export { router };

@@ -198,6 +198,10 @@ export interface ParticipantRow {
   type: ParticipantType;
   display_name: string;
   state: ParticipantState;
+  // SDK UI Layer Plan ("SEU Registry visibility") — nullable, AI/External
+  // participants aren't real accounts. Stopgap ahead of real Participant
+  // deployment; lets the Registry filter to "SEUs I'm a Participant on."
+  user_id: number | null;
   created_at: string;
 }
 
@@ -291,6 +295,10 @@ export interface TransitionDefinitionRow {
   to_state: string;
   required_authority_rule_id: string | null;
   required_policy_ids: string[];
+  // SDK UI Layer Plan — reference only, never read by transitionEngine or
+  // qualityGateEngine (forking the lookup key by category was considered and
+  // rejected; Quality Gates apply uniformly regardless of category).
+  category: string | null;
 }
 
 export type CommandStatus = "Generated" | "Dispatched" | "Completed" | "Deferred" | "Cancelled" | "Failed";
@@ -564,4 +572,35 @@ export interface BadgeGrantRow {
   scope_id: string | null;
   status: BadgeGrantStatus;
   created_at: string;
+}
+
+// SDK UI Layer Plan (design/mvp-build-plan/SDK UI Layer Plan.md) — Pack,
+// Template, Profile and Transition Definition are authored as Deliverables
+// via their own bootstrap Template ("Core principle"), not a new
+// TransitionEntityType. These four support tables are what's actually new.
+
+export type SchemaDefinitionEntityKind = "Pack" | "Template" | "Profile" | "TransitionDefinition";
+
+// One row per (entity kind, schema version) — the grammar and its validator
+// share one version (see the plan's versioning section); schema is a
+// standard JSON Schema document.
+export interface SchemaDefinitionRow {
+  id: string;
+  entity_kind: SchemaDefinitionEntityKind;
+  version: number;
+  schema: Record<string, unknown>;
+  created_at: string;
+}
+
+// The bootstrap Deliverable only carries lifecycle state — this is where the
+// actual in-progress authored document lives while In Progress.
+// schema_definition_id is permanent once set: an instance is checked against
+// exactly the grammar it was authored against, never silently against
+// whatever's newest.
+export interface DeliverableAuthoringContentRow {
+  id: string;
+  deliverable_id: string;
+  schema_definition_id: string;
+  content: Record<string, unknown>;
+  updated_at: string;
 }

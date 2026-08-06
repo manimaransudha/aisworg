@@ -46,7 +46,11 @@ async function validateScopeId(scopeKind: BadgeTypeRow["scope_kind"], scopeId: s
   }
 
   if (scopeKind === "SEU") {
-    const { rows } = await query("SELECT 1 FROM seus WHERE id = $1", [scopeId]);
+    // id::text sidesteps Postgres's implicit uuid cast throwing a hard error
+    // on a non-UUID-shaped scope_id, instead of a clean "doesn't resolve"
+    // validation error — reachable for real once a Pack-code scope_id
+    // (SEU_or_Pack, below) exists, since it's never UUID-shaped.
+    const { rows } = await query("SELECT 1 FROM seus WHERE id::text = $1", [scopeId]);
     if (!rows[0]) errors.push(`scope_id "${scopeId}" does not resolve to a real SEU`);
     return errors;
   }
@@ -60,7 +64,7 @@ async function validateScopeId(scopeKind: BadgeTypeRow["scope_kind"], scopeId: s
   // SEU_or_Pack (§8.4/012_badge_model.sql's header comment): Creator/Reviewer/
   // Approver grants scoped to either one SEU instance or one Pack code.
   const [seu, pack] = await Promise.all([
-    query("SELECT 1 FROM seus WHERE id = $1", [scopeId]),
+    query("SELECT 1 FROM seus WHERE id::text = $1", [scopeId]),
     query("SELECT 1 FROM packs WHERE code = $1", [scopeId]),
   ]);
   if (!seu.rows[0] && !pack.rows[0]) {

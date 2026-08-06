@@ -76,13 +76,21 @@ export const seusDB = {
     }
   },
 
-  async listWithObjectiveStatement(): Promise<DbResult<SeuWithObjectiveStatement[]>> {
+  // SDK UI Layer Plan ("SEU Registry visibility") — a viewer sees a SEU if
+  // they requested it or are a Participant on it, not every SEU. Platform/
+  // Tenant Admin badge holders bypass the filter (viewerId undefined),
+  // same exception pattern as Identity Management.
+  async listWithObjectiveStatement(viewerId?: number): Promise<DbResult<SeuWithObjectiveStatement[]>> {
     try {
       const { rows } = await query<SeuWithObjectiveStatement>(
         `SELECT s.*, o.statement AS objective_statement
          FROM seus s
          JOIN objectives o ON o.id = s.objective_id
-         ORDER BY s.created_at DESC`
+         WHERE $1::int IS NULL
+            OR s.requested_by = $1
+            OR EXISTS (SELECT 1 FROM participants p WHERE p.seu_id = s.id AND p.user_id = $1)
+         ORDER BY s.created_at DESC`,
+        [viewerId ?? null]
       );
       return { data: rows };
     } catch (err) {
