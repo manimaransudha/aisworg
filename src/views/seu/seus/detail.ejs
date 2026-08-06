@@ -53,12 +53,20 @@
       <div class="section-header">Capabilities</div>
       <div class="table-responsive">
         <table class="table mb-0 align-middle">
-          <thead class="table-light"><tr><th>Capability</th><th>Status</th><th>Fulfil</th></tr></thead>
+          <thead class="table-light"><tr><th>Capability</th><th>Status</th><th>Participant</th><th>Fulfil / Replace</th></tr></thead>
           <tbody>
             <% detail.capabilities.forEach(function(c) { %>
               <tr>
                 <td class="small"><%= c.name %> <code class="text-muted small"><%= c.code %></code></td>
                 <td><span class="state-badge state-<%= c.status %>"><%= c.status %></span></td>
+                <td>
+                  <% if (c.participant) { %>
+                    <span class="small"><%= c.participant.displayName %> <span class="text-muted">(<%= c.participant.type %>)</span></span>
+                    <span class="state-badge state-<%= c.participant.state %>"><%= c.participant.state %></span>
+                  <% } else { %>
+                    <span class="text-muted small">&mdash;</span>
+                  <% } %>
+                </td>
                 <td>
                   <% if (c.status === 'Unfulfilled') { %>
                     <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/capabilities/<%= c.capabilityId %>/fulfil"
@@ -72,6 +80,19 @@
                       <input type="text" name="displayName" class="form-control form-control-sm" style="width: 220px;"
                              placeholder="Participant name" required>
                       <button type="submit" class="btn btn-sm btn-primary">Assign</button>
+                    </form>
+                  <% } else if (c.participant) { %>
+                    <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/capabilities/<%= c.capabilityId %>/participant/<%= c.participant.id %>/replace"
+                          class="d-flex align-items-center gap-2">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <select name="participantType" class="form-select form-select-sm" style="width: auto;">
+                        <option value="AI">AI</option>
+                        <option value="Human">Human</option>
+                        <option value="External">External</option>
+                      </select>
+                      <input type="text" name="displayName" class="form-control form-control-sm" style="width: 220px;"
+                             placeholder="Replacement name" required>
+                      <button type="submit" class="btn btn-sm btn-outline-secondary">Replace</button>
                     </form>
                   <% } else { %>
                     <span class="text-muted small">&mdash;</span>

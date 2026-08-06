@@ -59,5 +59,15 @@
   { "entityType": "Pack", "fromState": "Retired", "toState": "Archived", "requiredAuthorityRuleCode": "authority-transition-pack-elevated", "requiredPolicyCodes": ["policy-pack-transition-baseline"] },
   { "entityType": "Pack", "fromState": "Deprecated", "toState": "Active", "requiredAuthorityRuleCode": "authority-transition-pack-elevated", "requiredPolicyCodes": ["policy-pack-transition-baseline"] },
   { "entityType": "Pack", "fromState": "Retired", "toState": "Active", "requiredAuthorityRuleCode": "authority-transition-pack-elevated", "requiredPolicyCodes": ["policy-pack-transition-baseline"] },
-  { "entityType": "Pack", "fromState": "Archived", "toState": "Active", "requiredAuthorityRuleCode": "authority-transition-pack-elevated", "requiredPolicyCodes": ["policy-pack-transition-baseline"] }
+  { "entityType": "Pack", "fromState": "Archived", "toState": "Active", "requiredAuthorityRuleCode": "authority-transition-pack-elevated", "requiredPolicyCodes": ["policy-pack-transition-baseline"] },
+  { "entityType": "Participant", "fromState": "Created", "toState": "Available", "requiredAuthorityRuleCode": "authority-transition-participant", "requiredPolicyCodes": ["policy-participant-transition-baseline"] },
+  { "entityType": "Participant", "fromState": "Available", "toState": "Assigned", "requiredAuthorityRuleCode": "authority-transition-participant", "requiredPolicyCodes": ["policy-participant-transition-baseline"] },
+  { "entityType": "Participant", "fromState": "Assigned", "toState": "Executing", "requiredAuthorityRuleCode": "authority-transition-participant", "requiredPolicyCodes": ["policy-participant-transition-baseline"] },
+  { "entityType": "Participant", "fromState": "Executing", "toState": "Idle", "requiredAuthorityRuleCode": "authority-transition-participant", "requiredPolicyCodes": ["policy-participant-transition-baseline"] },
+  { "entityType": "Participant", "fromState": "Idle", "toState": "Assigned", "requiredAuthorityRuleCode": "authority-transition-participant", "requiredPolicyCodes": ["policy-participant-transition-baseline"] },
+  { "entityType": "Participant", "fromState": "Idle", "toState": "Released", "requiredAuthorityRuleCode": "authority-transition-participant", "requiredPolicyCodes": ["policy-participant-transition-baseline"] },
+  { "entityType": "Participant", "fromState": "Released", "toState": "Archived", "requiredAuthorityRuleCode": "authority-transition-participant", "requiredPolicyCodes": ["policy-participant-transition-baseline"] },
+  { "entityType": "Participant", "fromState": "Available", "toState": "Released", "requiredAuthorityRuleCode": "authority-transition-participant", "requiredPolicyCodes": ["policy-participant-transition-baseline"] },
+  { "entityType": "Participant", "fromState": "Assigned", "toState": "Released", "requiredAuthorityRuleCode": "authority-transition-participant", "requiredPolicyCodes": ["policy-participant-transition-baseline"] },
+  { "entityType": "Participant", "fromState": "Executing", "toState": "Released", "requiredAuthorityRuleCode": "authority-transition-participant", "requiredPolicyCodes": ["policy-participant-transition-baseline"] }
 ]

@@ -15,6 +15,7 @@
 import { seuCapabilitiesDB } from "../../dblayer/seuCapabilitiesDB.js";
 import { capabilityFulfilmentsDB } from "../../dblayer/capabilityFulfilmentsDB.js";
 import { workItemsDB } from "../../dblayer/workItemsDB.js";
+import { participantsDB } from "../../dblayer/participantsDB.js";
 import { eventBus } from "./eventBus.js";
 import type { WorkItemRow } from "../../dblayer/seuTypes.js";
 
@@ -59,6 +60,27 @@ export const dispatchEngine = {
     }
 
     await workItemsDB.assign(input.workItem.id, participantId, SOLE_ELIGIBLE_PARTICIPANT);
+
+    // Participant Lifecycle Governance — Plan, Build order step 3. Direct
+    // dblayer write + direct eventBus.publish, not routes/seu/core/
+    // participants.ts's governed transitionParticipant — this is an
+    // automatic system-driven state sync off dispatch's own simulated
+    // execution, the same "engine writes state, engine publishes its own
+    // events, engine never calls back into core" shape workItemsDB's own
+    // updateStatus calls in this file already use for Work Item state.
+    // Available->Assigned and the repeat-cycle Idle->Assigned both mean
+    // "now Assigned" (core/participants.ts's own CH13_EVENT_BY_TRANSITION
+    // maps both to the same event), so this doesn't need to branch on the
+    // Participant's prior state to know which event to fire.
+    await participantsDB.updateStatus(participantId, "Assigned");
+    await eventBus.publish({
+      eventType: "ParticipantAssigned",
+      originatingObjectType: "Participant",
+      originatingObjectId: participantId,
+      correlationId: input.correlationId,
+      payload: { workItemId: input.workItem.id },
+    });
+
     await eventBus.publish({
       eventType: "ParticipantSelected",
       originatingObjectType: "WorkItem",
@@ -80,12 +102,32 @@ export const dispatchEngine = {
   async execute(workItemId: string, correlationId: string, participantId: string | undefined): Promise<DispatchResult> {
     await workItemsDB.updateStatus(workItemId, "Executing");
     await eventBus.publish({ eventType: "WorkItemStarted", originatingObjectType: "WorkItem", originatingObjectId: workItemId, correlationId, payload: {} });
+    // Assigned -> Executing has no Ch.13 §16-named event at all (the
+    // chapter's own event list has no "started executing" event), so
+    // nothing is published here beyond the Work Item's own WorkItemStarted
+    // — see core/participants.ts's CH13_EVENT_BY_TRANSITION comment.
+    if (participantId) await participantsDB.updateStatus(participantId, "Executing");
 
     await workItemsDB.updateStatus(workItemId, "Completed");
     await eventBus.publish({ eventType: "WorkItemCompleted", originatingObjectType: "WorkItem", originatingObjectId: workItemId, correlationId, payload: {} });
 
     await workItemsDB.updateStatus(workItemId, "Disposed");
     await eventBus.publish({ eventType: "WorkItemDisposed", originatingObjectType: "WorkItem", originatingObjectId: workItemId, correlationId, payload: {} });
+
+    // Idle, not Available (Ch.13 §9): still held by an open Capability
+    // Fulfilment, just between Work Items — Available is Capability
+    // Fulfilment's own eligibility state, never re-entered once a
+    // Participant starts doing real work.
+    if (participantId) {
+      await participantsDB.updateStatus(participantId, "Idle");
+      await eventBus.publish({
+        eventType: "ParticipantIdle",
+        originatingObjectType: "Participant",
+        originatingObjectId: participantId,
+        correlationId,
+        payload: { workItemId },
+      });
+    }
 
     return { dispatched: true, participantId };
   },

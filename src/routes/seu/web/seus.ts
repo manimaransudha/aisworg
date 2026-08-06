@@ -11,6 +11,7 @@ import { logger } from "../../../utils/logger.js";
 import { listSeus, getSeuDetailView } from "../core/seus.js";
 import { commissionFromForm } from "../core/commissioning.js";
 import { fulfilCapability } from "../core/capabilities.js";
+import { replaceParticipant } from "../core/participants.js";
 import { transitionDeliverable } from "../core/deliverables.js";
 import { createObligation, transitionObligation } from "../core/obligations.js";
 import { createEvidence, transitionEvidence } from "../core/evidence.js";
@@ -115,6 +116,38 @@ router.post("/seus/:id/capabilities/:capabilityId/fulfil", async (req: Request, 
     return flashSuccess(req, res, backTo, `Capability "${result.capabilityCode}" fulfilled by ${displayName}.`);
   } catch (err) {
     logger.error("[web/seu/seus] POST /seus/:id/capabilities/:capabilityId/fulfil error", err as Error);
+    return flashError(req, res, backTo, (err as Error).message);
+  }
+});
+
+/**
+ * POST /aisworg/seu/seus/:id/capabilities/:capabilityId/participant/:participantId/replace — Ch.13 §13
+ * Participant Lifecycle Governance — Plan, Build order step 5: a small manual form calling
+ * replaceParticipant directly, explicitly a placeholder adapter for a future Participant-sourcing
+ * mechanism (HR system, AI orchestration platform), not the final design — see the plan's own step 5 note.
+ */
+router.post("/seus/:id/capabilities/:capabilityId/participant/:participantId/replace", async (req: Request, res: Response) => {
+  const seuId = String(req.params.id);
+  const backTo = `/aisworg/seu/seus/${seuId}`;
+  const { participantType, displayName } = req.body ?? {};
+
+  if (!participantType || typeof displayName !== "string" || !displayName.trim()) {
+    return flashError(req, res, backTo, "Replacement Participant type and display name are required.");
+  }
+
+  try {
+    const result = await replaceParticipant({
+      oldParticipantId: String(req.params.participantId),
+      newParticipantType: participantType as ParticipantType,
+      newDisplayName: displayName,
+      actorRole: req.session?.user?.role ?? "general",
+    });
+    if (!result.ok) {
+      return flashError(req, res, backTo, `Replacement blocked: ${result.detail}`);
+    }
+    return flashSuccess(req, res, backTo, `Participant replaced: "${displayName}" now fulfils this Capability.`);
+  } catch (err) {
+    logger.error("[web/seu/seus] POST .../participant/:participantId/replace error", err as Error);
     return flashError(req, res, backTo, (err as Error).message);
   }
 });

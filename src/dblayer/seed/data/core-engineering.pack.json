@@ -55,7 +55,8 @@
       { "code": "authority-transition-attentionitem", "governedTransition": "attentionitem.transition", "authorisedRole": "general" },
       { "code": "authority-transition-externalinteraction", "governedTransition": "externalinteraction.transition", "authorisedRole": "general" },
       { "code": "authority-transition-pack", "governedTransition": "pack.transition", "authorisedRole": "general" },
-      { "code": "authority-transition-pack-elevated", "governedTransition": "pack.transition", "authorisedRole": "power" }
+      { "code": "authority-transition-pack-elevated", "governedTransition": "pack.transition", "authorisedRole": "power" },
+      { "code": "authority-transition-participant", "governedTransition": "participant.transition", "authorisedRole": "general" }
     ],
     "policies": [
       {
@@ -154,6 +155,15 @@
         "category": "Engineering",
         "constraintType": "Policy",
         "governedTransition": "pack.transition",
+        "condition": { "type": "always_true" },
+        "severity": "Low"
+      },
+      {
+        "code": "policy-participant-transition-baseline",
+        "name": "Participant transition baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "participant.transition",
         "condition": { "type": "always_true" },
         "severity": "Low"
       }

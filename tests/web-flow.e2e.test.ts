@@ -624,3 +624,38 @@ test("Phase 9 — a Pack published through the SDK is visible on the platform-wi
   assert.ok(packCardMatches.length > 0, "expected to find the fixture Pack's card on the Registry page");
   assert.equal(packCardMatches[packCardMatches.length - 1]![1], "Deprecated");
 });
+
+function findReplaceParticipantId(html: string, capabilityCode: string): string {
+  const pattern = new RegExp(`${capabilityCode}</code></td>[\\s\\S]*?participant/([a-f0-9-]+)/replace`);
+  const match = html.match(pattern);
+  if (!match) throw new Error(`could not find a Replace form for Capability "${capabilityCode}" on the page`);
+  return match[1];
+}
+
+test("Participant Lifecycle Governance, Build order step 5 — replacing a fulfilled Capability's Participant over real HTTP", async () => {
+  const request = newSession();
+  const { seuId, csrf } = await commissionSeu(request, "webflow-participant-replace");
+  const before1 = await getPage(request, `/seu/seus/${seuId}`);
+  const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
+
+  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, {
+    participantType: "AI",
+    displayName: "WebFlow Original Analyst",
+  });
+
+  const afterFulfil = await getPage(request, `/seu/seus/${seuId}`);
+  assert.match(afterFulfil.html, /WebFlow Original Analyst/);
+  const participantId = findReplaceParticipantId(afterFulfil.html, "requirements-analysis");
+
+  const result = await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/participant/${participantId}/replace`, csrf, {
+    participantType: "Human",
+    displayName: "WebFlow Replacement Analyst",
+  });
+  assert.equal(result.status, 302);
+
+  const afterReplace = await getPage(request, `/seu/seus/${seuId}`);
+  assert.match(afterReplace.html, /alert-success/);
+  assert.match(afterReplace.html, /Participant replaced/);
+  assert.match(afterReplace.html, /WebFlow Replacement Analyst/);
+  assert.doesNotMatch(afterReplace.html, /requirements-analysis<\/code><\/td>[\s\S]*?WebFlow Original Analyst/, "the old Participant must no longer be shown as this Capability's fulfilling Participant");
+});

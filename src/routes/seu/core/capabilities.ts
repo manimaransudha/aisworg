@@ -39,6 +39,17 @@ export async function fulfilCapability(input: {
 
   await seuCapabilitiesDB.markFulfilled(seuCapability.id);
 
+  // Ch.13 §16 — about the Participant now existing, not about the
+  // Capability being fulfilled (CapabilityFulfilled, published right below,
+  // unchanged) — two different facts from the same call.
+  await eventBus.publish({
+    eventType: "ParticipantCreated",
+    originatingObjectType: "Participant",
+    originatingObjectId: participant.id,
+    correlationId: eventBus.newCorrelationId(),
+    payload: { seuId: input.seuId, participantType: input.participantType },
+  });
+
   await eventBus.publish({
     eventType: "CapabilityFulfilled",
     originatingObjectType: "SEU",

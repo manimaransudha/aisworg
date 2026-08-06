@@ -37,4 +37,37 @@ export const capabilityFulfilmentsDB = {
       return { error: err as Error };
     }
   },
+
+  // Participant Lifecycle Governance — Plan, Build order step 4 (Ch.13 §13
+  // Replacement): finds the fulfilment a Participant is being replaced out
+  // of.
+  async findActiveByParticipantId(participantId: string): Promise<DbResult<CapabilityFulfilmentRow | null>> {
+    try {
+      const { rows } = await query<CapabilityFulfilmentRow>(
+        "SELECT * FROM capability_fulfilments WHERE participant_id = $1 AND revoked_at IS NULL ORDER BY established_at DESC LIMIT 1",
+        [participantId]
+      );
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[capabilityFulfilmentsDB] findActiveByParticipantId error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // Real revoke primitive — the column has existed since 002_seu_platform.sql
+  // (every "active" query already filters WHERE revoked_at IS NULL) but
+  // nothing ever set it until replacement needed a way to end the old
+  // Participant's fulfilment without deleting its history.
+  async revoke(id: string): Promise<DbResult<CapabilityFulfilmentRow>> {
+    try {
+      const { rows } = await query<CapabilityFulfilmentRow>(
+        "UPDATE capability_fulfilments SET revoked_at = NOW() WHERE id = $1 RETURNING *",
+        [id]
+      );
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[capabilityFulfilmentsDB] revoke error", err as Error);
+      return { error: err as Error };
+    }
+  },
 };

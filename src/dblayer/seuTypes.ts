@@ -203,6 +203,7 @@ export interface ParticipantRow {
   // deployment; lets the Registry filter to "SEUs I'm a Participant on."
   user_id: number | null;
   created_at: string;
+  updated_at: string;
 }
 
 export type FulfilmentStrategy = "AI" | "Human" | "External" | "Hybrid" | "Composite";
@@ -286,7 +287,8 @@ export type TransitionEntityType =
   | "KnowledgeScope"
   | "AttentionItem"
   | "ExternalInteraction"
-  | "Pack";
+  | "Pack"
+  | "Participant";
 
 export interface TransitionDefinitionRow {
   id: string;

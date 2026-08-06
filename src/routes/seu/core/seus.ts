@@ -9,6 +9,7 @@ import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { commandsDB } from "../../../dblayer/commandsDB.js";
 import { workItemsDB } from "../../../dblayer/workItemsDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
+import { capabilityFulfilmentsDB } from "../../../dblayer/capabilityFulfilmentsDB.js";
 import { dependencyEngine } from "../../../domain/engine/dependencyEngine.js";
 import { getSeuEvents } from "./events.js";
 import { listObligationsWithNextStates } from "./obligations.js";
@@ -191,7 +192,18 @@ export interface SeuDetailView {
   seu: SeuRow;
   objectiveStatement: string;
   composedPacks: EbmComposedPack[];
-  capabilities: Array<{ id: string; capabilityId: string; code: string; name: string; status: string }>;
+  capabilities: Array<{
+    id: string;
+    capabilityId: string;
+    code: string;
+    name: string;
+    status: string;
+    // Participant Lifecycle Governance — Plan, Build order step 5 — the
+    // currently fulfilling Participant, so the detail page can offer
+    // Replace (Ch.13 §13) alongside the existing Fulfil form, not just show
+    // "—" once a Capability is already Fulfilled.
+    participant: { id: string; displayName: string; type: string; state: string } | null;
+  }>;
   deliverables: SeuDetailDeliverable[];
   commands: SeuDetailCommand[];
   obligations: SeuDetailObligation[];
@@ -218,6 +230,18 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
   ]);
 
   const deliverableNameById = new Map((deliverables ?? []).map((d) => [d.id, d.name]));
+
+  const capabilityViews = await Promise.all(
+    (capabilities ?? []).map(async (c) => {
+      let participant: { id: string; displayName: string; type: string; state: string } | null = null;
+      if (c.status === "Fulfilled") {
+        const { data: fulfilment } = await capabilityFulfilmentsDB.findActiveBySeuCapabilityId(c.id);
+        const { data: participantRow } = fulfilment ? await participantsDB.findById(fulfilment.participant_id) : { data: null };
+        participant = participantRow ? { id: participantRow.id, displayName: participantRow.display_name, type: participantRow.type, state: participantRow.state } : null;
+      }
+      return { id: c.id, capabilityId: c.capability_id, code: c.capability_code, name: c.capability_name, status: c.status, participant };
+    })
+  );
 
   const deliverableViews: SeuDetailDeliverable[] = await Promise.all(
     (deliverables ?? []).map(async (d) => {
@@ -339,7 +363,7 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     seu,
     objectiveStatement: objective?.statement ?? "(objective not found)",
     composedPacks: ebm?.composed_packs ?? [],
-    capabilities: (capabilities ?? []).map((c) => ({ id: c.id, capabilityId: c.capability_id, code: c.capability_code, name: c.capability_name, status: c.status })),
+    capabilities: capabilityViews,
     deliverables: deliverableViews,
     commands: commandViews,
     obligations: obligationViews,
