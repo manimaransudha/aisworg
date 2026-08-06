@@ -32,6 +32,7 @@ import { deliverableAuthoringContentDB } from "../../../dblayer/deliverableAutho
 import { createObjective } from "./objectives.js";
 import { commissionSeu } from "./commissioning.js";
 import { transitionDeliverable, type TransitionDeliverableResult } from "./deliverables.js";
+import { createEvidence, transitionEvidence } from "./evidence.js";
 import { publishPack, validatePackSeed, type PackSeedInput } from "./packs.js";
 import { publishTemplate, validateTemplateSeed, type TemplateSeedInput } from "./templates.js";
 import { publishProfile, validateProfileSeed, type ProfileSeedInput } from "./profiles.js";
@@ -297,6 +298,18 @@ export async function submitForReview(input: { deliverableId: string; kind: Sche
 // Baselined authoring Deliverable with no real Pack behind it (publishPack
 // failing after the fact) stays a rare, surfaced failure rather than the
 // common case.
+//
+// Approved -> Baselined already carries a real, generic Quality Gate since
+// Phase 5 ("requires_accepted_evidence_or_approved_decision") that applies
+// to every Deliverable reaching Baselined, authoring ones included — the
+// SDK UI Layer Plan's own "no per-category Quality Gate overrides" decision
+// (Transition Definition section) means an authoring Deliverable does not
+// get to skip it, it has to actually satisfy it. The structural + referential
+// validation that just ran above *is* the evidence that this content is fit
+// to publish, so it's recorded as real Evidence and walked to Accepted here
+// — the same mechanism (and the same Collected -> Validated -> Accepted
+// walk) tests/trust-pipeline.test.ts and tests/quality-telemetry.test.ts
+// already use for any other Deliverable reaching Baselined, not a bypass.
 export async function publishAuthoredContent(input: { deliverableId: string; kind: SchemaDefinitionEntityKind; actorId: string; actorRole: string }): Promise<AuthoringActionResult> {
   const { data: deliverable } = await deliverablesDB.findById(input.deliverableId);
   if (!deliverable) return { ok: false, errors: ["Deliverable not found"] };
@@ -306,6 +319,19 @@ export async function publishAuthoredContent(input: { deliverableId: string; kin
 
   const validation = await validateAuthoredContent(input.kind, content.content);
   if (!validation.ok) return { ok: false, errors: validation.errors };
+
+  const evidence = await createEvidence({
+    seuId: deliverable.seu_id,
+    relatedObjectType: "Deliverable",
+    relatedObjectId: deliverable.id,
+    category: "Validation",
+    title: `${AUTHORING_CATEGORY[input.kind]} structural + referential validation passed`,
+    source: "sdkAuthoring.publishAuthoredContent",
+  });
+  const toValidated = await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorRole: input.actorRole });
+  if (!toValidated.ok) return { ok: false, errors: [`could not record validation evidence: ${toValidated.reason}`] };
+  const toAccepted = await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorRole: input.actorRole });
+  if (!toAccepted.ok) return { ok: false, errors: [`could not accept validation evidence: ${toAccepted.reason}`] };
 
   const result = await transitionDeliverable({ deliverableId: input.deliverableId, targetState: "Baselined", actorId: input.actorId, actorRole: input.actorRole });
   if (!result.ok) return { ok: false, errors: [describeTransitionFailure(result)] };

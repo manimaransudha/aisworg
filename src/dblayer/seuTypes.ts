@@ -610,3 +610,59 @@ export interface DeliverableAuthoringContentRow {
   content: Record<string, unknown>;
   updated_at: string;
 }
+
+// Engineering Telemetry — Plan (design/mvp-build-plan/Engineering Telemetry
+// — Plan.md), Ch.35 §8 Metric Registry, scoped to a metadata catalog — see
+// the plan's own "Scope, resolved 2026-08-06." calculation_method is a code
+// selecting hardcoded evaluator logic in metricRegistryEngine.ts, the same
+// shape as quality_gates.criteria.type, not a runtime-interpreted formula.
+export type TelemetryCategory = "Flow" | "Governance" | "Runtime" | "Knowledge" | "Quality" | "Collaboration";
+export type MetricAggregationStrategy = "Average" | "Count" | "Rate" | "Distribution";
+
+// Build order step 3 — Runtime Telemetry. dispatch_latency/work_item_duration
+// read the `events` table for the specific timestamps neither `commands` nor
+// `work_items` can give directly: both rows are mutated in place on every
+// status change (Assigned/Executing/Completed/Disposed), so their own
+// `updated_at` only ever reflects the most recent status, not "when did it
+// become Dispatched" or "when did it start Executing" specifically.
+export interface DispatchLatencyRow {
+  command_id: string;
+  seu_id: string;
+  command_type: string;
+  generated_at: string;
+  dispatched_at: string;
+  latency_seconds: number;
+}
+
+// Build order step 6 — Quality Telemetry's "rework rate": per (entity,
+// SEU), how many Blocked evaluations it accumulated before its eventual
+// Pass. Only entities with at least one Pass are counted — same "only what
+// actually completed the step" discipline the latency query already uses.
+export interface ReworkRow {
+  entity_type: string;
+  entity_id: string;
+  seu_id: string;
+  blocked_count: number;
+}
+
+export interface WorkItemDurationRow {
+  work_item_id: string;
+  seu_id: string;
+  started_at: string;
+  completed_at: string;
+  duration_seconds: number;
+}
+
+export interface MetricDefinitionRow {
+  id: string;
+  identifier: string;
+  name: string;
+  description: string | null;
+  category: TelemetryCategory;
+  unit_of_measure: string;
+  aggregation_strategy: MetricAggregationStrategy;
+  calculation_method: string;
+  version: number;
+  originating_pack_id: string | null;
+  created_at: string;
+}

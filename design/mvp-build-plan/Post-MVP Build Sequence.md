@@ -155,7 +155,15 @@ Book 3 Chapters 5, 38, 39: Pack SDK, dynamic Pack discovery/registry, lifecycle 
 
 ### Phase 10 — Security Architecture depth
 Book 3 Chapter 40: the Dual Authority Model (Platform Authority vs. Engineering Authority), beyond the current single Authority Rule type plus session auth. Sequenced immediately before Multi-Tenancy because tenant isolation is meaningless without it — this is the direct technical prerequisite, not just next on a list.
-**Done when:** Platform Authority (can this identity administer the platform) and Engineering Authority (can this identity approve this state transition) are evaluated as genuinely separate checks.
+**Done when:** Platform Authority (can this identity administer the platform) and Engineering Authority (can this identity approve this state transition) are evaluated as genuinely separate checks. Refer design/mvp-build-plan/Phase 10 - User Management and Dual Authority Design.md
+
+### SDK UI Layer implementation 
+
+Refer design/mvp-build-plan/SDK UI Layer Plan.md
+
+### Participant Lifecycle Governance
+
+Refer design/mvp-build-plan/Participant Lifecycle Governance — Plan.md
 
 ### Phase 11 — Reliability, Deployment maturity
 Book 3 Chapters 43, 44: Engineering Checkpoints, recovery, deployment topology flexibility. Operational hardening — do this once the feature set above is stable enough to be worth protecting, not before.

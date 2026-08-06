@@ -9,6 +9,7 @@ import { policiesDB } from "../../dblayer/policiesDB.js";
 import { transitionDefinitionsDB } from "../../dblayer/transitionDefinitionsDB.js";
 import { badgeAuthorityEngine } from "./badgeAuthorityEngine.js";
 import { qualityGateEngine } from "./qualityGateEngine.js";
+import { eventBus } from "./eventBus.js";
 import type { TransitionEntityType } from "../../dblayer/seuTypes.js";
 
 // Mirrors src/middleware/auth.js's ROLE_LEVEL — kept local rather than importing,
@@ -119,7 +120,23 @@ export const transitionEngine = {
           return { allowed: false, reason: "policy_blocked", policyCode: policy.code };
         }
         // Standard (non-blocking) deviations proceed — Ch.24 §11: they surface
-        // through Engineering Telemetry, which is deferred for MVP (Build Plan §1).
+        // through Engineering Telemetry. Engineering Telemetry — Plan, Build
+        // order step 5's own prerequisite: record the discarded value as an
+        // event, same eventBus every other engine module already publishes
+        // to (qualityGateEngine's QualityGatePassed/Blocked) — not a core-layer
+        // call, so the engine-never-calls-back-into-core boundary holds. What
+        // actually happens with sustained repeats of this event (raising an
+        // Obligation) is core/telemetry.ts's job, checked from the Telemetry
+        // dashboard/API itself, not threaded through every caller of evaluate.
+        if (!satisfied && policy.constraint_type === "Standard") {
+          await eventBus.publish({
+            eventType: "StandardPolicyDeviation",
+            originatingObjectType: "Policy",
+            originatingObjectId: policy.id,
+            correlationId: eventBus.newCorrelationId(),
+            payload: { policyCode: policy.code, entityType: input.entityType, fromState: input.fromState, toState: input.toState, seuId: input.seuId ?? null },
+          });
+        }
       }
     }
 

@@ -108,4 +108,27 @@ export const knowledgeItemsDB = {
       return { error: err as Error };
     }
   },
+
+  // Engineering Telemetry — Plan, Build order step 4 — Knowledge Telemetry's
+  // "growth": distinct from findEngineeringCapital above (which deliberately
+  // excludes SEU-scoped items — Capital is about reusability). Growth counts
+  // every Knowledge Item, broken down by acquisition_scope, so it also
+  // surfaces how much is staying SEU-local vs. being promoted.
+  async countByAcquisitionScope(seuId?: string): Promise<DbResult<Record<AcquisitionScope, number>>> {
+    try {
+      const { rows } = await query<{ acquisition_scope: AcquisitionScope; count: string }>(
+        `SELECT acquisition_scope, COUNT(*)::text AS count
+         FROM knowledge_items
+         WHERE $1::uuid IS NULL OR seu_id = $1
+         GROUP BY acquisition_scope`,
+        [seuId ?? null]
+      );
+      const byScope: Record<AcquisitionScope, number> = { SEU: 0, Capability: 0, Enterprise: 0, Platform: 0 };
+      for (const row of rows) byScope[row.acquisition_scope] = Number(row.count);
+      return { data: byScope };
+    } catch (err) {
+      logger.error("[knowledgeItemsDB] countByAcquisitionScope error", err as Error);
+      return { error: err as Error };
+    }
+  },
 };

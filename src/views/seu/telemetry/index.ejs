@@ -21,13 +21,26 @@
       </div>
     <% } %>
 
-    <div class="mb-4">
-      <h2 class="h3 mb-1 text-dark fw-bold">Engineering Telemetry</h2>
-      <p class="text-muted small mb-0">
-        Ch.35 — measures engineering flow and governance friction, not individual activity, derived automatically from
-        real Command/Work Item/Quality Gate activity (Phases 3-6). Nothing here is manually entered, and nothing here
-        changes engineering state — Telemetry informs, it never governs (ET-001).
-      </p>
+    <div class="mb-4 d-flex justify-content-between align-items-start flex-wrap gap-3">
+      <div>
+        <h2 class="h3 mb-1 text-dark fw-bold">Engineering Telemetry</h2>
+        <p class="text-muted small mb-0">
+          Ch.35 — measures engineering flow and governance friction, not individual activity, derived automatically from
+          real Command/Work Item/Quality Gate activity (Phases 3-6). Nothing here is manually entered, and nothing here
+          changes engineering state — Telemetry informs, it never governs (ET-001).
+        </p>
+      </div>
+      <% if (locals.seus) { %>
+        <form method="GET" action="/aisworg/seu/telemetry" class="d-flex align-items-center gap-2">
+          <label class="form-label small mb-0 text-muted">SEU</label>
+          <select name="seuId" class="form-select form-select-sm" style="min-width: 220px;" onchange="this.form.submit()">
+            <option value="" <%= !selectedSeuId ? 'selected' : '' %>>All SEUs (platform-wide)</option>
+            <% seus.forEach(function(s) { %>
+              <option value="<%= s.id %>" <%= selectedSeuId === s.id ? 'selected' : '' %>><%= s.objectiveStatement %></option>
+            <% }) %>
+          </select>
+        </form>
+      <% } %>
     </div>
 
     <%
@@ -37,6 +50,10 @@
         if (n < 60) return n.toFixed(1) + 's';
         if (n < 3600) return (n / 60).toFixed(1) + 'm';
         return (n / 3600).toFixed(1) + 'h';
+      }
+      function fmtPercent(r) {
+        if (r === null || r === undefined) return '—';
+        return (Number(r) * 100).toFixed(0) + '%';
       }
     %>
 
@@ -105,6 +122,145 @@
         Latency is friction, not calendar time: zero means every attempt passed the gate on the first try; higher
         values mean Deliverables sat Blocked before finally passing. A gate blocked 3+ times against the same SEU
         raises an Organisational Learning Obligation automatically (Ch.35 §11) — see that SEU's Obligations section.
+      </p>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="metric-card">
+          <div class="metric-value"><%= runtimeMetrics.commandsGenerated %></div>
+          <div class="metric-label">Commands Generated</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="metric-card">
+          <div class="metric-value"><%= fmtSeconds(runtimeMetrics.averageDispatchLatencySeconds) %></div>
+          <div class="metric-label">Avg Dispatch Latency</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="metric-card">
+          <div class="metric-value"><%= fmtSeconds(runtimeMetrics.averageDurationSeconds) %></div>
+          <div class="metric-label">Avg Work Item Duration</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">Runtime Telemetry — Dispatch &amp; Execution</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light"><tr><th>Command</th><th>Dispatch Latency</th></tr></thead>
+          <tbody>
+            <% if (runtimeMetrics.dispatchLatencies.length === 0) { %>
+              <tr><td colspan="2" class="text-muted small">No Command has been dispatched yet.</td></tr>
+            <% } %>
+            <% runtimeMetrics.dispatchLatencies.forEach(function(c) { %>
+              <tr>
+                <td class="small"><%= c.command_type %></td>
+                <td class="small"><%= fmtSeconds(c.latency_seconds) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <p class="small text-muted p-3 mb-0 border-top">
+        Command generation is a volume count today, not yet a real time-bucketed rate. Work Item execution duration
+        (not shown per-row — <%= runtimeMetrics.workItemDurations.length %> measured) is near-zero across the board:
+        no autonomous Participant runtime exists yet, so execution is simulated synchronously right after dispatch.
+        Participant utilisation is deliberately not shown — under today's 1:1 Capability Fulfilment there's nothing
+        comparative to measure (Ch.33 §9).
+      </p>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="metric-card">
+          <div class="metric-value"><%= knowledgeMetrics.totalKnowledgeItems %></div>
+          <div class="metric-label">Knowledge Items</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="metric-card">
+          <div class="metric-value"><%= knowledgeMetrics.evidenceGenerated %></div>
+          <div class="metric-label">Evidence Generated</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="metric-card">
+          <div class="metric-value"><%= knowledgeMetrics.byAcquisitionScope.Platform + knowledgeMetrics.byAcquisitionScope.Enterprise + knowledgeMetrics.byAcquisitionScope.Capability %></div>
+          <div class="metric-label">Promoted Beyond SEU</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">Knowledge Telemetry — Growth</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light"><tr><th>Acquisition Scope</th><th>Knowledge Items</th></tr></thead>
+          <tbody>
+            <% ['SEU', 'Capability', 'Enterprise', 'Platform'].forEach(function(scope) { %>
+              <tr>
+                <td class="small"><%= scope %></td>
+                <td class="small"><%= knowledgeMetrics.byAcquisitionScope[scope] %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <p class="small text-muted p-3 mb-0 border-top">
+        Growth counts every Knowledge Item, unlike <a href="/aisworg/seu/knowledge/capital">Engineering Capital</a>,
+        which deliberately excludes SEU-scoped items (Capital is about reusability). Decision reuse and ontology
+        expansion aren't shown here — neither has any structure to measure under the current model (Ch.35 §7).
+      </p>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="metric-card">
+          <div class="metric-value"><%= fmtPercent(qualityMetrics.reworkRate) %></div>
+          <div class="metric-label">Rework Rate</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="metric-card">
+          <div class="metric-value"><%= (qualityMetrics.averageBlockedAttempts === null ? '—' : qualityMetrics.averageBlockedAttempts.toFixed(1)) %></div>
+          <div class="metric-label">Avg Blocked Attempts</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="metric-card">
+          <div class="metric-value"><%= fmtPercent(qualityMetrics.acceptanceRate) %></div>
+          <div class="metric-label">Deliverable Acceptance Rate</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">Quality Telemetry — Rework &amp; Acceptance</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light"><tr><th>Lifecycle State</th><th>Deliverables</th></tr></thead>
+          <tbody>
+            <% Object.keys(qualityMetrics.byLifecycleState).sort().forEach(function(state) { %>
+              <tr>
+                <td class="small"><%= state %></td>
+                <td class="small"><%= qualityMetrics.byLifecycleState[state] %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <p class="small text-muted p-3 mb-0 border-top">
+        Rework rate is the share of entities (of <%= qualityMetrics.totalEntitiesMeasured %> measured, across any
+        Quality Gate) that needed at least one Blocked attempt before eventually passing —
+        <%= qualityMetrics.entitiesNeedingRework %> did. Acceptance rate is against the full lifecycle_state
+        distribution (<%= qualityMetrics.totalDeliverables %> Deliverables) — Deliverable has no
+        Archived/rejected terminal state today, so this isn't "accepted vs. rejected," just "reached Baselined vs.
+        everything else." Review effectiveness and defect escape rate are held — no Review entity, no governed
+        backward Deliverable transition (Ch.35 §7). Collaboration Telemetry remains held too — the least-defined
+        measurement method in the chapter itself.
       </p>
     </div>
   </main>

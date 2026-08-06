@@ -62,7 +62,11 @@ export const deliverablesDB = {
   // to its most recent recorded transition. Platform-wide, same scoping
   // choice as Engineering Capital (Phase 6). Deliverables with no transition
   // yet (still Defined) have nothing to measure and are excluded.
-  async findCycleTimes(): Promise<DbResult<DeliverableCycleTimeRow[]>> {
+  // Engineering Telemetry — Plan, Build order step 2 — seuId is optional:
+  // omitted keeps the original platform-wide pooling, passed narrows to one
+  // SEU. seu_id was already selected in every row; this is a filter, not new
+  // data collection.
+  async findCycleTimes(seuId?: string): Promise<DbResult<DeliverableCycleTimeRow[]>> {
     try {
       const { rows } = await query<DeliverableCycleTimeRow>(
         `SELECT
@@ -71,12 +75,36 @@ export const deliverablesDB = {
            EXTRACT(EPOCH FROM (MAX(e.occurred_at) - d.created_at)) AS cycle_time_seconds
          FROM deliverables d
          JOIN events e ON e.originating_object_type = 'Deliverable' AND e.originating_object_id = d.id AND e.event_type = 'DeliverableTransitioned'
+         WHERE $1::uuid IS NULL OR d.seu_id = $1
          GROUP BY d.id
-         ORDER BY cycle_time_seconds DESC`
+         ORDER BY cycle_time_seconds DESC`,
+        [seuId ?? null]
       );
       return { data: rows };
     } catch (err) {
       logger.error("[deliverablesDB] findCycleTimes error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // Engineering Telemetry — Plan, Build order step 6 — Quality Telemetry's
+  // "Deliverable acceptance rate." lifecycle_state isn't a fixed union (Build
+  // Plan §2.3 — validated by transitionEngine, not the DB), so this returns
+  // whatever states actually appear rather than a hardcoded list — Deliverable
+  // has no Archived/rejected terminal state today (only Defined/In
+  // Progress/Approved/Baselined), unlike the doc's own "vs. stuck/Archived"
+  // phrasing; acceptance rate is computed against the full distribution.
+  async findLifecycleStateDistribution(seuId?: string): Promise<DbResult<Record<string, number>>> {
+    try {
+      const { rows } = await query<{ lifecycle_state: string; count: string }>(
+        "SELECT lifecycle_state, COUNT(*)::text AS count FROM deliverables WHERE $1::uuid IS NULL OR seu_id = $1 GROUP BY lifecycle_state",
+        [seuId ?? null]
+      );
+      const byState: Record<string, number> = {};
+      for (const row of rows) byState[row.lifecycle_state] = Number(row.count);
+      return { data: byState };
+    } catch (err) {
+      logger.error("[deliverablesDB] findLifecycleStateDistribution error", err as Error);
       return { error: err as Error };
     }
   },

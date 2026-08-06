@@ -74,4 +74,29 @@ export const eventsDB = {
       return { error: err as Error };
     }
   },
+
+  // Engineering Telemetry — Plan, Build order step 5 — sustained-pattern
+  // detection input for Policy waiver (c). Platform-wide (not seuId-scoped
+  // like the Metric Registry's own queries): the sustained-check needs to
+  // scan every (policy, SEU) pair to know which ones have crossed the
+  // threshold, not display one pair's number. Only events that recorded a
+  // real seuId are counted — a StandardPolicyDeviation published for an
+  // entity type transitionDeliverable-style callers haven't migrated to
+  // pass entityId/seuId into transitionEngine.evaluate for yet is invisible
+  // here, not double-counted or mis-attributed.
+  async countStandardPolicyDeviations(): Promise<DbResult<Array<{ policy_id: string; policy_code: string; policy_name: string; seu_id: string; count: number }>>> {
+    try {
+      const { rows } = await query<{ policy_id: string; policy_code: string; policy_name: string; seu_id: string; count: string }>(
+        `SELECT p.id AS policy_id, p.code AS policy_code, p.name AS policy_name, e.payload->>'seuId' AS seu_id, COUNT(*)::text AS count
+         FROM events e
+         JOIN policies p ON p.code = e.payload->>'policyCode'
+         WHERE e.event_type = 'StandardPolicyDeviation' AND e.payload->>'seuId' IS NOT NULL
+         GROUP BY p.id, p.code, p.name, e.payload->>'seuId'`
+      );
+      return { data: rows.map((r) => ({ ...r, count: Number(r.count) })) };
+    } catch (err) {
+      logger.error("[eventsDB] countStandardPolicyDeviations error", err as Error);
+      return { error: err as Error };
+    }
+  },
 };

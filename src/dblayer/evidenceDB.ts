@@ -76,4 +76,19 @@ export const evidenceDB = {
       return { error: err as Error };
     }
   },
+
+  // Engineering Telemetry — Plan, Build order step 4 — Knowledge Telemetry's
+  // "Evidence generation."
+  async count(seuId?: string): Promise<DbResult<number>> {
+    try {
+      const { rows } = await query<{ count: string }>(
+        "SELECT COUNT(*)::text AS count FROM evidence WHERE $1::uuid IS NULL OR seu_id = $1",
+        [seuId ?? null]
+      );
+      return { data: Number(rows[0]?.count ?? 0) };
+    } catch (err) {
+      logger.error("[evidenceDB] count error", err as Error);
+      return { error: err as Error };
+    }
+  },
 };
