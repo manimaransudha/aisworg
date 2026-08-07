@@ -21,6 +21,49 @@ export async function createProfile(input: {
   return profile;
 }
 
+// profilesDB.create's own throwaway-code shape ("profile-<timestamp>-<random>")
+// — distinguishes a real, human/SDK-authored Profile (any other code) from
+// one synthesized by this exact fallback, so a past throwaway never gets
+// mistaken for a real one on a later commissioning.
+const THROWAWAY_PROFILE_CODE = /^profile-\d+-[a-z0-9]+$/;
+
+// Real, human/SDK-authored Profiles for a Template — excludes throwaways.
+// Exposed so a real UI can offer a choice when more than one exists, instead
+// of a heuristic silently picking one (the gap findOrCreateDefaultProfile's
+// own fallback used to paper over — see commissionFromExistingObjective's
+// commissioningPreview, the first real caller of this).
+export async function listRealProfilesForTemplate(templateId: string): Promise<ProfileRow[]> {
+  const { data: existing } = await profilesDB.findByBaseTemplateId(templateId);
+  return (existing ?? []).filter((p) => !THROWAWAY_PROFILE_CODE.test(p.code));
+}
+
+// Ebook Library — Full Demo Walkthrough.md, real finding #3: both
+// commissioning paths (commissionFromForm, commissionFromExistingObjective)
+// always called createProfile directly, synthesizing a brand-new throwaway
+// Profile every time — so a Profile hand-authored through the SDK UI
+// (declaring optional Packs, config parameters) was never actually reachable
+// from commissioning; nothing put it to use. Fixed by preferring a real,
+// already-published Profile for this Template if one exists (development-
+// environment one if there's a choice, matching the throwaway fallback's own
+// environment default; otherwise the first real one found) — only
+// synthesizing a throwaway Profile when genuinely none exists yet, same
+// fallback behaviour as before.
+//
+// This heuristic fallback is now only reached when the caller doesn't (or
+// can't) offer a real choice — commissionFromExistingObjective's web route
+// does, via listRealProfilesForTemplate + a real dropdown, closing the gap
+// this function's own comment used to flag as unsolved. commissionFromForm's
+// quick one-shot path still has no natural seam for a live picker (it
+// matches a Template at submit time, not before), so it still falls all the
+// way through to this default.
+export async function findOrCreateDefaultProfile(templateId: string): Promise<ProfileRow> {
+  const real = await listRealProfilesForTemplate(templateId);
+  if (real.length > 0) {
+    return real.find((p) => p.environment === "development") ?? real[0]!;
+  }
+  return createProfile({ templateId, environment: "development" });
+}
+
 // SDK UI Layer Plan — Profile's structural + referential check, same
 // reasoning as validatePackSeed/validateTemplateSeed. Ch.7 grounding: the
 // grammar implemented now is code/name/baseTemplateCode/environment/

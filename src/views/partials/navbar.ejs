@@ -17,9 +17,9 @@
         %>
 
         <% if (_isGeneral) { %>
-          <!-- SEU Platform dropdown -->
+          <!-- SEU Platform dropdown — day-to-day engineering runtime: Objectives, SEUs, Services -->
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle <%= ['seu-dashboard','seu-objectives','seu-objectives-new','seu-objectives-detail','seu-seus','seu-seus-new','seu-seus-detail','seu-packs','seu-services','seu-knowledge-capital','seu-telemetry','seu-attention','seu-identity','seu-sdk-pack-authoring','seu-sdk-template-authoring','seu-sdk-profile-authoring','seu-sdk-transition-definition-authoring','seu-sdk-schema-registry'].includes(currentPage) ? 'active' : '' %>"
+            <a class="nav-link dropdown-toggle <%= ['seu-dashboard','quickview','seu-objectives','seu-objectives-new','seu-objectives-detail','seu-seus','seu-seus-new','seu-seus-detail','seu-services'].includes(currentPage) ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               SEU Platform
             </a>
@@ -44,12 +44,42 @@
               <li><a class="dropdown-item <%= currentPage === 'seu-seus-new' ? 'active' : '' %>" href="/aisworg/seu/seus/new">
                 <i class="bi bi-plus-lg me-2"></i>Commission new SEU
               </a></li>
+              <li><a class="dropdown-item <%= currentPage === 'seu-services' ? 'active' : '' %>" href="/aisworg/seu/services">
+                <i class="bi bi-hand-index-thumb me-2"></i>Services
+              </a></li>
+            </ul>
+          </li>
+
+          <!-- Governance & Telemetry dropdown — Attention, Telemetry, Engineering Capital -->
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle <%= ['seu-telemetry','seu-attention','seu-knowledge-capital'].includes(currentPage) ? 'active' : '' %>"
+               href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Governance
+            </a>
+            <ul class="dropdown-menu dropdown-menu-dark">
+              <li><a class="dropdown-item <%= currentPage === 'seu-attention' ? 'active' : '' %>" href="/aisworg/seu/attention">
+                <i class="bi bi-bell me-2"></i>Attention
+              </a></li>
+              <li><a class="dropdown-item <%= currentPage === 'seu-telemetry' ? 'active' : '' %>" href="/aisworg/seu/telemetry">
+                <i class="bi bi-activity me-2"></i>Telemetry
+              </a></li>
+              <li><a class="dropdown-item <%= currentPage === 'seu-knowledge-capital' ? 'active' : '' %>" href="/aisworg/seu/knowledge/capital">
+                <i class="bi bi-bank me-2"></i>Engineering Capital
+              </a></li>
+            </ul>
+          </li>
+
+          <!-- SDK / Authoring dropdown — Pack/Template/Profile/Transition Definition authoring, Schema Registry, Pack Registry -->
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle <%= ['seu-packs','seu-sdk-pack-authoring','seu-sdk-template-authoring','seu-sdk-profile-authoring','seu-sdk-transition-definition-authoring','seu-sdk-schema-registry'].includes(currentPage) ? 'active' : '' %>"
+               href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              SDK / Authoring
+            </a>
+            <ul class="dropdown-menu dropdown-menu-dark">
               <li><a class="dropdown-item <%= currentPage === 'seu-packs' ? 'active' : '' %>" href="/aisworg/seu/packs">
-                <i class="bi bi-box-seam me-2"></i>Packs
+                <i class="bi bi-box-seam me-2"></i>Pack Registry
               </a></li>
-              <li><a class="dropdown-item <%= currentPage === 'seu-identity' ? 'active' : '' %>" href="/aisworg/seu/identity">
-                <i class="bi bi-person-badge me-2"></i>Identity Management
-              </a></li>
+              <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-pack-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/pack-authoring">
                 <i class="bi bi-file-earmark-code me-2"></i>Pack Authoring
               </a></li>
@@ -62,26 +92,15 @@
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-transition-definition-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/transition-definition-authoring">
                 <i class="bi bi-file-earmark-code me-2"></i>Transition Definition Authoring
               </a></li>
+              <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-schema-registry' ? 'active' : '' %>" href="/aisworg/seu/sdk/schema-registry">
                 <i class="bi bi-braces me-2"></i>Schema Registry
-              </a></li>
-              <li><a class="dropdown-item <%= currentPage === 'seu-services' ? 'active' : '' %>" href="/aisworg/seu/services">
-                <i class="bi bi-hand-index-thumb me-2"></i>Services
-              </a></li>
-              <li><a class="dropdown-item <%= currentPage === 'seu-knowledge-capital' ? 'active' : '' %>" href="/aisworg/seu/knowledge/capital">
-                <i class="bi bi-bank me-2"></i>Engineering Capital
-              </a></li>
-              <li><a class="dropdown-item <%= currentPage === 'seu-telemetry' ? 'active' : '' %>" href="/aisworg/seu/telemetry">
-                <i class="bi bi-activity me-2"></i>Telemetry
-              </a></li>
-              <li><a class="dropdown-item <%= currentPage === 'seu-attention' ? 'active' : '' %>" href="/aisworg/seu/attention">
-                <i class="bi bi-bell me-2"></i>Attention
               </a></li>
             </ul>
           </li>
 
         <% } /* isGeneral */ %>
- 
+
 
         <% if (_isGeneral) { %>
           <!-- Badge model (Phase 10): the identity's name and the Platform-layer
@@ -101,7 +120,7 @@
 
           <!-- Settings / user menu -->
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle <%= ['settings','stocks','stockListManager','user-management'].includes(currentPage) ? 'active' : '' %>"
+            <a class="nav-link dropdown-toggle <%= ['settings','stocks','stockListManager','user-management','seu-identity'].includes(currentPage) ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Settings">
               <% if (_u?.avatar_url) { %>
                 <img src="<%= _u.avatar_url %>" width="24" height="24"
@@ -114,6 +133,9 @@
               <li class="dropdown-header d-lg-none">
                 <%= _u?.name || _u?.email %><% if (_platformBadges.length > 0) { %> &middot; <%= _platformBadges.join(', ') %><% } %>
               </li>
+              <li><a class="dropdown-item <%= currentPage === 'seu-identity' ? 'active' : '' %>" href="/aisworg/seu/identity">
+                <i class="bi bi-person-badge me-2"></i>Identity Management
+              </a></li>
               <% if (_isSuper) { %>
               <li><a class="dropdown-item <%= currentPage === 'settings' ? 'active' : '' %>"href="/aisworg/settings">
                 <i class="bi bi-gear me-2"></i>Settings

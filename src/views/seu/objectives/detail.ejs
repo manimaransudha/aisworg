@@ -55,8 +55,22 @@
         <% } %>
 
         <% if (detail.objective.status === 'Active') { %>
-          <form method="POST" action="/aisworg/seu/objectives/<%= detail.objective.id %>/commission" class="mt-3">
+          <form method="POST" action="/aisworg/seu/objectives/<%= detail.objective.id %>/commission" class="mt-3 d-flex align-items-center gap-2 flex-wrap">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <% if (detail.commissioningPreview && detail.commissioningPreview.candidateProfiles.length > 1) { %>
+              <!-- A real choice: more than one Profile already published against
+                   the matched Template (findOrCreateDefaultProfile's own known-
+                   limitation note — closed here, not just documented). -->
+              <select name="profileId" class="form-select form-select-sm" style="width: auto;">
+                <% detail.commissioningPreview.candidateProfiles.forEach(function(p) { %>
+                  <option value="<%= p.id %>"><%= p.name %> (<%= p.code %>, <%= p.environment %>)</option>
+                <% }) %>
+              </select>
+            <% } else if (detail.commissioningPreview && detail.commissioningPreview.candidateProfiles.length === 1) { %>
+              <span class="text-muted small">
+                Profile: <%= detail.commissioningPreview.candidateProfiles[0].name %> (<%= detail.commissioningPreview.candidateProfiles[0].code %>)
+              </span>
+            <% } %>
             <button type="submit" class="btn btn-primary btn-sm">
               <i class="bi bi-rocket-takeoff me-1"></i>Commission an SEU from this Objective
             </button>

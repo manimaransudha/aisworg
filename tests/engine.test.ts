@@ -25,6 +25,7 @@ import { servicesDB } from "../src/dblayer/servicesDB.js";
 import { seuCapabilitiesDB } from "../src/dblayer/seuCapabilitiesDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
+import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 
 after(async () => {
   await pool.end();
@@ -139,6 +140,7 @@ test("transitionEngine.evaluate handles the Objective entity type (Post-MVP Phas
 
 test("dependencyEngine: Deliverable-type edge becomes Satisfied only once the target reaches the required state", async () => {
   const { data: objective } = await objectivesDB.create({ statement: `engine-test-${randomUUID()}` });
+  await ensureWebAppTemplateFixture();
   const { data: template } = await templatesDB.findByCode("template-web-application");
   const { data: profile } = await profilesDB.findByCode("profile-default-development");
   const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id });
@@ -181,6 +183,7 @@ test("dependencyEngine: Deliverable-type edge becomes Satisfied only once the ta
 
 test("dependencyEngine: Capability-type edge becomes Satisfied once the SEU's Capability requirement is Fulfilled", async () => {
   const { data: objective } = await objectivesDB.create({ statement: `engine-test-${randomUUID()}` });
+  await ensureWebAppTemplateFixture();
   const { data: template } = await templatesDB.findByCode("template-web-application");
   const { data: profile } = await profilesDB.findByCode("profile-default-development");
   const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id });

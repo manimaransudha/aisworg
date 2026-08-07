@@ -3,6 +3,8 @@ import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
+import { findCandidateTemplates } from "./templates.js";
+import { listRealProfilesForTemplate } from "./profiles.js";
 import type { CapabilityRow, ObjectiveRow, ObjectiveStatus, ObjectiveTier } from "../../../dblayer/seuTypes.js";
 
 // Ch.1 §7: Strategic decomposes into Operational decomposes into Engineering.
@@ -76,12 +78,28 @@ export async function listSelectableObjectives(): Promise<ObjectiveListItem[]> {
   return (data ?? []).map(toListItem);
 }
 
+// Ebook Library — Full Demo Walkthrough.md, real finding #3, closed properly
+// this time: findOrCreateDefaultProfile's own comment flagged "no UI to
+// choose between multiple real Profiles for a Template if that ever
+// happens" as a known gap — this is that UI's data. Computed only when the
+// Objective is Active (the only state "Commission an SEU" is even offered),
+// and only meaningful when a Template actually satisfies every required
+// Capability — a null preview means the commission button, if shown at all,
+// falls back to the no-choice-available path (0 or 1 real Profile).
+export interface CommissioningPreview {
+  templateId: string;
+  templateCode: string;
+  templateName: string;
+  candidateProfiles: Array<{ id: string; code: string; name: string; environment: string }>;
+}
+
 export interface ObjectiveDetailView {
   objective: ObjectiveRow;
   parent: ObjectiveListItem | null;
   children: ObjectiveListItem[];
   requiredCapabilities: CapabilityRow[];
   possibleNextStates: string[];
+  commissioningPreview: CommissioningPreview | null;
 }
 
 export async function getObjectiveDetail(id: string): Promise<ObjectiveDetailView | null> {
@@ -95,12 +113,28 @@ export async function getObjectiveDetail(id: string): Promise<ObjectiveDetailVie
     objective.parent_objective_id ? objectivesDB.findById(objective.parent_objective_id).then((r) => r.data ?? null) : Promise.resolve(null),
   ]);
 
+  let commissioningPreview: CommissioningPreview | null = null;
+  if (objective.status === "Active") {
+    const candidates = await findCandidateTemplates((requiredCapabilities ?? []).map((c) => c.code));
+    const template = candidates.find((c) => c.satisfies);
+    if (template) {
+      const realProfiles = await listRealProfilesForTemplate(template.id);
+      commissioningPreview = {
+        templateId: template.id,
+        templateCode: template.code,
+        templateName: template.name,
+        candidateProfiles: realProfiles.map((p) => ({ id: p.id, code: p.code, name: p.name, environment: p.environment })),
+      };
+    }
+  }
+
   return {
     objective,
     parent: parent ? toListItem(parent) : null,
     children: (children ?? []).map(toListItem),
     requiredCapabilities: requiredCapabilities ?? [],
     possibleNextStates: possibleNextStates ?? [],
+    commissioningPreview,
   };
 }
 

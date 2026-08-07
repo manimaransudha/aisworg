@@ -16,6 +16,7 @@ import { createProfile } from "../src/routes/seu/core/profiles.js";
 import { commissionSeu, commissionFromExistingObjective } from "../src/routes/seu/core/commissioning.js";
 import { findCandidateTemplates } from "../src/routes/seu/core/templates.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
+import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 
 after(async () => {
   await pool.end();
@@ -98,6 +99,7 @@ test("commissionSeu requires the Objective to be Active — blocks Proposed, suc
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
     status: "Proposed",
   });
+  await ensureWebAppTemplateFixture();
   const { data: template } = await templatesDB.findByCode("template-web-application");
   assert.ok(template);
   const profile = await createProfile({ templateId: template.id, environment: "development" });
@@ -142,6 +144,7 @@ test("suggestCapabilityCodes matches on word overlap with a Capability's name/de
 // required Capabilities must select it over any looser-fitting Template
 // that also happens to satisfy, regardless of code ordering.
 test("findCandidateTemplates picks the tightest-fitting satisfying Template, not whichever sorts first alphabetically", async () => {
+  await ensureWebAppTemplateFixture();
   const { data: webApp } = await templatesDB.findByCode("template-web-application");
   assert.ok(webApp, "expected template-web-application to be seeded");
   const { data: webAppCapabilities } = await templatesDB.getRequiredCapabilities(webApp!.id);

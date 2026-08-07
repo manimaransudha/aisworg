@@ -69,6 +69,19 @@ export const profilesDB = {
     }
   },
 
+  // Ebook Library — Full Demo Walkthrough.md, real finding #3: lets
+  // commissioning check for an already-published Profile before falling
+  // back to synthesizing a throwaway one.
+  async findByBaseTemplateId(templateId: string): Promise<DbResult<ProfileRow[]>> {
+    try {
+      const { rows } = await query<ProfileRow>("SELECT * FROM profiles WHERE base_template_id = $1 ORDER BY created_at", [templateId]);
+      return { data: rows };
+    } catch (err) {
+      logger.error("[profilesDB] findByBaseTemplateId error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   // Stores the Pack's *code*, not a specific row id — bug fix, see
   // 013_template_profile_pack_by_code.sql. Same reasoning as
   // templatesDB.setMandatoryPacks: which Version a code resolves to is

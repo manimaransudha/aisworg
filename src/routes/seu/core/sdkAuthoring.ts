@@ -201,11 +201,32 @@ function toPackSeedInput(content: Record<string, unknown>): PackSeedInput {
   };
 }
 
+// Real finding, Ebook Library — Full Demo Walkthrough.md: the Schema
+// Registry declares mandatoryPackCodes/optionalPackCodes with
+// x-widget:"referential-list" (the Deliverable-Catalogue-style repeatable
+// row widget), so the generated form submits [{ packCode: string }] via
+// formGenerator's parseFormBody — but TemplateSeedInput/ProfileSeedInput
+// (and JSON import, which already submits plain strings and is unaffected)
+// both expect string[]. Normalized here rather than widening the widget
+// (these are genuinely a flat list of Pack codes, not multi-field rows like
+// the Deliverable Catalogue actually needs referential-list for) or the
+// type everywhere downstream.
+function normalizePackCodes(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((entry) => {
+      if (typeof entry === "string") return entry;
+      if (entry && typeof entry === "object" && "packCode" in entry) return String((entry as { packCode: unknown }).packCode ?? "");
+      return "";
+    })
+    .filter((code) => code !== "");
+}
+
 function toTemplateSeedInput(content: Record<string, unknown>): TemplateSeedInput {
   return {
     ...(content as unknown as TemplateSeedInput),
     requiredCapabilityCodes: (content.requiredCapabilityCodes as string[]) ?? [],
-    mandatoryPackCodes: (content.mandatoryPackCodes as string[]) ?? [],
+    mandatoryPackCodes: normalizePackCodes(content.mandatoryPackCodes),
     deliverableCatalogue: (content.deliverableCatalogue as TemplateSeedInput["deliverableCatalogue"]) ?? [],
   };
 }
@@ -214,7 +235,7 @@ function toProfileSeedInput(content: Record<string, unknown>): ProfileSeedInput 
   return {
     ...(content as unknown as ProfileSeedInput),
     configParameters: (content.configParameters as Record<string, unknown>) ?? {},
-    optionalPackCodes: (content.optionalPackCodes as string[]) ?? [],
+    optionalPackCodes: normalizePackCodes(content.optionalPackCodes),
   };
 }
 

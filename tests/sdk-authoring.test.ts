@@ -32,6 +32,7 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import type { PackSeedInput } from "../src/routes/seu/core/packs.js";
 import type { TemplateSeedInput } from "../src/routes/seu/core/templates.js";
 import type { ProfileSeedInput } from "../src/routes/seu/core/profiles.js";
+import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 
 after(async () => {
   await pool.end();
@@ -184,6 +185,7 @@ test("Template authoring: the same generic pipeline as Pack produces a real Temp
 });
 
 test("Profile authoring: the same generic pipeline as Pack produces a real Profile row, referencing a real Template by code", async () => {
+  await ensureWebAppTemplateFixture();
   const code = `sdk-test-profile-${randomUUID()}`;
   const seed: ProfileSeedInput = {
     code,

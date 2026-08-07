@@ -3,6 +3,11 @@
 <head>
   <%- include('../partials/head') %>
   <style>
+    .intro-lead { font-size: 1.05rem; color: #334155; line-height: 1.6; max-width: 760px; }
+    .principle-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); background: #fff; padding: 1.1rem 1.25rem; height: 100%; }
+    .principle-card i { color: #4f46e5; font-size: 1.1rem; }
+    .principle-title { font-weight: 700; color: #1e293b; font-size: 0.88rem; margin-bottom: 0.3rem; }
+    .principle-note { color: #64748b; font-size: 0.8rem; line-height: 1.5; }
     .layer-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); background: #fff; margin-bottom: 1.5rem; overflow: hidden; }
     .layer-header { background: linear-gradient(135deg, #4f46e5, #6366f1); color: #fff; font-weight: 600; font-size: 0.95rem; padding: 0.85rem 1.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
     .component-row { padding: 0.9rem 1.25rem; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
@@ -30,9 +35,51 @@
     <% } %>
 
     <div class="mb-4">
-      <h2 class="h3 mb-1 text-dark fw-bold">SEU Commissioning Platform</h2>
+      <h2 class="h3 mb-2 text-dark fw-bold">SEU Commissioning Platform</h2>
+      <p class="intro-lead mb-3">
+        An execution platform that governs engineering organisations, not a coding assistant or a workflow tool.
+        It starts from an Objective and assembles the Capabilities, roles and Participants — human, AI, or
+        external — required to deliver it. Authority can't be exercised outside a defined responsibility, and
+        work can't be marked complete without evidence behind it. None of that is policy or convention; it's
+        enforced by continuous execution of the governance model itself, on every Software Engineering Unit
+        (SEU) the platform runs.
+      </p>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-md-3 col-6">
+        <div class="principle-card">
+          <i class="bi bi-people-fill mb-2 d-block"></i>
+          <div class="principle-title">Participants don't self-certify</div>
+          <div class="principle-note">Human, AI, or external — finishing work is a proposal, not a fact. The same governance decides whether it takes effect, regardless of who or what proposed it.</div>
+        </div>
+      </div>
+      <div class="col-md-3 col-6">
+        <div class="principle-card">
+          <i class="bi bi-diagram-3-fill mb-2 d-block"></i>
+          <div class="principle-title">Lifecycle is enforced, not decorative</div>
+          <div class="principle-note">Every Deliverable moves through a real, checked state graph. An illegal transition is rejected; a legal one with no justification behind it is too.</div>
+        </div>
+      </div>
+      <div class="col-md-3 col-6">
+        <div class="principle-card">
+          <i class="bi bi-shield-check mb-2 d-block"></i>
+          <div class="principle-title">Evidence is a precondition</div>
+          <div class="principle-note">The Trust Pipeline: information into evidence, evidence supporting knowledge, knowledge informing a decision that justifies the state actually changing.</div>
+        </div>
+      </div>
+      <div class="col-md-3 col-6">
+        <div class="principle-card">
+          <i class="bi bi-activity mb-2 d-block"></i>
+          <div class="principle-title">Telemetry measures flow, not people</div>
+          <div class="principle-note">Where work gets stuck — dependency wait, governance friction, rework — not who did what, when. A sustained pattern raises a real obligation automatically.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-4">
       <p class="text-muted small mb-0">
-        Laid out against the platform's own architecture diagram
+        Laid out below against the platform's own architecture diagram
         (<code>design/foundations/03_Book 3 (Refined)/Introduction.md</code> — "The architecture becomes").
         <span class="status-badge status-live">Live</span> is built and working today,
         <span class="status-badge status-partial">Partial</span> is a minimal real instance, not the full model,

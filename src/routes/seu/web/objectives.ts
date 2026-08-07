@@ -126,12 +126,14 @@ router.post("/objectives/:id/transition", async (req: Request, res: Response) =>
 router.post("/objectives/:id/commission", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
   const backTo = `/aisworg/seu/objectives/${objectiveId}`;
+  const { profileId } = req.body ?? {};
 
   try {
     const result = await commissionFromExistingObjective({
       objectiveId,
       actorRole: req.session?.user?.role ?? "general",
       requestedBy: req.session?.user?.id ?? null,
+      profileId: typeof profileId === "string" && profileId.trim() ? profileId : undefined,
     });
     if (!result.ok) {
       return flashError(req, res, backTo, `Commissioning failed at "${result.stage}": ${result.reason}`);

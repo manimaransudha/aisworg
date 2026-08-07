@@ -16,12 +16,14 @@ import fetchCookie from "fetch-cookie";
 import pool from "../src/utils/db.js";
 import app from "../src/app.js";
 import { appConfig } from "../src/config/appconfig.js";
+import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 
 let server: ReturnType<typeof app.listen>;
 let baseUrl: string;
 let request: ReturnType<typeof fetchCookie>;
 
 before(async () => {
+  await ensureWebAppTemplateFixture();
   await appConfig.init();
   server = app.listen(0);
   await new Promise<void>((resolve) => server.once("listening", () => resolve()));

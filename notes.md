@@ -26,3 +26,6 @@ git remote add origin https://github.com
 
 # Push your local code up to GitHub
 git push -u origin main
+
+# Clean db
+pnpm db:clean-slate

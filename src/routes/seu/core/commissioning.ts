@@ -17,7 +17,7 @@ import { eventBus } from "../../../domain/engine/eventBus.js";
 import { logger } from "../../../utils/logger.js";
 import { createObjective } from "./objectives.js";
 import { findCandidateTemplates } from "./templates.js";
-import { createProfile } from "./profiles.js";
+import { findOrCreateDefaultProfile } from "./profiles.js";
 import type { CommissioningReport, SeuLifecycleState, SeuRow } from "../../../dblayer/seuTypes.js";
 
 export type CommissionResult =
@@ -224,7 +224,7 @@ export async function commissionFromForm(input: {
     };
   }
 
-  const profile = await createProfile({ templateId: template.id, environment: "development" });
+  const profile = await findOrCreateDefaultProfile(template.id);
 
   return commissionSeu({
     objectiveId: objective.id,
@@ -247,6 +247,12 @@ export async function commissionFromExistingObjective(input: {
   objectiveId: string;
   actorRole: string;
   requestedBy?: number | null;
+  // Real choice, not a heuristic override: findOrCreateDefaultProfile's own
+  // comment flagged this as unsolved — this is the caller (the web route's
+  // real dropdown, sourced from listRealProfilesForTemplate) closing it.
+  // commissionSeu's own base_template_id check catches a mismatched id, so
+  // this doesn't re-validate it belongs to the matched Template.
+  profileId?: string;
 }): Promise<CommissionFromObjectiveResult> {
   const { data: requiredCapabilities } = await objectivesDB.getRequiredCapabilities(input.objectiveId);
   const capabilityCodes = (requiredCapabilities ?? []).map((c) => c.code);
@@ -261,12 +267,12 @@ export async function commissionFromExistingObjective(input: {
     };
   }
 
-  const profile = await createProfile({ templateId: template.id, environment: "development" });
+  const profileId = input.profileId ?? (await findOrCreateDefaultProfile(template.id)).id;
 
   return commissionSeu({
     objectiveId: input.objectiveId,
     templateId: template.id,
-    profileId: profile.id,
+    profileId,
     actorRole: input.actorRole,
     requestedBy: input.requestedBy,
   });
