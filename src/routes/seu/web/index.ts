@@ -14,6 +14,7 @@ import { router as attentionRouter } from "./attention.js";
 import { router as identityRouter } from "./identity.js";
 import { router as sdkAuthoringRouter } from "./sdkAuthoring.js";
 import { router as schemaRegistryRouter } from "./schemaRegistry.js";
+import { router as workQueueRouter } from "./workQueue.js";
 
 router.use(dashboardRouter);
 router.use(objectivesRouter);
@@ -26,5 +27,6 @@ router.use(attentionRouter);
 router.use(identityRouter);
 router.use(schemaRegistryRouter);
 router.use(sdkAuthoringRouter);
+router.use(workQueueRouter);
 
 export { router };

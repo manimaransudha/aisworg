@@ -20,8 +20,22 @@ import { seuCapabilitiesDB } from "../../dblayer/seuCapabilitiesDB.js";
 import { capabilityFulfilmentsDB } from "../../dblayer/capabilityFulfilmentsDB.js";
 import { workItemsDB } from "../../dblayer/workItemsDB.js";
 import { participantsDB } from "../../dblayer/participantsDB.js";
+import { servicesDB } from "../../dblayer/servicesDB.js";
 import { eventBus } from "./eventBus.js";
-import type { WorkItemRow } from "../../dblayer/seuTypes.js";
+import type { ServiceRow, WorkItemRow } from "../../dblayer/seuTypes.js";
+
+// The stall SLA is declared per Capability on its Service's Service Level
+// (`turnaround_time`, seconds — Ch.11 §8, Resolution 9). NOT hardcoded: a
+// Capability whose Service declares none has no target, so its Work Items never
+// stall-escalate.
+function resolveTurnaroundSeconds(services: ServiceRow[]): number | null {
+  for (const service of services) {
+    const t = (service.service_level ?? {}).turnaround_time;
+    if (typeof t === "number" && t > 0) return t;
+    if (typeof t === "string" && t.trim() !== "" && Number.isFinite(Number(t)) && Number(t) > 0) return Number(t);
+  }
+  return null;
+}
 
 const SOLE_ELIGIBLE_PARTICIPANT = "sole-eligible-participant";
 const NO_CAPABILITY_DECLARED = "no-producing-capability-declared";
@@ -37,6 +51,10 @@ export const dispatchEngine = {
     workItem: WorkItemRow;
     seuId: string;
     producingCapabilityId: string | null;
+    // Participant Integration — Plan step 4: an explicit target completion time
+    // the assigner supplied, overriding the SLA-derived default. Null/absent =
+    // use the default.
+    targetCompletionAt?: Date | null;
     correlationId: string;
   }): Promise<DispatchResult> {
     // No Capability declared for this Deliverable at all: nothing for Dispatch
@@ -74,6 +92,21 @@ export const dispatchEngine = {
     }
 
     await workItemsDB.assign(input.workItem.id, participantId, SOLE_ELIGIBLE_PARTICIPANT);
+
+    // Participant Integration — Plan step 4: the assignment-out contract's
+    // deadline, a commitment fixed at assignment (not re-derived later). The
+    // assigner's explicit target wins; otherwise the default is the producing
+    // Capability's declared turnaround SLA. No override and no SLA -> no target
+    // -> never stall-escalated.
+    if (input.targetCompletionAt) {
+      await workItemsDB.setTargetCompletionAt(input.workItem.id, input.targetCompletionAt);
+    } else {
+      const { data: services } = await servicesDB.findByCapabilityId(input.producingCapabilityId);
+      const slaSeconds = resolveTurnaroundSeconds(services ?? []);
+      if (slaSeconds != null) {
+        await workItemsDB.setTargetCompletion(input.workItem.id, slaSeconds);
+      }
+    }
 
     // Participant Lifecycle Governance — Plan, Build order step 3. Direct
     // dblayer write + direct eventBus.publish (never core's transitionParticipant,

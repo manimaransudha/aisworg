@@ -30,6 +30,7 @@ export const executionEngine = {
     producingCapabilityId: string | null;
     requestedBy: number | null;
     actingBadgeGrantId?: string | null;
+    targetCompletionAt?: Date | null;
     correlationId: string;
   }): Promise<ExecutionResult> {
     const { data: command, error } = await commandsDB.create({
@@ -59,6 +60,7 @@ export const executionEngine = {
       workItem,
       seuId: input.seuId,
       producingCapabilityId: input.producingCapabilityId,
+      targetCompletionAt: input.targetCompletionAt ?? null,
       correlationId: input.correlationId,
     });
 

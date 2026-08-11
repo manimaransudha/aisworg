@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+  <style>
+    .section-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); background: #fff; margin-bottom: 1.5rem; overflow: hidden; }
+    .section-header { background: #0f172a; color: #fff; font-weight: 600; font-size: 0.9rem; padding: 0.85rem 1.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .mode-badge { font-size: 0.68rem; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
+    .mode-human-on-ui { background: #dbeafe; color: #1e40af; }
+    .mode-external-orchestrator { background: #e2e8f0; color: #475569; }
+    .stub-banner { border: 1px dashed #f59e0b; background: #fffbeb; color: #92400e; border-radius: 10px; padding: 0.85rem 1.1rem; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5" style="max-width: 1100px;">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-1 text-dark fw-bold">Work Queue</h2>
+      <p class="text-muted small mb-2">
+        Participant Integration (step 5) — outstanding Work Items dispatched to a Participant, awaiting a result.
+        A human reports the outcome and a VCS reference through the same result-in path an external orchestrator uses.
+      </p>
+      <div class="stub-banner">
+        <i class="bi bi-cone-striped me-1"></i>
+        <strong>Tenant-specific placeholder.</strong> This human-on-UI completion surface is a stub so the async loop is
+        exercisable end to end. A real tenant replaces it under the Participant Integration Contract with its own intake
+        (a queue, a ticketing system, an agent) and its own callback/webhook — with no change to the platform core.
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">Outstanding Work Items</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th>Deliverable</th><th>Transition</th><th>Reach by</th><th>Fulfilment</th><th style="min-width: 320px;">Report result</th></tr>
+          </thead>
+          <tbody>
+            <% if (!workItems || workItems.length === 0) { %>
+              <tr><td colspan="5" class="text-center text-muted py-4">No outstanding Work Items — nothing is waiting on a Participant.</td></tr>
+            <% } else { %>
+              <% workItems.forEach(function (wi) { %>
+                <tr>
+                  <td class="fw-semibold"><%= wi.deliverableName %></td>
+                  <td><span class="text-muted small"><%= wi.fromState %> &rarr; <%= wi.toState %></span></td>
+                  <td class="small text-muted"><%= wi.targetCompletionAt ? new Date(wi.targetCompletionAt).toISOString().replace('T',' ').slice(0,16) : '—' %></td>
+                  <td><span class="mode-badge mode-<%= wi.mode %>"><%= wi.mode %></span></td>
+                  <td>
+                    <form method="POST" action="/aisworg/seu/seus/<%= seuId %>/work-items/<%= wi.id %>/complete" class="d-flex gap-2 align-items-center">
+                      <input type="hidden" name="_csrf" value="<%= locals.csrfToken || '' %>" />
+                      <select name="outcome" class="form-select form-select-sm" style="max-width: 110px;">
+                        <option value="done">done</option>
+                        <option value="failed">failed</option>
+                        <option value="blocked">blocked</option>
+                      </select>
+                      <input type="text" name="reference" class="form-control form-control-sm" placeholder="VCS reference (e.g. repo@commit)" />
+                      <button type="submit" class="btn btn-sm btn-dark">Report</button>
+                    </form>
+                  </td>
+                </tr>
+              <% }); %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

@@ -26,6 +26,12 @@ import { router as authRouter } from "./routes/web/auth.js";
 import { router as demoRouter } from "./routes/web/demo.js";
 import { router as seuApiRouter } from "./routes/seu/api/index.js";
 import { router as seuWebRouter } from "./routes/seu/web/index.js";
+import { registerAssignmentDelivery } from "./adapters/assignmentDelivery.js";
+
+// Participant Integration — Plan step 5: wire the assignment-out edge subscriber
+// so a dispatched Work Item is delivered to its Capability's execution target
+// (human-on-UI or an external orchestrator) via the adapter seam. Idempotent.
+registerAssignmentDelivery();
 
 const app = express();
 const PORT = process.env.PORT || 4800;

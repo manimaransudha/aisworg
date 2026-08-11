@@ -6,6 +6,7 @@ const router = express.Router();
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { completeWorkItem, type WorkItemOutcome } from "../core/workItems.js";
+import { sweepStalledWorkItems } from "../core/workItemHeartbeat.js";
 
 // Participant Integration & Attestation — Plan, step 1 (Model A): the "result-in"
 // side of the two-sided contract (§0.1). A Participant that finished (or failed,
@@ -57,6 +58,23 @@ router.post("/work-items/:id/result", async (req: Request, res: Response) => {
     return res.status(200).json({ outcome: result.outcome, workItem: result.workItem });
   } catch (err) {
     logger.error("[api/seu/workItems] POST /work-items/:id/result error", err as Error);
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+// POST /work-items/sweep-stalled — the scheduler hook (Plan step 4). A cron /
+// heartbeat calls this periodically; it raises an Escalation Attention Item for
+// every outstanding Work Item past its Capability's turnaround SLA. Idempotent
+// (one open Escalation per stalled Deliverable), so it is safe to call as often
+// as the scheduler likes. Real cron wiring is deployment-time; the endpoint is
+// the seam.
+router.post("/work-items/sweep-stalled", async (req: Request, res: Response) => {
+  try {
+    const seuId = typeof req.query.seuId === "string" ? req.query.seuId : undefined;
+    const result = await sweepStalledWorkItems({ seuId });
+    res.status(200).json(result);
+  } catch (err) {
+    logger.error("[api/seu/workItems] POST /work-items/sweep-stalled error", err as Error);
     res.status(400).json({ error: (err as Error).message });
   }
 });

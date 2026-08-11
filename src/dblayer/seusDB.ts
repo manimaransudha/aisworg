@@ -12,13 +12,14 @@ export const seusDB = {
     templateId: string;
     profileId: string;
     requestedBy?: number | null;
+    tenantId?: string | null;
   }): Promise<DbResult<SeuRow>> {
     try {
       const { rows } = await query<SeuRow>(
-        `INSERT INTO seus (objective_id, template_id, profile_id, requested_by)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO seus (objective_id, template_id, profile_id, requested_by, tenant_id)
+         VALUES ($1, $2, $3, $4, $5)
          RETURNING *`,
-        [input.objectiveId, input.templateId, input.profileId, input.requestedBy ?? null]
+        [input.objectiveId, input.templateId, input.profileId, input.requestedBy ?? null, input.tenantId ?? null]
       );
       return { data: rows[0] };
     } catch (err) {

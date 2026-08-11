@@ -6,6 +6,7 @@ import { objectivesDB } from "../../../dblayer/objectivesDB.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { profilesDB } from "../../../dblayer/profilesDB.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { seuCapabilitiesDB } from "../../../dblayer/seuCapabilitiesDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
@@ -36,6 +37,10 @@ export async function commissionSeu(input: {
   profileId: string;
   actorRole: string;
   requestedBy?: number | null;
+  // Participant Integration — Plan step 6: which tenant owns this SEU. Defaults
+  // to the seeded default tenant; determines which edge configuration its Work
+  // Items run against.
+  tenantId?: string | null;
 }): Promise<CommissionResult> {
   const { data: objective } = await objectivesDB.findById(input.objectiveId);
   const { data: template } = await templatesDB.findById(input.templateId);
@@ -58,11 +63,20 @@ export async function commissionSeu(input: {
   // Ch.2 §7 / Build Plan §5 item 8: 'Pending' is the pre-Commissioned working
   // state this plan adds so the pipeline has a row to attach the EBM and
   // report to before Ch.37's own lifecycle formally begins at 'Commissioned'.
+  // Resolve the owning tenant (default unless one was named), so the SEU's Work
+  // Items dispatch against that tenant's edge configuration.
+  let tenantId = input.tenantId ?? null;
+  if (!tenantId) {
+    const { data: defaultTenant } = await tenantsDB.findDefault();
+    tenantId = defaultTenant?.id ?? null;
+  }
+
   const { data: seu, error: seuErr } = await seusDB.create({
     objectiveId: objective.id,
     templateId: template.id,
     profileId: profile.id,
     requestedBy: input.requestedBy,
+    tenantId,
   });
   if (seuErr || !seu) return { ok: false, stage: "allocate_runtime", reason: (seuErr ?? new Error("failed to create SEU")).message };
 
@@ -207,6 +221,7 @@ export async function commissionFromForm(input: {
   requiredCapabilityCodes: string[];
   actorRole: string;
   requestedBy?: number | null;
+  tenantId?: string | null;
 }): Promise<CommissionFromFormResult> {
   const { objective } = await createObjective({
     statement: input.statement,
@@ -232,6 +247,7 @@ export async function commissionFromForm(input: {
     profileId: profile.id,
     actorRole: input.actorRole,
     requestedBy: input.requestedBy,
+    tenantId: input.tenantId,
   });
 }
 

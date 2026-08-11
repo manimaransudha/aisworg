@@ -6,6 +6,7 @@ const router = express.Router();
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { createDeliverable, transitionDeliverable } from "../core/deliverables.js";
+import { explainDeliverable, impactOfDeliverable } from "../core/traceability.js";
 
 /** POST /seus/:id/deliverables — Ch.15: create a Deliverable beyond whatever the Template catalogue pre-seeded. */
 router.post("/seus/:id/deliverables", async (req: Request, res: Response) => {
@@ -39,7 +40,17 @@ router.post("/deliverables/:id/transition", async (req: Request, res: Response) 
     const requestedBy = req.session?.user?.id ?? null;
     const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
     const actingBadgeGrantId = typeof req.body?.actingBadgeGrantId === "string" ? req.body.actingBadgeGrantId : undefined;
-    const result = await transitionDeliverable({ deliverableId: String(req.params.id), targetState, actorRole, actorId, actingBadgeGrantId, requestedBy });
+
+    // Participant Integration — Plan step 4: the assigner may override the
+    // SLA-derived default deadline with an explicit target completion time.
+    let targetCompletionAt: Date | undefined;
+    if (typeof req.body?.targetCompletionAt === "string" && req.body.targetCompletionAt.trim() !== "") {
+      const parsed = new Date(req.body.targetCompletionAt);
+      if (Number.isNaN(parsed.getTime())) return res.status(400).json({ error: "targetCompletionAt must be a valid ISO date/time" });
+      targetCompletionAt = parsed;
+    }
+
+    const result = await transitionDeliverable({ deliverableId: String(req.params.id), targetState, actorRole, actorId, actingBadgeGrantId, requestedBy, targetCompletionAt });
 
     if (!result.ok) {
       if (result.reason === "not_found") return res.status(404).json({ error: "deliverable not found" });
@@ -54,6 +65,24 @@ router.post("/deliverables/:id/transition", async (req: Request, res: Response) 
     res.status(202).json({ dispatched: true, workItemId: result.workItemId, participantId: result.participantId, pendingTransition: result.pendingTransition });
   } catch (err) {
     logger.error("[api/seu/deliverables] POST /deliverables/:id/transition error", err as Error);
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+// GET /deliverables/:id/traceability — Ch.20 query surface (Participant
+// Integration Plan step 3). Read-only: backward navigation + provenance
+// (explanation) and forward navigation + impact analysis (impact), assembled
+// from platform-held records only.
+router.get("/deliverables/:id/traceability", async (req: Request, res: Response) => {
+  try {
+    const [explanation, impact] = await Promise.all([
+      explainDeliverable(String(req.params.id)),
+      impactOfDeliverable(String(req.params.id)),
+    ]);
+    if (!explanation || !impact) return res.status(404).json({ error: "deliverable not found" });
+    res.status(200).json({ explanation, impact });
+  } catch (err) {
+    logger.error("[api/seu/deliverables] GET /deliverables/:id/traceability error", err as Error);
     res.status(400).json({ error: (err as Error).message });
   }
 });

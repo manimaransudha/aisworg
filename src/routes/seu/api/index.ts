@@ -18,6 +18,8 @@ import { router as attentionItemsRouter } from "./attentionItems.js";
 import { router as externalInteractionsRouter } from "./externalInteractions.js";
 import { router as packsRouter } from "./packs.js";
 import { router as workItemsRouter } from "./workItems.js";
+import { router as executionTargetsRouter } from "./executionTargets.js";
+import { router as tenantsRouter } from "./tenants.js";
 
 router.use(objectivesRouter);
 router.use(templatesRouter);
@@ -34,5 +36,7 @@ router.use(attentionItemsRouter);
 router.use(externalInteractionsRouter);
 router.use(packsRouter);
 router.use(workItemsRouter);
+router.use(executionTargetsRouter);
+router.use(tenantsRouter);
 
 export { router };

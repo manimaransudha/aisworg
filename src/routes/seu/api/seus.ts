@@ -13,13 +13,13 @@ import { getSeuEvents } from "../core/events.js";
 /** POST /commission — Ch.8 full pipeline; this endpoint's response is the acceptance test's core assertion. */
 router.post("/commission", async (req: Request, res: Response) => {
   try {
-    const { objectiveId, templateId, profileId } = req.body ?? {};
+    const { objectiveId, templateId, profileId, tenantId } = req.body ?? {};
     if (!objectiveId || !templateId || !profileId) {
       return res.status(400).json({ error: "objectiveId, templateId and profileId are all required" });
     }
 
     const actorRole = req.session?.user?.role ?? "general";
-    const result = await commissionSeu({ objectiveId, templateId, profileId, actorRole, requestedBy: req.session?.user?.id ?? null });
+    const result = await commissionSeu({ objectiveId, templateId, profileId, actorRole, requestedBy: req.session?.user?.id ?? null, tenantId: typeof tenantId === "string" ? tenantId : null });
 
     if (!result.ok) {
       return res.status(422).json({ stage: result.stage, reason: result.reason, seuId: result.seuId });

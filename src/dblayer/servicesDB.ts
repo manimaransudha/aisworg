@@ -58,6 +58,24 @@ export const servicesDB = {
     }
   },
 
+  // Participant Integration & Attestation — Plan step 4 (Resolution 9): the
+  // per-Capability SLA rides on the Service Level's net-new `turnaround_time`.
+  // Set the whole service_level JSONB (Ch.11 §8: turnaround_time, quality_bar,
+  // availability, exceptions). Step 6's deployment-time contract config will
+  // drive this per tenant; for now it lets an SLA be declared/updated directly.
+  async setServiceLevel(id: string, serviceLevel: Record<string, unknown>): Promise<DbResult<ServiceRow>> {
+    try {
+      const { rows } = await query<ServiceRow>(
+        "UPDATE services SET service_level = $1 WHERE id = $2 RETURNING *",
+        [JSON.stringify(serviceLevel), id]
+      );
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[servicesDB] setServiceLevel error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findAll(): Promise<DbResult<ServiceRow[]>> {
     try {
       const { rows } = await query<ServiceRow>("SELECT * FROM services ORDER BY name");

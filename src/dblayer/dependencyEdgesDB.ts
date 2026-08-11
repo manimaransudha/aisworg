@@ -53,6 +53,23 @@ export const dependencyEdgesDB = {
     }
   },
 
+  // Ch.20 traceability — forward navigation / impact analysis (FR-20.3/20.5):
+  // the edges pointing AT this Deliverable, i.e. the downstream Deliverables
+  // that depend on it. If it changes, these are impacted. (findByFromDeliverable
+  // is the inverse — what this Deliverable itself depends on / backward nav.)
+  async findByToDeliverable(deliverableId: string): Promise<DbResult<DependencyEdgeRow[]>> {
+    try {
+      const { rows } = await query<DependencyEdgeRow>(
+        "SELECT * FROM dependency_edges WHERE dependency_type = 'Deliverable' AND to_deliverable_id = $1",
+        [deliverableId]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[dependencyEdgesDB] findByToDeliverable error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async updateReadiness(id: string, readinessState: ReadinessState): Promise<DbResult<DependencyEdgeRow>> {
     try {
       const { rows } = await query<DependencyEdgeRow>(

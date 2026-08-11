@@ -116,6 +116,9 @@ export async function transitionDeliverable(input: {
   actingBadgeGrantId?: string;
   actorId?: string;
   requestedBy?: number | null;
+  // Participant Integration — Plan step 4: the assigner may override the SLA-
+  // derived default deadline with an explicit target completion time.
+  targetCompletionAt?: Date | null;
 }): Promise<TransitionDeliverableResult> {
   const { data: deliverable } = await deliverablesDB.findById(input.deliverableId);
   if (!deliverable) return { ok: false, reason: "not_found" };
@@ -217,6 +220,7 @@ export async function transitionDeliverable(input: {
     producingCapabilityId: deliverable.producing_capability_id,
     requestedBy: input.requestedBy ?? null,
     actingBadgeGrantId,
+    targetCompletionAt: input.targetCompletionAt ?? null,
     correlationId,
   });
 

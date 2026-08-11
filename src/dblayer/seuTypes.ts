@@ -172,6 +172,7 @@ export interface SeuRow {
   objective_id: string;
   template_id: string;
   profile_id: string;
+  tenant_id: string | null;
   active_ebm_id: string | null;
   lifecycle_state: SeuLifecycleState;
   requested_by: number | null;
@@ -342,6 +343,60 @@ export interface DeliverableReferenceRow {
   created_at: string;
 }
 
+// Participant Integration — Plan step 5. An outstanding Work Item enriched with
+// the Deliverable + transition it drives, for the human-on-UI work queue.
+export interface OutstandingWorkItemDetail {
+  id: string;
+  seu_id: string;
+  deliverable_id: string;
+  deliverable_name: string;
+  producing_capability_id: string | null;
+  from_state: string;
+  to_state: string;
+  participant_id: string | null;
+  target_completion_at: string | null;
+  created_at: string;
+}
+
+// Participant Integration — Plan step 5. Per-Capability execution target: how
+// the fulfilling Participant is reached (human-on-UI vs external orchestrator).
+// Tenant-scoped in step 6 (Resolution 8): the same pack-global Capability can be
+// reached differently per tenant.
+export type ExecutionMode = "human-on-ui" | "external-orchestrator";
+
+export interface ExecutionTargetRow {
+  id: string;
+  tenant_id: string;
+  capability_id: string;
+  mode: ExecutionMode;
+  adapter_endpoint: string | null;
+  adapter_auth_ref: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Participant Integration — Plan step 6 (Resolution 8). The minimal tenancy
+// slice: a tenant owns SEUs and carries the edge configuration their Work Items
+// run against.
+export interface TenantRow {
+  id: string;
+  code: string;
+  name: string;
+  created_at: string;
+}
+
+// The remaining tenant declarations (§2.1 #1/#3/#4) — opaque JSONB the core
+// stores and the edge interprets.
+export interface TenantContractRow {
+  id: string;
+  tenant_id: string;
+  vcs_binding: Record<string, unknown>;
+  callback_auth: Record<string, unknown>;
+  attestation_config: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
 // Minted only at an acceptance transition (In Progress -> Approved, Approved ->
 // Baselined). The SEU-scoped governance outcome bound to a commit (Resolution 3).
 export interface AttestationRow {
@@ -370,6 +425,11 @@ export interface WorkItemRow {
   // Participant returns on completion (candidate output; distinct from the
   // attestation minted at an acceptance transition).
   output_reference: string | null;
+  // Participant Integration — Plan step 4: the deadline set when the Work Item
+  // is assigned to a Participant (dispatched_at + the Capability's turnaround
+  // SLA). Null when no SLA is declared. An outstanding Work Item past this time
+  // is stalled and escalates to an Attention Item.
+  target_completion_at: string | null;
   created_at: string;
   updated_at: string;
 }

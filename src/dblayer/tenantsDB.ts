@@ -2,15 +2,14 @@ import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, TenantRow } from "./seuTypes.js";
 
-// Phase 10 (badge model) — Ch.42 Tenant, kept minimal per the design doc:
-// Phase 12 (Multi-Tenancy) owns everything else about a Tenant. Creating a
-// Tenant here does not retrofit tenant_id onto any existing SEU/Deliverable/
-// Pack row (design doc §9's Provisioning section).
+// Participant Integration — Plan step 6 (Resolution 8). The minimal tenancy
+// slice. A Capability, Template, and the whole engineering core are tenant-
+// invariant; a tenant differs only in its edge configuration.
 export const tenantsDB = {
   async create(input: { code: string; name: string }): Promise<DbResult<TenantRow>> {
     try {
       const { rows } = await query<TenantRow>(
-        `INSERT INTO tenants (code, name) VALUES ($1, $2) RETURNING *`,
+        "INSERT INTO tenants (code, name) VALUES ($1, $2) RETURNING *",
         [input.code, input.name]
       );
       return { data: rows[0] };
@@ -40,9 +39,13 @@ export const tenantsDB = {
     }
   },
 
+  async findDefault(): Promise<DbResult<TenantRow | null>> {
+    return this.findByCode("default");
+  },
+
   async findAll(): Promise<DbResult<TenantRow[]>> {
     try {
-      const { rows } = await query<TenantRow>("SELECT * FROM tenants ORDER BY created_at");
+      const { rows } = await query<TenantRow>("SELECT * FROM tenants ORDER BY created_at ASC");
       return { data: rows };
     } catch (err) {
       logger.error("[tenantsDB] findAll error", err as Error);
