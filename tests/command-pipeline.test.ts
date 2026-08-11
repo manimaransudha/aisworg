@@ -16,14 +16,20 @@ import { commissionFromForm } from "../src/routes/seu/core/commissioning.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
+import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { executionEngine } from "../src/domain/engine/executionEngine.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
+import { workItemsDB } from "../src/dblayer/workItemsDB.js";
+import { commandsDB } from "../src/dblayer/commandsDB.js";
+import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
+import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 
 after(async () => {
   await pool.end();
 });
 
 async function commissionTestSeu(statementPrefix: string) {
+  await ensureWebAppTemplateFixture();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
@@ -69,7 +75,19 @@ test("transitionDeliverable defers the transition when nobody fulfils the produc
     actorId: "1",
   });
   assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : undefined);
-  if (dispatched.ok) assert.equal(dispatched.deliverable.lifecycle_state, "In Progress");
+  if (!dispatched.ok) throw new Error("unreachable");
+
+  // Model A (Participant Integration Plan): dispatch does NOT move the
+  // Deliverable — it stays Defined, outstanding, until the Participant reports
+  // a result.
+  const stillDefinedAfterDispatch = await getSeuDetailView(seuId);
+  assert.equal(stillDefinedAfterDispatch?.deliverables.find((d) => d.name === "Requirements Specification")?.lifecycleState, "Defined", "dispatched, not yet applied — the transition waits for the result callback");
+
+  const completed = await completeWorkItem({ workItemId: dispatched.workItemId, outcome: "done", reference: "vcs://phase3-defer/req-spec@abc123" });
+  assert.equal(completed.ok, true, !completed.ok ? JSON.stringify(completed) : undefined);
+
+  const moved = await getSeuDetailView(seuId);
+  assert.equal(moved?.deliverables.find((d) => d.name === "Requirements Specification")?.lifecycleState, "In Progress", "the result callback drives the governed transition");
 });
 
 test("a dispatched transition leaves a traceable Command and a Completed/Disposed Work Item assigned to the fulfilling Participant", async () => {
@@ -88,6 +106,18 @@ test("a dispatched transition leaves a traceable Command and a Completed/Dispose
 
   const result = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: "1" });
   assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("unreachable");
+
+  // Outstanding first: Model A leaves the Command and Work Item Dispatched
+  // (waiting for the result callback), not Completed.
+  const outstanding = await getSeuDetailView(seuId);
+  assert.equal(outstanding?.commands.length, 1, "expected exactly one Command for the one dispatched transition");
+  assert.equal(outstanding?.commands[0]?.status, "Dispatched", "Model A: the Command is Dispatched-and-outstanding until the result lands");
+  assert.equal(outstanding?.commands[0]?.workItems[0]?.status, "Dispatched", "the Work Item waits Dispatched for the Participant's result");
+
+  // The result callback drives it to Completed/Disposed.
+  const completed = await completeWorkItem({ workItemId: result.workItemId, outcome: "done", reference: "vcs://phase3-trace/req-spec@def456" });
+  assert.equal(completed.ok, true, !completed.ok ? JSON.stringify(completed) : undefined);
 
   const after1 = await getSeuDetailView(seuId);
   assert.equal(after1?.commands.length, 1, "expected exactly one Command for the one dispatched transition");
@@ -142,5 +172,69 @@ test("executionEngine dispatches immediately when the entity has no producing Ca
 
   assert.equal(result.dispatched, true, "nothing declared to gate dispatch on, so it must not defer forever");
   assert.equal(result.participantId, undefined);
-  assert.equal(result.command.status, "Completed");
+  assert.equal(result.command.status, "Dispatched", "Model A: dispatched-and-outstanding, Completed only lands on the result callback");
+});
+
+// Participant Integration & Attestation — Plan step 1 (Model A): the `blocked`/
+// `failed` result path. A Participant that could not complete the Work Item
+// reports the outcome, and the platform must NOT apply the governed transition,
+// must fail the Work Item and Command, and must raise a single Attention Item —
+// exactly the "cannot automatically continue" case (Ch.34).
+test("a Participant reporting 'blocked' fails the Work Item without applying the transition, and raises an Attention Item", async () => {
+  const seuId = await commissionTestSeu("phase3-blocked");
+  const detail = await getSeuDetailView(seuId);
+  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Specification");
+  const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
+  assert.ok(requirementsSpec && reqAnalysisCapability);
+
+  await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantType: "AI", displayName: "Phase3 Blocked Analyst" });
+
+  const dispatched = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: "1" });
+  assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : undefined);
+  if (!dispatched.ok) throw new Error("unreachable");
+
+  const completed = await completeWorkItem({ workItemId: dispatched.workItemId, outcome: "blocked", reference: "vcs://phase3-blocked/partial@wip" });
+  assert.equal(completed.ok, true, !completed.ok ? JSON.stringify(completed) : undefined);
+  if (!completed.ok) throw new Error("unreachable");
+  assert.equal(completed.outcome, "blocked");
+
+  // The Deliverable must NOT have moved.
+  const after = await getSeuDetailView(seuId);
+  assert.equal(after?.deliverables.find((d) => d.name === "Requirements Specification")?.lifecycleState, "Defined", "a blocked result must never apply the transition");
+
+  // Work Item Failed, Command Failed, but the raw reference is still stored.
+  const { data: workItem } = await workItemsDB.findById(dispatched.workItemId);
+  assert.equal(workItem?.status, "Failed");
+  assert.equal(workItem?.output_reference, "vcs://phase3-blocked/partial@wip", "candidate output is stored even on a blocked outcome");
+  const { data: command } = await commandsDB.findById(workItem!.command_id);
+  assert.equal(command?.status, "Failed");
+
+  // Exactly one Exception Attention Item, deduplicated per (SEU, Deliverable).
+  const { data: openException } = await attentionItemsDB.findOpenByRelatedObject(seuId, "Exception", "Deliverable", requirementsSpec.id);
+  assert.ok(openException, "expected an open Exception Attention Item for the blocked Deliverable");
+});
+
+test("completeWorkItem is idempotent-safe: a second result on an already-completed Work Item is rejected, not re-applied", async () => {
+  const seuId = await commissionTestSeu("phase3-double");
+  const detail = await getSeuDetailView(seuId);
+  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Specification");
+  const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
+  assert.ok(requirementsSpec && reqAnalysisCapability);
+
+  await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantType: "AI", displayName: "Phase3 Double Analyst" });
+
+  const dispatched = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: "1" });
+  assert.equal(dispatched.ok, true);
+  if (!dispatched.ok) throw new Error("unreachable");
+
+  const first = await completeWorkItem({ workItemId: dispatched.workItemId, outcome: "done", reference: "vcs://phase3-double/req-spec@1" });
+  assert.equal(first.ok, true);
+
+  const second = await completeWorkItem({ workItemId: dispatched.workItemId, outcome: "done", reference: "vcs://phase3-double/req-spec@2" });
+  assert.equal(second.ok, false, "a Work Item that is no longer outstanding must not be completed again");
+  if (!second.ok) assert.equal(second.reason, "not_outstanding");
+
+  const unknown = await completeWorkItem({ workItemId: randomUUID(), outcome: "done" });
+  assert.equal(unknown.ok, false);
+  if (!unknown.ok) assert.equal(unknown.reason, "not_found");
 });

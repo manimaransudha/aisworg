@@ -23,7 +23,9 @@ import path from "node:path";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
-import type { ProfileRow, TemplateDeliverableSeed, TemplateRow } from "../src/dblayer/seuTypes.js";
+import { transitionDeliverable, type TransitionDeliverableResult } from "../src/routes/seu/core/deliverables.js";
+import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
+import type { DeliverableRow, ProfileRow, TemplateDeliverableSeed, TemplateRow } from "../src/dblayer/seuTypes.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "..", "src", "dblayer", "seed", "data");
@@ -49,6 +51,39 @@ interface ProfileSeed {
   optionalPackCodes?: string[];
 }
 
+// Model A made transitionDeliverable async (Participant Integration Plan): a
+// governed transition is *dispatched*, and the Deliverable only moves when a
+// Participant reports a `done` result to the result-in callback. The many
+// governance/telemetry/badge tests that are about the *outcome* of a
+// transition (was it authorised? did the Quality Gate block? what's the cycle
+// time?) — not about the async mechanics — drive the whole dispatch->complete
+// round-trip in one call through this helper, which restores the old
+// synchronous contract: it returns the moved Deliverable on success, or the
+// governance failure verbatim (failures short-circuit before dispatch, so they
+// never reach completion). Tests that assert the async mechanics themselves
+// (command-pipeline, participant-lifecycle) call transitionDeliverable +
+// completeWorkItem directly instead.
+export async function transitionDeliverableSync(input: {
+  deliverableId: string;
+  targetState: string;
+  actorRole?: string;
+  actorId?: string;
+  actingBadgeGrantId?: string;
+  requestedBy?: number | null;
+}): Promise<{ ok: true; deliverable: DeliverableRow; appliedTransition: { fromState: string; toState: string } } | Extract<TransitionDeliverableResult, { ok: false }>> {
+  const dispatched = await transitionDeliverable(input);
+  if (!dispatched.ok) return dispatched;
+  const completed = await completeWorkItem({
+    workItemId: dispatched.workItemId,
+    outcome: "done",
+    reference: `vcs://test/${input.deliverableId}@${dispatched.pendingTransition.toState}`,
+  });
+  if (!completed.ok || completed.outcome !== "done") {
+    throw new Error(`test transitionDeliverableSync: completion failed: ${completed.ok ? completed.outcome : completed.detail}`);
+  }
+  return { ok: true, deliverable: completed.deliverable, appliedTransition: completed.appliedTransition };
+}
+
 let cached: Promise<{ template: TemplateRow; profile: ProfileRow }> | null = null;
 
 export function ensureWebAppTemplateFixture(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
@@ -60,6 +95,26 @@ export function ensureWebAppTemplateFixture(): Promise<{ template: TemplateRow; 
   return cached;
 }
 
+function sameSet(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const sortedA = [...a].sort();
+  const sortedB = [...b].sort();
+  return sortedA.every((v, i) => v === sortedB[i]);
+}
+
+// Real race found running the full suite: many test files (16+) call this
+// fixture, each in its own `node --test` process, all against the same
+// shared dev database. templatesDB.setRequiredCapabilities/setMandatoryPacks
+// and profilesDB.setOptionalPacks each DELETE their junction rows then
+// loop-INSERT fresh ones — not atomic — so two files' concurrent calls could
+// interleave, and a *third* file's findCandidateTemplates could catch
+// template-web-application with its required_capabilities junction rows
+// transiently empty (DELETE already ran, INSERTs hadn't yet), making it
+// briefly fail to satisfy any request. Fixed by checking first: only write
+// when the junction tables don't already hold the fixture's exact target
+// data. After the very first successful seed anywhere against a given
+// database, every other file's call becomes a pure read, no DELETE+INSERT
+// race window left to hit.
 async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
   const templateSeed = loadJson<TemplateSeed>("web-application.template.json");
   const profileSeed = loadJson<ProfileSeed>("default-development.profile.json");
@@ -78,8 +133,16 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
     if (!id) throw new Error(`template ${templateSeed.code} requires unknown capability ${code}`);
     return id;
   });
-  await templatesDB.setRequiredCapabilities(template.id, requiredCapabilityIds);
-  await templatesDB.setMandatoryPacks(template.id, templateSeed.mandatoryPackCodes);
+
+  const { data: existingRequired } = await templatesDB.getRequiredCapabilities(template.id);
+  if (!sameSet((existingRequired ?? []).map((c) => c.id), requiredCapabilityIds)) {
+    await templatesDB.setRequiredCapabilities(template.id, requiredCapabilityIds);
+  }
+
+  const { data: existingMandatory } = await templatesDB.getMandatoryPackCodes(template.id);
+  if (!sameSet(existingMandatory ?? [], templateSeed.mandatoryPackCodes)) {
+    await templatesDB.setMandatoryPacks(template.id, templateSeed.mandatoryPackCodes);
+  }
 
   const { data: profile, error: profileErr } = await profilesDB.upsert({
     code: profileSeed.code,
@@ -89,7 +152,12 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
     configParameters: profileSeed.configParameters,
   });
   if (profileErr || !profile) throw profileErr ?? new Error(`profile upsert failed: ${profileSeed.code}`);
-  await profilesDB.setOptionalPacks(profile.id, profileSeed.optionalPackCodes ?? []);
+
+  const { data: existingOptional } = await profilesDB.getOptionalPackCodes(profile.id);
+  const targetOptional = profileSeed.optionalPackCodes ?? [];
+  if (!sameSet(existingOptional ?? [], targetOptional)) {
+    await profilesDB.setOptionalPacks(profile.id, targetOptional);
+  }
 
   return { template, profile };
 }

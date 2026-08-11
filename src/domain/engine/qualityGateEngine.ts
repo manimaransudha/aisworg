@@ -104,6 +104,16 @@ export const qualityGateEngine = {
       ]);
       const qualifyingEvidence = (evidence ?? []).filter((e) => QUALIFYING_EVIDENCE_STATUSES.has(e.status));
       const qualifyingDecisions = (decisions ?? []).filter((d) => QUALIFYING_DECISION_STATUSES.has(d.status));
+
+      // Participant Integration & Attestation — Plan step 2, refined 2026-08-11:
+      // the acceptance attestation is deliberately NOT accepted as satisfying
+      // this gate. Baselining is a genuine second bar above Approval: an
+      // attestation certifies the commit that reached Approved, but a later CR
+      // can change that code, so auto-baselining off the approval attestation
+      // would certify a stale artifact. Baselining still requires its own fresh
+      // accepted Evidence or approved Decision. (This refines Resolution 7 —
+      // the attestation's role is provenance + the empty-centre presence check,
+      // not gate satisfaction.)
       if (qualifyingEvidence.length === 0 && qualifyingDecisions.length === 0) {
         return this.recordAndBlock(gate, input, "no accepted Evidence or approved Decision found for this entity", {});
       }

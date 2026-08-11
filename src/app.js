@@ -79,7 +79,13 @@ app.use(session({
 //         next();
 //     });
 // }
-if (process.env.NODE_ENV !== 'production') {
+// Auto-login shim — scoped to NODE_ENV === 'test' only, not the broader
+// '!== production' this used to run under. Real dev/local usage now goes
+// through actual Google OAuth like production does; this exists purely so
+// tests/acceptance.e2e.test.ts and tests/web-flow.e2e.test.ts (14 tests,
+// real HTTP requests via fetch-cookie, no scriptable login flow available —
+// this platform only supports Google OAuth) can authenticate unattended.
+if (process.env.NODE_ENV === 'test') {
     app.use((req, res, next) => {
         const path = req.path;
         const isPublic =

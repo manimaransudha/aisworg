@@ -23,17 +23,20 @@ import { commissionFromForm } from "../src/routes/seu/core/commissioning.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
+import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { transitionParticipant, replaceParticipant } from "../src/routes/seu/core/participants.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { participantsDB } from "../src/dblayer/participantsDB.js";
 import { capabilityFulfilmentsDB } from "../src/dblayer/capabilityFulfilmentsDB.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
+import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 
 after(async () => {
   await pool.end();
 });
 
 async function commissionAndFulfil(statementPrefix: string) {
+  await ensureWebAppTemplateFixture();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
@@ -133,13 +136,22 @@ test("Build order step 3: dispatchEngine moves the fulfilling Participant's own 
 
   const result = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: "1" });
   assert.equal(result.ok, true, !result.ok ? JSON.stringify(result) : undefined);
+  if (!result.ok) throw new Error("unreachable");
 
+  // Model A: dispatch alone moves the Participant to Assigned and stops there —
+  // it is holding an outstanding Work Item, not yet done.
+  const { data: assigned } = await participantsDB.findById(participant.id);
+  assert.equal(assigned?.state, "Assigned", "dispatched: the Participant is Assigned, holding the outstanding Work Item");
+  assert.ok(received.includes("ParticipantAssigned"), "expected Assigned on dispatch");
+
+  // The result callback disposes the Work Item and returns the Participant to
   // Idle, not Available (Ch.13 §9) — still held by the open Capability
   // Fulfilment, just between Work Items now that it has actually done one.
+  const completed = await completeWorkItem({ workItemId: result.workItemId, outcome: "done", reference: "vcs://participant-lifecycle/req-spec@1" });
+  assert.equal(completed.ok, true, !completed.ok ? JSON.stringify(completed) : undefined);
+
   const { data: after } = await participantsDB.findById(participant.id);
   assert.equal(after?.state, "Idle");
-
-  assert.ok(received.includes("ParticipantAssigned"), "expected Assigned on dispatch");
   assert.ok(received.includes("ParticipantIdle"), "expected Idle once the Work Item completed/disposed");
 });
 

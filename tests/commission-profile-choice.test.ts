@@ -29,7 +29,46 @@ after(async () => {
   await pool.end();
 });
 
+// This test's own fixture rows (randomUUID-coded, never cleaned up after a
+// run, same disposable-fixture convention every other test in this suite
+// uses) accumulate across repeated runs against the shared dev database —
+// and since every one of them requires the exact same 2 Capabilities, they
+// all tie for "tightest fit" with no deterministic tiebreaker between them.
+// A real, observed flake: findCandidateTemplates matched a *previous* run's
+// leftover Template instead of this run's own, so the "explicitly chosen
+// Profile" assertions failed against a Template this run never touched.
+// Fixed at the root — clear out this test's own prior leftovers before
+// creating a fresh one, walking the real dependency chain
+// commissionSeu populates for this specific minimal Template (deliverables,
+// seu_capabilities, seus, ebms, profiles, templates — in that order, since
+// every one of those FKs is NO ACTION, not CASCADE) so exactly one
+// verify-profile-choice-template-* row exists whenever this test's own
+// assertions run, regardless of how many times it's run before.
+async function cleanupPriorRuns(): Promise<void> {
+  const { rows: templateRows } = await pool.query<{ id: string }>("SELECT id FROM templates WHERE code LIKE 'verify-profile-choice-template-%'");
+  const { rows: profileRows } = await pool.query<{ id: string }>("SELECT id FROM profiles WHERE code LIKE 'verify-profile-choice-%'");
+  const templateIds = templateRows.map((r) => r.id);
+  const profileIds = profileRows.map((r) => r.id);
+  if (templateIds.length === 0 && profileIds.length === 0) return;
+
+  const { rows: seuRows } = await pool.query<{ id: string }>(
+    "SELECT id FROM seus WHERE template_id = ANY($1::uuid[]) OR profile_id = ANY($2::uuid[])",
+    [templateIds, profileIds]
+  );
+  const seuIds = seuRows.map((r) => r.id);
+  if (seuIds.length > 0) {
+    await pool.query("DELETE FROM deliverables WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    await pool.query("DELETE FROM seu_capabilities WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    await pool.query("DELETE FROM seus WHERE id = ANY($1::uuid[])", [seuIds]);
+  }
+  await pool.query("DELETE FROM ebms WHERE template_id = ANY($1::uuid[]) OR profile_id = ANY($2::uuid[])", [templateIds, profileIds]);
+  await pool.query("DELETE FROM profiles WHERE id = ANY($1::uuid[])", [profileIds]);
+  await pool.query("DELETE FROM templates WHERE id = ANY($1::uuid[])", [templateIds]);
+}
+
 test("Objective-first commissioning offers a real Profile choice when more than one exists, and honours it", async () => {
+  await cleanupPriorRuns();
+
   // Two required Capabilities, not one — sdk-authoring.test.ts's own
   // validTemplateSeed helper creates throwaway Templates requiring exactly
   // ["requirements-analysis"] too, and findCandidateTemplates breaks ties on

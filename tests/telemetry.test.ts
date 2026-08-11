@@ -14,17 +14,19 @@ import pool from "../src/utils/db.js";
 import { commissionFromForm } from "../src/routes/seu/core/commissioning.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
-import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
+import { transitionDeliverableSync as transitionDeliverable } from "./testFixtures.js";
 import { createObligation, transitionObligation } from "../src/routes/seu/core/obligations.js";
 import { getFlowMetrics, getGovernanceMetrics } from "../src/routes/seu/core/telemetry.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
+import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 
 after(async () => {
   await pool.end();
 });
 
 async function commissionTestSeu(statementPrefix: string) {
+  await ensureWebAppTemplateFixture();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],

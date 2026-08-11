@@ -14,12 +14,14 @@ import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { createKnowledgeItem } from "../src/routes/seu/core/knowledge.js";
 import { createEvidence } from "../src/routes/seu/core/evidence.js";
 import { getKnowledgeMetrics } from "../src/routes/seu/core/telemetry.js";
+import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 
 after(async () => {
   await pool.end();
 });
 
 async function commissionTestSeuWithDeliverable(statementPrefix: string) {
+  await ensureWebAppTemplateFixture();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],

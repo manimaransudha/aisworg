@@ -6,12 +6,16 @@
 // (Ch.33 §9: cost/load/locality/etc, Pack-contributed) is future scope once
 // more than one Participant can fulfil the same Capability.
 //
-// No autonomous Participant runtime exists yet (Build Plan §5), so once a
-// Work Item is dispatched, execution is simulated synchronously in the same
-// call — the human/API actor requesting the transition stands in for the
-// assigned Participant reporting completion. Ch.32 WI-005 still holds: Work
-// Item completion here does not itself change engineering state — the caller
-// (executionEngine) applies the actual Deliverable transition afterwards.
+// Participant Integration & Attestation — Plan, step 1 (Model A): dispatch no
+// longer simulates execution synchronously. It selects the Participant,
+// assigns the Work Item, marks it Dispatched (outstanding), and returns. The
+// Work Item then *waits* for an out-of-process result callback — the platform
+// is deliberately blind to what the Participant does in its own environment
+// (Book 1: govern behaviour, not competence). Completion (apply the
+// transition, dispose the Work Item, return the Participant to Idle) happens
+// in routes/seu/core/workItems.ts's completeWorkItem, driven by the callback,
+// not here — the engine layer never applies a governed Deliverable transition
+// (that is core's job).
 import { seuCapabilitiesDB } from "../../dblayer/seuCapabilitiesDB.js";
 import { capabilityFulfilmentsDB } from "../../dblayer/capabilityFulfilmentsDB.js";
 import { workItemsDB } from "../../dblayer/workItemsDB.js";
@@ -35,12 +39,22 @@ export const dispatchEngine = {
     producingCapabilityId: string | null;
     correlationId: string;
   }): Promise<DispatchResult> {
-    // No Capability declared for this Deliverable at all: nothing for
-    // Dispatch to gate on, so the Work Item proceeds unassigned rather than
-    // deferring forever on a requirement that was never declared.
+    // No Capability declared for this Deliverable at all: nothing for Dispatch
+    // to gate on, so the Work Item is dispatched unassigned and left
+    // outstanding, to be completed by a callback the same way an assigned one
+    // is — rather than deferring forever on a requirement that was never
+    // declared.
     if (!input.producingCapabilityId) {
       await workItemsDB.assign(input.workItem.id, null, NO_CAPABILITY_DECLARED);
-      return this.execute(input.workItem.id, input.correlationId, undefined);
+      await workItemsDB.updateStatus(input.workItem.id, "Dispatched");
+      await eventBus.publish({
+        eventType: "WorkItemDispatched",
+        originatingObjectType: "WorkItem",
+        originatingObjectId: input.workItem.id,
+        correlationId: input.correlationId,
+        payload: { participantId: null },
+      });
+      return { dispatched: true, participantId: undefined };
     }
 
     const { data: seuCapabilities } = await seuCapabilitiesDB.findBySeuId(input.seuId);
@@ -62,16 +76,10 @@ export const dispatchEngine = {
     await workItemsDB.assign(input.workItem.id, participantId, SOLE_ELIGIBLE_PARTICIPANT);
 
     // Participant Lifecycle Governance — Plan, Build order step 3. Direct
-    // dblayer write + direct eventBus.publish, not routes/seu/core/
-    // participants.ts's governed transitionParticipant — this is an
-    // automatic system-driven state sync off dispatch's own simulated
-    // execution, the same "engine writes state, engine publishes its own
-    // events, engine never calls back into core" shape workItemsDB's own
-    // updateStatus calls in this file already use for Work Item state.
-    // Available->Assigned and the repeat-cycle Idle->Assigned both mean
-    // "now Assigned" (core/participants.ts's own CH13_EVENT_BY_TRANSITION
-    // maps both to the same event), so this doesn't need to branch on the
-    // Participant's prior state to know which event to fire.
+    // dblayer write + direct eventBus.publish (never core's transitionParticipant,
+    // per the engine-never-calls-core boundary). Available->Assigned and the
+    // repeat-cycle Idle->Assigned both mean "now Assigned," so no branch on
+    // prior Participant state is needed.
     await participantsDB.updateStatus(participantId, "Assigned");
     await eventBus.publish({
       eventType: "ParticipantAssigned",
@@ -81,6 +89,8 @@ export const dispatchEngine = {
       payload: { workItemId: input.workItem.id },
     });
 
+    // Outstanding: dispatched and waiting for the participant's result callback.
+    await workItemsDB.updateStatus(input.workItem.id, "Dispatched");
     await eventBus.publish({
       eventType: "ParticipantSelected",
       originatingObjectType: "WorkItem",
@@ -95,39 +105,6 @@ export const dispatchEngine = {
       correlationId: input.correlationId,
       payload: { participantId },
     });
-
-    return this.execute(input.workItem.id, input.correlationId, participantId);
-  },
-
-  async execute(workItemId: string, correlationId: string, participantId: string | undefined): Promise<DispatchResult> {
-    await workItemsDB.updateStatus(workItemId, "Executing");
-    await eventBus.publish({ eventType: "WorkItemStarted", originatingObjectType: "WorkItem", originatingObjectId: workItemId, correlationId, payload: {} });
-    // Assigned -> Executing has no Ch.13 §16-named event at all (the
-    // chapter's own event list has no "started executing" event), so
-    // nothing is published here beyond the Work Item's own WorkItemStarted
-    // — see core/participants.ts's CH13_EVENT_BY_TRANSITION comment.
-    if (participantId) await participantsDB.updateStatus(participantId, "Executing");
-
-    await workItemsDB.updateStatus(workItemId, "Completed");
-    await eventBus.publish({ eventType: "WorkItemCompleted", originatingObjectType: "WorkItem", originatingObjectId: workItemId, correlationId, payload: {} });
-
-    await workItemsDB.updateStatus(workItemId, "Disposed");
-    await eventBus.publish({ eventType: "WorkItemDisposed", originatingObjectType: "WorkItem", originatingObjectId: workItemId, correlationId, payload: {} });
-
-    // Idle, not Available (Ch.13 §9): still held by an open Capability
-    // Fulfilment, just between Work Items — Available is Capability
-    // Fulfilment's own eligibility state, never re-entered once a
-    // Participant starts doing real work.
-    if (participantId) {
-      await participantsDB.updateStatus(participantId, "Idle");
-      await eventBus.publish({
-        eventType: "ParticipantIdle",
-        originatingObjectType: "Participant",
-        originatingObjectId: participantId,
-        correlationId,
-        payload: { workItemId },
-      });
-    }
 
     return { dispatched: true, participantId };
   },

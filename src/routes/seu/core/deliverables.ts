@@ -1,5 +1,6 @@
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { dependencyEdgesDB } from "../../../dblayer/dependencyEdgesDB.js";
+import { deliverableReferencesDB } from "../../../dblayer/deliverableReferencesDB.js";
 import { badgeGrantsDB } from "../../../dblayer/badgeGrantsDB.js";
 import { dependencyEngine } from "../../../domain/engine/dependencyEngine.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
@@ -68,11 +69,20 @@ export async function createDeliverable(input: {
 }
 
 export type TransitionDeliverableResult =
-  | { ok: true; deliverable: DeliverableRow; appliedTransition: { fromState: string; toState: string } }
+  // Model A (Participant Integration Plan, Resolution 1/11): a governed
+  // transition is no longer applied synchronously. Governance passes, a Work
+  // Item is dispatched, and the Deliverable stays in its *current* state until
+  // the Participant's result callback lands (completeWorkItem). The success of
+  // this call means "dispatched and outstanding," not "transitioned."
+  | { ok: true; dispatched: true; workItemId: string; participantId?: string; pendingTransition: { fromState: string; toState: string } }
   | { ok: false; reason: "not_found" }
   | { ok: false; reason: "dependency_not_satisfied"; edges: DependencyEdgeRow[] }
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition"; detail: string }
+  // Empty-centre presence check (Participant Integration Plan, Resolution 4):
+  // an approver cannot approve a Deliverable that has no attached reference —
+  // emptiness cannot be certified.
+  | { ok: false; reason: "empty_centre"; detail: string }
   | { ok: false; reason: "dispatch_deferred"; detail: string };
 
 // Post-MVP Phase 3 (Ch.31/32/33): governance still gates first — dependency
@@ -182,6 +192,21 @@ export async function transitionDeliverable(input: {
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }
 
+  // Empty-centre presence check (Participant Integration Plan, Resolution 4):
+  // approval certifies produced work, so an approval (In Progress -> Approved)
+  // cannot even be dispatched unless a real reference was attached when the
+  // Deliverable was produced (the Defined -> In Progress completion). This is a
+  // small, separate gate — "you cannot approve nothing" — distinct from the
+  // attestation it makes certifiable. It runs after every other governance
+  // check so the existing quality-gate/authority reasons still win when both
+  // apply.
+  if (fromState === "In Progress" && input.targetState === "Approved") {
+    const { data: existingRef } = await deliverableReferencesDB.findLatestWithReference(deliverable.id, "In Progress");
+    if (!existingRef) {
+      return { ok: false, reason: "empty_centre", detail: "cannot approve a Deliverable with no attached reference — nothing has been produced to approve" };
+    }
+  }
+
   const correlationId = eventBus.newCorrelationId();
   const execution = await executionEngine.execute({
     seuId: deliverable.seu_id,
@@ -191,6 +216,7 @@ export async function transitionDeliverable(input: {
     toState: input.targetState,
     producingCapabilityId: deliverable.producing_capability_id,
     requestedBy: input.requestedBy ?? null,
+    actingBadgeGrantId,
     correlationId,
   });
 
@@ -202,17 +228,17 @@ export async function transitionDeliverable(input: {
     };
   }
 
-  const { data: updated, error } = await deliverablesDB.updateLifecycleState(deliverable.id, input.targetState);
-  if (error || !updated) throw error ?? new Error("failed to update deliverable state");
-
-  await eventBus.publish({
-    eventType: "DeliverableTransitioned",
-    originatingObjectType: "Deliverable",
-    originatingObjectId: deliverable.id,
-    correlationId,
-    causationId: execution.workItemId,
-    payload: { fromState, toState: input.targetState, commandId: execution.command.id, workItemId: execution.workItemId, participantId: execution.participantId },
-  });
-
-  return { ok: true, deliverable: updated, appliedTransition: { fromState, toState: input.targetState } };
+  // Dispatched and outstanding. The Deliverable's lifecycle_state is
+  // deliberately NOT changed here — the DeliverableTransitioned event and the
+  // state change are emitted by completeWorkItem when the Participant reports a
+  // `done` result. This is the async control-flow inversion Model A requires:
+  // core dispatches, then waits for the result-in callback to drive the
+  // transition (Participant Integration Plan, Resolution 11).
+  return {
+    ok: true,
+    dispatched: true,
+    workItemId: execution.workItemId,
+    participantId: execution.participantId,
+    pendingTransition: { fromState, toState: input.targetState },
+  };
 }

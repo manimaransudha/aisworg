@@ -15,13 +15,14 @@ import pool from "../src/utils/db.js";
 import { query } from "../src/utils/db.js";
 import { commissionFromForm } from "../src/routes/seu/core/commissioning.js";
 import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
-import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
+import { transitionDeliverableSync as transitionDeliverable } from "./testFixtures.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { badgeGrantsDB } from "../src/dblayer/badgeGrantsDB.js";
 import { badgeTypesDB } from "../src/dblayer/badgeTypesDB.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { userDB } from "../src/dblayer/userDB.js";
 import { badgeAuthorityEngine } from "../src/domain/engine/badgeAuthorityEngine.js";
+import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 
 after(async () => {
   await pool.end();
@@ -34,6 +35,7 @@ async function createTestUser(label: string): Promise<string> {
 }
 
 async function commissionTestSeu(statementPrefix: string): Promise<string> {
+  await ensureWebAppTemplateFixture();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],

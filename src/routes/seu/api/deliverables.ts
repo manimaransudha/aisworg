@@ -46,7 +46,12 @@ router.post("/deliverables/:id/transition", async (req: Request, res: Response) 
       const detail = "edges" in result ? { edges: result.edges } : { detail: result.detail };
       return res.status(409).json({ reason: result.reason, ...detail });
     }
-    res.status(200).json({ deliverable: result.deliverable, appliedTransition: result.appliedTransition });
+    // Model A (Participant Integration Plan): a successful transition is now a
+    // *dispatch*, not an applied state change. The Deliverable stays in its
+    // current state until the Participant reports a result to the result-in
+    // callback (POST /work-items/:id/result). 202 Accepted reflects "accepted,
+    // outstanding" rather than 200 "done".
+    res.status(202).json({ dispatched: true, workItemId: result.workItemId, participantId: result.participantId, pendingTransition: result.pendingTransition });
   } catch (err) {
     logger.error("[api/seu/deliverables] POST /deliverables/:id/transition error", err as Error);
     res.status(400).json({ error: (err as Error).message });

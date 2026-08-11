@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+</head>
+<body>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5" style="max-width: 1000px;">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <p class="text-muted small mb-1"><a href="/aisworg/seu/identity">&larr; Identity Management</a></p>
+      <h2 class="h3 mb-1 text-dark fw-bold"><i class="bi bi-building me-2"></i>Tenant Management</h2>
+      <p class="text-muted small mb-0">
+        §8.2/§9: creating a Tenant and granting its first Tenant Admin badge are bundled as one action by root.
+      </p>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body">
+        <table class="table table-sm align-middle">
+          <thead><tr><th>Code</th><th>Name</th><th>Status</th><th>Created</th></tr></thead>
+          <tbody>
+            <% tenants.forEach(function(t) { %>
+              <tr><td><code><%= t.code %></code></td><td><%= t.name %></td><td><%= t.status %></td><td class="text-muted small"><%= new Date(t.created_at).toLocaleDateString() %></td></tr>
+            <% }) %>
+          </tbody>
+        </table>
+        <form method="POST" action="/aisworg/seu/identity/tenants" class="row g-2 align-items-end mt-2">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <div class="col-auto"><label class="form-label small mb-1">Code</label><input name="code" class="form-control form-control-sm" placeholder="acme" required></div>
+          <div class="col-auto"><label class="form-label small mb-1">Name</label><input name="name" class="form-control form-control-sm" placeholder="Acme Corp" required></div>
+          <div class="col-auto"><label class="form-label small mb-1">First Tenant Admin (email)</label><input name="adminEmail" type="email" class="form-control form-control-sm" placeholder="admin@acme.com" required></div>
+          <div class="col-auto"><button type="submit" class="btn btn-sm btn-primary">Create Tenant + grant Tenant Admin</button></div>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

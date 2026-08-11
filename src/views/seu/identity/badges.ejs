@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+</head>
+<body>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5" style="max-width: 1150px;">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <p class="text-muted small mb-1"><a href="/aisworg/seu/identity">&larr; Identity Management</a></p>
+      <h2 class="h3 mb-1 text-dark fw-bold"><i class="bi bi-patch-check me-2"></i>Badge Management</h2>
+      <p class="text-muted small mb-0">
+        Badge model (Phase 10) — an identity holds a <em>set</em> of badges (Layer 1 Platform, Layer 2a Tenant Admin,
+        Layer 2b Engineering: Creator/Reviewer/Approver), not one flat role.
+      </p>
+    </div>
+
+    <ul class="nav nav-tabs mb-4" id="badgeTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="catalog-tab" data-bs-toggle="tab" data-bs-target="#catalog-pane" type="button" role="tab">
+          <i class="bi bi-collection me-1"></i>Badge Catalog
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="grants-tab" data-bs-toggle="tab" data-bs-target="#grants-pane" type="button" role="tab">
+          <i class="bi bi-patch-check me-1"></i>Badge Grants
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content" id="badgeTabsContent">
+
+      <!-- ═══ Badge Catalog ═══ -->
+      <div class="tab-pane fade show active" id="catalog-pane" role="tabpanel">
+        <%
+          const platformBadges = badgeTypes.filter(function(b) { return b.scope_kind === 'None'; });
+          const tenantBadges   = badgeTypes.filter(function(b) { return b.scope_kind === 'Tenant'; });
+          const seuBadges      = badgeTypes.filter(function(b) { return b.scope_kind === 'SEU' || b.scope_kind === 'Pack' || b.scope_kind === 'SEU_or_Pack'; });
+          function tenantCode(id) { const t = tenants.find(function(t){ return t.id === id; }); return t ? t.code : id; }
+        %>
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-body">
+            <h6 class="text-uppercase text-muted small fw-bold mb-2"><i class="bi bi-hdd-stack me-1"></i>Platform (Layer 1) — unscoped</h6>
+            <table class="table table-sm align-middle mb-4">
+              <thead><tr><th>Code</th><th>Name</th></tr></thead>
+              <tbody>
+                <% platformBadges.forEach(function(b) { %>
+                  <tr><td><code><%= b.code %></code></td><td><%= b.name %></td></tr>
+                <% }) %>
+              </tbody>
+            </table>
+
+            <h6 class="text-uppercase text-muted small fw-bold mb-2"><i class="bi bi-building me-1"></i>Tenant (Layer 2a) — scoped to one Tenant</h6>
+            <table class="table table-sm align-middle mb-4">
+              <thead><tr><th>Tenant</th><th>Code</th><th>Name</th></tr></thead>
+              <tbody>
+                <% tenantBadges.forEach(function(b) { %>
+                  <tr><td class="small"><%= b.tenant_id ? tenantCode(b.tenant_id) : '— Platform-recommended —' %></td><td><code><%= b.code %></code></td><td><%= b.name %></td></tr>
+                <% }) %>
+              </tbody>
+            </table>
+
+            <h6 class="text-uppercase text-muted small fw-bold mb-2"><i class="bi bi-diagram-3 me-1"></i>SEU unit (Layer 2b) — Creator/Reviewer/Approver</h6>
+            <p class="text-muted small mb-2">
+              Scoped to one SEU instance or one Pack code, plus <code>governed_entity_type</code>. For
+              <code>Deliverable</code> — the case this platform actually enforces — a grant also requires a
+              <code>capability_id</code> (mandatory Capability-narrowing, §8.0): "Creator" or "Approver" always means
+              creator/approver <em>of a specific Capability's Deliverables</em>, never of every Deliverable on the SEU.
+            </p>
+            <table class="table table-sm align-middle mb-4">
+              <thead><tr><th>Tenant</th><th>Code</th><th>Name</th></tr></thead>
+              <tbody>
+                <% seuBadges.forEach(function(b) { %>
+                  <tr><td class="small"><%= b.tenant_id ? tenantCode(b.tenant_id) : '— Platform-recommended —' %></td><td><code><%= b.code %></code></td><td><%= b.name %></td></tr>
+                <% }) %>
+              </tbody>
+            </table>
+
+            <p class="text-muted small mb-2">Rename an inherited badge (same code, new name for one Tenant), or add a new one derived from a Platform-recommended badge (§8.1) — it inherits that parent's scope kind. Layer 1 (Platform) badges are excluded from Tenant customization.</p>
+            <form method="POST" action="/aisworg/seu/identity/badge-types" class="row g-2 align-items-end">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <div class="col-auto">
+                <label class="form-label small mb-1">Tenant</label>
+                <select name="tenantId" class="form-select form-select-sm" required>
+                  <% tenants.forEach(function(t) { %><option value="<%= t.id %>"><%= t.code %></option><% }) %>
+                </select>
+              </div>
+              <div class="col-auto"><label class="form-label small mb-1">Code</label><input name="code" class="form-control form-control-sm" placeholder="senior_approver" required></div>
+              <div class="col-auto"><label class="form-label small mb-1">Name</label><input name="name" class="form-control form-control-sm" placeholder="Senior Approver" required></div>
+              <div class="col-auto">
+                <label class="form-label small mb-1">Scope kind</label>
+                <select name="scopeKind" class="form-select form-select-sm">
+                  <option value="SEU_or_Pack">SEU unit (SEU_or_Pack)</option>
+                  <option value="Tenant">Tenant</option>
+                </select>
+              </div>
+              <div class="col-auto"><label class="form-label small mb-1">derived_from (parent's code)</label><input name="derivedFrom" class="form-control form-control-sm" placeholder="approver" required></div>
+              <div class="col-auto"><button type="submit" class="btn btn-sm btn-outline-primary">Save badge</button></div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ Badge Grants ═══ -->
+      <div class="tab-pane fade" id="grants-pane" role="tabpanel">
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-body">
+            <table class="table table-sm align-middle">
+              <thead><tr><th>Holder</th><th>Badge</th><th>Entity type</th><th>Capability</th><th>Scope</th><th>Status</th><th></th></tr></thead>
+              <tbody>
+                <% grants.forEach(function(g) { %>
+                  <tr>
+                    <td class="small"><%= g.holderEmail || g.holder_id %></td>
+                    <td><code><%= g.badge_type %></code></td>
+                    <td class="small text-muted"><%= g.governed_entity_type || '' %></td>
+                    <td class="small text-muted"><%= g.capability_id || '' %></td>
+                    <td class="small text-muted"><%= g.scope_id || '' %></td>
+                    <td><span class="state-badge state-<%= g.status %>"><%= g.status %></span></td>
+                    <td>
+                      <% if (g.status === 'Active') { %>
+                        <form method="POST" action="/aisworg/seu/identity/grants/<%= g.id %>/revoke">
+                          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                          <button type="submit" class="btn btn-sm btn-outline-danger">Revoke</button>
+                        </form>
+                      <% } %>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+            <p class="text-muted small mb-2">Every grant is one row — an identity accumulates as many as it holds (§9). governed_entity_type/Capability/scope only apply to Creator/Reviewer/Approver grants.</p>
+            <form method="POST" action="/aisworg/seu/identity/grants" class="row g-2 align-items-end">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <div class="col-auto"><label class="form-label small mb-1">Holder email</label><input name="holderEmail" type="email" class="form-control form-control-sm" required></div>
+              <div class="col-auto"><label class="form-label small mb-1">Badge code</label><input name="badgeType" class="form-control form-control-sm" placeholder="creator" required></div>
+              <div class="col-auto"><label class="form-label small mb-1">Entity type (Creator/Reviewer/Approver only)</label><input name="governedEntityType" class="form-control form-control-sm" placeholder="Deliverable"></div>
+              <div class="col-auto"><label class="form-label small mb-1">Capability id</label><input name="capabilityId" class="form-control form-control-sm" placeholder="required when Deliverable"></div>
+              <div class="col-auto"><label class="form-label small mb-1">Scope id (seu id / pack code / tenant id)</label><input name="scopeId" class="form-control form-control-sm"></div>
+              <div class="col-auto"><button type="submit" class="btn btn-sm btn-primary">Grant badge</button></div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

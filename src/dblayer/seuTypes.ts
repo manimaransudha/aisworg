@@ -321,12 +321,44 @@ export interface CommandRow {
   to_state: string;
   status: CommandStatus;
   requested_by: number | null;
+  acting_badge_grant_id: string | null;
   correlation_id: string;
   created_at: string;
   updated_at: string;
 }
 
-export type WorkItemStatus = "Generated" | "Assigned" | "Executing" | "Completed" | "Cancelled" | "Disposed";
+// Participant Integration & Attestation — Plan step 2 (Resolution 3). The raw
+// VCS reference a Participant returns at any completion — candidate output, not
+// certified. Durable, append-only; the traceability backbone (Ch.20).
+export interface DeliverableReferenceRow {
+  id: string;
+  seu_id: string;
+  deliverable_id: string;
+  work_item_id: string;
+  participant_id: string | null;
+  from_state: string;
+  to_state: string;
+  reference: string | null;
+  created_at: string;
+}
+
+// Minted only at an acceptance transition (In Progress -> Approved, Approved ->
+// Baselined). The SEU-scoped governance outcome bound to a commit (Resolution 3).
+export interface AttestationRow {
+  id: string;
+  seu_id: string;
+  deliverable_id: string;
+  work_item_id: string;
+  participant_id: string | null;
+  from_state: string;
+  to_state: string;
+  reference: string | null;
+  acting_badge_grant_id: string | null;
+  requested_by: number | null;
+  created_at: string;
+}
+
+export type WorkItemStatus = "Generated" | "Assigned" | "Dispatched" | "Executing" | "Completed" | "Failed" | "Cancelled" | "Disposed";
 
 export interface WorkItemRow {
   id: string;
@@ -334,6 +366,10 @@ export interface WorkItemRow {
   participant_id: string | null;
   status: WorkItemStatus;
   dispatch_strategy: string | null;
+  // Participant Integration — Plan step 1: the raw VCS reference the
+  // Participant returns on completion (candidate output; distinct from the
+  // attestation minted at an acceptance transition).
+  output_reference: string | null;
   created_at: string;
   updated_at: string;
 }

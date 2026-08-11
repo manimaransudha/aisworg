@@ -38,6 +38,7 @@ import { authorityRulesDB } from "../src/dblayer/authorityRulesDB.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
+import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 
 after(async () => {
   await pool.end();
@@ -52,6 +53,7 @@ async function anyRealPackId(): Promise<string> {
 }
 
 async function commissionTestSeu(statementPrefix: string): Promise<string> {
+  await ensureWebAppTemplateFixture();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],

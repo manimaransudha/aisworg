@@ -31,6 +31,7 @@ import { appConfig } from "../src/config/appconfig.js";
 import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
+import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 
 type Session = ReturnType<typeof fetchCookie>;
 
@@ -93,6 +94,7 @@ async function postForm(
 }
 
 async function commissionSeu(request: Session, statementPrefix: string): Promise<{ seuId: string; csrf: string }> {
+  await ensureWebAppTemplateFixture();
   const form = await getPage(request, "/seu/seus/new");
   assert.equal(form.status, 200);
   const csrf = extractCsrf(form.html);
@@ -105,6 +107,38 @@ async function commissionSeu(request: Session, statementPrefix: string): Promise
   assert.ok(result.location?.startsWith("/aisworg/seu/seus/"), `expected a redirect to the SEU detail page, got: ${result.location}`);
   const seuId = result.location!.split("/").pop()!;
   return { seuId, csrf };
+}
+
+// Model A (Participant Integration Plan): a web transition form POST now
+// *dispatches* a Work Item — the Deliverable only moves once a Participant
+// reports a result. These flows stub the Participant by immediately reporting
+// `done` to the CSRF-exempt result-in callback (POST /api/seu/work-items/:id/
+// result), collapsing the real two-step round-trip into one call so each flow
+// can focus on the governed outcome it's actually testing. Only call this for
+// a transition that passes governance (and so genuinely dispatches); a
+// governance-blocked transition creates no Work Item and is asserted directly
+// on the form POST instead.
+async function completeOutstanding(request: Session, seuId: string, deliverableId: string, targetState: string): Promise<void> {
+  const { data: commands } = await commandsDB.findBySeuId(seuId);
+  const command = (commands ?? []).find((c) => c.entity_id === deliverableId && c.to_state === targetState && c.status === "Dispatched");
+  assert.ok(command, `expected a Dispatched Command for ${deliverableId} -> ${targetState} (did governance block it?)`);
+  const { data: workItems } = await workItemsDB.findByCommandIds([command!.id]);
+  const workItem = (workItems ?? []).find((w) => w.status === "Dispatched");
+  assert.ok(workItem, `expected an outstanding Work Item for ${targetState}`);
+  const res = await request(`${baseUrl}/api/seu/work-items/${workItem!.id}/result`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ outcome: "done", reference: `vcs://webflow/${deliverableId}@${targetState}` }),
+  });
+  assert.equal(res.status, 200, `result-in callback should apply the transition: ${await res.text()}`);
+}
+
+// Dispatch (web form) + complete (result callback) in one call, for flows that
+// just need the Deliverable actually moved before their real assertions.
+async function webTransitionAndComplete(request: Session, seuId: string, csrf: string, deliverableId: string, targetState: string): Promise<void> {
+  const posted = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState });
+  assert.equal(posted.status, 302, `transition dispatch to ${targetState} should redirect`);
+  await completeOutstanding(request, seuId, deliverableId, targetState);
 }
 
 function findDeliverableId(html: string, name: string): string {
@@ -182,9 +216,17 @@ test("Flow 3 — Deliverable transition, valid: a Participant-fulfilled Delivera
   });
   assert.equal(result.status, 302);
 
+  // Model A: the form POST dispatches — the flash reports it as dispatched-and-
+  // outstanding, and the Deliverable is still "Defined" until a result lands.
+  const afterDispatch = await getPage(request, `/seu/seus/${seuId}`);
+  assert.match(afterDispatch.html, /alert-success/);
+  assert.match(afterDispatch.html, /dispatched to a Participant/);
+  assert.match(afterDispatch.html, /Requirements Specification<br[\s\S]*?state-badge state-Defined">Defined/, "dispatched, not yet applied");
+
+  // The Participant reports `done` -> the result-in callback drives the move.
+  await completeOutstanding(request, seuId, deliverableId, "In Progress");
   const after1 = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(after1.html, /alert-success/);
-  assert.match(after1.html, /Deliverable moved from &#34;Defined&#34; to &#34;In Progress&#34;/);
+  assert.match(after1.html, /Requirements Specification<br[\s\S]*?state-badge state-In-Progress">In Progress/);
 });
 
 test("Flow 4 — Deliverable transition, invalid: rejected with an explicit error, not silently accepted and not a 500", async () => {
@@ -198,7 +240,7 @@ test("Flow 4 — Deliverable transition, invalid: rejected with an explicit erro
     participantType: "AI",
     displayName: "WebFlow Test Analyst",
   });
-  await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "In Progress" });
+  await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
 
   // No Transition Definition exists for "In Progress" -> "In Progress" — the
   // real dropdown wouldn't offer this once already at "In Progress"; submit
@@ -240,13 +282,12 @@ test("Flow 5 — Deliverable transition, dependency gating (regression: must nev
   // not have silently moved while displaying a blocked-looking dependency note.
   assert.match(afterBlocked.html, /Architecture Document<br[\s\S]*?state-badge state-Defined">Defined/);
 
-  // Move A all the way to 'Approved'.
-  await postForm(request, `/seu/seus/${seuId}/deliverables/${requirementsSpecId}/transition`, csrf, { targetState: "In Progress" });
-  await postForm(request, `/seu/seus/${seuId}/deliverables/${requirementsSpecId}/transition`, csrf, { targetState: "Approved" });
+  // Move A all the way to 'Approved' (each transition dispatched + reported).
+  await webTransitionAndComplete(request, seuId, csrf, requirementsSpecId, "In Progress");
+  await webTransitionAndComplete(request, seuId, csrf, requirementsSpecId, "Approved");
 
   // Now B must succeed.
-  const unblocked = await postForm(request, `/seu/seus/${seuId}/deliverables/${architectureDocId}/transition`, csrf, { targetState: "In Progress" });
-  assert.equal(unblocked.status, 302);
+  await webTransitionAndComplete(request, seuId, csrf, architectureDocId, "In Progress");
   const afterUnblocked = await getPage(request, `/seu/seus/${seuId}`);
   assert.match(afterUnblocked.html, /alert-success/);
   assert.match(afterUnblocked.html, /Architecture Document<br[\s\S]*?state-badge state-In-Progress">In Progress/);
@@ -282,6 +323,10 @@ test("Phase 3 — a dispatched web transition leaves a real Command and Work Ite
   const dispatched = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "In Progress" });
   assert.equal(dispatched.status, 302);
 
+  // Model A: the retry dispatches; the Participant then reports `done`, which
+  // drives the Command to Completed and disposes its Work Item.
+  await completeOutstanding(request, seuId, deliverableId, "In Progress");
+
   const { data: commands } = await commandsDB.findBySeuId(seuId);
   assert.equal(commands?.length, 2, "one Deferred Command from the first attempt, one Completed Command from the dispatched retry");
   const completed = commands?.find((c) => c.status === "Completed");
@@ -311,7 +356,7 @@ test("Phase 4 — a Quality Gate blocks a Deliverable transition while an Obliga
   const deliverableId = findDeliverableId(before1.html, "Requirements Specification");
 
   await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantType: "AI", displayName: "WebFlow Analyst" });
-  await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "In Progress" });
+  await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
 
   const created = await postForm(request, `/seu/seus/${seuId}/obligations`, csrf, {
     deliverableId,
@@ -339,10 +384,8 @@ test("Phase 4 — a Quality Gate blocks a Deliverable transition while an Obliga
   const afterVerified = await getPage(request, `/seu/seus/${seuId}`);
   assert.match(afterVerified.html, /alert-success/);
 
-  const unblocked = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "Approved" });
-  assert.equal(unblocked.status, 302);
+  await webTransitionAndComplete(request, seuId, csrf, deliverableId, "Approved");
   const afterUnblocked = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterUnblocked.html, /alert-success/);
   assert.match(afterUnblocked.html, /Requirements Specification<br[\s\S]*?state-badge state-Approved">Approved/);
 });
 
@@ -358,8 +401,8 @@ test("Phase 5 — a Deliverable transition requiring accepted Evidence is blocke
   const deliverableId = findDeliverableId(before1.html, "Requirements Specification");
 
   await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantType: "AI", displayName: "WebFlow Analyst" });
-  await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "In Progress" });
-  await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "Approved" });
+  await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
+  await webTransitionAndComplete(request, seuId, csrf, deliverableId, "Approved");
 
   const blocked = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "Baselined" });
   assert.equal(blocked.status, 302, "a blocked transition is still a graceful redirect, not a 500");
@@ -385,10 +428,8 @@ test("Phase 5 — a Deliverable transition requiring accepted Evidence is blocke
     assert.equal(step.status, 302, `Evidence transition to "${targetState}" must succeed`);
   }
 
-  const unblocked = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "Baselined" });
-  assert.equal(unblocked.status, 302);
+  await webTransitionAndComplete(request, seuId, csrf, deliverableId, "Baselined");
   const afterUnblocked = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterUnblocked.html, /alert-success/);
   assert.match(afterUnblocked.html, /Requirements Specification<br[\s\S]*?state-badge state-Baselined">Baselined/);
 });
 
@@ -448,7 +489,7 @@ test("Phase 7 — Flow and Governance Telemetry are real, and a sustained patter
   const deliverableId = findDeliverableId(before1.html, "Requirements Specification");
 
   await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantType: "AI", displayName: "WebFlow Analyst" });
-  await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "In Progress" });
+  await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
 
   // A real Flow metric: this Deliverable now has a measurable cycle time.
   const telemetryBefore = await getPage(request, "/seu/telemetry");
@@ -520,7 +561,7 @@ test("Phase 8 — a blocked Quality Gate and a failed External Interaction both 
   const deliverableId = findDeliverableId(before1.html, "Requirements Specification");
 
   await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantType: "AI", displayName: "WebFlow Analyst" });
-  await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "In Progress" });
+  await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
 
   const createdObligation = await postForm(request, `/seu/seus/${seuId}/obligations`, csrf, {
     deliverableId,

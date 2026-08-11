@@ -32,6 +32,7 @@ import { deliverableAuthoringContentDB } from "../../../dblayer/deliverableAutho
 import { createObjective } from "./objectives.js";
 import { commissionSeu } from "./commissioning.js";
 import { transitionDeliverable, type TransitionDeliverableResult } from "./deliverables.js";
+import { completeWorkItem } from "./workItems.js";
 import { createEvidence, transitionEvidence } from "./evidence.js";
 import { publishPack, validatePackSeed, type PackSeedInput } from "./packs.js";
 import { publishTemplate, validateTemplateSeed, type TemplateSeedInput } from "./templates.js";
@@ -176,7 +177,7 @@ export async function startAuthoring(input: {
   });
   if (contentErr || !authoringContent) throw contentErr ?? new Error("failed to create authoring content row");
 
-  const advanced = await transitionDeliverable({ deliverableId: deliverable.id, targetState: "In Progress", actorId: input.actorId, actorRole: input.actorRole });
+  const advanced = await transitionAuthoringDeliverableInSession({ deliverableId: deliverable.id, targetState: "In Progress", actorId: input.actorId, actorRole: input.actorRole });
   if (!advanced.ok) throw new Error(`could not start authoring: ${describeTransitionFailure(advanced)}`);
 
   return { seu: commissioned.seu, deliverable: advanced.deliverable, authoringContent, schema };
@@ -307,7 +308,7 @@ export async function submitForReview(input: { deliverableId: string; kind: Sche
 
   await ensureAuthoringBadge(input.actorId, "approver", input.kind);
 
-  const result = await transitionDeliverable({ deliverableId: input.deliverableId, targetState: "Approved", actorId: input.actorId, actorRole: input.actorRole });
+  const result = await transitionAuthoringDeliverableInSession({ deliverableId: input.deliverableId, targetState: "Approved", actorId: input.actorId, actorRole: input.actorRole });
   if (!result.ok) return { ok: false, errors: [describeTransitionFailure(result)] };
   return { ok: true, deliverable: result.deliverable };
 }
@@ -354,7 +355,7 @@ export async function publishAuthoredContent(input: { deliverableId: string; kin
   const toAccepted = await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorRole: input.actorRole });
   if (!toAccepted.ok) return { ok: false, errors: [`could not accept validation evidence: ${toAccepted.reason}`] };
 
-  const result = await transitionDeliverable({ deliverableId: input.deliverableId, targetState: "Baselined", actorId: input.actorId, actorRole: input.actorRole });
+  const result = await transitionAuthoringDeliverableInSession({ deliverableId: input.deliverableId, targetState: "Baselined", actorId: input.actorId, actorRole: input.actorRole });
   if (!result.ok) return { ok: false, errors: [describeTransitionFailure(result)] };
 
   const published = await publishAuthoredContentByKind(input.kind, content.content);
@@ -363,9 +364,38 @@ export async function publishAuthoredContent(input: { deliverableId: string; kin
   return { ok: true, deliverable: result.deliverable };
 }
 
+// SDK authoring is the canonical human-on-UI *synchronous* completion (Model
+// A / Participant Integration Plan, Resolution 11): the author IS the
+// Participant, present in this session and doing the work now, so the
+// dispatched Work Item is completed in the same call rather than waiting for
+// an out-of-process callback. The "output" is the in-platform authoring
+// content itself — there is no external VCS artifact for an authoring document
+// — referenced by a stub URI. This deliberately routes the internal flow
+// through the exact same dispatch -> complete machinery an external Participant
+// uses, so the core stays transition-type- and edge-invariant: authoring is
+// just one edge (the in-session UI) among many.
+async function transitionAuthoringDeliverableInSession(input: {
+  deliverableId: string;
+  targetState: string;
+  actorId: string;
+  actorRole: string;
+}): Promise<{ ok: true; deliverable: DeliverableRow } | (TransitionDeliverableResult & { ok: false })> {
+  const dispatched = await transitionDeliverable(input);
+  if (!dispatched.ok) return dispatched;
+  const completed = await completeWorkItem({
+    workItemId: dispatched.workItemId,
+    outcome: "done",
+    reference: `authoring-content://${input.deliverableId}`,
+  });
+  if (!completed.ok || completed.outcome !== "done") {
+    throw new Error(`in-session authoring completion failed: ${completed.ok ? completed.outcome : completed.detail}`);
+  }
+  return { ok: true, deliverable: completed.deliverable };
+}
+
 function describeTransitionFailure(result: TransitionDeliverableResult): string {
   if (result.ok) return "";
-  if (result.reason === "quality_gate_blocked" || result.reason === "authority_denied" || result.reason === "policy_blocked" || result.reason === "no_transition_definition" || result.reason === "dispatch_deferred") {
+  if (result.reason === "quality_gate_blocked" || result.reason === "authority_denied" || result.reason === "policy_blocked" || result.reason === "no_transition_definition" || result.reason === "dispatch_deferred" || result.reason === "empty_centre") {
     return `${result.reason}: ${result.detail}`;
   }
   return result.reason;

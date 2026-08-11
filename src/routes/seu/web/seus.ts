@@ -174,7 +174,10 @@ router.post("/seus/:id/deliverables/:deliverableId/transition", async (req: Requ
       const reason = result.reason === "dependency_not_satisfied" ? "one or more dependencies aren't Satisfied yet" : "detail" in result ? result.detail : result.reason;
       return flashError(req, res, backTo, `Transition blocked: ${reason}`);
     }
-    return flashSuccess(req, res, backTo, `Deliverable moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`);
+    // Model A: the transition is dispatched, not applied — the Deliverable
+    // stays put until a Participant reports a result. The message reflects the
+    // real async state so a user doesn't expect the state to have already moved.
+    return flashSuccess(req, res, backTo, `Deliverable "${result.pendingTransition.fromState}" → "${result.pendingTransition.toState}" dispatched to a Participant. It stays in "${result.pendingTransition.fromState}" until a result is reported.`);
   } catch (err) {
     logger.error("[web/seu/seus] POST /seus/:id/deliverables/:deliverableId/transition error", err as Error);
     return flashError(req, res, backTo, (err as Error).message);

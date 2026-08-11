@@ -29,6 +29,7 @@ export const executionEngine = {
     toState: string;
     producingCapabilityId: string | null;
     requestedBy: number | null;
+    actingBadgeGrantId?: string | null;
     correlationId: string;
   }): Promise<ExecutionResult> {
     const { data: command, error } = await commandsDB.create({
@@ -39,6 +40,7 @@ export const executionEngine = {
       fromState: input.fromState,
       toState: input.toState,
       requestedBy: input.requestedBy,
+      actingBadgeGrantId: input.actingBadgeGrantId ?? null,
       correlationId: input.correlationId,
     });
     if (error || !command) throw error ?? new Error("failed to generate command");
@@ -65,7 +67,11 @@ export const executionEngine = {
       return { command: deferred ?? command, dispatched: false, workItemId: workItem.id, deferredReason: dispatch.deferredReason as "no_eligible_participant" };
     }
 
-    const { data: completed } = await commandsDB.updateStatus(command.id, "Completed");
-    return { command: completed ?? command, dispatched: true, participantId: dispatch.participantId, workItemId: workItem.id };
+    // Participant Integration — Plan step 1 (Model A): the Command is now
+    // Dispatched-and-outstanding, not Completed. It reaches Completed only
+    // when the Work Item's result callback lands (completeWorkItem), which is
+    // also where the governed Deliverable transition is applied.
+    const { data: dispatched } = await commandsDB.updateStatus(command.id, "Dispatched");
+    return { command: dispatched ?? command, dispatched: true, participantId: dispatch.participantId, workItemId: workItem.id };
   },
 };

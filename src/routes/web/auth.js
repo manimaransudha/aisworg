@@ -25,13 +25,19 @@ const loginLimiter = rateLimit({
 
 const SUPERUSER_EMAIL = (process.env.SUPERUSER_EMAIL || '').toLowerCase();
 
+// Root lands on the Identity Management hub (Tenant/Badge/User Management
+// cards) — the screens a platform administrator actually needs first.
+// Everyone else keeps landing on Commissioned SEUs, unchanged.
+function postLoginRedirectPath(user) {
+  return (user?.platformBadges ?? []).includes('root') ? '/aisworg/seu/identity' : '/aisworg/quickview';
+}
+
 // ── Login page ──────────────────────────────────────────────────────────────
 router.get('/login', (req, res) => {
-//   if (req.session?.user) return res.redirect('/finanaly/quickview');
-  if (req.session?.user) return res.redirect('/aisworg/quickview');
+  if (req.session?.user) return res.redirect(postLoginRedirectPath(req.session.user));
   const googleEnabled = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
   res.render('auth/login', {
-    title:         'Sign in to CapWise',
+    title:         'Sign in to SEU Studio',
     googleEnabled,
     error:         req.session.flash?.error || null,
     info:          req.session.flash?.info  || null,
@@ -63,7 +69,7 @@ router.post('/login', loginLimiter, (req, res, next) => {
     await ensureBadgeBootstrap(user);
     req.session.user.platformBadges = await getPlatformBadges(String(user.id));
     logger.info(`[Auth] Local login: ${user.email} (${user.role})`);
-    return res.redirect('/aisworg/quickview');
+    return res.redirect(postLoginRedirectPath(req.session.user));
   })(req, res, next);
 });
 
@@ -87,7 +93,7 @@ router.get('/google/callback',
     await ensureBadgeBootstrap(req.user);
     req.session.user.platformBadges = await getPlatformBadges(String(req.user.id));
     logger.info(`[Auth] Google login: ${req.user.email} (${req.user.role})`);
-    res.redirect('/aisworg/quickview');
+    res.redirect(postLoginRedirectPath(req.session.user));
   }
 );
 
@@ -157,14 +163,12 @@ router.post('/verify', loginLimiter, async (req, res) => {
   await ensureBadgeBootstrap(activated);
   req.session.user.platformBadges = await getPlatformBadges(String(activated.id));
   logger.info(`[Auth] Account activated: ${activated.email} (${activated.role})`);
-//   res.redirect('/finanaly/quickview');
-  res.redirect('/aisworg/quickview');
+  res.redirect(postLoginRedirectPath(req.session.user));
 });
 
 // ── Forgot / reset password ──────────────────────────────────────────────────
 router.get('/forgot-password', (req, res) => {
-//   if (req.session?.user) return res.redirect('/finanaly/quickview');
-  if (req.session?.user) return res.redirect('/aisworg/quickview');
+  if (req.session?.user) return res.redirect(postLoginRedirectPath(req.session.user));
   const flash = req.session.flash || {};
   delete req.session.flash;
   res.render('auth/forgot-password', {

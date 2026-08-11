@@ -17,6 +17,7 @@ import { router as telemetryRouter } from "./telemetry.js";
 import { router as attentionItemsRouter } from "./attentionItems.js";
 import { router as externalInteractionsRouter } from "./externalInteractions.js";
 import { router as packsRouter } from "./packs.js";
+import { router as workItemsRouter } from "./workItems.js";
 
 router.use(objectivesRouter);
 router.use(templatesRouter);
@@ -32,5 +33,6 @@ router.use(telemetryRouter);
 router.use(attentionItemsRouter);
 router.use(externalInteractionsRouter);
 router.use(packsRouter);
+router.use(workItemsRouter);
 
 export { router };

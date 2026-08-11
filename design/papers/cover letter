@@ -1,0 +1,20 @@
+Dear Editor,
+
+Please consider the manuscript, "The Organisation as the Executable Unit: Towards an Executable Organisational Operating Model for AI-native Software Engineering" for publication in IEEE Software.
+
+The software engineering community has made remarkable progress in developing increasingly capable AI systems for coding, testing, design and software delivery. However, current approaches continue to treat artificial intelligence primarily as a tool coordinated through prompts, workflows or agent orchestration frameworks. This manuscript argues that the principal challenge in extending AI autonomy across the software engineering lifecycle is organisational rather than purely technical.
+
+The paper introduces the concept of an Executable Organisational Operating Model (EOOM), a governance model in which organisational constructs such as authority, accountability, service obligations, evidence requirements and organisational knowledge are represented as computationally enforceable organisational structures rather than remaining procedural conventions applied at human discretion. It distinguishes organisational execution from workflow execution and argues that future AI-native software engineering organisations require an executable organisational layer that is absent from current approaches.
+
+This manuscript is intended as a position paper. Its contribution is conceptual rather than empirical. Rather than presenting a new AI technique or engineering tool, it proposes a new organisational abstraction for AI-native software engineering and establishes a theoretical foundation for future research and implementation. We believe this perspective aligns well with IEEE Software's emphasis on forward-looking ideas that bridge software engineering research and industrial practice.
+
+The manuscript is original, has not been published previously, and is not under consideration for publication elsewhere. A preprint may be made available through arXiv to facilitate early dissemination of the work, consistent with the publication policies of IEEE Software.
+
+Thank you for your time and consideration. I appreciate the opportunity to submit this work and look forward to your feedback.
+
+Sincerely,
+
+Sudha Manimaran
+Independent Researcher
+Chennai, India
+ORCID: [Your ORCID]

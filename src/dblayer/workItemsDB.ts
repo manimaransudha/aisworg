@@ -42,6 +42,31 @@ export const workItemsDB = {
     }
   },
 
+  async findById(id: string): Promise<DbResult<WorkItemRow | null>> {
+    try {
+      const { rows } = await query<WorkItemRow>("SELECT * FROM work_items WHERE id = $1", [id]);
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[workItemsDB] findById error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // Participant Integration — Plan step 1: the raw VCS reference a Participant
+  // returns on completion.
+  async setOutputReference(id: string, outputReference: string | null): Promise<DbResult<WorkItemRow>> {
+    try {
+      const { rows } = await query<WorkItemRow>(
+        "UPDATE work_items SET output_reference = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
+        [outputReference, id]
+      );
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[workItemsDB] setOutputReference error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findByCommandIds(commandIds: string[]): Promise<DbResult<WorkItemRow[]>> {
     if (commandIds.length === 0) return { data: [] };
     try {

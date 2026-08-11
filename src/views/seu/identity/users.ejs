@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+</head>
+<body>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5" style="max-width: 1000px;">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <p class="text-muted small mb-1"><a href="/aisworg/seu/identity">&larr; Identity Management</a></p>
+      <h2 class="h3 mb-1 text-dark fw-bold"><i class="bi bi-people me-2"></i>User Management</h2>
+      <p class="text-muted small mb-0">Platform user accounts. Badge issuance is a separate step, from Badge Management.</p>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body">
+        <table class="table table-sm align-middle">
+          <thead><tr><th>Email</th><th>Name</th><th>Legacy role</th><th>Active</th><th>Platform badges</th></tr></thead>
+          <tbody>
+            <% users.forEach(function(u) { %>
+              <tr>
+                <td class="small"><%= u.email %></td>
+                <td class="small"><%= u.name || '' %></td>
+                <td><span class="badge bg-light text-dark border"><%= u.role %></span></td>
+                <td><%= u.is_active ? 'Yes' : 'No' %></td>
+                <td>
+                  <% u.platformBadges.forEach(function(b) { %>
+                    <span class="badge bg-secondary-subtle text-dark-emphasis me-1"><%= b %></span>
+                  <% }) %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+        <p class="text-muted small mb-2">
+          Creating an account here is separate from granting it any Platform-layer badge — do that from
+          Badge Management afterward. The legacy <code>role</code> column is untouched by the badge model
+          (design doc §5); new accounts default to <code>general</code>.
+        </p>
+        <form method="POST" action="/aisworg/seu/identity/users" class="row g-2 align-items-end">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <div class="col-auto"><label class="form-label small mb-1">Email</label><input name="email" type="email" class="form-control form-control-sm" required></div>
+          <div class="col-auto"><label class="form-label small mb-1">Name</label><input name="name" class="form-control form-control-sm"></div>
+          <div class="col-auto"><button type="submit" class="btn btn-sm btn-primary">Create platform user</button></div>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

@@ -36,6 +36,7 @@ import { packsDB } from "../src/dblayer/packsDB.js";
 import { startAuthoring, saveAuthoringContent, submitForReview, publishAuthoredContent } from "../src/routes/seu/core/sdkAuthoring.js";
 import { createEvidence, transitionEvidence } from "../src/routes/seu/core/evidence.js";
 import type { TransitionDefinitionSeedInput } from "../src/routes/seu/core/transitionDefinitions.js";
+import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 
 after(async () => {
   await pool.end();
@@ -50,6 +51,7 @@ async function anyRealPackId(): Promise<string> {
 }
 
 async function commissionTestSeu(statementPrefix: string): Promise<string> {
+  await ensureWebAppTemplateFixture();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],

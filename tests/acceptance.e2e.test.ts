@@ -112,8 +112,48 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
     body: JSON.stringify({ targetState: "In Progress" }),
   });
   const transitioned = await transitionRes.json();
-  assert.equal(transitionRes.status, 200, JSON.stringify(transitioned));
-  assert.equal(transitioned.deliverable.lifecycle_state, "In Progress");
+  // Model A (Participant Integration Plan): a successful transition is a
+  // *dispatch* (202 Accepted, outstanding), not an applied state change.
+  assert.equal(transitionRes.status, 202, JSON.stringify(transitioned));
+  assert.equal(transitioned.dispatched, true);
+  assert.ok(transitioned.workItemId, "expected a Work Item id to report a result against");
+
+  // The Participant reports the result to the result-in callback, which drives
+  // the governed transition.
+  const resultRes = await request(`${baseUrl}/work-items/${transitioned.workItemId}/result`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ outcome: "done", reference: "vcs://acceptance/req-spec@1" }),
+  });
+  const resulted = await resultRes.json();
+  assert.equal(resultRes.status, 200, JSON.stringify(resulted));
+  assert.equal(resulted.deliverable.lifecycle_state, "In Progress");
+
+  // Result-in callback contract (Participant Integration Plan): the same Work
+  // Item is no longer outstanding, so a replayed result is rejected (409),
+  // an unknown Work Item is a 404, and an invalid outcome is a 400 — the edge
+  // adapter's error surface a real Participant integration depends on.
+  const replayRes = await request(`${baseUrl}/work-items/${transitioned.workItemId}/result`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ outcome: "done" }),
+  });
+  assert.equal(replayRes.status, 409, "a replayed result on a disposed Work Item must be a conflict, not a re-apply");
+  assert.equal((await replayRes.json()).reason, "not_outstanding");
+
+  const unknownRes = await request(`${baseUrl}/work-items/00000000-0000-0000-0000-000000000000/result`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ outcome: "done" }),
+  });
+  assert.equal(unknownRes.status, 404);
+
+  const badOutcomeRes = await request(`${baseUrl}/work-items/${transitioned.workItemId}/result`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ outcome: "totally-not-valid" }),
+  });
+  assert.equal(badOutcomeRes.status, 400);
 
   // Dependency gating is real, not decorative: the downstream Deliverable must
   // still be blocked, since its upstream dependency hasn't reached 'Approved' yet.

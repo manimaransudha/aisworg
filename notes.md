@@ -29,3 +29,13 @@ git push -u origin main
 
 # Clean db
 pnpm db:clean-slate
+
+# Test suite
+
+pnpm test
+
+If you ever need to run a single file directly instead of the whole suite, keep the same env var:
+NODE_ENV=test npx tsx --test tests/<file>.test.ts
+ 
+
+
