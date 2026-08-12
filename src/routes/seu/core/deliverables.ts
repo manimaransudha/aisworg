@@ -10,6 +10,7 @@ import { eventBus } from "../../../domain/engine/eventBus.js";
 import { checkSustainedQualityGateBlocking } from "./telemetry.js";
 import { raiseAttentionItem } from "./attentionItems.js";
 import { AUTHORING_SCOPE_PACK_CODE } from "../../../domain/sdk/authoringScope.js";
+import { assertCanonicalCategory } from "./ontology.js";
 import type { DeliverableRow, DependencyEdgeRow } from "../../../dblayer/seuTypes.js";
 
 // Phase 10 (badge model) — §10's badge-switcher UI isn't built yet (§17.2,
@@ -47,6 +48,7 @@ export async function createDeliverable(input: {
   dependsOnDeliverableIds?: string[];
   dependsOnServiceIds?: string[];
 }): Promise<{ deliverable: DeliverableRow; dependencyEdges: DependencyEdgeRow[] }> {
+  await assertCanonicalCategory("category:deliverable", input.category);
   const { data: deliverable, error } = await deliverablesDB.create({ seuId: input.seuId, name: input.name, category: input.category });
   if (error || !deliverable) throw error ?? new Error("failed to create deliverable");
 

@@ -8,6 +8,7 @@ import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsD
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
+import { assertCanonicalCategory } from "./ontology.js";
 import type { ObligationRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 
 // related_object_type/id are polymorphic (Open Design Questions.md #3) — an
@@ -25,6 +26,7 @@ export async function createObligation(input: {
   description?: string | null;
   severity?: string;
 }): Promise<ObligationRow> {
+  await assertCanonicalCategory("category:obligation", input.category);
   if (input.relatedObjectType === "Deliverable") {
     const { data: deliverable } = await deliverablesDB.findById(input.relatedObjectId);
     if (!deliverable) throw new Error(`deliverable not found: ${input.relatedObjectId}`);

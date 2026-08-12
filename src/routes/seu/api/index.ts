@@ -21,6 +21,8 @@ import { router as workItemsRouter } from "./workItems.js";
 import { router as executionTargetsRouter } from "./executionTargets.js";
 import { router as tenantsRouter } from "./tenants.js";
 import { router as reviewsRouter } from "./reviews.js";
+import { router as complianceRouter } from "./compliance.js";
+import { router as ontologyRouter } from "./ontology.js";
 
 router.use(objectivesRouter);
 router.use(templatesRouter);
@@ -40,5 +42,7 @@ router.use(workItemsRouter);
 router.use(executionTargetsRouter);
 router.use(tenantsRouter);
 router.use(reviewsRouter);
+router.use(complianceRouter);
+router.use(ontologyRouter);
 
 export { router };

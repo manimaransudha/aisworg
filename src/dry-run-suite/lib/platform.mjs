@@ -161,3 +161,42 @@ export async function walkReviewToAccepted(reviewId, outcome) {
   if (completed.status !== 200) throw new Error(`completing review failed: ${completed.status} ${JSON.stringify(completed.body)}`);
   await transitionReview(reviewId, "Accepted");
 }
+
+// ---- compliance (Phase 15 — Ch.27) -------------------------------------------
+export async function registerComplianceFramework({ code, name, originatingPackId }) {
+  return expect(await http("POST", urls.api("/compliance/frameworks"), { json: { code, name, originatingPackId } }), 200, "POST framework").framework;
+}
+
+export async function registerComplianceRequirement({ code, frameworkCode, name, criteria, severity, conflictsWith, originatingPackId }) {
+  return expect(await http("POST", urls.api("/compliance/requirements"), { json: { code, frameworkCode, name, criteria, severity, conflictsWith, originatingPackId } }), 200, "POST requirement").requirement;
+}
+
+export async function evaluateCompliance(seuId) {
+  return expect(await http("GET", urls.api(`/seus/${seuId}/compliance`)), 200, "GET compliance");
+}
+
+export async function grantComplianceWaiver(seuId, requirementCode, rationale) {
+  return expect(await http("POST", urls.api(`/seus/${seuId}/compliance/waivers`), { json: { requirementCode, rationale } }), 200, "POST waiver").waiver;
+}
+
+export async function complianceReport(seuId) {
+  return expect(await http("GET", urls.api(`/seus/${seuId}/compliance/report`)), 200, "GET compliance report");
+}
+
+// ---- ontology / vocabulary (Phase 17 — Ch.18) --------------------------------
+export async function ontologyConcepts(conceptType) {
+  return expect(await http("GET", urls.api(`/ontology/concepts?conceptType=${encodeURIComponent(conceptType)}`)), 200, "GET concepts").concepts;
+}
+
+export async function setConceptAlias(tenantId, { conceptType, canonicalCode, displayLabel }) {
+  return http("POST", urls.api(`/tenants/${tenantId}/aliases`), { json: { conceptType, canonicalCode, displayLabel } });
+}
+
+export async function tenantVocabulary(tenantId, conceptType) {
+  return expect(await http("GET", urls.api(`/tenants/${tenantId}/vocabulary?conceptType=${encodeURIComponent(conceptType)}`)), 200, "GET vocabulary").labels;
+}
+
+// Raw evidence create so a scenario can assert the write-path rejection (400).
+export async function createEvidenceRaw({ seuId, deliverableId, category, title, source }) {
+  return http("POST", urls.api("/evidence"), { json: { seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category, title, source } });
+}

@@ -50,6 +50,8 @@ SUITE_BASE_URL=http://127.0.0.1:4900/aisworg node run.mjs
 - **Participant replacement** — idle and mid-flight (while a Work Item is outstanding).
 - **Traceability** — backward provenance and forward impact analysis (Ch.20).
 - **Review Model (Ch.25, Phase 14)** — a governed Review with an immutable outcome that never modifies the reviewed object (`outcome_required` guard, RM-001), a High-severity Finding that auto-surfaces Attention and converts to an Obligation (once), and traceability listing the Reviews + Findings against the Deliverable.
+- **Compliance Model (Ch.27, Phase 15)** — a Pack-registered Framework + declarative Requirements, evaluated read-only over the SEU's governance state (never modifying it, §9); a requirement satisfied via the real primitive it composes (an Accepted Security Review flips its requirement to satisfied); a Waiver moving an unsatisfied requirement to waived; and a compliance report derived from engineering state.
+- **Ontology Model (Ch.18, Phase 17)** — the platform-owned canonical vocabulary is queryable; write-path enforcement rejects an off-canonical category (400) and accepts a canonical one (201, stored verbatim); a tenant rename-only alias makes the *same* canonical code resolve to different labels for Atlas vs Babylon on one core; clearing an alias reverts to the platform default.
 
 ## Known limitation
 

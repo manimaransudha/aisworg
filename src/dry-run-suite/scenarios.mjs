@@ -484,6 +484,89 @@ async function edgeCases() {
     });
   });
 
+  await scenario("Compliance Model (Ch.27) — emergent, read-only evaluation over existing governance, with waivers", async () => {
+    const RUNC = Date.now().toString(36);
+    const fw = `dryrun-fw-${RUNC}`;
+    const reqReview = `dryrun-req-review-${RUNC}`;
+    const reqDecision = `dryrun-req-decision-${RUNC}`;
+
+    await must("register a Compliance Framework + two declarative Requirements (composing existing primitives)", async () => {
+      await P.registerComplianceFramework({ code: fw, name: "Dry-run Compliance Framework" });
+      await P.registerComplianceRequirement({ code: reqReview, frameworkCode: fw, name: "Security review accepted", criteria: { type: "requires_accepted_review", category: "Security" } });
+      await P.registerComplianceRequirement({ code: reqDecision, frameworkCode: fw, name: "Privacy decision approved", criteria: { type: "requires_approved_decision", category: "Privacy" } });
+    });
+
+    const seu = await must("stand up a sandbox SEU", () => standUp(Atlas.tenantId, "Sandbox compliance"));
+    const reqSpec = del(seu.deliverables, "Requirements Specification");
+
+    await check("both requirements are unsatisfied initially, and evaluation never modifies engineering state (Ch.27 §9)", async () => {
+      const evalResult = await P.evaluateCompliance(seu.seuId);
+      assert.ok(evalResult.frameworks.includes(fw), `framework ${fw} should apply`);
+      assert.equal(evalResult.results.find((r) => r.requirementCode === reqReview)?.state, "unsatisfied");
+      assert.equal(evalResult.results.find((r) => r.requirementCode === reqDecision)?.state, "unsatisfied");
+      const after = await P.getSeu(seu.seuId);
+      assert.equal(del(after.deliverables, "Requirements Specification").lifecycleState, "Defined", "compliance evaluation is read-only");
+    });
+
+    await check("satisfying a requirement via the real primitive it composes (an Accepted, passing Security Review) flips it to satisfied", async () => {
+      const review = await P.createReview({ seuId: seu.seuId, relatedObjectType: "Deliverable", relatedObjectId: reqSpec.id, category: "Security", name: "Security Review" });
+      await P.walkReviewToAccepted(review.id, "Passed");
+      const evalResult = await P.evaluateCompliance(seu.seuId);
+      assert.equal(evalResult.results.find((r) => r.requirementCode === reqReview)?.state, "satisfied", "the compliance requirement reads the Review outcome");
+    });
+
+    await check("a Waiver moves the still-unsatisfied requirement to waived", async () => {
+      await P.grantComplianceWaiver(seu.seuId, reqDecision, "Privacy decision deferred; risk accepted for the pilot.");
+      const evalResult = await P.evaluateCompliance(seu.seuId);
+      assert.equal(evalResult.results.find((r) => r.requirementCode === reqDecision)?.state, "waived");
+    });
+
+    await check("a compliance report is generated from engineering state (Ch.27 §12)", async () => {
+      const report = await P.complianceReport(seu.seuId);
+      assert.ok(report.frameworks.includes(fw));
+      assert.ok(["Compliant", "Compliant with Exceptions", "Partially Compliant", "Non-Compliant", "Compliance Unknown"].includes(report.status));
+      assert.ok(Array.isArray(report.satisfied) && Array.isArray(report.outstanding) && Array.isArray(report.waived));
+    });
+  });
+
+  await scenario("Ontology Model (Ch.18) — canonical vocabulary enforced on write; tenant rename-only alias resolved at read", async () => {
+    if (!Atlas.tenantId || !Babylon.tenantId) return note("both tenants required (a prior setup aborted)");
+
+    await check("the canonical vocabulary is queryable and platform-owned", async () => {
+      const concepts = await P.ontologyConcepts("category:evidence");
+      assert.ok(concepts.some((c) => c.code === "Validation Evidence"), "expected the canonical evidence vocabulary");
+    });
+
+    const seu = await must("stand up a sandbox SEU", () => standUp(Atlas.tenantId, "Sandbox ontology"));
+    const reqSpec = del(seu.deliverables, "Requirements Specification");
+
+    await check("write-path enforcement: an off-canonical category is rejected (400); a canonical one is accepted (201)", async () => {
+      const bad = await P.createEvidenceRaw({ seuId: seu.seuId, deliverableId: reqSpec.id, category: "Totally Made Up XYZ", title: "bad", source: "dry-run" });
+      assert.equal(bad.status, 400, "an off-list category must be rejected on the write path");
+      const good = await P.createEvidenceRaw({ seuId: seu.seuId, deliverableId: reqSpec.id, category: "Validation Evidence", title: "good", source: "dry-run" });
+      assert.equal(good.status, 201, "a canonical category is accepted");
+      assert.equal(good.body.evidence.category, "Validation Evidence", "stored verbatim as the canonical code");
+    });
+
+    await check("tenant rename-only alias: the SAME canonical code resolves to different labels per tenant, on one core", async () => {
+      const a = await P.setConceptAlias(Atlas.tenantId, { conceptType: "category:evidence", canonicalCode: "Validation Evidence", displayLabel: "VALEV" });
+      const b = await P.setConceptAlias(Babylon.tenantId, { conceptType: "category:evidence", canonicalCode: "Validation Evidence", displayLabel: "Sign-off Proof" });
+      assert.equal(a.status, 200); assert.equal(b.status, 200);
+      const atlasVocab = await P.tenantVocabulary(Atlas.tenantId, "category:evidence");
+      const babylonVocab = await P.tenantVocabulary(Babylon.tenantId, "category:evidence");
+      assert.equal(atlasVocab["Validation Evidence"], "VALEV");
+      assert.equal(babylonVocab["Validation Evidence"], "Sign-off Proof");
+      // A concept the tenant hasn't aliased falls back to the platform default.
+      assert.equal(atlasVocab["Analytical Evidence"], "Analytical Evidence");
+    });
+
+    await check("clearing an alias (empty label) reverts a tenant to the platform default", async () => {
+      await P.setConceptAlias(Atlas.tenantId, { conceptType: "category:evidence", canonicalCode: "Validation Evidence", displayLabel: "" });
+      const vocab = await P.tenantVocabulary(Atlas.tenantId, "category:evidence");
+      assert.equal(vocab["Validation Evidence"], "Validation Evidence");
+    });
+  });
+
   await scenario("Edge — separation of duties (structural; negative case documented)", async () => {
     if (!Atlas.seu) return note("Atlas SEU required");
     const reqSpec = del(Atlas.seu.deliverables, "Requirements Specification");

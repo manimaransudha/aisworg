@@ -74,6 +74,20 @@ export interface PackContributions {
     toState: string;
     criteria?: Record<string, unknown>;
   }>;
+  // Compliance Model — Plan (Phase 15, Ch.27 FR-27.1): a Pack contributes
+  // Compliance Frameworks and their declarative Requirements. Compliance
+  // composes existing primitives (§8), so a requirement's criteria reuses the
+  // same predicates as Quality Gates.
+  complianceFrameworks?: Array<{ code: string; name: string; description?: string }>;
+  complianceRequirements?: Array<{
+    code: string;
+    frameworkCode: string;
+    name: string;
+    description?: string;
+    criteria: Record<string, unknown>;
+    severity?: string;
+    conflictsWith?: string[];
+  }>;
 }
 
 export interface PackRow {
@@ -375,6 +389,73 @@ export interface ExecutionTargetRow {
   adapter_auth_ref: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// Ontology Model — Plan (Phase 17, Ch.18). Canonical vocabulary + per-tenant
+// rename-only alias layer resolved at read time.
+export interface OntologyConceptRow {
+  id: string;
+  concept_type: string;
+  code: string;
+  default_label: string;
+  contributed_by_pack: string | null;
+  created_at: string;
+}
+
+export interface TenantConceptAliasRow {
+  id: string;
+  tenant_id: string;
+  concept_type: string;
+  canonical_code: string;
+  display_label: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Compliance Model — Plan (Phase 15, Ch.27). Compliance composes existing
+// primitives; these are the only new persisted models.
+export type ComplianceStatus = "Compliant" | "Compliant with Exceptions" | "Partially Compliant" | "Non-Compliant" | "Compliance Unknown";
+
+export interface ComplianceFrameworkRow {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  originating_pack_id: string | null;
+  created_at: string;
+}
+
+export interface ComplianceRequirementRow {
+  id: string;
+  code: string;
+  framework_code: string;
+  name: string;
+  description: string | null;
+  criteria: Record<string, unknown>;
+  severity: string;
+  conflicts_with: string[];
+  originating_pack_id: string | null;
+  created_at: string;
+}
+
+export interface ComplianceWaiverRow {
+  id: string;
+  seu_id: string;
+  requirement_code: string;
+  rationale: string;
+  granted_by: number | null;
+  status: string;
+  expires_at: string | null;
+  created_at: string;
+}
+
+export interface ComplianceEvaluationRow {
+  id: string;
+  seu_id: string;
+  status: ComplianceStatus;
+  rationale: Record<string, unknown>;
+  results: unknown[];
+  created_at: string;
 }
 
 // Review Model — Plan (Phase 14, Ch.25). A governed evaluation of an engineering

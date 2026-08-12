@@ -8,6 +8,7 @@ import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { createObligation } from "./obligations.js";
+import { assertCanonicalCategory } from "./ontology.js";
 import type { AcquisitionScope, EngineeringCapitalRow, KnowledgeItemRow, ObligationRow } from "../../../dblayer/seuTypes.js";
 
 // FR-16.8: Acquisition Scope is inherited by default from the producing
@@ -24,6 +25,7 @@ export async function createKnowledgeItem(input: {
   description?: string | null;
   acquisitionScope?: AcquisitionScope;
 }): Promise<KnowledgeItemRow> {
+  await assertCanonicalCategory("category:knowledge", input.category);
   const { data: deliverable } = await deliverablesDB.findById(input.deliverableId);
   if (!deliverable) throw new Error(`deliverable not found: ${input.deliverableId}`);
   if (deliverable.seu_id !== input.seuId) throw new Error(`deliverable ${input.deliverableId} does not belong to SEU ${input.seuId}`);

@@ -21,6 +21,7 @@ import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { authorityRulesDB } from "../../../dblayer/authorityRulesDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { qualityGatesDB } from "../../../dblayer/qualityGatesDB.js";
+import { complianceDB } from "../../../dblayer/complianceDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
@@ -238,6 +239,27 @@ async function seedContributions(pack: PackRow, seed: PackSeedInput): Promise<vo
       fromState: gate.fromState,
       toState: gate.toState,
       criteria: gate.criteria,
+      originatingPackId: pack.id,
+    });
+    if (error) throw error;
+  }
+
+  // Compliance Model (Phase 15, Ch.27 FR-27.1): frameworks + their declarative
+  // requirements, attributed to this Pack so per-SEU applicability follows the
+  // SEU's composed Packs (FR-27.2).
+  for (const framework of seed.contributions.complianceFrameworks ?? []) {
+    const { error } = await complianceDB.upsertFramework({ code: framework.code, name: framework.name, description: framework.description, originatingPackId: pack.id });
+    if (error) throw error;
+  }
+  for (const req of seed.contributions.complianceRequirements ?? []) {
+    const { error } = await complianceDB.upsertRequirement({
+      code: req.code,
+      frameworkCode: req.frameworkCode,
+      name: req.name,
+      description: req.description,
+      criteria: req.criteria,
+      severity: req.severity,
+      conflictsWith: req.conflictsWith,
       originatingPackId: pack.id,
     });
     if (error) throw error;

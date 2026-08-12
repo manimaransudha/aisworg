@@ -23,6 +23,7 @@ import {seu_sdk_schema_registry_indexVM} from "./seu_sdk_schema_registry_index.j
 import {seu_sdk_schema_registry_detailVM} from "./seu_sdk_schema_registry_detail.js";
 import {seu_workqueue_indexVM} from "./seu_workqueue_index.js";
 import {seu_reviews_indexVM} from "./seu_reviews_index.js";
+import {seu_compliance_indexVM} from "./seu_compliance_index.js";
 
 // export const viewModels = {
 //   "auth/login": auth_loginVM,
@@ -54,5 +55,6 @@ export const viewModels = {
   "seu/sdk/schema-registry/index": seu_sdk_schema_registry_indexVM,
   "seu/sdk/schema-registry/detail": seu_sdk_schema_registry_detailVM,
   "seu/workqueue/index": seu_workqueue_indexVM,
-  "seu/reviews/index": seu_reviews_indexVM
+  "seu/reviews/index": seu_reviews_indexVM,
+  "seu/compliance/index": seu_compliance_indexVM
 };
