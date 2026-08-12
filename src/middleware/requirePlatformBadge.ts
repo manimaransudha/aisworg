@@ -10,6 +10,7 @@
 // goal 8: badges are flat by default).
 import type { Request, Response, NextFunction } from "express";
 import { logger } from "../utils/logger.js";
+import { effectivePlatformBadges } from "../dev/actAs.js";
 
 export function requirePlatformBadge(badgeCode: string) {
   return (req: Request, res: Response, next: NextFunction): void => {
@@ -23,7 +24,10 @@ export function requirePlatformBadge(badgeCode: string) {
       return;
     }
 
-    const held = user.platformBadges ?? [];
+    // CR-001: effective badges drop `root` when the god user acts-as a
+    // non-root badge (dev switcher only); null otherwise → true session
+    // badges, so production behaviour is unchanged.
+    const held = effectivePlatformBadges(req) ?? user.platformBadges ?? [];
 
     // ─── TESTING BYPASS — remove this block to revert ───────────────────────
     // For testing convenience only, not part of the design: root passes any

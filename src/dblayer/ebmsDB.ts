@@ -11,9 +11,11 @@ export const ebmsDB = {
     compositionReport: EbmCompositionReport;
   }): Promise<DbResult<EbmRow>> {
     try {
+      // FR-3.3/3.10: versioned per SEU — 1 for the first EBM, prior+1 on a
+      // recomposition that supersedes an earlier one for the same SEU.
       const { rows } = await query<EbmRow>(
-        `INSERT INTO ebms (seu_id, template_id, profile_id, composed_packs, composition_report, status)
-         VALUES ($1, $2, $3, $4, $5, 'Active')
+        `INSERT INTO ebms (seu_id, template_id, profile_id, composed_packs, composition_report, status, version)
+         VALUES ($1, $2, $3, $4, $5, 'Active', (SELECT COALESCE(MAX(version), 0) + 1 FROM ebms WHERE seu_id = $1))
          RETURNING *`,
         [input.seuId, input.templateId, input.profileId, JSON.stringify(input.composedPacks), JSON.stringify(input.compositionReport)]
       );

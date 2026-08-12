@@ -10,6 +10,7 @@ import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
 import { listSeus, getSeuDetailView } from "../core/seus.js";
 import { commissionFromForm } from "../core/commissioning.js";
+import { devActAsAvailable, currentActAs } from "../../../dev/actAs.js";
 import { fulfilCapability } from "../core/capabilities.js";
 import { replaceParticipant } from "../core/participants.js";
 import { transitionDeliverable } from "../core/deliverables.js";
@@ -67,6 +68,11 @@ router.post("/seus", async (req: Request, res: Response) => {
       requiredCapabilityCodes: codes,
       actorRole: req.session?.user?.role ?? "general",
       requestedBy: req.session?.user?.id ?? null,
+      // CR-001 — when the god user is acting-as a tenant, commission into it by
+      // default (explicit form value still wins). No-op unless the switcher is live.
+      tenantId:
+        (typeof req.body?.tenantId === "string" && req.body.tenantId.trim() !== "" ? req.body.tenantId : null) ??
+        (devActAsAvailable(req) ? currentActAs(req)?.tenantId ?? null : null),
     });
 
     if (!result.ok) {

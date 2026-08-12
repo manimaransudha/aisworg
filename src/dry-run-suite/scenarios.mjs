@@ -567,17 +567,60 @@ async function edgeCases() {
     });
   });
 
-  await scenario("Edge — separation of duties (structural; negative case documented)", async () => {
-    if (!Atlas.seu) return note("Atlas SEU required");
-    const reqSpec = del(Atlas.seu.deliverables, "Requirements Specification");
+  await scenario("Governance & EBM (Ch.3/Ch.21, Phase 16) — versioned EBM + one effective Governance Model per SEU", async () => {
+    const seu = await must("stand up a sandbox SEU", () => standUp(Atlas.tenantId, "Sandbox governance-model"));
+
+    await check("the SEU exposes one effective Governance Model derived from its EBM (FR-21.1), and the EBM is versioned (FR-3.3)", async () => {
+      const model = await P.governanceModel(seu.seuId);
+      assert.equal(model.ebm.version, 1, "the first EBM is version 1");
+      assert.ok(model.ebm.composedPacks.some((p) => p.packCode === "platform-core-engineering"), "composed packs listed");
+      assert.ok(model.authorityRules.some((r) => r.governedTransition === "deliverable.transition"), "authority rules derived from the composed packs");
+      assert.ok(model.qualityGates.length >= 1, "quality gates derived from the composed packs");
+      assert.ok(model.authorityRules.every((r) => typeof r.fromPack === "string"), "each rule is traceable to its contributing pack");
+    });
+
+    note("Composition conflict hard-block (FR-3.6/3.7) and Quality Gates on Pack/Objective (§4.3) require SDK-only pack authoring / platform-entity transitions not reachable black-box here; both are covered in-process by governance-ebm-sharpening.test.ts.");
+  });
+
+  await scenario("Edge — separation of duties, now exercised via the dev Act-As switcher (CR-001)", async () => {
+    if (!Atlas.seu || !Atlas.tenantId) return note("Atlas SEU + tenant required");
+
+    // Structural assertion (unchanged): each acceptance records WHICH authority
+    // certified it — creator and approver are genuinely distinct rules.
+    const baselined = del(Atlas.seu.deliverables, "Requirements Specification");
     await check("the platform records WHICH authority certified each acceptance (creator vs approver are distinct rules)", async () => {
-      const tr = await P.traceability(reqSpec.id);
+      const tr = await P.traceability(baselined.id);
       const acc = tr.explanation.provenance.find((p) => p.toState === "Approved");
       assert.ok(acc?.actingAuthorityGrantId, "an acceptance records its certifying authority grant");
     });
-    note("Negative case (a creator attempting the approver transition -> authority_denied) needs a non-root identity.");
-    note("The NODE_ENV=test auto-login is a single root badge holder, so it is not reachable black-box here.");
-    note("It is covered in-process by the repo's badge-model.test.ts. This is a harness limitation, not a gap.");
+
+    // The negative case is now REACHABLE black-box. CR-001's dev-only Act-As
+    // switcher lets the single god identity assume any badge; 012_badge_model
+    // gates Defined->In Progress to `creator`, so assuming `approver` must be
+    // denied that transition — and root must not be.
+    const sd = await commissionOnly(Atlas.tenantId, "SoD switcher check (no participants)");
+    const target = del(sd.deliverables, "Requirements Specification");
+
+    await must("assume the approver badge via the dev Act-As switcher", async () => {
+      const r = await P.actAs(Atlas.tenantId, "approver");
+      assert.equal(r.status, 302, "web form redirects on success");
+    });
+    await check("acting as approver, the creator-only transition (Defined -> In Progress) is denied — authority_denied", async () => {
+      const d = await P.dispatchTransition(target.id, "In Progress");
+      assert.equal(d.status, 409, `expected 409, got ${d.status} — ${JSON.stringify(d.body)}`);
+      assert.equal(d.body.reason, "authority_denied", `expected authority_denied, got ${JSON.stringify(d.body)}`);
+    });
+    await must("reset the acting badge back to root", async () => {
+      const r = await P.resetActAs();
+      assert.equal(r.status, 302);
+    });
+    await check("as root, authority no longer blocks the same transition (reason is not authority_denied)", async () => {
+      const d = await P.dispatchTransition(target.id, "In Progress");
+      // No Participant is fulfilled on this SEU, so root's attempt defers
+      // dispatch — the point is that AUTHORITY is no longer the blocker.
+      assert.notEqual(d.body.reason, "authority_denied", `authority should pass as root; got ${JSON.stringify(d.body)}`);
+    });
+    note("Previously in-process only (badge-model.test.ts); CR-001's switcher makes it reachable end-to-end here too.");
   });
 }
 

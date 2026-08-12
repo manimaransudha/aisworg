@@ -161,6 +161,7 @@ export interface EbmRow {
   composed_packs: EbmComposedPack[];
   composition_report: EbmCompositionReport;
   status: EbmStatus;
+  version: number;
   created_at: string;
 }
 

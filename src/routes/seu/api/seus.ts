@@ -9,6 +9,7 @@ import { commissionSeu } from "../core/commissioning.js";
 import { getSeuStatus } from "../core/seus.js";
 import { fulfilCapability } from "../core/capabilities.js";
 import { getSeuEvents } from "../core/events.js";
+import { getEffectiveGovernanceModel } from "../core/governanceModel.js";
 
 /** POST /commission — Ch.8 full pipeline; this endpoint's response is the acceptance test's core assertion. */
 router.post("/commission", async (req: Request, res: Response) => {
@@ -74,6 +75,18 @@ router.get("/seus/:id/events", async (req: Request, res: Response) => {
     res.status(200).json({ events });
   } catch (err) {
     logger.error("[api/seu/seus] GET /:id/events error", err as Error);
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** GET /seus/:id/governance-model — Ch.21 FR-21.1: this SEU's one effective Governance Model, derived from its EBM. */
+router.get("/seus/:id/governance-model", async (req: Request, res: Response) => {
+  try {
+    const model = await getEffectiveGovernanceModel(String(req.params.id));
+    if (!model) return res.status(404).json({ error: "SEU or its EBM not found" });
+    res.status(200).json(model);
+  } catch (err) {
+    logger.error("[api/seu/seus] GET /:id/governance-model error", err as Error);
     res.status(400).json({ error: (err as Error).message });
   }
 });

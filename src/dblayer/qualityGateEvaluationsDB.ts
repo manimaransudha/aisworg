@@ -5,7 +5,7 @@ import type { DbResult, QualityGateEvaluationRow, QualityGateLatencyRow, Quality
 export const qualityGateEvaluationsDB = {
   async create(input: {
     qualityGateId: string;
-    seuId: string;
+    seuId: string | null;
     entityType: TransitionEntityType;
     entityId: string;
     outcome: QualityGateOutcomeValue;

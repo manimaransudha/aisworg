@@ -27,6 +27,7 @@ import { router as demoRouter } from "./routes/web/demo.js";
 import { router as seuApiRouter } from "./routes/seu/api/index.js";
 import { router as seuWebRouter } from "./routes/seu/web/index.js";
 import { registerAssignmentDelivery } from "./adapters/assignmentDelivery.js";
+import { devActAsAvailable, currentActAs, listTenants, listBadgeTypes } from "./dev/actAs.js";
 
 // Participant Integration — Plan step 5: wire the assignment-out edge subscriber
 // so a dispatched Work Item is delivered to its Capability's execution target
@@ -186,6 +187,22 @@ app.use(async (req, res, next) => {
     res.locals.session = req.session;
     res.locals.activeUser = req.session?.user || null;
     res.locals.csrfToken = generateCsrfToken(req, res);
+
+    // CR-001 — dev-only "Act As" switcher (design/Change Requests.md). Only
+    // assembled when the feature is live for this caller (dev + not off + the
+    // single god identity); otherwise res.locals.devActAs stays null and the
+    // navbar renders nothing. In production this is always null.
+    res.locals.devActAs = null;
+    try {
+        if (devActAsAvailable(req)) {
+            const current = currentActAs(req) || { tenantId: null, badgeType: 'root' };
+            const tenants = await listTenants();
+            const badgeTypes = await listBadgeTypes(current.tenantId);
+            res.locals.devActAs = { current, tenants, badgeTypes };
+        }
+    } catch (err) {
+        logger.warn('[dev/actAs] navbar context assembly failed', err);
+    }
     next();
 });
 

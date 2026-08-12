@@ -64,15 +64,78 @@ export const compositionEngine = {
       byCode.set(pack.code, pack);
     }
 
-    const composedPacks: EbmComposedPack[] = [...byCode.values()].map((pack) => ({
+    const packs = [...byCode.values()];
+    const composedPacks: EbmComposedPack[] = packs.map((pack) => ({
       packId: pack.id,
       packCode: pack.code,
       packVersion: pack.pack_version,
     }));
 
+    // FR-3.6 / FR-21.7: detect governance conflicts across the composed Packs
+    // from their declarative contributions (read unmasked from packs.contributions,
+    // before the global upsert-by-code/triple collapses them). A conflict is an
+    // *incompatible* contribution from different Packs that no Override rule
+    // resolves — it requires human judgement. Same-code duplicates are the
+    // Override case above (a warning), and multiple policies co-apply (not a
+    // conflict).
+    const conflicts = detectGovernanceConflicts(packs);
+
     return {
       composedPacks,
-      compositionReport: { warnings, conflicts: [], resolutions: [] },
+      compositionReport: { warnings, conflicts, resolutions: [] },
     };
   },
 };
+
+// A conflict is a CROSS-PACK disagreement — two DIFFERENT Packs contributing
+// incompatible governance for the same target. Multiplicity WITHIN one Pack is
+// the author's deliberate design and is never a conflict (e.g.
+// platform-core-engineering legitimately assigns different roles to
+// `knowledgescope.transition` for promotion to Capability/Enterprise/Platform).
+// Detected:
+//   (a) two different Packs assign different authorisedRole to the SAME
+//       governedTransition — ambiguous authority; and
+//   (b) two different Packs contribute quality gates on the SAME
+//       (entityType,fromState,toState) triple — only one gate per triple.
+function detectGovernanceConflicts(packs: PackRow[]): string[] {
+  const conflicts: string[] = [];
+
+  // governedTransition -> Map<packCode, Set<role>>
+  const byTransition = new Map<string, Map<string, Set<string>>>();
+  for (const pack of packs) {
+    for (const rule of pack.contributions?.authorityRules ?? []) {
+      const perPack = byTransition.get(rule.governedTransition) ?? new Map<string, Set<string>>();
+      const roles = perPack.get(pack.code) ?? new Set<string>();
+      roles.add(rule.authorisedRole);
+      perPack.set(pack.code, roles);
+      byTransition.set(rule.governedTransition, perPack);
+    }
+  }
+  for (const [transition, perPack] of byTransition) {
+    if (perPack.size < 2) continue; // only one Pack contributes here — intra-pack design, not a conflict
+    const allRoles = new Set<string>();
+    for (const roles of perPack.values()) for (const r of roles) allRoles.add(r);
+    if (allRoles.size > 1) {
+      const detail = [...perPack.entries()].map(([code, roles]) => `${code} requires ${[...roles].map((r) => `"${r}"`).join("/")}`).join(", ");
+      conflicts.push(`Authority conflict on "${transition}": ${detail}. Different Packs assign different authorised roles — resolve before commissioning.`);
+    }
+  }
+
+  // triple -> Set<packCode>
+  const packsByTriple = new Map<string, Set<string>>();
+  for (const pack of packs) {
+    for (const gate of pack.contributions?.qualityGates ?? []) {
+      const triple = `${gate.entityType} ${gate.fromState} -> ${gate.toState}`;
+      const set = packsByTriple.get(triple) ?? new Set<string>();
+      set.add(pack.code);
+      packsByTriple.set(triple, set);
+    }
+  }
+  for (const [triple, packCodes] of packsByTriple) {
+    if (packCodes.size > 1) {
+      conflicts.push(`Quality Gate conflict on ${triple}: contributed by ${[...packCodes].join(", ")}. Only one Quality Gate can gate a transition — resolve before commissioning.`);
+    }
+  }
+
+  return conflicts;
+}

@@ -118,6 +118,52 @@
             <% } %>
           </li>
 
+          <!-- CR-001 — dev-only "Act As" switcher. Rendered ONLY when
+               res.locals.devActAs is populated, which happens exclusively for
+               the single god identity in a non-production env with the feature
+               not switched off (see src/dev/actAs.js). Never present in prod. -->
+          <% if (locals.devActAs) { %>
+            <% const _da = locals.devActAs;
+               const _curBadge = _da.current.badgeType || 'root';
+               const _curTenant = _da.current.tenantId; %>
+            <li class="nav-item dropdown me-2">
+              <a class="nav-link dropdown-toggle text-warning" href="#" role="button"
+                 data-bs-toggle="dropdown" aria-expanded="false" title="Dev: act as tenant/badge">
+                <i class="bi bi-incognito me-1"></i>Act as:
+                <span class="badge bg-warning text-dark ms-1"><%= _curBadge %></span>
+              </a>
+              <div class="dropdown-menu dropdown-menu-dark dropdown-menu-end p-3" style="min-width:20rem;">
+                <div class="small text-warning-emphasis mb-2">
+                  <i class="bi bi-exclamation-triangle me-1"></i>Dev impersonation (god user only)
+                </div>
+                <form method="POST" action="/aisworg/seu/dev/act-as">
+                  <input type="hidden" name="_csrf" value="<%= locals.csrfToken %>">
+                  <label class="form-label small mb-1">Tenant</label>
+                  <!-- Changing tenant re-submits so the badge list repopulates
+                       for that tenant's vocabulary. -->
+                  <select name="tenantId" class="form-select form-select-sm mb-2" onchange="this.form.submit()">
+                    <option value="" <%= !_curTenant ? 'selected' : '' %>>— default tenant —</option>
+                    <% _da.tenants.forEach(function(t) { %>
+                      <option value="<%= t.id %>" <%= _curTenant === t.id ? 'selected' : '' %>><%= t.name %> (<%= t.code %>)</option>
+                    <% }) %>
+                  </select>
+                  <label class="form-label small mb-1">Badge</label>
+                  <select name="badgeType" class="form-select form-select-sm mb-2">
+                    <option value="root" <%= _curBadge === 'root' ? 'selected' : '' %>>root — full access (reset)</option>
+                    <% _da.badgeTypes.forEach(function(bt) { if (bt.code === 'root') return; %>
+                      <option value="<%= bt.code %>" <%= _curBadge === bt.code ? 'selected' : '' %>><%= bt.name %> (<%= bt.code %> · <%= bt.scope_kind %>)</option>
+                    <% }) %>
+                  </select>
+                  <button type="submit" class="btn btn-sm btn-warning w-100">Apply</button>
+                </form>
+                <form method="POST" action="/aisworg/seu/dev/act-as/reset" class="mt-2">
+                  <input type="hidden" name="_csrf" value="<%= locals.csrfToken %>">
+                  <button type="submit" class="btn btn-sm btn-outline-light w-100">Reset to root</button>
+                </form>
+              </div>
+            </li>
+          <% } %>
+
           <!-- Settings / user menu -->
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle <%= ['settings','stocks','stockListManager','user-management','seu-identity'].includes(currentPage) ? 'active' : '' %>"

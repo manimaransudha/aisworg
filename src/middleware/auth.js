@@ -1,4 +1,5 @@
 import { logger } from '../utils/logger.js';
+import { effectivePlatformBadges } from '../dev/actAs.js';
 
 const ROLE_LEVEL = { general: 1, power: 2, super: 3 };
 
@@ -41,7 +42,12 @@ export function requireRole(minRole) {
     // everything while testing, not just badge-gated surfaces. Delete this
     // block to go back to requireRole() reading only users.role, unrelated
     // to badges.
-    if ((user.platformBadges ?? []).includes('root')) return next();
+    // CR-001: when the god user is acting-as a non-root badge, effective
+    // badges drop `root`, so this bypass no longer fires and the real level
+    // check below applies. effectivePlatformBadges() returns null unless the
+    // dev switcher is live, leaving the true session badges (prod unchanged).
+    const badges = effectivePlatformBadges(req) ?? user.platformBadges ?? [];
+    if (badges.includes('root')) return next();
     // ─── end testing bypass ──────────────────────────────────────────────────
 
     const userLevel = ROLE_LEVEL[user.role] ?? 0;

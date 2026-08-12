@@ -7,6 +7,8 @@ import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { createDeliverable, transitionDeliverable } from "../core/deliverables.js";
 import { explainDeliverable, impactOfDeliverable } from "../core/traceability.js";
+import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
+import { devActAsAvailable, currentActAs, findOrMintGrant } from "../../../dev/actAs.js";
 
 /** POST /seus/:id/deliverables — Ch.15: create a Deliverable beyond whatever the Template catalogue pre-seeded. */
 router.post("/seus/:id/deliverables", async (req: Request, res: Response) => {
@@ -39,7 +41,30 @@ router.post("/deliverables/:id/transition", async (req: Request, res: Response) 
     const actorRole = req.session?.user?.role ?? "general";
     const requestedBy = req.session?.user?.id ?? null;
     const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
-    const actingBadgeGrantId = typeof req.body?.actingBadgeGrantId === "string" ? req.body.actingBadgeGrantId : undefined;
+    let actingBadgeGrantId = typeof req.body?.actingBadgeGrantId === "string" ? req.body.actingBadgeGrantId : undefined;
+
+    // CR-001 — when the god user is acting-as a non-root badge, resolve the
+    // acting grant to THAT badge (minting it scoped to this Deliverable's SEU
+    // if absent), and pass it explicitly so it wins over the auto-resolver's
+    // root preference. This makes real authority checks — and denials — apply
+    // to the assumed badge. No-op unless the dev switcher is live.
+    if (!actingBadgeGrantId && actorId && devActAsAvailable(req)) {
+      const actAs = currentActAs(req);
+      if (actAs && actAs.badgeType !== "root") {
+        const { data: deliverable } = await deliverablesDB.findById(String(req.params.id));
+        if (deliverable) {
+          const grant = await findOrMintGrant(req, {
+            holderId: actorId,
+            badgeType: actAs.badgeType,
+            tenantId: actAs.tenantId,
+            entityType: "Deliverable",
+            capabilityId: deliverable.producing_capability_id,
+            scopeId: deliverable.seu_id,
+          });
+          if (grant) actingBadgeGrantId = grant.id;
+        }
+      }
+    }
 
     // Participant Integration — Plan step 4: the assigner may override the
     // SLA-derived default deadline with an explicit target completion time.

@@ -112,6 +112,23 @@ export async function commissionSeu(input: {
 
   // Ch.4 Composition Engine
   const { composedPacks, compositionReport } = await compositionEngine.compose({ templateId: template.id, profileId: profile.id });
+
+  // FR-3.6/3.7 & FR-21.7: behavioural/governance conflicts requiring human
+  // judgement prevent commissioning until resolved. Detected at composition;
+  // the SEU never reaches Operational (it stays the pre-commissioned Pending
+  // row, same shape as the Authority rejection above).
+  if (compositionReport.conflicts.length > 0) {
+    await eventBus.publish({
+      eventType: "SEUCommissionRejected",
+      originatingObjectType: "SEU",
+      originatingObjectId: seu.id,
+      correlationId,
+      causationId: correlationId,
+      payload: { reason: "composition_conflict", conflicts: compositionReport.conflicts },
+    });
+    return { ok: false, stage: "compose_ebm", reason: `composition conflicts must be resolved before commissioning: ${compositionReport.conflicts.join(" | ")}`, seuId: seu.id };
+  }
+
   const { data: ebm, error: ebmErr } = await ebmsDB.create({
     seuId: seu.id,
     templateId: template.id,

@@ -200,3 +200,31 @@ export async function tenantVocabulary(tenantId, conceptType) {
 export async function createEvidenceRaw({ seuId, deliverableId, category, title, source }) {
   return http("POST", urls.api("/evidence"), { json: { seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category, title, source } });
 }
+
+// ---- governance model (Phase 16 — Ch.21 FR-21.1) -----------------------------
+export async function governanceModel(seuId) {
+  return expect(await http("GET", urls.api(`/seus/${seuId}/governance-model`)), 200, "GET governance-model");
+}
+
+// ---- dev-only "Act As" switcher (CR-001) -------------------------------------
+// Web-only routes (CSRF + session cookie). Only reachable under NODE_ENV=test
+// as the single god identity (the auto-login the suite already runs as), so the
+// suite can assume a non-root badge and exercise real authority denials. Both
+// return the raw { status, location } — a 302 redirect is the web-form success.
+export async function actAs(tenantId, badgeType) {
+  const csrf = await csrfFor(`/seu/seus`);
+  const res = await http("POST", urls.web(`/dev/act-as`), { form: { _csrf: csrf, tenantId: tenantId ?? "", badgeType } });
+  return { status: res.status, location: res.location };
+}
+
+export async function resetActAs() {
+  const csrf = await csrfFor(`/seu/seus`);
+  const res = await http("POST", urls.web(`/dev/act-as/reset`), { form: { _csrf: csrf } });
+  return { status: res.status, location: res.location };
+}
+
+// GET a requirePlatformBadge('root')-gated web surface — returns raw status so a
+// scenario can assert 200 (allowed) vs a 302 redirect (denied) under Act-As.
+export async function getRootGatedSurface() {
+  return http("GET", urls.web(`/identity/tenants`));
+}

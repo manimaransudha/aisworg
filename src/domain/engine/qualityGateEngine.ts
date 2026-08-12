@@ -46,7 +46,7 @@ export const qualityGateEngine = {
   async evaluate(input: {
     entityType: TransitionEntityType;
     entityId: string;
-    seuId: string;
+    seuId: string | null;
     fromState: string;
     toState: string;
   }): Promise<QualityGateEvaluationResult> {
@@ -67,7 +67,7 @@ export const qualityGateEngine = {
   // single-gate check already has.
   async evaluateByIds(
     gateIds: string[],
-    input: { entityType: TransitionEntityType; entityId: string; seuId: string }
+    input: { entityType: TransitionEntityType; entityId: string; seuId: string | null }
   ): Promise<QualityGateListEvaluationResult> {
     if (gateIds.length === 0) return { outcome: "NotApplicable" };
     const { data: gates } = await qualityGatesDB.findByIds(gateIds);
@@ -80,7 +80,7 @@ export const qualityGateEngine = {
 
   async evaluateGate(
     gate: QualityGateRow,
-    input: { entityType: TransitionEntityType; entityId: string; seuId: string }
+    input: { entityType: TransitionEntityType; entityId: string; seuId: string | null }
   ): Promise<QualityGateEvaluationResult> {
     const criteriaType = (gate.criteria as { type?: string }).type;
 
@@ -148,7 +148,7 @@ export const qualityGateEngine = {
     return this.recordAndBlock(gate, input, `unrecognised Quality Gate criteria type: ${criteriaType}`, { criteriaType });
   },
 
-  async recordAndPass(gate: QualityGateRow, input: { seuId: string; entityType: TransitionEntityType; entityId: string }): Promise<QualityGateEvaluationResult> {
+  async recordAndPass(gate: QualityGateRow, input: { seuId: string | null; entityType: TransitionEntityType; entityId: string }): Promise<QualityGateEvaluationResult> {
     await qualityGateEvaluationsDB.create({ qualityGateId: gate.id, seuId: input.seuId, entityType: input.entityType, entityId: input.entityId, outcome: "Passed" });
     // Ch.26 §15: the Quality Gate subsystem itself should publish this — a
     // real gap found in Phase 7's audit (evaluations were only ever written
@@ -165,7 +165,7 @@ export const qualityGateEngine = {
 
   async recordAndBlock(
     gate: QualityGateRow,
-    input: { seuId: string; entityType: TransitionEntityType; entityId: string },
+    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string },
     reason: string,
     detail: Record<string, unknown>
   ): Promise<QualityGateEvaluationResult> {
