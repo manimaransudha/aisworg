@@ -13,6 +13,7 @@ import { qualityGateEvaluationsDB } from "../../dblayer/qualityGateEvaluationsDB
 import { obligationsDB } from "../../dblayer/obligationsDB.js";
 import { evidenceDB } from "../../dblayer/evidenceDB.js";
 import { decisionsDB } from "../../dblayer/decisionsDB.js";
+import { reviewsDB } from "../../dblayer/reviewsDB.js";
 import { eventBus } from "./eventBus.js";
 import type { QualityGateRow, TransitionEntityType } from "../../dblayer/seuTypes.js";
 
@@ -28,6 +29,11 @@ const RESOLVED_OBLIGATION_STATUSES = new Set(["Verified", "Closed", "Archived"])
 // current decision.
 const QUALIFYING_EVIDENCE_STATUSES = new Set(["Accepted", "Referenced"]);
 const QUALIFYING_DECISION_STATUSES = new Set(["Approved", "Applied"]);
+
+// Review Model (Ch.25 §11): a Review satisfies a gate only when its lifecycle is
+// Accepted AND its outcome is a passing one. Rework Required/Failed never
+// satisfy; Deferred/Not Applicable do not satisfy a *required* Review.
+const QUALIFYING_REVIEW_OUTCOMES = new Set(["Passed", "Passed with Recommendations"]);
 
 export type QualityGateEvaluationResult =
   | { outcome: "NotApplicable" }
@@ -116,6 +122,23 @@ export const qualityGateEngine = {
       // not gate satisfaction.)
       if (qualifyingEvidence.length === 0 && qualifyingDecisions.length === 0) {
         return this.recordAndBlock(gate, input, "no accepted Evidence or approved Decision found for this entity", {});
+      }
+      return this.recordAndPass(gate, input);
+    }
+
+    // Review Model — Plan (Phase 14, Ch.25 §11): Governance consumes the Review
+    // outcome. This gate blocks a transition until an Accepted Review with a
+    // passing outcome exists for the entity. An optional `category` narrows it
+    // to a specific Review category (e.g. "Architecture"). Reviews are
+    // polymorphic, so this works for any gated entity type.
+    if (criteriaType === "requires_accepted_review") {
+      const requiredCategory = (gate.criteria as { category?: string }).category;
+      const { data: reviews } = await reviewsDB.findByRelatedObject(input.entityType, input.entityId);
+      const qualifying = (reviews ?? []).filter(
+        (r) => r.status === "Accepted" && r.outcome != null && QUALIFYING_REVIEW_OUTCOMES.has(r.outcome) && (!requiredCategory || r.category === requiredCategory)
+      );
+      if (qualifying.length === 0) {
+        return this.recordAndBlock(gate, input, requiredCategory ? `no Accepted, passing "${requiredCategory}" Review found for this entity` : "no Accepted, passing Review found for this entity", { requiredCategory });
       }
       return this.recordAndPass(gate, input);
     }

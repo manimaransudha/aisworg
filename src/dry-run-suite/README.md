@@ -49,6 +49,7 @@ SUITE_BASE_URL=http://127.0.0.1:4900/aisworg node run.mjs
 - **Opaque reference round-trip** — a bizarre provider-specific reference is stored byte-for-byte; the core never parses it.
 - **Participant replacement** — idle and mid-flight (while a Work Item is outstanding).
 - **Traceability** — backward provenance and forward impact analysis (Ch.20).
+- **Review Model (Ch.25, Phase 14)** — a governed Review with an immutable outcome that never modifies the reviewed object (`outcome_required` guard, RM-001), a High-severity Finding that auto-surfaces Attention and converts to an Obligation (once), and traceability listing the Reviews + Findings against the Deliverable.
 
 ## Known limitation
 

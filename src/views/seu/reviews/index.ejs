@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+  <style>
+    .section-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); background: #fff; margin-bottom: 1.5rem; overflow: hidden; }
+    .section-header { background: #0f172a; color: #fff; font-weight: 600; font-size: 0.9rem; padding: 0.85rem 1.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .state-badge { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; padding: 0.22rem 0.6rem; border-radius: 999px; background: #fef9c3; color: #854d0e; }
+    .state-Accepted, .state-Completed { background: #dcfce7; color: #166534; }
+    .state-Archived, .state-Resolved, .state-Waived { background: #f1f5f9; color: #64748b; }
+    .outcome-badge { font-size: 0.68rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 4px; }
+    .outcome-pass { background: #dcfce7; color: #166534; }
+    .outcome-fail { background: #fee2e2; color: #991b1b; }
+    .outcome-other { background: #fef3c7; color: #92400e; }
+    .sev-High, .sev-Critical { color: #b91c1c; font-weight: 700; }
+    .review-block { border: 1px solid #eef2f7; border-radius: 10px; padding: 1rem 1.1rem; margin: 0 1.25rem 1rem; }
+    .finding-row { border-top: 1px dashed #eef2f7; padding: 0.5rem 0; font-size: 0.85rem; }
+    label.mini { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; }
+  </style>
+</head>
+<body>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5" style="max-width: 1100px;">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4 d-flex justify-content-between align-items-start">
+      <div>
+        <h2 class="h3 mb-1 text-dark fw-bold">Reviews</h2>
+        <p class="text-muted small mb-0">
+          Ch.25 — a Review is a governed evaluation of an engineering object. It never modifies the object; it produces
+          an immutable outcome at Completion that Governance consumes (a Quality Gate can require an Accepted, passing
+          Review). Findings are traceable observations that can be resolved or converted to Obligations.
+        </p>
+      </div>
+      <a href="/aisworg/seu/seus/<%= seuId %>" class="btn btn-sm btn-outline-secondary">← SEU</a>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">Plan a Review</div>
+      <div class="p-3">
+        <form method="POST" action="/aisworg/seu/seus/<%= seuId %>/reviews" class="row g-2 align-items-end">
+          <input type="hidden" name="_csrf" value="<%= locals.csrfToken || '' %>" />
+          <div class="col-md-4">
+            <label class="mini">Deliverable</label>
+            <select name="deliverableId" class="form-select form-select-sm">
+              <% deliverables.forEach(function (d) { %><option value="<%= d.id %>"><%= d.name %></option><% }); %>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="mini">Category</label>
+            <select name="category" class="form-select form-select-sm">
+              <% ["Requirements","Architecture","Design","Code","Security","Test","Deployment","Operational"].forEach(function (c) { %><option><%= c %></option><% }); %>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="mini">Name</label>
+            <input type="text" name="name" class="form-control form-control-sm" placeholder="e.g. Architecture Review" />
+          </div>
+          <div class="col-md-2"><button type="submit" class="btn btn-sm btn-dark w-100">Plan Review</button></div>
+        </form>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">Reviews</div>
+      <div class="pt-3">
+        <% if (!reviews || reviews.length === 0) { %>
+          <p class="text-center text-muted py-4 mb-0">No Reviews yet.</p>
+        <% } else { %>
+          <% reviews.forEach(function (item) { var r = item.review; %>
+            <div class="review-block">
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                  <span class="fw-semibold"><%= r.name %></span>
+                  <span class="text-muted small">· <%= r.category %></span>
+                  <span class="state-badge state-<%= String(r.status).replace(/\s/g,'-') %>"><%= r.status %></span>
+                  <% if (r.outcome) { var oc = (r.outcome.indexOf('Passed')===0) ? 'outcome-pass' : (r.outcome==='Failed'||r.outcome==='Rework Required') ? 'outcome-fail' : 'outcome-other'; %>
+                    <span class="outcome-badge <%= oc %>"><%= r.outcome %></span>
+                  <% } %>
+                </div>
+                <form method="POST" action="/aisworg/seu/seus/<%= seuId %>/reviews/<%= r.id %>/transition" class="d-flex gap-2 align-items-center">
+                  <input type="hidden" name="_csrf" value="<%= locals.csrfToken || '' %>" />
+                  <% if (item.possibleNextStates && item.possibleNextStates.length) { %>
+                    <select name="targetState" class="form-select form-select-sm" style="max-width: 140px;">
+                      <% item.possibleNextStates.forEach(function (s) { %><option><%= s %></option><% }); %>
+                    </select>
+                    <select name="outcome" class="form-select form-select-sm" style="max-width: 180px;" title="Required when completing">
+                      <option value="">(outcome, if completing)</option>
+                      <% ["Passed","Passed with Recommendations","Rework Required","Failed","Not Applicable","Deferred"].forEach(function (o) { %><option><%= o %></option><% }); %>
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-outline-dark">Advance</button>
+                  <% } else { %>
+                    <span class="text-muted small">no further transitions</span>
+                  <% } %>
+                </form>
+              </div>
+
+              <div class="mt-2">
+                <% (item.findings || []).forEach(function (f) { %>
+                  <div class="finding-row d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                      <span class="sev-<%= f.severity %>">[<%= f.severity %>]</span>
+                      <%= f.title %>
+                      <span class="state-badge state-<%= f.status %>"><%= f.status %></span>
+                      <% if (f.obligation_id) { %><span class="text-muted small">→ Obligation</span><% } %>
+                    </div>
+                    <div class="d-flex gap-2">
+                      <% if (f.status === 'Open') { %>
+                        <form method="POST" action="/aisworg/seu/seus/<%= seuId %>/findings/<%= f.id %>/transition">
+                          <input type="hidden" name="_csrf" value="<%= locals.csrfToken || '' %>" /><input type="hidden" name="targetState" value="Resolved" />
+                          <button class="btn btn-sm btn-outline-success">Resolve</button>
+                        </form>
+                        <form method="POST" action="/aisworg/seu/seus/<%= seuId %>/findings/<%= f.id %>/transition">
+                          <input type="hidden" name="_csrf" value="<%= locals.csrfToken || '' %>" /><input type="hidden" name="targetState" value="Waived" />
+                          <button class="btn btn-sm btn-outline-secondary">Waive</button>
+                        </form>
+                        <% if (!f.obligation_id) { %>
+                          <form method="POST" action="/aisworg/seu/seus/<%= seuId %>/findings/<%= f.id %>/convert">
+                            <input type="hidden" name="_csrf" value="<%= locals.csrfToken || '' %>" />
+                            <button class="btn btn-sm btn-outline-danger">→ Obligation</button>
+                          </form>
+                        <% } %>
+                      <% } %>
+                    </div>
+                  </div>
+                <% }); %>
+
+                <form method="POST" action="/aisworg/seu/seus/<%= seuId %>/reviews/<%= r.id %>/findings" class="row g-2 align-items-end mt-1">
+                  <input type="hidden" name="_csrf" value="<%= locals.csrfToken || '' %>" />
+                  <div class="col-auto">
+                    <select name="severity" class="form-select form-select-sm">
+                      <% ["Low","Medium","High","Critical"].forEach(function (s) { %><option <%= s==='Medium'?'selected':'' %>><%= s %></option><% }); %>
+                    </select>
+                  </div>
+                  <div class="col"><input type="text" name="title" class="form-control form-control-sm" placeholder="Raise a finding…" /></div>
+                  <div class="col-auto"><button class="btn btn-sm btn-outline-primary">Add Finding</button></div>
+                </form>
+              </div>
+            </div>
+          <% }); %>
+        <% } %>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

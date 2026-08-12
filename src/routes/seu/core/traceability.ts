@@ -27,6 +27,8 @@ import { evidenceDB } from "../../../dblayer/evidenceDB.js";
 import { decisionsDB } from "../../../dblayer/decisionsDB.js";
 import { obligationsDB } from "../../../dblayer/obligationsDB.js";
 import { knowledgeItemsDB } from "../../../dblayer/knowledgeItemsDB.js";
+import { reviewsDB } from "../../../dblayer/reviewsDB.js";
+import { findingsDB } from "../../../dblayer/findingsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 
 export interface ProvenanceEntry {
@@ -64,6 +66,10 @@ export interface DeliverableExplanation {
   supportingDecisions: RelatedArtifact[];
   knowledge: RelatedArtifact[];
   obligations: RelatedArtifact[];
+  // Review Model (Ch.25 §14, Phase 14): the Reviews that evaluated this object
+  // and the Findings they produced — provenance edges in the same graph.
+  reviews: Array<{ id: string; category: string; name: string; status: string; outcome: string | null }>;
+  findings: Array<{ id: string; reviewId: string; severity: string; title: string; status: string; obligationId: string | null }>;
 }
 
 export interface ImpactNode {
@@ -95,7 +101,7 @@ export async function explainDeliverable(deliverableId: string): Promise<Deliver
   const { data: deliverable } = await deliverablesDB.findById(deliverableId);
   if (!deliverable) return null;
 
-  const [{ data: references }, { data: attestations }, { data: edges }, { data: evidence }, { data: decisions }, { data: obligations }, { data: knowledge }] =
+  const [{ data: references }, { data: attestations }, { data: edges }, { data: evidence }, { data: decisions }, { data: obligations }, { data: knowledge }, { data: reviews }, { data: findings }] =
     await Promise.all([
       deliverableReferencesDB.findByDeliverableId(deliverableId),
       attestationsDB.findByDeliverableId(deliverableId),
@@ -104,6 +110,8 @@ export async function explainDeliverable(deliverableId: string): Promise<Deliver
       decisionsDB.findByRelatedObject("Deliverable", deliverableId),
       obligationsDB.findByRelatedObject("Deliverable", deliverableId),
       knowledgeItemsDB.findByDeliverableId(deliverableId),
+      reviewsDB.findByRelatedObject("Deliverable", deliverableId),
+      findingsDB.findByRelatedObject("Deliverable", deliverableId),
     ]);
 
   // An attestation exists for exactly the acceptance transitions; key them by
@@ -159,6 +167,8 @@ export async function explainDeliverable(deliverableId: string): Promise<Deliver
     supportingDecisions: (decisions ?? []).map((d) => ({ id: d.id, title: d.title, status: d.status })),
     knowledge: (knowledge ?? []).map((k) => ({ id: k.id, title: k.title, status: k.status })),
     obligations: (obligations ?? []).map((o) => ({ id: o.id, title: o.title, status: o.status })),
+    reviews: (reviews ?? []).map((r) => ({ id: r.id, category: r.category, name: r.name, status: r.status, outcome: r.outcome })),
+    findings: (findings ?? []).map((f) => ({ id: f.id, reviewId: f.review_id, severity: f.severity, title: f.title, status: f.status, obligationId: f.obligation_id })),
   };
 }
 

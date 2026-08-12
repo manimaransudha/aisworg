@@ -130,3 +130,34 @@ export async function sweepStalled(seuId) {
 export async function attentionItems(seuId) {
   return expect(await http("GET", urls.api(`/attention-items?seuId=${seuId}`)), 200, "GET attention-items").attentionItems;
 }
+
+// ---- reviews & findings (Phase 14 — Ch.25) -----------------------------------
+export async function createReview({ seuId, relatedObjectType, relatedObjectId, category, name }) {
+  return expect(await http("POST", urls.api("/reviews"), { json: { seuId, relatedObjectType, relatedObjectId, category, name } }), 201, "POST /reviews").review;
+}
+
+// Returns the raw { status, body } so scenarios can assert 409 outcome_required etc.
+export async function transitionReview(reviewId, targetState, outcome) {
+  return http("POST", urls.api(`/reviews/${reviewId}/transition`), { json: { targetState, ...(outcome ? { outcome } : {}) } });
+}
+
+export async function createFinding(reviewId, { severity, title, description }) {
+  return expect(await http("POST", urls.api(`/reviews/${reviewId}/findings`), { json: { severity, title, description } }), 201, "POST finding").finding;
+}
+
+export async function transitionFinding(findingId, targetState) {
+  return http("POST", urls.api(`/findings/${findingId}/transition`), { json: { targetState } });
+}
+
+export async function convertFindingToObligation(findingId, category) {
+  return http("POST", urls.api(`/findings/${findingId}/convert-to-obligation`), { json: category ? { category } : {} });
+}
+
+// Walk a Review Planned -> Prepared -> In Progress -> Completed(outcome) -> Accepted.
+export async function walkReviewToAccepted(reviewId, outcome) {
+  await transitionReview(reviewId, "Prepared");
+  await transitionReview(reviewId, "In Progress");
+  const completed = await transitionReview(reviewId, "Completed", outcome);
+  if (completed.status !== 200) throw new Error(`completing review failed: ${completed.status} ${JSON.stringify(completed.body)}`);
+  await transitionReview(reviewId, "Accepted");
+}

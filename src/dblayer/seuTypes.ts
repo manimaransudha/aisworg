@@ -289,7 +289,9 @@ export type TransitionEntityType =
   | "AttentionItem"
   | "ExternalInteraction"
   | "Pack"
-  | "Participant";
+  | "Participant"
+  | "Review"
+  | "Finding";
 
 export interface TransitionDefinitionRow {
   id: string;
@@ -371,6 +373,43 @@ export interface ExecutionTargetRow {
   mode: ExecutionMode;
   adapter_endpoint: string | null;
   adapter_auth_ref: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Review Model — Plan (Phase 14, Ch.25). A governed evaluation of an engineering
+// object; produces an immutable outcome Governance consumes.
+export type ReviewOutcome = "Passed" | "Passed with Recommendations" | "Rework Required" | "Failed" | "Not Applicable" | "Deferred";
+
+export interface ReviewRow {
+  id: string;
+  seu_id: string;
+  related_object_type: TransitionEntityType;
+  related_object_id: string;
+  category: string;
+  name: string;
+  criteria: Record<string, unknown>;
+  outcome: ReviewOutcome | null;
+  status: string;
+  reviewer: string | null;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Review Model — Plan (Phase 14, Ch.25 §12). A Finding is an observation from a
+// Review; an independent, traceable object that can be converted to an Obligation.
+export interface FindingRow {
+  id: string;
+  review_id: string;
+  seu_id: string;
+  related_object_type: TransitionEntityType;
+  related_object_id: string;
+  severity: string;
+  title: string;
+  description: string | null;
+  status: string;
+  obligation_id: string | null;
   created_at: string;
   updated_at: string;
 }

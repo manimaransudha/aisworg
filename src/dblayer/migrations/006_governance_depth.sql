@@ -47,7 +47,7 @@ CREATE INDEX IF NOT EXISTS idx_obligations_seu ON obligations (seu_id);
 -- migrations run in against an already-seeded database.
 ALTER TABLE transition_definitions DROP CONSTRAINT IF EXISTS transition_definitions_entity_type_check;
 ALTER TABLE transition_definitions ADD CONSTRAINT transition_definitions_entity_type_check
-  CHECK (entity_type IN ('SEU', 'Deliverable', 'Objective', 'Obligation', 'Evidence', 'Knowledge', 'Decision', 'KnowledgeScope', 'AttentionItem', 'ExternalInteraction', 'Pack', 'Participant'));
+  CHECK (entity_type IN ('SEU', 'Deliverable', 'Objective', 'Obligation', 'Evidence', 'Knowledge', 'Decision', 'KnowledgeScope', 'AttentionItem', 'ExternalInteraction', 'Pack', 'Participant', 'Review', 'Finding'));
 
 -- Ch.26. A gate is scoped to one specific governed transition, same shape as
 -- transition_definitions. category stays free TEXT for the same "Pack-

@@ -20,6 +20,7 @@ import { router as packsRouter } from "./packs.js";
 import { router as workItemsRouter } from "./workItems.js";
 import { router as executionTargetsRouter } from "./executionTargets.js";
 import { router as tenantsRouter } from "./tenants.js";
+import { router as reviewsRouter } from "./reviews.js";
 
 router.use(objectivesRouter);
 router.use(templatesRouter);
@@ -38,5 +39,6 @@ router.use(packsRouter);
 router.use(workItemsRouter);
 router.use(executionTargetsRouter);
 router.use(tenantsRouter);
+router.use(reviewsRouter);
 
 export { router };

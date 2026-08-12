@@ -440,6 +440,50 @@ async function edgeCases() {
     }
   });
 
+  await scenario("Review Model (Ch.25) — governed evaluation, immutable outcome, Findings, traceability", async () => {
+    const seu = await must("stand up a sandbox SEU", () => standUp(Atlas.tenantId, "Sandbox review-model"));
+    const reqSpec = del(seu.deliverables, "Requirements Specification");
+
+    const review = await must("plan a Requirements Review against the Requirements Specification", () =>
+      P.createReview({ seuId: seu.seuId, relatedObjectType: "Deliverable", relatedObjectId: reqSpec.id, category: "Requirements", name: "Requirements Review" })
+    );
+
+    await check("completing a Review without an outcome is refused (409 outcome_required)", async () => {
+      await P.transitionReview(review.id, "Prepared");
+      await P.transitionReview(review.id, "In Progress");
+      const noOutcome = await P.transitionReview(review.id, "Completed");
+      assert.equal(noOutcome.status, 409, JSON.stringify(noOutcome.body));
+      assert.equal(noOutcome.body.reason, "outcome_required");
+    });
+
+    await check("the Review completes with an outcome, which is immutable, and never modifies the reviewed object (RM-001)", async () => {
+      const completed = await P.transitionReview(review.id, "Completed", "Passed with Recommendations");
+      assert.equal(completed.status, 200, JSON.stringify(completed.body));
+      assert.equal(completed.body.review.outcome, "Passed with Recommendations");
+      await P.transitionReview(review.id, "Accepted");
+      const status = await P.getSeu(seu.seuId);
+      assert.equal(del(status.deliverables, "Requirements Specification").lifecycleState, "Defined", "a Review must not modify the reviewed object");
+    });
+
+    await check("a High-severity Finding auto-surfaces an Attention Item and can be converted to an Obligation", async () => {
+      const finding = await P.createFinding(review.id, { severity: "High", title: "Acceptance criteria are ambiguous", description: "Credit mapping underspecified" });
+      const items = await P.attentionItems(seu.seuId);
+      assert.ok(items.some((i) => i.category === "Action Required"), "a High Finding surfaces an Action Required Attention Item");
+      const converted = await P.convertFindingToObligation(finding.id, "Engineering");
+      assert.equal(converted.status, 200, JSON.stringify(converted.body));
+      assert.ok(converted.body.obligationId, "the Finding converts to an Obligation");
+      const again = await P.convertFindingToObligation(finding.id);
+      assert.equal(again.status, 409, "a Finding cannot be converted twice");
+      assert.equal(again.body.reason, "already_converted");
+    });
+
+    await check("traceability lists the Review and its Findings against the Deliverable (Ch.25 §14)", async () => {
+      const tr = await P.traceability(reqSpec.id);
+      assert.ok(tr.explanation.reviews.some((r) => r.id === review.id && r.status === "Accepted" && r.outcome === "Passed with Recommendations"), "the Review appears in traceability");
+      assert.ok(tr.explanation.findings.length >= 1, "the Finding appears in traceability");
+    });
+  });
+
   await scenario("Edge — separation of duties (structural; negative case documented)", async () => {
     if (!Atlas.seu) return note("Atlas SEU required");
     const reqSpec = del(Atlas.seu.deliverables, "Requirements Specification");
