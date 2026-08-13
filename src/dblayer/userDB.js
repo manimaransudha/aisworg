@@ -32,13 +32,14 @@ export const userDB = {
     }
   },
 
-  async create({ email, name, avatar_url, role, auth_provider, provider_id, is_active = true }) {
+  // CR-004: type ('Platform'|'Tenant') + tenant_id are now required columns.
+  async create({ email, name, avatar_url, role, auth_provider, provider_id, is_active = true, type, tenant_id }) {
     try {
       const { rows } = await query(
-        `INSERT INTO users (email, name, avatar_url, role, auth_provider, provider_id, is_active)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO users (email, name, avatar_url, role, auth_provider, provider_id, is_active, type, tenant_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING *`,
-        [email.toLowerCase(), name, avatar_url, role, auth_provider, provider_id, is_active]
+        [email.toLowerCase(), name, avatar_url, role, auth_provider, provider_id, is_active, type, tenant_id]
       );
       return rows[0];
     } catch (err) {
@@ -47,19 +48,21 @@ export const userDB = {
     }
   },
 
-  async createLocalPending({ email, name, role, verification_token, verification_expires }) {
+  async createLocalPending({ email, name, role, verification_token, verification_expires, type, tenant_id }) {
     try {
       const { rows } = await query(
-        `INSERT INTO users (email, name, role, auth_provider, is_active, verification_token, verification_expires)
-         VALUES ($1, $2, $3, 'local', FALSE, $4, $5)
+        `INSERT INTO users (email, name, role, auth_provider, is_active, verification_token, verification_expires, type, tenant_id)
+         VALUES ($1, $2, $3, 'local', FALSE, $4, $5, $6, $7)
          ON CONFLICT (email) DO UPDATE
            SET name                 = EXCLUDED.name,
                role                 = EXCLUDED.role,
                verification_token   = EXCLUDED.verification_token,
                verification_expires = EXCLUDED.verification_expires,
-               is_active            = FALSE
+               is_active            = FALSE,
+               type                 = EXCLUDED.type,
+               tenant_id            = EXCLUDED.tenant_id
          RETURNING *`,
-        [email.toLowerCase(), name, role, verification_token, verification_expires]
+        [email.toLowerCase(), name, role, verification_token, verification_expires, type, tenant_id]
       );
       return rows[0];
     } catch (err) {

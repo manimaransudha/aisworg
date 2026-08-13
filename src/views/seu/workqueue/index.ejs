@@ -12,6 +12,7 @@
   </style>
 </head>
 <body>
+  <%- include('../../partials/helpers') %>
   <header><%- include('../../partials/navbar') %></header>
 
   <main class="container py-5" style="max-width: 1100px;">
@@ -36,18 +37,27 @@
       </div>
     </div>
 
+    <% const _base = locals.listBasePath || ('/aisworg/seu/seus/' + seuId + '/work-queue'); %>
+    <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search deliverable / mode' }) %>
+
     <div class="section-card">
       <div class="section-header">Outstanding Work Items</div>
       <div class="table-responsive">
         <table class="table table-sm mb-0 align-middle">
           <thead class="table-light">
-            <tr><th>Deliverable</th><th>Transition</th><th>Reach by</th><th>Fulfilment</th><th style="min-width: 320px;">Report result</th></tr>
+            <tr>
+              <th><%- sortLink('Deliverable', 'deliverable', list, _base) %></th>
+              <th><%- sortLink('Transition', 'transition', list, _base) %></th>
+              <th><%- sortLink('Reach by', 'reachby', list, _base) %></th>
+              <th><%- sortLink('Fulfilment', 'mode', list, _base) %></th>
+              <th style="min-width: 320px;">Report result</th>
+            </tr>
           </thead>
           <tbody>
-            <% if (!workItems || workItems.length === 0) { %>
-              <tr><td colspan="5" class="text-center text-muted py-4">No outstanding Work Items — nothing is waiting on a Participant.</td></tr>
+            <% if (list.total === 0) { %>
+              <tr><td colspan="5" class="text-center text-muted py-4"><%= list.q ? 'No Work Items match your search.' : 'No outstanding Work Items — nothing is waiting on a Participant.' %></td></tr>
             <% } else { %>
-              <% workItems.forEach(function (wi) { %>
+              <% list.items.forEach(function (wi) { %>
                 <tr>
                   <td class="fw-semibold"><%= wi.deliverableName %></td>
                   <td><span class="text-muted small"><%= wi.fromState %> &rarr; <%= wi.toState %></span></td>

@@ -325,6 +325,11 @@ export interface TransitionDefinitionRow {
   // An Obligation category to raise on a successful transition, or null for
   // none ("creates, does not block"). Stored; not yet mechanically enforced.
   creates_obligation: string | null;
+  // CR-006 (035) — the verb this transition requires; the required badge is
+  // `entity_type + '_' + verb`. CR-007 (036) — soft-retire flag + timestamp.
+  verb: string | null;
+  is_active: boolean;
+  retired_at: string | null;
 }
 
 export type CommandStatus = "Generated" | "Dispatched" | "Completed" | "Deferred" | "Cancelled" | "Failed";
@@ -747,6 +752,7 @@ export interface TenantRow {
   code: string;
   name: string;
   status: string;
+  is_system: boolean; // CR-004: reserved non-engineering tenant (the 'platform' home)
   created_at: string;
 }
 

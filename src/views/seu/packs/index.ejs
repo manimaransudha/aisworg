@@ -8,6 +8,7 @@
   </style>
 </head>
 <body>
+  <%- include('../../partials/helpers') %>
   <header><%- include('../../partials/navbar') %></header>
 
   <main class="container py-5" style="max-width: 1000px;">
@@ -29,10 +30,23 @@
       </p>
     </div>
 
-    <% if (packs.length === 0) { %>
-      <div class="alert alert-warning">No Packs published — run <code>pnpm seed:seu</code> or <code>pnpm pack:publish &lt;file&gt; --activate</code>.</div>
+    <% const _base = locals.listBasePath || '/aisworg/seu/packs'; %>
+    <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search name / code / category' }) %>
+    <div class="small text-muted mb-3">Sort:
+      <%- sortLink('Name', 'name', list, _base) %> &middot;
+      <%- sortLink('Version', 'version', list, _base) %> &middot;
+      <%- sortLink('Status', 'status', list, _base) %> &middot;
+      <%- sortLink('Category', 'category', list, _base) %>
+    </div>
+
+    <% if (list.total === 0) { %>
+      <% if (list.q) { %>
+        <div class="alert alert-warning">No Packs match your search.</div>
+      <% } else { %>
+        <div class="alert alert-warning">No Packs published — run <code>pnpm seed:seu</code> or <code>pnpm pack:publish &lt;file&gt; --activate</code>.</div>
+      <% } %>
     <% } else { %>
-      <% packs.forEach(function(p) { %>
+      <% list.items.forEach(function(p) { %>
         <div class="card border-0 shadow-sm mb-3">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-start">

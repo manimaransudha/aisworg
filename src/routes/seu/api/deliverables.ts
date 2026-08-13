@@ -41,27 +41,29 @@ router.post("/deliverables/:id/transition", async (req: Request, res: Response) 
     const actorRole = req.session?.user?.role ?? "general";
     const requestedBy = req.session?.user?.id ?? null;
     const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
-    let actingBadgeGrantId = typeof req.body?.actingBadgeGrantId === "string" ? req.body.actingBadgeGrantId : undefined;
+    const actingBadgeGrantId = typeof req.body?.actingBadgeGrantId === "string" ? req.body.actingBadgeGrantId : undefined;
 
-    // CR-001 — when the god user is acting-as a non-root badge, resolve the
-    // acting grant to THAT badge (minting it scoped to this Deliverable's SEU
-    // if absent), and pass it explicitly so it wins over the auto-resolver's
-    // root preference. This makes real authority checks — and denials — apply
-    // to the assumed badge. No-op unless the dev switcher is live.
-    if (!actingBadgeGrantId && actorId && devActAsAvailable(req)) {
+    // CR-001 dev Act-As × CR-006 — entirely dev-gated, no core change. When the
+    // god user acts-as a non-root badge, authorise as a SYNTHETIC dev holder
+    // that holds ONLY the assumed badge; the core auth then finds no root grant
+    // and applies the real noun_verb denial. requestedBy stays the real user —
+    // only the authorisation identity is swapped. No-op unless the switcher is live.
+    let effectiveActorId = actorId;
+    if (actorId && devActAsAvailable(req)) {
       const actAs = currentActAs(req);
       if (actAs && actAs.badgeType !== "root") {
         const { data: deliverable } = await deliverablesDB.findById(String(req.params.id));
         if (deliverable) {
-          const grant = await findOrMintGrant(req, {
-            holderId: actorId,
+          const synthHolder = `dev-actas:${actorId}:${actAs.badgeType}`;
+          await findOrMintGrant(req, {
+            holderId: synthHolder,
             badgeType: actAs.badgeType,
             tenantId: actAs.tenantId,
             entityType: "Deliverable",
             capabilityId: deliverable.producing_capability_id,
             scopeId: deliverable.seu_id,
           });
-          if (grant) actingBadgeGrantId = grant.id;
+          effectiveActorId = synthHolder;
         }
       }
     }
@@ -75,7 +77,7 @@ router.post("/deliverables/:id/transition", async (req: Request, res: Response) 
       targetCompletionAt = parsed;
     }
 
-    const result = await transitionDeliverable({ deliverableId: String(req.params.id), targetState, actorRole, actorId, actingBadgeGrantId, requestedBy, targetCompletionAt });
+    const result = await transitionDeliverable({ deliverableId: String(req.params.id), targetState, actorRole, actorId: effectiveActorId, actingBadgeGrantId, requestedBy, targetCompletionAt });
 
     if (!result.ok) {
       if (result.reason === "not_found") return res.status(404).json({ error: "deliverable not found" });

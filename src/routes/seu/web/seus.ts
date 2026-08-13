@@ -6,9 +6,10 @@ const router = express.Router();
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
-import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
+import { getFlash, flashError, flashSuccess, stashFormInput, takeFormInput } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
-import { listSeus, getSeuDetailView } from "../core/seus.js";
+import { listSeusPaginated, getSeuDetailView } from "../core/seus.js";
+import { parseListParams } from "../../../utils/listQuery.js";
 import { commissionFromForm } from "../core/commissioning.js";
 import { devActAsAvailable, currentActAs } from "../../../dev/actAs.js";
 import { fulfilCapability } from "../core/capabilities.js";
@@ -27,10 +28,12 @@ router.get("/seus", attachVM("seu/seus/index"), async (req: Request, res: Respon
   try {
     req.vm.req.title = "SEUs";
     const platformBadges: string[] = req.session?.user?.platformBadges ?? [];
-    req.vm.req.seus = await listSeus({
+    const params = parseListParams(req.query, { sortable: ["objective", "state", "created"], defaultSort: "created", defaultDir: "desc" });
+    req.vm.req.list = await listSeusPaginated(params, {
       userId: req.session?.user?.id ?? null,
       isAdmin: platformBadges.includes("root") || platformBadges.includes("tenant_admin"),
     });
+    req.vm.opt.listBasePath = "/aisworg/seu/seus";
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/seus/index", req.vm);
   } catch (err) {
@@ -45,6 +48,12 @@ router.get("/seus/new", attachVM("seu/seus/new"), async (req: Request, res: Resp
     const { data: capabilities } = await capabilitiesDB.findAll();
     req.vm.req.title = "Commission a new SEU";
     req.vm.req.capabilities = capabilities ?? [];
+    // Re-populate after a failed submit so the user doesn't retype. `selectedCodes`
+    // is null on a fresh load (view then defaults all Capabilities checked) and an
+    // array on a bounce-back (reflects exactly what they had selected).
+    const prior = takeFormInput(req);
+    req.vm.req.statement = typeof prior?.statement === "string" ? prior.statement : "";
+    req.vm.req.selectedCodes = prior ? (Array.isArray(prior.requiredCapabilityCodes) ? prior.requiredCapabilityCodes : []) : null;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/seus/new", req.vm);
   } catch (err) {
@@ -59,6 +68,7 @@ router.post("/seus", async (req: Request, res: Response) => {
   const codes = Array.isArray(requiredCapabilityCodes) ? requiredCapabilityCodes : requiredCapabilityCodes ? [requiredCapabilityCodes] : [];
 
   if (typeof statement !== "string" || !statement.trim() || codes.length === 0) {
+    stashFormInput(req, { statement: typeof statement === "string" ? statement : "", requiredCapabilityCodes: codes });
     return flashError(req, res, "/aisworg/seu/seus/new", "Statement and at least one required Capability are required.");
   }
 
@@ -67,6 +77,7 @@ router.post("/seus", async (req: Request, res: Response) => {
       statement,
       requiredCapabilityCodes: codes,
       actorRole: req.session?.user?.role ?? "general",
+      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
       requestedBy: req.session?.user?.id ?? null,
       // CR-001 — when the god user is acting-as a tenant, commission into it by
       // default (explicit form value still wins). No-op unless the switcher is live.
@@ -76,11 +87,13 @@ router.post("/seus", async (req: Request, res: Response) => {
     });
 
     if (!result.ok) {
+      stashFormInput(req, { statement, requiredCapabilityCodes: codes });
       return flashError(req, res, "/aisworg/seu/seus/new", `Commissioning failed at "${result.stage}": ${result.reason}`);
     }
     return flashSuccess(req, res, `/aisworg/seu/seus/${result.seu.id}`, `SEU commissioned — lifecycle state: ${result.seu.lifecycle_state}.`);
   } catch (err) {
     logger.error("[web/seu/seus] POST /seus error", err as Error);
+    stashFormInput(req, { statement, requiredCapabilityCodes: codes });
     return flashError(req, res, "/aisworg/seu/seus/new", (err as Error).message);
   }
 });
@@ -147,6 +160,7 @@ router.post("/seus/:id/capabilities/:capabilityId/participant/:participantId/rep
       newParticipantType: participantType as ParticipantType,
       newDisplayName: displayName,
       actorRole: req.session?.user?.role ?? "general",
+      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
     });
     if (!result.ok) {
       return flashError(req, res, backTo, `Replacement blocked: ${result.detail}`);
@@ -224,6 +238,7 @@ router.post("/seus/:id/obligations/:obligationId/transition", async (req: Reques
       obligationId: String(req.params.obligationId),
       targetState,
       actorRole: req.session?.user?.role ?? "general",
+      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
@@ -270,6 +285,7 @@ router.post("/seus/:id/evidence/:evidenceId/transition", async (req: Request, re
       evidenceId: String(req.params.evidenceId),
       targetState,
       actorRole: req.session?.user?.role ?? "general",
+      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
@@ -324,6 +340,7 @@ router.post("/seus/:id/knowledge/:knowledgeItemId/transition", async (req: Reque
       knowledgeItemId: String(req.params.knowledgeItemId),
       targetState,
       actorRole: req.session?.user?.role ?? "general",
+      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
@@ -351,6 +368,7 @@ router.post("/seus/:id/knowledge/:knowledgeItemId/promote-scope", async (req: Re
       knowledgeItemId: String(req.params.knowledgeItemId),
       targetScope: targetScope as AcquisitionScope,
       actorRole: req.session?.user?.role ?? "general",
+      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
@@ -413,6 +431,7 @@ router.post("/seus/:id/decisions/:decisionId/transition", async (req: Request, r
       decisionId: String(req.params.decisionId),
       targetState,
       actorRole: req.session?.user?.role ?? "general",
+      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
@@ -466,6 +485,7 @@ router.post("/seus/:id/external-interactions/:interactionId/transition", async (
       interactionId: String(req.params.interactionId),
       targetState,
       actorRole: req.session?.user?.role ?? "general",
+      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;

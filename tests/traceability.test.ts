@@ -36,7 +36,7 @@ async function commissionWebApp(prefix: string) {
   const result = await commissionFromForm({
     statement: `${prefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
-    actorRole: "super",
+    actorRole: "super", actorId: "1001",
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");

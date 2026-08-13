@@ -36,23 +36,34 @@ export interface IdentityDashboardView {
   users: PlatformUserView[];
 }
 
+// Tenant Management only needs the tenant list — it must NOT pay for the whole
+// identity dashboard (badge grants, per-holder user lookups, platform-badge
+// rollup). Kept in this core module so the "everything through core" boundary
+// holds (routes/seu/web/identity.ts calls this, not tenantsDB directly).
+export async function listTenantsForManagement(): Promise<TenantRow[]> {
+  // CR-004: operational tenants only — the reserved 'platform' system tenant is
+  // not a manageable org and never appears in Tenant Management.
+  const { data } = await tenantsDB.findAllOperational();
+  return data ?? [];
+}
+
 export async function getIdentityDashboardView(): Promise<IdentityDashboardView> {
   const [{ data: tenants }, badgeTypesResult] = await Promise.all([tenantsDB.findAll(), query<BadgeTypeRow>("SELECT * FROM badge_types ORDER BY tenant_id NULLS FIRST, code")]);
 
-  const { rows: grantRows } = await query<BadgeGrantRow>("SELECT * FROM badge_grants ORDER BY created_at DESC LIMIT 200");
-  const grants: BadgeGrantView[] = [];
-  for (const grant of grantRows) {
-    let holderEmail: string | null = null;
-    if (grant.holder_type === "User") {
-      const { rows } = await query<{ email: string }>("SELECT email FROM users WHERE id = $1", [grant.holder_id]);
-      holderEmail = rows[0]?.email ?? null;
-    }
-    grants.push({ ...grant, holderEmail });
-  }
-
+  // Load every user once, up front, and index by id — the grant list below
+  // resolves each holder's email from this map instead of a per-grant
+  // SELECT (the old N+1: up to 200 serial round-trips, ~8s on a remote DB).
   const { rows: userRows } = await query<{ id: number; email: string; name: string | null; role: string; is_active: boolean; created_at: string }>(
     "SELECT id, email, name, role, is_active, created_at FROM users ORDER BY created_at DESC"
   );
+  const emailById = new Map<string, string>(userRows.map((u) => [String(u.id), u.email]));
+
+  const { rows: grantRows } = await query<BadgeGrantRow>("SELECT * FROM badge_grants ORDER BY created_at DESC LIMIT 200");
+  const grants: BadgeGrantView[] = grantRows.map((grant) => ({
+    ...grant,
+    holderEmail: grant.holder_type === "User" ? emailById.get(grant.holder_id) ?? null : null,
+  }));
+
   const { rows: platformBadgeRows } = await query<{ holder_id: string; badge_type: string }>(
     "SELECT bg.holder_id, bg.badge_type FROM badge_grants bg JOIN badge_types bt ON bt.code = bg.badge_type AND bt.tenant_id IS NULL WHERE bg.status = 'Active' AND bt.scope_kind = 'None' AND bg.badge_type != 'viewer'"
   );
@@ -79,43 +90,46 @@ export type CreatePlatformUserResult = { ok: true; email: string; verificationLi
 // column is left at its default ('general') — that axis is untouched by
 // Phase 10 (design doc §5) and irrelevant to what badges this account can
 // later be granted.
-export async function createPlatformUser(input: { email: string; name?: string }): Promise<CreatePlatformUserResult> {
+export async function createPlatformUser(input: { email: string; name?: string; type: "Platform" | "Tenant"; tenantId?: string }): Promise<CreatePlatformUserResult> {
   const existing = await userDB.findByEmail(input.email);
   if (existing) return { ok: false, detail: `a user already exists for ${input.email}` };
 
+  // CR-004: resolve the user's home. Platform users live in the reserved
+  // 'platform' tenant; Tenant users go to the chosen (operational) tenant.
+  let tenantId: string;
+  if (input.type === "Platform") {
+    const { data: platformTenant } = await tenantsDB.findByCode("platform");
+    if (!platformTenant) return { ok: false, detail: "platform tenant not found — run migrations" };
+    tenantId = platformTenant.id;
+  } else {
+    if (!input.tenantId) return { ok: false, detail: "a tenant must be selected for a Tenant user" };
+    const { data: tenant } = await tenantsDB.findById(input.tenantId);
+    if (!tenant) return { ok: false, detail: `tenant not found: ${input.tenantId}` };
+    if (tenant.is_system) return { ok: false, detail: "cannot assign a user to a reserved system tenant" };
+    tenantId = tenant.id;
+  }
+
   const token = crypto.randomBytes(32).toString("hex");
   const expires = new Date(Date.now() + 48 * 60 * 60 * 1000);
-  await userDB.createLocalPending({ email: input.email, name: input.name || input.email, role: "general", verification_token: token, verification_expires: expires });
+  await userDB.createLocalPending({ email: input.email, name: input.name || input.email, role: "general", verification_token: token, verification_expires: expires, type: input.type, tenant_id: tenantId });
   const result = await emailService.sendVerification({ to: input.email, name: input.name || input.email, token });
   return { ok: true, email: input.email, verificationLink: result.link ?? null };
 }
 
 export type CreateTenantResult =
-  | { ok: true; tenant: TenantRow; grant: BadgeGrantRow }
-  | { ok: false; reason: "email_not_found" | "validation_failed"; detail: string };
+  | { ok: true; tenant: TenantRow }
+  | { ok: false; reason: "validation_failed"; detail: string };
 
-// §8.2's "Grants Tenant Admin badges" — creating a Tenant and granting its
-// first Tenant Admin badge are bundled as one action by the root holder, not
-// two separate steps (design doc §9's provisioning chain).
-export async function createTenantWithFirstAdmin(input: { code: string; name: string; adminEmail: string }): Promise<CreateTenantResult> {
-  const admin = await userDB.findByEmail(input.adminEmail);
-  if (!admin) return { ok: false, reason: "email_not_found", detail: `no user found for ${input.adminEmail}` };
-
+// CR-005 — tenant creation is decoupled from tenant-admin assignment. This
+// creates the Tenant only; its first admin is created separately via
+// createPlatformUser(type='Tenant', tenant_id=<this tenant>) and then granted
+// the tenant_admin badge through the existing issueBadgeGrant path. (Previously
+// createTenantWithFirstAdmin bundled all three, which made a Tenant unable to
+// exist before its admin — the conflict CR-005 resolves.)
+export async function createTenant(input: { code: string; name: string }): Promise<CreateTenantResult> {
   const { data: tenant, error } = await tenantsDB.create({ code: input.code, name: input.name });
   if (error || !tenant) return { ok: false, reason: "validation_failed", detail: error?.message ?? "failed to create tenant" };
-
-  const grantResult = await badgeGrantsDB.create({
-    holderId: String(admin.id),
-    badgeType: "tenant_admin",
-    scopeId: tenant.id,
-  });
-  if ("validationErrors" in grantResult) {
-    return { ok: false, reason: "validation_failed", detail: grantResult.validationErrors.join("; ") };
-  }
-  if (grantResult.error || !grantResult.data) {
-    return { ok: false, reason: "validation_failed", detail: grantResult.error?.message ?? "failed to grant Tenant Admin badge" };
-  }
-  return { ok: true, tenant, grant: grantResult.data };
+  return { ok: true, tenant };
 }
 
 export type IssueBadgeGrantResult = { ok: true; grant: BadgeGrantRow } | { ok: false; reason: "email_not_found" | "validation_failed"; detail: string };

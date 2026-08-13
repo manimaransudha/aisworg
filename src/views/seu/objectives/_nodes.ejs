@@ -1,0 +1,46 @@
+<%# CR-009 tree node rows. Rendered for the root page (included by index.ejs) and
+    for lazy child expansion (returned standalone by GET /objectives/:id/children).
+    Locals: nodes[], depth (int), csrfToken, childTiers (tier -> allowed child tiers). %>
+<% nodes.forEach(function(node) { %>
+  <div class="tree-node d-flex align-items-center gap-2 py-2 px-2 border-bottom" data-id="<%= node.id %>" data-depth="<%= depth %>">
+    <span style="display:inline-block; width: <%= depth * 1.5 %>rem;"></span>
+    <% if (node.hasChildren) { %>
+      <button type="button" class="tree-toggle btn btn-sm btn-link p-0 text-decoration-none" data-id="<%= node.id %>" data-depth="<%= depth %>" aria-label="Expand">
+        <i class="bi bi-chevron-right"></i>
+      </button>
+    <% } else { %>
+      <span class="text-muted" style="width: 1rem; display:inline-block; text-align:center;">&middot;</span>
+    <% } %>
+
+    <span class="tier-badge"><%= node.tier %></span>
+    <a href="/aisworg/seu/objectives/<%= node.id %>" class="small text-dark text-decoration-none fw-semibold"><%= node.statement %></a>
+    <span class="state-badge state-<%= node.status %>"><%= node.status %></span>
+
+    <div class="ms-auto d-inline-flex gap-1 align-items-center">
+      <% (childTiers[node.tier] || []).forEach(function(ct) { %>
+        <a href="/aisworg/seu/objectives/new?parent=<%= node.id %>&tier=<%= ct %>" class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-plus-lg"></i> <%= ct %></a>
+      <% }) %>
+      <% if (node.commissioned) { %>
+        <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle">Commissioned</span>
+      <% } else if (node.commissionable) { %>
+        <form method="POST" action="/aisworg/seu/objectives/<%= node.id %>/commission" class="d-inline">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="btn btn-sm btn-primary py-0"><i class="bi bi-diagram-3 me-1"></i>Commission SEU</button>
+        </form>
+      <% } %>
+      <% if (node.deletable) { %>
+        <form method="POST" action="/aisworg/seu/objectives/<%= node.id %>/delete" class="d-inline" onsubmit="return confirm('Delete this Proposed Objective? This cannot be undone.');">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="btn btn-sm btn-outline-danger py-0"><i class="bi bi-trash"></i> Delete</button>
+        </form>
+      <% } else if (node.retirable) { %>
+        <form method="POST" action="/aisworg/seu/objectives/<%= node.id %>/retire" class="d-inline" onsubmit="return confirm('Retire this Objective and its subtree? Retired Objectives keep their history and SEUs.');">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="btn btn-sm btn-outline-warning py-0"><i class="bi bi-archive"></i> Retire</button>
+        </form>
+      <% } %>
+      <a href="/aisworg/seu/objectives/<%= node.id %>" class="btn btn-sm btn-outline-primary py-0">View</a>
+    </div>
+  </div>
+  <div class="tree-children" data-parent="<%= node.id %>"></div>
+<% }) %>

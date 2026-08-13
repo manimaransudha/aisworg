@@ -8,13 +8,15 @@ import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { requirePlatformBadge } from "../../../middleware/requirePlatformBadge.js";
+import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { logger } from "../../../utils/logger.js";
 import {
   createOrRenameTenantBadge,
   createPlatformUser,
-  createTenantWithFirstAdmin,
+  createTenant,
   getIdentityDashboardView,
   issueBadgeGrant,
+  listTenantsForManagement,
   revokeBadgeGrant,
 } from "../core/identity.js";
 import type { BadgeScopeKind, TransitionEntityType } from "../../../dblayer/seuTypes.js";
@@ -45,9 +47,16 @@ router.get("/identity", requirePlatformBadge("root"), attachVM("seu/identity/ind
 /** GET /aisworg/seu/identity/tenants — Tenant Management: the old Tenants tab, split out on its own. */
 router.get("/identity/tenants", requirePlatformBadge("root"), attachVM("seu/identity/tenants"), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const view = await getIdentityDashboardView();
+    // Only the tenant list — not the whole identity dashboard (CR: this page
+    // was paying for the grant/user N+1 and took ~9s).
+    const tenants = await listTenantsForManagement();
     req.vm.req.title = "Tenant Management";
-    req.vm.req.tenants = view.tenants;
+    const params = parseListParams(req.query, { sortable: ["code", "name", "status", "created"], defaultSort: "created", defaultDir: "asc" });
+    req.vm.req.list = paginateList(tenants, params, {
+      searchFields: [(t) => t.code, (t) => t.name, (t) => t.status],
+      sortFields: { code: (t) => t.code, name: (t) => t.name, status: (t) => t.status, created: (t) => t.created_at },
+    });
+    req.vm.opt.listBasePath = "/aisworg/seu/identity/tenants";
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/identity/tenants", req.vm);
   } catch (err) {
@@ -62,8 +71,15 @@ router.get("/identity/badges", requirePlatformBadge("root"), attachVM("seu/ident
     const view = await getIdentityDashboardView();
     req.vm.req.title = "Badge Management";
     req.vm.req.badgeTypes = view.badgeTypes;
-    req.vm.req.grants = view.grants;
     req.vm.req.tenants = view.tenants;
+    // The grants list is the large one (accumulates over time) — paginate it.
+    // badgeTypes/tenants are bounded vocabulary, rendered in full.
+    const params = parseListParams(req.query, { sortable: ["badge", "holder", "entity", "created"], defaultSort: "created", defaultDir: "desc" });
+    req.vm.req.list = paginateList(view.grants, params, {
+      searchFields: [(g) => g.badge_type, (g) => g.holderEmail, (g) => g.holder_id, (g) => g.governed_entity_type],
+      sortFields: { badge: (g) => g.badge_type, holder: (g) => g.holderEmail ?? g.holder_id, entity: (g) => g.governed_entity_type, created: (g) => g.created_at },
+    });
+    req.vm.opt.listBasePath = "/aisworg/seu/identity/badges";
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/identity/badges", req.vm);
   } catch (err) {
@@ -77,7 +93,14 @@ router.get("/identity/users", requirePlatformBadge("root"), attachVM("seu/identi
   try {
     const view = await getIdentityDashboardView();
     req.vm.req.title = "User Management";
-    req.vm.req.users = view.users;
+    const params = parseListParams(req.query, { sortable: ["email", "name", "role", "created"], defaultSort: "created", defaultDir: "desc" });
+    req.vm.req.list = paginateList(view.users, params, {
+      searchFields: [(u) => u.email, (u) => u.name, (u) => u.role],
+      sortFields: { email: (u) => u.email, name: (u) => u.name, role: (u) => u.role, created: (u) => u.created_at },
+    });
+    req.vm.opt.listBasePath = "/aisworg/seu/identity/users";
+    // CR-004: operational tenants for the create-user tenant picker (excludes the reserved 'platform').
+    req.vm.req.tenants = view.tenants.filter((t) => !t.is_system);
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/identity/users", req.vm);
   } catch (err) {
@@ -86,16 +109,18 @@ router.get("/identity/users", requirePlatformBadge("root"), attachVM("seu/identi
   }
 });
 
-/** POST /aisworg/seu/identity/tenants — §8.2/§9: root creates a Tenant and grants its first Tenant Admin badge, bundled. */
+/** POST /aisworg/seu/identity/tenants — CR-005: create a Tenant only. Its first
+ *  admin is created separately (createPlatformUser, type=Tenant) then granted
+ *  the tenant_admin badge via the Badge Management grant form. */
 router.post("/identity/tenants", requirePlatformBadge("root"), async (req: Request, res: Response) => {
-  const { code, name, adminEmail } = req.body ?? {};
-  if (typeof code !== "string" || !code.trim() || typeof name !== "string" || !name.trim() || typeof adminEmail !== "string" || !adminEmail.trim()) {
-    return flashError(req, res, tenantsBackTo, "Tenant code, name, and the first Tenant Admin's email are all required.");
+  const { code, name } = req.body ?? {};
+  if (typeof code !== "string" || !code.trim() || typeof name !== "string" || !name.trim()) {
+    return flashError(req, res, tenantsBackTo, "Tenant code and name are required.");
   }
   try {
-    const result = await createTenantWithFirstAdmin({ code: code.trim(), name: name.trim(), adminEmail: adminEmail.trim() });
+    const result = await createTenant({ code: code.trim(), name: name.trim() });
     if (!result.ok) return flashError(req, res, tenantsBackTo, `Could not create Tenant: ${result.detail}`);
-    return flashSuccess(req, res, tenantsBackTo, `Tenant "${result.tenant.name}" created — ${adminEmail} granted Tenant Admin.`);
+    return flashSuccess(req, res, tenantsBackTo, `Tenant "${result.tenant.name}" created. Create its admin user (type Tenant) and grant Tenant Admin from Badge Management.`);
   } catch (err) {
     logger.error("[web/seu/identity] POST /identity/tenants error", err as Error);
     return flashError(req, res, tenantsBackTo, (err as Error).message);
@@ -148,12 +173,23 @@ router.post("/identity/grants", requirePlatformBadge("root"), async (req: Reques
 
 /** POST /aisworg/seu/identity/users — root creates a platform user account (badge issuance is a separate step, via Badge Management). */
 router.post("/identity/users", requirePlatformBadge("root"), async (req: Request, res: Response) => {
-  const { email, name } = req.body ?? {};
+  const { email, name, type, tenantId } = req.body ?? {};
   if (typeof email !== "string" || !email.trim()) {
     return flashError(req, res, usersBackTo, "Email is required.");
   }
+  if (type !== "Platform" && type !== "Tenant") {
+    return flashError(req, res, usersBackTo, "User type (Platform or Tenant) is required.");
+  }
+  if (type === "Tenant" && (typeof tenantId !== "string" || !tenantId.trim())) {
+    return flashError(req, res, usersBackTo, "A tenant must be selected for a Tenant user.");
+  }
   try {
-    const result = await createPlatformUser({ email: email.trim(), name: typeof name === "string" ? name.trim() : undefined });
+    const result = await createPlatformUser({
+      email: email.trim(),
+      name: typeof name === "string" ? name.trim() : undefined,
+      type,
+      tenantId: type === "Tenant" ? String(tenantId).trim() : undefined,
+    });
     if (!result.ok) return flashError(req, res, usersBackTo, `Could not create user: ${result.detail}`);
     return flashSuccess(req, res, usersBackTo, result.verificationLink ? `User created. SMTP not configured — verification link: ${result.verificationLink}` : `User created — verification email sent to ${result.email}.`);
   } catch (err) {

@@ -30,7 +30,7 @@ after(async () => {
 
 async function createTestUser(label: string): Promise<string> {
   const email = `badge-test-${label}-${randomUUID()}@example.com`;
-  const user = await userDB.create({ email, name: label, avatar_url: null, role: "general", auth_provider: "local", provider_id: null, is_active: true });
+  const user = await userDB.create({ email, name: label, avatar_url: null, role: "general", auth_provider: "local", provider_id: null, is_active: true, type: "Platform", tenant_id: "11111111-1111-1111-1111-111111111111" });
   return String(user.id);
 }
 
@@ -39,7 +39,7 @@ async function commissionTestSeu(statementPrefix: string): Promise<string> {
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
-    actorRole: "super",
+    actorRole: "super", actorId: "1001",
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
@@ -122,7 +122,7 @@ test("badgeTypesDB single writer function enforces §8.1's Tenant-customization 
   assert.ok(!("validationErrors" in valid) && !valid.error, "validationErrors" in valid ? valid.validationErrors.join(";") : valid.error?.message);
 });
 
-test("transitionDeliverable is genuinely wired to the badge model: blocked without the right acting badge, unblocked with it — Creator then Approver, distinct authority", async () => {
+test("transitionDeliverable authorises on noun_verb: denied without the badge, deliverable_create allows create, deliverable_approve required to approve (distinct authority), root bypasses", async () => {
   const holderId = await createTestUser("deliverable-wiring");
   const seuId = await commissionTestSeu("badge-deliverable-wiring");
   const { data: deliverables } = await deliverablesDB.findBySeuId(seuId);
@@ -140,15 +140,8 @@ test("transitionDeliverable is genuinely wired to the badge model: blocked witho
   assert.equal(deniedNoBadge.ok, false);
   assert.equal(!deniedNoBadge.ok && deniedNoBadge.reason, "authority_denied");
 
-  // Grant Creator, scoped correctly (entity type, Capability, SEU) — Defined -> In Progress must now succeed.
-  const creatorGrant = await badgeGrantsDB.create({
-    holderId,
-    badgeType: "creator",
-    governedEntityType: "Deliverable",
-    capabilityId: deliverable!.producing_capability_id,
-    scopeId: seuId,
-  });
-  assert.ok(!("validationErrors" in creatorGrant) && !creatorGrant.error, "validationErrors" in creatorGrant ? creatorGrant.validationErrors.join(";") : creatorGrant.error?.message);
+  // CR-006: authority is the noun_verb badge. deliverable_create → Defined -> In Progress allowed.
+  await query("INSERT INTO badge_grants (holder_type, holder_id, badge_type, status) VALUES ('User', $1, 'deliverable_create', 'Active')", [holderId]);
 
   const allowedByCreator = await transitionDeliverable({ deliverableId: deliverable!.id, targetState: "In Progress", actorId: holderId });
   assert.equal(allowedByCreator.ok, true, !allowedByCreator.ok ? JSON.stringify(allowedByCreator) : undefined);
@@ -160,55 +153,20 @@ test("transitionDeliverable is genuinely wired to the badge model: blocked witho
   assert.equal(deniedWrongBadge.ok, false);
   assert.equal(!deniedWrongBadge.ok && deniedWrongBadge.reason, "authority_denied");
 
-  // Grant Approver too — now it succeeds. The holder now holds *both*
-  // Creator and Approver for this same scope, so auto-resolution (the
-  // interim, single-qualifying-grant shortcut this pass ships, §17.2) is
-  // deliberately ambiguous — this is exactly the case a real badge switcher
-  // would ask the user to disambiguate, so the acting badge is declared
-  // explicitly here instead, proving the declared-badge path itself, not
-  // just the auto-resolve convenience.
-  const approverGrant = await badgeGrantsDB.create({
-    holderId,
-    badgeType: "approver",
-    governedEntityType: "Deliverable",
-    capabilityId: deliverable!.producing_capability_id,
-    scopeId: seuId,
-  });
-  assert.ok(!("validationErrors" in approverGrant) && !approverGrant.error, "validationErrors" in approverGrant ? approverGrant.validationErrors.join(";") : approverGrant.error?.message);
-  const approverGrantId = (approverGrant as { data: { id: string } }).data.id;
+  // deliverable_approve is a DISTINCT badge (separate authority, §8.0) → In Progress -> Approved now allowed.
+  await query("INSERT INTO badge_grants (holder_type, holder_id, badge_type, status) VALUES ('User', $1, 'deliverable_approve', 'Active')", [holderId]);
 
-  const allowedByApprover = await transitionDeliverable({ deliverableId: deliverable!.id, targetState: "Approved", actorId: holderId, actingBadgeGrantId: approverGrantId });
+  const allowedByApprover = await transitionDeliverable({ deliverableId: deliverable!.id, targetState: "Approved", actorId: holderId });
   assert.equal(allowedByApprover.ok, true, !allowedByApprover.ok ? JSON.stringify(allowedByApprover) : undefined);
-});
 
-test("root bypass (§11a): a root holder satisfies any Engineering-badge requirement without a matching Creator/Approver grant, and the action is still attributable to a declared acting badge", async () => {
+  // Root bypass (§11a, unchanged): a holder with only `root` — no noun_verb grant — may still transition.
   const rootHolderId = await createTestUser("root-bypass");
-  const seuId = await commissionTestSeu("badge-root-bypass");
-  const { data: deliverables } = await deliverablesDB.findBySeuId(seuId);
-  const deliverable = deliverables!.find((d) => d.lifecycle_state === "Defined");
-  assert.ok(deliverable);
-  await fulfilCapability({ seuId, capabilityId: deliverable!.producing_capability_id!, participantType: "AI", displayName: "Badge test participant (root)" });
-
-  const rootGrant = await badgeGrantsDB.create({ holderId: rootHolderId, badgeType: "root" });
-  assert.ok(!("validationErrors" in rootGrant) && !rootGrant.error, "validationErrors" in rootGrant ? rootGrant.validationErrors.join(";") : rootGrant.error?.message);
-  const grantId = (rootGrant as { data: { id: string } }).data.id;
-
-  // Direct engine check: declaring the root grant satisfies a 'creator' requirement.
-  const outcome = await badgeAuthorityEngine.evaluate({
-    requiredBadgeType: "creator",
-    entityType: "Deliverable",
-    actingBadge: { grantId, actorId: rootHolderId },
-    scopeContext: { seuId, capabilityId: deliverable!.producing_capability_id },
-  });
-  assert.equal(outcome.allowed, true, !outcome.allowed ? JSON.stringify(outcome) : undefined);
-
-  // And the real transition — no Creator/Approver grant exists for this
-  // holder at all, only root, auto-resolved since it's their only grant.
-  const result = await transitionDeliverable({ deliverableId: deliverable!.id, targetState: "In Progress", actorId: rootHolderId });
-  assert.equal(result.ok, true, !result.ok ? JSON.stringify(result) : undefined);
-
-  // The grant recorded in the row is the root grant, declared, not a
-  // fabricated bypass with no attributable badge (§11a, corrected).
-  const { rows } = await query<{ badge_type: string }>("SELECT badge_type FROM badge_grants WHERE id = $1", [grantId]);
-  assert.equal(rows[0]?.badge_type, "root");
+  const seu2 = await commissionTestSeu("badge-root-bypass");
+  const { data: d2 } = await deliverablesDB.findBySeuId(seu2);
+  const deliverable2 = d2!.find((d) => d.lifecycle_state === "Defined");
+  assert.ok(deliverable2);
+  await fulfilCapability({ seuId: seu2, capabilityId: deliverable2!.producing_capability_id!, participantType: "AI", displayName: "Badge test participant (root)" });
+  await query("INSERT INTO badge_grants (holder_type, holder_id, badge_type, status) VALUES ('User', $1, 'root', 'Active')", [rootHolderId]);
+  const rootAllowed = await transitionDeliverable({ deliverableId: deliverable2!.id, targetState: "In Progress", actorId: rootHolderId });
+  assert.equal(rootAllowed.ok, true, !rootAllowed.ok ? JSON.stringify(rootAllowed) : undefined);
 });

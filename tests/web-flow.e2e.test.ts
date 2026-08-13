@@ -573,7 +573,7 @@ test("Phase 8 — a blocked Quality Gate and a failed External Interaction both 
   const blocked = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "Approved" });
   assert.equal(blocked.status, 302, "a blocked transition is still a graceful redirect, not a 500");
 
-  const attentionAfterBlock = await getPage(request, "/seu/attention");
+  const attentionAfterBlock = await getPage(request, "/seu/attention?pageSize=500");
   assert.equal(attentionAfterBlock.status, 200);
   assert.match(attentionAfterBlock.html, /is blocked by Quality Gate/);
   assert.match(attentionAfterBlock.html, /Action Required/);
@@ -590,12 +590,12 @@ test("Phase 8 — a blocked Quality Gate and a failed External Interaction both 
   const actionRequired = scopedBody.attentionItems.filter((a) => a.category === "Action Required");
   assert.equal(actionRequired.length, 1, "one blocked situation must produce exactly one Attention Item, however many times it's retried");
 
-  const attentionAfterSecondBlock = await getPage(request, "/seu/attention");
+  const attentionAfterSecondBlock = await getPage(request, "/seu/attention?pageSize=500");
   // Walk that Attention Item through its own lifecycle.
   const attentionItemId = findAttentionItemId(attentionAfterSecondBlock.html);
   const attentionStep = await postForm(request, `/seu/attention/${attentionItemId}/transition`, csrf, { targetState: "Delivered" });
   assert.equal(attentionStep.status, 302);
-  const afterAttentionStep = await getPage(request, "/seu/attention");
+  const afterAttentionStep = await getPage(request, "/seu/attention?pageSize=500");
   assert.match(afterAttentionStep.html, /alert-success/);
 
   // External Interaction: record one against the same Deliverable, then fail it.
@@ -620,7 +620,7 @@ test("Phase 8 — a blocked Quality Gate and a failed External Interaction both 
   const afterFailed = await getPage(request, `/seu/seus/${seuId}`);
   assert.match(afterFailed.html, /state-badge state-Failed">Failed/);
 
-  const attentionAfterFailure = await getPage(request, "/seu/attention");
+  const attentionAfterFailure = await getPage(request, "/seu/attention?pageSize=500");
   assert.match(attentionAfterFailure.html, /External Interaction with[\s\S]*?WebFlow Phase8 Ticketing System[\s\S]*?failed/);
   assert.match(attentionAfterFailure.html, /Exception/);
 });
@@ -643,11 +643,14 @@ test("Phase 9 — a Pack published through the SDK is visible on the platform-wi
     installationClassification: "Optional" as const,
     contributions: {},
   };
-  const published = await publishPack({ seed, actorRole: "power", activate: true });
+  const published = await publishPack({ seed, actorRole: "power", actorId: "1001", activate: true });
   assert.equal(published.ok, true, !published.ok ? JSON.stringify(published.errors) : undefined);
   assert.equal(published.pack!.status, "Active");
 
-  const registryPage = await getPage(request, "/seu/packs");
+  // The Registry list is paginated (List UI Requirements) — scope the page to
+  // this fixture Pack via the search box so it isn't hidden past page 1 among
+  // accumulated Packs.
+  const registryPage = await getPage(request, `/seu/packs?q=${seed.code}`);
   assert.equal(registryPage.status, 200);
   assert.match(registryPage.html, new RegExp(seed.code));
   assert.match(registryPage.html, /v1\.0\.0/);
@@ -656,7 +659,7 @@ test("Phase 9 — a Pack published through the SDK is visible on the platform-wi
   const transition = await postForm(request, `/seu/packs/${published.pack!.id}/transition`, csrf, { targetState: "Deprecated" });
   assert.equal(transition.status, 302);
 
-  const afterTransition = await getPage(request, "/seu/packs");
+  const afterTransition = await getPage(request, `/seu/packs?q=${seed.code}`);
   assert.match(afterTransition.html, /alert-success/);
   // Two occurrences of the code exist post-transition: the flash message and
   // the Pack's own card below it — the card (not the flash) is what needs to

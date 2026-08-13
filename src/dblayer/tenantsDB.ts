@@ -52,4 +52,18 @@ export const tenantsDB = {
       return { error: err as Error };
     }
   },
+
+  // CR-004: operational tenants only — excludes reserved is_system tenants (the
+  // 'platform' home). Used by every tenant picker (Act-As, Tenant Management,
+  // the create-user tenant selector) so 'platform' never appears as a
+  // selectable engineering/admin tenant.
+  async findAllOperational(): Promise<DbResult<TenantRow[]>> {
+    try {
+      const { rows } = await query<TenantRow>("SELECT * FROM tenants WHERE is_system = FALSE ORDER BY created_at ASC");
+      return { data: rows };
+    } catch (err) {
+      logger.error("[tenantsDB] findAllOperational error", err as Error);
+      return { error: err as Error };
+    }
+  },
 };

@@ -1,5 +1,6 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
+import { runPaginatedQuery, type ListParams } from "../utils/listQuery.js";
 import type { CommissioningReport, DbResult, SeuLifecycleState, SeuRow } from "./seuTypes.js";
 
 export interface SeuWithObjectiveStatement extends SeuRow {
@@ -34,6 +35,31 @@ export const seusDB = {
       return { data: rows[0] ?? null };
     } catch (err) {
       logger.error("[seusDB] findById error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // CR-003: the set of Objective ids that already have an SEU — lets the
+  // Objectives list mark which are commissioned (and hide the Commission action).
+  async commissionedObjectiveIds(): Promise<DbResult<string[]>> {
+    try {
+      const { rows } = await query<{ objective_id: string }>("SELECT DISTINCT objective_id FROM seus");
+      return { data: rows.map((r) => r.objective_id) };
+    } catch (err) {
+      logger.error("[seusDB] commissionedObjectiveIds error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // CR-002: the SEU (if any) commissioned against a given Objective. With the
+  // UNIQUE index on objective_id there is at most one; commissioning uses this
+  // for a friendly "already assigned" rejection ahead of the DB constraint.
+  async findByObjectiveId(objectiveId: string): Promise<DbResult<SeuRow | null>> {
+    try {
+      const { rows } = await query<SeuRow>("SELECT * FROM seus WHERE objective_id = $1 LIMIT 1", [objectiveId]);
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[seusDB] findByObjectiveId error", err as Error);
       return { error: err as Error };
     }
   },
@@ -81,6 +107,22 @@ export const seusDB = {
   // they requested it or are a Participant on it, not every SEU. Platform/
   // Tenant Admin badge holders bypass the filter (viewerId undefined),
   // same exception pattern as Identity Management.
+  // Paginated / searchable / sortable variant for the SEUs list view (List UI
+  // Requirements). Same viewer scoping as listWithObjectiveStatement.
+  async listWithObjectiveStatementPaginated(params: ListParams, viewerId?: number): Promise<{ items: SeuWithObjectiveStatement[]; total: number }> {
+    return runPaginatedQuery<SeuWithObjectiveStatement>(
+      {
+        select: "s.*, o.statement AS objective_statement",
+        from: "seus s JOIN objectives o ON o.id = s.objective_id",
+        searchColumns: ["o.statement", "s.lifecycle_state", "s.id::text"],
+        sortMap: { objective: "o.statement", state: "s.lifecycle_state", created: "s.created_at" },
+        baseWhere: "$1::int IS NULL OR s.requested_by = $1 OR EXISTS (SELECT 1 FROM participants p WHERE p.seu_id = s.id AND p.user_id = $1)",
+        baseParams: [viewerId ?? null],
+      },
+      params
+    );
+  },
+
   async listWithObjectiveStatement(viewerId?: number): Promise<DbResult<SeuWithObjectiveStatement[]>> {
     try {
       const { rows } = await query<SeuWithObjectiveStatement>(

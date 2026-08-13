@@ -45,12 +45,12 @@ after(async () => {
 test("compositionEngine.compose resolves a Template's mandatory Pack plus a Profile's optional Pack, deterministically", async () => {
   const mandatory = await publishPack({
     seed: { code: `test-compose-mandatory-${randomUUID()}`, name: "Test Mandatory Pack", category: "Platform", packVersion: "1.0.0", installationClassification: "Mandatory", contributions: {} },
-    actorRole: "power",
+    actorRole: "power", actorId: "1001",
     activate: true,
   });
   const optional = await publishPack({
     seed: { code: `test-compose-optional-${randomUUID()}`, name: "Test Optional Pack", category: "Technology", packVersion: "1.0.0", installationClassification: "Optional", contributions: {} },
-    actorRole: "power",
+    actorRole: "power", actorId: "1001",
     activate: true,
   });
   assert.equal(mandatory.ok, true);
@@ -80,6 +80,7 @@ test("transitionEngine.evaluate allows an authorised, policy-satisfied SEU trans
     fromState: "Pending",
     toState: "Commissioned",
     actorRole: "general",
+    actorId: "1001",
     context: {},
   });
   assert.equal(outcome.allowed, true);
@@ -102,7 +103,7 @@ test("transitionEngine.evaluate rejects a transition with no Transition Definiti
     entityType: "SEU",
     fromState: "Operational",
     toState: "Retired",
-    actorRole: "super",
+    actorRole: "super", actorId: "1001",
   });
   assert.equal(outcome.allowed, false);
   if (!outcome.allowed) assert.equal(outcome.reason, "no_transition_definition");
@@ -114,6 +115,7 @@ test("transitionEngine.evaluate handles the Objective entity type (Post-MVP Phas
     fromState: "Proposed",
     toState: "Active",
     actorRole: "general",
+    actorId: "1001",
     context: {},
   });
   assert.equal(allowed.allowed, true);
@@ -132,14 +134,14 @@ test("transitionEngine.evaluate handles the Objective entity type (Post-MVP Phas
     entityType: "Objective",
     fromState: "Proposed",
     toState: "Retired",
-    actorRole: "super",
+    actorRole: "super", actorId: "1001",
   });
   assert.equal(undefinedTransition.allowed, false);
   if (!undefinedTransition.allowed) assert.equal(undefinedTransition.reason, "no_transition_definition");
 });
 
 test("dependencyEngine: Deliverable-type edge becomes Satisfied only once the target reaches the required state", async () => {
-  const { data: objective } = await objectivesDB.create({ statement: `engine-test-${randomUUID()}` });
+  const { data: objective } = await objectivesDB.create({ statement: `engine-test-${randomUUID()}`, tier: "Strategic" });
   await ensureWebAppTemplateFixture();
   const { data: template } = await templatesDB.findByCode("template-web-application");
   const { data: profile } = await profilesDB.findByCode("profile-default-development");
@@ -182,7 +184,7 @@ test("dependencyEngine: Deliverable-type edge becomes Satisfied only once the ta
 });
 
 test("dependencyEngine: Capability-type edge becomes Satisfied once the SEU's Capability requirement is Fulfilled", async () => {
-  const { data: objective } = await objectivesDB.create({ statement: `engine-test-${randomUUID()}` });
+  const { data: objective } = await objectivesDB.create({ statement: `engine-test-${randomUUID()}`, tier: "Strategic" });
   await ensureWebAppTemplateFixture();
   const { data: template } = await templatesDB.findByCode("template-web-application");
   const { data: profile } = await profilesDB.findByCode("profile-default-development");

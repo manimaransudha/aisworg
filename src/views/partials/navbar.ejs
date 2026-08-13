@@ -31,19 +31,15 @@
                 <i class="bi bi-list-check me-2"></i>Commissioned SEUs
               </a></li>
               <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item <%= ['seu-objectives','seu-objectives-detail'].includes(currentPage) ? 'active' : '' %>" href="/aisworg/seu/objectives">
+              <li><a class="dropdown-item <%= ['seu-objectives','seu-objectives-detail','seu-objectives-new'].includes(currentPage) ? 'active' : '' %>" href="/aisworg/seu/objectives">
                 <i class="bi bi-bullseye me-2"></i>Objectives
               </a></li>
-              <li><a class="dropdown-item <%= currentPage === 'seu-objectives-new' ? 'active' : '' %>" href="/aisworg/seu/objectives/new">
-                <i class="bi bi-plus-lg me-2"></i>New Objective
-              </a></li>
+              <%# CR-009: Objective creation is contextual (Create Strategic root, or Add child from a node) on the Objectives tree, not a global navbar action. %>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item <%= ['seu-seus','seu-seus-detail'].includes(currentPage) ? 'active' : '' %>" href="/aisworg/seu/seus">
                 <i class="bi bi-diagram-3 me-2"></i>All SEUs
               </a></li>
-              <li><a class="dropdown-item <%= currentPage === 'seu-seus-new' ? 'active' : '' %>" href="/aisworg/seu/seus/new">
-                <i class="bi bi-plus-lg me-2"></i>Commission new SEU
-              </a></li>
+              <%# CR-003: SEU commissioning is initiated from the Objectives screen (Commission SEU per Engineering, un-commissioned Objective), not a global navbar action. %>
               <li><a class="dropdown-item <%= currentPage === 'seu-services' ? 'active' : '' %>" href="/aisworg/seu/services">
                 <i class="bi bi-hand-index-thumb me-2"></i>Services
               </a></li>

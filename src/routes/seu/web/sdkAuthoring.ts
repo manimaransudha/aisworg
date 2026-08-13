@@ -27,6 +27,13 @@ import { packsDB } from "../../../dblayer/packsDB.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { generateFields, parseFormBody, type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { AUTHORING_CATEGORY, startAuthoring, saveAuthoringContent, submitForReview, publishAuthoredContent } from "../core/sdkAuthoring.js";
+import { listCurrentTransitionDefinitions, getTransitionDefinitionDetail, addTransitionDefinition, retireTransitionDefinition } from "../core/transitionDefinitions.js";
+import {
+  listAuthorityNouns, listAuthorityVerbs, listAuthorityMapping,
+  listActiveNouns, listActiveVerbs, activeMappingByNoun,
+  addNoun, addVerb, addMapping, retireNoun, retireVerb, retireMapping,
+} from "../core/authorityVocabulary.js";
+import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import type { SchemaDefinitionEntityKind } from "../../../dblayer/seuTypes.js";
 
 const KIND_BY_SLUG: Record<string, SchemaDefinitionEntityKind> = {
@@ -78,10 +85,173 @@ router.get("/sdk/:slug", requireAnySdkBadge, attachVM("seu/sdk/authoring/index")
       createdAt: d.created_at,
     }));
     req.vm.req.canCreate = held.includes("root") || held.includes("sdk_creator");
+
+    // CR-007: on the Transition Definition surface, also show the LIVE
+    // transition_definitions (the current governed-transition graph), not just
+    // authoring drafts. Paginated/searchable/sortable (the live set carries
+    // test-fixture rows today).
+    if (kind === "TransitionDefinition") {
+      const params = parseListParams(req.query, { sortable: ["entity", "from", "to", "verb", "rule"], defaultSort: "entity", defaultDir: "asc" });
+      const defs = await listCurrentTransitionDefinitions();
+      req.vm.opt.definitions = paginateList(defs, params, {
+        searchFields: [(d) => d.entityType, (d) => d.fromState, (d) => d.toState, (d) => d.verb, (d) => d.nounVerbBadge, (d) => d.authorityRuleCode],
+        sortFields: {
+          entity: (d) => d.entityType,
+          from: (d) => d.fromState,
+          to: (d) => d.toState,
+          verb: (d) => d.verb,
+          rule: (d) => d.authorityRuleCode,
+        },
+      });
+      req.vm.opt.listBasePath = `/aisworg/seu/sdk/${slug}`;
+      // CR-007 Step 2 — data for the "add transition" form + retire/detail actions.
+      req.vm.opt.canWriteAuthority = canWriteAuthority(req);
+      req.vm.opt.activeNouns = await listActiveNouns();
+      req.vm.opt.mappingByNoun = await activeMappingByNoun();
+    }
+
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/sdk/authoring/index", req.vm);
   } catch (err) {
     logger.error("[web/seu/sdkAuthoring] GET /sdk/:slug error", err as Error);
+    next(err);
+  }
+});
+
+// CR-006 Stage 1b — the noun × verb authority vocabulary tabs (read-only
+// browse). Own /authority/* paths so they don't collide with /sdk/:slug/:id;
+// the nav-tabs partial links these four surfaces together. Each is a real
+// server-side list (paginated/searched/sorted) per the List UI Requirements.
+
+// Add/retire on these surfaces needs sdk_creator (root bypasses). View is any SDK badge.
+function canWriteAuthority(req: Request): boolean {
+  const held: string[] = req.session?.user?.platformBadges ?? [];
+  return held.includes("root") || held.includes("sdk_creator");
+}
+
+/** GET /aisworg/seu/authority/nouns — Work outcome (the noun vocabulary). */
+router.get("/authority/nouns", requireAnySdkBadge, attachVM("seu/sdk/authority/index"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const params = parseListParams(req.query, { sortable: ["code", "label", "verbCount", "transitionCount", "active"], defaultSort: "code", defaultDir: "asc" });
+    const nouns = await listAuthorityNouns();
+    req.vm.req.title = "Authority — Work outcome";
+    req.vm.req.activeTab = "nouns";
+    req.vm.req.tabLabel = "Work outcome (Nouns)";
+    req.vm.req.listBasePath = "/aisworg/seu/authority/nouns";
+    req.vm.req.list = paginateList(nouns, params, {
+      searchFields: [(n) => n.code, (n) => n.label, (n) => n.description],
+      sortFields: { code: (n) => n.code, label: (n) => n.label, verbCount: (n) => n.verbCount, transitionCount: (n) => n.transitionCount, active: (n) => (n.isActive ? 1 : 0) },
+    });
+    req.vm.opt.canWrite = canWriteAuthority(req);
+    req.vm.opt.flash = getFlash(req);
+    return renderView(req, res, "seu/sdk/authority/index", req.vm);
+  } catch (err) {
+    logger.error("[web/seu/sdkAuthoring] GET /authority/nouns error", err as Error);
+    next(err);
+  }
+});
+
+/** GET /aisworg/seu/authority/verbs — Work process (the verb vocabulary). */
+router.get("/authority/verbs", requireAnySdkBadge, attachVM("seu/sdk/authority/index"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const params = parseListParams(req.query, { sortable: ["code", "label", "nounCount", "active"], defaultSort: "code", defaultDir: "asc" });
+    const verbs = await listAuthorityVerbs();
+    req.vm.req.title = "Authority — Work process";
+    req.vm.req.activeTab = "verbs";
+    req.vm.req.tabLabel = "Work process (Verbs)";
+    req.vm.req.listBasePath = "/aisworg/seu/authority/verbs";
+    req.vm.req.list = paginateList(verbs, params, {
+      searchFields: [(v) => v.code, (v) => v.label, (v) => v.description],
+      sortFields: { code: (v) => v.code, label: (v) => v.label, nounCount: (v) => v.nounCount, active: (v) => (v.isActive ? 1 : 0) },
+    });
+    req.vm.opt.canWrite = canWriteAuthority(req);
+    req.vm.opt.flash = getFlash(req);
+    return renderView(req, res, "seu/sdk/authority/index", req.vm);
+  } catch (err) {
+    logger.error("[web/seu/sdkAuthoring] GET /authority/verbs error", err as Error);
+    next(err);
+  }
+});
+
+/** GET /aisworg/seu/authority/mapping — Mapping (which verbs a noun allows, per pair). */
+router.get("/authority/mapping", requireAnySdkBadge, attachVM("seu/sdk/authority/index"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const params = parseListParams(req.query, { sortable: ["nounCode", "verbCode", "active"], defaultSort: "nounCode", defaultDir: "asc" });
+    const mapping = await listAuthorityMapping();
+    req.vm.req.title = "Authority — Mapping";
+    req.vm.req.activeTab = "mapping";
+    req.vm.req.tabLabel = "Mapping (Noun → allowed verbs)";
+    req.vm.req.listBasePath = "/aisworg/seu/authority/mapping";
+    req.vm.req.list = paginateList(mapping, params, {
+      searchFields: [(m) => m.nounCode, (m) => m.nounLabel, (m) => m.verbCode, (m) => m.verbLabel],
+      sortFields: { nounCode: (m) => `${m.nounCode} ${m.verbCode}`, verbCode: (m) => m.verbCode, active: (m) => (m.isActive ? 1 : 0) },
+    });
+    req.vm.opt.canWrite = canWriteAuthority(req);
+    req.vm.opt.activeNouns = await listActiveNouns();
+    req.vm.opt.activeVerbs = await listActiveVerbs();
+    req.vm.opt.flash = getFlash(req);
+    return renderView(req, res, "seu/sdk/authority/index", req.vm);
+  } catch (err) {
+    logger.error("[web/seu/sdkAuthoring] GET /authority/mapping error", err as Error);
+    next(err);
+  }
+});
+
+// ── CR-007 Step 2 — add + soft-retire (never delete/rename). sdk_creator only. ──
+const AUTH_NOUNS = "/aisworg/seu/authority/nouns";
+const AUTH_VERBS = "/aisworg/seu/authority/verbs";
+const AUTH_MAPPING = "/aisworg/seu/authority/mapping";
+const TD_INDEX = "/aisworg/seu/sdk/transition-definition-authoring";
+const wrote = (req: Request, res: Response, back: string, r: { ok: true } | { ok: false; error: string }, okMsg: string) =>
+  r.ok ? flashSuccess(req, res, back, okMsg) : flashError(req, res, back, r.error);
+
+router.post("/authority/nouns/add", requirePlatformBadge("sdk_creator"), async (req: Request, res: Response) => {
+  const { code, label, description } = req.body ?? {};
+  wrote(req, res, AUTH_NOUNS, await addNoun(String(code ?? ""), String(label ?? ""), description ? String(description) : null), `Noun "${code}" added.`);
+});
+router.post("/authority/nouns/retire", requirePlatformBadge("sdk_creator"), async (req: Request, res: Response) => {
+  const { code } = req.body ?? {};
+  wrote(req, res, AUTH_NOUNS, await retireNoun(String(code ?? "")), `Noun "${code}" retired.`);
+});
+
+router.post("/authority/verbs/add", requirePlatformBadge("sdk_creator"), async (req: Request, res: Response) => {
+  const { code, label, description } = req.body ?? {};
+  wrote(req, res, AUTH_VERBS, await addVerb(String(code ?? ""), String(label ?? ""), description ? String(description) : null), `Verb "${code}" added.`);
+});
+router.post("/authority/verbs/retire", requirePlatformBadge("sdk_creator"), async (req: Request, res: Response) => {
+  const { code } = req.body ?? {};
+  wrote(req, res, AUTH_VERBS, await retireVerb(String(code ?? "")), `Verb "${code}" retired.`);
+});
+
+router.post("/authority/mapping/add", requirePlatformBadge("sdk_creator"), async (req: Request, res: Response) => {
+  const { nounCode, verbCode } = req.body ?? {};
+  wrote(req, res, AUTH_MAPPING, await addMapping(String(nounCode ?? ""), String(verbCode ?? "")), `Mapping ${nounCode} → ${verbCode} added.`);
+});
+router.post("/authority/mapping/retire", requirePlatformBadge("sdk_creator"), async (req: Request, res: Response) => {
+  const { nounCode, verbCode } = req.body ?? {};
+  wrote(req, res, AUTH_MAPPING, await retireMapping(String(nounCode ?? ""), String(verbCode ?? "")), `Mapping ${nounCode} → ${verbCode} retired.`);
+});
+
+router.post("/authority/transition-definitions/add", requirePlatformBadge("sdk_creator"), async (req: Request, res: Response) => {
+  const { entityType, fromState, toState, verb } = req.body ?? {};
+  wrote(req, res, TD_INDEX, await addTransitionDefinition({ entityType: String(entityType ?? ""), fromState: String(fromState ?? ""), toState: String(toState ?? ""), verb: String(verb ?? "") }), `Transition ${entityType} ${fromState} → ${toState} added.`);
+});
+router.post("/authority/transition-definitions/retire", requirePlatformBadge("sdk_creator"), async (req: Request, res: Response) => {
+  const { id } = req.body ?? {};
+  wrote(req, res, TD_INDEX, await retireTransitionDefinition(String(id ?? "")), "Transition definition retired.");
+});
+
+/** GET /aisworg/seu/authority/transition-definitions/:id — view detail. */
+router.get("/authority/transition-definitions/:id", requireAnySdkBadge, attachVM("seu/sdk/authority/detail"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const detail = await getTransitionDefinitionDetail(String(req.params.id));
+    if (!detail) return next();
+    req.vm.req.title = `Transition — ${detail.entityType} ${detail.fromState} → ${detail.toState}`;
+    req.vm.req.detail = detail;
+    req.vm.opt.flash = getFlash(req);
+    return renderView(req, res, "seu/sdk/authority/detail", req.vm);
+  } catch (err) {
+    logger.error("[web/seu/sdkAuthoring] GET /authority/transition-definitions/:id error", err as Error);
     next(err);
   }
 });

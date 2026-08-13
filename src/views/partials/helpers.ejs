@@ -8,4 +8,36 @@ formatIST = function(date, options = {}) {
     ...options
   });
 };
+
+// ---- List UI helpers (coding_principles.md "List UI Requirements") ----------
+// Build a querystring for a list page, merging the current list state (q, sort,
+// dir, pageSize) with overrides. Used by sortLink and the pager so every link
+// preserves the other selections.
+listQueryString = function(list, overrides = {}) {
+  const state = {
+    q: list && list.q ? list.q : "",
+    sort: overrides.sort !== undefined ? overrides.sort : (list ? list.sort : ""),
+    dir: overrides.dir !== undefined ? overrides.dir : (list ? list.dir : "desc"),
+    page: overrides.page !== undefined ? overrides.page : (list ? list.page : 1),
+    pageSize: list ? list.pageSize : undefined,
+  };
+  const p = new URLSearchParams();
+  if (state.q) p.set("q", state.q);
+  if (state.sort) p.set("sort", state.sort);
+  if (state.dir) p.set("dir", state.dir);
+  if (state.page && Number(state.page) > 1) p.set("page", String(state.page));
+  if (state.pageSize) p.set("pageSize", String(state.pageSize));
+  const s = p.toString();
+  return s ? ("?" + s) : "";
+};
+
+// A sortable column header: clicking toggles asc/desc on that key and resets to
+// page 1, preserving the search term. Output with the unescaped EJS output tag.
+sortLink = function(label, key, list, basePath) {
+  const active = list && list.sort === key;
+  const nextDir = active && list.dir === "asc" ? "desc" : "asc";
+  const arrow = active ? (list.dir === "asc" ? " ▲" : " ▼") : "";
+  const href = basePath + listQueryString(list, { sort: key, dir: nextDir, page: 1 });
+  return '<a href="' + href + '" class="text-decoration-none text-reset">' + label + arrow + "</a>";
+};
 %>

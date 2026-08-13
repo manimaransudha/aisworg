@@ -61,7 +61,8 @@ router.post("/knowledge/:id/promote-scope", async (req: Request, res: Response) 
       return res.status(400).json({ error: "targetScope is required" });
     }
     const actorRole = req.session?.user?.role ?? "general";
-    const result = await promoteKnowledgeItemScope({ knowledgeItemId: String(req.params.id), targetScope: targetScope as AcquisitionScope, actorRole });
+    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
+    const result = await promoteKnowledgeItemScope({ knowledgeItemId: String(req.params.id), targetScope: targetScope as AcquisitionScope, actorRole, actorId });
 
     if (!result.ok) {
       if (result.reason === "not_found") return res.status(404).json({ error: "Knowledge Item not found" });
@@ -82,7 +83,8 @@ router.post("/knowledge/:id/transition", async (req: Request, res: Response) => 
       return res.status(400).json({ error: "targetState is required" });
     }
     const actorRole = req.session?.user?.role ?? "general";
-    const result = await transitionKnowledgeItem({ knowledgeItemId: String(req.params.id), targetState, actorRole });
+    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
+    const result = await transitionKnowledgeItem({ knowledgeItemId: String(req.params.id), targetState, actorRole, actorId });
 
     if (!result.ok) {
       if (result.reason === "not_found") return res.status(404).json({ error: "Knowledge Item not found" });

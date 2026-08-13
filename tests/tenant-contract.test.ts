@@ -58,7 +58,7 @@ async function commissionAndDispatch(prefix: string, tenantId: string) {
   const result = await commissionFromForm({
     statement: `${prefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
-    actorRole: "super",
+    actorRole: "super", actorId: "1001",
     tenantId,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
@@ -139,7 +139,7 @@ test("a SEU commissioned without a named tenant belongs to the seeded default te
   const result = await commissionFromForm({
     statement: `tenant-default-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
-    actorRole: "super",
+    actorRole: "super", actorId: "1001",
   });
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("unreachable");

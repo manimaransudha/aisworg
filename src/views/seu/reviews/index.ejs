@@ -19,6 +19,7 @@
   </style>
 </head>
 <body>
+  <%- include('../../partials/helpers') %>
   <header><%- include('../../partials/navbar') %></header>
 
   <main class="container py-5" style="max-width: 1100px;">
@@ -70,10 +71,17 @@
     <div class="section-card">
       <div class="section-header">Reviews</div>
       <div class="pt-3">
-        <% if (!reviews || reviews.length === 0) { %>
-          <p class="text-center text-muted py-4 mb-0">No Reviews yet.</p>
+        <% const _base = locals.listBasePath || ('/aisworg/seu/seus/' + seuId + '/reviews'); %>
+        <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search review name / category' }) %>
+        <div class="small text-muted mb-3">Sort:
+          <%- sortLink('Name', 'name', list, _base) %> &middot;
+          <%- sortLink('Category', 'category', list, _base) %> &middot;
+          <%- sortLink('Status', 'status', list, _base) %>
+        </div>
+        <% if (list.total === 0) { %>
+          <p class="text-center text-muted py-4 mb-0"><%= list.q ? 'No Reviews match your search.' : 'No Reviews yet.' %></p>
         <% } else { %>
-          <% reviews.forEach(function (item) { var r = item.review; %>
+          <% list.items.forEach(function (item) { var r = item.review; %>
             <div class="review-block">
               <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>

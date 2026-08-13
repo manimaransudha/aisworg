@@ -11,6 +11,7 @@
   </style>
 </head>
 <body>
+  <%- include('../../partials/helpers') %>
   <header><%- include('../../partials/navbar') %></header>
 
   <main class="container py-5" style="max-width: 1000px;">
@@ -30,12 +31,21 @@
       </p>
     </div>
 
-    <% if (engineeringCapital.length === 0) { %>
+    <% const _base = locals.listBasePath || '/aisworg/seu/knowledge/capital'; %>
+    <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search title / category / capability' }) %>
+    <div class="small text-muted mb-3">Sort:
+      <%- sortLink('Title', 'title', list, _base) %> &middot;
+      <%- sortLink('Scope', 'scope', list, _base) %> &middot;
+      <%- sortLink('Category', 'category', list, _base) %> &middot;
+      <%- sortLink('Created', 'created', list, _base) %>
+    </div>
+
+    <% if (list.total === 0) { %>
       <div class="alert alert-warning">
-        No Engineering Capital yet — promote a Published Knowledge Item's Acquisition Scope from an SEU's detail page.
+        <%= list.q ? 'No Engineering Capital matches your search.' : 'No Engineering Capital yet — promote a Published Knowledge Item\'s Acquisition Scope from an SEU\'s detail page.' %>
       </div>
     <% } else { %>
-      <% engineeringCapital.forEach(function(k) { %>
+      <% list.items.forEach(function(k) { %>
         <div class="card border-0 shadow-sm mb-3">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-start mb-2">

@@ -72,9 +72,9 @@ export function effectivePlatformBadges(req: Request): string[] | null {
   return [actAs.badgeType];
 }
 
-/** Tenant list for the switcher dropdown. */
+/** Tenant list for the switcher dropdown (operational only — CR-004 excludes the reserved 'platform' tenant). */
 export async function listTenants(): Promise<TenantRow[]> {
-  const { data } = await tenantsDB.findAll();
+  const { data } = await tenantsDB.findAllOperational();
   return data ?? [];
 }
 

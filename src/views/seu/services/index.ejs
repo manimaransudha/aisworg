@@ -8,6 +8,7 @@
   </style>
 </head>
 <body>
+  <%- include('../../partials/helpers') %>
   <header><%- include('../../partials/navbar') %></header>
 
   <main class="container py-5" style="max-width: 900px;">
@@ -26,10 +27,19 @@
       </p>
     </div>
 
-    <% if (services.length === 0) { %>
-      <div class="alert alert-warning">No Services loaded — run <code>pnpm seed:seu</code>.</div>
+    <% const _base = locals.listBasePath || '/aisworg/seu/services'; %>
+    <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search name / capability' }) %>
+    <div class="small text-muted mb-3">Sort:
+      <%- sortLink('Name', 'name', list, _base) %> &middot;
+      <%- sortLink('Capability', 'capability', list, _base) %> &middot;
+      <%- sortLink('Version', 'version', list, _base) %> &middot;
+      <%- sortLink('Status', 'status', list, _base) %>
+    </div>
+
+    <% if (list.total === 0) { %>
+      <div class="alert alert-warning"><%= list.q ? 'No Services match your search.' : 'No Services loaded — run pnpm seed:seu.' %></div>
     <% } else { %>
-      <% services.forEach(function(s) { %>
+      <% list.items.forEach(function(s) { %>
         <div class="card border-0 shadow-sm mb-3">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-start mb-2">

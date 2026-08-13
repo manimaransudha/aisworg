@@ -4,6 +4,7 @@
   <%- include('../../partials/head') %>
 </head>
 <body>
+  <%- include('../../partials/helpers') %>
   <header><%- include('../../partials/navbar') %></header>
 
   <main class="container py-5" style="max-width: 1000px;">
@@ -20,12 +21,23 @@
       <p class="text-muted small mb-0">Platform user accounts. Badge issuance is a separate step, from Badge Management.</p>
     </div>
 
+    <% const _base = locals.listBasePath || '/aisworg/seu/identity/users'; %>
+    <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search email / name / role' }) %>
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-body">
         <table class="table table-sm align-middle">
-          <thead><tr><th>Email</th><th>Name</th><th>Legacy role</th><th>Active</th><th>Platform badges</th></tr></thead>
+          <thead><tr>
+            <th><%- sortLink('Email', 'email', list, _base) %></th>
+            <th><%- sortLink('Name', 'name', list, _base) %></th>
+            <th><%- sortLink('Legacy role', 'role', list, _base) %></th>
+            <th>Active</th>
+            <th>Platform badges</th>
+          </tr></thead>
           <tbody>
-            <% users.forEach(function(u) { %>
+            <% if (list.total === 0) { %>
+              <tr><td colspan="5" class="text-muted small text-center py-3"><%= list.q ? 'No users match your search.' : 'No users.' %></td></tr>
+            <% } %>
+            <% list.items.forEach(function(u) { %>
               <tr>
                 <td class="small"><%= u.email %></td>
                 <td class="small"><%= u.name || '' %></td>
@@ -49,7 +61,20 @@
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <div class="col-auto"><label class="form-label small mb-1">Email</label><input name="email" type="email" class="form-control form-control-sm" required></div>
           <div class="col-auto"><label class="form-label small mb-1">Name</label><input name="name" class="form-control form-control-sm"></div>
-          <div class="col-auto"><button type="submit" class="btn btn-sm btn-primary">Create platform user</button></div>
+          <div class="col-auto">
+            <label class="form-label small mb-1">Type</label>
+            <select name="type" id="new-user-type" class="form-select form-select-sm" required onchange="document.getElementById('new-user-tenant-wrap').style.display = this.value === 'Tenant' ? '' : 'none';">
+              <option value="Platform">Platform</option>
+              <option value="Tenant">Tenant</option>
+            </select>
+          </div>
+          <div class="col-auto" id="new-user-tenant-wrap" style="display:none;">
+            <label class="form-label small mb-1">Tenant</label>
+            <select name="tenantId" class="form-select form-select-sm">
+              <% tenants.forEach(function(t) { %><option value="<%= t.id %>"><%= t.name %> (<%= t.code %>)</option><% }) %>
+            </select>
+          </div>
+          <div class="col-auto"><button type="submit" class="btn btn-sm btn-primary">Create user</button></div>
         </form>
       </div>
     </div>

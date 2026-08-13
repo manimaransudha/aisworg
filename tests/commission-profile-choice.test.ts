@@ -96,7 +96,9 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   assert.equal(nodejsPublished.ok, true);
   if (!nodejsPublished.ok || !plainPublished.ok) return;
 
-  const { objective } = await createObjective({ statement: `verify-profile-choice-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture"] });
+  // CR-009: Engineering Objectives need a Strategic parent (only Strategic may be a root).
+  const { objective: pcRoot } = await createObjective({ statement: `verify-profile-choice-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic" });
+  const { objective } = await createObjective({ statement: `verify-profile-choice-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture"], tier: "Engineering", parentObjectiveId: pcRoot.id });
   assert.equal(objective.status, "Active");
 
   // 1. getObjectiveDetail surfaces both real Profiles as real candidates.
@@ -107,7 +109,7 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   assert.deepEqual(candidateIds, [plainPublished.profileId, nodejsPublished.profileId].sort());
 
   // 2. Explicitly choosing the nodejs Profile actually composes it.
-  const chosen = await commissionFromExistingObjective({ objectiveId: objective.id, actorRole: "super", profileId: nodejsPublished.profileId });
+  const chosen = await commissionFromExistingObjective({ objectiveId: objective.id, actorRole: "super", actorId: "1001", profileId: nodejsPublished.profileId });
   assert.equal(chosen.ok, true, !chosen.ok ? JSON.stringify(chosen) : undefined);
   if (!chosen.ok) return;
   const chosenDetail = await getSeuDetailView(chosen.seu.id);
@@ -116,7 +118,7 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   // 3. Omitting profileId still works via the existing auto-pick fallback
   // (development-environment preference, else first real match) — doesn't
   // throw, still produces a real SEU.
-  const { objective: objective2 } = await createObjective({ statement: `verify-profile-choice-fallback-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture"] });
-  const autoPicked = await commissionFromExistingObjective({ objectiveId: objective2.id, actorRole: "super" });
+  const { objective: objective2 } = await createObjective({ statement: `verify-profile-choice-fallback-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture"], tier: "Engineering", parentObjectiveId: pcRoot.id });
+  const autoPicked = await commissionFromExistingObjective({ objectiveId: objective2.id, actorRole: "super", actorId: "1001" });
   assert.equal(autoPicked.ok, true, !autoPicked.ok ? JSON.stringify(autoPicked) : undefined);
 });

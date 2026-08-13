@@ -9,12 +9,19 @@ import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
 import { listPacksWithNextStates, transitionPack } from "../core/packs.js";
+import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 
 /** GET /aisworg/seu/packs — Ch.38 §10 Pack Registry: every published Version of every Pack. */
 router.get("/packs", attachVM("seu/packs/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Packs";
-    req.vm.req.packs = await listPacksWithNextStates();
+    const params = parseListParams(req.query, { sortable: ["name", "version", "status", "category"], defaultSort: "name", defaultDir: "asc" });
+    const packs = await listPacksWithNextStates();
+    req.vm.req.list = paginateList(packs, params, {
+      searchFields: [(p) => p.pack.name, (p) => p.pack.code, (p) => p.pack.category],
+      sortFields: { name: (p) => p.pack.name, version: (p) => p.pack.pack_version, status: (p) => p.pack.status, category: (p) => p.pack.category },
+    });
+    req.vm.opt.listBasePath = "/aisworg/seu/packs";
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/packs/index", req.vm);
   } catch (err) {
@@ -37,6 +44,7 @@ router.post("/packs/:id/transition", async (req: Request, res: Response) => {
       packId: String(req.params.id),
       targetState,
       actorRole: req.session?.user?.role ?? "general",
+      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;

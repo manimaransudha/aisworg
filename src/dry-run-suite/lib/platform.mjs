@@ -44,7 +44,19 @@ export async function getExecutionTarget(capabilityId, tenantId) {
 
 // ---- commissioning -----------------------------------------------------------
 export async function createObjective(statement, requiredCapabilityCodes) {
-  return expect(await http("POST", urls.api("/objectives"), { json: { statement, requiredCapabilityCodes } }), 201, "POST /objectives");
+  // CR-009: only Strategic Objectives may be roots — an Engineering Objective
+  // needs a parent. Create a Strategic root, then the Engineering leaf under it,
+  // and return the leaf (what commissioning targets). Both default to Active.
+  const root = expect(
+    await http("POST", urls.api("/objectives"), { json: { statement: `${statement} [root]`, requiredCapabilityCodes, tier: "Strategic" } }),
+    201,
+    "POST /objectives (Strategic root)"
+  );
+  return expect(
+    await http("POST", urls.api("/objectives"), { json: { statement, requiredCapabilityCodes, tier: "Engineering", parentObjectiveId: root.id } }),
+    201,
+    "POST /objectives (Engineering leaf)"
+  );
 }
 
 export async function pickTemplate(capabilityCodes) {

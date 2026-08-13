@@ -30,11 +30,14 @@
 //    kept the instructions doc's own name-pattern filter for this one table.
 //    metric_definitions was never Pack-attributed at all (all NULL-origin,
 //    including its 14 junk rows) — filtered by identifier allow-list
-//    instead. transition_definitions genuinely does survive wholesale,
-//    unfiltered: confirmed live that none of its 276 rows (many themselves
-//    test fixtures) reference a non-base-Pack authority_rule or policy, so
-//    leaving it untouched causes no breakage — matches the "would otherwise
-//    cause app breakdown" bar, not a lower "make everything pristine" one.
+//    instead. transition_definitions is NO LONGER left untouched (CR-006):
+//    it accumulates hundreds of test-fixture rows (StdFrom-*/PolFrom-*/
+//    policy-waiver-from-*), so it is now WIPED and reseeded fresh from
+//    transitionDefinitions.json by seedTransitionDefinitions() (a reseed step
+//    below), landing on exactly the seeded graph. The authority rules/policies
+//    those rows reference all survive the vocabulary-table filtering above
+//    (base-pack-attributed or migration-seeded), so the reseed resolves every
+//    code. The verb column is then back-filled by seedAuthorityVocabulary().
 //
 // 2. dependency_edges (13,326 rows) and ebms (3,347 rows) were missing from
 //    the instructions doc's wipe list entirely — both real usage data, both
@@ -45,8 +48,12 @@
 //    config for a different application sharing this Postgres schema
 //    (seeded in the base schema.sql, not any SEU migration; owned by a
 //    different table-owner role than every SEU-platform table). Never
-//    touched here, same as `users` (owned by role `postgres`, not `weirdo`
-//    — borrowed shared infrastructure this platform doesn't manage).
+//    touched here — genuinely borrowed infrastructure this platform doesn't
+//    manage. NOTE: `users` was ALSO once excluded on this rationale, but that
+//    was wrong — `users` lives only in the `aisworg` database and is this
+//    platform's own auth table; the other app's accounts are in a SEPARATE
+//    `endow` database (Postgres-isolated). Since clean-slate is dev/test-only,
+//    users are now wiped in step 1b (the god user re-seeds on next login).
 //
 // Everything runs inside one transaction — an unexpected FK conflict (e.g.
 // from a table added by a migration since this script was last reviewed;
@@ -56,6 +63,9 @@ import "dotenv/config";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { seedSdkAuthoringBootstrap } from "./seedSdkAuthoringBootstrap.js";
+import { seedIdentityBaseline } from "./seedIdentityBaseline.js";
+import { seedTransitionDefinitions } from "./seedTransitionDefinitions.js";
+import { seedAuthorityVocabulary } from "./seedAuthorityVocabulary.js";
 import { AUTHORING_SCOPE_PACK_CODE } from "../../domain/sdk/authoringScope.js";
 
 // Real gap found running the Ebook Library demo walkthrough on a database
@@ -124,6 +134,22 @@ async function run(): Promise<void> {
     await client.query(`TRUNCATE TABLE ${USAGE_DATA_TABLES.join(", ")} CASCADE`);
     logger.info(`[db:clean-slate] step 1 — truncated ${USAGE_DATA_TABLES.length} usage-data tables.`);
 
+    // Step 1b — users. clean-slate is a dev/test-only reset (never run in
+    // production), so every account goes: real usage data, not a fixture. The
+    // god identity (SUPERUSER_EMAIL) is re-created automatically on the next
+    // login — passportConfig upserts the row and badgeBootstrap grants it root
+    // — so nothing needs preserving here. RESTART IDENTITY resets the serial so
+    // that first login comes back as id 1, matching the NODE_ENV=test
+    // auto-login shim and the holder_id '1' root grant 012_badge_model seeds.
+    // CASCADE covers the requested_by / user_id FKs (objectives, seus, commands,
+    // participants, attestations) — all already emptied in step 1. NOTE: this
+    // `users` table lives ONLY in the `aisworg` database; the other app's users
+    // are in a SEPARATE `endow` database (Postgres-isolated), so wiping here
+    // cannot touch them — the older "shared infrastructure" note (below, on
+    // app_config) does NOT apply to users.
+    await client.query("TRUNCATE TABLE users RESTART IDENTITY CASCADE");
+    logger.info("[db:clean-slate] step 1b — truncated users (RESTART IDENTITY); god user re-created on next login.");
+
     // Step 2a — non-bootstrap Profiles, then Templates (profiles first:
     // profiles.base_template_id -> templates is NO ACTION, so a surviving
     // non-bootstrap profile would block deleting the template it points at
@@ -173,6 +199,36 @@ async function run(): Promise<void> {
     const packsDeleted = await client.query("DELETE FROM packs WHERE code != ALL($1::text[])", [BASE_PACK_CODES]);
     logger.info(`[db:clean-slate] step 2c — deleted ${packsDeleted.rowCount} non-base packs.`);
 
+    // Step 2d — non-reserved Tenants (and everything FK-bound to them). The
+    // reserved tenants are fixtures that must survive: 'default' (commissioning
+    // fallback), plus CR-004's 'platform' (Platform-user home) and 'demo'
+    // (Google-OAuth sandbox). Extra tenants come from the dry-run suite or
+    // manual creation and otherwise linger in every tenant dropdown. All tenant
+    // FKs are RESTRICT (no ON DELETE CASCADE), so each dependent is cleared
+    // first, in FK order, before the tenants themselves. Rows scoped to the
+    // reserved tenants survive (config).
+    const RESERVED_TENANT_CODES = ["default", "platform", "demo"];
+    const { rows: reservedRows } = await client.query("SELECT id FROM tenants WHERE code = ANY($1::text[])", [RESERVED_TENANT_CODES]);
+    const reservedIds = reservedRows.map((r) => r.id as string);
+    if (!reservedIds.length) {
+      throw new Error("no reserved tenant found — migrations seed 'default'/'platform'/'demo'; refusing to wipe the tenants table without a survivor. Rolling back.");
+    }
+    await client.query("DELETE FROM tenant_contracts WHERE tenant_id <> ALL($1::uuid[])", [reservedIds]);
+    await client.query("DELETE FROM execution_targets WHERE tenant_id IS NOT NULL AND tenant_id <> ALL($1::uuid[])", [reservedIds]);
+    await client.query("DELETE FROM tenant_concept_aliases WHERE tenant_id <> ALL($1::uuid[])", [reservedIds]);
+    // Tenant-added badge variants/tiers (Layer-2/3) reference a tenant; the
+    // Platform-recommended defaults (tenant_id IS NULL) are vocabulary and stay.
+    await client.query("DELETE FROM badge_tiers WHERE tenant_id IS NOT NULL AND tenant_id <> ALL($1::uuid[])", [reservedIds]);
+    await client.query("DELETE FROM badge_types WHERE tenant_id IS NOT NULL AND tenant_id <> ALL($1::uuid[])", [reservedIds]);
+    const tenantsDeleted = await client.query("DELETE FROM tenants WHERE id <> ALL($1::uuid[])", [reservedIds]);
+    logger.info(`[db:clean-slate] step 2d — deleted ${tenantsDeleted.rowCount} non-reserved tenants (+ their contracts, execution targets, aliases, badge variants).`);
+
+    // NOTE (CR-006): transition_definitions and the authority vocabulary
+    // (nouns/verbs/mapping) are NOT wiped here in the main transaction — the
+    // reseed steps below own them, each rebuilding fresh with an atomic
+    // wipe+reseed of its own (so the app-critical transition graph is never
+    // left empty between a wipe and its reseed).
+
     // Sanity check before committing (per the instructions doc's own step 4
     // discipline, moved earlier so a real problem rolls back instead of
     // landing): composition only ever includes Active Packs — if neither
@@ -197,6 +253,22 @@ async function run(): Promise<void> {
   // Step 3 — self-healing bootstrap reseed (upsert semantics, safe even
   // though step 2a already excluded these codes by construction).
   await seedSdkAuthoringBootstrap();
+
+  // Step 4 — restore the identity baseline (tenants + users) captured from a
+  // live dump, so a reset lands on a known identity state rather than an empty
+  // auth table. Idempotent upserts; advances the users serial past the seeded
+  // ids. Runs after the wipe (step 1b truncated users, step 2d the tenants).
+  await seedIdentityBaseline();
+
+  // Step 5 — CR-006 transition definitions: wipe the accumulated graph (incl.
+  // test-fixture pollution) and reseed the fresh set from transitionDefinitions
+  // .json. Atomic wipe+reseed inside the module. Must run BEFORE the vocabulary
+  // seed, which back-fills `verb` onto these fresh rows.
+  await seedTransitionDefinitions();
+
+  // Step 6 — CR-006 authority vocabulary (nouns/verbs/mapping) + back-fill the
+  // verb per transition. Atomic wipe+reseed; depends on step 5's fresh rows.
+  await seedAuthorityVocabulary();
   logger.info("[db:clean-slate] done. Sanity-check next: hit /aisworg/seu/sdk/pack-authoring (bootstrap Templates survived) and /aisworg/seu/telemetry (zero Deliverables measured) as a real user.");
 }
 

@@ -14,53 +14,44 @@
       </div>
     <% } %>
 
-    <h2 class="h3 mb-1 text-dark fw-bold">New Objective</h2>
-    <p class="text-muted small mb-4">
-      Created as <strong>Proposed</strong> — activate it from its detail page before commissioning an SEU against it.
-      Checking Capabilities below happens automatically as you type the statement (a starting suggestion,
-      not the sole mechanism — review and adjust before saving).
-    </p>
+    <h2 class="h3 mb-1 text-dark fw-bold">New <%= tier %> Objective</h2>
+    <% if (locals.parent) { %>
+      <p class="text-muted small mb-4">
+        Decomposed under <strong><%= parent.tier %></strong>: <a href="/aisworg/seu/objectives/<%= parent.id %>"><%= parent.statement %></a>.
+        Created as <strong>Proposed</strong> — activate it before commissioning an SEU against it.
+      </p>
+    <% } else { %>
+      <p class="text-muted small mb-4">
+        A <strong>Strategic</strong> Objective is a root — it has no parent. Created as <strong>Proposed</strong>;
+        decompose it into Operational / Engineering children, and commission SEUs against the leaves.
+      </p>
+    <% } %>
 
     <% if (capabilities.length === 0) { %>
       <div class="alert alert-warning">No Capabilities are loaded yet — run <code>pnpm seed:seu</code> first.</div>
     <% } else { %>
       <form method="POST" action="/aisworg/seu/objectives" class="card border-0 shadow-sm p-4">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="tier" value="<%= tier %>">
+        <% if (locals.parent) { %><input type="hidden" name="parentObjectiveId" value="<%= parent.id %>"><% } %>
 
         <div class="mb-3">
           <label for="statement" class="form-label fw-semibold">Statement</label>
           <textarea id="statement" name="statement" rows="3" class="form-control" required
-                    placeholder="e.g. Stand up a claims-processing platform for a retail insurance client"></textarea>
-        </div>
-
-        <div class="row g-3 mb-3">
-          <div class="col-md-6">
-            <label for="tier" class="form-label fw-semibold">Tier</label>
-            <select id="tier" name="tier" class="form-select">
-              <option value="Strategic">Strategic</option>
-              <option value="Operational">Operational</option>
-              <option value="Engineering" selected>Engineering</option>
-            </select>
-          </div>
-          <div class="col-md-6">
-            <label for="parentObjectiveId" class="form-label fw-semibold">Parent Objective (optional)</label>
-            <select id="parentObjectiveId" name="parentObjectiveId" class="form-select">
-              <option value="">— none —</option>
-              <% parentOptions.forEach(function(p) { %>
-                <option value="<%= p.id %>"><%= p.tier %>: <%= p.statement.slice(0, 60) %></option>
-              <% }) %>
-            </select>
-            <div class="form-text">A child's tier can't be more strategic than its parent's.</div>
-          </div>
+                    placeholder="e.g. Stand up a claims-processing platform for a retail insurance client"><%= locals.statement || '' %></textarea>
         </div>
 
         <div class="mb-3">
           <label class="form-label fw-semibold">Required Capabilities</label>
+          <% if (locals.parent) { %>
+            <p class="text-muted small mb-2">Inherited from the parent Objective — adjust as needed before saving.</p>
+          <% } %>
           <div id="capability-list">
             <% capabilities.forEach(function(c) { %>
               <div class="form-check">
                 <input class="form-check-input" type="checkbox" name="requiredCapabilityCodes" value="<%= c.code %>"
-                       data-code="<%= c.code %>" id="cap-<%= c.code %>">
+                       data-code="<%= c.code %>" id="cap-<%= c.code %>"
+                       <%= (locals.selectedCodes || []).includes(c.code) ? 'checked' : '' %>>
                 <label class="form-check-label" for="cap-<%= c.code %>">
                   <%= c.name %> <code class="text-muted small"><%= c.code %></code>
                 </label>
@@ -69,8 +60,8 @@
           </div>
         </div>
 
-        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Create Objective</button>
-        <a href="/aisworg/seu/objectives" class="btn btn-link text-muted">Cancel</a>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Create <%= tier %> Objective</button>
+        <a href="<%= locals.parent ? ('/aisworg/seu/objectives/' + parent.id) : '/aisworg/seu/objectives' %>" class="btn btn-link text-muted">Cancel</a>
       </form>
     <% } %>
   </main>

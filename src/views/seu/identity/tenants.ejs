@@ -4,6 +4,7 @@
   <%- include('../../partials/head') %>
 </head>
 <body>
+  <%- include('../../partials/helpers') %>
   <header><%- include('../../partials/navbar') %></header>
 
   <main class="container py-5" style="max-width: 1000px;">
@@ -22,12 +23,22 @@
       </p>
     </div>
 
+    <% const _base = locals.listBasePath || '/aisworg/seu/identity/tenants'; %>
+    <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search code / name' }) %>
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-body">
         <table class="table table-sm align-middle">
-          <thead><tr><th>Code</th><th>Name</th><th>Status</th><th>Created</th></tr></thead>
+          <thead><tr>
+            <th><%- sortLink('Code', 'code', list, _base) %></th>
+            <th><%- sortLink('Name', 'name', list, _base) %></th>
+            <th><%- sortLink('Status', 'status', list, _base) %></th>
+            <th><%- sortLink('Created', 'created', list, _base) %></th>
+          </tr></thead>
           <tbody>
-            <% tenants.forEach(function(t) { %>
+            <% if (list.total === 0) { %>
+              <tr><td colspan="4" class="text-muted small text-center py-3"><%= list.q ? 'No tenants match your search.' : 'No tenants.' %></td></tr>
+            <% } %>
+            <% list.items.forEach(function(t) { %>
               <tr><td><code><%= t.code %></code></td><td><%= t.name %></td><td><%= t.status %></td><td class="text-muted small"><%= new Date(t.created_at).toLocaleDateString() %></td></tr>
             <% }) %>
           </tbody>
@@ -36,8 +47,7 @@
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <div class="col-auto"><label class="form-label small mb-1">Code</label><input name="code" class="form-control form-control-sm" placeholder="acme" required></div>
           <div class="col-auto"><label class="form-label small mb-1">Name</label><input name="name" class="form-control form-control-sm" placeholder="Acme Corp" required></div>
-          <div class="col-auto"><label class="form-label small mb-1">First Tenant Admin (email)</label><input name="adminEmail" type="email" class="form-control form-control-sm" placeholder="admin@acme.com" required></div>
-          <div class="col-auto"><button type="submit" class="btn btn-sm btn-primary">Create Tenant + grant Tenant Admin</button></div>
+          <div class="col-auto"><button type="submit" class="btn btn-sm btn-primary">Create Tenant</button></div>
         </form>
       </div>
     </div>

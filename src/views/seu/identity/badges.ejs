@@ -4,6 +4,7 @@
   <%- include('../../partials/head') %>
 </head>
 <body>
+  <%- include('../../partials/helpers') %>
   <header><%- include('../../partials/navbar') %></header>
 
   <main class="container py-5" style="max-width: 1150px;">
@@ -111,12 +112,22 @@
 
       <!-- ═══ Badge Grants ═══ -->
       <div class="tab-pane fade" id="grants-pane" role="tabpanel">
+        <% const _base = locals.listBasePath || '/aisworg/seu/identity/badges'; %>
+        <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search holder / badge' }) %>
         <div class="card border-0 shadow-sm mb-4">
           <div class="card-body">
             <table class="table table-sm align-middle">
-              <thead><tr><th>Holder</th><th>Badge</th><th>Entity type</th><th>Capability</th><th>Scope</th><th>Status</th><th></th></tr></thead>
+              <thead><tr>
+                <th><%- sortLink('Holder', 'holder', list, _base) %></th>
+                <th><%- sortLink('Badge', 'badge', list, _base) %></th>
+                <th><%- sortLink('Entity type', 'entity', list, _base) %></th>
+                <th>Capability</th><th>Scope</th><th>Status</th><th></th>
+              </tr></thead>
               <tbody>
-                <% grants.forEach(function(g) { %>
+                <% if (list.total === 0) { %>
+                  <tr><td colspan="7" class="text-muted small text-center py-3"><%= list.q ? 'No grants match your search.' : 'No grants.' %></td></tr>
+                <% } %>
+                <% list.items.forEach(function(g) { %>
                   <tr>
                     <td class="small"><%= g.holderEmail || g.holder_id %></td>
                     <td><code><%= g.badge_type %></code></td>

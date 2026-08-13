@@ -22,11 +22,23 @@ after(async () => {
   await pool.end();
 });
 
+// CR-009: Operational/Engineering Objectives require a parent (only Strategic
+// may be a root). These tests build their fixtures under a fresh Strategic root.
+async function strategicRoot(): Promise<string> {
+  const { objective } = await createObjective({
+    statement: `phase1-root-${randomUUID()}`,
+    requiredCapabilityCodes: [],
+    tier: "Strategic",
+  });
+  return objective.id;
+}
+
 test("createObjective rejects a child whose tier is more strategic than its parent's", async () => {
   const { objective: parent } = await createObjective({
     statement: `phase1-parent-${randomUUID()}`,
     requiredCapabilityCodes: ["architecture"],
     tier: "Operational",
+    parentObjectiveId: await strategicRoot(),
   });
 
   await assert.rejects(
@@ -66,6 +78,8 @@ test("updateObjective increments version and applies the edit", async () => {
   const { objective } = await createObjective({
     statement: `phase1-versioned-${randomUUID()}`,
     requiredCapabilityCodes: ["architecture"],
+    tier: "Engineering",
+    parentObjectiveId: await strategicRoot(),
   });
   assert.equal(objective.version, 1);
 
@@ -78,14 +92,16 @@ test("transitionObjective follows the Ch.1 lifecycle and rejects an undefined tr
   const { objective } = await createObjective({
     statement: `phase1-lifecycle-${randomUUID()}`,
     requiredCapabilityCodes: ["architecture"],
+    tier: "Engineering",
+    parentObjectiveId: await strategicRoot(),
     status: "Proposed",
   });
 
-  const skipAhead = await transitionObjective({ objectiveId: objective.id, targetState: "Archived", actorRole: "super" });
+  const skipAhead = await transitionObjective({ objectiveId: objective.id, targetState: "Archived", actorRole: "super", actorId: "1001" });
   assert.equal(skipAhead.ok, false);
   if (!skipAhead.ok && skipAhead.reason !== "not_found") assert.equal(skipAhead.reason, "no_transition_definition");
 
-  const activate = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general" });
+  const activate = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: "1001" });
   assert.equal(activate.ok, true);
   if (activate.ok) {
     assert.equal(activate.objective.status, "Active");
@@ -97,6 +113,8 @@ test("commissionSeu requires the Objective to be Active — blocks Proposed, suc
   const { objective } = await createObjective({
     statement: `phase1-gate-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
+    tier: "Engineering",
+    parentObjectiveId: await strategicRoot(),
     status: "Proposed",
   });
   await ensureWebAppTemplateFixture();
@@ -104,14 +122,14 @@ test("commissionSeu requires the Objective to be Active — blocks Proposed, suc
   assert.ok(template);
   const profile = await createProfile({ templateId: template.id, environment: "development" });
 
-  const blocked = await commissionSeu({ objectiveId: objective.id, templateId: template.id, profileId: profile.id, actorRole: "super" });
+  const blocked = await commissionSeu({ objectiveId: objective.id, templateId: template.id, profileId: profile.id, actorRole: "super", actorId: "1001" });
   assert.equal(blocked.ok, false);
   if (!blocked.ok) assert.ok(blocked.reason.includes("not Active"), `expected reason to mention "not Active", got: ${blocked.reason}`);
 
-  const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general" });
+  const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: "1001" });
   assert.equal(activated.ok, true);
 
-  const allowed = await commissionSeu({ objectiveId: objective.id, templateId: template.id, profileId: profile.id, actorRole: "super" });
+  const allowed = await commissionSeu({ objectiveId: objective.id, templateId: template.id, profileId: profile.id, actorRole: "super", actorId: "1001" });
   assert.equal(allowed.ok, true);
   if (allowed.ok) assert.equal(allowed.seu.lifecycle_state, "Operational");
 });
@@ -120,10 +138,12 @@ test("commissionFromExistingObjective reuses the Objective's own declared Capabi
   const { objective } = await createObjective({
     statement: `phase1-existing-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
+    tier: "Engineering",
+    parentObjectiveId: await strategicRoot(),
     // status omitted — defaults Active, matching the one-shot quick-commission path
   });
 
-  const result = await commissionFromExistingObjective({ objectiveId: objective.id, actorRole: "super" });
+  const result = await commissionFromExistingObjective({ objectiveId: objective.id, actorRole: "super", actorId: "1001" });
   assert.equal(result.ok, true);
   if (result.ok) assert.equal(result.seu.lifecycle_state, "Operational");
 });

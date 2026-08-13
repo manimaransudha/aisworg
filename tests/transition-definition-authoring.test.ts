@@ -55,7 +55,7 @@ async function commissionTestSeu(statementPrefix: string): Promise<string> {
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
-    actorRole: "super",
+    actorRole: "super", actorId: "1001",
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
@@ -175,7 +175,7 @@ test("transitionEngine.evaluate itself enforces an authored Transition Definitio
   assert.match(blocked.detail, /unresolved Obligation/);
 
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super" });
+    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: "1001" });
     assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : undefined);
   }
 

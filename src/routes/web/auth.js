@@ -7,10 +7,12 @@ const crypto   = require('crypto');
 
 import { passport }    from '../../domain/auth/passportConfig.js';
 import { userDB }      from '../../dblayer/userDB.js';
+import { tenantsDB }   from '../../dblayer/tenantsDB.js';
 import { emailService } from '../../domain/auth/emailService.js';
 import { buildSessionUser, requireRole } from '../../middleware/auth.js';
 import { ensureBadgeBootstrap, getPlatformBadges } from '../../domain/identity/badgeBootstrap.js';
 import { logger }      from '../../utils/logger.js';
+import { parseListParams, paginateList } from '../../utils/listQuery.js';
 import { rateLimit }   from 'express-rate-limit';
 
 // 3 attempts per 4 hours per IP — applied only to credential-submission endpoints
@@ -255,11 +257,17 @@ router.post('/reset-password', loginLimiter, async (req, res) => {
 // ── User management (super only) ─────────────────────────────────────────────
 router.get('/users', requireRole('super'), async (req, res) => {
   try {
-    const users = await userDB.listManaged(SUPERUSER_EMAIL);
+    const managed = await userDB.listManaged(SUPERUSER_EMAIL);
+    const params = parseListParams(req.query, { sortable: ['user', 'provider', 'role', 'lastlogin'], defaultSort: 'user', defaultDir: 'asc' });
+    const list = paginateList(managed, params, {
+      searchFields: [(u) => u.email, (u) => u.name, (u) => u.role, (u) => u.auth_provider],
+      sortFields: { user: (u) => u.name || u.email, provider: (u) => u.auth_provider, role: (u) => u.role, lastlogin: (u) => u.last_login },
+    });
     res.render('auth/users', {
       title:       'User Management',
       activePage:  'user-management',
-      users,
+      list,
+      listBasePath: '/aisworg/auth/users',
       currentUser: req.session.user,
       flash:       req.session.flash || null,
     });
@@ -292,7 +300,10 @@ router.post('/users/create', requireRole('super'), async (req, res) => {
     const token   = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48h
 
-    await userDB.createLocalPending({ email, name: name || email, role, verification_token: token, verification_expires: expires });
+    // CR-004: legacy super-only User Management creates Platform users (this
+    // surface predates tenants; the tenant-aware path is Identity Management).
+    const { data: platformTenant } = await tenantsDB.findByCode('platform');
+    await userDB.createLocalPending({ email, name: name || email, role, verification_token: token, verification_expires: expires, type: 'Platform', tenant_id: platformTenant?.id ?? null });
     const result = await emailService.sendVerification({ to: email, name: name || email, token });
 
     if (result.link) {
@@ -369,7 +380,8 @@ router.post('/users/resend', requireRole('super'), async (req, res) => {
     const token   = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
-    await userDB.createLocalPending({ email, name: user.name, role: user.role, verification_token: token, verification_expires: expires });
+    // CR-004: resend preserves the user's existing home (don't overwrite type/tenant_id).
+    await userDB.createLocalPending({ email, name: user.name, role: user.role, verification_token: token, verification_expires: expires, type: user.type, tenant_id: user.tenant_id });
     const result = await emailService.sendVerification({ to: email, name: user.name, token });
 
     if (result.link) {

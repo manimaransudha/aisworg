@@ -16,23 +16,26 @@
     <div class="alert alert-info py-2 small"><%= flash.info %></div>
   <% } %>
 
+  <% const _base = locals.listBasePath || '/aisworg/auth/users'; %>
+  <%- include('../partials/helpers') %>
+  <%- include('../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search user / role / provider' }) %>
   <div class="card border-0 shadow-sm">
     <div class="table-responsive">
       <table class="table table-hover mb-0">
         <thead class="table-light">
           <tr>
-            <th>User</th>
-            <th>Provider</th>
-            <th>Role</th>
+            <th><%- sortLink('User', 'user', list, _base) %></th>
+            <th><%- sortLink('Provider', 'provider', list, _base) %></th>
+            <th><%- sortLink('Role', 'role', list, _base) %></th>
             <th>Status</th>
-            <th>Last login</th>
+            <th><%- sortLink('Last login', 'lastlogin', list, _base) %></th>
             <th></th>
           </tr>
         </thead>
         <tbody>
-          <% if (!users || users.length === 0) { %>
-            <tr><td colspan="6" class="text-center text-muted py-4">No users yet.</td></tr>
-          <% } else { users.forEach(u => { %>
+          <% if (list.total === 0) { %>
+            <tr><td colspan="6" class="text-center text-muted py-4"><%= list.q ? 'No users match your search.' : 'No users yet.' %></td></tr>
+          <% } else { list.items.forEach(u => { %>
             <tr class="<%= !u.is_active ? 'table-secondary' : '' %>">
               <td>
                 <div class="d-flex align-items-center gap-2">

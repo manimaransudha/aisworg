@@ -15,6 +15,7 @@ import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { requirePlatformBadge } from "../../../middleware/requirePlatformBadge.js";
 import { logger } from "../../../utils/logger.js";
+import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { SCHEMA_ENTITY_KINDS, createSchemaVersion, getSchemaDefinition, listSchemaDefinitions } from "../core/schemaRegistry.js";
 
 const backTo = "/aisworg/seu/sdk/schema-registry";
@@ -22,10 +23,15 @@ const backTo = "/aisworg/seu/sdk/schema-registry";
 /** GET /aisworg/seu/sdk/schema-registry — every (entity kind, version) row. */
 router.get("/sdk/schema-registry", requirePlatformBadge("root"), attachVM("seu/sdk/schema-registry/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const schemas = await listSchemaDefinitions();
+    const schemas = (await listSchemaDefinitions()).map((s) => ({ id: s.id, entityKind: s.entity_kind, version: s.version, createdAt: s.created_at }));
     req.vm.req.title = "Schema Registry";
     req.vm.req.kinds = SCHEMA_ENTITY_KINDS;
-    req.vm.req.schemas = schemas.map((s) => ({ id: s.id, entityKind: s.entity_kind, version: s.version, createdAt: s.created_at }));
+    const params = parseListParams(req.query, { sortable: ["kind", "version", "created"], defaultSort: "kind", defaultDir: "asc" });
+    req.vm.req.list = paginateList(schemas, params, {
+      searchFields: [(s) => s.entityKind],
+      sortFields: { kind: (s) => s.entityKind, version: (s) => s.version, created: (s) => s.createdAt },
+    });
+    req.vm.opt.listBasePath = "/aisworg/seu/sdk/schema-registry";
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/sdk/schema-registry/index", req.vm);
   } catch (err) {

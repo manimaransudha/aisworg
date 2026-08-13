@@ -33,7 +33,7 @@ async function commissionSeu(prefix: string) {
   const result = await commissionFromForm({
     statement: `${prefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
-    actorRole: "super",
+    actorRole: "super", actorId: "1001",
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
@@ -45,11 +45,11 @@ async function commissionSeu(prefix: string) {
 
 // Walk a Review Planned -> Prepared -> In Progress -> Completed(outcome) -> Accepted.
 async function walkReviewToAccepted(reviewId: string, outcome: "Passed" | "Passed with Recommendations" | "Rework Required" | "Failed" | "Deferred" | "Not Applicable") {
-  await transitionReview({ reviewId, targetState: "Prepared", actorRole: "super" });
-  await transitionReview({ reviewId, targetState: "In Progress", actorRole: "super" });
-  const completed = await transitionReview({ reviewId, targetState: "Completed", actorRole: "super", outcome });
+  await transitionReview({ reviewId, targetState: "Prepared", actorRole: "super", actorId: "1001" });
+  await transitionReview({ reviewId, targetState: "In Progress", actorRole: "super", actorId: "1001" });
+  const completed = await transitionReview({ reviewId, targetState: "Completed", actorRole: "super", actorId: "1001", outcome });
   assert.equal(completed.ok, true, !completed.ok ? JSON.stringify(completed) : undefined);
-  await transitionReview({ reviewId, targetState: "Accepted", actorRole: "super" });
+  await transitionReview({ reviewId, targetState: "Accepted", actorRole: "super", actorId: "1001" });
 }
 
 test("a Review runs its full lifecycle without modifying the reviewed object; its outcome is set at Completion and is immutable", async () => {
@@ -60,14 +60,14 @@ test("a Review runs its full lifecycle without modifying the reviewed object; it
   assert.equal(review.outcome, null, "a fresh Review has no outcome");
 
   // Completing without an outcome is refused.
-  await transitionReview({ reviewId: review.id, targetState: "Prepared", actorRole: "super" });
-  await transitionReview({ reviewId: review.id, targetState: "In Progress", actorRole: "super" });
-  const noOutcome = await transitionReview({ reviewId: review.id, targetState: "Completed", actorRole: "super" });
+  await transitionReview({ reviewId: review.id, targetState: "Prepared", actorRole: "super", actorId: "1001" });
+  await transitionReview({ reviewId: review.id, targetState: "In Progress", actorRole: "super", actorId: "1001" });
+  const noOutcome = await transitionReview({ reviewId: review.id, targetState: "Completed", actorRole: "super", actorId: "1001" });
   assert.equal(noOutcome.ok, false);
   if (!noOutcome.ok) assert.equal(noOutcome.reason, "outcome_required");
 
   // Completing with an outcome sets it.
-  const completed = await transitionReview({ reviewId: review.id, targetState: "Completed", actorRole: "super", outcome: "Passed with Recommendations" });
+  const completed = await transitionReview({ reviewId: review.id, targetState: "Completed", actorRole: "super", actorId: "1001", outcome: "Passed with Recommendations" });
   assert.equal(completed.ok, true, !completed.ok ? JSON.stringify(completed) : undefined);
   if (completed.ok) assert.equal(completed.review.outcome, "Passed with Recommendations");
 
@@ -76,8 +76,8 @@ test("a Review runs its full lifecycle without modifying the reviewed object; it
   assert.equal(detail?.deliverables.find((d) => d.id === deliverable.id)?.lifecycleState, "Defined", "a Review must never modify the reviewed object");
 
   // Outcome survives further lifecycle transitions unchanged (immutable).
-  await transitionReview({ reviewId: review.id, targetState: "Accepted", actorRole: "super" });
-  await transitionReview({ reviewId: review.id, targetState: "Archived", actorRole: "super" });
+  await transitionReview({ reviewId: review.id, targetState: "Accepted", actorRole: "super", actorId: "1001" });
+  await transitionReview({ reviewId: review.id, targetState: "Archived", actorRole: "super", actorId: "1001" });
   const { data: finalRow } = await reviewsDB.findById(review.id);
   assert.equal(finalRow?.outcome, "Passed with Recommendations", "the outcome is immutable across later transitions");
   assert.equal(finalRow?.status, "Archived");
@@ -151,7 +151,7 @@ test("Findings: a High-severity Finding auto-surfaces an Attention Item; a Findi
   if (!again.ok) assert.equal(again.reason, "already_converted");
 
   // The finding can be resolved.
-  const resolved = await transitionFinding({ findingId: high.id, targetState: "Resolved", actorRole: "super" });
+  const resolved = await transitionFinding({ findingId: high.id, targetState: "Resolved", actorRole: "super", actorId: "1001" });
   assert.equal(resolved.ok, true, !resolved.ok ? JSON.stringify(resolved) : undefined);
   if (resolved.ok) assert.equal(resolved.finding.status, "Resolved");
 });

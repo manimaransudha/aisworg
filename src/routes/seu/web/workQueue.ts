@@ -7,6 +7,7 @@ import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
+import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { logger } from "../../../utils/logger.js";
 import { workItemsDB } from "../../../dblayer/workItemsDB.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
@@ -41,7 +42,12 @@ router.get("/seus/:id/work-queue", attachVM("seu/workqueue/index"), async (req: 
     }
     req.vm.req.title = "Work Queue";
     req.vm.req.seuId = seuId;
-    req.vm.req.workItems = workItems;
+    const params = parseListParams(req.query, { sortable: ["deliverable", "transition", "reachby", "mode"], defaultSort: "reachby", defaultDir: "asc" });
+    req.vm.req.list = paginateList(workItems, params, {
+      searchFields: [(w) => w.deliverableName, (w) => w.toState, (w) => w.mode],
+      sortFields: { deliverable: (w) => w.deliverableName, transition: (w) => w.toState, reachby: (w) => w.targetCompletionAt, mode: (w) => w.mode },
+    });
+    req.vm.opt.listBasePath = `/aisworg/seu/seus/${seuId}/work-queue`;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/workqueue/index", req.vm);
   } catch (err) {

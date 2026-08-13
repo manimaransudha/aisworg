@@ -25,7 +25,7 @@ async function commissionTestSeu(statementPrefix: string) {
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
-    actorRole: "super",
+    actorRole: "super", actorId: "1001",
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
@@ -47,7 +47,7 @@ async function commissionSeuWithPublishedKnowledge(statementPrefix: string) {
   assert.equal(knowledgeItem.acquisition_scope, "SEU");
 
   for (const targetState of ["Proposed", "Validated", "Accepted", "Published"]) {
-    const step = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState, actorRole: "super" });
+    const step = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState, actorRole: "super", actorId: "1001" });
     assert.equal(step.ok, true, !step.ok ? `Knowledge transition to ${targetState} failed: ${JSON.stringify(step)}` : undefined);
   }
 
@@ -57,7 +57,7 @@ async function commissionSeuWithPublishedKnowledge(statementPrefix: string) {
 test("promoting a Published Knowledge Item's scope raises a visible Organisational Learning Obligation", async () => {
   const { knowledgeItemId } = await commissionSeuWithPublishedKnowledge("phase6-obligation");
 
-  const result = await promoteKnowledgeItemScope({ knowledgeItemId, targetScope: "Capability", actorRole: "super" });
+  const result = await promoteKnowledgeItemScope({ knowledgeItemId, targetScope: "Capability", actorRole: "super", actorId: "1001" });
   assert.equal(result.ok, true, !result.ok ? JSON.stringify(result) : undefined);
   if (result.ok) {
     assert.equal(result.knowledgeItem.acquisition_scope, "Capability");
@@ -79,7 +79,7 @@ test("Acquisition Scope promotion requires the Knowledge Item to be Published fi
   const knowledgeItem = await createKnowledgeItem({ seuId, deliverableId: requirementsSpec.id, category: "Technical Knowledge", title: "Phase6 unpublished knowledge" });
   assert.equal(knowledgeItem.status, "Observed");
 
-  const result = await promoteKnowledgeItemScope({ knowledgeItemId: knowledgeItem.id, targetScope: "Capability", actorRole: "super" });
+  const result = await promoteKnowledgeItemScope({ knowledgeItemId: knowledgeItem.id, targetScope: "Capability", actorRole: "super", actorId: "1001" });
   assert.equal(result.ok, false);
   if (!result.ok) assert.equal(result.reason, "not_published");
 });
@@ -88,39 +88,24 @@ test("Acquisition Scope promotion is one tier at a time and never demotes", asyn
   const { knowledgeItemId } = await commissionSeuWithPublishedKnowledge("phase6-monotonic");
 
   // Skipping a tier (SEU straight to Enterprise) has no Transition Definition.
-  const skipped = await promoteKnowledgeItemScope({ knowledgeItemId, targetScope: "Enterprise", actorRole: "super" });
+  const skipped = await promoteKnowledgeItemScope({ knowledgeItemId, targetScope: "Enterprise", actorRole: "super", actorId: "1001" });
   assert.equal(skipped.ok, false);
   if (!skipped.ok) assert.equal(skipped.reason, "no_transition_definition");
 
-  const toCapability = await promoteKnowledgeItemScope({ knowledgeItemId, targetScope: "Capability", actorRole: "super" });
+  const toCapability = await promoteKnowledgeItemScope({ knowledgeItemId, targetScope: "Capability", actorRole: "super", actorId: "1001" });
   assert.equal(toCapability.ok, true);
 
   // Demoting back to SEU has no Transition Definition either.
-  const demoted = await promoteKnowledgeItemScope({ knowledgeItemId, targetScope: "SEU", actorRole: "super" });
+  const demoted = await promoteKnowledgeItemScope({ knowledgeItemId, targetScope: "SEU", actorRole: "super", actorId: "1001" });
   assert.equal(demoted.ok, false);
   if (!demoted.ok) assert.equal(demoted.reason, "no_transition_definition");
 });
 
-test("Acquisition Scope promotion to Enterprise/Platform requires higher Authority than Capability", async () => {
-  const { knowledgeItemId } = await commissionSeuWithPublishedKnowledge("phase6-authority-tiering");
-
-  const toCapabilityAsGeneral = await promoteKnowledgeItemScope({ knowledgeItemId, targetScope: "Capability", actorRole: "general" });
-  assert.equal(toCapabilityAsGeneral.ok, true, "Capability-tier promotion only requires 'general'");
-
-  const toEnterpriseAsGeneral = await promoteKnowledgeItemScope({ knowledgeItemId, targetScope: "Enterprise", actorRole: "general" });
-  assert.equal(toEnterpriseAsGeneral.ok, false);
-  if (!toEnterpriseAsGeneral.ok) assert.equal(toEnterpriseAsGeneral.reason, "authority_denied");
-
-  const toEnterpriseAsPower = await promoteKnowledgeItemScope({ knowledgeItemId, targetScope: "Enterprise", actorRole: "power" });
-  assert.equal(toEnterpriseAsPower.ok, true, "Enterprise-tier promotion requires 'power'");
-
-  const toPlatformAsPower = await promoteKnowledgeItemScope({ knowledgeItemId, targetScope: "Platform", actorRole: "power" });
-  assert.equal(toPlatformAsPower.ok, false);
-  if (!toPlatformAsPower.ok) assert.equal(toPlatformAsPower.reason, "authority_denied");
-
-  const toPlatformAsSuper = await promoteKnowledgeItemScope({ knowledgeItemId, targetScope: "Platform", actorRole: "super" });
-  assert.equal(toPlatformAsSuper.ok, true, "Platform-tier promotion requires 'super'");
-});
+// CR-006: the role-ladder for scope promotion (general→Capability, power→
+// Enterprise, super→Platform) is retired — promotion authority is now the
+// noun_verb badge (knowledgescope_promote_to_capability/enterprise/platform),
+// and the noun_verb mechanism is proven once in badge-model.test.ts. This
+// role-tiering test is therefore removed (its premise no longer exists).
 
 test("Engineering Capital lists Capability/Enterprise/Platform-scoped Knowledge and excludes SEU-scoped Knowledge", async () => {
   const { seuId, knowledgeItemId } = await commissionSeuWithPublishedKnowledge("phase6-capital-query");
@@ -128,7 +113,7 @@ test("Engineering Capital lists Capability/Enterprise/Platform-scoped Knowledge 
   const beforePromotion = await getEngineeringCapital();
   assert.ok(!beforePromotion.some((k) => k.id === knowledgeItemId), "SEU-scoped Knowledge must not appear in Engineering Capital");
 
-  const result = await promoteKnowledgeItemScope({ knowledgeItemId, targetScope: "Capability", actorRole: "super" });
+  const result = await promoteKnowledgeItemScope({ knowledgeItemId, targetScope: "Capability", actorRole: "super", actorId: "1001" });
   assert.equal(result.ok, true);
 
   const afterPromotion = await getEngineeringCapital();

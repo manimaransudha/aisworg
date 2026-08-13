@@ -69,5 +69,12 @@
   { "entityType": "Participant", "fromState": "Released", "toState": "Archived", "requiredAuthorityRuleCode": "authority-transition-participant", "requiredPolicyCodes": ["policy-participant-transition-baseline"] },
   { "entityType": "Participant", "fromState": "Available", "toState": "Released", "requiredAuthorityRuleCode": "authority-transition-participant", "requiredPolicyCodes": ["policy-participant-transition-baseline"] },
   { "entityType": "Participant", "fromState": "Assigned", "toState": "Released", "requiredAuthorityRuleCode": "authority-transition-participant", "requiredPolicyCodes": ["policy-participant-transition-baseline"] },
-  { "entityType": "Participant", "fromState": "Executing", "toState": "Released", "requiredAuthorityRuleCode": "authority-transition-participant", "requiredPolicyCodes": ["policy-participant-transition-baseline"] }
+  { "entityType": "Participant", "fromState": "Executing", "toState": "Released", "requiredAuthorityRuleCode": "authority-transition-participant", "requiredPolicyCodes": ["policy-participant-transition-baseline"] },
+  { "entityType": "Review", "fromState": "Planned", "toState": "Prepared", "requiredAuthorityRuleCode": null, "requiredPolicyCodes": [] },
+  { "entityType": "Review", "fromState": "Prepared", "toState": "In Progress", "requiredAuthorityRuleCode": null, "requiredPolicyCodes": [] },
+  { "entityType": "Review", "fromState": "In Progress", "toState": "Completed", "requiredAuthorityRuleCode": null, "requiredPolicyCodes": [] },
+  { "entityType": "Review", "fromState": "Completed", "toState": "Accepted", "requiredAuthorityRuleCode": null, "requiredPolicyCodes": [] },
+  { "entityType": "Review", "fromState": "Accepted", "toState": "Archived", "requiredAuthorityRuleCode": null, "requiredPolicyCodes": [] },
+  { "entityType": "Finding", "fromState": "Open", "toState": "Resolved", "requiredAuthorityRuleCode": null, "requiredPolicyCodes": [] },
+  { "entityType": "Finding", "fromState": "Open", "toState": "Waived", "requiredAuthorityRuleCode": null, "requiredPolicyCodes": [] }
 ]

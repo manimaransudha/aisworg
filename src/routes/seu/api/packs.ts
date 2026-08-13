@@ -31,7 +31,8 @@ router.post("/packs/:id/transition", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "targetState is required" });
     }
     const actorRole = req.session?.user?.role ?? "general";
-    const result = await transitionPack({ packId: String(req.params.id), targetState, actorRole });
+    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
+    const result = await transitionPack({ packId: String(req.params.id), targetState, actorRole, actorId });
 
     if (!result.ok) {
       if (result.reason === "not_found") return res.status(404).json({ error: "Pack not found" });

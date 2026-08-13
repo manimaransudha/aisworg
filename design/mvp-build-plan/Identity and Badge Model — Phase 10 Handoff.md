@@ -70,3 +70,24 @@ Raised earlier in this discussion: should this be modeled like AWS, SAP, or Sale
 4. The exact badge catalog — only the three-tier shape above exists; specific badges (e.g. "can activate a Pack," "can approve a Deliverable transition for Capability X," "can onboard an Engineering user") haven't been enumerated.
 5. Composition rule for overlapping SEU-level and Pack-level Engineering badges — additive, override, or something else — undecided.
 6. Whether the existing two enforcement code paths (`requireRole`, `transitionEngine`'s Authority Rule check) can be incrementally re-pointed at genuine badges, or need to be rebuilt — a call for whoever actually does the Phase 10 implementation work, informed by reading the current code, not decided here.
+
+---
+
+## Access-control decisions — 2026-08-12 (Chapter 1 deep-dive)
+
+Recorded during the Chapter 1 review. These refine the three-layer model above; each is tracked as a CR in `design/Change Requests.md`.
+
+### The three layers (confirmed — matches this doc's own model)
+- **Layer 1 — Platform** (`badge scope_kind = None`): `root`, `viewer`. Enforced today via `requirePlatformBadge('root')` on Identity / Schema Registry / Pack Registry / SDK authoring. **Left as-is.**
+- **Layer 2a — Tenant** (`scope_kind = Tenant`): `tenant_admin` exists and is granted, but is **enforced nowhere** today. Deferred: `tenant_admin` is not expected to do engineering activities; its behaviour is revisited in **Phase 12 (multi-tenancy)**. Not resolved now.
+- **Layer 2b — SEU/Engineering** (`scope_kind = SEU/Pack`): `creator`/`reviewer`/`approver`, enforced on Deliverable transitions via the acting-badge engine, plus SEU-registry visibility scoping. Real, partial.
+
+### Decided now
+- **Every user belongs to a Platform or a Tenant (CR-004).** `users.type ('Platform'|'Tenant')` + `users.tenant_id` **NOT NULL** (uniform — no null sentinel). Platform users: `type=Platform`, `tenant_id = the platform tenant` (both read "platform"); root/`SUPERUSER_EMAIL` is a Platform user. Tenant users: `type=Tenant` + their tenant. A `tenants.is_system` flag marks the reserved **`platform`** tenant (excluded from tenant pickers / management / engineering config); a **`demo`** tenant (operational) is the Google-OAuth sandbox landing.
+- **Google OAuth stays enabled as a frictionless sandbox (CR-004).** Self-signups are created **active**, `type=Tenant`, `tenant_id=demo`, `role=general` — the goal is zero-friction "play on the platform," eventually a demo SEU / end-to-end walkthrough. Not disabled, not blocked. `SUPERUSER_EMAIL` via OAuth → Platform.
+- **Onboarding is platform-mediated.** Tenant admins are created via `createPlatformUser` (which gains **type + tenant** fields), then granted `tenant_admin`. Tenant creation is **decoupled** from admin creation (CR-005) — `createTenantWithFirstAdmin` splits into standalone `createTenant` + the existing grant action.
+- **Access is role-based for now.** Objectives/commissioning authority leans on the existing `role` (general/power/super), *not* new badges — but note `role=general` is currently near-total access, so any real restriction is a **later access-tightening CR** (and depends on **tenant data isolation**, which does not exist yet).
+
+### Deferred / still open
+- **Tenant data isolation** — none today; the demo sandbox is only *confined* to demo data once this is built. Own CR, later.
+- **Role/badge access tightening**, `product-manager` on Objectives, and Layer-2a `tenant_admin` enforcement (Phase 12) — not resolved here.

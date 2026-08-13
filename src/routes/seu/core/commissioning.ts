@@ -16,7 +16,7 @@ import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { logger } from "../../../utils/logger.js";
-import { createObjective } from "./objectives.js";
+import { createObjective, ensureOneShotContainer } from "./objectives.js";
 import { findCandidateTemplates } from "./templates.js";
 import { findOrCreateDefaultProfile } from "./profiles.js";
 import type { CommissioningReport, SeuLifecycleState, SeuRow } from "../../../dblayer/seuTypes.js";
@@ -36,6 +36,7 @@ export async function commissionSeu(input: {
   templateId: string;
   profileId: string;
   actorRole: string;
+  actorId?: string;
   requestedBy?: number | null;
   // Participant Integration — Plan step 6: which tenant owns this SEU. Defaults
   // to the seeded default tenant; determines which edge configuration its Work
@@ -58,6 +59,27 @@ export async function commissionSeu(input: {
   // still Proposed, or already Achieved/Superseded/Retired/Archived.
   if (objective.status !== "Active") {
     return { ok: false, stage: "validate_request", reason: `objective is not Active (status: ${objective.status}) — activate it before commissioning against it` };
+  }
+
+  // CR-009 (supersedes CR-002 / Ch.1 §18.2): an SEU serves the finest-grained
+  // objective, so commissioning is allowed against any non-Strategic *leaf* —
+  // an Operational or Engineering Objective with no children. A Strategic
+  // Objective is never commissionable (it's a programme umbrella, §7); an
+  // Objective that has been decomposed further isn't the leaf its children are.
+  if (objective.tier === "Strategic") {
+    return { ok: false, stage: "validate_request", reason: `a Strategic Objective is a programme umbrella and cannot have an SEU (decompose it into Operational/Engineering objectives)` };
+  }
+  const { data: children } = await objectivesDB.findChildren(objective.id);
+  if ((children ?? []).length > 0) {
+    return { ok: false, stage: "validate_request", reason: `objective has been decomposed further — commission an SEU against its leaf objectives, not this parent` };
+  }
+
+  // CR-002 (Ch.1 §18.2/§18.8): at most one SEU per Objective. A friendly
+  // rejection ahead of the UNIQUE index, so "already assigned" reads clearly
+  // (the index is the race-free backstop).
+  const { data: existingSeu } = await seusDB.findByObjectiveId(objective.id);
+  if (existingSeu) {
+    return { ok: false, stage: "validate_request", reason: `this Objective is already assigned to an SEU (${existingSeu.id})` };
   }
 
   // Ch.2 §7 / Build Plan §5 item 8: 'Pending' is the pre-Commissioned working
@@ -96,6 +118,7 @@ export async function commissionSeu(input: {
     fromState: "Pending",
     toState: "Commissioned",
     actorRole: input.actorRole,
+    actorId: input.actorId,
     context: { profile, objective },
   });
   if (!gate.allowed) {
@@ -189,7 +212,8 @@ export async function commissionSeu(input: {
   // Policy declared on them in the seed data), but still routed through
   // transitionEngine so the mechanism is real, not bypassed for convenience.
   for (const [from, to] of AUTOMATIC_STEPS) {
-    const step = await transitionEngine.evaluate({ entityType: "SEU", fromState: from, toState: to, actorRole: input.actorRole, context: {} });
+    const step = await transitionEngine.evaluate({ entityType: "SEU", fromState: from, toState: to, actorRole: input.actorRole,
+    actorId: input.actorId, context: {} });
     if (!step.allowed) {
       return { ok: false, stage: `transition_${from}_to_${to}`, reason: describeRejection(step), seuId: seu.id };
     }
@@ -237,12 +261,17 @@ export async function commissionFromForm(input: {
   statement: string;
   requiredCapabilityCodes: string[];
   actorRole: string;
+  actorId?: string;
   requestedBy?: number | null;
   tenantId?: string | null;
 }): Promise<CommissionFromFormResult> {
+  // CR-009: a bare Engineering Objective needs a parent — hang it under the
+  // reused Strategic container root (owner decision, 2026-08-13).
+  const container = await ensureOneShotContainer(input.requestedBy);
   const { objective } = await createObjective({
     statement: input.statement,
     requiredCapabilityCodes: input.requiredCapabilityCodes,
+    parentObjectiveId: container.id,
     requestedBy: input.requestedBy,
   });
 
@@ -263,6 +292,7 @@ export async function commissionFromForm(input: {
     templateId: template.id,
     profileId: profile.id,
     actorRole: input.actorRole,
+    actorId: input.actorId,
     requestedBy: input.requestedBy,
     tenantId: input.tenantId,
   });
@@ -279,6 +309,7 @@ export type CommissionFromObjectiveResult =
 export async function commissionFromExistingObjective(input: {
   objectiveId: string;
   actorRole: string;
+  actorId?: string;
   requestedBy?: number | null;
   // Real choice, not a heuristic override: findOrCreateDefaultProfile's own
   // comment flagged this as unsolved — this is the caller (the web route's
@@ -307,6 +338,7 @@ export async function commissionFromExistingObjective(input: {
     templateId: template.id,
     profileId,
     actorRole: input.actorRole,
+    actorId: input.actorId,
     requestedBy: input.requestedBy,
   });
 }

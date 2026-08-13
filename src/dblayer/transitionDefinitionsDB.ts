@@ -2,7 +2,50 @@ import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, TransitionDefinitionRow, TransitionEntityType } from "./seuTypes.js";
 
+// CR-007: a readable view of a live transition_definitions row — the authority
+// rule resolved to its code + required badge/role, and policy/quality-gate
+// counts, for the "current definitions" surface.
+export interface TransitionDefinitionListRow {
+  id: string;
+  entity_type: string;
+  from_state: string;
+  to_state: string;
+  verb: string | null;
+  is_active: boolean;
+  retired_at: string | null;
+  authority_rule_code: string | null;
+  required_badge_type: string | null;
+  authorised_role: string | null;
+  policy_count: number;
+  quality_gate_count: number;
+  creates_obligation: string | null;
+  category: string | null;
+}
+
 export const transitionDefinitionsDB = {
+  // CR-007: every current Transition Definition, with its authority rule
+  // resolved, for the Transition Definition Authoring "current state" view.
+  async listAll(): Promise<DbResult<TransitionDefinitionListRow[]>> {
+    try {
+      const { rows } = await query<TransitionDefinitionListRow>(
+        `SELECT td.id, td.entity_type, td.from_state, td.to_state, td.verb, td.is_active, td.retired_at,
+                ar.code AS authority_rule_code,
+                ar.required_badge_type,
+                ar.authorised_role,
+                COALESCE(array_length(td.required_policy_ids, 1), 0) AS policy_count,
+                COALESCE(array_length(td.required_quality_gate_ids, 1), 0) AS quality_gate_count,
+                td.creates_obligation, td.category
+         FROM transition_definitions td
+         LEFT JOIN authority_rules ar ON ar.id = td.required_authority_rule_id
+         ORDER BY td.entity_type, td.from_state, td.to_state`
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[transitionDefinitionsDB] listAll error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   // SDK UI Layer Plan — a Transition Definition authored (or re-published)
   // through the SDK targets an (entityType, fromState, toState) triple by
   // this same upsert. Collision risk, not yet reconciled: seedSeu.ts's own
@@ -69,6 +112,13 @@ export const transitionDefinitionsDB = {
   // Drives the transition dropdown in the SEU detail page — every state a
   // Deliverable/SEU could move to from here, per what's actually declared in
   // the data, not hardcoded state names in a view.
+  //
+  // NOTE (CR-007 Step 2, owner 2026-08-13): retiring a transition currently
+  // only marks it (is_active + retired_at) for the management view — the actual
+  // traversal semantics (grandfathering an SEU whose creation predates
+  // retired_at; excluding retired edges here and in find) are DEFERRED, since
+  // that refinement also touches Template/Profile cleanup. So this still lists
+  // all declared edges for now; retired_at is captured for that later work.
   async findPossibleNextStates(entityType: TransitionEntityType, fromState: string): Promise<DbResult<string[]>> {
     try {
       const { rows } = await query<{ to_state: string }>(
@@ -81,4 +131,85 @@ export const transitionDefinitionsDB = {
       return { error: err as Error };
     }
   },
+
+  // CR-007 Step 2 — full detail of one transition definition (resolved policy
+  // & quality-gate codes, authority rule code, verb), for the view-detail page.
+  async findDetailById(id: string): Promise<DbResult<TransitionDefinitionDetailRow | null>> {
+    try {
+      const { rows } = await query<TransitionDefinitionDetailRow>(
+        `SELECT td.id, td.entity_type, td.from_state, td.to_state, td.verb, td.is_active, td.retired_at,
+                td.creates_obligation, td.category,
+                ar.code AS authority_rule_code,
+                COALESCE((SELECT array_agg(p.code ORDER BY p.code) FROM policies p WHERE p.id = ANY(td.required_policy_ids)), '{}') AS policy_codes,
+                COALESCE((SELECT array_agg(q.code ORDER BY q.code) FROM quality_gates q WHERE q.id = ANY(td.required_quality_gate_ids)), '{}') AS quality_gate_codes
+         FROM transition_definitions td
+         LEFT JOIN authority_rules ar ON ar.id = td.required_authority_rule_id
+         WHERE td.id = $1`,
+        [id]
+      );
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[transitionDefinitionsDB] findDetailById error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // CR-007 Step 2 — add a transition definition (a new noun/from/to edge with a
+  // verb). Re-adding a retired triple reactivates it and updates its verb.
+  async insertDefinition(input: {
+    entityType: string;
+    fromState: string;
+    toState: string;
+    verb: string;
+    requiredAuthorityRuleId?: string | null;
+    requiredPolicyIds?: string[];
+  }): Promise<DbResult<{ id: string }>> {
+    try {
+      const { rows } = await query<{ id: string }>(
+        `INSERT INTO transition_definitions (entity_type, from_state, to_state, verb, required_authority_rule_id, required_policy_ids, is_active)
+         VALUES ($1, $2, $3, $4, $5, $6::uuid[], TRUE)
+         ON CONFLICT (entity_type, from_state, to_state) DO UPDATE
+           SET verb = EXCLUDED.verb, is_active = TRUE, retired_at = NULL
+         RETURNING id`,
+        [input.entityType, input.fromState, input.toState, input.verb, input.requiredAuthorityRuleId ?? null, input.requiredPolicyIds ?? []]
+      );
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[transitionDefinitionsDB] insertDefinition error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // CR-007 Step 2 — soft-retire (never delete). The row stays; it drops out of
+  // the add-pickers and is greyed in the management view. retired_at records
+  // WHEN, for the later SEU-creation-date grandfathering refinement (traversal
+  // semantics deferred — see findPossibleNextStates note).
+  async retireById(id: string): Promise<DbResult<{ id: string } | null>> {
+    try {
+      const { rows } = await query<{ id: string }>(
+        "UPDATE transition_definitions SET is_active = FALSE, retired_at = NOW() WHERE id = $1 RETURNING id",
+        [id]
+      );
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[transitionDefinitionsDB] retireById error", err as Error);
+      return { error: err as Error };
+    }
+  },
 };
+
+// CR-007 Step 2 — full detail shape for the view-detail page.
+export interface TransitionDefinitionDetailRow {
+  id: string;
+  entity_type: string;
+  from_state: string;
+  to_state: string;
+  verb: string | null;
+  is_active: boolean;
+  retired_at: string | null;
+  creates_obligation: string | null;
+  category: string | null;
+  authority_rule_code: string | null;
+  policy_codes: string[];
+  quality_gate_codes: string[];
+}

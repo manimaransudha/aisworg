@@ -49,7 +49,7 @@ async function run(): Promise<void> {
   const actorRole = parseFlag(rest, "actor") ?? "super";
   const activate = rest.includes("--activate");
 
-  const result = await publishPack({ seed, actorRole, activate });
+  const result = await publishPack({ seed, actorRole, actorId: "1", activate });
   if (!result.ok) {
     logger.error(`[pack-sdk] publish FAILED for ${seed.code}@${seed.packVersion}:`);
     for (const e of result.errors ?? []) logger.error(`  - ${e}`);

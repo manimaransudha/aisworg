@@ -121,7 +121,11 @@ if (process.env.NODE_ENV === 'test') {
                 // from this identity silently (no flash message, redirects
                 // back to referer), which looks like "nothing happens" on
                 // click rather than an actual permission error.
-                platformBadges: ['root']
+                platformBadges: ['root'],
+                // CR-004: the shim identity is the platform (root) user.
+                type: 'Platform',
+                tenant_id: null
+
             };
         }
         next();
@@ -215,8 +219,13 @@ app.use(requestLogger);
 app.use("/aisworg", publicRouter);
 app.use("/aisworg/auth", authRouter);
 app.use("/aisworg/demo", requireRole('general'), demoRouter);
-app.use("/aisworg/api/seu", requireRole('general'), seuApiRouter);
-app.use("/aisworg/seu", requireRole('general'), seuWebRouter);
+// CR-006 — the functional SEU surface is NOT role-gated: authentication is the
+// gatekeeper's job (enforces login for every non-public route), and authority
+// is badge-based per action (noun_verb). The legacy requireRole('general') here
+// was a no-op (general is the floor role) and misrepresented role as an
+// authority axis, so it's removed. (`role` remains only for home/demo landing.)
+app.use("/aisworg/api/seu", seuApiRouter);
+app.use("/aisworg/seu", seuWebRouter);
 
 // ── Super-only routes ─────────────────────────────────────────────────────────
 // app.use("/aisworg/super", requireRole('super'), superRouter);

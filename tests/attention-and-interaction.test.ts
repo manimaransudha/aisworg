@@ -31,7 +31,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
-    actorRole: "super",
+    actorRole: "super", actorId: "1001",
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
@@ -91,7 +91,7 @@ test("an Attention Item can be created directly and walked through its Ch.34 §9
   assert.equal(attentionItem.status, "Created");
 
   for (const targetState of ["Delivered", "Acknowledged", "In Progress", "Resolved", "Closed"]) {
-    const step = await transitionAttentionItem({ attentionItemId: attentionItem.id, targetState, actorRole: "super" });
+    const step = await transitionAttentionItem({ attentionItemId: attentionItem.id, targetState, actorRole: "super", actorId: "1001" });
     assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : undefined);
   }
 });
@@ -114,7 +114,7 @@ test("an External Interaction can be recorded against a Deliverable and walked t
   assert.ok(bySeu.some((i) => i.id === interaction.id));
 
   for (const targetState of ["Validated", "Dispatched", "Acknowledged", "Completed", "Archived"]) {
-    const step = await transitionExternalInteraction({ interactionId: interaction.id, targetState, actorRole: "super" });
+    const step = await transitionExternalInteraction({ interactionId: interaction.id, targetState, actorRole: "super", actorId: "1001" });
     assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : undefined);
   }
 });
@@ -129,13 +129,13 @@ test("transitioning an External Interaction to Failed automatically raises an Ex
     targetSystem: "External Ticketing System",
   });
 
-  const toValidated = await transitionExternalInteraction({ interactionId: interaction.id, targetState: "Validated", actorRole: "super" });
+  const toValidated = await transitionExternalInteraction({ interactionId: interaction.id, targetState: "Validated", actorRole: "super", actorId: "1001" });
   assert.equal(toValidated.ok, true, !toValidated.ok ? JSON.stringify(toValidated) : undefined);
 
-  const toDispatched = await transitionExternalInteraction({ interactionId: interaction.id, targetState: "Dispatched", actorRole: "super" });
+  const toDispatched = await transitionExternalInteraction({ interactionId: interaction.id, targetState: "Dispatched", actorRole: "super", actorId: "1001" });
   assert.equal(toDispatched.ok, true, !toDispatched.ok ? JSON.stringify(toDispatched) : undefined);
 
-  const toFailed = await transitionExternalInteraction({ interactionId: interaction.id, targetState: "Failed", actorRole: "super" });
+  const toFailed = await transitionExternalInteraction({ interactionId: interaction.id, targetState: "Failed", actorRole: "super", actorId: "1001" });
   assert.equal(toFailed.ok, true, !toFailed.ok ? JSON.stringify(toFailed) : undefined);
 
   const items = await listAttentionItemsBySeu(seuId);

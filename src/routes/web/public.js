@@ -10,6 +10,7 @@ import { renderView } from "../../utils/viewModel.js";
 import { getFlash } from "../../utils/flash.js";
 // import { isConnectionError } from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
+import { parseListParams, paginateList } from "../../utils/listQuery.js";
 import { appConfig } from "../../config/appconfig.js";
 // import { redirects } from "../../middleware/redirects.js";
 import { getArchitectureLayers, getDashboardCounts } from "../seu/core/dashboard.js";
@@ -89,7 +90,13 @@ router.post("/settings/:key", requireRole('super'), async (req, res, next) => {
 router.get("/quickview", requireRole('general'), attachVM("quickview/index"), async (req, res, next) => {
   try {
     req.vm.req.title = "Commissioned SEUs";
-    req.vm.req.seus = await getSeuQuickview();
+    const seus = await getSeuQuickview();
+    const params = parseListParams(req.query, { sortable: ["objective", "state", "created"], defaultSort: "created", defaultDir: "desc" });
+    req.vm.req.list = paginateList(seus, params, {
+      searchFields: [(s) => s.objectiveStatement, (s) => s.lifecycleState],
+      sortFields: { objective: (s) => s.objectiveStatement, state: (s) => s.lifecycleState, created: (s) => s.createdAt },
+    });
+    req.vm.opt.listBasePath = "/aisworg/quickview";
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "quickview/index", req.vm);
   } catch (err) {

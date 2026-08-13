@@ -1,0 +1,61 @@
+<%
+/* Reusable list toolbar — search box + result count + pager. Server-side
+   pagination/search/sort per coding_principles.md "List UI Requirements".
+   Include with explicit data: list (a ListResult from listResult()),
+   listBasePath (the page URL), and an optional searchPlaceholder. Sortable
+   column headers use the sortLink() helper from partials/helpers. */
+const _list = (typeof list !== 'undefined' && list) ? list : null;
+const _base = (typeof listBasePath !== 'undefined' && listBasePath) ? listBasePath : '';
+const _ph = (typeof searchPlaceholder !== 'undefined' && searchPlaceholder) ? searchPlaceholder : 'Search';
+function _qs(overrides) {
+  const st = {
+    q: overrides.q !== undefined ? overrides.q : (_list && _list.q ? _list.q : ''),
+    sort: overrides.sort !== undefined ? overrides.sort : (_list ? _list.sort : ''),
+    dir: overrides.dir !== undefined ? overrides.dir : (_list ? _list.dir : ''),
+    page: overrides.page !== undefined ? overrides.page : (_list ? _list.page : 1),
+    pageSize: _list ? _list.pageSize : undefined,
+  };
+  const p = new URLSearchParams();
+  if (st.q) p.set('q', st.q);
+  if (st.sort) p.set('sort', st.sort);
+  if (st.dir) p.set('dir', st.dir);
+  if (st.page && Number(st.page) > 1) p.set('page', String(st.page));
+  if (st.pageSize) p.set('pageSize', String(st.pageSize));
+  const s = p.toString();
+  return s ? ('?' + s) : '';
+}
+if (_list) {
+  const from = _list.total === 0 ? 0 : ((_list.page - 1) * _list.pageSize) + 1;
+  const to = Math.min(_list.page * _list.pageSize, _list.total);
+  const hasPrev = _list.page > 1;
+  const hasNext = _list.page < _list.totalPages;
+%>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <form method="GET" action="<%= _base %>" class="d-flex align-items-center gap-2" role="search">
+    <input type="hidden" name="sort" value="<%= _list.sort %>">
+    <input type="hidden" name="dir" value="<%= _list.dir %>">
+    <input type="hidden" name="pageSize" value="<%= _list.pageSize %>">
+    <div class="input-group input-group-sm" style="width: 16rem; max-width: 100%;">
+      <span class="input-group-text"><i class="bi bi-search"></i></span>
+      <input type="text" name="q" class="form-control" placeholder="<%= _ph %>" value="<%= _list.q %>">
+    </div>
+    <button type="submit" class="btn btn-sm btn-outline-secondary">Search</button>
+    <% if (_list.q) { %>
+      <a href="<%= _base + _qs({ q: '', page: 1 }) %>" class="btn btn-sm btn-link text-muted">Clear</a>
+    <% } %>
+  </form>
+
+  <div class="d-flex align-items-center gap-2 small text-muted">
+    <span><%= from %>&ndash;<%= to %> of <%= _list.total %></span>
+    <div class="btn-group btn-group-sm" role="group" aria-label="Pagination">
+      <a class="btn btn-outline-secondary <%= hasPrev ? '' : 'disabled' %>"
+         href="<%= hasPrev ? (_base + _qs({ page: _list.page - 1 })) : '#' %>"
+         <%= hasPrev ? '' : 'aria-disabled="true" tabindex="-1"' %>><i class="bi bi-chevron-left"></i></a>
+      <span class="btn btn-outline-secondary disabled">Page <%= _list.page %> / <%= _list.totalPages %></span>
+      <a class="btn btn-outline-secondary <%= hasNext ? '' : 'disabled' %>"
+         href="<%= hasNext ? (_base + _qs({ page: _list.page + 1 })) : '#' %>"
+         <%= hasNext ? '' : 'aria-disabled="true" tabindex="-1"' %>><i class="bi bi-chevron-right"></i></a>
+    </div>
+  </div>
+</div>
+<% } %>

@@ -4,18 +4,18 @@
 // room for them). Generic over entity type: takes fromState/toState/context,
 // never imports SEU or Deliverable — extending which transitions exist is a
 // transition_definitions row, not a code change here.
-import { authorityRulesDB } from "../../dblayer/authorityRulesDB.js";
+//
+// CR-006: authorisation is noun × verb — the required badge is
+// `entity_type + '_' + verb` (from the transition definition), checked by
+// badgeAuthorityEngine.authorise (root bypass, or the actor holds the badge).
+// The legacy authority_rules lookup + required_badge_type acting-badge path +
+// ROLE_LEVEL role fork have been removed.
 import { policiesDB } from "../../dblayer/policiesDB.js";
 import { transitionDefinitionsDB } from "../../dblayer/transitionDefinitionsDB.js";
 import { badgeAuthorityEngine } from "./badgeAuthorityEngine.js";
 import { qualityGateEngine } from "./qualityGateEngine.js";
 import { eventBus } from "./eventBus.js";
 import type { TransitionEntityType } from "../../dblayer/seuTypes.js";
-
-// Mirrors src/middleware/auth.js's ROLE_LEVEL — kept local rather than importing,
-// since auth.js doesn't export it and this is 3 stable lines, not worth coupling
-// the engine layer to a web-auth middleware module for.
-const ROLE_LEVEL: Record<string, number> = { general: 1, power: 2, super: 3 };
 
 type PolicyCondition = { type: "always_true" } | { type: "field_in"; field: string; values: unknown[] } | Record<string, unknown>;
 
@@ -46,12 +46,9 @@ export type TransitionOutcome =
   // section — logged as not yet mechanically enforced).
   | { allowed: true; entityType: TransitionEntityType; fromState: string; toState: string; createsObligation: string | null }
   | { allowed: false; reason: "no_transition_definition" }
-  // requiredRole/actorRole populated on the legacy role path; badgeDenialReason
-  // (naming badgeAuthorityEngine's own outcome) populated on the Phase 10
-  // badge-model path (§11) — never both, but kept as one variant so existing
-  // callers narrowing on `reason === "authority_denied"` don't need a second
-  // discriminant to stay type-correct.
-  | { allowed: false; reason: "authority_denied"; authorityRuleCode: string; requiredRole?: string; actorRole?: string; badgeDenialReason?: string }
+  // CR-006: authority_denied carries the required noun_verb badge
+  // (authorityRuleCode) and the reason (badgeDenialReason, e.g. missing_badge).
+  | { allowed: false; reason: "authority_denied"; authorityRuleCode: string; badgeDenialReason?: string }
   | { allowed: false; reason: "policy_blocked"; policyCode: string }
   // SDK UI Layer Plan, Transition Definition section — generic Quality Gate
   // check, opt-in per row via required_quality_gate_ids (empty for every
@@ -65,13 +62,13 @@ export const transitionEngine = {
     entityType: TransitionEntityType;
     fromState: string;
     toState: string;
+    // Retained because routes still pass it, but NOT consulted for
+    // authorisation — CR-006 authorises on the noun_verb badge, not the role.
     actorRole: string;
-    // Phase 10 (badge model, §9/§11) — required only when the resolved
-    // Authority Rule sets required_badge_type; every action still declares
-    // exactly one acting badge (§9), never inferred from everything the
-    // actor holds.
-    actingBadge?: { grantId: string; actorId: string };
-    scopeContext?: { seuId?: string | null; packCode?: string | null; capabilityId?: string | null };
+    // CR-006 — the acting identity; authorisation is "does this actor hold the
+    // transition's noun_verb badge (or root)". Required for every governed
+    // transition; absent ⇒ denied (the exception).
+    actorId?: string;
     context?: Record<string, unknown>;
     // Only required when the resolved Transition Definition declares
     // required_quality_gate_ids — every pre-existing row has none, so
@@ -82,33 +79,16 @@ export const transitionEngine = {
     const { data: definition } = await transitionDefinitionsDB.find(input.entityType, input.fromState, input.toState);
     if (!definition) return { allowed: false, reason: "no_transition_definition" };
 
-    if (definition.required_authority_rule_id) {
-      const { data: rule } = await authorityRulesDB.findById(definition.required_authority_rule_id);
-      if (!rule) return { allowed: false, reason: "no_transition_definition" };
-
-      if (rule.required_badge_type) {
-        // Badge-model path (§9/§11) — entity types not yet migrated never
-        // reach here, since their Authority Rules never set required_badge_type.
-        if (!input.actingBadge) {
-          return { allowed: false, reason: "authority_denied", authorityRuleCode: rule.code, badgeDenialReason: "no_acting_badge_declared" };
-        }
-        const badgeOutcome = await badgeAuthorityEngine.evaluate({
-          requiredBadgeType: rule.required_badge_type,
-          entityType: input.entityType,
-          actingBadge: input.actingBadge,
-          scopeContext: input.scopeContext ?? {},
-        });
-        if (!badgeOutcome.allowed) {
-          return { allowed: false, reason: "authority_denied", authorityRuleCode: rule.code, badgeDenialReason: badgeOutcome.reason };
-        }
-      } else {
-        // Legacy role path — unchanged, still live for every entity type
-        // this pass doesn't migrate.
-        const requiredLevel = ROLE_LEVEL[rule.authorised_role] ?? 99;
-        const actorLevel = ROLE_LEVEL[input.actorRole] ?? 0;
-        if (actorLevel < requiredLevel) {
-          return { allowed: false, reason: "authority_denied", authorityRuleCode: rule.code, requiredRole: rule.authorised_role, actorRole: input.actorRole };
-        }
+    // CR-006 — authorisation is one check: root bypass OR the actor holds the
+    // transition's `noun_verb` badge (from the definition's verb). No role, no
+    // scope (that is a separate gate, not this layer), no acting-badge
+    // declaration, no governed_entity_type. Every governed transition requires
+    // its badge; a non-root actor without it is denied (the exception).
+    if (definition.verb) {
+      const requiredBadge = `${input.entityType.toLowerCase()}_${definition.verb}`;
+      const auth = await badgeAuthorityEngine.authorise({ actorId: input.actorId ?? "", requiredBadge });
+      if (!auth.allowed) {
+        return { allowed: false, reason: "authority_denied", authorityRuleCode: requiredBadge, badgeDenialReason: auth.reason };
       }
     }
 

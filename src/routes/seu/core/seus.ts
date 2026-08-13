@@ -1,4 +1,5 @@
 import { seusDB } from "../../../dblayer/seusDB.js";
+import { listResult, type ListParams, type ListResult } from "../../../utils/listQuery.js";
 import { seuCapabilitiesDB } from "../../../dblayer/seuCapabilitiesDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { dependencyEdgesDB } from "../../../dblayer/dependencyEdgesDB.js";
@@ -71,6 +72,25 @@ export async function listSeus(viewer?: { userId: number | null; isAdmin: boolea
     lifecycleState: row.lifecycle_state,
     createdAt: row.created_at,
   }));
+}
+
+// Paginated / searchable / sortable list for the SEUs Registry view.
+export async function listSeusPaginated(
+  params: ListParams,
+  viewer?: { userId: number | null; isAdmin: boolean }
+): Promise<ListResult<SeuListItem>> {
+  const viewerId = viewer && !viewer.isAdmin && viewer.userId != null ? viewer.userId : undefined;
+  const { items, total } = await seusDB.listWithObjectiveStatementPaginated(params, viewerId);
+  return listResult(
+    items.map((row) => ({
+      id: row.id,
+      objectiveStatement: row.objective_statement,
+      lifecycleState: row.lifecycle_state,
+      createdAt: row.created_at,
+    })),
+    total,
+    params
+  );
 }
 
 export interface SeuQuickviewItem extends SeuListItem {

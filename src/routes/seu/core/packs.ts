@@ -138,12 +138,12 @@ export async function createPackDraft(seed: PackSeedInput): Promise<{ ok: true; 
 // real, governed transitionEngine evaluation — not a direct status write.
 // A no-op (returns the pack unchanged) if it's already past Draft, so this
 // is safe to call again on a re-seeded, already-published Pack.
-export async function advancePackLifecycle(pack: PackRow, actorRole: string, options?: { activate?: boolean }): Promise<PublishPackResult> {
+export async function advancePackLifecycle(pack: PackRow, actorRole: string, actorId: string | undefined, options?: { activate?: boolean }): Promise<PublishPackResult> {
   let currentPack = pack;
 
   if (currentPack.status === "Draft") {
     for (const targetState of ["Validated", "Published"]) {
-      const result = await transitionPack({ packId: currentPack.id, targetState, actorRole });
+      const result = await transitionPack({ packId: currentPack.id, targetState, actorRole, actorId });
       if (!result.ok) return { ok: false, pack: currentPack, errors: [`transition to "${targetState}" failed: ${"detail" in result ? result.detail : result.reason}`] };
       currentPack = result.pack;
     }
@@ -152,12 +152,12 @@ export async function advancePackLifecycle(pack: PackRow, actorRole: string, opt
   let supersededPack: PackRow | null = null;
   if (options?.activate && currentPack.status === "Published") {
     const { data: previousActive } = await packsDB.findActiveByCode(currentPack.code);
-    const activateResult = await transitionPack({ packId: currentPack.id, targetState: "Active", actorRole });
+    const activateResult = await transitionPack({ packId: currentPack.id, targetState: "Active", actorRole, actorId });
     if (!activateResult.ok) return { ok: false, pack: currentPack, errors: [`transition to "Active" failed: ${"detail" in activateResult ? activateResult.detail : activateResult.reason}`] };
     currentPack = activateResult.pack;
 
     if (previousActive && previousActive.id !== currentPack.id) {
-      const supersedeResult = await transitionPack({ packId: previousActive.id, targetState: "Deprecated", actorRole });
+      const supersedeResult = await transitionPack({ packId: previousActive.id, targetState: "Deprecated", actorRole, actorId });
       if (supersedeResult.ok) supersededPack = supersedeResult.pack;
     }
   }
@@ -170,11 +170,11 @@ export async function advancePackLifecycle(pack: PackRow, actorRole: string, opt
 // exact same (code, packVersion) again is a no-op that returns the existing
 // immutable row (VM-002) — the seed script and CLI can be re-run freely,
 // same discipline as every migration in this codebase.
-export async function publishPack(input: { seed: PackSeedInput; actorRole: string; activate?: boolean }): Promise<PublishPackResult> {
+export async function publishPack(input: { seed: PackSeedInput; actorRole: string; actorId?: string; activate?: boolean }): Promise<PublishPackResult> {
   const draft = await createPackDraft(input.seed);
   if (!draft.ok) return { ok: false, errors: draft.errors };
 
-  const advanced = await advancePackLifecycle(draft.pack, input.actorRole, { activate: input.activate });
+  const advanced = await advancePackLifecycle(draft.pack, input.actorRole, input.actorId, { activate: input.activate });
   return { ...advanced, alreadyPublished: draft.alreadyExists };
 }
 
@@ -298,7 +298,7 @@ export type TransitionPackResult =
 // quality_gate_evaluations.seu_id is NOT NULL, so there is nowhere to record
 // an evaluation against. Logged as a real, structural limitation, not
 // silently skipped.
-export async function transitionPack(input: { packId: string; targetState: string; actorRole: string }): Promise<TransitionPackResult> {
+export async function transitionPack(input: { packId: string; targetState: string; actorRole: string; actorId?: string }): Promise<TransitionPackResult> {
   const { data: pack } = await packsDB.findById(input.packId);
   if (!pack) return { ok: false, reason: "not_found" };
 
@@ -308,11 +308,12 @@ export async function transitionPack(input: { packId: string; targetState: strin
     fromState,
     toState: input.targetState,
     actorRole: input.actorRole,
+    actorId: input.actorId,
     context: { pack },
   });
   if (!gate.allowed) {
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Pack ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires role ${gate.requiredRole}, actor has ${gate.actorRole}` };
+    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
     if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }
@@ -321,7 +322,7 @@ export async function transitionPack(input: { packId: string; targetState: strin
   // this specific (fromState -> Active) transition — what actually happens
   // is a new Version, not a status flip on this row (immutable per VM-002).
   if (input.targetState === "Active" && TERMINAL_REACTIVATABLE_STATES.has(fromState)) {
-    const result = await reactivateAsNewVersion(pack, input.actorRole);
+    const result = await reactivateAsNewVersion(pack, input.actorRole, input.actorId);
     if (!result.ok || !result.pack) {
       return { ok: false, reason: "policy_blocked", detail: result.errors?.join("; ") ?? "reactivation failed" };
     }
@@ -353,7 +354,7 @@ export async function transitionPack(input: { packId: string; targetState: strin
 // -> Published -> Active pipeline — which also supersedes whatever else is
 // currently Active for this code, same as any other activation. The old row
 // itself is untouched and stays at its old status forever.
-async function reactivateAsNewVersion(pack: PackRow, actorRole: string): Promise<PublishPackResult> {
+async function reactivateAsNewVersion(pack: PackRow, actorRole: string, actorId: string | undefined): Promise<PublishPackResult> {
   const nextVersion = await nextAvailablePatchVersion(pack.code, pack.pack_version);
   const seed: PackSeedInput = {
     code: pack.code,
@@ -364,7 +365,7 @@ async function reactivateAsNewVersion(pack: PackRow, actorRole: string): Promise
     contributions: pack.contributions,
     dependencies: pack.dependencies,
   };
-  return publishPack({ seed, actorRole, activate: true });
+  return publishPack({ seed, actorRole, actorId, activate: true });
 }
 
 async function nextAvailablePatchVersion(code: string, fromVersion: string): Promise<string> {

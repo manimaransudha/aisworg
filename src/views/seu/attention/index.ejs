@@ -12,6 +12,7 @@
   </style>
 </head>
 <body>
+  <%- include('../../partials/helpers') %>
   <header><%- include('../../partials/navbar') %></header>
 
   <main class="container py-5" style="max-width: 1100px;">
@@ -31,18 +32,28 @@
       </p>
     </div>
 
+    <% const _base = locals.listBasePath || '/aisworg/seu/attention'; %>
+    <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search title / category' }) %>
+
     <div class="section-card">
       <div class="section-header">Attention Items</div>
       <div class="table-responsive">
         <table class="table table-sm mb-0 align-middle">
           <thead class="table-light">
-            <tr><th>Priority</th><th>Category</th><th>Title</th><th>Related To</th><th>Status</th><th>Transition</th></tr>
+            <tr>
+              <th><%- sortLink('Priority', 'priority', list, _base) %></th>
+              <th><%- sortLink('Category', 'category', list, _base) %></th>
+              <th><%- sortLink('Title', 'title', list, _base) %></th>
+              <th>Related To</th>
+              <th><%- sortLink('Status', 'status', list, _base) %></th>
+              <th>Transition</th>
+            </tr>
           </thead>
           <tbody>
-            <% if (attentionItems.length === 0) { %>
-              <tr><td colspan="6" class="text-muted small">No Attention Items — nothing has raised one yet.</td></tr>
+            <% if (list.total === 0) { %>
+              <tr><td colspan="6" class="text-muted small"><%= list.q ? 'No Attention Items match your search.' : 'No Attention Items — nothing has raised one yet.' %></td></tr>
             <% } %>
-            <% attentionItems.forEach(function(a) { %>
+            <% list.items.forEach(function(a) { %>
               <tr>
                 <td><span class="priority-badge priority-<%= a.attentionItem.priority %>"><%= a.attentionItem.priority %></span></td>
                 <td class="small"><%= a.attentionItem.category %></td>

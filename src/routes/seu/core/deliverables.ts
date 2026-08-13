@@ -106,14 +106,12 @@ export type TransitionDeliverableResult =
 export async function transitionDeliverable(input: {
   deliverableId: string;
   targetState: string;
-  // Phase 10 (badge model, design/mvp-build-plan/Phase 10 - User Management
-  // and Dual Authority Design.md §9/§11): Deliverable is the first entity
-  // type migrated off the legacy role check. actingBadgeGrantId/actorId are
-  // the real check now — every action declares which one held badge it's
-  // performed under, never inferred from everything the actor holds.
-  // actorRole is kept only because transitionEngine.evaluate's input still
-  // accepts it generically for entity types not yet migrated; it's ignored
-  // for Deliverable now that its Authority Rules set required_badge_type.
+  // CR-006: authorisation is the `deliverable_<verb>` badge held by actorId
+  // (root bypasses) — see transitionEngine. actorRole is ignored for authority
+  // (kept only because routes still pass it). actingBadgeGrantId is NOT an
+  // authorisation input — it is attribution recorded on the dispatched Work
+  // Item / attestation (which grant certified the action); resolveAutoActingBadge
+  // picks it when unambiguous.
   actorRole?: string;
   actingBadgeGrantId?: string;
   actorId?: string;
@@ -170,12 +168,7 @@ export async function transitionDeliverable(input: {
     fromState,
     toState: input.targetState,
     actorRole: input.actorRole ?? "general",
-    actingBadge: actingBadgeGrantId && input.actorId ? { grantId: actingBadgeGrantId, actorId: input.actorId } : undefined,
-    // packCode: always offered, not just for authoring Deliverables — safe,
-    // since matchesPack only ever fires for a grant whose own scope_id is
-    // literally this constant, which no non-SDK-authoring grant is (see
-    // resolveAutoActingBadge above for the same reasoning).
-    scopeContext: { seuId: deliverable.seu_id, capabilityId: deliverable.producing_capability_id, packCode: AUTHORING_SCOPE_PACK_CODE },
+    actorId: input.actorId, // CR-006 — authorisation is the deliverable_<verb> badge
     context: { deliverable },
     // Deliverable's own transition_definitions rows never set
     // required_quality_gate_ids (Deliverable keeps using its existing
@@ -190,7 +183,7 @@ export async function transitionDeliverable(input: {
     if (gate.reason === "authority_denied") {
       const detail = gate.badgeDenialReason
         ? `acting badge check failed: ${gate.badgeDenialReason}`
-        : `requires role ${gate.requiredRole}, actor has ${gate.actorRole}`;
+        : `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})`;
       return { ok: false, reason: "authority_denied", detail };
     }
     if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };

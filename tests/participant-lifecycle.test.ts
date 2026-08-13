@@ -40,7 +40,7 @@ async function commissionAndFulfil(statementPrefix: string) {
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
-    actorRole: "super",
+    actorRole: "super", actorId: "1001",
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
@@ -79,38 +79,38 @@ test("Participant transition graph: the full Ch.13 §9 lifecycle is seeded and e
 
   const { participant } = await commissionAndFulfil("participant-lifecycle-graph");
 
-  const toAssigned = await transitionParticipant({ participantId: participant.id, targetState: "Assigned", actorRole: "super" });
+  const toAssigned = await transitionParticipant({ participantId: participant.id, targetState: "Assigned", actorRole: "super", actorId: "1001" });
   assert.equal(toAssigned.ok, true, !toAssigned.ok ? JSON.stringify(toAssigned) : undefined);
   if (toAssigned.ok) assert.equal(toAssigned.participant.state, "Assigned");
 
-  const toExecuting = await transitionParticipant({ participantId: participant.id, targetState: "Executing", actorRole: "super" });
+  const toExecuting = await transitionParticipant({ participantId: participant.id, targetState: "Executing", actorRole: "super", actorId: "1001" });
   assert.equal(toExecuting.ok, true);
 
-  const toIdle = await transitionParticipant({ participantId: participant.id, targetState: "Idle", actorRole: "super" });
+  const toIdle = await transitionParticipant({ participantId: participant.id, targetState: "Idle", actorRole: "super", actorId: "1001" });
   assert.equal(toIdle.ok, true);
 
   // Repeat cycle: Idle -> Assigned again (a second Work Item dispatched to
   // the same Participant), not a one-shot straight line.
-  const backToAssigned = await transitionParticipant({ participantId: participant.id, targetState: "Assigned", actorRole: "super" });
+  const backToAssigned = await transitionParticipant({ participantId: participant.id, targetState: "Assigned", actorRole: "super", actorId: "1001" });
   assert.equal(backToAssigned.ok, true);
 
-  const backToExecuting = await transitionParticipant({ participantId: participant.id, targetState: "Executing", actorRole: "super" });
+  const backToExecuting = await transitionParticipant({ participantId: participant.id, targetState: "Executing", actorRole: "super", actorId: "1001" });
   assert.equal(backToExecuting.ok, true);
-  const backToIdle = await transitionParticipant({ participantId: participant.id, targetState: "Idle", actorRole: "super" });
+  const backToIdle = await transitionParticipant({ participantId: participant.id, targetState: "Idle", actorRole: "super", actorId: "1001" });
   assert.equal(backToIdle.ok, true);
 
-  const released = await transitionParticipant({ participantId: participant.id, targetState: "Released", actorRole: "super" });
+  const released = await transitionParticipant({ participantId: participant.id, targetState: "Released", actorRole: "super", actorId: "1001" });
   assert.equal(released.ok, true);
   if (released.ok) assert.equal(released.participant.state, "Released");
 
-  const archived = await transitionParticipant({ participantId: participant.id, targetState: "Archived", actorRole: "super" });
+  const archived = await transitionParticipant({ participantId: participant.id, targetState: "Archived", actorRole: "super", actorId: "1001" });
   assert.equal(archived.ok, true);
   if (archived.ok) assert.equal(archived.participant.state, "Archived");
 
   // An undefined transition (skipping straight from Available to Executing
   // on a fresh Participant) is rejected the same way any other entity's is.
   const { participant: fresh } = await commissionAndFulfil("participant-lifecycle-skip");
-  const skip = await transitionParticipant({ participantId: fresh.id, targetState: "Executing", actorRole: "super" });
+  const skip = await transitionParticipant({ participantId: fresh.id, targetState: "Executing", actorRole: "super", actorId: "1001" });
   assert.equal(skip.ok, false);
   if (!skip.ok) assert.equal(skip.reason, "no_transition_definition");
 
@@ -168,7 +168,7 @@ test("Build order step 4: replaceParticipant hands a Capability Fulfilment from 
     oldParticipantId: oldParticipant.id,
     newParticipantType: "Human",
     newDisplayName: "Participant lifecycle replacement analyst",
-    actorRole: "super",
+    actorRole: "super", actorId: "1001",
   });
   assert.equal(result.ok, true, !result.ok ? JSON.stringify(result) : undefined);
   if (!result.ok) return;
@@ -189,9 +189,9 @@ test("Build order step 4: replaceParticipant hands a Capability Fulfilment from 
 test("Build order step 4: replaceParticipant works from Executing, not just Idle — Ch.13 §13 'any Participant'", async () => {
   const { participant: oldParticipant, seuCapabilityId } = await commissionAndFulfil("participant-lifecycle-replace-executing");
 
-  const toAssigned = await transitionParticipant({ participantId: oldParticipant.id, targetState: "Assigned", actorRole: "super" });
+  const toAssigned = await transitionParticipant({ participantId: oldParticipant.id, targetState: "Assigned", actorRole: "super", actorId: "1001" });
   assert.equal(toAssigned.ok, true);
-  const toExecuting = await transitionParticipant({ participantId: oldParticipant.id, targetState: "Executing", actorRole: "super" });
+  const toExecuting = await transitionParticipant({ participantId: oldParticipant.id, targetState: "Executing", actorRole: "super", actorId: "1001" });
   assert.equal(toExecuting.ok, true);
   const { data: midWork } = await participantsDB.findById(oldParticipant.id);
   assert.equal(midWork?.state, "Executing");
@@ -200,7 +200,7 @@ test("Build order step 4: replaceParticipant works from Executing, not just Idle
     oldParticipantId: oldParticipant.id,
     newParticipantType: "AI",
     newDisplayName: "Participant lifecycle replacement (mid-work)",
-    actorRole: "super",
+    actorRole: "super", actorId: "1001",
   });
   assert.equal(result.ok, true, !result.ok ? JSON.stringify(result) : undefined);
   if (!result.ok) return;

@@ -4,6 +4,7 @@
   <%- include('../../../partials/head') %>
 </head>
 <body>
+  <%- include('../../../partials/helpers') %>
   <header><%- include('../../../partials/navbar') %></header>
 
   <main class="container py-5" style="max-width: 1000px;">
@@ -12,6 +13,14 @@
         <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
       </div>
+    <% } %>
+
+    <%# CR-006 Stage 1b: on the Transition Definition surface, show the four
+        authority tabs (this is the "Transition Definition" tab). Only that
+        kind sets `definitions`, so the tabs never render on Pack/Template/
+        Profile authoring which share this view. %>
+    <% if (locals.definitions) { %>
+      <%- include('../../../partials/authorityTabs', { active: 'definitions' }) %>
     <% } %>
 
     <div class="d-flex justify-content-between align-items-start mb-4">
@@ -30,6 +39,7 @@
       <% } %>
     </div>
 
+    <h6 class="text-uppercase text-muted small fw-bold mb-2">Authoring sessions (drafts)</h6>
     <div class="card border-0 shadow-sm">
       <div class="card-body">
         <table class="table table-sm align-middle mb-0">
@@ -50,6 +60,94 @@
         </table>
       </div>
     </div>
+
+    <%# CR-007: the LIVE transition definitions (current governed-transition graph), not just drafts. %>
+    <% if (locals.definitions) { %>
+      <% const _base = locals.listBasePath || ('/aisworg/seu/sdk/' + slug); %>
+      <div class="d-flex align-items-baseline justify-content-between mt-5 mb-2">
+        <h6 class="text-uppercase text-muted small fw-bold mb-0">Current Transition Definitions</h6>
+        <span class="text-muted small">the governed-transition graph in force now (authority is attached here)</span>
+      </div>
+      <% if (locals.canWriteAuthority) { %>
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-body">
+            <form method="POST" action="/aisworg/seu/authority/transition-definitions/add" class="row g-2 align-items-end">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <div class="col-sm-3">
+                <label class="form-label small mb-1">Noun</label>
+                <select name="entityType" id="td-noun" class="form-select form-select-sm" required>
+                  <option value="">Choose…</option>
+                  <% (locals.activeNouns || []).forEach(function(n) { %><option value="<%= n.code %>"><%= n.code %></option><% }) %>
+                </select>
+              </div>
+              <div class="col-sm-2"><label class="form-label small mb-1">From</label><input name="fromState" class="form-control form-control-sm" required></div>
+              <div class="col-sm-2"><label class="form-label small mb-1">To</label><input name="toState" class="form-control form-control-sm" required></div>
+              <div class="col-sm-3">
+                <label class="form-label small mb-1">Verb</label>
+                <select name="verb" id="td-verb" class="form-select form-select-sm" required><option value="">Choose noun first…</option></select>
+              </div>
+              <div class="col-sm-2 d-grid"><button class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Add</button></div>
+            </form>
+            <div class="form-text small">The verb must be allowed on the noun (Mapping tab).</div>
+          </div>
+        </div>
+        <script>
+          (function () {
+            var mapping = <%- JSON.stringify(locals.mappingByNoun || {}) %>;
+            var noun = document.getElementById('td-noun'), verb = document.getElementById('td-verb');
+            if (noun && verb) noun.addEventListener('change', function () {
+              var vs = mapping[noun.value] || [];
+              verb.innerHTML = vs.length ? vs.map(function (v) { return '<option value="' + v + '">' + v + '</option>'; }).join('') : '<option value="">No verbs mapped — add on the Mapping tab</option>';
+            });
+          })();
+        </script>
+      <% } %>
+      <%- include('../../../partials/listControls', { list: definitions, listBasePath: _base, searchPlaceholder: 'Search entity / state / verb / badge' }) %>
+      <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th><%- sortLink('Entity', 'entity', definitions, _base) %></th>
+                <th><%- sortLink('From', 'from', definitions, _base) %></th>
+                <th><%- sortLink('To', 'to', definitions, _base) %></th>
+                <th><%- sortLink('Verb', 'verb', definitions, _base) %></th>
+                <th>Badge (noun_verb)</th>
+                <th><%- sortLink('Authority rule', 'rule', definitions, _base) %></th>
+                <th>Policies</th><th>Gates</th><th>Status</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (definitions.total === 0) { %>
+                <tr><td colspan="10" class="text-muted small text-center py-3"><%= definitions.q ? 'No definitions match your search.' : 'No transition definitions.' %></td></tr>
+              <% } %>
+              <% definitions.items.forEach(function(d) { %>
+                <tr class="<%= d.isActive ? '' : 'text-muted' %>">
+                  <td><span class="badge bg-light text-dark border"><%= d.entityType %></span></td>
+                  <td class="small"><%= d.fromState %></td>
+                  <td class="small"><%= d.toState %></td>
+                  <td class="small"><% if (d.verb) { %><code><%= d.verb %></code><% } else { %><span class="text-muted">—</span><% } %></td>
+                  <td class="small"><% if (d.nounVerbBadge) { %><code class="text-primary"><%= d.nounVerbBadge %></code><% } else { %><span class="text-muted">—</span><% } %></td>
+                  <td class="small text-muted"><%= d.authorityRuleCode || '—' %></td>
+                  <td class="small text-muted"><%= d.policyCount %></td>
+                  <td class="small text-muted"><%= d.qualityGateCount %></td>
+                  <td><% if (d.isActive) { %><span class="badge bg-success-subtle text-success border border-success-subtle">Active</span><% } else { %><span class="badge bg-secondary-subtle text-secondary border">Retired</span><% } %></td>
+                  <td class="text-end text-nowrap">
+                    <a class="btn btn-sm btn-outline-secondary" href="/aisworg/seu/authority/transition-definitions/<%= d.id %>">View</a>
+                    <% if (locals.canWriteAuthority && d.isActive) { %>
+                      <form method="POST" action="/aisworg/seu/authority/transition-definitions/retire" class="d-inline" onsubmit="return confirm('Retire this transition edge (<%= d.entityType %> <%= d.fromState %> → <%= d.toState %>)?');">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="id" value="<%= d.id %>">
+                        <button class="btn btn-sm btn-outline-secondary">Retire</button>
+                      </form>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% } %>
   </main>
 
   <%- include('../../../partials/footer') %>

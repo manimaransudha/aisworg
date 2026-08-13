@@ -8,6 +8,7 @@ import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
+import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { listReviewsWithNextStates, createReview, transitionReview } from "../core/reviews.js";
 import { listFindingsByReview, createFinding, transitionFinding, convertFindingToObligation } from "../core/findings.js";
@@ -30,7 +31,12 @@ router.get("/seus/:id/reviews", attachVM("seu/reviews/index"), async (req: Reque
     );
     req.vm.req.title = "Reviews";
     req.vm.req.seuId = seuId;
-    req.vm.req.reviews = reviews;
+    const params = parseListParams(req.query, { sortable: ["name", "category", "status"], defaultSort: "name", defaultDir: "asc" });
+    req.vm.req.list = paginateList(reviews, params, {
+      searchFields: [(x) => x.review.name, (x) => x.review.category, (x) => x.review.status],
+      sortFields: { name: (x) => x.review.name, category: (x) => x.review.category, status: (x) => x.review.status },
+    });
+    req.vm.opt.listBasePath = `/aisworg/seu/seus/${seuId}/reviews`;
     req.vm.req.deliverables = (deliverables ?? []).map((d) => ({ id: d.id, name: d.name }));
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/reviews/index", req.vm);
@@ -68,6 +74,7 @@ router.post("/seus/:id/reviews/:reviewId/transition", async (req: Request, res: 
       reviewId: String(req.params.reviewId),
       targetState,
       actorRole: req.session?.user?.role ?? "general",
+      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
       outcome: typeof outcome === "string" && outcome.trim() ? (outcome as ReviewOutcome) : undefined,
     });
     if (!result.ok) {
@@ -109,7 +116,7 @@ router.post("/seus/:id/findings/:findingId/transition", async (req: Request, res
   const { targetState } = req.body ?? {};
   if (typeof targetState !== "string" || !targetState.trim()) return flashError(req, res, backTo, "Target state is required.");
   try {
-    const result = await transitionFinding({ findingId: String(req.params.findingId), targetState, actorRole: req.session?.user?.role ?? "general" });
+    const result = await transitionFinding({ findingId: String(req.params.findingId), targetState, actorRole: req.session?.user?.role ?? "general", actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined });
     if (!result.ok) {
       const detail = "detail" in result ? result.detail : result.reason;
       return flashError(req, res, backTo, `Finding transition blocked: ${detail}`);

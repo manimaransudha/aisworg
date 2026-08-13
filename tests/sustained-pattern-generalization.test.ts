@@ -52,7 +52,7 @@ async function commissionTestSeu(statementPrefix: string): Promise<string> {
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
-    actorRole: "super",
+    actorRole: "super", actorId: "1001",
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
@@ -96,7 +96,7 @@ test("Policy waiver: transitionEngine.evaluate records the deviation, and checkS
       entityType: "AttentionItem",
       fromState,
       toState,
-      actorRole: "super",
+      actorRole: "super", actorId: "1001",
       entityId: attentionItem.id,
       seuId,
       context: {},

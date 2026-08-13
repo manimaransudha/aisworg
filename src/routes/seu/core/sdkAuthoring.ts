@@ -29,7 +29,7 @@ import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { badgeGrantsDB } from "../../../dblayer/badgeGrantsDB.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { deliverableAuthoringContentDB } from "../../../dblayer/deliverableAuthoringContentDB.js";
-import { createObjective } from "./objectives.js";
+import { createObjective, ensureOneShotContainer } from "./objectives.js";
 import { commissionSeu } from "./commissioning.js";
 import { transitionDeliverable, type TransitionDeliverableResult } from "./deliverables.js";
 import { completeWorkItem } from "./workItems.js";
@@ -148,9 +148,13 @@ export async function startAuthoring(input: {
   const { data: schema } = await schemaDefinitionsDB.findLatest(input.kind);
   if (!schema) throw new Error(`no schema_definitions row for ${input.kind}`);
 
+  // CR-009: a bare Engineering Objective needs a parent — hang this system
+  // authoring Objective under the reused Strategic container root.
+  const container = await ensureOneShotContainer(Number(input.actorId));
   const { objective } = await createObjective({
     statement: `SDK authoring: ${input.kind} by ${input.actorName}`,
     requiredCapabilityCodes: [],
+    parentObjectiveId: container.id,
     requestedBy: Number(input.actorId),
   });
 
@@ -159,6 +163,7 @@ export async function startAuthoring(input: {
     templateId: template.id,
     profileId: profile.id,
     actorRole: input.actorRole,
+    actorId: input.actorId,
     requestedBy: Number(input.actorId),
   });
   if (!commissioned.ok) throw new Error(`commissioning the authoring SEU failed at ${commissioned.stage}: ${commissioned.reason}`);
@@ -264,7 +269,7 @@ async function validateAuthoredContent(kind: SchemaDefinitionEntityKind, content
 // that one transition, not a new mechanism).
 async function publishAuthoredContentByKind(kind: SchemaDefinitionEntityKind, content: Record<string, unknown>): Promise<{ ok: true } | { ok: false; errors: string[] }> {
   if (kind === "Pack") {
-    const result = await publishPack({ seed: toPackSeedInput(content), actorRole: "power", activate: true });
+    const result = await publishPack({ seed: toPackSeedInput(content), actorRole: "power", actorId: "1", activate: true });
     return result.ok ? { ok: true } : { ok: false, errors: result.errors ?? ["publishPack failed"] };
   }
   if (kind === "Template") {
@@ -350,9 +355,9 @@ export async function publishAuthoredContent(input: { deliverableId: string; kin
     title: `${AUTHORING_CATEGORY[input.kind]} structural + referential validation passed`,
     source: "sdkAuthoring.publishAuthoredContent",
   });
-  const toValidated = await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorRole: input.actorRole });
+  const toValidated = await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorRole: input.actorRole, actorId: input.actorId });
   if (!toValidated.ok) return { ok: false, errors: [`could not record validation evidence: ${toValidated.reason}`] };
-  const toAccepted = await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorRole: input.actorRole });
+  const toAccepted = await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorRole: input.actorRole, actorId: input.actorId });
   if (!toAccepted.ok) return { ok: false, errors: [`could not accept validation evidence: ${toAccepted.reason}`] };
 
   const result = await transitionAuthoringDeliverableInSession({ deliverableId: input.deliverableId, targetState: "Baselined", actorId: input.actorId, actorRole: input.actorRole });

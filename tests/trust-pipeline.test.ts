@@ -29,7 +29,7 @@ async function commissionTestSeu(statementPrefix: string) {
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
-    actorRole: "super",
+    actorRole: "super", actorId: "1001",
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
@@ -76,9 +76,9 @@ test("Quality Gate blocks 'Approved' -> 'Baselined' until Evidence is Accepted, 
   const stillBlocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: "1" });
   assert.equal(stillBlocked.ok, false);
 
-  const toValidated = await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorRole: "super" });
+  const toValidated = await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorRole: "super", actorId: "1001" });
   assert.equal(toValidated.ok, true);
-  const toAccepted = await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorRole: "super" });
+  const toAccepted = await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorRole: "super", actorId: "1001" });
   assert.equal(toAccepted.ok, true);
 
   const unblocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: "1" });
@@ -93,7 +93,7 @@ test("Quality Gate also accepts an Approved Decision as satisfying the same prec
   assert.equal(decision.status, "Identified");
 
   for (const targetState of ["Analysed", "Proposed", "Reviewed", "Approved"]) {
-    const step = await transitionDecision({ decisionId: decision.id, targetState, actorRole: "super" });
+    const step = await transitionDecision({ decisionId: decision.id, targetState, actorRole: "super", actorId: "1001" });
     assert.equal(step.ok, true, !step.ok ? `Decision transition to ${targetState} failed: ${JSON.stringify(step)}` : undefined);
   }
 
@@ -105,17 +105,17 @@ test("Evidence, Knowledge and Decision each run their own governed lifecycle and
   const { seuId, deliverableId } = await commissionAndApproveRequirementsSpec("phase5-lifecycles");
 
   const evidence = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: "Phase5 lifecycle test evidence" });
-  const evidenceInvalid = await transitionEvidence({ evidenceId: evidence.id, targetState: "Referenced", actorRole: "super" });
+  const evidenceInvalid = await transitionEvidence({ evidenceId: evidence.id, targetState: "Referenced", actorRole: "super", actorId: "1001" });
   assert.equal(evidenceInvalid.ok, false);
   if (!evidenceInvalid.ok) assert.equal(evidenceInvalid.reason, "no_transition_definition");
 
   const knowledgeItem = await createKnowledgeItem({ seuId, deliverableId, category: "Technical Knowledge", title: "Phase5 lifecycle test knowledge" });
-  const knowledgeInvalid = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: "Published", actorRole: "super" });
+  const knowledgeInvalid = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: "Published", actorRole: "super", actorId: "1001" });
   assert.equal(knowledgeInvalid.ok, false);
   if (!knowledgeInvalid.ok) assert.equal(knowledgeInvalid.reason, "no_transition_definition");
 
   const decision = await createDecision({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Design Decisions", title: "Phase5 lifecycle test decision" });
-  const decisionInvalid = await transitionDecision({ decisionId: decision.id, targetState: "Approved", actorRole: "super" });
+  const decisionInvalid = await transitionDecision({ decisionId: decision.id, targetState: "Approved", actorRole: "super", actorId: "1001" });
   assert.equal(decisionInvalid.ok, false);
   if (!decisionInvalid.ok) assert.equal(decisionInvalid.reason, "no_transition_definition");
 });

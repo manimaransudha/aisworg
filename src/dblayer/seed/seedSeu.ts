@@ -224,14 +224,14 @@ async function run(): Promise<void> {
 
     await seedTransitionDefinitions(transitionSeeds, authorityRuleIdByCode, policyIdByCode);
 
-    const coreAdvanced = await advancePackLifecycle(coreDraft.pack, "super", { activate: true });
+    const coreAdvanced = await advancePackLifecycle(coreDraft.pack, "super", "1", { activate: true }); // CR-006: seed runs as root holder (id 1) — bypass
     if (!coreAdvanced.ok || !coreAdvanced.pack) throw new Error(`core-engineering pack publish failed: ${coreAdvanced.errors?.join("; ")}`);
     logger.info(`[seed:seu] pack ${coreAdvanced.pack.code}@${coreAdvanced.pack.pack_version} -> ${coreAdvanced.pack.status}`);
 
     // Every Pack published from here on has no bootstrap ordering problem —
     // Pack transition_definitions already exist — so the normal, combined
     // Pack SDK entrypoint applies directly.
-    const nodejsResult = await publishPack({ seed: nodejsPackSeed, actorRole: "super", activate: true });
+    const nodejsResult = await publishPack({ seed: nodejsPackSeed, actorRole: "super", actorId: "1", activate: true });
     if (!nodejsResult.ok || !nodejsResult.pack) throw new Error(`technology-nodejs pack publish failed: ${nodejsResult.errors?.join("; ")}`);
     logger.info(`[seed:seu] pack ${nodejsResult.pack.code}@${nodejsResult.pack.pack_version} -> ${nodejsResult.pack.status}`);
 

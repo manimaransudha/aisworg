@@ -1,5 +1,6 @@
 import { logger } from '../utils/logger.js';
 import { effectivePlatformBadges } from '../dev/actAs.js';
+import { safeBack } from './safeBack.js';
 
 const ROLE_LEVEL = { general: 1, power: 2, super: 3 };
 
@@ -15,6 +16,10 @@ export function buildSessionUser(user) {
     avatar_url: user.avatar_url || null,
     role:       user.role,
     is_active:  user.is_active !== false,
+    // CR-004: the actor's home (Platform | Tenant + tenant_id) travels on the
+    // session so later work can scope by tenant. No enforcement here yet.
+    type:       user.type || null,
+    tenant_id:  user.tenant_id || null,
   };
 }
 
@@ -56,8 +61,8 @@ export function requireRole(minRole) {
 
     logger.warn(`[requireRole] ${user.email} (${user.role}) tried to access ${req.path} — needs ${minRole}`);
     req.session.flash = { type: 'error', message: "You don't have permission to access that page." };
-    const back = req.headers.referer || '/aisworg';
-    return res.redirect(back);
+    // Never redirect back to the page we're denying — that loops (see safeBack).
+    return res.redirect(safeBack(req));
   };
 }
 

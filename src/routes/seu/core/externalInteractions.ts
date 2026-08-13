@@ -75,7 +75,7 @@ export type TransitionExternalInteractionResult =
 // appropriate" — the concrete cross-chapter link back to Ch.34. A transition
 // to 'Failed' automatically raises one (category "Exception," matching
 // Ch.34 §7's own definition: "Engineering execution cannot proceed").
-export async function transitionExternalInteraction(input: { interactionId: string; targetState: string; actorRole: string }): Promise<TransitionExternalInteractionResult> {
+export async function transitionExternalInteraction(input: { interactionId: string; targetState: string; actorRole: string; actorId?: string }): Promise<TransitionExternalInteractionResult> {
   const { data: interaction } = await externalInteractionsDB.findById(input.interactionId);
   if (!interaction) return { ok: false, reason: "not_found" };
 
@@ -97,11 +97,12 @@ export async function transitionExternalInteraction(input: { interactionId: stri
     fromState,
     toState: input.targetState,
     actorRole: input.actorRole,
+    actorId: input.actorId,
     context: { interaction },
   });
   if (!gate.allowed) {
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for ExternalInteraction ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires role ${gate.requiredRole}, actor has ${gate.actorRole}` };
+    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
     if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }

@@ -73,3 +73,6 @@ Malone, T. W., & Crowston, K. (1994). The interdisciplinary study of coordinatio
 
 Treude, C. (2026). Accountable agents in software engineering: An analysis of terms of service and a research roadmap. *Proceedings of the 3rd ACM International Conference on AI-Powered Software (AIware 2026)*. arXiv:2605.04532.
 
+## Author Biography
+
+Sudha Manimaran is an independent IT consultant and researcher based in Chennai, India. She holds a Master of Engineering in Industrial Engineering from the College of Engineering, Guindy. Prior to establishing her independent consulting practice in 2016, she spent nearly two decades in the IT industry, including leadership roles at Accenture, Fidelity Investments, Wipro, HCL Perot Systems and Tata Consultancy Services, where she led large-scale software delivery, systems integration and organisational transformation initiatives. Her current research focuses on AI-native software engineering, organisational governance and executable organisational operating models that enable the integration of autonomous AI participants into software engineering organisations.

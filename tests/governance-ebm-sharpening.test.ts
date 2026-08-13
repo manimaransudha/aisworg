@@ -30,7 +30,7 @@ after(async () => {
 
 test("FR-3.3: a commissioned SEU's Engineering Behavior Model is versioned (version 1 for the first)", async () => {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromForm({ statement: `ebm-version-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"], actorRole: "super" });
+  const result = await commissionFromForm({ statement: `ebm-version-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"], actorRole: "super", actorId: "1001" });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
   const { data: seu } = await seusDB.findById(result.seu.id);
@@ -40,7 +40,7 @@ test("FR-3.3: a commissioned SEU's Engineering Behavior Model is versioned (vers
 
 test("FR-21.1: an SEU exposes one effective Governance Model derived from its EBM (authority rules, policies, quality gates)", async () => {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromForm({ statement: `gov-model-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"], actorRole: "super" });
+  const result = await commissionFromForm({ statement: `gov-model-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"], actorRole: "super", actorId: "1001" });
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("unreachable");
 
@@ -60,8 +60,8 @@ test("FR-3.6/3.7: a composition conflict hard-blocks commissioning; the SEU neve
     contributions: { authorityRules: [{ code: `auth-a-${run}`, governedTransition: `x.transition.${run}`, authorisedRole: "general" }] } };
   const packB = { code: `conflict-b-${run}`, name: "Conflict B", category: "Organisation", packVersion: "1.0.0", installationClassification: "Mandatory",
     contributions: { authorityRules: [{ code: `auth-b-${run}`, governedTransition: `x.transition.${run}`, authorisedRole: "super" }] } };
-  const pubA = await publishPack({ seed: packA as any, actorRole: "super", activate: true });
-  const pubB = await publishPack({ seed: packB as any, actorRole: "super", activate: true });
+  const pubA = await publishPack({ seed: packA as any, actorRole: "super", actorId: "1001", activate: true });
+  const pubB = await publishPack({ seed: packB as any, actorRole: "super", actorId: "1001", activate: true });
   assert.ok(pubA.ok && pubB.ok, "both packs publish");
 
   // A template that composes BOTH conflicting packs.
@@ -69,9 +69,11 @@ test("FR-3.6/3.7: a composition conflict hard-blocks commissioning; the SEU neve
   await templatesDB.setMandatoryPacks(template!.id, [packA.code, packB.code]);
   await templatesDB.setRequiredCapabilities(template!.id, []);
   const { data: profile } = await profilesDB.upsert({ code: `conflict-prof-${run}`, name: "Conflict Profile", baseTemplateId: template!.id, environment: "development", configParameters: {} });
-  const { objective } = await createObjective({ statement: `conflict-obj-${run}`, requiredCapabilityCodes: [] });
+  // CR-009: Engineering Objectives need a Strategic parent (only Strategic may be a root).
+  const { objective: conflictRoot } = await createObjective({ statement: `conflict-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic" });
+  const { objective } = await createObjective({ statement: `conflict-obj-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: conflictRoot.id });
 
-  const result = await commissionSeu({ objectiveId: objective.id, templateId: template!.id, profileId: profile!.id, actorRole: "super" });
+  const result = await commissionSeu({ objectiveId: objective.id, templateId: template!.id, profileId: profile!.id, actorRole: "super", actorId: "1001" });
   assert.equal(result.ok, false, "commissioning must be blocked by the conflict");
   if (!result.ok) {
     assert.match(result.reason, /conflict/i, "the reason names the conflict");

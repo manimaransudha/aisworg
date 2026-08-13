@@ -6,6 +6,7 @@ const LocalStrategy   = require('passport-local').Strategy;
 const bcrypt          = require('bcryptjs');
 
 import { userDB }  from '../../dblayer/userDB.js';
+import { tenantsDB } from '../../dblayer/tenantsDB.js';
 import { logger }  from '../../utils/logger.js';
 
 const SUPERUSER_EMAIL = (process.env.SUPERUSER_EMAIL || '').toLowerCase();
@@ -48,6 +49,12 @@ export function configurePassport() {
           }
 
           if (!user) {
+            // CR-004: the SUPERUSER is the platform identity; every other Google
+            // self-signup lands active in the operational 'demo' sandbox tenant
+            // (frictionless play), never Platform.
+            const isSuper = SUPERUSER_EMAIL && email.toLowerCase() === SUPERUSER_EMAIL;
+            const homeCode = isSuper ? 'platform' : 'demo';
+            const { data: home } = await tenantsDB.findByCode(homeCode);
             user = await userDB.create({
               email,
               name:          profile.displayName,
@@ -56,8 +63,10 @@ export function configurePassport() {
               auth_provider: 'google',
               provider_id:   profile.id,
               is_active:     true,
+              type:          isSuper ? 'Platform' : 'Tenant',
+              tenant_id:     home?.id ?? null,
             });
-            logger.info(`[Auth] New Google user created: ${email}`);
+            logger.info(`[Auth] New Google user created: ${email} (${isSuper ? 'Platform' : 'Tenant/demo'})`);
           } else {
             await userDB.updateLastLogin(email);
           }

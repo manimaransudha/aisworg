@@ -32,16 +32,19 @@
         <div class="mb-3">
           <label for="statement" class="form-label fw-semibold">Objective statement</label>
           <textarea id="statement" name="statement" rows="3" class="form-control" required
-                    placeholder="e.g. Stand up a customer web portal"></textarea>
+                    placeholder="e.g. Stand up a customer web portal"><%= locals.statement || '' %></textarea>
         </div>
 
         <div class="mb-3">
           <label class="form-label fw-semibold">Required Capabilities</label>
           <p class="text-muted small mb-2">Only Templates supporting every Capability checked below will be considered.</p>
+          <%# selectedCodes: null on a fresh load (default all checked), an array on a
+              bounce-back from a failed submit (reflect exactly what was selected). %>
+          <% var _sel = locals.selectedCodes; %>
           <% capabilities.forEach(function(c) { %>
             <div class="form-check">
               <input class="form-check-input" type="checkbox" name="requiredCapabilityCodes" value="<%= c.code %>"
-                     id="cap-<%= c.code %>" checked>
+                     id="cap-<%= c.code %>" <%= (_sel == null ? true : _sel.includes(c.code)) ? 'checked' : '' %>>
               <label class="form-check-label" for="cap-<%= c.code %>">
                 <%= c.name %> <code class="text-muted small"><%= c.code %></code>
               </label>

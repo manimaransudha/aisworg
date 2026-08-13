@@ -34,7 +34,7 @@ async function commissionTestSeu(statementPrefix: string) {
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
-    actorRole: "super",
+    actorRole: "super", actorId: "1001",
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
@@ -46,7 +46,7 @@ async function commissionTestSeu(statementPrefix: string) {
 // administrative steps.
 async function verifyObligation(obligationId: string) {
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    const result = await transitionObligation({ obligationId, targetState, actorRole: "super" });
+    const result = await transitionObligation({ obligationId, targetState, actorRole: "super", actorId: "1001" });
     assert.equal(result.ok, true, !result.ok ? `obligation transition to ${targetState} failed: ${JSON.stringify(result)}` : undefined);
   }
 }
@@ -112,14 +112,14 @@ test("Obligation lifecycle runs through the generic transitionEngine (Ch.23 §9)
   const obligation = await createObligation({ seuId, relatedObjectType: "Deliverable", relatedObjectId: requirementsSpec.id, category: "Compliance", title: "Phase4 test: lifecycle walk", severity: "Medium" });
 
   // Skipping straight from Identified to Assigned has no Transition Definition.
-  const invalid = await transitionObligation({ obligationId: obligation.id, targetState: "Assigned", actorRole: "super" });
+  const invalid = await transitionObligation({ obligationId: obligation.id, targetState: "Assigned", actorRole: "super", actorId: "1001" });
   assert.equal(invalid.ok, false);
   if (!invalid.ok) assert.equal(invalid.reason, "no_transition_definition");
 
   await verifyObligation(obligation.id);
-  const toClosed = await transitionObligation({ obligationId: obligation.id, targetState: "Closed", actorRole: "super" });
+  const toClosed = await transitionObligation({ obligationId: obligation.id, targetState: "Closed", actorRole: "super", actorId: "1001" });
   assert.equal(toClosed.ok, true);
-  const toArchived = await transitionObligation({ obligationId: obligation.id, targetState: "Archived", actorRole: "super" });
+  const toArchived = await transitionObligation({ obligationId: obligation.id, targetState: "Archived", actorRole: "super", actorId: "1001" });
   assert.equal(toArchived.ok, true);
   if (toArchived.ok) assert.equal(toArchived.obligation.status, "Archived");
 });

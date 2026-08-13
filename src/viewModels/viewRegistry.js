@@ -18,6 +18,8 @@ import {seu_identity_tenantsVM} from "./seu_identity_tenants.js";
 import {seu_identity_badgesVM} from "./seu_identity_badges.js";
 import {seu_identity_usersVM} from "./seu_identity_users.js";
 import {seu_sdk_authoring_indexVM} from "./seu_sdk_authoring_index.js";
+import {seu_sdk_authority_indexVM} from "./seu_sdk_authority_index.js";
+import {seu_sdk_authority_detailVM} from "./seu_sdk_authority_detail.js";
 import {seu_sdk_authoring_editVM} from "./seu_sdk_authoring_edit.js";
 import {seu_sdk_schema_registry_indexVM} from "./seu_sdk_schema_registry_index.js";
 import {seu_sdk_schema_registry_detailVM} from "./seu_sdk_schema_registry_detail.js";
@@ -51,6 +53,8 @@ export const viewModels = {
   "seu/identity/badges": seu_identity_badgesVM,
   "seu/identity/users": seu_identity_usersVM,
   "seu/sdk/authoring/index": seu_sdk_authoring_indexVM,
+  "seu/sdk/authority/index": seu_sdk_authority_indexVM,
+  "seu/sdk/authority/detail": seu_sdk_authority_detailVM,
   "seu/sdk/authoring/edit": seu_sdk_authoring_editVM,
   "seu/sdk/schema-registry/index": seu_sdk_schema_registry_indexVM,
   "seu/sdk/schema-registry/detail": seu_sdk_schema_registry_detailVM,

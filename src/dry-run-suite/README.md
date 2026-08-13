@@ -53,10 +53,13 @@ SUITE_BASE_URL=http://127.0.0.1:4900/aisworg node run.mjs
 - **Compliance Model (Ch.27, Phase 15)** — a Pack-registered Framework + declarative Requirements, evaluated read-only over the SEU's governance state (never modifying it, §9); a requirement satisfied via the real primitive it composes (an Accepted Security Review flips its requirement to satisfied); a Waiver moving an unsatisfied requirement to waived; and a compliance report derived from engineering state.
 - **Ontology Model (Ch.18, Phase 17)** — the platform-owned canonical vocabulary is queryable; write-path enforcement rejects an off-canonical category (400) and accepts a canonical one (201, stored verbatim); a tenant rename-only alias makes the *same* canonical code resolve to different labels for Atlas vs Babylon on one core; clearing an alias reverts to the platform default.
 - **Governance & EBM (Ch.3/Ch.21, Phase 16)** — an SEU exposes one effective Governance Model derived from its EBM (versioned; authority rules + policies + quality gates traceable to their contributing Packs). (Composition conflict hard-block and Quality Gates on Pack/Objective are covered in-process — they need SDK-only pack authoring / platform-entity transitions not reachable black-box.)
+- **Separation of duties via the dev Act-As switcher (CR-001)** — the god identity assumes the `approver` badge through the dev-only Act-As switcher and is denied the creator-only `Defined → In Progress` transition (`authority_denied`); resetting to root ungates it. This exercises a genuine authority denial end-to-end — see below.
 
-## Known limitation
+## Previously-known limitation — now closed (CR-001)
 
-**Separation-of-duties negative case** (a creator attempting the approver transition → `authority_denied`) is not reachable black-box: the `NODE_ENV=test` auto-login is a single root badge holder that satisfies every authority. The suite instead asserts the observable structure (each acceptance records its certifying authority grant) and notes the boundary. The negative case is covered in-process by the repo's `badge-model.test.ts`.
+The **separation-of-duties negative case** (assuming a badge that lacks authority for a transition → `authority_denied`) used to be unreachable black-box, because the `NODE_ENV=test` auto-login is a single root badge holder that satisfies every authority. The dev-only **Act-As switcher** (`design/Change Requests.md`, CR-001) closes this: because the auto-login identity is the `SUPERUSER_EMAIL` god user, the suite can `POST /seu/dev/act-as` to assume any badge and drive the denial directly. The suite still also asserts the observable structure (each acceptance records its certifying authority grant), and `badge-model.test.ts` keeps the in-process coverage.
+
+The Act-As routes are dev-only and god-user-only, so this works under `NODE_ENV=test` but does not exist in production — see CR-001 for the gates.
 
 ## Files
 

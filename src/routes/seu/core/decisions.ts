@@ -82,7 +82,7 @@ export type TransitionDecisionResult =
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition"; detail: string };
 
-export async function transitionDecision(input: { decisionId: string; targetState: string; actorRole: string }): Promise<TransitionDecisionResult> {
+export async function transitionDecision(input: { decisionId: string; targetState: string; actorRole: string; actorId?: string }): Promise<TransitionDecisionResult> {
   const { data: decision } = await decisionsDB.findById(input.decisionId);
   if (!decision) return { ok: false, reason: "not_found" };
 
@@ -104,11 +104,12 @@ export async function transitionDecision(input: { decisionId: string; targetStat
     fromState,
     toState: input.targetState,
     actorRole: input.actorRole,
+    actorId: input.actorId,
     context: { decision },
   });
   if (!gate.allowed) {
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Decision ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires role ${gate.requiredRole}, actor has ${gate.actorRole}` };
+    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
     if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }

@@ -30,7 +30,7 @@ async function commissionTestSeu(statementPrefix: string) {
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
-    actorRole: "super",
+    actorRole: "super", actorId: "1001",
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
@@ -81,7 +81,7 @@ test("Governance Telemetry: Quality Gate latency is zero on a first-try pass and
   assert.equal(blocked.ok, false);
 
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super" });
+    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: "1001" });
     assert.equal(step.ok, true);
   }
   const secondTry = await transitionDeliverable({ deliverableId: deliverableId2, targetState: "Approved", actorRole: "super", actorId: "1" });
@@ -133,7 +133,7 @@ test("qualityGateEngine publishes QualityGateBlocked and QualityGatePassed on th
   assert.ok(received.includes("QualityGateBlocked"));
 
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super" });
+    await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: "1001" });
   }
   const passed = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
   assert.equal(passed.ok, true);

@@ -11,6 +11,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { logger } from "../utils/logger.js";
 import { effectivePlatformBadges } from "../dev/actAs.js";
+import { safeBack } from "./safeBack.js";
 
 export function requirePlatformBadge(badgeCode: string) {
   return (req: Request, res: Response, next: NextFunction): void => {
@@ -59,7 +60,8 @@ export function requirePlatformBadge(badgeCode: string) {
         message: `You don't have the required Platform badge ("${badgeCode}") for that.`,
       };
     }
-    const back = req.headers.referer || "/aisworg";
-    res.redirect(back);
+    // Never redirect back to the page we're denying — that loops. safeBack
+    // falls through to /aisworg when Referer is the current path.
+    res.redirect(safeBack(req));
   };
 }

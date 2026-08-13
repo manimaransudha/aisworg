@@ -20,7 +20,9 @@ router.post("/commission", async (req: Request, res: Response) => {
     }
 
     const actorRole = req.session?.user?.role ?? "general";
-    const result = await commissionSeu({ objectiveId, templateId, profileId, actorRole, requestedBy: req.session?.user?.id ?? null, tenantId: typeof tenantId === "string" ? tenantId : null });
+
+    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
+    const result = await commissionSeu({ objectiveId, templateId, profileId, actorRole, actorId, requestedBy: req.session?.user?.id ?? null, tenantId: typeof tenantId === "string" ? tenantId : null });
 
     if (!result.ok) {
       return res.status(422).json({ stage: result.stage, reason: result.reason, seuId: result.seuId });

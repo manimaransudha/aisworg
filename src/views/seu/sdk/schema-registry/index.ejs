@@ -4,6 +4,7 @@
   <%- include('../../../partials/head') %>
 </head>
 <body>
+  <%- include('../../../partials/helpers') %>
   <header><%- include('../../../partials/navbar') %></header>
 
   <main class="container py-5" style="max-width: 1000px;">
@@ -23,12 +24,20 @@
       </p>
     </div>
 
+    <% const _base = locals.listBasePath || '/aisworg/seu/sdk/schema-registry'; %>
+    <%- include('../../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search kind' }) %>
+
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-body">
         <table class="table table-sm align-middle mb-0">
-          <thead><tr><th>Kind</th><th>Version</th><th>Created</th><th></th></tr></thead>
+          <thead><tr>
+            <th><%- sortLink('Kind', 'kind', list, _base) %></th>
+            <th><%- sortLink('Version', 'version', list, _base) %></th>
+            <th><%- sortLink('Created', 'created', list, _base) %></th>
+            <th></th>
+          </tr></thead>
           <tbody>
-            <% schemas.forEach(function(s) { %>
+            <% list.items.forEach(function(s) { %>
               <tr>
                 <td><span class="badge bg-light text-dark border"><%= s.entityKind %></span></td>
                 <td>v<%= s.version %></td>
@@ -36,8 +45,8 @@
                 <td><a class="btn btn-sm btn-outline-primary" href="/aisworg/seu/sdk/schema-registry/<%= s.id %>">View</a></td>
               </tr>
             <% }) %>
-            <% if (schemas.length === 0) { %>
-              <tr><td colspan="4" class="text-muted small text-center py-3">No schema versions yet.</td></tr>
+            <% if (list.total === 0) { %>
+              <tr><td colspan="4" class="text-muted small text-center py-3"><%= list.q ? 'No schema versions match your search.' : 'No schema versions yet.' %></td></tr>
             <% } %>
           </tbody>
         </table>

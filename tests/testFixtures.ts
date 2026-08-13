@@ -51,6 +51,14 @@ interface ProfileSeed {
   optionalPackCodes?: string[];
 }
 
+// CR-006 — the seeded fixture actors (seedIdentityBaseline). Holder ids are
+// TEXT; these hold noun_verb grants so tests act as a non-root, badge-holding
+// actor. tester-all authorises any transition; creator/approver are for
+// separation-of-duties assertions.
+export const TESTER_ALL_ID = "1001";
+export const TESTER_CREATOR_ID = "1002";
+export const TESTER_APPROVER_ID = "1003";
+
 // Model A made transitionDeliverable async (Participant Integration Plan): a
 // governed transition is *dispatched*, and the Deliverable only moves when a
 // Participant reports a `done` result to the result-in callback. The many
@@ -71,7 +79,7 @@ export async function transitionDeliverableSync(input: {
   actingBadgeGrantId?: string;
   requestedBy?: number | null;
 }): Promise<{ ok: true; deliverable: DeliverableRow; appliedTransition: { fromState: string; toState: string } } | Extract<TransitionDeliverableResult, { ok: false }>> {
-  const dispatched = await transitionDeliverable(input);
+  const dispatched = await transitionDeliverable({ ...input, actorId: input.actorId ?? TESTER_ALL_ID });
   if (!dispatched.ok) return dispatched;
   const completed = await completeWorkItem({
     workItemId: dispatched.workItemId,

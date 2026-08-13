@@ -33,7 +33,7 @@ const CH13_EVENT_BY_TRANSITION: Record<string, string> = {
   "Released->Archived": "ParticipantArchived",
 };
 
-export async function transitionParticipant(input: { participantId: string; targetState: string; actorRole: string }): Promise<TransitionParticipantResult> {
+export async function transitionParticipant(input: { participantId: string; targetState: string; actorRole: string; actorId?: string }): Promise<TransitionParticipantResult> {
   const { data: participant } = await participantsDB.findById(input.participantId);
   if (!participant) return { ok: false, reason: "not_found", detail: `Participant not found: ${input.participantId}` };
 
@@ -44,13 +44,14 @@ export async function transitionParticipant(input: { participantId: string; targ
     fromState,
     toState: input.targetState,
     actorRole: input.actorRole,
+    actorId: input.actorId,
     seuId: participant.seu_id,
     entityId: participant.id,
     context: { participant },
   });
   if (!gate.allowed) {
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Participant ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires role ${gate.requiredRole}, actor has ${gate.actorRole}` };
+    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
     if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }
@@ -96,6 +97,7 @@ export async function replaceParticipant(input: {
   newDisplayName: string;
   newUserId?: number | null;
   actorRole: string;
+  actorId?: string;
 }): Promise<ReplaceParticipantResult> {
   const { data: oldParticipant } = await participantsDB.findById(input.oldParticipantId);
   if (!oldParticipant) return { ok: false, reason: "not_found", detail: `Participant not found: ${input.oldParticipantId}` };
@@ -104,10 +106,10 @@ export async function replaceParticipant(input: {
   if (!fulfilment) return { ok: false, reason: "no_active_fulfilment", detail: `Participant ${oldParticipant.id} has no active Capability Fulfilment to hand off` };
 
   if (oldParticipant.state !== "Released") {
-    const toReleased = await transitionParticipant({ participantId: oldParticipant.id, targetState: "Released", actorRole: input.actorRole });
+    const toReleased = await transitionParticipant({ participantId: oldParticipant.id, targetState: "Released", actorRole: input.actorRole, actorId: input.actorId });
     if (!toReleased.ok) return toReleased;
   }
-  const toArchived = await transitionParticipant({ participantId: oldParticipant.id, targetState: "Archived", actorRole: input.actorRole });
+  const toArchived = await transitionParticipant({ participantId: oldParticipant.id, targetState: "Archived", actorRole: input.actorRole, actorId: input.actorId });
   if (!toArchived.ok) return toArchived;
 
   const { data: newParticipant, error } = await participantsDB.create({

@@ -33,7 +33,7 @@ async function commissionTestSeu(statementPrefix: string) {
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
-    actorRole: "super",
+    actorRole: "super", actorId: "1001",
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
@@ -50,7 +50,7 @@ test("transitionDeliverable defers the transition when nobody fulfils the produc
   const deferred = await transitionDeliverable({
     deliverableId: requirementsSpec.id,
     targetState: "In Progress",
-    actorRole: "super",
+    actorRole: "super", actorId: "1001",
     actorId: "1", // badge model (Phase 10): "1" holds root (012_badge_model.sql), matching the pre-existing dev/test-identity convention
   });
   assert.equal(deferred.ok, false);
@@ -71,7 +71,7 @@ test("transitionDeliverable defers the transition when nobody fulfils the produc
   const dispatched = await transitionDeliverable({
     deliverableId: requirementsSpec.id,
     targetState: "In Progress",
-    actorRole: "super",
+    actorRole: "super", actorId: "1001",
     actorId: "1",
   });
   assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : undefined);

@@ -39,13 +39,29 @@ after(async () => {
 });
 
 test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a Capability, progress a Deliverable", async () => {
-  // 1 — create an Objective (Ch.1)
+  // 0 — CR-009: an Engineering Objective needs a Strategic parent (only
+  // Strategic may be a root). Create the root first.
+  const rootRes = await request(`${baseUrl}/objectives`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      statement: "Acceptance test: customer portal programme",
+      requiredCapabilityCodes: ["requirements-analysis"],
+      tier: "Strategic",
+    }),
+  });
+  const root = await rootRes.json();
+  assert.equal(rootRes.status, 201, JSON.stringify(root));
+
+  // 1 — create an Objective (Ch.1) — an Engineering leaf under the root
   const objectiveRes = await request(`${baseUrl}/objectives`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       statement: "Acceptance test: stand up a customer web portal",
       requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
+      tier: "Engineering",
+      parentObjectiveId: root.id,
     }),
   });
   const objective = await objectiveRes.json();

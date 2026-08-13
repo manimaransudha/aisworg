@@ -26,7 +26,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
-    actorRole: "super",
+    actorRole: "super", actorId: "1001",
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
@@ -54,7 +54,7 @@ test("Quality Telemetry: rework rate distinguishes a first-try pass from a genui
   const blocked = await transitionDeliverable({ deliverableId: reworked.deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
   assert.equal(blocked.ok, false);
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super" });
+    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: "1001" });
     assert.equal(step.ok, true);
   }
   const reworkedPass = await transitionDeliverable({ deliverableId: reworked.deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
@@ -80,8 +80,8 @@ test("Quality Telemetry: Deliverable acceptance rate reflects the real lifecycle
   // Approved -> Baselined is gated by "Requires Accepted Evidence or
   // Approved Decision" — attach real, Accepted Evidence first.
   const evidence = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Review", title: "Quality telemetry acceptance test evidence" });
-  await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorRole: "general" });
-  await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorRole: "general" });
+  await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorRole: "general", actorId: "1001" });
+  await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorRole: "general", actorId: "1001" });
 
   const baselined = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: "1" });
   assert.equal(baselined.ok, true, !baselined.ok ? JSON.stringify(baselined) : undefined);
