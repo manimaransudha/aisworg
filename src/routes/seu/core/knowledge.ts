@@ -123,6 +123,8 @@ export async function transitionKnowledgeItem(input: { knowledgeItemId: string; 
     originatingObjectId: knowledgeItem.id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
+    actorId: input.actorId ?? null,
+    authorityBadge: gate.authorityBadge,
   });
 
   return { ok: true, knowledgeItem: updated, appliedTransition: { fromState, toState: input.targetState } };
@@ -182,6 +184,8 @@ export async function promoteKnowledgeItemScope(input: { knowledgeItemId: string
     originatingObjectId: knowledgeItem.id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromScope, toScope: input.targetScope },
+    actorId: input.actorId ?? null,
+    authorityBadge: gate.authorityBadge,
   });
 
   // Ch.23 §7 Organisational Learning: Knowledge promoted past its

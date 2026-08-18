@@ -10,11 +10,14 @@ export const eventsDB = {
     correlationId: string;
     causationId?: string | null;
     payload?: Record<string, unknown>;
+    // Accountability record — real acting user + resolved noun_verb badge.
+    actorId?: string | null;
+    authorityBadge?: string | null;
   }): Promise<DbResult<EventRow>> {
     try {
       const { rows } = await query<EventRow>(
-        `INSERT INTO events (event_type, originating_object_type, originating_object_id, correlation_id, causation_id, payload)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO events (event_type, originating_object_type, originating_object_id, correlation_id, causation_id, payload, actor_id, authority_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
         [
           input.eventType,
@@ -23,6 +26,8 @@ export const eventsDB = {
           input.correlationId,
           input.causationId ?? null,
           JSON.stringify(input.payload ?? {}),
+          input.actorId ?? null,
+          input.authorityBadge ?? null,
         ]
       );
       return { data: rows[0] };

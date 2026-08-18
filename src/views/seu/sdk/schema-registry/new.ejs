@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../../partials/head') %>
+</head>
+<body>
+  <header><%- include('../../../partials/navbar') %></header>
+
+  <main class="container py-5" style="max-width: 900px;">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <p class="text-muted small mb-1"><a href="/aisworg/seu/sdk/schema-registry">&larr; Schema Registry</a></p>
+    <h2 class="h4 mb-1 text-dark fw-bold"><%= title %></h2>
+    <p class="text-muted small mb-4">
+      Each row is one field of the grammar. Pick its <strong>type</strong> and <strong>widget</strong>, tick
+      <strong>required</strong>, and (for a dropdown) list comma-separated <strong>enum values</strong> or a
+      <strong>referential source</strong>. A new, immutable version is created on save.
+    </p>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <form method="POST" action="/aisworg/seu/sdk/schema-registry">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <%- include('../_generatedFields', { fields: fields, canEdit: true, referentialOptions: {} }) %>
+          <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-save me-1"></i>Create version</button>
+          <a href="/aisworg/seu/sdk/schema-registry" class="btn btn-sm btn-link text-muted">Cancel</a>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <%- include('../../../partials/footer') %>
+</body>
+</html>

@@ -74,12 +74,23 @@ router.get("/identity/badges", requirePlatformBadge("root"), attachVM("seu/ident
     req.vm.req.tenants = view.tenants;
     // The grants list is the large one (accumulates over time) — paginate it.
     // badgeTypes/tenants are bounded vocabulary, rendered in full.
-    const params = parseListParams(req.query, { sortable: ["badge", "holder", "entity", "created"], defaultSort: "created", defaultDir: "desc" });
+    // "entity" (governed_entity_type) dropped as a sort/search key — it only
+    // ever carried data for the retired Layer 2b Creator/Reviewer/Approver
+    // grants (migration 043); every remaining/future grant leaves it NULL.
+    const params = parseListParams(req.query, { sortable: ["badge", "holder", "created"], defaultSort: "created", defaultDir: "desc" });
     req.vm.req.list = paginateList(view.grants, params, {
-      searchFields: [(g) => g.badge_type, (g) => g.holderEmail, (g) => g.holder_id, (g) => g.governed_entity_type],
-      sortFields: { badge: (g) => g.badge_type, holder: (g) => g.holderEmail ?? g.holder_id, entity: (g) => g.governed_entity_type, created: (g) => g.created_at },
+      searchFields: [(g) => g.badge_type, (g) => g.holderEmail, (g) => g.holder_id],
+      sortFields: { badge: (g) => g.badge_type, holder: (g) => g.holderEmail ?? g.holder_id, created: (g) => g.created_at },
     });
     req.vm.opt.listBasePath = "/aisworg/seu/identity/badges";
+    // Bug fix: paginating/sorting/searching the Badge Grants tab is a full
+    // page GET (listControls' links, no JS) — Bootstrap's own tab state is
+    // client-side only and always re-initialises to the first tab (Badge
+    // Catalog) on reload, silently dropping the user back there even though
+    // they were paging through Grants. Only the Grants tab ever produces any
+    // of these query params (the Catalog tables aren't paginated/searchable),
+    // so their mere presence is enough to know which tab to reopen.
+    req.vm.opt.activeTab = (req.query.sort || req.query.dir || req.query.page || req.query.pageSize || req.query.q) ? "grants" : "catalog";
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/identity/badges", req.vm);
   } catch (err) {

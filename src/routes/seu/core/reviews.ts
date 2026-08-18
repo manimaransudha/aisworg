@@ -117,16 +117,16 @@ export async function transitionReview(input: {
     if (error || !data) throw error ?? new Error("failed to complete review");
     updated = data;
 
-    await eventBus.publish({ eventType: "ReviewCompleted", originatingObjectType: "Review", originatingObjectId: review.id, correlationId: eventBus.newCorrelationId(), payload: { outcome: input.outcome } });
+    await eventBus.publish({ eventType: "ReviewCompleted", originatingObjectType: "Review", originatingObjectId: review.id, correlationId: eventBus.newCorrelationId(), payload: { outcome: input.outcome }, actorId: input.actorId ?? null, authorityBadge: gate.authorityBadge });
     const outcomeEvent = PASSING_OUTCOMES.has(input.outcome) ? "ReviewPassed" : input.outcome === "Deferred" ? "ReviewDeferred" : "ReviewFailed";
-    await eventBus.publish({ eventType: outcomeEvent, originatingObjectType: "Review", originatingObjectId: review.id, correlationId: eventBus.newCorrelationId(), payload: { outcome: input.outcome } });
+    await eventBus.publish({ eventType: outcomeEvent, originatingObjectType: "Review", originatingObjectId: review.id, correlationId: eventBus.newCorrelationId(), payload: { outcome: input.outcome }, actorId: input.actorId ?? null, authorityBadge: gate.authorityBadge });
   } else {
     const { data, error } = await reviewsDB.updateStatus(review.id, input.targetState);
     if (error || !data) throw error ?? new Error("failed to update review status");
     updated = data;
 
     const eventType = input.targetState === "In Progress" ? "ReviewStarted" : "ReviewTransitioned";
-    await eventBus.publish({ eventType, originatingObjectType: "Review", originatingObjectId: review.id, correlationId: eventBus.newCorrelationId(), payload: { fromState, toState: input.targetState } });
+    await eventBus.publish({ eventType, originatingObjectType: "Review", originatingObjectId: review.id, correlationId: eventBus.newCorrelationId(), payload: { fromState, toState: input.targetState }, actorId: input.actorId ?? null, authorityBadge: gate.authorityBadge });
   }
 
   return { ok: true, review: updated, appliedTransition: { fromState, toState: input.targetState } };

@@ -1,6 +1,8 @@
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { profilesDB } from "../../../dblayer/profilesDB.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
+import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
+import { eventBus } from "../../../domain/engine/eventBus.js";
 import type { ProfileRow } from "../../../dblayer/seuTypes.js";
 
 export async function createProfile(input: {
@@ -122,4 +124,55 @@ export async function publishProfile(seed: ProfileSeedInput): Promise<PublishPro
 
   await profilesDB.setOptionalPacks(profile.id, seed.optionalPackCodes ?? []);
   return { ok: true, profileId: profile.id };
+}
+
+// Entity-direct authoring (bug fix correcting CR-014): a governed status
+// transition on a Profile, authorised on its own noun × verb (Draft -> Active is
+// verb `publish` → profile_publish) under the REAL actor, actor + badge captured
+// on the event. Mirrors transitionPack/transitionTemplate.
+export type TransitionProfileResult = { ok: true; profile: ProfileRow } | { ok: false; reason: string; detail?: string };
+
+export async function transitionProfile(input: { profileId: string; targetState: ProfileRow["status"]; actorRole: string; actorId?: string }): Promise<TransitionProfileResult> {
+  const { data: profile } = await profilesDB.findById(input.profileId);
+  if (!profile) return { ok: false, reason: "not_found" };
+  const fromState = profile.status;
+  const gate = await transitionEngine.evaluate({ entityType: "Profile", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId, context: { profile } });
+  if (!gate.allowed) {
+    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
+    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Profile ${fromState} -> ${input.targetState}` };
+    if (gate.reason === "policy_blocked") return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
+    return { ok: false, reason: gate.reason };
+  }
+  const { data: updated, error } = await profilesDB.updateStatus(profile.id, input.targetState);
+  if (error || !updated) throw error ?? new Error("failed to update profile status");
+  await eventBus.publish({
+    eventType: "ProfileTransitioned",
+    originatingObjectType: "Profile",
+    originatingObjectId: profile.id,
+    correlationId: eventBus.newCorrelationId(),
+    payload: { fromState, toState: input.targetState, code: profile.code },
+    actorId: input.actorId ?? null,
+    authorityBadge: gate.authorityBadge,
+  });
+  return { ok: true, profile: updated };
+}
+
+// Publish a Draft Profile authored entity-direct: validate the authored seed,
+// materialise its base Template + config + optional Packs onto the Draft row +
+// join table, then run the governed Draft -> Active transition under the real
+// actor. The Draft row already carries base_template_id/config/environment
+// (set at create/save); this only needs the optional-Pack join + the transition.
+export async function publishProfileDraft(input: { profileId: string; seed: ProfileSeedInput; actorRole: string; actorId?: string }): Promise<PublishProfileResult> {
+  const validation = await validateProfileSeed(input.seed);
+  if (!validation.ok) return { ok: false, errors: validation.errors };
+
+  const { data: template } = await templatesDB.findByCode(input.seed.baseTemplateCode);
+  if (!template) return { ok: false, errors: [`baseTemplateCode "${input.seed.baseTemplateCode}" not found`] };
+
+  await profilesDB.setOptionalPacks(input.profileId, input.seed.optionalPackCodes ?? []);
+
+  const transitioned = await transitionProfile({ profileId: input.profileId, targetState: "Active", actorRole: input.actorRole, actorId: input.actorId });
+  if (!transitioned.ok) return { ok: false, errors: [`${transitioned.reason}${transitioned.detail ? `: ${transitioned.detail}` : ""}`] };
+
+  return { ok: true, profileId: input.profileId };
 }

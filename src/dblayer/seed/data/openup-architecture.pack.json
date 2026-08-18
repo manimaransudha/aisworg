@@ -1,0 +1,57 @@
+{
+  "code": "openup-architecture",
+  "name": "Architecture (OpenUP Capability Pattern)",
+  "category": "Platform",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "EPF/OpenUP's Architecture capability pattern, modelled as a Pack: the Architect role, the Architecture Notebook work product, and the tasks for designing and validating the solution structure.",
+  "owner": "EPF/OpenUP Practice Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "architecture-design",
+        "name": "Architecture Design",
+        "description": "Designs the technical solution structure and key design decisions on behalf of the Architect role.",
+        "category": "Engineering"
+      }
+    ],
+    "services": [
+      {
+        "code": "architecture-notebook",
+        "capabilityCode": "architecture-design",
+        "name": "Architecture Notebook",
+        "contractDescription": "The candidate architecture, key design decisions, and rationale — sufficient to guide implementation."
+      }
+    ],
+    "checklists": [
+      {
+        "code": "identify-design-elements",
+        "statement": "The solution has been decomposed into design elements consistent with the requirements and constraints.",
+        "classification": "judgment",
+        "prompt": "Do the identified design elements cover the requirements and respect the stated constraints?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes"
+      },
+      {
+        "code": "incorporate-architectural-feedback",
+        "statement": "Feedback from Development and Test on the architecture's feasibility has been incorporated.",
+        "classification": "human-attested",
+        "prompt": "Has feedback from downstream disciplines been reviewed and, where warranted, incorporated into the architecture?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes"
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "review-architecture",
+        "statement": "The Architecture Notebook has been reviewed and accepted as sufficient to guide implementation.",
+        "classification": "human-attested",
+        "prompt": "Is the architecture sufficiently detailed, consistent, and approved to guide implementation?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance"
+      }
+    ]
+  }
+}

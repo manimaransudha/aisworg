@@ -53,13 +53,25 @@
       </div>
     </div>
 
-    <div class="card border-0 shadow-sm">
+    <div class="card border-0 shadow-sm mb-4">
       <div class="card-body">
-        <h6 class="text-uppercase text-muted small fw-bold mb-2">New version</h6>
-        <p class="text-muted small mb-2">
-          Hand-author the JSON Schema document directly, or paste one exported/authored elsewhere — both are the same
-          first-class path here, same as JSON import is for the four entities themselves.
+        <h6 class="text-uppercase text-muted small fw-bold mb-2">New version — form</h6>
+        <p class="text-muted small mb-3">
+          Author a grammar in a form (CR-017): the field list is generated from a meta-schema and compiled to the
+          stored JSON Schema. Starts from the kind's current version so you evolve it.
         </p>
+        <div class="d-flex flex-wrap gap-2">
+          <% kinds.forEach(function(k) { %>
+            <a class="btn btn-sm btn-primary" href="/aisworg/seu/sdk/schema-registry/new?entityKind=<%= k %>"><i class="bi bi-pencil-square me-1"></i>New <%= k %> version</a>
+          <% }) %>
+        </div>
+      </div>
+    </div>
+
+    <details class="card border-0 shadow-sm">
+      <summary class="card-body pb-0" style="cursor: pointer;"><span class="text-uppercase text-muted small fw-bold">Advanced — raw JSON</span></summary>
+      <div class="card-body pt-2">
+        <p class="text-muted small mb-2">For grammars the form can't express (e.g. nested repeatable-list item structures), paste the JSON Schema directly.</p>
         <form method="POST" action="/aisworg/seu/sdk/schema-registry">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <div class="mb-2" style="max-width: 220px;">
@@ -70,12 +82,12 @@
           </div>
           <div class="mb-2">
             <label class="form-label small mb-1">Schema JSON</label>
-            <textarea name="schemaJson" class="form-control form-control-sm font-monospace" rows="10" placeholder='{ "type": "object", "required": [...], "properties": { ... } }' required></textarea>
+            <textarea name="schemaJson" class="form-control form-control-sm font-monospace" rows="10" placeholder='{ "type": "object", "required": [...], "properties": { ... } }'></textarea>
           </div>
-          <button type="submit" class="btn btn-sm btn-primary">Create version</button>
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Create version (raw)</button>
         </form>
       </div>
-    </div>
+    </details>
   </main>
 
   <%- include('../../../partials/footer') %>

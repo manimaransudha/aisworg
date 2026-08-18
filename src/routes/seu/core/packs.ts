@@ -16,6 +16,7 @@
 // dependency matching (a declared dependency's Pack code must exist in the
 // Registry; the exact declared version is not cross-checked).
 import { packsDB } from "../../../dblayer/packsDB.js";
+import { packCategoriesDB } from "../../../dblayer/packCategoriesDB.js";
 import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
 import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { authorityRulesDB } from "../../../dblayer/authorityRulesDB.js";
@@ -27,6 +28,10 @@ import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import type { PackCategory, PackClassification, PackContributions, PackRow } from "../../../dblayer/seuTypes.js";
 
+// CR-018 — §8/§13 metadata: recorded and validated for shape, not yet acted on
+// (dependency resolution, compatibility checks, composition strategy remain the
+// §19.9 engine follow-ups). Stored in packs.metadata (JSONB).
+export type PackDependencyType = "required" | "optional" | "conditional" | "incompatible";
 export interface PackSeedInput {
   code: string;
   name: string;
@@ -34,10 +39,44 @@ export interface PackSeedInput {
   packVersion: string;
   installationClassification: PackClassification;
   contributions: PackContributions;
-  dependencies?: Array<{ packCode: string; version: string; type: "required" }>;
+  dependencies?: Array<{ packCode: string; version: string; type: PackDependencyType }>;
+  // Pack ownership (owner: "Packs will have ownership... platform or the
+  // tenant"). Optional: seed scripts/the CLI publishing with no human author
+  // don't set it and get the Platform tenant (packsDB.create's own default);
+  // the interactive authoring route always sets it from the real author's
+  // own tenant (createAuthoringDraft); reactivateAsNewVersion always sets it
+  // to the PRIOR row's own tenant_id (reactivation is versioning, never a
+  // change of ownership).
+  tenantId?: string;
+  // §8 / §13 metadata (all optional, declaration-only)
+  description?: string;
+  owner?: string;
+  publisher?: string;
+  compositionStrategy?: string;
+  supportedPlatformVersion?: string;
+  minSupportedPlatformVersion?: string;
+  maxSupportedPlatformVersion?: string;
+  incompatiblePackVersions?: string;
+  migrationGuidance?: string;
 }
 
-const PACK_CATEGORIES: PackCategory[] = ["Platform", "Organisation", "Domain", "Compliance", "Technology", "Integration"];
+const PACK_METADATA_KEYS = [
+  "description", "owner", "publisher", "compositionStrategy", "supportedPlatformVersion",
+  "minSupportedPlatformVersion", "maxSupportedPlatformVersion", "incompatiblePackVersions", "migrationGuidance",
+] as const;
+
+// Collect the declaration-only §8/§13 fields off a seed into the metadata blob.
+export function packMetadataFromSeed(seed: PackSeedInput): Record<string, string> {
+  const meta: Record<string, string> = {};
+  for (const key of PACK_METADATA_KEYS) {
+    const v = seed[key];
+    if (typeof v === "string" && v.trim()) meta[key] = v.trim();
+  }
+  return meta;
+}
+
+const PACK_DEPENDENCY_TYPES: PackDependencyType[] = ["required", "optional", "conditional", "incompatible"];
+
 const PACK_CLASSIFICATIONS: PackClassification[] = ["Mandatory", "Recommended", "Optional", "Conditional"];
 const SEMVER_RE = /^\d+\.\d+\.\d+$/;
 
@@ -51,7 +90,12 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
 
   if (!seed.code?.trim()) errors.push("code is required");
   if (!seed.name?.trim()) errors.push("name is required");
-  if (!PACK_CATEGORIES.includes(seed.category)) errors.push(`category must be one of ${PACK_CATEGORIES.join(", ")}, got: ${seed.category}`);
+  // CR-015: category is validated against the pack_category table (data), not a
+  // hardcoded list — a new category is a data insert, no code change.
+  if (!seed.category || !(await packCategoriesDB.isActive(seed.category))) {
+    const { data: active } = await packCategoriesDB.findActive();
+    errors.push(`category must be an active Pack category (${(active ?? []).map((c) => c.code).join(", ")}), got: ${seed.category}`);
+  }
   if (!SEMVER_RE.test(seed.packVersion ?? "")) errors.push(`packVersion must be semver (x.y.z), got: "${seed.packVersion}"`);
   if (!PACK_CLASSIFICATIONS.includes(seed.installationClassification)) {
     errors.push(`installationClassification must be one of ${PACK_CLASSIFICATIONS.join(", ")}, got: ${seed.installationClassification}`);
@@ -78,8 +122,13 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
   }
 
   for (const dep of seed.dependencies ?? []) {
-    const { data: depPack } = await packsDB.findByCode(dep.packCode);
-    if (!depPack) errors.push(`dependency not resolved: Pack "${dep.packCode}" not found in the Registry`);
+    if (!PACK_DEPENDENCY_TYPES.includes(dep.type)) errors.push(`dependency "${dep.packCode}" has invalid type "${dep.type}" (${PACK_DEPENDENCY_TYPES.join(", ")})`);
+    // CR-018: only a *required* dependency must resolve at author time. Optional/
+    // conditional/incompatible resolution is enforcement (§19.9), out of scope here.
+    if (dep.type === "required") {
+      const { data: depPack } = await packsDB.findByCode(dep.packCode);
+      if (!depPack) errors.push(`required dependency not resolved: Pack "${dep.packCode}" not found in the Registry`);
+    }
   }
 
   return errors.length > 0 ? { ok: false, errors } : { ok: true };
@@ -118,7 +167,7 @@ export async function createPackDraft(seed: PackSeedInput): Promise<{ ok: true; 
     return { ok: true, pack: existing, alreadyExists: true };
   }
 
-  const { data: pack, error } = await packsDB.create(seed);
+  const { data: pack, error } = await packsDB.create({ ...seed, metadata: packMetadataFromSeed(seed) });
   if (error || !pack) return { ok: false, errors: [(error ?? new Error("failed to create pack")).message] };
 
   await eventBus.publish({
@@ -163,6 +212,43 @@ export async function advancePackLifecycle(pack: PackRow, actorRole: string, act
   }
 
   return { ok: true, pack: currentPack, supersededPack };
+}
+
+// Entity-direct authoring, one hop at a time (owner: separation of duties —
+// the seeded pack-validate@/pack-publish@/pack-activate@ Athens accounts each
+// hold exactly ONE lifecycle verb; advancePackLifecycle above requires the
+// SAME actor to hold every remaining verb to move a Draft at all, so a
+// single-verb holder could never actually perform their own step through the
+// authoring UI). Runs exactly the next governed hop off the Pack's CURRENT
+// status — Draft->Validated (validate), Validated->Published (publish), or
+// Published->Active (activate, with the same supersede-previous-Active
+// behaviour advancePackLifecycle's activate step has). Each hop is its own
+// transitionPack call, authorised on ONLY that hop's verb.
+const AUTHORING_NEXT_STATE: Partial<Record<PackRow["status"], PackRow["status"]>> = {
+  Draft: "Validated",
+  Validated: "Published",
+  Published: "Active",
+};
+
+export async function advancePackOneStep(pack: PackRow, actorRole: string, actorId: string | undefined): Promise<PublishPackResult> {
+  const targetState = AUTHORING_NEXT_STATE[pack.status];
+  if (!targetState) return { ok: false, pack, errors: [`Pack is already ${pack.status} — no further authoring step`] };
+
+  if (targetState === "Active") {
+    const { data: previousActive } = await packsDB.findActiveByCode(pack.code);
+    const activateResult = await transitionPack({ packId: pack.id, targetState: "Active", actorRole, actorId });
+    if (!activateResult.ok) return { ok: false, pack, errors: [`transition to "Active" failed: ${"detail" in activateResult ? activateResult.detail : activateResult.reason}`] };
+    let supersededPack: PackRow | null = null;
+    if (previousActive && previousActive.id !== activateResult.pack.id) {
+      const supersedeResult = await transitionPack({ packId: previousActive.id, targetState: "Deprecated", actorRole, actorId });
+      if (supersedeResult.ok) supersededPack = supersedeResult.pack;
+    }
+    return { ok: true, pack: activateResult.pack, supersededPack };
+  }
+
+  const result = await transitionPack({ packId: pack.id, targetState, actorRole, actorId });
+  if (!result.ok) return { ok: false, pack, errors: [`transition to "${targetState}" failed: ${"detail" in result ? result.detail : result.reason}`] };
+  return { ok: true, pack: result.pack };
 }
 
 // Ch.39's publish pipeline: validate -> create (Draft) -> seed contributions
@@ -338,6 +424,8 @@ export async function transitionPack(input: { packId: string; targetState: strin
     originatingObjectId: pack.id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: pack.code, packVersion: pack.pack_version },
+    actorId: input.actorId ?? null,
+    authorityBadge: gate.authorityBadge,
   });
 
   return { ok: true, pack: updated, appliedTransition: { fromState, toState: input.targetState } };
@@ -364,6 +452,10 @@ async function reactivateAsNewVersion(pack: PackRow, actorRole: string, actorId:
     installationClassification: pack.installation_classification,
     contributions: pack.contributions,
     dependencies: pack.dependencies,
+    // Reactivation is versioning, not a change of ownership — the new
+    // Version stays owned by whichever tenant (or Platform) the ORIGINAL
+    // Pack belonged to, regardless of who holds the badge that triggers it.
+    tenantId: pack.tenant_id,
   };
   return publishPack({ seed, actorRole, actorId, activate: true });
 }
@@ -387,8 +479,11 @@ export interface PackWithNextStates {
 
 // Registry listing (Ch.38 §10) — every Version of every Pack, newest first
 // within each code, with its own governed next states.
-export async function listPacksWithNextStates(): Promise<PackWithNextStates[]> {
-  const { data: packs } = await packsDB.findAll();
+// Pack ownership visibility (owner: "Platform packs will be available to all
+// users of the platform. Tenant packs are visible only to the tenant
+// users."). viewer null = unscoped (root — sees every Pack, every tenant).
+export async function listPacksWithNextStates(viewer?: { isRoot: boolean; tenantId: string } | null): Promise<PackWithNextStates[]> {
+  const { data: packs } = viewer && !viewer.isRoot ? await packsDB.findAllVisibleTo(viewer.tenantId) : await packsDB.findAll();
   return Promise.all(
     (packs ?? []).map(async (pack) => {
       const { data: possibleNextStates } = await transitionDefinitionsDB.findPossibleNextStates("Pack", pack.status);

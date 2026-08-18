@@ -1,0 +1,63 @@
+{
+  "code": "openup-configuration-and-change-management",
+  "name": "Configuration & Change Management (OpenUP Capability Pattern)",
+  "category": "Platform",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "EPF/OpenUP's Configuration and Change Management capability pattern, modelled as a Pack: change-control work products and the tasks for requesting, dispositioning, and baselining changes to engineering assets.",
+  "owner": "EPF/OpenUP Practice Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "configuration-management",
+        "name": "Configuration & Change Management",
+        "description": "Controls change and maintains the integrity of engineering assets under baseline.",
+        "category": "Governance"
+      }
+    ],
+    "services": [
+      {
+        "code": "change-request",
+        "capabilityCode": "configuration-management",
+        "name": "Change Request",
+        "contractDescription": "A recorded, dispositioned request to change a baselined asset."
+      },
+      {
+        "code": "configuration-management-plan",
+        "capabilityCode": "configuration-management",
+        "name": "Configuration Management Plan",
+        "contractDescription": "The approach for identifying, controlling, and auditing engineering assets under change."
+      }
+    ],
+    "checklists": [
+      {
+        "code": "request-change",
+        "statement": "A proposed change is recorded with its rationale and impact.",
+        "classification": "human-attested",
+        "prompt": "Is the proposed change recorded with a clear rationale and impact assessment?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes"
+      },
+      {
+        "code": "set-up-project-configuration-management",
+        "statement": "Version control and baselining are established for the project's assets.",
+        "classification": "machine-verifiable",
+        "prompt": "Verify version control is configured and an initial baseline exists.",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes"
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "manage-change-request",
+        "statement": "A Change Request has been dispositioned (approved, rejected, or deferred) by an authorised reviewer.",
+        "classification": "human-attested",
+        "prompt": "Has the Change Request been explicitly dispositioned by an authorised reviewer?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance"
+      }
+    ]
+  }
+}

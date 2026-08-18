@@ -26,7 +26,7 @@ export interface PlatformUserView {
   role: string;
   is_active: boolean;
   created_at: string;
-  platformBadges: string[]; // Layer 1 badges this user holds — what "platform user" means at the badge layer, distinct from the legacy role column
+  platformBadges: string[]; // every Active badge this user holds (Layer 1 root/tenant_admin/… AND noun x verb pack_define/objective_propose/…), distinct from the legacy role column — field name kept for the session's own (unrelated, Layer-1-only) req.session.user.platformBadges cache; this is User Management's own display rollup
 }
 
 export interface IdentityDashboardView {
@@ -64,11 +64,22 @@ export async function getIdentityDashboardView(): Promise<IdentityDashboardView>
     holderEmail: grant.holder_type === "User" ? emailById.get(grant.holder_id) ?? null : null,
   }));
 
-  const { rows: platformBadgeRows } = await query<{ holder_id: string; badge_type: string }>(
-    "SELECT bg.holder_id, bg.badge_type FROM badge_grants bg JOIN badge_types bt ON bt.code = bg.badge_type AND bt.tenant_id IS NULL WHERE bg.status = 'Active' AND bt.scope_kind = 'None' AND bg.badge_type != 'viewer'"
+  // Bug fix: this used to JOIN against badge_types and require scope_kind
+  // 'None' — a badge holds a badge_types row (and that scope_kind) ONLY under
+  // the old Layer 1 model. Noun x verb badges (CR-006 — pack_define,
+  // objective_propose, …) have no badge_types row at all by design (they're
+  // governed by authority_nouns/verbs/mapping, not that catalog), so every
+  // one of them was silently excluded — the column showed empty for every
+  // seeded noun x verb authoring user regardless of how many real grants they
+  // held. Fixed: every Active grant counts, badge_types or not; only 'viewer'
+  // (registration-default noise on every account) is excluded. sdk_creator/
+  // sdk_approver/creator/reviewer/approver never appear here going forward —
+  // migration 043 retired them (nothing has enforced them since CR-006).
+  const { rows: badgeRows } = await query<{ holder_id: string; badge_type: string }>(
+    "SELECT holder_id, badge_type FROM badge_grants WHERE holder_type = 'User' AND status = 'Active' AND badge_type != 'viewer' ORDER BY badge_type"
   );
   const badgesByHolder = new Map<string, string[]>();
-  for (const row of platformBadgeRows) {
+  for (const row of badgeRows) {
     const list = badgesByHolder.get(row.holder_id) ?? [];
     list.push(row.badge_type);
     badgesByHolder.set(row.holder_id, list);

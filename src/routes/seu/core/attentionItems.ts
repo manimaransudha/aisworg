@@ -127,6 +127,8 @@ export async function transitionAttentionItem(input: { attentionItemId: string; 
     originatingObjectId: attentionItem.id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
+    actorId: input.actorId ?? null,
+    authorityBadge: gate.authorityBadge,
   });
 
   return { ok: true, attentionItem: updated, appliedTransition: { fromState, toState: input.targetState } };

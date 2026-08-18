@@ -49,6 +49,21 @@ export type PackCategory = "Platform" | "Organisation" | "Domain" | "Compliance"
 export type PackStatus = "Draft" | "Validated" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
 export type PackClassification = "Mandatory" | "Recommended" | "Optional" | "Conditional";
 
+// CR-016 (Ch.5 §20) — the per-item executable-verification metadata. `statement`
+// is the human-readable standard; `classification` is who/what determines pass/
+// fail; `prompt` is the AI instruction; `participant`/`outputContract` shape the
+// execution; `assurance` is the optional escalation threshold; `externalEvidence`
+// marks a machine-verifiable item verified by an Integration connector (§20.4).
+export interface VerifiableItemFields {
+  statement?: string;
+  classification?: "machine-verifiable" | "judgment" | "human-attested";
+  externalEvidence?: boolean;
+  prompt?: string;
+  participant?: "AI" | "AI+human" | "human";
+  outputContract?: "passed-failed-notes" | "assessment-acceptance";
+  assurance?: string;
+}
+
 export interface PackContributions {
   capabilities?: Array<{ code: string; name: string; description?: string; category?: string }>;
   services?: Array<{ code: string; capabilityCode: string; name: string; contractDescription: string; serviceLevel?: Record<string, unknown> }>;
@@ -73,7 +88,15 @@ export interface PackContributions {
     fromState: string;
     toState: string;
     criteria?: Record<string, unknown>;
-  }>;
+  } & VerifiableItemFields>;
+  // CR-016 (Ch.5 §20) — verifiable contributions carry their own execution.
+  // Classification is per ITEM (a Checklist can hold a machine-verifiable item
+  // AND a judgment item — the owner's example), so these fields live on each row.
+  // Declaration-only: stored in packs.contributions (JSONB); executing them
+  // (dispatch prompt -> Evidence -> gate, etc.) is the §19.14 B-group follow-up.
+  checklists?: Array<{ checklist?: string; code?: string } & VerifiableItemFields>;
+  reviewGates?: Array<{ code?: string } & VerifiableItemFields>;
+  obligationDefinitions?: Array<{ code?: string; obligationType?: string } & VerifiableItemFields>;
   // Compliance Model — Plan (Phase 15, Ch.27 FR-27.1): a Pack contributes
   // Compliance Frameworks and their declarative Requirements. Compliance
   // composes existing primitives (§8), so a requirement's criteria reuses the
@@ -99,7 +122,18 @@ export interface PackRow {
   status: PackStatus;
   installation_classification: PackClassification;
   contributions: PackContributions;
-  dependencies: Array<{ packCode: string; version: string; type: "required" }>;
+  dependencies: Array<{ packCode: string; version: string; type: "required" | "optional" | "conditional" | "incompatible" }>;
+  // CR-018 — recorded-but-unenforced §8/§13 metadata.
+  metadata: Record<string, unknown>;
+  // Entity-direct authoring (bug fix correcting CR-014): the real user authoring
+  // this Draft. Null for migration/CLI-seeded Packs (no human author).
+  authored_by: number | null;
+  // Pack ownership (owner: "Packs will have ownership... platform or the
+  // tenant"): always a real tenants.id — the reserved Platform tenant for a
+  // platform-wide Pack, never NULL (same convention users.tenant_id uses).
+  // Set at Draft creation from the real author's own tenant; preserved
+  // (never re-derived) across a reactivation-as-new-version.
+  tenant_id: string;
   created_at: string;
 }
 
@@ -125,6 +159,8 @@ export interface TemplateRow {
   status: PackStatus;
   parent_template_id: string | null;
   deliverable_catalogue: TemplateDeliverableSeed[];
+  authored_by: number | null;
+  draft_content: Record<string, unknown>;
   created_at: string;
 }
 
@@ -136,6 +172,8 @@ export interface ProfileRow {
   config_parameters: Record<string, unknown>;
   environment: string;
   status: PackStatus;
+  authored_by: number | null;
+  draft_content: Record<string, unknown>;
   created_at: string;
 }
 
@@ -306,7 +344,12 @@ export type TransitionEntityType =
   | "Pack"
   | "Participant"
   | "Review"
-  | "Finding";
+  | "Finding"
+  // Entity-direct authoring (bug fix correcting CR-014): Template/Profile are
+  // authored as Draft rows driven through their own governed Draft->Active
+  // transition (verb `publish` → template_publish/profile_publish).
+  | "Template"
+  | "Profile";
 
 export interface TransitionDefinitionRow {
   id: string;
@@ -568,6 +611,11 @@ export interface EventRow {
   correlation_id: string;
   causation_id: string | null;
   payload: Record<string, unknown>;
+  // Accountability record (bug fix correcting CR-014): the real acting user and
+  // the resolved `noun_verb` badge the transition was authorised under. Null for
+  // pre-existing rows and ungoverned/system events that have no actor.
+  actor_id: string | null;
+  authority_badge: string | null;
   occurred_at: string;
   sequence: string; // BIGSERIAL comes back as string via pg's default int8 handling
 }

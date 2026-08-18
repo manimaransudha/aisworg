@@ -1,0 +1,62 @@
+{
+  "code": "openup-development",
+  "name": "Development (OpenUP Capability Pattern)",
+  "category": "Platform",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "EPF/OpenUP's Development (Design & Implementation) capability pattern, modelled as a Pack: the Developer role, its implementation/build work products, and the tasks for designing, implementing, and integrating a solution increment.",
+  "owner": "EPF/OpenUP Practice Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "solution-development",
+        "name": "Solution Development",
+        "description": "Designs and implements solution increments against the approved architecture, on behalf of the Developer role.",
+        "category": "Engineering"
+      }
+    ],
+    "services": [
+      {
+        "code": "implementation-elements",
+        "capabilityCode": "solution-development",
+        "name": "Implementation Elements",
+        "contractDescription": "Working code implementing the design for this increment, ready for integration."
+      },
+      {
+        "code": "integrated-build",
+        "capabilityCode": "solution-development",
+        "name": "Integrated Build",
+        "contractDescription": "A build integrating this increment's implementation elements, ready for test."
+      }
+    ],
+    "checklists": [
+      {
+        "code": "design-the-solution",
+        "statement": "The design for this increment is consistent with the Architecture Notebook.",
+        "classification": "judgment",
+        "prompt": "Does the increment's design follow the approved architecture and design elements?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes"
+      },
+      {
+        "code": "implement-solution",
+        "statement": "The implementation satisfies its design and passes unit-level checks.",
+        "classification": "machine-verifiable",
+        "prompt": "Run the unit-level checks for this increment and report pass/fail with notes.",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes"
+      },
+      {
+        "code": "integrate-and-create-build",
+        "statement": "Implementation elements have been integrated into a build without regressions.",
+        "classification": "machine-verifiable",
+        "prompt": "Run the integration build and report pass/fail with notes.",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes"
+      }
+    ],
+    "reviewGates": []
+  }
+}

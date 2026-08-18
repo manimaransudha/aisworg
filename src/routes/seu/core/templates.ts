@@ -1,7 +1,9 @@
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
-import type { TemplateDeliverableSeed } from "../../../dblayer/seuTypes.js";
+import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
+import { eventBus } from "../../../domain/engine/eventBus.js";
+import type { TemplateDeliverableSeed, TemplateRow } from "../../../dblayer/seuTypes.js";
 
 export interface TemplateCandidate {
   id: string;
@@ -118,4 +120,58 @@ export async function publishTemplate(seed: TemplateSeedInput): Promise<PublishT
   await templatesDB.setMandatoryPacks(template.id, seed.mandatoryPackCodes ?? []);
 
   return { ok: true, templateId: template.id };
+}
+
+// Entity-direct authoring (bug fix correcting CR-014): a governed status
+// transition on a Template, authorised on its own noun × verb (Draft -> Active
+// is verb `publish` → template_publish) under the REAL actor, with the actor +
+// badge captured on the event. Mirrors transitionPack — no Deliverable
+// indirection, no system actor.
+export type TransitionTemplateResult = { ok: true; template: TemplateRow } | { ok: false; reason: string; detail?: string };
+
+export async function transitionTemplate(input: { templateId: string; targetState: TemplateRow["status"]; actorRole: string; actorId?: string }): Promise<TransitionTemplateResult> {
+  const { data: template } = await templatesDB.findById(input.templateId);
+  if (!template) return { ok: false, reason: "not_found" };
+  const fromState = template.status;
+  const gate = await transitionEngine.evaluate({ entityType: "Template", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId, context: { template } });
+  if (!gate.allowed) {
+    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
+    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Template ${fromState} -> ${input.targetState}` };
+    if (gate.reason === "policy_blocked") return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
+    return { ok: false, reason: gate.reason };
+  }
+  const { data: updated, error } = await templatesDB.updateStatus(template.id, input.targetState);
+  if (error || !updated) throw error ?? new Error("failed to update template status");
+  await eventBus.publish({
+    eventType: "TemplateTransitioned",
+    originatingObjectType: "Template",
+    originatingObjectId: template.id,
+    correlationId: eventBus.newCorrelationId(),
+    payload: { fromState, toState: input.targetState, code: template.code },
+    actorId: input.actorId ?? null,
+    authorityBadge: gate.authorityBadge,
+  });
+  return { ok: true, template: updated };
+}
+
+// Publish a Draft Template authored entity-direct: validate the authored seed,
+// materialise it onto the Draft row + join tables, then run the governed
+// Draft -> Active transition under the real actor.
+export async function publishTemplateDraft(input: { templateId: string; seed: TemplateSeedInput; actorRole: string; actorId?: string }): Promise<PublishTemplateResult> {
+  const validation = await validateTemplateSeed(input.seed);
+  if (!validation.ok) return { ok: false, errors: validation.errors };
+
+  const capabilityIds: string[] = [];
+  for (const code of input.seed.requiredCapabilityCodes ?? []) {
+    const { data } = await capabilitiesDB.findByCodes([code]);
+    if (data?.[0]) capabilityIds.push(data[0].id);
+  }
+  await templatesDB.setDeliverableCatalogue(input.templateId, input.seed.deliverableCatalogue ?? []);
+  await templatesDB.setRequiredCapabilities(input.templateId, capabilityIds);
+  await templatesDB.setMandatoryPacks(input.templateId, input.seed.mandatoryPackCodes ?? []);
+
+  const transitioned = await transitionTemplate({ templateId: input.templateId, targetState: "Active", actorRole: input.actorRole, actorId: input.actorId });
+  if (!transitioned.ok) return { ok: false, errors: [`${transitioned.reason}${transitioned.detail ? `: ${transitioned.detail}` : ""}`] };
+
+  return { ok: true, templateId: input.templateId };
 }

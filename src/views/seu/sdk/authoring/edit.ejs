@@ -6,7 +6,48 @@
 <body>
   <header><%- include('../../../partials/navbar') %></header>
 
-  <main class="container py-5" style="max-width: 1000px;">
+  <%# Sticky action bar (owner: "inconvenient to scroll all the way down to
+      click something") — the generated form can run long, so Save/Cancel/
+      Validate live in a bar fixed to the bottom of the viewport, always
+      reachable regardless of scroll position. pb-authoring-actions on <main>
+      keeps the bar from covering the last of the page's real content. %>
+  <style>
+    .authoring-action-bar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 1020;
+      background: #fff;
+      border-top: 1px solid rgba(0, 0, 0, .08);
+      box-shadow: 0 -2px 10px rgba(0, 0, 0, .06);
+      padding: 0.6rem 0;
+    }
+    .pb-authoring-actions { padding-bottom: 4.5rem; }
+
+    /* Stepper (owner: "split as a stepper so it is easy to see what is meta
+       vs what is the actual item list") — Meta (Identity/Metadata +
+       Compatibility) and Items (Dependencies + Contributions) are one form,
+       shown one pane at a time; the nav is a plain jump, not a gated wizard —
+       both panes' fields exist in the DOM the whole time, so switching never
+       loses anything and Save always saves the whole document. */
+    .authoring-stepper { display: flex; align-items: center; margin-bottom: 1.5rem; }
+    .stepper-step {
+      display: flex; align-items: center; gap: 0.5rem; background: none; border: none;
+      padding: 0.25rem 0.75rem 0.25rem 0.25rem; border-radius: 999px; cursor: pointer; color: #6c757d;
+    }
+    .stepper-step:hover { background: #f1f3f5; }
+    .stepper-step.active { color: #0d6efd; font-weight: 600; }
+    .stepper-circle {
+      width: 1.75rem; height: 1.75rem; border-radius: 50%; background: #e9ecef; color: #495057;
+      display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; flex-shrink: 0;
+    }
+    .stepper-step.active .stepper-circle { background: #0d6efd; color: #fff; }
+    .stepper-connector { flex: 0 0 2.5rem; height: 2px; background: #dee2e6; margin: 0 0.25rem; }
+    .stepper-label { font-size: 0.85rem; }
+  </style>
+
+  <main class="container py-5 pb-authoring-actions" style="max-width: 1000px;">
     <% if (locals.flash) { %>
       <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
         <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
@@ -14,17 +55,17 @@
       </div>
     <% } %>
 
+    <% var isNew = !locals.draft; %>
     <div class="mb-4 d-flex justify-content-between align-items-start">
       <div>
         <h2 class="h3 mb-1 text-dark fw-bold"><%= kindLabel %> Definition</h2>
         <p class="text-muted small mb-0">
-          Schema v<%= deliverable.schemaVersion %> — generated from <code>schema_definitions</code>, not a hand-built
-          form (SDK UI Layer Plan). <a href="/aisworg/seu/sdk/<%= slug %>">&larr; All sessions</a> ·
-          <a href="/aisworg/seu/seus/<%= deliverable.seuId %>">Underlying SEU</a> — attach Evidence/Decision there if
-          Review or Publish is blocked by a Quality Gate.
+          Generated from <code>schema_definitions</code>, not a hand-built form.
+          <a href="/aisworg/seu/sdk/<%= slug %>">&larr; All <%= kindLabel %>s</a>
+          <% if (!isNew) { %> · <span class="text-muted">Draft <code><%= draft.code %></code></span><% } %>
         </p>
       </div>
-      <span class="state-badge state-<%= deliverable.lifecycleState.replace(/\s+/g,'') %> align-self-center"><%= deliverable.lifecycleState %></span>
+      <% if (!isNew) { %><span class="state-badge state-<%= draft.status.replace(/\s+/g,'') %> align-self-center"><%= draft.status %></span><% } %>
     </div>
 
     <% if (locals.errors && errors.length) { %>
@@ -34,80 +75,97 @@
       </div>
     <% } %>
 
+    <%
+      // One hop at a time (separation of duties) — the button names the
+      // VERB this actor's own authority is about to exercise ("Validate Pack",
+      // "Publish Pack", "Activate Pack", …), not a blanket "Publish"; a
+      // different verb-holder takes the next step.
+      var verbLabel = nextVerb ? nextVerb.charAt(0).toUpperCase() + nextVerb.slice(1) : '';
+    %>
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-body">
         <h6 class="text-uppercase text-muted small fw-bold mb-3">Generated form</h6>
-        <form method="POST" action="/aisworg/seu/sdk/<%= slug %>/<%= deliverable.id %>/save">
+        <%# One shared form/action-toolbar, not a separate floating button
+            elsewhere on the page: Save/Create posts here by default; the
+            verb-named advance action (e.g. "Validate Pack") is a formaction
+            override on the SAME form/fields, not a second disconnected form —
+            it cannot be enabled independent of this form's own saved-state
+            tracking. %>
+        <form method="POST" id="authoring-form" action="<%= isNew ? ('/aisworg/seu/sdk/' + slug) : ('/aisworg/seu/sdk/' + slug + '/' + draft.id + '/save') %>">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
-          <% fields.forEach(function(f) { %>
-            <div class="mb-3">
-              <label class="form-label small fw-semibold"><%= f.label %><% if (f.required) { %> <span class="text-danger">*</span><% } %></label>
-
-              <% if (f.kind === 'string') { %>
-                <input name="<%= f.name %>" class="form-control form-control-sm" value="<%= f.value %>" <%- f.required ? 'required' : '' %> <%- canEdit ? '' : 'disabled' %>>
-                <% if (f.help) { %><div class="form-text small"><%= f.help %></div><% } %>
-
-              <% } else if (f.kind === 'select') { %>
-                <select name="<%= f.name %>" class="form-select form-select-sm" <%- f.required ? 'required' : '' %> <%- canEdit ? '' : 'disabled' %>>
-                  <option value="">— select —</option>
-                  <% f.options.forEach(function(opt) { %>
-                    <option value="<%= opt %>" <%= f.value === opt ? 'selected' : '' %>><%= opt %></option>
-                  <% }) %>
-                </select>
-
-              <% } else if (f.kind === 'referential-select') { %>
-                <select name="<%= f.name %>" class="form-select form-select-sm" <%- f.required ? 'required' : '' %> <%- canEdit ? '' : 'disabled' %>>
-                  <option value="">— select —</option>
-                  <% ((locals.referentialOptions || {})[f.referentialSource] || []).forEach(function(opt) { %>
-                    <option value="<%= opt %>" <%= f.value === opt ? 'selected' : '' %>><%= opt %></option>
-                  <% }) %>
-                </select>
-                <% if (f.help) { %><div class="form-text small"><%= f.help %></div><% } %>
-
-              <% } else if (f.kind === 'json') { %>
-                <textarea name="<%= f.name %>" class="form-control form-control-sm font-monospace" rows="8" <%- canEdit ? '' : 'disabled' %>><%= f.value %></textarea>
-                <% if (f.help) { %><div class="form-text small"><%= f.help %></div><% } %>
-
-              <% } else if (f.kind === 'referential-list') { %>
-                <div class="border rounded p-2">
-                  <% f.rows.forEach(function(row, i) { %>
-                    <div class="row g-2 mb-1">
-                      <% f.itemFields.forEach(function(itemField) { %>
-                        <div class="col-auto">
-                          <% if (itemField.referentialSource) { %>
-                            <select name="<%= f.name %>[<%= i %>][<%= itemField.name %>]" class="form-select form-select-sm" style="min-width: 200px;" <%- canEdit ? '' : 'disabled' %>>
-                              <option value="">— <%= itemField.name %> —</option>
-                              <% ((locals.referentialOptions || {})[itemField.referentialSource] || []).forEach(function(opt) { %>
-                                <option value="<%= opt %>" <%= row[itemField.name] === opt ? 'selected' : '' %>><%= opt %></option>
-                              <% }) %>
-                            </select>
-                          <% } else { %>
-                            <input name="<%= f.name %>[<%= i %>][<%= itemField.name %>]" class="form-control form-control-sm" placeholder="<%= itemField.name %>" value="<%= row[itemField.name] %>" <%- canEdit ? '' : 'disabled' %>>
-                          <% } %>
-                        </div>
-                      <% }) %>
-                    </div>
-                  <% }) %>
-                  <div class="form-text small">Registry-backed fields are live-validated widgets, not bare text — blank rows are ignored.</div>
-                </div>
-              <% } %>
+          <%
+            // Only worth a stepper if there's actually an Items pane to split
+            // out to — Template/Profile have no dependencies/contributions
+            // fields today (Ch.5 §19.9), so they fall back to one flat pane
+            // exactly as before rather than showing an empty "Items" step.
+            var hasItemsStep = !!groups.dependencies || (groups.contributions && groups.contributions.length > 0);
+          %>
+          <% if (hasItemsStep) { %>
+            <div class="authoring-stepper">
+              <button type="button" class="stepper-step active" data-goto="1">
+                <span class="stepper-circle">1</span><span class="stepper-label">Meta</span>
+              </button>
+              <span class="stepper-connector"></span>
+              <button type="button" class="stepper-step" data-goto="2">
+                <span class="stepper-circle">2</span><span class="stepper-label">Items</span>
+              </button>
             </div>
-          <% }) %>
 
-          <% if (canEdit) { %>
-            <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-save me-1"></i>Save draft</button>
+            <div class="stepper-pane" data-step="1">
+              <%- include('../_generatedFieldGroups', { groups: groups, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, contributionHelp: locals.contributionHelp, verifiableFieldHelp: locals.verifiableFieldHelp, sections: ['metadata', 'compatibility'], idPrefix: 'step1' }) %>
+              <div class="d-flex justify-content-end mb-4">
+                <button type="button" class="btn btn-sm btn-primary" data-goto="2">Next: Items <i class="bi bi-arrow-right ms-1"></i></button>
+              </div>
+            </div>
+
+            <div class="stepper-pane d-none" data-step="2">
+              <%- include('../_generatedFieldGroups', { groups: groups, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, contributionHelp: locals.contributionHelp, verifiableFieldHelp: locals.verifiableFieldHelp, sections: ['dependencies', 'contributions'], idPrefix: 'step2' }) %>
+              <div class="mb-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-goto="1"><i class="bi bi-arrow-left me-1"></i> Back: Meta</button>
+              </div>
+            </div>
+          <% } else { %>
+            <%- include('../_generatedFieldGroups', { groups: groups, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, contributionHelp: locals.contributionHelp, verifiableFieldHelp: locals.verifiableFieldHelp, idPrefix: 'flat' }) %>
+          <% } %>
+
+          <% if (canEdit || canPublish) { %>
+            <div class="authoring-action-bar">
+              <div class="container d-flex gap-2 align-items-center" style="max-width: 1000px;">
+                <% if (canEdit) { %>
+                  <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-save me-1"></i><%= isNew ? 'Create draft' : 'Save draft' %></button>
+                  <a href="/aisworg/seu/sdk/<%= slug %>" class="btn btn-sm btn-outline-secondary">Cancel</a>
+                <% } %>
+                <% if (canPublish) { %>
+                  <%# Bug fix (owner: "I do not see the Validate button on the
+                      new pack form... why did you remove it") — it must stay
+                      VISIBLE on the new-draft form too, not appear only after
+                      the first Save, so its existence/label isn't a surprise.
+                      isNew: always disabled (there's no draft yet to act on) —
+                      formaction points nowhere real since a disabled button
+                      never submits. !isNew: starts enabled (the draft IS
+                      saved — nothing pending) and is disabled the instant any
+                      field in THIS form changes, by save-state-tracking.js
+                      below — re-enabled only by a fresh page load, which only
+                      happens after an actual Save. %>
+                  <button type="submit" id="advance-btn"
+                    <%- isNew ? 'disabled' : ('formaction="/aisworg/seu/sdk/' + slug + '/' + draft.id + '/publish"') %>
+                    formnovalidate class="btn btn-success btn-sm"><i class="bi bi-cloud-upload me-1"></i><%= verbLabel %> <%= kindLabel %></button>
+                  <span id="advance-hint" class="text-muted small <%= isNew ? '' : 'd-none' %>"><%= isNew ? 'Create the draft first.' : 'Save your changes first.' %></span>
+                <% } %>
+              </div>
+            </div>
           <% } %>
         </form>
       </div>
     </div>
 
-    <% if (canEdit) { %>
+    <% if (!isNew && canEdit) { %>
       <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
           <h6 class="text-uppercase text-muted small fw-bold mb-2">JSON import</h6>
           <p class="text-muted small mb-2">First-class entry point, not a fallback — replaces the whole document.</p>
-          <form method="POST" action="/aisworg/seu/sdk/<%= slug %>/<%= deliverable.id %>/import">
+          <form method="POST" action="/aisworg/seu/sdk/<%= slug %>/<%= draft.id %>/import">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <textarea name="importedJson" class="form-control form-control-sm font-monospace mb-2" rows="6" placeholder="Paste a JSON document..."><%= contentJson %></textarea>
             <button type="submit" class="btn btn-sm btn-outline-secondary">Import</button>
@@ -116,21 +174,166 @@
       </div>
     <% } %>
 
-    <div class="d-flex gap-2">
-      <% if (canApprove) { %>
-        <form method="POST" action="/aisworg/seu/sdk/<%= slug %>/<%= deliverable.id %>/approve">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-check2-circle me-1"></i>Approve</button>
-        </form>
-      <% } %>
-      <% if (canPublish) { %>
-        <form method="POST" action="/aisworg/seu/sdk/<%= slug %>/<%= deliverable.id %>/publish">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-cloud-upload me-1"></i>Publish</button>
-        </form>
-      <% } %>
-    </div>
   </main>
+
+  <script>
+    // Bug fix: advancing must never act on edits the user hasn't saved yet.
+    // Disable the advance action the instant ANY field in the authoring form
+    // changes, re-enabled only by a fresh (post-save) page load. Defensively
+    // bound two ways — form-level delegation AND a direct listener on every
+    // individual field — so no bubbling edge case (a wrapped/enhanced widget
+    // that stops propagation, for instance) can leave it silently enabled
+    // through an unsaved edit. No-ops entirely when the button isn't on the
+    // page at all (this actor holds no authority for the next hop); on the
+    // new-draft form it IS on the page, just server-rendered `disabled` —
+    // markDirty()'s own already-disabled check makes attaching these
+    // listeners harmless there.
+    (function () {
+      var form = document.getElementById('authoring-form');
+      var btn = document.getElementById('advance-btn');
+      var hint = document.getElementById('advance-hint');
+
+      function markDirty() {
+        if (!btn || btn.disabled) return;
+        btn.disabled = true;
+        if (hint) hint.classList.remove('d-none');
+      }
+
+      if (form && btn) {
+        form.addEventListener('input', markDirty);
+        form.addEventListener('change', markDirty);
+        var fields = form.querySelectorAll('input, select, textarea');
+        for (var i = 0; i < fields.length; i++) {
+          fields[i].addEventListener('input', markDirty);
+          fields[i].addEventListener('change', markDirty);
+        }
+
+        // The confirm prompt belongs to THIS button only (a `formaction`
+        // override on the shared form) — not the form's onsubmit, which would
+        // otherwise also prompt on an ordinary Save click.
+        btn.addEventListener('click', function (e) {
+          var verb = <%- JSON.stringify(verbLabel) %>;
+          var kind = <%- JSON.stringify(kindLabel) %>;
+          var fromState = <%- JSON.stringify(isNew ? '' : draft.status) %>;
+          var toState = <%- JSON.stringify(nextState || '') %>;
+          if (!window.confirm(verb + ' this ' + kind + ' — move it from ' + fromState + ' to ' + toState + ', under your authority?')) {
+            e.preventDefault();
+          }
+        });
+      }
+
+      // UI redesign (owner: "extremely unfriendly") — "+ Add another" clones
+      // the LAST row in a referential-list group (whatever field kinds it
+      // has — referential-select/enum-select/checkbox/text — cloning the real
+      // rendered DOM means no need to reconstruct <select> option lists in
+      // JS), blanks every field in the clone, re-indexes its `name`
+      // attributes to the next row index, and inserts it before the button.
+      // "Remove" just detaches its own row — a removed row is simply absent
+      // from the submitted form data, nothing server-side to reconcile.
+      if (form) {
+        var groups = form.querySelectorAll('.referential-list-group');
+        groups.forEach(function (group) {
+          var addBtn = group.querySelector('.add-row-btn');
+          if (addBtn) {
+            addBtn.addEventListener('click', function () {
+              var rows = group.querySelectorAll('.referential-list-row');
+              if (!rows.length) return;
+              var clone = rows[rows.length - 1].cloneNode(true);
+              var nextIndex = parseInt(group.getAttribute('data-next-index'), 10) || rows.length;
+              clone.querySelectorAll('input, select, textarea').forEach(function (el) {
+                if (el.name) el.name = el.name.replace(/\[\d+\]/, '[' + nextIndex + ']');
+                if (el.tagName === 'SELECT') el.selectedIndex = 0;
+                else if (el.type === 'checkbox') el.checked = false;
+                else el.value = '';
+              });
+              var badge = clone.querySelector('.badge');
+              if (badge) { badge.className = 'badge bg-light text-muted border small fw-normal'; badge.textContent = 'New item — fill in to add'; }
+              // The category filter resets to "All categories" above, but a
+              // <select>'s `hidden` attribute on individual <option>s (left
+              // over from whatever the cloned row's filter was last set to)
+              // isn't touched by that — clear it explicitly so the reset
+              // filter and the actually-visible Pack options agree.
+              clone.querySelectorAll('.dep-pack-select option[hidden]').forEach(function (opt) { opt.hidden = false; });
+              group.setAttribute('data-next-index', String(nextIndex + 1));
+              addBtn.parentNode.insertBefore(clone, addBtn);
+              markDirty();
+            });
+          }
+          group.addEventListener('click', function (e) {
+            var removeBtn = e.target.closest ? e.target.closest('.remove-row-btn') : null;
+            if (!removeBtn) return;
+            var row = removeBtn.closest('.referential-list-row');
+            if (row) { row.remove(); markDirty(); }
+          });
+
+          // Dependencies tab (owner: "Pack code should include the pack and
+          // the version number in the dropdown. Version should not be a text
+          // field... a dropdown on the category" then "remove the text
+          // version field") — Category filters which Pack <option>s are
+          // visible (never submitted — it's a picker aid, not a stored
+          // field); picking a Pack fills the hidden Version input from that
+          // option's own data-version — no visible version box at all.
+          // Delegated on the group (not bound per-row) so it covers cloned
+          // rows for free.
+          if (group.getAttribute('data-field-name') === 'dependencies') {
+            group.addEventListener('change', function (e) {
+              var row = e.target.closest ? e.target.closest('.referential-list-row') : null;
+              if (!row) return;
+              if (e.target.classList.contains('dep-category-filter')) {
+                var category = e.target.value;
+                var packSelect = row.querySelector('.dep-pack-select');
+                Array.from(packSelect.options).forEach(function (opt) {
+                  if (!opt.value) return;
+                  opt.hidden = !!category && opt.getAttribute('data-category') !== category;
+                });
+                if (packSelect.selectedOptions[0] && packSelect.selectedOptions[0].hidden) {
+                  packSelect.value = '';
+                  var versionField = row.querySelector('.dep-version-field');
+                  if (versionField) versionField.value = '';
+                }
+              } else if (e.target.classList.contains('dep-pack-select')) {
+                var chosen = e.target.selectedOptions[0];
+                var versionField2 = row.querySelector('.dep-version-field');
+                if (versionField2) versionField2.value = chosen ? (chosen.getAttribute('data-version') || '') : '';
+              }
+            });
+          }
+        });
+      }
+
+      // Stepper nav (owner: "split as a stepper so it is easy to see what is
+      // meta vs what is the actual item list") — a plain jump between the two
+      // panes, not a gated wizard: both panes' fields stay in the DOM the
+      // whole time (nothing is removed/reset when hidden), so switching never
+      // loses data and Save always posts the whole document regardless of
+      // which pane is showing. No-ops when the kind has no Items step (the
+      // flat fallback render has no [data-goto] elements at all).
+      var stepperPanes = document.querySelectorAll('.stepper-pane');
+      var stepperSteps = document.querySelectorAll('.stepper-step');
+      function gotoStep(n) {
+        stepperPanes.forEach(function (p) { p.classList.toggle('d-none', p.getAttribute('data-step') !== n); });
+        stepperSteps.forEach(function (s) { s.classList.toggle('active', s.getAttribute('data-goto') === n); });
+      }
+      document.querySelectorAll('[data-goto]').forEach(function (el) {
+        el.addEventListener('click', function () { gotoStep(el.getAttribute('data-goto')); });
+      });
+
+      // "Next version" (owner: "Version should be autogenerated using a next
+      // version button. Editable text is not the correct approach.") — the
+      // field itself is readonly; this is the ONLY way its value changes.
+      // Patch-bump (x.y.z -> x.y.(z+1)); anything not already valid semver
+      // (shouldn't happen — the route always seeds 1.0.0) resets to 1.0.0.
+      var versionField = document.getElementById('packVersion-field');
+      var versionBtn = document.getElementById('next-version-btn');
+      if (versionField && versionBtn) {
+        versionBtn.addEventListener('click', function () {
+          var m = /^(\d+)\.(\d+)\.(\d+)$/.exec(versionField.value.trim());
+          versionField.value = m ? (m[1] + '.' + m[2] + '.' + (parseInt(m[3], 10) + 1)) : '1.0.0';
+          markDirty();
+        });
+      }
+    })();
+  </script>
 
   <%- include('../../../partials/footer') %>
 </body>

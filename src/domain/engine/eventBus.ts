@@ -17,6 +17,10 @@ export interface PublishInput {
   correlationId: string;
   causationId?: string | null;
   payload?: Record<string, unknown>;
+  // Accountability record — the real acting user and the resolved `noun_verb`
+  // badge a governed transition ran under. Omitted for ungoverned/system events.
+  actorId?: string | null;
+  authorityBadge?: string | null;
 }
 
 export const eventBus = {

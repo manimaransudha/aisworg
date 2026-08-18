@@ -126,6 +126,8 @@ export async function transitionObligation(input: { obligationId: string; target
     originatingObjectId: obligation.id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
+    actorId: input.actorId ?? null,
+    authorityBadge: gate.authorityBadge,
   });
 
   return { ok: true, obligation: updated, appliedTransition: { fromState, toState: input.targetState } };

@@ -1,49 +1,41 @@
-// SDK / Authoring UI Layer (design/mvp-build-plan/SDK UI Layer Plan.md) — the
-// glue behind all four authoring surfaces (Pack first; Template/Profile/
-// Transition Definition reuse every function here once their own bootstrap
-// Template/schema_definitions row is seeded). Per the plan's "Core
-// principle": each of the four is authored as an ordinary Deliverable,
-// produced by commissioning a small bootstrap SEU, driven through
-// Deliverable's own Defined -> In Progress -> Approved -> Baselined lifecycle
-// — this module is what wires that together, not a new engine.
+// SDK authoring — ENTITY-DIRECT (bug fix correcting CR-014).
 //
-// Access control resolution (not written into the plan itself — a mechanism
-// gap found while wiring this up, see 014_sdk_authoring.sql's header
-// comment): transitionDeliverable's badge check and Work Item dispatch are
-// both scoped per-SEU, which doesn't fit "grant someone Pack Creator once,
-// they author many Packs over time." Two new flat Platform-scoped badges
-// (sdk_creator/sdk_approver) gate the routes that call into this module
-// (requirePlatformBadge, same as Identity Management); underneath,
-// ensureAuthoringBadge lazily auto-provisions the real, correctly-scoped
-// Engineering-badge grant (Deliverable + a dedicated authoring Capability +
-// the shared sdk-authoring-scope placeholder Pack) the first time a flat-
-// badge holder actually acts, covering every bootstrap SEU they touch after
-// that — no per-session re-granting.
+// There is no separate "SDK authoring" mechanism and no Deliverable
+// indirection. Authoring a Pack / Template / Profile is just working on a
+// **Draft row of that entity itself**, then driving it through the entity's own
+// governed `noun × verb` transitions — run by the **real session actor**, with
+// the actor + `noun_verb` badge captured on every event (Part 1). No bootstrap
+// SEU, no authoring Deliverable/Evidence, no system actor, no double gate.
+//
+// Authority is the authored entity's own noun × verb (root bypasses):
+//   `{kind}_define`  — create/edit/save a Draft (creation authority; a grant,
+//                      not a transition — see the "creation authority is not a
+//                      transition" note).
+//   `{kind}_publish` — publish: the governed transition to Active
+//     (Pack: Draft → Validated → Published → Active; Template/Profile: the
+//      single governed Draft → Active `publish` transition — they are upsert,
+//      not (code,version)-immutable like Pack; real versioning stays deferred
+//      per Open Design Questions.md). The authorisation model is identical for
+//      all three; only the number of lifecycle states differs, reflecting each
+//      entity's existing schema — NOT a special authoring path.
+import { packsDB } from "../../../dblayer/packsDB.js";
+import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { profilesDB } from "../../../dblayer/profilesDB.js";
-import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
-import { participantsDB } from "../../../dblayer/participantsDB.js";
-import { seuCapabilitiesDB } from "../../../dblayer/seuCapabilitiesDB.js";
-import { capabilityFulfilmentsDB } from "../../../dblayer/capabilityFulfilmentsDB.js";
-import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
-import { badgeGrantsDB } from "../../../dblayer/badgeGrantsDB.js";
-import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
-import { deliverableAuthoringContentDB } from "../../../dblayer/deliverableAuthoringContentDB.js";
-import { createObjective, ensureOneShotContainer } from "./objectives.js";
-import { commissionSeu } from "./commissioning.js";
-import { transitionDeliverable, type TransitionDeliverableResult } from "./deliverables.js";
-import { completeWorkItem } from "./workItems.js";
-import { createEvidence, transitionEvidence } from "./evidence.js";
-import { publishPack, validatePackSeed, type PackSeedInput } from "./packs.js";
-import { publishTemplate, validateTemplateSeed, type TemplateSeedInput } from "./templates.js";
-import { publishProfile, validateProfileSeed, type ProfileSeedInput } from "./profiles.js";
-import { publishTransitionDefinition, validateTransitionDefinitionSeed, type TransitionDefinitionSeedInput } from "./transitionDefinitions.js";
-import type { DeliverableAuthoringContentRow, DeliverableRow, SchemaDefinitionEntityKind, SchemaDefinitionRow, SeuRow } from "../../../dblayer/seuTypes.js";
+import {
+  advancePackOneStep, validatePackSeed, packMetadataFromSeed,
+  type PackSeedInput,
+} from "./packs.js";
+import { publishTemplateDraft, validateTemplateSeed, type TemplateSeedInput } from "./templates.js";
+import { publishProfileDraft, validateProfileSeed, type ProfileSeedInput } from "./profiles.js";
+import type { PackContributions, PackRow, ProfileRow, SchemaDefinitionEntityKind, TemplateRow } from "../../../dblayer/seuTypes.js";
+import { randomUUID } from "node:crypto";
 
-import { AUTHORING_SCOPE_PACK_CODE } from "../../../domain/sdk/authoringScope.js";
-
-export { AUTHORING_SCOPE_PACK_CODE };
-
+// ---------------------------------------------------------------------------
+// Seed-facing constants (kept for the bootstrap seed + seedSeu; the bootstrap
+// Templates they name are now vestigial — entity-direct authoring never
+// commissions a bootstrap SEU — but harmless, and left to avoid a seed churn).
+// ---------------------------------------------------------------------------
 export const AUTHORING_CAPABILITY_CODE: Record<SchemaDefinitionEntityKind, string> = {
   Pack: "pack-authoring",
   Template: "template-authoring",
@@ -51,8 +43,6 @@ export const AUTHORING_CAPABILITY_CODE: Record<SchemaDefinitionEntityKind, strin
   TransitionDefinition: "transition-definition-authoring",
 };
 
-// The category recorded on the produced Deliverable — what a generated form/
-// glue step keys off, not a new TransitionEntityType (Core Principle).
 export const AUTHORING_CATEGORY: Record<SchemaDefinitionEntityKind, string> = {
   Pack: "Pack Definition",
   Template: "Template Definition",
@@ -71,152 +61,48 @@ export function bootstrapProfileCode(kind: SchemaDefinitionEntityKind): string {
   return `${BOOTSTRAP_TEMPLATE_CODE[kind]}-profile`;
 }
 
-// Idempotent — safe to call on every action, not just the first. No unique
-// index makes a duplicate grant impossible at the DB level (badge_grants has
-// none across these columns), so this checks first rather than relying on a
-// conflict to no-op.
-async function ensureAuthoringBadge(actorId: string, badgeType: "creator" | "approver", kind: SchemaDefinitionEntityKind): Promise<void> {
-  const capabilityCode = AUTHORING_CAPABILITY_CODE[kind];
-  const { data: capabilities } = await capabilitiesDB.findByCodes([capabilityCode]);
-  const capability = capabilities?.[0];
-  if (!capability) throw new Error(`unknown authoring capability: ${capabilityCode} — did migration 014 run?`);
+// ---------------------------------------------------------------------------
+// Content reassembly (unchanged from the previous flattened-form handling).
+// ---------------------------------------------------------------------------
 
-  const { data: grants } = await badgeGrantsDB.findActiveByHolderAndType(actorId, badgeType);
-  const alreadyHeld = (grants ?? []).some(
-    (g) => g.governed_entity_type === "Deliverable" && g.capability_id === capability.id && g.scope_id === AUTHORING_SCOPE_PACK_CODE
-  );
-  if (alreadyHeld) return;
-
-  const result = await badgeGrantsDB.create({
-    holderId: actorId,
-    badgeType,
-    governedEntityType: "Deliverable",
-    capabilityId: capability.id,
-    scopeId: AUTHORING_SCOPE_PACK_CODE,
-  });
-  if ("error" in result) throw result.error;
-}
-
-// A bootstrap SEU's single Deliverable can't reach In Progress at all
-// without someone fulfilling its producing Capability (executionEngine's
-// dispatch requirement, same as any other Deliverable) — auto-provisioned
-// here the same way tests fulfil Capabilities manually, since there's no
-// separate human "assign a Participant" step for a one-Deliverable SEU that
-// exists only to hold this one document.
-async function ensureParticipantFulfilment(seuId: string, capabilityCode: string, actorId: string, actorName: string): Promise<void> {
-  const { data: seuCapabilities } = await seuCapabilitiesDB.findBySeuId(seuId);
-  const seuCapability = (seuCapabilities ?? []).find((sc) => sc.capability_code === capabilityCode);
-  if (!seuCapability) throw new Error(`SEU ${seuId} was not commissioned with a requirement for capability ${capabilityCode}`);
-
-  const { data: participant, error } = await participantsDB.create({
-    seuId,
-    type: "Human",
-    displayName: actorName,
-    userId: Number(actorId),
-  });
-  if (error || !participant) throw error ?? new Error("failed to create participant for authoring SEU");
-
-  await capabilityFulfilmentsDB.create({ seuCapabilityId: seuCapability.id, participantId: participant.id, fulfilmentStrategy: "Human" });
-  await seuCapabilitiesDB.markFulfilled(seuCapability.id);
-}
-
-export interface StartAuthoringResult {
-  seu: SeuRow;
-  deliverable: DeliverableRow;
-  authoringContent: DeliverableAuthoringContentRow;
-  schema: SchemaDefinitionRow;
-}
-
-// "Create/Save" (plan's Core Principle) — commissions a bootstrap SEU
-// against the kind's bootstrap Template, via the same commissionSeu every
-// real SEU goes through, then advances the produced Deliverable to
-// In Progress so authoring can begin.
-export async function startAuthoring(input: {
-  kind: SchemaDefinitionEntityKind;
-  actorId: string;
-  actorName: string;
-  actorRole: string;
-  importedContent?: Record<string, unknown>;
-}): Promise<StartAuthoringResult> {
-  const templateCode = BOOTSTRAP_TEMPLATE_CODE[input.kind];
-  const { data: template } = await templatesDB.findByCode(templateCode);
-  if (!template) throw new Error(`no bootstrap Template seeded for ${input.kind} (expected code "${templateCode}")`);
-
-  const { data: profile } = await profilesDB.findByCode(bootstrapProfileCode(input.kind));
-  if (!profile) throw new Error(`no bootstrap Profile seeded for ${input.kind}`);
-
-  const { data: schema } = await schemaDefinitionsDB.findLatest(input.kind);
-  if (!schema) throw new Error(`no schema_definitions row for ${input.kind}`);
-
-  // CR-009: a bare Engineering Objective needs a parent — hang this system
-  // authoring Objective under the reused Strategic container root.
-  const container = await ensureOneShotContainer(Number(input.actorId));
-  const { objective } = await createObjective({
-    statement: `SDK authoring: ${input.kind} by ${input.actorName}`,
-    requiredCapabilityCodes: [],
-    parentObjectiveId: container.id,
-    requestedBy: Number(input.actorId),
-  });
-
-  const commissioned = await commissionSeu({
-    objectiveId: objective.id,
-    templateId: template.id,
-    profileId: profile.id,
-    actorRole: input.actorRole,
-    actorId: input.actorId,
-    requestedBy: Number(input.actorId),
-  });
-  if (!commissioned.ok) throw new Error(`commissioning the authoring SEU failed at ${commissioned.stage}: ${commissioned.reason}`);
-
-  await ensureParticipantFulfilment(commissioned.seu.id, AUTHORING_CAPABILITY_CODE[input.kind], input.actorId, input.actorName);
-  await ensureAuthoringBadge(input.actorId, "creator", input.kind);
-
-  const { data: deliverables } = await deliverablesDB.findBySeuId(commissioned.seu.id);
-  const deliverable = (deliverables ?? [])[0];
-  if (!deliverable) throw new Error("bootstrap SEU commissioned with no Deliverable — check its Template's Deliverable Catalogue");
-
-  const { data: authoringContent, error: contentErr } = await deliverableAuthoringContentDB.create({
-    deliverableId: deliverable.id,
-    schemaDefinitionId: schema.id,
-    content: input.importedContent ?? {},
-  });
-  if (contentErr || !authoringContent) throw contentErr ?? new Error("failed to create authoring content row");
-
-  const advanced = await transitionAuthoringDeliverableInSession({ deliverableId: deliverable.id, targetState: "In Progress", actorId: input.actorId, actorRole: input.actorRole });
-  if (!advanced.ok) throw new Error(`could not start authoring: ${describeTransitionFailure(advanced)}`);
-
-  return { seu: commissioned.seu, deliverable: advanced.deliverable, authoringContent, schema };
-}
-
-export async function saveAuthoringContent(deliverableId: string, content: Record<string, unknown>): Promise<DeliverableAuthoringContentRow> {
-  const { data, error } = await deliverableAuthoringContentDB.updateContent(deliverableId, content);
-  if (error || !data) throw error ?? new Error("failed to save authoring content");
-  return data;
-}
-
-// The generated form (and, more likely, a hand-edited JSON import) can omit
-// contributions/dependencies entirely, which validatePackSeed's own
-// duplicate-code checks assume are at least empty arrays/objects — normalize
-// before handing off, rather than making validatePackSeed defensive against
-// a shape only a partially-filled authoring document produces.
-function toPackSeedInput(content: Record<string, unknown>): PackSeedInput {
+// The generated form (and JSON import) can omit contributions/dependencies —
+// normalize before handing off to validatePackSeed/publishPack. CR-016:
+// contributions are authored as flattened top-level lists (contributionCapabilities[],
+// …) — reassemble into the nested `contributions` object.
+export function toPackSeedInput(content: Record<string, unknown>): PackSeedInput {
+  const legacy = (typeof content.contributions === "object" && content.contributions ? content.contributions : {}) as Record<string, unknown[]>;
+  const arr = (flatKey: string, legacyKey: string): unknown[] => {
+    const flat = content[flatKey];
+    if (Array.isArray(flat) && flat.length) return flat;
+    return Array.isArray(legacy[legacyKey]) ? (legacy[legacyKey] as unknown[]) : [];
+  };
+  const compliance = (typeof content.contributionsCompliance === "object" && content.contributionsCompliance ? content.contributionsCompliance : {}) as Record<string, unknown[]>;
+  const contributions = {
+    capabilities: arr("contributionCapabilities", "capabilities"),
+    services: arr("contributionServices", "services"),
+    authorityRules: arr("contributionAuthorityRules", "authorityRules"),
+    policies: arr("contributionPolicies", "policies"),
+    qualityGates: arr("contributionQualityGates", "qualityGates"),
+    checklists: arr("contributionChecklists", "checklists"),
+    reviewGates: arr("contributionReviewGates", "reviewGates"),
+    obligationDefinitions: arr("contributionObligationDefinitions", "obligationDefinitions"),
+    complianceFrameworks: Array.isArray(compliance.complianceFrameworks) ? compliance.complianceFrameworks : (legacy.complianceFrameworks ?? []),
+    complianceRequirements: Array.isArray(compliance.complianceRequirements) ? compliance.complianceRequirements : (legacy.complianceRequirements ?? []),
+  } as unknown as PackSeedInput["contributions"];
   return {
     ...(content as unknown as PackSeedInput),
-    contributions: (content.contributions as PackSeedInput["contributions"]) ?? {},
+    // CR-015: `code` is a system UUID, not an authored field. Reuse one already
+    // on the content (an imported doc, or the row's own code); else mint one.
+    code: typeof content.code === "string" && content.code.trim() ? (content.code as string) : randomUUID(),
+    packVersion: typeof content.packVersion === "string" && content.packVersion.trim() ? (content.packVersion as string) : "0.1.0",
+    contributions,
     dependencies: (content.dependencies as PackSeedInput["dependencies"]) ?? [],
   };
 }
 
-// Real finding, Ebook Library — Full Demo Walkthrough.md: the Schema
-// Registry declares mandatoryPackCodes/optionalPackCodes with
-// x-widget:"referential-list" (the Deliverable-Catalogue-style repeatable
-// row widget), so the generated form submits [{ packCode: string }] via
-// formGenerator's parseFormBody — but TemplateSeedInput/ProfileSeedInput
-// (and JSON import, which already submits plain strings and is unaffected)
-// both expect string[]. Normalized here rather than widening the widget
-// (these are genuinely a flat list of Pack codes, not multi-field rows like
-// the Deliverable Catalogue actually needs referential-list for) or the
-// type everywhere downstream.
+// Real finding: mandatoryPackCodes/optionalPackCodes use x-widget:"referential-list"
+// so the generated form submits [{ packCode }] — normalize to the string[] the
+// seed types expect (JSON import already submits plain strings, unaffected).
 function normalizePackCodes(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   return raw
@@ -228,16 +114,20 @@ function normalizePackCodes(raw: unknown): string[] {
     .filter((code) => code !== "");
 }
 
-function toTemplateSeedInput(content: Record<string, unknown>): TemplateSeedInput {
+export function toTemplateSeedInput(content: Record<string, unknown>): TemplateSeedInput {
   return {
     ...(content as unknown as TemplateSeedInput),
-    requiredCapabilityCodes: (content.requiredCapabilityCodes as string[]) ?? [],
+    // Defensive against a non-array value reaching here (e.g. a JSON import —
+    // a first-class entry point, not just the generated form) — an object or
+    // other truthy non-array would otherwise survive `?? []` and blow up the
+    // first `for...of` that iterates it.
+    requiredCapabilityCodes: Array.isArray(content.requiredCapabilityCodes) ? (content.requiredCapabilityCodes as string[]) : [],
     mandatoryPackCodes: normalizePackCodes(content.mandatoryPackCodes),
-    deliverableCatalogue: (content.deliverableCatalogue as TemplateSeedInput["deliverableCatalogue"]) ?? [],
+    deliverableCatalogue: Array.isArray(content.deliverableCatalogue) ? (content.deliverableCatalogue as TemplateSeedInput["deliverableCatalogue"]) : [],
   };
 }
 
-function toProfileSeedInput(content: Record<string, unknown>): ProfileSeedInput {
+export function toProfileSeedInput(content: Record<string, unknown>): ProfileSeedInput {
   return {
     ...(content as unknown as ProfileSeedInput),
     configParameters: (content.configParameters as Record<string, unknown>) ?? {},
@@ -245,163 +135,305 @@ function toProfileSeedInput(content: Record<string, unknown>): ProfileSeedInput 
   };
 }
 
-function toTransitionDefinitionSeedInput(content: Record<string, unknown>): TransitionDefinitionSeedInput {
-  return {
-    ...(content as unknown as TransitionDefinitionSeedInput),
-    requiredPolicyCodes: (content.requiredPolicyCodes as string[]) ?? [],
-    requiredQualityGateCodes: (content.requiredQualityGateCodes as string[]) ?? [],
-  };
-}
-
-// Structural + referential validation, per kind — each has its own
-// (validatePackSeed etc., same reasoning as createPackDraft calling
-// validatePackSeed today).
-async function validateAuthoredContent(kind: SchemaDefinitionEntityKind, content: Record<string, unknown>): Promise<{ ok: true } | { ok: false; errors: string[] }> {
+// Structural + referential validation, per kind.
+export async function validateAuthoredContent(kind: SchemaDefinitionEntityKind, content: Record<string, unknown>): Promise<{ ok: true } | { ok: false; errors: string[] }> {
   if (kind === "Pack") return validatePackSeed(toPackSeedInput(content));
   if (kind === "Template") return validateTemplateSeed(toTemplateSeedInput(content));
   if (kind === "Profile") return validateProfileSeed(toProfileSeedInput(content));
-  if (kind === "TransitionDefinition") return validateTransitionDefinitionSeed(toTransitionDefinitionSeedInput(content));
-  return { ok: false, errors: [`no validator wired for kind "${kind}" yet`] };
+  return { ok: false, errors: [`no validator wired for kind "${kind}"`] };
 }
 
-// "Publish" (plan's Core Principle: reaching Baselined calls publishPack —
-// or the Template/Profile/Transition-Definition equivalent — as glue on
-// that one transition, not a new mechanism).
-async function publishAuthoredContentByKind(kind: SchemaDefinitionEntityKind, content: Record<string, unknown>): Promise<{ ok: true } | { ok: false; errors: string[] }> {
+// ---------------------------------------------------------------------------
+// The Draft row as an authoring document — reconstruct the form-shaped content.
+// ---------------------------------------------------------------------------
+function packRowToContent(pack: PackRow): Record<string, unknown> {
+  const c = (pack.contributions ?? {}) as PackContributions & Record<string, unknown[]>;
+  return {
+    code: pack.code,
+    name: pack.name,
+    category: pack.category,
+    packVersion: pack.pack_version,
+    installationClassification: pack.installation_classification,
+    contributionCapabilities: c.capabilities ?? [],
+    contributionServices: c.services ?? [],
+    contributionAuthorityRules: c.authorityRules ?? [],
+    contributionPolicies: c.policies ?? [],
+    contributionQualityGates: c.qualityGates ?? [],
+    contributionChecklists: (c as Record<string, unknown[]>).checklists ?? [],
+    contributionReviewGates: (c as Record<string, unknown[]>).reviewGates ?? [],
+    contributionObligationDefinitions: (c as Record<string, unknown[]>).obligationDefinitions ?? [],
+    contributionsCompliance: {
+      complianceFrameworks: (c as Record<string, unknown[]>).complianceFrameworks ?? [],
+      complianceRequirements: (c as Record<string, unknown[]>).complianceRequirements ?? [],
+    },
+    dependencies: pack.dependencies ?? [],
+    ...(pack.metadata ?? {}),
+  };
+}
+
+export interface AuthoringDraftSummary {
+  id: string;
+  code: string;
+  name: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface AuthoringDraft {
+  id: string;
+  code: string;
+  name: string;
+  status: string;
+  content: Record<string, unknown>;
+}
+
+export type AuthoringResult = { ok: true; draftId: string } | { ok: false; errors: string[] };
+export type AuthoringActionResult = { ok: true } | { ok: false; errors: string[] };
+
+function toSummary(r: { id: string; code: string; name: string; status: string; created_at: string }): AuthoringDraftSummary {
+  return { id: r.id, code: r.code, name: r.name, status: r.status, createdAt: r.created_at };
+}
+
+// --- Per-verb authoring lists (the tabs) ------------------------------------
+// One tab per verb the entity's noun actually has (however many that is —
+// Pack has 7, Template/Profile have 2), each showing what's CURRENTLY sitting
+// in the state that verb lands on:
+//   - `define` (birth, not a governed transition — see
+//     [[creation-authority-not-a-transition]]): Draft rows this actor authored
+//     (authored_by).
+//   - every other verb: rows currently in that state whose governed transition
+//     into it was run by this actor (the real actor + badge Part 1 now
+//     captures on every event) — "packs I validated", not just "packs that got
+//     validated by someone".
+// actorId null = unscoped (the admin/root view — every actor).
+// viewer — Pack ownership visibility (owner: "Active packs tab have to be
+// shown for all pack_* badges... platform packs + tenant packs corresponding
+// to the tenant the user belongs to"): ONLY consulted for Pack's live-catalog
+// tab (toState "Active") — every other tab is "rows I acted on", already
+// naturally scoped by actorId and unaffected by Pack ownership. null/root =
+// unscoped (every tenant's Active Packs, same as before this fix).
+export async function listAuthoringByVerb(kind: SchemaDefinitionEntityKind, verb: string, toState: string, actorId: number | null, viewer?: { isRoot: boolean; tenantId: string } | null): Promise<AuthoringDraftSummary[]> {
+  const authorityBadge = `${kind.toLowerCase()}_${verb}`;
+  if (verb === "define") {
+    if (kind === "Pack") {
+      const { data } = await packsDB.findDrafts(actorId);
+      return (data ?? []).filter((p) => p.status === toState).map(toSummary);
+    }
+    if (kind === "Template") {
+      const { data } = await templatesDB.findDrafts(actorId);
+      return (data ?? []).filter((t) => t.status === toState).map(toSummary);
+    }
+    if (kind === "Profile") {
+      const { data } = await profilesDB.findDrafts(actorId);
+      return (data ?? []).filter((p) => p.status === toState).map(toSummary);
+    }
+    return [];
+  }
   if (kind === "Pack") {
-    const result = await publishPack({ seed: toPackSeedInput(content), actorRole: "power", actorId: "1", activate: true });
-    return result.ok ? { ok: true } : { ok: false, errors: result.errors ?? ["publishPack failed"] };
+    const { data } = await packsDB.findByStatusActedBy(toState as PackRow["status"], authorityBadge, actorId);
+    const rows = data ?? [];
+    if (toState === "Active" && viewer && !viewer.isRoot) {
+      return rows.filter((p) => p.tenant_id === PLATFORM_TENANT_ID || p.tenant_id === viewer.tenantId).map(toSummary);
+    }
+    return rows.map(toSummary);
   }
   if (kind === "Template") {
-    const result = await publishTemplate(toTemplateSeedInput(content));
-    return result.ok ? { ok: true } : { ok: false, errors: result.errors };
+    const { data } = await templatesDB.findByStatusActedBy(toState as TemplateRow["status"], authorityBadge, actorId);
+    return (data ?? []).map(toSummary);
   }
   if (kind === "Profile") {
-    const result = await publishProfile(toProfileSeedInput(content));
-    return result.ok ? { ok: true } : { ok: false, errors: result.errors };
+    const { data } = await profilesDB.findByStatusActedBy(toState as ProfileRow["status"], authorityBadge, actorId);
+    return (data ?? []).map(toSummary);
   }
-  if (kind === "TransitionDefinition") {
-    const result = await publishTransitionDefinition(toTransitionDefinitionSeedInput(content));
-    return result.ok ? { ok: true } : { ok: false, errors: result.errors };
+  return [];
+}
+
+// --- Per-verb "Queue" tabs (owner: "add a tab to show what is the queue
+// applicable to the badge you hold... a tab to show queue that needs
+// validation") — every row currently sitting in fromState, full stop, not
+// scoped to who (if anyone) already acted — the complement to
+// listAuthoringByVerb above, which only ever answers "what did I already do."
+// No `define` queue: Draft is birth, not a hop consumed from some prior
+// state, so there's nothing to queue there (see [[creation-authority-not-a-
+// transition]]). viewer null = unscoped (root — every tenant's queue).
+export async function listAuthoringQueue(kind: SchemaDefinitionEntityKind, fromState: string, viewer?: { isRoot: boolean; tenantId: string } | null): Promise<AuthoringDraftSummary[]> {
+  if (kind === "Pack") {
+    const { data } = await packsDB.findByStatus(fromState as PackRow["status"], viewer && !viewer.isRoot ? viewer.tenantId : null);
+    return (data ?? []).map(toSummary);
   }
-  return { ok: false, errors: [`no publisher wired for kind "${kind}" yet`] };
-}
-
-export interface AuthoringActionResult {
-  ok: boolean;
-  deliverable?: DeliverableRow;
-  errors?: string[];
-}
-
-// "Review" (plan's Core Principle: In Progress -> Approved, Quality-Gate-
-// checked "same machinery as everything else"). validatePackSeed runs first,
-// same structural checks createPackDraft already applies, so the actor gets
-// real errors before the acting-badge/dispatch machinery even runs — not
-// wired as a new Quality Gate criteria type (no quality_gates row exists for
-// generic Deliverable In Progress -> Approved, and per the plan's decision,
-// none should fork by category), so this validation happens directly here,
-// the same place validatePackSeed is already called from today.
-export async function submitForReview(input: { deliverableId: string; kind: SchemaDefinitionEntityKind; actorId: string; actorRole: string }): Promise<AuthoringActionResult> {
-  const { data: deliverable } = await deliverablesDB.findById(input.deliverableId);
-  if (!deliverable) return { ok: false, errors: ["Deliverable not found"] };
-
-  const { data: content } = await deliverableAuthoringContentDB.findByDeliverableId(input.deliverableId);
-  if (!content) return { ok: false, errors: ["no authoring content found for this Deliverable"] };
-
-  const validation = await validateAuthoredContent(input.kind, content.content);
-  if (!validation.ok) return { ok: false, errors: validation.errors };
-
-  await ensureAuthoringBadge(input.actorId, "approver", input.kind);
-
-  const result = await transitionAuthoringDeliverableInSession({ deliverableId: input.deliverableId, targetState: "Approved", actorId: input.actorId, actorRole: input.actorRole });
-  if (!result.ok) return { ok: false, errors: [describeTransitionFailure(result)] };
-  return { ok: true, deliverable: result.deliverable };
-}
-
-// "Publish" (plan's Core Principle: reaching Baselined calls publishPack —
-// or the Template/Profile/Transition-Definition equivalent once those are
-// wired — as glue on that one transition, not a new mechanism). Validated
-// once more before the Deliverable is allowed to reach Baselined, so a
-// Baselined authoring Deliverable with no real Pack behind it (publishPack
-// failing after the fact) stays a rare, surfaced failure rather than the
-// common case.
-//
-// Approved -> Baselined already carries a real, generic Quality Gate since
-// Phase 5 ("requires_accepted_evidence_or_approved_decision") that applies
-// to every Deliverable reaching Baselined, authoring ones included — the
-// SDK UI Layer Plan's own "no per-category Quality Gate overrides" decision
-// (Transition Definition section) means an authoring Deliverable does not
-// get to skip it, it has to actually satisfy it. The structural + referential
-// validation that just ran above *is* the evidence that this content is fit
-// to publish, so it's recorded as real Evidence and walked to Accepted here
-// — the same mechanism (and the same Collected -> Validated -> Accepted
-// walk) tests/trust-pipeline.test.ts and tests/quality-telemetry.test.ts
-// already use for any other Deliverable reaching Baselined, not a bypass.
-export async function publishAuthoredContent(input: { deliverableId: string; kind: SchemaDefinitionEntityKind; actorId: string; actorRole: string }): Promise<AuthoringActionResult> {
-  const { data: deliverable } = await deliverablesDB.findById(input.deliverableId);
-  if (!deliverable) return { ok: false, errors: ["Deliverable not found"] };
-
-  const { data: content } = await deliverableAuthoringContentDB.findByDeliverableId(input.deliverableId);
-  if (!content) return { ok: false, errors: ["no authoring content found for this Deliverable"] };
-
-  const validation = await validateAuthoredContent(input.kind, content.content);
-  if (!validation.ok) return { ok: false, errors: validation.errors };
-
-  const evidence = await createEvidence({
-    seuId: deliverable.seu_id,
-    relatedObjectType: "Deliverable",
-    relatedObjectId: deliverable.id,
-    category: "Validation",
-    title: `${AUTHORING_CATEGORY[input.kind]} structural + referential validation passed`,
-    source: "sdkAuthoring.publishAuthoredContent",
-  });
-  const toValidated = await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorRole: input.actorRole, actorId: input.actorId });
-  if (!toValidated.ok) return { ok: false, errors: [`could not record validation evidence: ${toValidated.reason}`] };
-  const toAccepted = await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorRole: input.actorRole, actorId: input.actorId });
-  if (!toAccepted.ok) return { ok: false, errors: [`could not accept validation evidence: ${toAccepted.reason}`] };
-
-  const result = await transitionAuthoringDeliverableInSession({ deliverableId: input.deliverableId, targetState: "Baselined", actorId: input.actorId, actorRole: input.actorRole });
-  if (!result.ok) return { ok: false, errors: [describeTransitionFailure(result)] };
-
-  const published = await publishAuthoredContentByKind(input.kind, content.content);
-  if (!published.ok) return { ok: false, errors: published.errors };
-
-  return { ok: true, deliverable: result.deliverable };
-}
-
-// SDK authoring is the canonical human-on-UI *synchronous* completion (Model
-// A / Participant Integration Plan, Resolution 11): the author IS the
-// Participant, present in this session and doing the work now, so the
-// dispatched Work Item is completed in the same call rather than waiting for
-// an out-of-process callback. The "output" is the in-platform authoring
-// content itself — there is no external VCS artifact for an authoring document
-// — referenced by a stub URI. This deliberately routes the internal flow
-// through the exact same dispatch -> complete machinery an external Participant
-// uses, so the core stays transition-type- and edge-invariant: authoring is
-// just one edge (the in-session UI) among many.
-async function transitionAuthoringDeliverableInSession(input: {
-  deliverableId: string;
-  targetState: string;
-  actorId: string;
-  actorRole: string;
-}): Promise<{ ok: true; deliverable: DeliverableRow } | (TransitionDeliverableResult & { ok: false })> {
-  const dispatched = await transitionDeliverable(input);
-  if (!dispatched.ok) return dispatched;
-  const completed = await completeWorkItem({
-    workItemId: dispatched.workItemId,
-    outcome: "done",
-    reference: `authoring-content://${input.deliverableId}`,
-  });
-  if (!completed.ok || completed.outcome !== "done") {
-    throw new Error(`in-session authoring completion failed: ${completed.ok ? completed.outcome : completed.detail}`);
+  // Template/Profile have exactly one non-define verb (publish, Draft ->
+  // Active) and no Pack-style tenant ownership — their only possible
+  // fromState is "Draft", already unscoped-available via findDrafts(null).
+  if (kind === "Template") {
+    const { data } = await templatesDB.findDrafts(null);
+    return (data ?? []).filter((t) => t.status === fromState).map(toSummary);
   }
-  return { ok: true, deliverable: completed.deliverable };
+  if (kind === "Profile") {
+    const { data } = await profilesDB.findDrafts(null);
+    return (data ?? []).filter((p) => p.status === fromState).map(toSummary);
+  }
+  return [];
 }
 
-function describeTransitionFailure(result: TransitionDeliverableResult): string {
-  if (result.ok) return "";
-  if (result.reason === "quality_gate_blocked" || result.reason === "authority_denied" || result.reason === "policy_blocked" || result.reason === "no_transition_definition" || result.reason === "dispatch_deferred" || result.reason === "empty_centre") {
-    return `${result.reason}: ${result.detail}`;
+// --- Get one draft (form-shaped content) ------------------------------------
+export async function getAuthoringDraft(kind: SchemaDefinitionEntityKind, id: string): Promise<AuthoringDraft | null> {
+  if (kind === "Pack") {
+    const { data: pack } = await packsDB.findById(id);
+    if (!pack) return null;
+    return { id: pack.id, code: pack.code, name: pack.name, status: pack.status, content: packRowToContent(pack) };
   }
-  return result.reason;
+  if (kind === "Template") {
+    const { data: t } = await templatesDB.findById(id);
+    if (!t) return null;
+    return { id: t.id, code: t.code, name: t.name, status: t.status, content: { code: t.code, name: t.name, ...(t.draft_content ?? {}) } };
+  }
+  if (kind === "Profile") {
+    const { data: p } = await profilesDB.findById(id);
+    if (!p) return null;
+    return { id: p.id, code: p.code, name: p.name, status: p.status, content: { code: p.code, name: p.name, ...(p.draft_content ?? {}) } };
+  }
+  return null;
+}
+
+// --- Create a Draft from authored content (real author) ---------------------
+// tenantId (Pack ownership, owner: "Packs will have ownership") — the real
+// author's own tenant_id (Platform tenant for a Platform-type author), read
+// off their session by the web route and passed straight through; Template/
+// Profile don't have Pack's tenant_id column, so it's ignored for those kinds.
+export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntityKind; actorId: string; tenantId?: string; content: Record<string, unknown> }): Promise<AuthoringResult> {
+  const authoredBy = Number(input.actorId);
+  if (input.kind === "Pack") {
+    // A Pack Draft is created directly (status Draft) from the authored content;
+    // full structural/referential validation is the publish-time gate, not the
+    // draft gate (WIP is allowed to be incomplete). Code is a system UUID.
+    const seed = toPackSeedInput(input.content);
+    const { data: pack, error } = await packsDB.create({
+      code: seed.code,
+      name: (seed.name as string) || "(untitled Pack)",
+      category: seed.category,
+      packVersion: seed.packVersion,
+      installationClassification: seed.installationClassification,
+      contributions: seed.contributions,
+      dependencies: seed.dependencies,
+      metadata: packMetadataFromSeed(seed),
+      authoredBy,
+      tenantId: input.tenantId,
+    });
+    if (error || !pack) return { ok: false, errors: [(error ?? new Error("failed to create Pack draft")).message] };
+    return { ok: true, draftId: pack.id };
+  }
+  if (input.kind === "Template") {
+    const code = (input.content.code as string)?.trim();
+    if (!code) return { ok: false, errors: ["a Template code is required to start a draft"] };
+    const { data: t, error } = await templatesDB.createDraft({ code, name: (input.content.name as string) || "(untitled Template)", authoredBy, draftContent: input.content });
+    if (error || !t) return { ok: false, errors: [(error ?? new Error("failed to create Template draft")).message] };
+    return { ok: true, draftId: t.id };
+  }
+  if (input.kind === "Profile") {
+    const code = (input.content.code as string)?.trim();
+    if (!code) return { ok: false, errors: ["a Profile code is required to start a draft"] };
+    const baseTemplateCode = (input.content.baseTemplateCode as string)?.trim();
+    if (!baseTemplateCode) return { ok: false, errors: ["a base Template code is required to start a Profile draft"] };
+    const { data: template } = await templatesDB.findByCode(baseTemplateCode);
+    if (!template) return { ok: false, errors: [`baseTemplateCode "${baseTemplateCode}" not found`] };
+    const { data: p, error } = await profilesDB.createDraft({
+      code,
+      name: (input.content.name as string) || "(untitled Profile)",
+      baseTemplateId: template.id,
+      environment: (input.content.environment as string) || "development",
+      authoredBy,
+      draftContent: input.content,
+    });
+    if (error || !p) return { ok: false, errors: [(error ?? new Error("failed to create Profile draft")).message] };
+    return { ok: true, draftId: p.id };
+  }
+  return { ok: false, errors: [`kind "${input.kind}" is not authorable`] };
+}
+
+// --- Save (update a Draft's content) ----------------------------------------
+export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKind; id: string; content: Record<string, unknown> }): Promise<AuthoringActionResult> {
+  if (input.kind === "Pack") {
+    const seed = toPackSeedInput({ ...input.content });
+    const { data, error } = await packsDB.updateDraftContent(input.id, {
+      name: (seed.name as string) || "(untitled Pack)",
+      category: seed.category,
+      packVersion: seed.packVersion,
+      installationClassification: seed.installationClassification,
+      contributions: seed.contributions,
+      dependencies: seed.dependencies,
+      metadata: packMetadataFromSeed(seed),
+    });
+    if (error) return { ok: false, errors: [error.message] };
+    if (!data) return { ok: false, errors: ["draft not found or no longer editable (only Draft rows can be saved)"] };
+    return { ok: true };
+  }
+  if (input.kind === "Template") {
+    const { data, error } = await templatesDB.updateDraftContent(input.id, { name: (input.content.name as string) || "(untitled Template)", draftContent: input.content });
+    if (error) return { ok: false, errors: [error.message] };
+    if (!data) return { ok: false, errors: ["draft not found or no longer editable"] };
+    return { ok: true };
+  }
+  if (input.kind === "Profile") {
+    const baseTemplateCode = (input.content.baseTemplateCode as string)?.trim();
+    if (!baseTemplateCode) return { ok: false, errors: ["a base Template code is required"] };
+    const { data: template } = await templatesDB.findByCode(baseTemplateCode);
+    if (!template) return { ok: false, errors: [`baseTemplateCode "${baseTemplateCode}" not found`] };
+    const { data, error } = await profilesDB.updateDraftContent(input.id, {
+      name: (input.content.name as string) || "(untitled Profile)",
+      baseTemplateId: template.id,
+      environment: (input.content.environment as string) || "development",
+      configParameters: (input.content.configParameters as Record<string, unknown>) ?? {},
+      draftContent: input.content,
+    });
+    if (error) return { ok: false, errors: [error.message] };
+    if (!data) return { ok: false, errors: ["draft not found or no longer editable"] };
+    return { ok: true };
+  }
+  return { ok: false, errors: [`kind "${input.kind}" is not authorable`] };
+}
+
+export type AdvanceAuthoringDraftResult = { ok: true; status: string } | { ok: false; errors: string[] };
+
+// --- Advance one governed hop (real actor + badge for THAT hop only) --------
+// Owner: separation of duties — the seeded pack-validate@/pack-publish@/
+// pack-activate@ Athens accounts each hold exactly ONE Pack lifecycle verb, so
+// "publish" can't chain the whole remaining pipeline (that would require one
+// actor to hold every remaining verb, and a single-verb holder could never
+// perform their own step). This runs exactly the NEXT hop off the draft's
+// current status — for Pack that's Draft->Validated->Published->Active one at
+// a time (see advancePackOneStep); Template/Profile only ever have the one hop
+// (Draft -> Active, verb `publish`), so they're unchanged. Returns the status
+// reached so the caller knows whether to stay on the draft (more hops left) or
+// treat it as done (reached the live state).
+export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntityKind; id: string; actorId: string; actorRole: string }): Promise<AdvanceAuthoringDraftResult> {
+  if (input.kind === "Pack") {
+    const { data: pack } = await packsDB.findById(input.id);
+    if (!pack) return { ok: false, errors: ["Pack draft not found"] };
+    // Full structural/referential validation gates the FIRST hop out of Draft
+    // — an incomplete document must never leave Draft. Later hops trust that
+    // gate already ran (the authored content doesn't change between hops).
+    if (pack.status === "Draft") {
+      const seed = toPackSeedInput(packRowToContent(pack));
+      const validation = await validatePackSeed(seed);
+      if (!validation.ok) return { ok: false, errors: validation.errors };
+    }
+    const advanced = await advancePackOneStep(pack, input.actorRole, input.actorId);
+    if (!advanced.ok || !advanced.pack) return { ok: false, errors: advanced.errors ?? ["advance failed"] };
+    return { ok: true, status: advanced.pack.status };
+  }
+  if (input.kind === "Template") {
+    const { data: t } = await templatesDB.findById(input.id);
+    if (!t) return { ok: false, errors: ["Template draft not found"] };
+    const seed = toTemplateSeedInput({ code: t.code, name: t.name, ...(t.draft_content ?? {}) });
+    const result = await publishTemplateDraft({ templateId: t.id, seed, actorRole: input.actorRole, actorId: input.actorId });
+    return result.ok ? { ok: true, status: "Active" } : { ok: false, errors: result.errors };
+  }
+  if (input.kind === "Profile") {
+    const { data: p } = await profilesDB.findById(input.id);
+    if (!p) return { ok: false, errors: ["Profile draft not found"] };
+    const seed = toProfileSeedInput({ code: p.code, name: p.name, ...(p.draft_content ?? {}) });
+    const result = await publishProfileDraft({ profileId: p.id, seed, actorRole: input.actorRole, actorId: input.actorId });
+    return result.ok ? { ok: true, status: "Active" } : { ok: false, errors: result.errors };
+  }
+  return { ok: false, errors: [`kind "${input.kind}" is not authorable`] };
 }

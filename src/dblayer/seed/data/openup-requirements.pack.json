@@ -1,0 +1,77 @@
+{
+  "code": "openup-requirements",
+  "name": "Requirements (OpenUP Capability Pattern)",
+  "category": "Platform",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "EPF/OpenUP's Requirements capability pattern, modelled as a Pack: the Stakeholder/Analyst roles, work products, and tasks for eliciting, detailing, and reviewing requirements.",
+  "owner": "EPF/OpenUP Practice Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "requirements-management",
+        "name": "Requirements Management",
+        "description": "Elicits, details, and maintains traceable requirements on behalf of Stakeholders (OpenUP Analyst/Stakeholder roles).",
+        "category": "Engineering"
+      }
+    ],
+    "services": [
+      {
+        "code": "vision",
+        "capabilityCode": "requirements-management",
+        "name": "Vision",
+        "contractDescription": "A shared statement of the problem, stakeholders, and high-level scope of the solution."
+      },
+      {
+        "code": "requirements-specification",
+        "capabilityCode": "requirements-management",
+        "name": "Requirements Specification",
+        "contractDescription": "Detailed, reviewable statements of what the solution must do — specific enough for Development and Test to act on."
+      },
+      {
+        "code": "glossary",
+        "capabilityCode": "requirements-management",
+        "name": "Glossary",
+        "contractDescription": "Shared definitions of domain terms used consistently across requirements, design, and test."
+      }
+    ],
+    "checklists": [
+      {
+        "code": "find-and-outline-requirements",
+        "statement": "Stakeholder needs and constraints have been elicited and outlined as candidate requirements.",
+        "classification": "human-attested",
+        "prompt": "Have stakeholder needs, constraints, and candidate requirements been captured and outlined?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes"
+      },
+      {
+        "code": "detail-requirements",
+        "statement": "Candidate requirements have been elaborated to a level Development and Test can act on.",
+        "classification": "judgment",
+        "prompt": "Review the requirement detail: is it specific, testable, and unambiguous?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes"
+      },
+      {
+        "code": "manage-requirements-dependencies",
+        "statement": "Dependencies and traceability between requirements, and from requirements to downstream work, are recorded.",
+        "classification": "machine-verifiable",
+        "prompt": "Verify every requirement traces to at least one downstream Deliverable or is explicitly marked out of scope.",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes"
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "review-requirements",
+        "statement": "The Requirements Specification has been reviewed and accepted by its Stakeholder(s).",
+        "classification": "human-attested",
+        "prompt": "Do the requirements reflect what the Stakeholder actually needs, and are they approved?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance"
+      }
+    ]
+  }
+}

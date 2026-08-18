@@ -473,6 +473,8 @@ export async function transitionObjective(input: { objectiveId: string; targetSt
     originatingObjectId: objective.id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
+    actorId: input.actorId ?? null,
+    authorityBadge: gate.authorityBadge,
   });
 
   return { ok: true, objective: updated, appliedTransition: { fromState, toState: input.targetState } };

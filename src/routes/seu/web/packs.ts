@@ -12,11 +12,17 @@ import { listPacksWithNextStates, transitionPack } from "../core/packs.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 
 /** GET /aisworg/seu/packs — Ch.38 §10 Pack Registry: every published Version of every Pack. */
+// Pack ownership visibility (owner: "Platform packs will be available to all
+// users of the platform. Tenant packs are visible only to the tenant
+// users."): root still sees the whole Registry (every tenant); everyone else
+// sees Platform-owned Packs plus their own tenant's.
 router.get("/packs", attachVM("seu/packs/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Packs";
     const params = parseListParams(req.query, { sortable: ["name", "version", "status", "category"], defaultSort: "name", defaultDir: "asc" });
-    const packs = await listPacksWithNextStates();
+    const isRoot = (req.session?.user?.platformBadges ?? []).includes("root");
+    const viewerTenantId = req.session?.user?.tenant_id ?? null;
+    const packs = await listPacksWithNextStates(viewerTenantId ? { isRoot, tenantId: viewerTenantId } : null);
     req.vm.req.list = paginateList(packs, params, {
       searchFields: [(p) => p.pack.name, (p) => p.pack.code, (p) => p.pack.category],
       sortFields: { name: (p) => p.pack.name, version: (p) => p.pack.pack_version, status: (p) => p.pack.status, category: (p) => p.pack.category },

@@ -1,0 +1,64 @@
+{
+  "code": "openup-test",
+  "name": "Test (OpenUP Capability Pattern)",
+  "category": "Platform",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "EPF/OpenUP's Test capability pattern, modelled as a Pack: the Tester role, test work products, and the tasks for identifying, implementing, and evaluating tests against requirements.",
+  "owner": "EPF/OpenUP Practice Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "testing",
+        "name": "Testing",
+        "description": "Verifies the solution against requirements and quality expectations, on behalf of the Tester role.",
+        "category": "Engineering"
+      }
+    ],
+    "services": [
+      {
+        "code": "test-case",
+        "capabilityCode": "testing",
+        "name": "Test Case",
+        "contractDescription": "A specific, repeatable check of solution behaviour against a requirement."
+      },
+      {
+        "code": "test-evaluation-summary",
+        "capabilityCode": "testing",
+        "name": "Test Evaluation Summary",
+        "contractDescription": "A summary assessment of test results and residual risk/quality for this increment."
+      }
+    ],
+    "checklists": [
+      {
+        "code": "identify-and-refine-test-ideas",
+        "statement": "Test ideas covering the requirement's normal, boundary, and failure behaviour have been identified.",
+        "classification": "judgment",
+        "prompt": "Do the identified test ideas cover normal, boundary, and failure behaviour for this requirement?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes"
+      },
+      {
+        "code": "implement-test",
+        "statement": "Test cases have been implemented and are repeatable.",
+        "classification": "machine-verifiable",
+        "prompt": "Execute the implemented test cases and report pass/fail with notes.",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "externalEvidence": true
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "test-and-evaluate",
+        "statement": "Test results have been evaluated and the solution's quality/residual risk assessed.",
+        "classification": "judgment",
+        "prompt": "Given the test results, is the solution's quality acceptable, and is residual risk understood?",
+        "participant": "AI+human",
+        "outputContract": "assessment-acceptance"
+      }
+    ]
+  }
+}

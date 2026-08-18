@@ -38,6 +38,11 @@ pnpm test
 If you ever need to run a single file directly instead of the whole suite, keep the same env var:
 NODE_ENV=test npx tsx --test tests/<file>.test.ts
  
+https://zenfy.ac/get-started/
 
 obj-propose@babylon.com
 obj-propose@athens.com
+pack-define@athens.com
+pack_all@platform.com
+
+Capability Patterns (reusable process fragments)

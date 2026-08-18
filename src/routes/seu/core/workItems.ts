@@ -17,6 +17,7 @@ import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { deliverableReferencesDB } from "../../../dblayer/deliverableReferencesDB.js";
 import { attestationsDB } from "../../../dblayer/attestationsDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
+import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { raiseAttentionItem } from "./attentionItems.js";
 import type { DeliverableRow, WorkItemRow } from "../../../dblayer/seuTypes.js";
@@ -146,6 +147,11 @@ export async function completeWorkItem(input: {
     });
   }
 
+  // Accountability record (bug fix correcting CR-014): the real actor who
+  // initiated this Deliverable transition (command.requested_by), and the
+  // `noun_verb` badge it was authorised under (derived from the same transition
+  // definition the dispatch was gated on). Never a system substitute.
+  const { data: deliverableTd } = await transitionDefinitionsDB.find("Deliverable", command.from_state, command.to_state);
   await eventBus.publish({
     eventType: "DeliverableTransitioned",
     originatingObjectType: "Deliverable",
@@ -153,6 +159,8 @@ export async function completeWorkItem(input: {
     correlationId,
     causationId: workItem.id,
     payload: { fromState: command.from_state, toState: command.to_state, commandId: command.id, workItemId: workItem.id, participantId: workItem.participant_id, reference: input.reference ?? null },
+    actorId: command.requested_by != null ? String(command.requested_by) : null,
+    authorityBadge: deliverableTd?.verb ? `deliverable_${deliverableTd.verb}` : null,
   });
 
   await workItemsDB.updateStatus(workItem.id, "Completed");

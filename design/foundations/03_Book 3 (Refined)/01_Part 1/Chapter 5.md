@@ -567,3 +567,261 @@ Implementation of this chapter shall produce:
 - Pack lifecycle services.
 - Pack APIs.
 - Pack events.
+
+---
+
+
+# 19. Implementation Specifics
+
+*Recorded 2026-08-13. This section documents how the Pack Model is realised in the current build. It does not change the requirements above (PM-001–005, §§6–17); it records what is built, what is partial, and what is still open — the same convention as Chapter 1 §18 (keep the normative spec stable; capture realisation decisions separately). Status markers: ✅ built · ⚠️ partial · ***open*** not built.*
+
+## 19.1 A Pack is a persisted row; contributions are declarative JSONB — ✅ (the "Packs are Declarative" ADR, realised)
+
+A Pack is a single `packs` row (migration `002`). Its behaviour lives entirely in a declarative `contributions` JSONB payload and a `dependencies` JSONB array — **no executable code**. At publish time `seedContributions` (`core/packs.ts`) interprets that payload into real vocabulary rows (Capabilities, Services, Authority Rules, Policies, Quality Gates, Compliance Frameworks/Requirements); the Composition Engine and the generic engines then interpret those. This is the ADR from the chapter preamble made literal: a Pack is reasoned about, validated, composed and authored (via the SDK UI) without ever executing arbitrary code.
+
+## 19.2 Identity and immutable versioning — ✅ (PM-003, §12)
+
+Pack identity is `(code, pack_version)` (`UNIQUE`, migration `010`), not `code` alone. Each published version is its own immutable row; republishing under a new version creates a new row and transitions the previously-Active version of the same code to `Deprecated` (`publishPack`). Every EBM records the exact `packCode` + `packVersion` it composed (`compositionEngine` → `composedPacks`), so a historical EBM is reproducible (§12, §11 "historical versions remain available"). **Caveat (Ch.41 scope note):** immutability is enforced at the **Pack-row** level only — the individual contributed sub-objects (capabilities, policies, authority rules, quality gates) still upsert by their own `code`, so a re-published Pack version can mutate a shared contributed object in place. Generalising immutability to every contributed object is a known residual gap, not solved here.
+
+## 19.3 Lifecycle is governed by the same engine as every entity — ✅ (§11)
+
+`packs.status` carries all seven states (`Draft → Validated → Published → Active → Deprecated → Retired → Archived`, CHECK in `002`), and Pack is a first-class `TransitionEntityType` — its lifecycle runs through the same generic `transitionEngine` as Deliverables/Objectives/etc., with authority + policy declared as ordinary `transition_definitions` rows (no Pack-specific evaluation code). `createPackDraft`/`advancePackLifecycle`/`publishPack`/`transitionPack` drive the hops. Reactivation from a terminal state does **not** resurrect the old row — it mints a new version (`reactivateAsNewVersion`), preserving §12 immutability.
+
+## 19.4 Contributions — structured & schema-defined; verifiable types added — ✅ mostly (§9; CR-016)
+
+Contributions are no longer an opaque JSON blob. The Pack grammar declares each kind as a **flattened, structured list** (`contributionCapabilities[]`, `contributionServices[]`, `contributionAuthorityRules[]`, `contributionPolicies[]`, `contributionQualityGates[]`, `contributionChecklists[]`, `contributionReviewGates[]`, `contributionObligationDefinitions[]`), so the form and validation follow from the validator (CR-016). At publish they are reassembled into `PackContributions` (`seuTypes.ts`) and persist in `packs.contributions` (JSONB).
+
+- **Built (Pack-contributable):** Capabilities; Services; Authority/Decision Rules; Policies **and** Standards (`constraintType`); Quality Gates; **Checklists; Review Gates; Obligation Definitions** (new — CR-016); Compliance Frameworks + Requirements (kept a raw-JSON `contributionsCompliance` field — deeply nested).
+- **Verifiable items** (checklist item, quality-gate criterion, review requirement, obligation) carry their own §20 fields — `statement`, `classification` (machine-verifiable / judgment / human-attested), `externalEvidence`, `prompt`, `participant`, `outputContract`, `assurance` — **per item** (a checklist can hold a machine-verifiable *and* a judgment item).
+- **Still not Pack-contributable:** Ontology, Knowledge Assets, User-Interface Components, Templates (a separate top-level entity that *references* Packs), and Metrics-via-Pack.
+- **Materialisation caveat:** `seedContributions` still materialises only Capabilities/Services/Authority Rules/Policies/Quality Gates into their tables. Checklists/Review Gates/Obligation Definitions and the §20 fields live in `packs.contributions` (JSONB) **only** — declaration; nothing consumes them yet (§19.14 execution).
+
+## 19.5 Metadata coverage — ✅ built (§8; CR-018)
+
+`packs` carries the §8 set: Identifier (`id`/`code`), Name, Category, Version (`pack_version`), Status, Installation Classification, Dependencies, Contributions, and — added by CR-018 — **Description, Owner, Publisher, Composition Strategy, Supported Platform Version** (plus the §13 compatibility fields, §19.9). These live in a `packs.metadata` (JSONB) column, authored on the form and validated for shape. **Declaration only:** Composition Strategy is recorded but composition still applies the fixed "later-overrides-earlier" (Override) strategy (§19.7/§19.8); `owner`/`publisher` are free text (no Identity linkage yet).
+
+## 19.6 Taxonomy is data-driven — ✅ built (§6/§17; CR-015)
+
+Pack categories are **data**: a `pack_category` table (code / label / `is_active`, same discipline as `authority_nouns`) holds them, the hardcoded `packs.category` CHECK is dropped, and category is validated in code against active rows. The Pack grammar's `category` is a **referential select** sourced from the table, so a **new category is a data insert** that flows to the form with no code change — closing §16/§17's "new Pack categories without changing the Runtime Kernel." (The same treatment CR-006 gave the authority noun vocabulary.)
+
+## 19.7 Installation classification is recorded; composition-time enforcement is partial — ⚠️ (§7)
+
+`installation_classification` stores all four values (Mandatory / Recommended / Optional / Conditional), but **composition membership is driven by the Template and Profile, not by the classification column**: `compositionEngine` composes the **Template's mandatory Pack set** + the **Profile's optional Pack set** (`templatesDB.getMandatoryPackCodes` / `profilesDB.getOptionalPackCodes`). Consequences vs §7: "Mandatory = required for *every* SEU" is realised as "in the Template's mandatory set," not as an automatic platform-wide inclusion of every Mandatory-classified Pack; **Recommended** does not yet emit an "omitted" warning; **Conditional** conditions are not evaluated. The classification is today closer to descriptive metadata than an enforced composition rule.
+
+## 19.8 Composition conflict detection stands in for "Incompatible Packs prevent composition" — ✅ (§17)
+
+Composition is deterministic (`002`/Ch.4): a resolved Pack with no Active version is **excluded with a warning** (never silently dropped), and a Pack contributed more than once is resolved by the **Override** strategy (later wins, with a warning). Genuine **cross-Pack governance conflicts** — two different Packs assigning different authorised roles to the same transition, or two Packs contributing a Quality Gate to the same `(entityType, fromState, toState)` — are detected by `detectGovernanceConflicts` and **block commissioning** (FR-3.6 / FR-21.7) until resolved. This is how "incompatible Packs prevent composition" (§17) is realised in practice. The declared **Incompatible dependency type** (§10) now exists on the validator (CR-018) but is **not yet enforced** at composition (§19.9).
+
+## 19.9 Dependencies, compatibility, and dependency events — ⚠️ declared, enforcement ***open*** (§10, §13, §15)
+
+- **Dependencies (§10).** The `dependencies` JSONB now declares the full type set — **`required` / `optional` / `conditional` / `incompatible`** (CR-018) — and `validatePackSeed` resolves *required* deps at author time. But there is still **no transitive dependency resolution at composition** — composition uses the Template/Profile Pack sets (§19.7), not each Pack's declared dependencies; optional/conditional/incompatible are recorded, not acted on. ***Enforcement open.***
+- **Compatibility (§13).** The **fields are now declared** and stored (CR-018): `supportedPlatformVersion`, `minSupportedPlatformVersion`, `maxSupportedPlatformVersion`, `incompatiblePackVersions`, `migrationGuidance`. But nothing **validates** compatibility at composition, and there is no platform-version concept to compare against yet. ***Enforcement open.***
+- **Events (§15).** Lifecycle events are published, one per hop (`PackRegistered` on draft creation; `PackValidated / PackPublished / PackActivated / PackDeprecated / PackRetired / PackArchived` on transition). **`PackDependencyResolved` / `PackDependencyFailed` are not published**, consistent with dependency resolution not being built. ***Open.***
+
+## 19.10 Traceability of every contribution — ✅ (PM-005)
+
+Every contributed vocabulary row carries an `originating_pack_id` FK back to `packs(id)` (capabilities, services, authority_rules, policies — `002`; governance depth — `006`; metric_definitions — `017`; compliance — `029`). A contribution is therefore always traceable to the Pack (and, with §19.2's versioned row, the Pack *version*) that introduced it. This FK is also what `db:clean-slate` keys on to keep base-Pack vocabulary while removing test-fixture Packs.
+
+## 19.11 Packs are authored entity-direct; the validator is the single source of truth — ✅ (§14; CR-015/016/017; entity-direct authoring corrected 2026-08-17, folded into CR-014)
+
+Pack, Template and Profile are the three entity-direct-authored kinds (`schema_definitions` entity kinds `Pack`/`Template`/`Profile`; the `/aisworg/seu/sdk/{pack,template,profile}-authoring` surfaces — Transition Definition is authored through its own noun × verb form instead, CR-019, not this pipeline). Authoring is **entity-direct**: a Draft row of the entity itself (`createAuthoringDraft`), edited in place (`saveAuthoringDraft`), and driven through §19.3's governed lifecycle **one governed hop at a time** (`publishAuthoringDraft`), each hop under the **real session actor**, gated on that hop's own `{kind}_<verb>` badge. There is no bootstrap SEU, no Deliverable indirection, and no system actor standing in for the author — a bug fix correcting CR-014 (2026-08-17; see [[every-transition-real-actor-and-badge]]), which had wrapped authoring in exactly that indirection to dodge a perceived double-gate. The **versioned schema validator** (`schema_definitions`) is the single source of truth: the form is generated *from* it (`formGenerator`) and every submission **and JSON import** is validated *against* it (`validateAgainstSchema` — hard-reject on import, warn-not-block on incremental save; CR-015). A Pack's `code` is a **system UUID**, not a hand-typed field (CR-015). And the **validator itself is now authored in a form**, not raw JSON — the schema registry generates its form from a constrained *meta-schema* and compiles the authored field list to the stored JSON Schema (CR-017; raw-JSON kept as an "Advanced" path for nested shapes). Net: adding/changing a Pack/Template/Profile field is a governed, form-driven change to the validator — the form and validation follow.
+
+## 19.12 Relationship to Chapter 1 §10 (Objective → Capability derivation)
+
+Chapter 1 §10 envisages required Capabilities being **derived** from Objective content "using Capability Packs (Chapter 5)." A Pack **does** contribute Capability *definitions* today (§19.4), but the Objective-content-to-Capability **derivation mechanism** itself is not built (only explicit declaration + a word-overlap suggestion heuristic) — tracked as **CR-011**. The Pack side (a place for contributed Capabilities to live, traceably) is ready; the derivation step that would consume it is the open half.
+
+## 19.13 Pack authority — badge-based (noun × verb), no Pack-specific code — ✅
+
+Pack authorisation rides the CR-006 `noun × verb` badge model with **zero Pack-specific code**, exactly as Objectives do (Ch.1 §18.10). `Pack` is a noun; every Pack transition carries a verb (`authorityVocabulary.json`); `transitionPack` calls `transitionEngine.evaluate({ entityType: "Pack", …, actorId })` with the same shape as `transitionObjective`/`transitionDeliverable`. The engine derives `requiredBadge = pack_<verb>` and asks `badgeAuthorityEngine.authorise` — root bypass, or the actor holds that Active badge. Every hop runs under the real actor, never a system bypass — two callers, two shapes, over the same `transitionPack` + badge check:
+
+- **Batch (seed / CLI / direct publish).** `publishPack → advancePackLifecycle` chains every hop from `Draft` through to `Active` in one call — the caller must hold every verb the chain needs (root, or a seed/CLI actor granted the full set).
+- **Interactive authoring** (`/aisworg/seu/sdk/pack-authoring`). `publishAuthoringDraft → advancePackOneStep` runs **exactly the next hop** off the Draft's current status per call, gated on only that hop's badge. This is what makes real separation of duties possible: a `pack_validate`-only holder can move a Draft to `Validated` and stop there; a *different* actor holding `pack_publish` takes it from there, and so on — no single actor needs the union of every verb just to touch a Draft. **Bug fix correcting CR-014 (2026-08-17):** the authoring UI used to chain the *whole* remaining pipeline in one action, so only an all-verbs holder (e.g. a `pack_all` fixture) could ever move anything past `Draft` — the per-verb badge table below was true of `publishPack` but silently false of what a real single-verb author could do through the UI. The authoring surface's per-verb tabs (`buildAuthoringTabs`) are the direct UI expression of this table — one tab per verb the actor holds ("Active Packs", "User defined Packs", "User reviewed Packs", …, however many verbs the noun has), each showing what's currently sitting at that verb's stage, scoped to what *this actor themself* did (via the events accountability record, [[every-transition-real-actor-and-badge]]) — except the live Active catalog, which shows the whole registry.
+
+Per-hop badges:
+
+| Transition | Badge |
+|---|---|
+| Draft → Validated | `pack_validate` |
+| Validated → Published | `pack_publish` |
+| Published → Active (and terminal → Active reactivation) | `pack_activate` |
+| Active → Deprecated | `pack_deprecate` |
+| Deprecated → Retired | `pack_retire` |
+| Retired → Archived | `pack_archive` |
+
+**Pack *creation* follows the same uniform model as every entity (Ch.1 §18.10), and is not a Pack-specific gap.** `createPackDraft` (the birth into `Draft`) is not badge-gated today only because the platform-wide **`define` birth transition ("create-as-transition") is not yet wired for any entity** — a deferred, already-modelled step, not an omission. When it lands, `transitionEngine` derives `pack_define` and gates creation through the same engine, with no Pack-specific code. (`define` = birth into the initial state, distinct from `create` = "begin work — move out of the initial state.")
+
+**Granting** the `pack_*` badges (who holds `pack_publish`, etc.) is the same separate grant concern as `objective_*` — today root bypasses and the `tester-all` fixture holds every `noun_verb`. (Legacy detail: the denial message interpolates `gate.authorityRuleCode`, a pre-CR-006 field name that now carries the `pack_<verb>` badge code.)
+
+## 19.14 Executable contributions & verification classification (§20) — declaration ✅ built (CR-016), execution ***open***
+
+§20 defines a model in which every *verifiable* Pack contribution (a checklist item, a quality-gate criterion, a review requirement, an obligation) carries its own execution: a **Statement**, a **Classification** (machine-verifiable / judgment / human-attested), a **Prompt**, a **Participant assignment**, an **Output contract**, and an optional **Assurance policy**. The **declaration half is now built**; the **execution half is open**.
+
+**Substrate (reused, not rebuilt):** the Quality Gate engine — including `requires_accepted_review` and `requires_accepted_evidence_or_approved_decision` (`qualityGateEngine`); the Review Model (`027`/`028`; `reviewsDB`/`findingsDB`); Evidence; Obligations; Attention Items; participant dispatch/execution. These remain the landing zones for execution.
+
+**A — Declaration schema — ✅ built (CR-016 / §19.4).**
+- **A1** ✅ Verifiable-contribution metadata (`statement`, `classification`, `prompt`, `participant`, `outputContract`, `assurance`) is on the grammar + `PackContributions`, **per item**.
+- **A2** ✅ The three classes + the optional `externalEvidence` marker are modelled.
+- **A3** ✅ **Checklists, Review Gates, Obligation Definitions** are now Pack-contributable.
+- **D1** ✅ The classification-pass authoring UX exists — each verifiable row has classification/participant/output-contract dropdowns, an external-evidence checkbox, and prompt/assurance inputs (via the CR-017-extended `formGenerator`). *(Storage is declaration-only: values persist in `packs.contributions` JSONB; not materialised into tables.)*
+
+**B — Execution bindings — ***open***** (turn a declared item into an executed check; reuse the built engines):
+- **B1. Machine-verifiable.** Dispatch the item's `prompt` to its assigned AI participant, capture `Passed/Failed` + notes as **Evidence**, and let the Quality Gate consume it (§20.1/§20.6). *contribution → dispatch → evidence* wiring unbuilt.
+- **B2. Judgment.** A judgment item produces a **Review** (AI assessment) a human accepts, gated by `requires_accepted_review` (§20.3). *contribution → Review* generation unbuilt.
+- **B3. Human-attested.** Wire the item to an authority-gated **Obligation**/Review whose acceptance is the attested act (§20.3). *contribution → obligation* binding unbuilt.
+
+**C — Extensions — ***open*****:
+- **C1. External evidence via Integration connectors** — machine-verifiable items verified by an Integration-pack connector (CI green, deploy succeeded) rather than artifact analysis (§20.4). Field (`externalEvidence`) exists; the connector-as-verifier path is unbuilt.
+- **C2. Assurance policy / confidence escalation** — the `assurance` field exists; the threshold-driven escalation of an AI result to a human via Attention/Review (§20.2) is unbuilt.
+
+*(§19 remains the single backlog for §20; the remaining CRs are opened from B/C.)*
+
+------------
+
+## 20. Important Differentiator — Executable Contributions and Verification Classification
+
+Supplement to the Pack Model. This section records how verifiable Pack contributions are made executable in an AI-native platform. It changes none of the requirements above; it refines how the §9 contributions that are checked (Checklists, Quality Gates, Review Gates, Obligations) are defined and executed. It reuses the platform's existing governance, authority, Quality Gate, Review Model and attestation. No Runtime Kernel change.
+
+### 20.1 Principle: a verifiable contribution carries its own execution
+Traditionally a checklist or standard is text a human is trusted to apply. In an AI-native platform a verifiable contribution carries not only the standard but the means to execute it, because the executor is an AI participant. The same artifact is then three things at once: the human-readable standard, the composable governance contribution, and the executable instruction. A checklist item becomes executable simply by being written, given a capable participant, with no bespoke verifier code.
+
+The platform does not perform the check. It declares it, assigns it to a participant, records the outcome as Evidence or a Review bound to the commit, gates the transition, and attests who certified it. Where the participant runs, in the platform environment or the tenant environment, is a contract and access decision, not an architectural one.
+
+### 20.2 What a verifiable contribution declares
+Every verifiable item (a checklist item, a quality-gate criterion, a review requirement, an obligation) declares:
+
+Statement — the standard, human-readable ("No hardcoded passwords").
+Classification — machine-verifiable, judgment, or human-attested (§19.3).
+Prompt — the instruction the AI participant executes, for the AI-executed classes ("Refer to the VCS reference. Verify there are no hardcoded passwords or secrets. Report Passed or Failed with notes.").
+Participant assignment — an AI participant, an AI participant paired with a human, or a human authority.
+Output contract — the shape the platform consumes: Passed/Failed plus notes, or an assessment plus a human acceptance.
+Assurance policy (optional) — a confidence or severity threshold at which the result escalates to a human, reusing Attention and Review.
+This is metadata on the contribution, part of the Pack definition. It needs no new engine.
+
+### 20.3 Verification classifications
+The axis is who or what can authoritatively determine Pass/Fail, and who is accountable.
+
+1. Machine-verifiable. An objective result determinable from the artifact by an AI participant, which may invoke a tool. The AI participant is accountable for the reported result. Output: Passed/Failed plus notes, no human in the loop.
+Examples: no hardcoded passwords, no PII in logs, tests present and passing, dependencies scanned, coverage above threshold, naming convention followed.
+
+2. Judgment (AI-assessed, human-ratified). A contextual or subjective determination. The AI participant analyses the references and produces a reasoned assessment; a human participant accepts it. The human is accountable, and separation of duties holds because the assessing participant is not the approving one. This maps directly onto the built Review Model: the AI produces the Review, the human moves it to Accepted, and the requires_accepted_review gate consumes it.
+Examples: the architecture is appropriate for the requirement, the API design is coherent, the failure handling is adequate for the risk.
+
+3. Human-attested (authority act). The check is an authoritative human or organisational act that cannot be derived from the artifact, so an AI can neither verify it nor meaningfully advise on it. A designated authority attests, and that recorded act is the evidence. Common in Compliance and Governance contributions.
+Examples: customer sign-off obtained, legal approval received, regulatory submission accepted, budget sponsor approved.
+
+### 20.4 Are two classifications sufficient?
+Machine-verifiable and Judgment are the correct primary split, but they are not complete. Both assume the answer comes from analysing the artifact. Some real checks are not artifact analysis at all; they are an authority's act, such as a customer signature or a regulator's acceptance. Forcing those into Judgment would wrongly imply an AI can assess them, when the only thing that counts is the recorded human or organisational decision. Hence the recommended third class, Human-attested.
+
+One further case is best handled as a variant, not a new class. External evidence is a result supplied by an external system of record rather than by reading the artifact: a CI pipeline green, a deployment succeeded, an external vendor's penetration test passed, a ticket approved in an external tool. Treat this as Machine-verifiable with the verifier being an Integration-pack connector rather than direct artifact analysis. It is still an objective, automatable Pass/Fail; only the source of truth differs. Surface it as a separate tag if Integration packs need it explicit, but it does not warrant a fourth top-level classification.
+
+Recommendation: three classifications, Machine-verifiable, Judgment, Human-attested, with an optional external-evidence marker on machine-verifiable items.
+
+### 20.5 Mapping the contribution categories
+Classification applies to the contributions that are checked. The rest inform or provide, and are not classified.
+
+Contribution (§9)	Typical classification
+Checklists	per item; span all three
+Quality Gates	mostly machine-verifiable
+Review Gates	judgment (AI-assessed, human-ratified) by nature
+Obligation Definitions	machine-verifiable (evidence present) or human-attested (approval obtained)
+Policies / Standards / Decision Rules	machine-verifiable where objective, judgment where interpretive
+Ontology, Knowledge Assets, Templates, UI Components, Services, Metrics	not classified — inputs and assets, not checks
+By Pack taxonomy (§6), the weight differs:
+
+Technology packs — mostly machine-verifiable (conventions, build, test).
+Compliance packs — a mix of machine-verifiable (evidence present) and human-attested (approvals, sign-offs).
+Domain and architecture concerns — largely judgment.
+Integration packs — external-evidence (machine-verifiable via connectors).
+Platform and Organisation packs — spread across all three.
+19.6 Reuse of existing machinery
+Nothing here adds an engine. Each classification lands on what is already built:
+
+Machine-verifiable → the AI participant's Passed/Failed is Evidence; the Quality Gate consumes it; the notes are attested against the commit.
+Judgment → the Review Model (Phase 14): the AI produces the Review, a human accepts, requires_accepted_review gates the transition.
+Human-attested → an authority-gated Obligation or Review whose acceptance is the attested act.
+The only work is a classification pass over each Pack's verifiable contributions: mark each item's classification, write its prompt, and set its participant assignment and output contract, all recorded in the Pack definition.
+
+### 20.7 Packaging pattern: master pack, classified sub-packs, and graduation
+A checklist concern is packaged as a master checklist Pack that declares Required dependencies (§10) on two sub-Packs: a machine-verifiable Pack and a judgment Pack. Packs do not nest; the Composition Engine pulls the master and both sub-Packs into the EBM through dependency resolution. Consumers depend on the master, which is the concern's public unit. The split beneath it is an authoring and evolution concern, not something a commissioning tenant needs to see.
+
+Rationale. The two sub-Packs change differently and are curated by different owners. The machine-verifiable Pack is a prompt-and-tool asset, refined through prompt engineering and tool integration. The judgment Pack is an assessment-rubric asset, curated by domain expertise. Separating them gives each its own version line (PM-003) and a single coherent responsibility (PM-001), so one can be tuned or released without churning the other. The master restores the whole topic at composition. The factoring axis is therefore lifecycle and ownership, with the master providing the topical view.
+
+Graduation. An item may move from judgment to machine-verifiable as prompts and tools mature. This is a version-governed move, not a silent reclassification: the item leaves the judgment Pack in one version increment and enters the machine-verifiable Pack in another. Because every EBM records the exact Pack versions it composed (§12), SEUs commissioned before the graduation remain reproducible with the item still classified as judgment, while new SEUs receive the automated form. The innovation pathway is thus auditable and non-destructive.
+
+Learning loop. Graduation candidates need not be guessed. Engineering Telemetry (Ch.35) can detect judgment items whose AI assessment consistently agrees with the human sign-off and raise an Organisational Learning Obligation (Architecture Catalogue ADR – Telemetry-Driven Organisational Learning) proposing that the item graduate into the machine-verifiable Pack. The classified-sub-Pack structure gives that signal a clean destination, making "judgment to machine-verifiable" a measured maturity path rather than a manual judgement.
+
+Discipline. The split axis is classification only, two sub-Packs per master. The master remains the unit consumers depend on. Tenants should not depend on the sub-Packs directly, or the aggregation benefit is lost and Packs proliferate.
+
+
+[Sudha: You're right, and this is the crux. Let me concede the core point plainly, because it's the important one: if every actual check is handed to an external participant and the platform only requires-and-records, then the differentiation over Jira-plus-audit-trail is thin. "An external participant verifies and it comes back" does just push the question — the real "how" happens somewhere the platform can't see. That's coordination, not execution.
+
+So here is the line I think is actually correct, and it's a refinement of "execution is external", not a contradiction:
+
+The platform does not execute the tenant's production work (building the source code). But it should execute its own declared standards, and that is a first-party capability — platform-associated AI agents run the checklists. The organisation outsources building. It does not outsource checking its own standards. Those checklists are the organisation's own asset (Pack contributions); the organisation should have the competence to run them.
+
+That distinction is the whole "executable" claim. And it terminates the regress you're pointing at, if you extend the Pack one step further:
+
+A checklist item declares its own verifier. "No hardcoded passwords" in the Pack isn't just English — it carries verifier: platform secret-scan agent. So when the Source Code transition is attempted:
+
+the platform's own verification agent pulls the commit from VCS, runs the secret scan against the diff, and produces the pass/fail + findings itself;
+that result is the evidence — the platform generated it, not an outside party;
+the quality gate consumes it and the transition proceeds or blocks.
+Now the "how" bottoms out inside the organisation: the org's agent read the code and ran the check. No external participant, no "and then magic happens." That is "Packs are declarative" taken to its conclusion — the checklist item carries its own executable check, composed into the SEU, run by the org's agent. That is the thing Jira cannot do: Jira shows you a checkbox and trusts your tick; the executable org runs the checklist itself and produces the evidence.
+
+One honest refinement to "all checklists by an AI agent", and it's a real caveat, not a hedge: checklist items split into two kinds.
+
+Machine-verifiable — "no hardcoded passwords", "dependencies scanned", "tests present and passing", "no PII in logs". A platform agent runs these autonomously and deterministically. This is where your point is fully right, and it should be the default. The org checks itself.
+Judgment — "the architecture is sound for this scale", "the API design is coherent". An AI agent can execute these too, but as reasoned opinion, not deterministic verification. Here the agent produces an assessment, and an accountable party (a human, or the agent itself as an accountable participant the org has chosen to trust) signs. The competence is still exercised; it just isn't a true/false scan.
+So: yes, make checklist execution a first-party, platform-agent capability, verifier declared per item, machine-verifiable items run autonomously by the org's agents. That is the executable differentiation. Judgment items are agent-executed-as-advice with an accountable sign-off, not left to "someone external verifies somehow."
+
+The one thing to be clear-eyed about, because it changes what the platform is: this means the platform ships competence, not only governance. A verification-agent runtime becomes part of the platform, first-party. That's a real expansion beyond the strict "the platform never executes anything" — and it's exactly the expansion that earns "AI-native" and "executable". The earlier boundary was "don't run the tenant's production agents." The sharper boundary is: the platform runs the organisation's own checks; it does not run the tenant's production build. Production stays orchestrator-agnostic and external. Verification of declared standards comes home.
+
+That's the differentiation you're reaching for, and I think it's correct: an executable organisation is one that can perform its own governance, not merely demand it.
+
+I am going to broaden this. It does not matter whether the checklist execution happens on the platform or on the tenants environment. that is just defined by the contract between the platform and the tenant and an access question.  The competencies required to do this is "just a prompt" not any heavy code strcuture. The AI participant is going to execute it - Dont you think so ?
+Yes. And you've just corrected two things I over-committed, both correctly.
+
+First: location is a contract/access question, not architecture. I drew a line — "verification comes home to the platform, production stays external" — that doesn't hold up. Whether the checking AI runs in the platform's environment or the tenant's is a hosting/access/data-residency decision negotiated in the contract, exactly the "execution environment is a per-tenant choice" we already settled for participants. A verification agent is just another participant. So there's no architectural "first-party verifier" requirement. Drop it. It's a deployment detail.
+
+Second, and this is the real point: the competency is "just a prompt." This collapses a distinction the whole industry still treats as fundamental. In the pre-AI world, to make "No hardcoded passwords" executable you had to build a verifier — a scanner, a rules engine, bespoke code per check. In the AI-native world the checklist item's text is the executable instruction, and a general AI participant is the universal executor. You don't build a verifier; you write the standard, and a capable participant runs it. Declarative and executable stop being two things. They're the same artifact, because the executor is an LLM, not a rules engine.
+
+That is the differentiation, stated properly — sharper than how I had it:
+
+A checklist item is simultaneously the standard (human-readable), the governance contribution (a composable Pack asset), and the executable instruction (an AI participant runs it). One artifact, three identities.
+
+Jira has only the first. It shows dead text and trusts a human tick. The executable organisation has all three, and it gets the third for free the moment the executor is a competent AI participant — no per-check engineering, no verifier code in the platform. Write "No hardcoded passwords," and the org can run it. Write "No PII in logs" tomorrow, and the org can run that too, same day, no build. That is what "executable" should mean, and you're right that without it this is a governance skin over Jira.
+
+Now the honest part, so this isn't superficial agreement: "just a prompt" nails the competency, but it moves the entire hard problem to a different place — and that place is the platform's actual job.
+
+If any check is one prompt away from executable, then the risk is no longer "did we build the scanner." It's: which participant ran it, how capable/trustworthy is it, and does its "pass" mean anything? A weak agent will cheerfully report "no hardcoded passwords" and miss one. So the platform's engineering is not verifiers. It's governing the prompt-executing participants:
+
+Authority — which AI participant (which badge) is permitted to certify which checklist. The coding agent cannot also be the checking agent (creator ≠ approver), even when both are "just a prompt."
+Assurance level per item — some checks the org accepts on the agent's word; high-stakes ones require the agent to invoke a deterministic tool, or require a second participant, or a human co-sign. That threshold is declared with the checklist item, alongside the prompt.
+Attestation — the outcome is bound to the commit and to the certifying agent, permanently, so "the org verified no hardcoded passwords" has a name and an artifact behind it, not just a green tick.
+Escalation — a failed or low-confidence result raises Attention, doesn't silently pass.
+So the shape is: the checklist item carries its prompt and its assurance policy; an AI participant executes the prompt wherever the contract puts it; the platform governs who may certify, binds the result to the commit, and enforces the transition. The platform ships no verifiers and no heavy code for the checks. It ships the thing that makes a field of prompt-executed checks trustworthy and accountable at organisational scale.
+
+That's the whole game, and I think your instinct is exactly right: the competence is a prompt, the executor is an AI participant, the location is a contract term — and the platform's differentiation is that it turns a written standard into an executed, attributed, gated organisational act, automatically, because the executor is intelligent rather than hand-coded.
+
+You are again overthinking. We already have the governnance and wuthority defined. So all we need is refine the packs definition. We have to review each category and differentiate between what i machine verifiable vs what needs human participant. This coule be part of the pack definition itself.
+
+So the "No hardcoded passwords" checklist would be assigned to an AI particpiant with a prompt "Refer to VCS. Verify that there are no hardcoded passwords. Report Passed or Failed with notes....." etc. 
+
+A checklist item which is abstract like "Ensure architecture is correct for the requirement"  will be AI participant summarising the details looking at whatever is given t it as a reference and the respose will be judgemental" paired with a human participant. 
+
+Do you think this is correct ?
+Yes. This is correct, and it's correctly scoped — it's a Pack-definition refinement, not new engine work. The governance, authority, quality gates, Review Model, and attestation already exist. You're just adding metadata to each checklist item and letting it ride on machinery that's already built.
+
+The per-item shape you're describing is basically:
+
+classification: machine-verifiable | judgment
+prompt: the instruction ("Refer to VCS, verify no hardcoded passwords, report Passed/Failed with notes")
+participant assignment: AI alone, or AI paired with a human
+output contract: Passed | Failed + notes
+And each classification drops onto an existing gate with no new mechanism:
+
+Machine-verifiable → the AI participant runs the prompt, returns Passed/Failed + notes. Passed/Failed is the gate signal (Evidence / quality gate); the notes become the attested evidence bound to the commit. Done, no human.
+Judgment → this is the Review Model you already built (Phase 14). The AI participant looks at the references, produces the summary/assessment — that's the Review content — and the human participant accepts it. The AI advises, the human's acceptance is the accountable sign-off, and creator ≠ approver still holds (the AI drafts, the human certifies). The requires_accepted_review gate consumes it exactly as it does today.
+So the "AI + human pairing" isn't a new construct — it's an AI participant generating a Review and a human participant accepting it. The machine-verifiable case is an AI participant generating Evidence. Both already have homes.
+
+The only actual work is the part you named: a classification pass over each Pack category — go item by item, mark it machine-verifiable or judgment, write the prompt, set the participant assignment — and it becomes part of the Pack definition. No kernel change, no new engine. That's the whole thing, and it's right.]

@@ -123,6 +123,8 @@ export async function transitionDecision(input: { decisionId: string; targetStat
     originatingObjectId: decision.id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
+    actorId: input.actorId ?? null,
+    authorityBadge: gate.authorityBadge,
   });
 
   return { ok: true, decision: updated, appliedTransition: { fromState, toState: input.targetState } };

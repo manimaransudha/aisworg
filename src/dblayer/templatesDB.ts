@@ -26,6 +26,104 @@ export const templatesDB = {
     }
   },
 
+  // Entity-direct authoring (bug fix correcting CR-014): a Draft Template row is
+  // the authoring document. draft_content holds the raw authored form content
+  // (materialised into the real columns/join tables at publish). authored_by is
+  // the real author.
+  async createDraft(input: { code: string; name: string; authoredBy?: number | null; draftContent?: Record<string, unknown> }): Promise<DbResult<TemplateRow>> {
+    try {
+      const { rows } = await query<TemplateRow>(
+        `INSERT INTO templates (code, name, status, deliverable_catalogue, authored_by, draft_content)
+         VALUES ($1, $2, 'Draft', '[]', $3, $4)
+         RETURNING *`,
+        [input.code, input.name, input.authoredBy ?? null, JSON.stringify(input.draftContent ?? {})]
+      );
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[templatesDB] createDraft error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async updateDraftContent(id: string, input: { name: string; draftContent: Record<string, unknown> }): Promise<DbResult<TemplateRow>> {
+    try {
+      const { rows } = await query<TemplateRow>(
+        `UPDATE templates SET name = $2, draft_content = $3 WHERE id = $1 AND status = 'Draft' RETURNING *`,
+        [id, input.name, JSON.stringify(input.draftContent)]
+      );
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[templatesDB] updateDraftContent error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // Publish-time materialisation of a Draft's authored deliverable catalogue
+  // onto its real column (the join tables are set separately). Status-agnostic:
+  // called while the row is still Draft, just before the governed Draft->Active
+  // transition.
+  async setDeliverableCatalogue(id: string, deliverableCatalogue: TemplateDeliverableSeed[]): Promise<DbResult<TemplateRow>> {
+    try {
+      const { rows } = await query<TemplateRow>(
+        "UPDATE templates SET deliverable_catalogue = $2 WHERE id = $1 RETURNING *",
+        [id, JSON.stringify(deliverableCatalogue)]
+      );
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[templatesDB] setDeliverableCatalogue error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async updateStatus(id: string, status: TemplateRow["status"]): Promise<DbResult<TemplateRow>> {
+    try {
+      const { rows } = await query<TemplateRow>("UPDATE templates SET status = $1 WHERE id = $2 RETURNING *", [status, id]);
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[templatesDB] updateStatus error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // Authoring surface, per-verb tabs — see packsDB.findByStatusActedBy for the
+  // full rationale (Templates only have `define` + `publish`, so this is
+  // reached for the `publish` verb only, but generic for future growth).
+  async findByStatusActedBy(status: TemplateRow["status"], authorityBadge: string, actorId: number | null): Promise<DbResult<TemplateRow[]>> {
+    try {
+      const { rows } = actorId == null
+        ? await query<TemplateRow>(
+            `SELECT DISTINCT t.* FROM templates t
+             JOIN events e ON e.originating_object_type = 'Template' AND e.originating_object_id = t.id
+             WHERE t.status = $1 AND e.authority_badge = $2
+             ORDER BY t.created_at DESC`,
+            [status, authorityBadge]
+          )
+        : await query<TemplateRow>(
+            `SELECT DISTINCT t.* FROM templates t
+             JOIN events e ON e.originating_object_type = 'Template' AND e.originating_object_id = t.id
+             WHERE t.status = $1 AND e.authority_badge = $2 AND e.actor_id = $3
+             ORDER BY t.created_at DESC`,
+            [status, authorityBadge, String(actorId)]
+          );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[templatesDB] findByStatusActedBy error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async findDrafts(authoredBy?: number | null): Promise<DbResult<TemplateRow[]>> {
+    try {
+      const { rows } = authoredBy == null
+        ? await query<TemplateRow>("SELECT * FROM templates WHERE status IN ('Draft', 'Validated') ORDER BY created_at DESC")
+        : await query<TemplateRow>("SELECT * FROM templates WHERE status IN ('Draft', 'Validated') AND authored_by = $1 ORDER BY created_at DESC", [authoredBy]);
+      return { data: rows };
+    } catch (err) {
+      logger.error("[templatesDB] findDrafts error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findById(id: string): Promise<DbResult<TemplateRow | null>> {
     try {
       const { rows } = await query<TemplateRow>("SELECT * FROM templates WHERE id = $1", [id]);

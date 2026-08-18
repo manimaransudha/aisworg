@@ -1,0 +1,110 @@
+<%# One referential-list field, rendered as a stack of labeled cards (not a
+    horizontal strip of unlabeled inline boxes) — existing rows shown filled,
+    exactly one blank "New item" row at the end doubling as the clone
+    template for the "+ Add another" button (edit.ejs's script). Locals:
+    field (GeneratedField, kind referential-list), canEdit (bool),
+    referentialOptions, packDependencyOptions (PackDependencyOption[],
+    Dependencies only — code/version/category of every Active Pack). %>
+<%
+  function ilabel(n) { return n.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, function(c){ return c.toUpperCase(); }); }
+  var isDependencies = field.name === 'dependencies';
+  var packOptions = locals.packDependencyOptions || [];
+  var categoryOptions = (locals.referentialOptions || {})['pack-category'] || [];
+  var typeItemField = isDependencies ? field.itemFields.find(function(f) { return f.name === 'type'; }) : null;
+%>
+<div class="referential-list-group" data-field-name="<%= field.name %>" data-next-index="<%= field.rows.length %>">
+  <% field.rows.forEach(function(row, i) { %>
+    <% var isExisting = i < field.existingCount; %>
+    <div class="card card-body bg-light border-0 mb-2 referential-list-row">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="badge <%= isExisting ? 'bg-secondary-subtle text-secondary' : 'bg-light text-muted border' %> small fw-normal"><%= isExisting ? ('Item ' + (i + 1)) : 'New item — fill in to add' %></span>
+        <% if (canEdit) { %><button type="button" class="btn btn-sm btn-link text-danger p-0 remove-row-btn">Remove</button><% } %>
+      </div>
+
+      <% if (isDependencies) { %>
+        <%# Owner: "Pack code should include the pack and the version number
+            in the dropdown. Version should not be a text field... There
+            should also have a dropdown on the category." — Category is a
+            client-side filter only (never submitted — dependencies don't
+            carry a category of their own); Pack's <option>s carry the real
+            data-version/data-category the two scripts below read; Version is
+            no longer its own visible box at all (owner: "remove the text
+            version field") — the Pack option already names its version, and
+            the value the seed actually stores now travels as a hidden input,
+            kept in sync with whichever Pack is selected by the same script. %>
+        <% var pv = row.packCode || ''; %>
+        <% var knownPack = packOptions.some(function(p) { return p.code === pv; }); %>
+        <input type="hidden" name="<%= field.name %>[<%= i %>][version]" class="dep-version-field" value="<%= row.version || '' %>">
+        <div class="row g-2">
+          <div class="col-sm-4 col-lg-3">
+            <label class="form-label small text-muted mb-1">Category</label>
+            <select class="form-select form-select-sm dep-category-filter" <%- canEdit ? '' : 'disabled' %>>
+              <option value="">— All categories —</option>
+              <% categoryOptions.forEach(function(cat) { %><option value="<%= cat %>"><%= cat %></option><% }) %>
+            </select>
+          </div>
+          <div class="col-sm-8 col-lg-6">
+            <label class="form-label small text-muted mb-1">Pack</label>
+            <select name="<%= field.name %>[<%= i %>][packCode]" class="form-select form-select-sm dep-pack-select" <%- canEdit ? '' : 'disabled' %>>
+              <option value="">— Pack —</option>
+              <% packOptions.forEach(function(p) { %>
+                <option value="<%= p.code %>" data-version="<%= p.version %>" data-category="<%= p.category %>" <%= pv === p.code ? 'selected' : '' %>><%= p.code %> — v<%= p.version %></option>
+              <% }) %>
+              <% if (pv && !knownPack) { %>
+                <option value="<%= pv %>" selected data-version="<%= row.version || '' %>" data-category="">&#9888; <%= pv %> (not currently Active)</option>
+              <% } %>
+            </select>
+          </div>
+          <div class="col-sm-12 col-lg-3">
+            <label class="form-label small text-muted mb-1">Type</label>
+            <select name="<%= field.name %>[<%= i %>][type]" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %>>
+              <% (typeItemField.options || []).forEach(function(opt) { %>
+                <option value="<%= opt %>" <%= (row.type || '') === opt ? 'selected' : '' %>><%= opt %></option>
+              <% }) %>
+            </select>
+          </div>
+        </div>
+      <% } else { %>
+        <div class="row g-2">
+          <% field.itemFields.forEach(function(itemField) { %>
+            <% var full = (itemField.name === 'statement' || itemField.name === 'prompt'); %>
+            <% var inputName = field.name + '[' + i + '][' + itemField.name + ']'; %>
+            <% var value = row[itemField.name] || ''; %>
+            <div class="<%= full ? 'col-12' : 'col-sm-6 col-lg-4' %>">
+              <label class="form-label small text-muted mb-1"><%= ilabel(itemField.name) %></label>
+
+              <% if (itemField.kind === 'referential') { %>
+                <select name="<%= inputName %>" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %>>
+                  <option value="">— <%= ilabel(itemField.name) %> —</option>
+                  <% ((locals.referentialOptions || {})[itemField.referentialSource] || []).forEach(function(opt) { %>
+                    <option value="<%= opt %>" <%= value === opt ? 'selected' : '' %>><%= opt %></option>
+                  <% }) %>
+                </select>
+              <% } else if (itemField.kind === 'enum') { %>
+                <select name="<%= inputName %>" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %>>
+                  <option value="">— <%= ilabel(itemField.name) %> —</option>
+                  <% (itemField.options || []).forEach(function(opt) { %>
+                    <option value="<%= opt %>" <%= value === opt ? 'selected' : '' %>><%= opt %></option>
+                  <% }) %>
+                </select>
+              <% } else if (itemField.kind === 'boolean') { %>
+                <div class="form-check mt-1">
+                  <input type="checkbox" class="form-check-input" name="<%= inputName %>" value="true" <%= value === 'true' ? 'checked' : '' %> <%- canEdit ? '' : 'disabled' %>>
+                </div>
+              <% } else if (full) { %>
+                <textarea name="<%= inputName %>" class="form-control form-control-sm" rows="2" <%- canEdit ? '' : 'disabled' %>><%= value %></textarea>
+              <% } else { %>
+                <input name="<%= inputName %>" class="form-control form-control-sm" value="<%= value %>" <%- canEdit ? '' : 'disabled' %>>
+              <% } %>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </div>
+  <% }) %>
+  <% if (canEdit) { %>
+    <button type="button" class="btn btn-sm btn-outline-secondary add-row-btn" data-field-name="<%= field.name %>">
+      <i class="bi bi-plus-lg me-1"></i>Add another
+    </button>
+  <% } %>
+</div>

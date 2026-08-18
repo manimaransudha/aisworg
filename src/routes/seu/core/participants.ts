@@ -67,6 +67,8 @@ export async function transitionParticipant(input: { participantId: string; targ
       originatingObjectId: participant.id,
       correlationId: eventBus.newCorrelationId(),
       payload: { fromState, toState: input.targetState, seuId: participant.seu_id },
+      actorId: input.actorId ?? null,
+      authorityBadge: gate.authorityBadge,
     });
   }
 

@@ -95,6 +95,8 @@ export async function transitionFinding(input: { findingId: string; targetState:
     originatingObjectId: finding.id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
+    actorId: input.actorId ?? null,
+    authorityBadge: gate.authorityBadge,
   });
 
   return { ok: true, finding: updated, appliedTransition: { fromState, toState: input.targetState } };

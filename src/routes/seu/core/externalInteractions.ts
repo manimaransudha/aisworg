@@ -116,6 +116,8 @@ export async function transitionExternalInteraction(input: { interactionId: stri
     originatingObjectId: interaction.id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
+    actorId: input.actorId ?? null,
+    authorityBadge: gate.authorityBadge,
   });
 
   if (input.targetState === "Failed") {

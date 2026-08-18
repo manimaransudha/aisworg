@@ -26,6 +26,26 @@ async function resolveBadgeType(code: string): Promise<BadgeTypeRow | null> {
   return anyTenant.rows[0] ?? null;
 }
 
+// Bug fix: noun x verb badges (CR-006 — pack_define, objective_propose, …)
+// have no badge_types row at all by design (governed by authority_nouns/
+// verbs/authority_noun_verbs instead — see "creation authority is not a
+// transition" / the sdkAuthoring.ts header). resolveBadgeType() alone made
+// this function's own "single writer... §9's Enforcement point" claim false
+// for every one of them: badgeGrantsDB.create() (and so the Badge Management
+// "Grant badge" form, via issueBadgeGrant) rejected any noun x verb code with
+// "does not resolve to any badge_types row" — every currently-relevant
+// authoring badge could only ever be seeded by a raw SQL INSERT bypassing
+// this writer entirely (as the seed scripts and this file's own tests do).
+// Fixed: also accept a code shaped `{noun}_{verb}` where that exact pair is
+// Active in authority_noun_verbs — unscoped, same as a Layer 1 badge (no
+// scope_id / governed_entity_type).
+async function resolveNounVerbBadge(code: string): Promise<boolean> {
+  const { rows } = await query<{ noun_code: string; verb_code: string }>(
+    "SELECT noun_code, verb_code FROM authority_noun_verbs WHERE is_active"
+  );
+  return rows.some((r) => `${r.noun_code.toLowerCase()}_${r.verb_code}` === code);
+}
+
 async function validateScopeId(scopeKind: BadgeTypeRow["scope_kind"], scopeId: string | null): Promise<string[]> {
   const errors: string[] = [];
 
@@ -81,9 +101,15 @@ async function validateBadgeGrant(input: {
 }): Promise<BadgeGrantValidationResult> {
   const errors: string[] = [];
 
-  const badgeType = await resolveBadgeType(input.badgeType);
+  let badgeType = await resolveBadgeType(input.badgeType);
   if (!badgeType) {
-    return { ok: false, errors: [`badge_type "${input.badgeType}" does not resolve to any badge_types row`] };
+    if (!(await resolveNounVerbBadge(input.badgeType))) {
+      return { ok: false, errors: [`badge_type "${input.badgeType}" does not resolve to any badge_types row or active noun x verb pair`] };
+    }
+    // Synthetic — there is no real badge_types row for a noun x verb badge.
+    // scope_kind 'None' drives the same unscoped validation below a Layer 1
+    // badge gets (scope_id/governed_entity_type must both be NULL).
+    badgeType = { id: "", tenant_id: null, code: input.badgeType, name: input.badgeType, scope_kind: "None", derived_from: null, tiered: false, is_registration_default: false, created_at: "" };
   }
 
   errors.push(...(await validateScopeId(badgeType.scope_kind, input.scopeId)));

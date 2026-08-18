@@ -1,0 +1,77 @@
+{
+  "code": "openup-project-management",
+  "name": "Project Management (OpenUP Capability Pattern)",
+  "category": "Platform",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "EPF/OpenUP's Project Management capability pattern, modelled as a Pack: the Project Manager role, planning/risk work products, and the tasks for planning, coordinating, and monitoring the engineering effort.",
+  "owner": "EPF/OpenUP Practice Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "project-management",
+        "name": "Project Management",
+        "description": "Plans, coordinates, and monitors the engineering effort, on behalf of the Project Manager role.",
+        "category": "Management"
+      }
+    ],
+    "services": [
+      {
+        "code": "project-plan",
+        "capabilityCode": "project-management",
+        "name": "Project Plan",
+        "contractDescription": "The overall approach, phases, and milestones for the engineering effort."
+      },
+      {
+        "code": "iteration-plan",
+        "capabilityCode": "project-management",
+        "name": "Iteration Plan",
+        "contractDescription": "The scope and objectives committed to for the current iteration."
+      },
+      {
+        "code": "risk-list",
+        "capabilityCode": "project-management",
+        "name": "Risk List",
+        "contractDescription": "Identified risks, their exposure, and their mitigation or contingency."
+      }
+    ],
+    "checklists": [
+      {
+        "code": "plan-project",
+        "statement": "A Project Plan exists covering scope, phases, and milestones.",
+        "classification": "human-attested",
+        "prompt": "Does a Project Plan exist covering scope, phases, and milestones?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes"
+      },
+      {
+        "code": "plan-iteration",
+        "statement": "An Iteration Plan exists with committed scope the team has agreed to.",
+        "classification": "human-attested",
+        "prompt": "Does an Iteration Plan exist with scope the team has explicitly committed to?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes"
+      },
+      {
+        "code": "manage-risks",
+        "statement": "Risks are identified, assessed, and have an owner and mitigation.",
+        "classification": "judgment",
+        "prompt": "Are the risks on the Risk List assessed, owned, and carrying a mitigation or contingency?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes"
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "monitor-project",
+        "statement": "Project status has been reviewed against the plan and corrective action taken where needed.",
+        "classification": "human-attested",
+        "prompt": "Has project status been reviewed against the plan, with corrective action taken where warranted?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance"
+      }
+    ]
+  }
+}

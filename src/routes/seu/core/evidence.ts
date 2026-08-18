@@ -119,6 +119,8 @@ export async function transitionEvidence(input: { evidenceId: string; targetStat
     originatingObjectId: evidence.id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
+    actorId: input.actorId ?? null,
+    authorityBadge: gate.authorityBadge,
   });
 
   return { ok: true, evidence: updated, appliedTransition: { fromState, toState: input.targetState } };

@@ -1,0 +1,69 @@
+<%# Shared renderer for a generateFields() result. Locals: fields (GeneratedField[]),
+    canEdit (bool), referentialOptions (Record<string,string[]>). Used by the authoring
+    edit form and the schema-registry form (CR-017). %>
+<% fields.forEach(function(f) { %>
+  <div class="mb-3">
+    <label class="form-label small fw-semibold"><%= f.label %><% if (f.required) { %> <span class="text-danger">*</span><% } %></label>
+
+    <% if (f.kind === 'string') { %>
+      <input name="<%= f.name %>" class="form-control form-control-sm" value="<%= f.value %>" <%- f.required ? 'required' : '' %> <%- canEdit ? '' : 'disabled' %>>
+      <% if (f.help) { %><div class="form-text small"><%= f.help %></div><% } %>
+
+    <% } else if (f.kind === 'select') { %>
+      <select name="<%= f.name %>" class="form-select form-select-sm" <%- f.required ? 'required' : '' %> <%- canEdit ? '' : 'disabled' %>>
+        <option value="">— select —</option>
+        <% f.options.forEach(function(opt) { %>
+          <option value="<%= opt %>" <%= f.value === opt ? 'selected' : '' %>><%= opt %></option>
+        <% }) %>
+      </select>
+
+    <% } else if (f.kind === 'referential-select') { %>
+      <select name="<%= f.name %>" class="form-select form-select-sm" <%- f.required ? 'required' : '' %> <%- canEdit ? '' : 'disabled' %>>
+        <option value="">— select —</option>
+        <% ((locals.referentialOptions || {})[f.referentialSource] || []).forEach(function(opt) { %>
+          <option value="<%= opt %>" <%= f.value === opt ? 'selected' : '' %>><%= opt %></option>
+        <% }) %>
+      </select>
+      <% if (f.help) { %><div class="form-text small"><%= f.help %></div><% } %>
+
+    <% } else if (f.kind === 'json') { %>
+      <textarea name="<%= f.name %>" class="form-control form-control-sm font-monospace" rows="8" <%- canEdit ? '' : 'disabled' %>><%= f.value %></textarea>
+      <% if (f.help) { %><div class="form-text small"><%= f.help %></div><% } %>
+
+    <% } else if (f.kind === 'referential-list') { %>
+      <div class="border rounded p-2">
+        <% f.rows.forEach(function(row, i) { %>
+          <div class="row g-2 mb-1">
+            <% f.itemFields.forEach(function(itemField) { %>
+              <div class="col-auto">
+                <% if (itemField.kind === 'referential') { %>
+                  <select name="<%= f.name %>[<%= i %>][<%= itemField.name %>]" class="form-select form-select-sm" style="min-width: 200px;" <%- canEdit ? '' : 'disabled' %>>
+                    <option value="">— <%= itemField.name %> —</option>
+                    <% ((locals.referentialOptions || {})[itemField.referentialSource] || []).forEach(function(opt) { %>
+                      <option value="<%= opt %>" <%= row[itemField.name] === opt ? 'selected' : '' %>><%= opt %></option>
+                    <% }) %>
+                  </select>
+                <% } else if (itemField.kind === 'enum') { %>
+                  <select name="<%= f.name %>[<%= i %>][<%= itemField.name %>]" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %>>
+                    <option value="">— <%= itemField.name %> —</option>
+                    <% (itemField.options || []).forEach(function(opt) { %>
+                      <option value="<%= opt %>" <%= row[itemField.name] === opt ? 'selected' : '' %>><%= opt %></option>
+                    <% }) %>
+                  </select>
+                <% } else if (itemField.kind === 'boolean') { %>
+                  <div class="form-check" title="<%= itemField.name %>">
+                    <input type="checkbox" class="form-check-input" name="<%= f.name %>[<%= i %>][<%= itemField.name %>]" value="true" <%= row[itemField.name] === 'true' ? 'checked' : '' %> <%- canEdit ? '' : 'disabled' %>>
+                    <label class="form-check-label small"><%= itemField.name %></label>
+                  </div>
+                <% } else { %>
+                  <input name="<%= f.name %>[<%= i %>][<%= itemField.name %>]" class="form-control form-control-sm" placeholder="<%= itemField.name %>" value="<%= row[itemField.name] %>" <%- canEdit ? '' : 'disabled' %>>
+                <% } %>
+              </div>
+            <% }) %>
+          </div>
+        <% }) %>
+        <div class="form-text small">Registry-backed fields are live-validated widgets, not bare text — blank rows are ignored.</div>
+      </div>
+    <% } %>
+  </div>
+<% }) %>

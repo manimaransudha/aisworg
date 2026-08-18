@@ -57,7 +57,7 @@ export function requirePlatformBadge(badgeCode: string) {
     if (req.session) {
       (req.session as unknown as { flash?: { type: string; message: string } }).flash = {
         type: "error",
-        message: `You don't have the required Platform badge ("${badgeCode}") for that.`,
+        message: `You don't have the required Platform badge for that.`,
       };
     }
     // Never redirect back to the page we're denying — that loops. safeBack

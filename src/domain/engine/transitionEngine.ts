@@ -44,7 +44,11 @@ export type TransitionOutcome =
   // boundary raiseAttentionItem already respects). Stored and returned;
   // not yet consumed by any caller (SDK UI Layer Plan, Transition Definition
   // section — logged as not yet mechanically enforced).
-  | { allowed: true; entityType: TransitionEntityType; fromState: string; toState: string; createsObligation: string | null }
+  // authorityBadge: the resolved `noun_verb` badge this transition was
+  // authorised under (null when the definition declares no verb — an ungoverned
+  // step). The caller records it, with the real actor, on the transition event
+  // it publishes — the accountability record (who did this, under what authority).
+  | { allowed: true; entityType: TransitionEntityType; fromState: string; toState: string; createsObligation: string | null; authorityBadge: string | null }
   | { allowed: false; reason: "no_transition_definition" }
   // CR-006: authority_denied carries the required noun_verb badge
   // (authorityRuleCode) and the reason (badgeDenialReason, e.g. missing_badge).
@@ -84,12 +88,14 @@ export const transitionEngine = {
     // scope (that is a separate gate, not this layer), no acting-badge
     // declaration, no governed_entity_type. Every governed transition requires
     // its badge; a non-root actor without it is denied (the exception).
+    let authorityBadge: string | null = null;
     if (definition.verb) {
       const requiredBadge = `${input.entityType.toLowerCase()}_${definition.verb}`;
       const auth = await badgeAuthorityEngine.authorise({ actorId: input.actorId ?? "", requiredBadge });
       if (!auth.allowed) {
         return { allowed: false, reason: "authority_denied", authorityRuleCode: requiredBadge, badgeDenialReason: auth.reason };
       }
+      authorityBadge = requiredBadge;
     }
 
     if (definition.required_policy_ids.length > 0) {
@@ -131,6 +137,6 @@ export const transitionEngine = {
       }
     }
 
-    return { allowed: true, entityType: input.entityType, fromState: input.fromState, toState: input.toState, createsObligation: definition.creates_obligation };
+    return { allowed: true, entityType: input.entityType, fromState: input.fromState, toState: input.toState, createsObligation: definition.creates_obligation, authorityBadge };
   },
 };

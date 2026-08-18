@@ -81,7 +81,12 @@ const TENANTS: SeedTenant[] = [
 ];
 
 const USERS: SeedUser[] = [
-  { id: 1, email: "superadmin@athens.com", name: "Super Admin Athens", avatar_url: null, role: "super", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_id: ATHENS_TENANT_ID, created_at: "2026-08-12T10:41:58.157Z" },
+  // Bug fix (owner: "the root is a platform user"): this is the row
+  // migration 012's own idempotent grant makes holder_id '1' -> 'root' —
+  // captured from a live dump that happened to have it as an Athens Tenant
+  // account, but root is Platform authority, not any one tenant's. type/
+  // tenant_id corrected to match; email/name left as-is (just an identifier).
+  { id: 1, email: "superadmin@athens.com", name: "Super Admin Athens", avatar_url: null, role: "super", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Platform", tenant_id: PLATFORM_TENANT_ID, created_at: "2026-08-12T10:41:58.157Z" },
   { id: 2, email: "admin@babylon.com", name: "Super Admin Babylon", avatar_url: null, role: "super", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_id: BABYLON_TENANT_ID, created_at: "2026-08-12T10:42:48.956Z" },
   { id: 3, email: "manimaransudha@gmail.com", name: "Sudha Manimaran", avatar_url: "https://lh3.googleusercontent.com/a/ACg8ocLc3inaHZWLhqyO7fQsg8BH-kIPu1U0LZlo1qoOhpFtkwbtUlAr=s96-c", role: "general", auth_provider: "google", provider_id: "115716324960384875593", is_active: true, is_protected: false, type: "Platform", tenant_id: PLATFORM_TENANT_ID, created_at: "2026-08-12T10:51:38.843Z" },
   { id: 4, email: "admin@cambodia.com", name: "Super Admin Cambodia", avatar_url: null, role: "super", auth_provider: "local", provider_id: null, is_active: false, is_protected: false, type: "Tenant", tenant_id: CAMBODIA_TENANT_ID, created_at: "2026-08-12T10:52:37.106Z" },
@@ -117,6 +122,17 @@ function objectiveVerbs(): string[] {
   return [...set].sort();
 }
 
+// The distinct Pack lifecycle verbs (validate/publish/activate/deprecate/
+// retire/archive), derived from the vocabulary so this stays correct if the
+// graph changes.
+function packVerbs(): string[] {
+  const raw = readFileSync(path.join(__dirname, "data", "authorityVocabulary.json"), "utf8");
+  const transitions = (JSON.parse(raw) as { transitions: VocabTransition[] }).transitions;
+  const set = new Set<string>();
+  for (const t of transitions) if (t.entityType === "Pack") set.add(t.verb);
+  return [...set].sort();
+}
+
 // CR-006 — Objective-authority test users are seeded for these two tenants:
 // one user per objective verb (holds a single objective_<verb> badge) + one
 // "objective_all" user (holds every objective_<verb>). Local login, password
@@ -125,6 +141,20 @@ const OBJECTIVE_USER_TENANTS = [
   { label: "Athens", tenantId: ATHENS_TENANT_ID, baseId: 2001, domain: "athens.com" },
   { label: "Babylon", tenantId: BABYLON_TENANT_ID, baseId: 2011, domain: "babylon.com" },
 ];
+
+// Pack-authority test users — Athens only (owner, 2026-08-13): one user per
+// pack lifecycle verb (holds a single pack_<verb> badge) + one "pack_all".
+// Reserved id range 2101+ (clear of the Objective users' 2001–2017).
+const PACK_USER_TENANTS = [
+  { label: "Athens", tenantId: ATHENS_TENANT_ID, baseId: 2101, domain: "athens.com" },
+];
+
+// Owner (2026-08-17): a PLATFORM (not Tenant) pack_all holder — same badge set
+// as pack-all@athens.com, but a Platform-type identity, so pack authority can
+// be exercised/tested from the Platform tenant too, not just Athens. Reserved
+// id 2301 (clear of the Objective/Pack/Authoring ranges above, 2001–2230ish).
+const PLATFORM_PACK_ALL_ID = 2301;
+const PLATFORM_PACK_ALL_EMAIL = "pack_all@platform.com";
 
 export async function seedIdentityBaseline(): Promise<void> {
   const client = await pool.connect();
@@ -174,16 +204,72 @@ export async function seedIdentityBaseline(): Promise<void> {
       });
       objectiveUsers.push({ id: t.baseId + objVerbs.length, email: `obj-all@${t.domain}`, name: `${t.label} — objective_all`, tenantId: t.tenantId, badges: objVerbs.map((v) => `objective_${v}`) });
     }
-    for (const u of objectiveUsers) {
+    // CR-006 — Pack-authority users for Athens: one per pack lifecycle verb
+    // (single pack_<verb> badge) + one "pack_all". Same shape/rationale as the
+    // Objective users above; local login, password "password", role general.
+    // The 6 Pack transition verbs (validate/publish/activate/deprecate/retire/
+    // archive) plus `define` — the creation act (birth into Draft). Exactly like
+    // Objective's `propose`: creation is NOT a transition (a birth has no
+    // fromState, and from_state is NOT NULL), so `define` has no
+    // transition_definition and is NOT in the noun→verb mapping — authority is
+    // decoupled from the initial-state transition. pack-define simply holds the
+    // pack_define badge. Making it a *governed* create (vocab + mapping +
+    // createPackDraft enforcement) is the same separate follow-up noted for
+    // objective_propose.
+    const pkVerbs = [...packVerbs(), "define"];
+    const packUsers: Array<{ id: number; email: string; name: string; tenantId: string; badges: string[] }> = [];
+    for (const t of PACK_USER_TENANTS) {
+      pkVerbs.forEach((verb, i) => {
+        packUsers.push({ id: t.baseId + i, email: `pack-${verb}@${t.domain}`, name: `${t.label} — pack_${verb}`, tenantId: t.tenantId, badges: [`pack_${verb}`] });
+      });
+      packUsers.push({ id: t.baseId + pkVerbs.length, email: `pack-all@${t.domain}`, name: `${t.label} — pack_all`, tenantId: t.tenantId, badges: pkVerbs.map((v) => `pack_${v}`) });
+    }
+
+    // CR-014 — SDK authoring authority users for the other three authorable
+    // nouns (Template/Profile/TransitionDefinition), so every authoring surface
+    // is testable now that sdk_creator/sdk_approver are retired. `{noun}_define`
+    // = author, `{noun}_publish` = publisher; one per verb + one "{noun}_all".
+    // Athens only, reserved id ranges (clear of pack 2101–2108, objective 2001–2017).
+    const AUTHORING_NOUNS: Array<{ noun: string; slug: string; baseId: number }> = [
+      { noun: "template", slug: "template", baseId: 2201 },
+      { noun: "profile", slug: "profile", baseId: 2211 },
+      { noun: "transitiondefinition", slug: "transdef", baseId: 2221 },
+    ];
+    const AUTHORING_VERBS = ["define", "publish"];
+    const authoringUsers: Array<{ id: number; email: string; name: string; tenantId: string; badges: string[] }> = [];
+    for (const n of AUTHORING_NOUNS) {
+      AUTHORING_VERBS.forEach((verb, i) => {
+        authoringUsers.push({ id: n.baseId + i, email: `${n.slug}-${verb}@athens.com`, name: `Athens — ${n.noun}_${verb}`, tenantId: ATHENS_TENANT_ID, badges: [`${n.noun}_${verb}`] });
+      });
+      authoringUsers.push({ id: n.baseId + AUTHORING_VERBS.length, email: `${n.slug}-all@athens.com`, name: `Athens — ${n.noun}_all`, tenantId: ATHENS_TENANT_ID, badges: AUTHORING_VERBS.map((v) => `${n.noun}_${v}`) });
+    }
+
+    // Owner (2026-08-17): a Platform-type pack_all holder — same 7-badge set as
+    // pack-all@athens.com (validate/publish/activate/deprecate/retire/archive/
+    // define), but type "Platform" with tenant_id the reserved Platform tenant,
+    // not a Tenant identity. Reuses the shared authority-user insert + grant
+    // path below (which needed generalising from a hardcoded 'Tenant' literal
+    // to a real per-user `type` to allow this).
+    const platformPackAllUser = { id: PLATFORM_PACK_ALL_ID, email: PLATFORM_PACK_ALL_EMAIL, name: "Platform — pack_all", tenantId: PLATFORM_TENANT_ID, badges: pkVerbs.map((v) => `pack_${v}`), type: "Platform" as const };
+
+    // All authority-user sets share one insert + grant path. Tenant-scoped by
+    // default; platformPackAllUser is the one Platform-type exception.
+    const authorityUsers = [
+      ...objectiveUsers.map((u) => ({ ...u, type: "Tenant" as const })),
+      ...packUsers.map((u) => ({ ...u, type: "Tenant" as const })),
+      ...authoringUsers.map((u) => ({ ...u, type: "Tenant" as const })),
+      platformPackAllUser,
+    ];
+    for (const u of authorityUsers) {
       await client.query(
         `INSERT INTO users (id, email, name, avatar_url, role, auth_provider, provider_id, is_active, is_protected, type, tenant_id, password_hash, created_at)
-         VALUES ($1, $2, $3, NULL, 'general', 'local', NULL, TRUE, FALSE, 'Tenant', $4, $5, NOW())
+         VALUES ($1, $2, $3, NULL, 'general', 'local', NULL, TRUE, FALSE, $4, $5, $6, NOW())
          ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, role = EXCLUDED.role,
            type = EXCLUDED.type, tenant_id = EXCLUDED.tenant_id, password_hash = EXCLUDED.password_hash, is_active = TRUE`,
-        [u.id, u.email, u.name, u.tenantId, passwordHash]
+        [u.id, u.email, u.name, u.type, u.tenantId, passwordHash]
       );
     }
-    logger.info(`[seed:identity-baseline] upserted ${objectiveUsers.length} Objective-authority users (password "password") across Athens/Babylon.`);
+    logger.info(`[seed:identity-baseline] upserted ${objectiveUsers.length} Objective-authority + ${packUsers.length} Pack-authority (Tenant) + 1 Pack-authority (Platform) users (password "password").`);
 
     // CR-006 — fixture noun_verb grants for the test users. badge_grants.badge_type
     // is free TEXT (no FK), so a grant of "deliverable_approve" needs no badge_types
@@ -194,7 +280,7 @@ export async function seedIdentityBaseline(): Promise<void> {
       { holderId: TESTER_ALL_ID, badges: nounVerbBadges() },
       { holderId: TESTER_CREATOR_ID, badges: nounVerbBadges((v) => v === "create") },
       { holderId: TESTER_APPROVER_ID, badges: nounVerbBadges((v) => v === "approve") },
-      ...objectiveUsers.map((u) => ({ holderId: u.id, badges: u.badges })),
+      ...authorityUsers.map((u) => ({ holderId: u.id, badges: u.badges })),
     ];
     const fixtureHolderIds = fixtureGrants.map((g) => String(g.holderId));
     await client.query("DELETE FROM badge_grants WHERE holder_id = ANY($1::text[])", [fixtureHolderIds]);

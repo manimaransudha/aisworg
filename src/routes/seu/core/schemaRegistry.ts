@@ -8,7 +8,10 @@
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import type { SchemaDefinitionEntityKind, SchemaDefinitionRow } from "../../../dblayer/seuTypes.js";
 
-export const SCHEMA_ENTITY_KINDS: SchemaDefinitionEntityKind[] = ["Pack", "Template", "Profile", "TransitionDefinition"];
+// CR-019: TransitionDefinition is authored via the CR-007 /authority form (noun ×
+// verb), not a grammar — so it is not a schema-registry authorable kind. Existing
+// historical rows remain viewable; no new TransitionDefinition grammar versions.
+export const SCHEMA_ENTITY_KINDS: SchemaDefinitionEntityKind[] = ["Pack", "Template", "Profile"];
 
 export async function listSchemaDefinitions(): Promise<SchemaDefinitionRow[]> {
   const { data } = await schemaDefinitionsDB.findAll();

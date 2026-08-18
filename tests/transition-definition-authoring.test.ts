@@ -1,25 +1,21 @@
-// SDK UI Layer Plan (design/mvp-build-plan/SDK UI Layer Plan.md), Transition
-// Definition section — Build order step 6. Proves:
-//   1. Transition Definition's own authoring surface: Create -> author ->
-//      Review -> Publish through the exact same generic pipeline as Pack/
-//      Template/Profile, producing a real transition_definitions row with
-//      real required_quality_gate_ids (codes resolved to ids at publish
-//      time, same pattern as requiredAuthorityRuleCode/requiredPolicyCodes).
-//   2. The generalised mechanism itself: transitionEngine.evaluate, called
-//      directly (not through any specific entity's own core/*.ts wrapper —
-//      see the note on the second test below for why), genuinely enforces
-//      the newly-published row's Quality Gate for a real entity instance,
-//      blocked and then unblocked exactly like qualityGateEngine's existing
-//      single-entity-type (Deliverable) wiring already does.
-//   3. validateTransitionDefinitionSeed's referential check: a Quality Gate
-//      code scoped to a different (entityType, fromState, toState) triple
-//      than the Transition Definition being authored is rejected.
+// transitionEngine generalisation (SDK UI Layer Plan, Transition Definition
+// section). Proves the generic mechanism itself: transitionEngine.evaluate,
+// called directly, genuinely enforces a transition_definitions row's Quality
+// Gate for a real entity instance — blocked, then unblocked — exactly like
+// qualityGateEngine's existing single-entity-type (Deliverable) wiring does.
+//
+// NOTE: Transition Definitions are NOT authored through an SDK pipeline. CR-019
+// established they are authored through the CR-007 add/retire form (noun × verb),
+// and the bug fix that made Pack/Template/Profile authoring entity-direct removed
+// the old Deliverable-based SDK authoring pipeline entirely — so the earlier two
+// tests here (which drove startAuthoring → submitForReview → publish for a
+// TransitionDefinition) tested a path that no longer exists by design and were
+// removed. The engine-enforcement test below is independent of authoring.
 //
 // Built on throwaway, randomized (fromState, toState) pairs for AttentionItem
-// — the exact same isolation discipline tests/quality-gate-generalization.test.ts
-// already established, for the same reason: inserting against a real,
-// seeded triple would be a permanent, global change to this shared,
-// never-reset dev database.
+// — the same isolation discipline tests/quality-gate-generalization.test.ts
+// already established, for the same reason: inserting against a real, seeded
+// triple would be a permanent, global change to this shared dev database.
 import "dotenv/config";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -33,16 +29,12 @@ import { transitionEngine } from "../src/domain/engine/transitionEngine.js";
 import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
-import { startAuthoring, saveAuthoringContent, submitForReview, publishAuthoredContent } from "../src/routes/seu/core/sdkAuthoring.js";
-import { createEvidence, transitionEvidence } from "../src/routes/seu/core/evidence.js";
-import type { TransitionDefinitionSeedInput } from "../src/routes/seu/core/transitionDefinitions.js";
+import { validateTransitionDefinitionSeed } from "../src/routes/seu/core/transitionDefinitions.js";
 import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 
 after(async () => {
   await pool.end();
 });
-
-const ROOT_ACTOR_ID = "1";
 
 async function anyRealPackId(): Promise<string> {
   const { data: pack } = await packsDB.findByCode("platform-core-engineering");
@@ -61,61 +53,6 @@ async function commissionTestSeu(statementPrefix: string): Promise<string> {
   if (!result.ok) throw new Error("unreachable");
   return result.seu.id;
 }
-
-async function acceptReviewEvidence(seuId: string, deliverableId: string): Promise<void> {
-  const evidence = await createEvidence({
-    seuId,
-    relatedObjectType: "Deliverable",
-    relatedObjectId: deliverableId,
-    category: "Review",
-    title: "Reviewer confirms the authored document is complete and correct",
-  });
-  await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorRole: "general" });
-  await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorRole: "general" });
-}
-
-test("Transition Definition authoring: the same generic pipeline as Pack/Template/Profile publishes a real transition_definitions row with resolved Quality Gate ids", async () => {
-  const fromState = `td-authoring-from-${randomUUID()}`;
-  const toState = `td-authoring-to-${randomUUID()}`;
-
-  // The gate this Transition Definition will reference — a real quality_gates
-  // row, contributed the same way any Pack contributes one; authoring a
-  // Transition Definition references gates, it doesn't create them (SDK UI
-  // Layer Plan: quality gates aren't one of the four SDK-authored kinds).
-  const { data: gate, error: gateError } = await qualityGatesDB.upsert({
-    code: `td-authoring-gate-${randomUUID()}`,
-    name: "Transition Definition authoring test gate",
-    entityType: "AttentionItem",
-    fromState,
-    toState,
-    criteria: { type: "no_unresolved_obligations" },
-    originatingPackId: await anyRealPackId(),
-  });
-  assert.ok(!gateError && gate, gateError?.message);
-
-  const seed: TransitionDefinitionSeedInput = {
-    entityType: "AttentionItem",
-    fromState,
-    toState,
-    requiredQualityGateCodes: [gate!.code],
-  };
-
-  const started = await startAuthoring({ kind: "TransitionDefinition", actorId: ROOT_ACTOR_ID, actorName: "Root", actorRole: "general" });
-  assert.equal(started.deliverable.category, "Transition Definition Definition");
-
-  await saveAuthoringContent(started.deliverable.id, seed as unknown as Record<string, unknown>);
-  await acceptReviewEvidence(started.seu.id, started.deliverable.id);
-
-  const reviewed = await submitForReview({ deliverableId: started.deliverable.id, kind: "TransitionDefinition", actorId: ROOT_ACTOR_ID, actorRole: "general" });
-  assert.equal(reviewed.ok, true, reviewed.errors?.join("; "));
-
-  const published = await publishAuthoredContent({ deliverableId: started.deliverable.id, kind: "TransitionDefinition", actorId: ROOT_ACTOR_ID, actorRole: "general" });
-  assert.equal(published.ok, true, published.errors?.join("; "));
-
-  const { data: transitionDefinition } = await transitionDefinitionsDB.find("AttentionItem", fromState, toState);
-  assert.ok(transitionDefinition, "expected the authored Transition Definition to be registered");
-  assert.deepEqual(transitionDefinition!.required_quality_gate_ids, [gate!.id]);
-});
 
 // Deliberately calls transitionEngine.evaluate directly, not through
 // transitionAttentionItem — every one of the 9 entity types migrated by
@@ -197,16 +134,15 @@ test("Transition Definition authoring: a Quality Gate code scoped to a different
   });
   assert.ok(!gateError && gate, gateError?.message);
 
-  const started = await startAuthoring({ kind: "TransitionDefinition", actorId: ROOT_ACTOR_ID, actorName: "Root", actorRole: "general" });
-  const seed: TransitionDefinitionSeedInput = {
+  // The referential check lives in validateTransitionDefinitionSeed (the same
+  // validator the CR-007 form and any publisher run) — a Quality Gate code
+  // scoped to a different (entityType, fromState, toState) triple is rejected.
+  const result = await validateTransitionDefinitionSeed({
     entityType: "AttentionItem",
     fromState: `td-mismatch-from-${randomUUID()}`,
     toState: `td-mismatch-to-${randomUUID()}`,
     requiredQualityGateCodes: [gate!.code],
-  };
-  await saveAuthoringContent(started.deliverable.id, seed as unknown as Record<string, unknown>);
-
-  const reviewed = await submitForReview({ deliverableId: started.deliverable.id, kind: "TransitionDefinition", actorId: ROOT_ACTOR_ID, actorRole: "general" });
-  assert.equal(reviewed.ok, false);
-  assert.match((reviewed.errors ?? []).join(";"), /is scoped to AttentionItem/);
+  });
+  assert.equal(result.ok, false);
+  assert.match((!result.ok && result.errors.join(";")) || "", /is scoped to AttentionItem/);
 });

@@ -27,39 +27,56 @@
       <div>
         <h2 class="h3 mb-1 text-dark fw-bold"><%= kindLabel %> Authoring</h2>
         <p class="text-muted small mb-0">
-          Each session is an ordinary Deliverable, produced by commissioning a small bootstrap SEU — reaching
-          Baselined registers the real, governed <%= kindLabel %> (SDK UI Layer Plan).
+          A <%= kindLabel %> is authored as a <strong>Draft of the <%= kindLabel %> itself</strong> and driven through its own
+          governed <code>noun × verb</code> transitions by you — the real author. Publishing registers the live, governed <%= kindLabel %>.
         </p>
       </div>
       <% if (canCreate) { %>
-        <form method="POST" action="/aisworg/seu/sdk/<%= slug %>">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>New <%= kindLabel %></button>
-        </form>
+        <a href="/aisworg/seu/sdk/<%= slug %>/new" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>New <%= kindLabel %></a>
       <% } %>
     </div>
 
-    <h6 class="text-uppercase text-muted small fw-bold mb-2">Authoring sessions (drafts)</h6>
-    <div class="card border-0 shadow-sm">
-      <div class="card-body">
-        <table class="table table-sm align-middle mb-0">
-          <thead><tr><th>Session</th><th>State</th><th>Started</th><th></th></tr></thead>
-          <tbody>
-            <% sessions.forEach(function(s) { %>
-              <tr>
-                <td class="small text-muted"><%= s.deliverableId %></td>
-                <td><span class="state-badge state-<%= s.lifecycleState.replace(/\s+/g,'') %>"><%= s.lifecycleState %></span></td>
-                <td class="text-muted small"><%= new Date(s.createdAt).toLocaleString() %></td>
-                <td><a class="btn btn-sm btn-outline-primary" href="/aisworg/seu/sdk/<%= slug %>/<%= s.deliverableId %>">Open</a></td>
-              </tr>
-            <% }) %>
-            <% if (sessions.length === 0) { %>
-              <tr><td colspan="4" class="text-muted small text-center py-3">No <%= kindLabel %> authoring sessions yet.</td></tr>
-            <% } %>
-          </tbody>
-        </table>
+    <% if (typeof showDrafts === 'undefined' || showDrafts) { %>
+      <% const _tabs = locals.tabs || []; %>
+      <ul class="nav nav-tabs mb-3" role="tablist">
+        <% _tabs.forEach(function(t, i) { %>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link <%= i === 0 ? 'active' : '' %>" data-bs-toggle="tab" data-bs-target="#tab-<%= t.key %>" type="button" role="tab">
+              <%= t.label %> <code class="small text-muted"><%= t.verb %></code>
+            </button>
+          </li>
+        <% }) %>
+      </ul>
+      <div class="tab-content">
+        <% _tabs.forEach(function(t, i) { %>
+          <div class="tab-pane fade <%= i === 0 ? 'show active' : '' %>" id="tab-<%= t.key %>" role="tabpanel">
+            <div class="card border-0 shadow-sm">
+              <div class="card-body">
+                <table class="table table-sm align-middle mb-0">
+                  <thead><tr><th>Code</th><th>Name</th><th>Status</th><th>Created</th><th></th></tr></thead>
+                  <tbody>
+                    <% t.rows.forEach(function(r) { %>
+                      <tr>
+                        <td class="small text-muted"><%= r.code %></td>
+                        <td class="small"><%= r.name %></td>
+                        <td><span class="state-badge state-<%= r.status.replace(/\s+/g,'') %>"><%= r.status %></span></td>
+                        <td class="text-muted small"><%= new Date(r.createdAt).toLocaleString() %></td>
+                        <td><a class="btn btn-sm btn-outline-primary" href="/aisworg/seu/sdk/<%= slug %>/<%= r.id %>"><%= t.key === 'define' ? 'Open' : 'View' %></a></td>
+                      </tr>
+                    <% }) %>
+                    <% if (t.rows.length === 0) { %>
+                      <tr><td colspan="5" class="text-muted small text-center py-3">Nothing in “<%= t.label %>” yet<%= t.key === 'define' ? ' — start one with “New '+kindLabel+'”.' : '.' %></td></tr>
+                    <% } %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        <% }) %>
       </div>
-    </div>
+    <% } else { %>
+      <p class="text-muted small mb-2"><i class="bi bi-info-circle me-1"></i>Transition definitions are authored directly in the form below (noun × verb), not as grammar drafts.</p>
+    <% } %>
 
     <%# CR-007: the LIVE transition definitions (current governed-transition graph), not just drafts. %>
     <% if (locals.definitions) { %>

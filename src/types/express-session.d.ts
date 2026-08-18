@@ -16,6 +16,12 @@ declare module "express-session" {
       // Phase 10 (badge model) — cached at login (buildSessionUser +
       // ensureBadgeBootstrap), not re-derived per request.
       platformBadges?: string[];
+      // CR-004 — the actor's home (Platform | Tenant + tenant_id), set by
+      // buildSessionUser() but missing from this ambient type until now (Pack
+      // ownership visibility, owner: "Packs will have ownership... platform
+      // or the tenant" — the first real consumer).
+      type?: "Platform" | "Tenant" | null;
+      tenant_id?: string | null;
     };
     flash?: unknown;
     _t?: number;

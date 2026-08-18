@@ -163,7 +163,7 @@ export async function commissionSeu(input: {
   await seusDB.setActiveEbm(seu.id, ebm.id);
 
   await seusDB.updateLifecycleState(seu.id, "Commissioned");
-  await eventBus.publish({ eventType: "SEUCommissioned", originatingObjectType: "SEU", originatingObjectId: seu.id, correlationId, causationId: correlationId });
+  await eventBus.publish({ eventType: "SEUCommissioned", originatingObjectType: "SEU", originatingObjectId: seu.id, correlationId, causationId: correlationId, actorId: input.actorId ?? null, authorityBadge: gate.authorityBadge });
 
   // Ch.8 §12 Create Engineering Assets — required Capabilities + the
   // Template's Deliverable Catalogue, wired into the Dependency Graph.
@@ -218,7 +218,7 @@ export async function commissionSeu(input: {
       return { ok: false, stage: `transition_${from}_to_${to}`, reason: describeRejection(step), seuId: seu.id };
     }
     await seusDB.updateLifecycleState(seu.id, to);
-    await eventBus.publish({ eventType: `SEU${to}`, originatingObjectType: "SEU", originatingObjectId: seu.id, correlationId, causationId: correlationId });
+    await eventBus.publish({ eventType: `SEU${to}`, originatingObjectType: "SEU", originatingObjectId: seu.id, correlationId, causationId: correlationId, actorId: input.actorId ?? null, authorityBadge: step.authorityBadge });
   }
 
   const report: CommissioningReport = {

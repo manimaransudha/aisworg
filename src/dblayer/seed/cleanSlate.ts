@@ -55,6 +55,13 @@
 //    `endow` database (Postgres-isolated). Since clean-slate is dev/test-only,
 //    users are now wiped in step 1b (the god user re-seeds on next login).
 //
+// 4. schema_definitions (the "schema registry") was missing from the wipe
+//    entirely. createSchemaVersion is INSERT-only, so every schema version
+//    authored via the SDK UI persists forever — a real dev DB carried 157
+//    stale versions above the migration-seeded baseline (156 of them for
+//    TransitionDefinition). A minimum-clean DB holds exactly version 1 per
+//    kind (seeded idempotently by 014/015/016); step 2e now trims to that.
+//
 // Everything runs inside one transaction — an unexpected FK conflict (e.g.
 // from a table added by a migration since this script was last reviewed;
 // see the instructions doc's own "keeping this in sync" triggers) rolls
@@ -66,6 +73,7 @@ import { seedSdkAuthoringBootstrap } from "./seedSdkAuthoringBootstrap.js";
 import { seedIdentityBaseline } from "./seedIdentityBaseline.js";
 import { seedTransitionDefinitions } from "./seedTransitionDefinitions.js";
 import { seedAuthorityVocabulary } from "./seedAuthorityVocabulary.js";
+import { seedCapabilityPatternPacks } from "./seedCapabilityPatternPacks.js";
 import { AUTHORING_SCOPE_PACK_CODE } from "../../domain/sdk/authoringScope.js";
 
 // Real gap found running the Ebook Library demo walkthrough on a database
@@ -150,6 +158,38 @@ async function run(): Promise<void> {
     await client.query("TRUNCATE TABLE users RESTART IDENTITY CASCADE");
     logger.info("[db:clean-slate] step 1b — truncated users (RESTART IDENTITY); god user re-created on next login.");
 
+    // Step 1c — badge_grants. Bug fix (real regression, hit 3 times): a grant
+    // is meaningless without the holder it names, but badge_grants.holder_id
+    // is a polymorphic column (not an FK to users), so step 1b's CASCADE never
+    // touches it — every grant survived a "clean slate" untouched. Combined
+    // with RESTART IDENTITY resetting the users serial, a freshly-created user
+    // could be assigned an id a PRE-RESET grant still names and silently
+    // inherit authority (sometimes `root`) it never earned — exactly the
+    // accountability failure this platform's own noun×verb model exists to
+    // prevent. Same discipline step 5 already applies to transition_definitions
+    // below ("wipe the accumulated graph, reseed fresh, self-healing"): wipe
+    // every grant here; steps 4/6 (identity baseline + authority vocab
+    // back-fill) reseed the real fixture grants fresh afterward.
+    // CASCADE: commands.acting_badge_grant_id FKs into badge_grants —
+    // Postgres's TRUNCATE FK-check is structural, not content-based, so this
+    // is required even though step 1 (above) already emptied commands.
+    await client.query("TRUNCATE TABLE badge_grants RESTART IDENTITY CASCADE");
+    // Restore the ONE row this truncate takes out that nothing downstream
+    // reseeds: 012_badge_model.sql's own idempotent `holder_id '1' -> root`
+    // grant, which only runs during `migrate:seu` (not on every clean-slate)
+    // — the step 1b comment above already documents every other piece of code
+    // that assumes this row survives (NODE_ENV=test's auto-login shim acts as
+    // actorId "1" directly, with no real login/badgeBootstrap to (re)grant it).
+    // Without this, root's bypass vanishes and every test/dev session that
+    // relies on it fails `authority_denied` platform-wide. Same exact INSERT
+    // migration 012 uses.
+    await client.query(`
+      INSERT INTO badge_grants (holder_type, holder_id, badge_type)
+      SELECT 'User', '1', 'root'
+      WHERE NOT EXISTS (SELECT 1 FROM badge_grants WHERE holder_id = '1' AND badge_type = 'root')
+    `);
+    logger.info("[db:clean-slate] step 1c — truncated badge_grants (RESTART IDENTITY) and restored the holder '1' root grant; fixture grants reseeded in step 4.");
+
     // Step 2a — non-bootstrap Profiles, then Templates (profiles first:
     // profiles.base_template_id -> templates is NO ACTION, so a surviving
     // non-bootstrap profile would block deleting the template it points at
@@ -223,6 +263,18 @@ async function run(): Promise<void> {
     const tenantsDeleted = await client.query("DELETE FROM tenants WHERE id <> ALL($1::uuid[])", [reservedIds]);
     logger.info(`[db:clean-slate] step 2d — deleted ${tenantsDeleted.rowCount} non-reserved tenants (+ their contracts, execution targets, aliases, badge variants).`);
 
+    // Step 2e — the schema registry (schema_definitions). createSchemaVersion is
+    // INSERT-only (never updates/deletes), so every schema version authored via
+    // the SDK UI adds a row and lingers forever — test/dry-run authoring leaves
+    // dozens-to-hundreds of stale versions (156 TransitionDefinition versions
+    // observed on a real dev DB). The migration-seeded minimum is exactly version
+    // 1 per kind (014/015/016, idempotent), which is what a "clean" DB should
+    // hold. Trim back to it: delete every version > 1. FK-safe — the only table
+    // referencing schema_definitions is deliverable_authoring_content, truncated
+    // in step 1.
+    const schemaVersionsDeleted = await client.query("DELETE FROM schema_definitions WHERE version > 1");
+    logger.info(`[db:clean-slate] step 2e — trimmed ${schemaVersionsDeleted.rowCount} authored schema_definitions versions (kept version 1 per kind).`);
+
     // NOTE (CR-006): transition_definitions and the authority vocabulary
     // (nouns/verbs/mapping) are NOT wiped here in the main transaction — the
     // reseed steps below own them, each rebuilding fresh with an atomic
@@ -269,6 +321,15 @@ async function run(): Promise<void> {
   // Step 6 — CR-006 authority vocabulary (nouns/verbs/mapping) + back-fill the
   // verb per transition. Atomic wipe+reseed; depends on step 5's fresh rows.
   await seedAuthorityVocabulary();
+
+  // Step 7 — EPF/OpenUP capability-pattern Packs (owner, 2026-08-17). Must run
+  // AFTER steps 5/6: publishing each Pack drives it through transitionEngine
+  // (Draft -> Validated -> Published -> Active), which needs Pack's own
+  // transition_definitions rows (step 5) and their back-filled verb (step 6)
+  // to resolve — same ordering reasoning as the bootstrap Pack in seedSeu.ts.
+  // Rerun-safe (publishPack is a no-op on an already-published (code,version)).
+  await seedCapabilityPatternPacks();
+
   logger.info("[db:clean-slate] done. Sanity-check next: hit /aisworg/seu/sdk/pack-authoring (bootstrap Templates survived) and /aisworg/seu/telemetry (zero Deliverables measured) as a real user.");
 }
 

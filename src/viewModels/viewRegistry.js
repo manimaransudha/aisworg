@@ -23,6 +23,7 @@ import {seu_sdk_authority_detailVM} from "./seu_sdk_authority_detail.js";
 import {seu_sdk_authoring_editVM} from "./seu_sdk_authoring_edit.js";
 import {seu_sdk_schema_registry_indexVM} from "./seu_sdk_schema_registry_index.js";
 import {seu_sdk_schema_registry_detailVM} from "./seu_sdk_schema_registry_detail.js";
+import {seu_sdk_schema_registry_newVM} from "./seu_sdk_schema_registry_new.js";
 import {seu_workqueue_indexVM} from "./seu_workqueue_index.js";
 import {seu_reviews_indexVM} from "./seu_reviews_index.js";
 import {seu_compliance_indexVM} from "./seu_compliance_index.js";
@@ -58,6 +59,7 @@ export const viewModels = {
   "seu/sdk/authoring/edit": seu_sdk_authoring_editVM,
   "seu/sdk/schema-registry/index": seu_sdk_schema_registry_indexVM,
   "seu/sdk/schema-registry/detail": seu_sdk_schema_registry_detailVM,
+  "seu/sdk/schema-registry/new": seu_sdk_schema_registry_newVM,
   "seu/workqueue/index": seu_workqueue_indexVM,
   "seu/reviews/index": seu_reviews_indexVM,
   "seu/compliance/index": seu_compliance_indexVM

@@ -1,154 +1,750 @@
 {
-  "_comment": "CR-006 noun x verb authority vocabulary. `nouns` = Work outcome, `verbs` = Work process, `transitions` binds one verb to each (entityType, fromState, toState). The noun->allowed-verbs mapping is DERIVED from `transitions` by the seed (single source of truth). `define` is present in the vocabulary for the birth transition (create), which is added when creation-as-transition is wired (a later stage) — no birth rows here yet.",
+  "_comment": "CR-006 noun x verb authority vocabulary. `nouns` = Work outcome, `verbs` = Work process, `transitions` binds one verb to each (entityType, fromState, toState). The noun->allowed-verbs mapping is DERIVED from `transitions` by the seed (single source of truth). `define` is present in the vocabulary for the birth transition (create), which is added when creation-as-transition is wired (a later stage) \u2014 no birth rows here yet.",
   "nouns": [
-    { "code": "SEU", "label": "SEU" },
-    { "code": "Deliverable", "label": "Deliverable" },
-    { "code": "Objective", "label": "Objective" },
-    { "code": "Obligation", "label": "Obligation" },
-    { "code": "Evidence", "label": "Evidence" },
-    { "code": "Knowledge", "label": "Knowledge" },
-    { "code": "Decision", "label": "Decision" },
-    { "code": "KnowledgeScope", "label": "Knowledge Scope" },
-    { "code": "AttentionItem", "label": "Attention Item" },
-    { "code": "ExternalInteraction", "label": "External Interaction" },
-    { "code": "Pack", "label": "Pack" },
-    { "code": "Participant", "label": "Participant" },
-    { "code": "Review", "label": "Review" },
-    { "code": "Finding", "label": "Finding" }
+    {
+      "code": "SEU",
+      "label": "SEU"
+    },
+    {
+      "code": "Deliverable",
+      "label": "Deliverable"
+    },
+    {
+      "code": "Objective",
+      "label": "Objective"
+    },
+    {
+      "code": "Obligation",
+      "label": "Obligation"
+    },
+    {
+      "code": "Evidence",
+      "label": "Evidence"
+    },
+    {
+      "code": "Knowledge",
+      "label": "Knowledge"
+    },
+    {
+      "code": "Decision",
+      "label": "Decision"
+    },
+    {
+      "code": "KnowledgeScope",
+      "label": "Knowledge Scope"
+    },
+    {
+      "code": "AttentionItem",
+      "label": "Attention Item"
+    },
+    {
+      "code": "ExternalInteraction",
+      "label": "External Interaction"
+    },
+    {
+      "code": "Pack",
+      "label": "Pack"
+    },
+    {
+      "code": "Participant",
+      "label": "Participant"
+    },
+    {
+      "code": "Review",
+      "label": "Review"
+    },
+    {
+      "code": "Finding",
+      "label": "Finding"
+    },
+    {
+      "code": "Template",
+      "label": "Template"
+    },
+    {
+      "code": "Profile",
+      "label": "Profile"
+    },
+    {
+      "code": "TransitionDefinition",
+      "label": "Transition Definition"
+    }
   ],
   "verbs": [
-    { "code": "define", "label": "Define", "description": "Birth of the entity into its initial state (create-as-transition; not yet wired)." },
-    { "code": "create", "label": "Create", "description": "Begin work — move out of the initial defined state." },
-    { "code": "review", "label": "Review" },
-    { "code": "approve", "label": "Approve" },
-    { "code": "baseline", "label": "Baseline" },
-    { "code": "commission", "label": "Commission" },
-    { "code": "configure", "label": "Configure" },
-    { "code": "activate", "label": "Activate" },
-    { "code": "operationalise", "label": "Operationalise" },
-    { "code": "achieve", "label": "Achieve" },
-    { "code": "supersede", "label": "Supersede" },
-    { "code": "retire", "label": "Retire" },
-    { "code": "archive", "label": "Archive" },
-    { "code": "analyse", "label": "Analyse" },
-    { "code": "assign", "label": "Assign" },
-    { "code": "start", "label": "Start" },
-    { "code": "resolve", "label": "Resolve" },
-    { "code": "verify", "label": "Verify" },
-    { "code": "close", "label": "Close" },
-    { "code": "validate", "label": "Validate" },
-    { "code": "accept", "label": "Accept" },
-    { "code": "reference", "label": "Reference" },
-    { "code": "propose", "label": "Propose" },
-    { "code": "publish", "label": "Publish" },
-    { "code": "deprecate", "label": "Deprecate" },
-    { "code": "apply", "label": "Apply" },
-    { "code": "promote_to_capability", "label": "Promote to Capability" },
-    { "code": "promote_to_enterprise", "label": "Promote to Enterprise" },
-    { "code": "promote_to_platform", "label": "Promote to Platform" },
-    { "code": "deliver", "label": "Deliver" },
-    { "code": "acknowledge", "label": "Acknowledge" },
-    { "code": "dispatch", "label": "Dispatch" },
-    { "code": "fail", "label": "Fail" },
-    { "code": "complete", "label": "Complete" },
-    { "code": "make_available", "label": "Make Available" },
-    { "code": "execute", "label": "Execute" },
-    { "code": "idle", "label": "Idle" },
-    { "code": "release", "label": "Release" },
-    { "code": "prepare", "label": "Prepare" },
-    { "code": "waive", "label": "Waive" }
+    {
+      "code": "define",
+      "label": "Define",
+      "description": "Birth of the entity into its initial state (create-as-transition; not yet wired)."
+    },
+    {
+      "code": "create",
+      "label": "Create",
+      "description": "Begin work \u2014 move out of the initial defined state."
+    },
+    {
+      "code": "review",
+      "label": "Review"
+    },
+    {
+      "code": "approve",
+      "label": "Approve"
+    },
+    {
+      "code": "baseline",
+      "label": "Baseline"
+    },
+    {
+      "code": "commission",
+      "label": "Commission"
+    },
+    {
+      "code": "configure",
+      "label": "Configure"
+    },
+    {
+      "code": "activate",
+      "label": "Activate"
+    },
+    {
+      "code": "operationalise",
+      "label": "Operationalise"
+    },
+    {
+      "code": "achieve",
+      "label": "Achieve"
+    },
+    {
+      "code": "supersede",
+      "label": "Supersede"
+    },
+    {
+      "code": "retire",
+      "label": "Retire"
+    },
+    {
+      "code": "archive",
+      "label": "Archive"
+    },
+    {
+      "code": "analyse",
+      "label": "Analyse"
+    },
+    {
+      "code": "assign",
+      "label": "Assign"
+    },
+    {
+      "code": "start",
+      "label": "Start"
+    },
+    {
+      "code": "resolve",
+      "label": "Resolve"
+    },
+    {
+      "code": "verify",
+      "label": "Verify"
+    },
+    {
+      "code": "close",
+      "label": "Close"
+    },
+    {
+      "code": "validate",
+      "label": "Validate"
+    },
+    {
+      "code": "accept",
+      "label": "Accept"
+    },
+    {
+      "code": "reference",
+      "label": "Reference"
+    },
+    {
+      "code": "propose",
+      "label": "Propose"
+    },
+    {
+      "code": "publish",
+      "label": "Publish"
+    },
+    {
+      "code": "deprecate",
+      "label": "Deprecate"
+    },
+    {
+      "code": "apply",
+      "label": "Apply"
+    },
+    {
+      "code": "promote_to_capability",
+      "label": "Promote to Capability"
+    },
+    {
+      "code": "promote_to_enterprise",
+      "label": "Promote to Enterprise"
+    },
+    {
+      "code": "promote_to_platform",
+      "label": "Promote to Platform"
+    },
+    {
+      "code": "deliver",
+      "label": "Deliver"
+    },
+    {
+      "code": "acknowledge",
+      "label": "Acknowledge"
+    },
+    {
+      "code": "dispatch",
+      "label": "Dispatch"
+    },
+    {
+      "code": "fail",
+      "label": "Fail"
+    },
+    {
+      "code": "complete",
+      "label": "Complete"
+    },
+    {
+      "code": "make_available",
+      "label": "Make Available"
+    },
+    {
+      "code": "execute",
+      "label": "Execute"
+    },
+    {
+      "code": "idle",
+      "label": "Idle"
+    },
+    {
+      "code": "release",
+      "label": "Release"
+    },
+    {
+      "code": "prepare",
+      "label": "Prepare"
+    },
+    {
+      "code": "waive",
+      "label": "Waive"
+    }
   ],
   "transitions": [
-    { "entityType": "SEU", "fromState": "Pending", "toState": "Commissioned", "verb": "commission" },
-    { "entityType": "SEU", "fromState": "Commissioned", "toState": "Configured", "verb": "configure" },
-    { "entityType": "SEU", "fromState": "Configured", "toState": "Activated", "verb": "activate" },
-    { "entityType": "SEU", "fromState": "Activated", "toState": "Operational", "verb": "operationalise" },
-
-    { "entityType": "Deliverable", "fromState": "Defined", "toState": "In Progress", "verb": "create" },
-    { "entityType": "Deliverable", "fromState": "In Progress", "toState": "Approved", "verb": "approve" },
-    { "entityType": "Deliverable", "fromState": "Approved", "toState": "Baselined", "verb": "baseline" },
-
-    { "entityType": "Objective", "fromState": "Proposed", "toState": "Active", "verb": "activate" },
-    { "entityType": "Objective", "fromState": "Active", "toState": "Achieved", "verb": "achieve" },
-    { "entityType": "Objective", "fromState": "Active", "toState": "Superseded", "verb": "supersede" },
-    { "entityType": "Objective", "fromState": "Active", "toState": "Retired", "verb": "retire" },
-    { "entityType": "Objective", "fromState": "Achieved", "toState": "Archived", "verb": "archive" },
-    { "entityType": "Objective", "fromState": "Superseded", "toState": "Archived", "verb": "archive" },
-    { "entityType": "Objective", "fromState": "Retired", "toState": "Archived", "verb": "archive" },
-
-    { "entityType": "Obligation", "fromState": "Identified", "toState": "Analysed", "verb": "analyse" },
-    { "entityType": "Obligation", "fromState": "Analysed", "toState": "Assigned", "verb": "assign" },
-    { "entityType": "Obligation", "fromState": "Assigned", "toState": "In Progress", "verb": "start" },
-    { "entityType": "Obligation", "fromState": "In Progress", "toState": "Resolved", "verb": "resolve" },
-    { "entityType": "Obligation", "fromState": "Resolved", "toState": "Verified", "verb": "verify" },
-    { "entityType": "Obligation", "fromState": "Verified", "toState": "Closed", "verb": "close" },
-    { "entityType": "Obligation", "fromState": "Closed", "toState": "Archived", "verb": "archive" },
-
-    { "entityType": "Evidence", "fromState": "Collected", "toState": "Validated", "verb": "validate" },
-    { "entityType": "Evidence", "fromState": "Validated", "toState": "Accepted", "verb": "accept" },
-    { "entityType": "Evidence", "fromState": "Accepted", "toState": "Referenced", "verb": "reference" },
-    { "entityType": "Evidence", "fromState": "Referenced", "toState": "Archived", "verb": "archive" },
-
-    { "entityType": "Knowledge", "fromState": "Observed", "toState": "Proposed", "verb": "propose" },
-    { "entityType": "Knowledge", "fromState": "Proposed", "toState": "Validated", "verb": "validate" },
-    { "entityType": "Knowledge", "fromState": "Validated", "toState": "Accepted", "verb": "accept" },
-    { "entityType": "Knowledge", "fromState": "Accepted", "toState": "Published", "verb": "publish" },
-    { "entityType": "Knowledge", "fromState": "Published", "toState": "Deprecated", "verb": "deprecate" },
-    { "entityType": "Knowledge", "fromState": "Deprecated", "toState": "Archived", "verb": "archive" },
-
-    { "entityType": "Decision", "fromState": "Identified", "toState": "Analysed", "verb": "analyse" },
-    { "entityType": "Decision", "fromState": "Analysed", "toState": "Proposed", "verb": "propose" },
-    { "entityType": "Decision", "fromState": "Proposed", "toState": "Reviewed", "verb": "review" },
-    { "entityType": "Decision", "fromState": "Reviewed", "toState": "Approved", "verb": "approve" },
-    { "entityType": "Decision", "fromState": "Approved", "toState": "Applied", "verb": "apply" },
-    { "entityType": "Decision", "fromState": "Applied", "toState": "Superseded", "verb": "supersede" },
-    { "entityType": "Decision", "fromState": "Superseded", "toState": "Archived", "verb": "archive" },
-
-    { "entityType": "KnowledgeScope", "fromState": "SEU", "toState": "Capability", "verb": "promote_to_capability" },
-    { "entityType": "KnowledgeScope", "fromState": "Capability", "toState": "Enterprise", "verb": "promote_to_enterprise" },
-    { "entityType": "KnowledgeScope", "fromState": "Enterprise", "toState": "Platform", "verb": "promote_to_platform" },
-
-    { "entityType": "AttentionItem", "fromState": "Created", "toState": "Delivered", "verb": "deliver" },
-    { "entityType": "AttentionItem", "fromState": "Delivered", "toState": "Acknowledged", "verb": "acknowledge" },
-    { "entityType": "AttentionItem", "fromState": "Acknowledged", "toState": "In Progress", "verb": "start" },
-    { "entityType": "AttentionItem", "fromState": "In Progress", "toState": "Resolved", "verb": "resolve" },
-    { "entityType": "AttentionItem", "fromState": "Resolved", "toState": "Closed", "verb": "close" },
-
-    { "entityType": "ExternalInteraction", "fromState": "Created", "toState": "Validated", "verb": "validate" },
-    { "entityType": "ExternalInteraction", "fromState": "Validated", "toState": "Dispatched", "verb": "dispatch" },
-    { "entityType": "ExternalInteraction", "fromState": "Dispatched", "toState": "Acknowledged", "verb": "acknowledge" },
-    { "entityType": "ExternalInteraction", "fromState": "Dispatched", "toState": "Failed", "verb": "fail" },
-    { "entityType": "ExternalInteraction", "fromState": "Acknowledged", "toState": "Completed", "verb": "complete" },
-    { "entityType": "ExternalInteraction", "fromState": "Completed", "toState": "Archived", "verb": "archive" },
-
-    { "entityType": "Pack", "fromState": "Draft", "toState": "Validated", "verb": "validate" },
-    { "entityType": "Pack", "fromState": "Validated", "toState": "Published", "verb": "publish" },
-    { "entityType": "Pack", "fromState": "Published", "toState": "Active", "verb": "activate" },
-    { "entityType": "Pack", "fromState": "Active", "toState": "Deprecated", "verb": "deprecate" },
-    { "entityType": "Pack", "fromState": "Deprecated", "toState": "Retired", "verb": "retire" },
-    { "entityType": "Pack", "fromState": "Retired", "toState": "Archived", "verb": "archive" },
-    { "entityType": "Pack", "fromState": "Deprecated", "toState": "Active", "verb": "activate" },
-    { "entityType": "Pack", "fromState": "Retired", "toState": "Active", "verb": "activate" },
-    { "entityType": "Pack", "fromState": "Archived", "toState": "Active", "verb": "activate" },
-
-    { "entityType": "Participant", "fromState": "Created", "toState": "Available", "verb": "make_available" },
-    { "entityType": "Participant", "fromState": "Available", "toState": "Assigned", "verb": "assign" },
-    { "entityType": "Participant", "fromState": "Assigned", "toState": "Executing", "verb": "execute" },
-    { "entityType": "Participant", "fromState": "Executing", "toState": "Idle", "verb": "idle" },
-    { "entityType": "Participant", "fromState": "Idle", "toState": "Assigned", "verb": "assign" },
-    { "entityType": "Participant", "fromState": "Idle", "toState": "Released", "verb": "release" },
-    { "entityType": "Participant", "fromState": "Released", "toState": "Archived", "verb": "archive" },
-    { "entityType": "Participant", "fromState": "Available", "toState": "Released", "verb": "release" },
-    { "entityType": "Participant", "fromState": "Assigned", "toState": "Released", "verb": "release" },
-    { "entityType": "Participant", "fromState": "Executing", "toState": "Released", "verb": "release" },
-
-    { "entityType": "Review", "fromState": "Planned", "toState": "Prepared", "verb": "prepare" },
-    { "entityType": "Review", "fromState": "Prepared", "toState": "In Progress", "verb": "start" },
-    { "entityType": "Review", "fromState": "In Progress", "toState": "Completed", "verb": "complete" },
-    { "entityType": "Review", "fromState": "Completed", "toState": "Accepted", "verb": "accept" },
-    { "entityType": "Review", "fromState": "Accepted", "toState": "Archived", "verb": "archive" },
-
-    { "entityType": "Finding", "fromState": "Open", "toState": "Resolved", "verb": "resolve" },
-    { "entityType": "Finding", "fromState": "Open", "toState": "Waived", "verb": "waive" }
+    {
+      "entityType": "SEU",
+      "fromState": "Pending",
+      "toState": "Commissioned",
+      "verb": "commission"
+    },
+    {
+      "entityType": "SEU",
+      "fromState": "Commissioned",
+      "toState": "Configured",
+      "verb": "configure"
+    },
+    {
+      "entityType": "SEU",
+      "fromState": "Configured",
+      "toState": "Activated",
+      "verb": "activate"
+    },
+    {
+      "entityType": "SEU",
+      "fromState": "Activated",
+      "toState": "Operational",
+      "verb": "operationalise"
+    },
+    {
+      "entityType": "Deliverable",
+      "fromState": "Defined",
+      "toState": "In Progress",
+      "verb": "create"
+    },
+    {
+      "entityType": "Deliverable",
+      "fromState": "In Progress",
+      "toState": "Approved",
+      "verb": "approve"
+    },
+    {
+      "entityType": "Deliverable",
+      "fromState": "Approved",
+      "toState": "Baselined",
+      "verb": "baseline"
+    },
+    {
+      "entityType": "Objective",
+      "fromState": "Proposed",
+      "toState": "Active",
+      "verb": "activate"
+    },
+    {
+      "entityType": "Objective",
+      "fromState": "Active",
+      "toState": "Achieved",
+      "verb": "achieve"
+    },
+    {
+      "entityType": "Objective",
+      "fromState": "Active",
+      "toState": "Superseded",
+      "verb": "supersede"
+    },
+    {
+      "entityType": "Objective",
+      "fromState": "Active",
+      "toState": "Retired",
+      "verb": "retire"
+    },
+    {
+      "entityType": "Objective",
+      "fromState": "Achieved",
+      "toState": "Archived",
+      "verb": "archive"
+    },
+    {
+      "entityType": "Objective",
+      "fromState": "Superseded",
+      "toState": "Archived",
+      "verb": "archive"
+    },
+    {
+      "entityType": "Objective",
+      "fromState": "Retired",
+      "toState": "Archived",
+      "verb": "archive"
+    },
+    {
+      "entityType": "Obligation",
+      "fromState": "Identified",
+      "toState": "Analysed",
+      "verb": "analyse"
+    },
+    {
+      "entityType": "Obligation",
+      "fromState": "Analysed",
+      "toState": "Assigned",
+      "verb": "assign"
+    },
+    {
+      "entityType": "Obligation",
+      "fromState": "Assigned",
+      "toState": "In Progress",
+      "verb": "start"
+    },
+    {
+      "entityType": "Obligation",
+      "fromState": "In Progress",
+      "toState": "Resolved",
+      "verb": "resolve"
+    },
+    {
+      "entityType": "Obligation",
+      "fromState": "Resolved",
+      "toState": "Verified",
+      "verb": "verify"
+    },
+    {
+      "entityType": "Obligation",
+      "fromState": "Verified",
+      "toState": "Closed",
+      "verb": "close"
+    },
+    {
+      "entityType": "Obligation",
+      "fromState": "Closed",
+      "toState": "Archived",
+      "verb": "archive"
+    },
+    {
+      "entityType": "Evidence",
+      "fromState": "Collected",
+      "toState": "Validated",
+      "verb": "validate"
+    },
+    {
+      "entityType": "Evidence",
+      "fromState": "Validated",
+      "toState": "Accepted",
+      "verb": "accept"
+    },
+    {
+      "entityType": "Evidence",
+      "fromState": "Accepted",
+      "toState": "Referenced",
+      "verb": "reference"
+    },
+    {
+      "entityType": "Evidence",
+      "fromState": "Referenced",
+      "toState": "Archived",
+      "verb": "archive"
+    },
+    {
+      "entityType": "Knowledge",
+      "fromState": "Observed",
+      "toState": "Proposed",
+      "verb": "propose"
+    },
+    {
+      "entityType": "Knowledge",
+      "fromState": "Proposed",
+      "toState": "Validated",
+      "verb": "validate"
+    },
+    {
+      "entityType": "Knowledge",
+      "fromState": "Validated",
+      "toState": "Accepted",
+      "verb": "accept"
+    },
+    {
+      "entityType": "Knowledge",
+      "fromState": "Accepted",
+      "toState": "Published",
+      "verb": "publish"
+    },
+    {
+      "entityType": "Knowledge",
+      "fromState": "Published",
+      "toState": "Deprecated",
+      "verb": "deprecate"
+    },
+    {
+      "entityType": "Knowledge",
+      "fromState": "Deprecated",
+      "toState": "Archived",
+      "verb": "archive"
+    },
+    {
+      "entityType": "Decision",
+      "fromState": "Identified",
+      "toState": "Analysed",
+      "verb": "analyse"
+    },
+    {
+      "entityType": "Decision",
+      "fromState": "Analysed",
+      "toState": "Proposed",
+      "verb": "propose"
+    },
+    {
+      "entityType": "Decision",
+      "fromState": "Proposed",
+      "toState": "Reviewed",
+      "verb": "review"
+    },
+    {
+      "entityType": "Decision",
+      "fromState": "Reviewed",
+      "toState": "Approved",
+      "verb": "approve"
+    },
+    {
+      "entityType": "Decision",
+      "fromState": "Approved",
+      "toState": "Applied",
+      "verb": "apply"
+    },
+    {
+      "entityType": "Decision",
+      "fromState": "Applied",
+      "toState": "Superseded",
+      "verb": "supersede"
+    },
+    {
+      "entityType": "Decision",
+      "fromState": "Superseded",
+      "toState": "Archived",
+      "verb": "archive"
+    },
+    {
+      "entityType": "KnowledgeScope",
+      "fromState": "SEU",
+      "toState": "Capability",
+      "verb": "promote_to_capability"
+    },
+    {
+      "entityType": "KnowledgeScope",
+      "fromState": "Capability",
+      "toState": "Enterprise",
+      "verb": "promote_to_enterprise"
+    },
+    {
+      "entityType": "KnowledgeScope",
+      "fromState": "Enterprise",
+      "toState": "Platform",
+      "verb": "promote_to_platform"
+    },
+    {
+      "entityType": "AttentionItem",
+      "fromState": "Created",
+      "toState": "Delivered",
+      "verb": "deliver"
+    },
+    {
+      "entityType": "AttentionItem",
+      "fromState": "Delivered",
+      "toState": "Acknowledged",
+      "verb": "acknowledge"
+    },
+    {
+      "entityType": "AttentionItem",
+      "fromState": "Acknowledged",
+      "toState": "In Progress",
+      "verb": "start"
+    },
+    {
+      "entityType": "AttentionItem",
+      "fromState": "In Progress",
+      "toState": "Resolved",
+      "verb": "resolve"
+    },
+    {
+      "entityType": "AttentionItem",
+      "fromState": "Resolved",
+      "toState": "Closed",
+      "verb": "close"
+    },
+    {
+      "entityType": "ExternalInteraction",
+      "fromState": "Created",
+      "toState": "Validated",
+      "verb": "validate"
+    },
+    {
+      "entityType": "ExternalInteraction",
+      "fromState": "Validated",
+      "toState": "Dispatched",
+      "verb": "dispatch"
+    },
+    {
+      "entityType": "ExternalInteraction",
+      "fromState": "Dispatched",
+      "toState": "Acknowledged",
+      "verb": "acknowledge"
+    },
+    {
+      "entityType": "ExternalInteraction",
+      "fromState": "Dispatched",
+      "toState": "Failed",
+      "verb": "fail"
+    },
+    {
+      "entityType": "ExternalInteraction",
+      "fromState": "Acknowledged",
+      "toState": "Completed",
+      "verb": "complete"
+    },
+    {
+      "entityType": "ExternalInteraction",
+      "fromState": "Completed",
+      "toState": "Archived",
+      "verb": "archive"
+    },
+    {
+      "entityType": "Pack",
+      "fromState": "Draft",
+      "toState": "Validated",
+      "verb": "validate"
+    },
+    {
+      "entityType": "Pack",
+      "fromState": "Validated",
+      "toState": "Published",
+      "verb": "publish"
+    },
+    {
+      "entityType": "Pack",
+      "fromState": "Published",
+      "toState": "Active",
+      "verb": "activate"
+    },
+    {
+      "entityType": "Pack",
+      "fromState": "Active",
+      "toState": "Deprecated",
+      "verb": "deprecate"
+    },
+    {
+      "entityType": "Pack",
+      "fromState": "Deprecated",
+      "toState": "Retired",
+      "verb": "retire"
+    },
+    {
+      "entityType": "Pack",
+      "fromState": "Retired",
+      "toState": "Archived",
+      "verb": "archive"
+    },
+    {
+      "entityType": "Pack",
+      "fromState": "Deprecated",
+      "toState": "Active",
+      "verb": "activate"
+    },
+    {
+      "entityType": "Pack",
+      "fromState": "Retired",
+      "toState": "Active",
+      "verb": "activate"
+    },
+    {
+      "entityType": "Pack",
+      "fromState": "Archived",
+      "toState": "Active",
+      "verb": "activate"
+    },
+    {
+      "entityType": "Participant",
+      "fromState": "Created",
+      "toState": "Available",
+      "verb": "make_available"
+    },
+    {
+      "entityType": "Participant",
+      "fromState": "Available",
+      "toState": "Assigned",
+      "verb": "assign"
+    },
+    {
+      "entityType": "Participant",
+      "fromState": "Assigned",
+      "toState": "Executing",
+      "verb": "execute"
+    },
+    {
+      "entityType": "Participant",
+      "fromState": "Executing",
+      "toState": "Idle",
+      "verb": "idle"
+    },
+    {
+      "entityType": "Participant",
+      "fromState": "Idle",
+      "toState": "Assigned",
+      "verb": "assign"
+    },
+    {
+      "entityType": "Participant",
+      "fromState": "Idle",
+      "toState": "Released",
+      "verb": "release"
+    },
+    {
+      "entityType": "Participant",
+      "fromState": "Released",
+      "toState": "Archived",
+      "verb": "archive"
+    },
+    {
+      "entityType": "Participant",
+      "fromState": "Available",
+      "toState": "Released",
+      "verb": "release"
+    },
+    {
+      "entityType": "Participant",
+      "fromState": "Assigned",
+      "toState": "Released",
+      "verb": "release"
+    },
+    {
+      "entityType": "Participant",
+      "fromState": "Executing",
+      "toState": "Released",
+      "verb": "release"
+    },
+    {
+      "entityType": "Review",
+      "fromState": "Planned",
+      "toState": "Prepared",
+      "verb": "prepare"
+    },
+    {
+      "entityType": "Review",
+      "fromState": "Prepared",
+      "toState": "In Progress",
+      "verb": "start"
+    },
+    {
+      "entityType": "Review",
+      "fromState": "In Progress",
+      "toState": "Completed",
+      "verb": "complete"
+    },
+    {
+      "entityType": "Review",
+      "fromState": "Completed",
+      "toState": "Accepted",
+      "verb": "accept"
+    },
+    {
+      "entityType": "Review",
+      "fromState": "Accepted",
+      "toState": "Archived",
+      "verb": "archive"
+    },
+    {
+      "entityType": "Finding",
+      "fromState": "Open",
+      "toState": "Resolved",
+      "verb": "resolve"
+    },
+    {
+      "entityType": "Finding",
+      "fromState": "Open",
+      "toState": "Waived",
+      "verb": "waive"
+    },
+    {
+      "entityType": "Template",
+      "fromState": "Draft",
+      "toState": "Active",
+      "verb": "publish"
+    },
+    {
+      "entityType": "Profile",
+      "fromState": "Draft",
+      "toState": "Active",
+      "verb": "publish"
+    }
+  ],
+  "_authoringMappingsComment": "CR-014 \u2014 noun\u2192verb mappings that are NOT lifecycle transitions: the authoring authority for each SDK-authorable entity. `{noun}_define` = author (create/edit a draft), `{noun}_publish` = publisher (approve + materialise). Seeded into authority_noun_verbs alongside the transition-derived pairs. These gate the SDK authoring surfaces (replacing the retired sdk_creator/sdk_approver Platform badges).",
+  "authoringMappings": [
+    {
+      "noun": "Pack",
+      "verbs": [
+        "define",
+        "publish"
+      ]
+    },
+    {
+      "noun": "Template",
+      "verbs": [
+        "define",
+        "publish"
+      ]
+    },
+    {
+      "noun": "Profile",
+      "verbs": [
+        "define",
+        "publish"
+      ]
+    },
+    {
+      "noun": "TransitionDefinition",
+      "verbs": [
+        "define",
+        "publish"
+      ]
+    }
   ]
 }

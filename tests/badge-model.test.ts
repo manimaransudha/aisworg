@@ -24,14 +24,66 @@ import { userDB } from "../src/dblayer/userDB.js";
 import { badgeAuthorityEngine } from "../src/domain/engine/badgeAuthorityEngine.js";
 import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 
+// Bug fix (owner, 2026-08-17): "are you cleaning up the test data after the
+// tests are done?" — this file wasn't. Every createTestUser() call left a
+// real row in the shared, never-reset dev database, along with whatever
+// badge_grants it accumulated — the same gap fixed in sdk-authoring.test.ts,
+// found here by the same owner question. Track every user this file creates
+// and delete it (and anything it holds) in after() — see
+// [[every-transition-real-actor-and-badge]] for why leftover grants matter:
+// `db:clean-slate` resets the `users` id sequence but not `badge_grants`, so
+// a later run's freshly-created user can inherit a stale leftover grant's
+// authority (occasionally `root`) purely by id collision.
+const createdUserIds: string[] = [];
+// Bug fix (owner: "anything that is legacy has to be removed" — migration 043
+// retired the product's own SEU_or_Pack badges, creator/reviewer/approver,
+// since nothing has enforced them since CR-006 shipped): §8.1's Tenant-
+// customization rules and the entity-type-narrowing CHECK still need SOME
+// live SEU_or_Pack-scoped Platform-recommended badge to exercise against —
+// this file now seeds its own throwaway one instead of assuming a specific
+// product badge still exists. Tracked and deleted in after() (this is also
+// what the pre-existing "senior-approver-<random>" rows littering badge_types
+// turned out to be — this same test, never cleaning up after itself).
+const createdBadgeTypeCodes: string[] = [];
+
 after(async () => {
+  if (createdUserIds.length) {
+    // The "deliverable-wiring" test dispatches a real Deliverable transition,
+    // which records CR-006's attribution (commands.acting_badge_grant_id —
+    // "which grant certified the action") pointing at one of these test
+    // grants. That FK blocks a plain DELETE; null it out first (test/usage
+    // data, same rows db:clean-slate's own step 1 truncates wholesale) rather
+    // than leaving the grant behind because it's referenced.
+    await pool.query(
+      "UPDATE commands SET acting_badge_grant_id = NULL WHERE acting_badge_grant_id IN (SELECT id FROM badge_grants WHERE holder_id = ANY($1::text[]))",
+      [createdUserIds]
+    );
+    await pool.query("DELETE FROM badge_grants WHERE holder_id = ANY($1::text[])", [createdUserIds]);
+    await pool.query("DELETE FROM users WHERE id = ANY($1::bigint[])", [createdUserIds]);
+  }
+  if (createdBadgeTypeCodes.length) {
+    await pool.query("DELETE FROM badge_grants WHERE badge_type = ANY($1::text[])", [createdBadgeTypeCodes]);
+    await pool.query("DELETE FROM badge_types WHERE code = ANY($1::text[])", [createdBadgeTypeCodes]);
+  }
   await pool.end();
 });
 
 async function createTestUser(label: string): Promise<string> {
   const email = `badge-test-${label}-${randomUUID()}@example.com`;
   const user = await userDB.create({ email, name: label, avatar_url: null, role: "general", auth_provider: "local", provider_id: null, is_active: true, type: "Platform", tenant_id: "11111111-1111-1111-1111-111111111111" });
+  createdUserIds.push(String(user.id));
   return String(user.id);
+}
+
+// A throwaway Platform-recommended (tenant_id NULL), SEU_or_Pack-scoped badge
+// — the shape §8.1's derivation rules and the entity-type-narrowing CHECK are
+// actually about, now that the product's own examples of it are retired.
+async function createTestParentBadgeType(label: string): Promise<string> {
+  const code = `test-parent-${label}-${randomUUID().slice(0, 8)}`;
+  const result = await badgeTypesDB.create({ tenantId: null, code, name: `Test Parent (${label})`, scopeKind: "SEU_or_Pack" });
+  assert.ok(!("validationErrors" in result) && !result.error, "validationErrors" in result ? result.validationErrors.join(";") : result.error?.message);
+  createdBadgeTypeCodes.push(code);
+  return code;
 }
 
 async function commissionTestSeu(statementPrefix: string): Promise<string> {
@@ -71,13 +123,14 @@ test("badge_grants DB-level CHECK enforces mandatory Capability-narrowing for De
   const { data: deliverables } = await deliverablesDB.findBySeuId(seuId);
   assert.ok(deliverables && deliverables.length > 0);
   const deliverable = deliverables![0];
+  const badgeType = await createTestParentBadgeType("capability-narrowing");
 
   // governed_entity_type = 'Deliverable' with no capability_id must be
   // rejected — this is a same-row DB CHECK constraint (012_badge_model.sql),
   // not the writer function, so the failure surfaces as a raw DB error.
   const missingCapability = await badgeGrantsDB.create({
     holderId,
-    badgeType: "creator",
+    badgeType,
     governedEntityType: "Deliverable",
     scopeId: seuId,
   });
@@ -85,7 +138,7 @@ test("badge_grants DB-level CHECK enforces mandatory Capability-narrowing for De
 
   const withCapability = await badgeGrantsDB.create({
     holderId,
-    badgeType: "creator",
+    badgeType,
     governedEntityType: "Deliverable",
     capabilityId: deliverable.producing_capability_id,
     scopeId: seuId,
@@ -97,6 +150,7 @@ test("badgeTypesDB single writer function enforces §8.1's Tenant-customization 
   const { data: defaultTenant } = await tenantsDB.findByCode("default");
   assert.ok(defaultTenant);
   const suffix = randomUUID().slice(0, 8);
+  const parentCode = await createTestParentBadgeType("boundaries");
 
   // derived_from is required for a Tenant-scoped badge.
   const noParent = await badgeTypesDB.create({ tenantId: defaultTenant!.id, code: `t1-${suffix}`, name: "No parent", scopeKind: "SEU_or_Pack" });
@@ -113,13 +167,15 @@ test("badgeTypesDB single writer function enforces §8.1's Tenant-customization 
   if ("validationErrors" in rootDerived) assert.match(rootDerived.validationErrors.join(";"), /excluded from Tenant customization/);
 
   // A derived badge's scope_kind must match its parent's.
-  const wrongScope = await badgeTypesDB.create({ tenantId: defaultTenant!.id, code: `t4-${suffix}`, name: "Wrong scope", scopeKind: "Tenant", derivedFrom: "approver" });
+  const wrongScope = await badgeTypesDB.create({ tenantId: defaultTenant!.id, code: `t4-${suffix}`, name: "Wrong scope", scopeKind: "Tenant", derivedFrom: parentCode });
   assert.ok("validationErrors" in wrongScope);
   if ("validationErrors" in wrongScope) assert.match(wrongScope.validationErrors.join(";"), /inherits its parent's scope boundary/);
 
   // A correct derivation succeeds.
-  const valid = await badgeTypesDB.create({ tenantId: defaultTenant!.id, code: `senior-approver-${suffix}`, name: "Senior Approver", scopeKind: "SEU_or_Pack", derivedFrom: "approver" });
+  const validCode = `t5-${suffix}`;
+  const valid = await badgeTypesDB.create({ tenantId: defaultTenant!.id, code: validCode, name: "Valid derivation", scopeKind: "SEU_or_Pack", derivedFrom: parentCode });
   assert.ok(!("validationErrors" in valid) && !valid.error, "validationErrors" in valid ? valid.validationErrors.join(";") : valid.error?.message);
+  createdBadgeTypeCodes.push(validCode);
 });
 
 test("transitionDeliverable authorises on noun_verb: denied without the badge, deliverable_create allows create, deliverable_approve required to approve (distinct authority), root bypasses", async () => {

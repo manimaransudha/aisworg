@@ -14,18 +14,15 @@ after(async () => {
   await pool.end();
 });
 
-// All four entity kinds are load-bearing now (each has a real, live
-// authoring surface whose generated form reads schema_definitions.findLatest
-// directly) — there is no "safe," permanently-unused kind left to target the
-// way TransitionDefinition briefly was. Learned the hard way, twice: this
-// test (and, separately, an HTTP smoke test of the Registry's own creation
-// form) left a stray minimal schema as TransitionDefinition's "latest"
-// after it went live, silently breaking its real authoring form until
-// caught and republished correctly. Self-healing now: republishes `before`'s
-// exact content as one more version at the end, so this test always leaves
-// "latest" pointing at real, correct content — the same "publish forward to
-// fix," not "delete," discipline the feature itself is built on.
-const TEST_KIND = "TransitionDefinition";
+// The grammar-authored kinds (Pack/Template/Profile) are all load-bearing — each
+// has a live authoring surface whose generated form reads
+// schema_definitions.findLatest directly — so there is no "safe," permanently-
+// unused kind to target (TransitionDefinition used to be it, but CR-019 removed it
+// from the authorable kinds). This test therefore targets a real kind and is
+// self-healing: it republishes `before`'s exact content as one more version at the
+// end, so "latest" always points at real, correct content — the "publish forward
+// to fix," not "delete," discipline the feature itself is built on.
+const TEST_KIND = "Profile";
 
 test("Schema Registry: a new version is additive — the previous version stays untouched and resolvable", async () => {
   const { data: before } = await schemaDefinitionsDB.findLatest(TEST_KIND);
