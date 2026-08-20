@@ -1,0 +1,79 @@
+{
+  "code": "hypercare-stabilization",
+  "name": "Hypercare & Stabilization (SDLC Phase 12)",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Post-launch support and stabilization — aka Post-Launch Support, Warranty Period, Hot Stage.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "hypercare-stabilization",
+        "name": "Hypercare & Stabilization",
+        "description": "Stabilizes the product after launch through active monitoring, rapid issue resolution, and structured retrospective learning.",
+        "category": "Engineering"
+      }
+    ],
+    "services": [
+      {
+        "code": "hypercare-runbook",
+        "capabilityCode": "hypercare-stabilization",
+        "name": "Hypercare Runbook",
+        "contractDescription": "Post-launch support procedures."
+      },
+      {
+        "code": "known-issues-bug-tracker",
+        "capabilityCode": "hypercare-stabilization",
+        "name": "Known Issues & Bug Tracker",
+        "contractDescription": "Issue management."
+      },
+      {
+        "code": "post-mortem-lessons-learned",
+        "capabilityCode": "hypercare-stabilization",
+        "name": "Post-Mortem & Lessons Learned",
+        "contractDescription": "Launch retrospective."
+      },
+      {
+        "code": "operational-kpis-report",
+        "capabilityCode": "hypercare-stabilization",
+        "name": "Operational KPIs Report",
+        "contractDescription": "Performance metrics."
+      },
+      {
+        "code": "customer-feedback-summary",
+        "capabilityCode": "hypercare-stabilization",
+        "name": "Customer Feedback Summary",
+        "contractDescription": "User feedback analysis."
+      },
+      {
+        "code": "hotfix-plan-ownership-matrix",
+        "capabilityCode": "hypercare-stabilization",
+        "name": "Hotfix Plan & Ownership Matrix",
+        "contractDescription": "Rapid response procedures."
+      }
+    ],
+    "checklists": [
+      {
+        "code": "hypercare-issues-triaged-promptly",
+        "statement": "Issues logged during hypercare are triaged and assigned an owner within the agreed response window.",
+        "classification": "judgment",
+        "prompt": "Are known issues from the hypercare period being triaged and assigned within the agreed response window?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes"
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "review-hypercare-stabilization",
+        "statement": "The Hypercare & Stabilization's deliverables have been reviewed and accepted as sufficient to proceed to Growth & Optimization.",
+        "classification": "human-attested",
+        "prompt": "Do the operational KPIs and post-mortem show the product has stabilized sufficiently to justify moving into Growth & Optimization?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance"
+      }
+    ]
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "code": "experience-design",
+  "name": "Experience Design (SDLC Phase 2)",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Designing the user experience and interface — aka UX/UI Design, Experience Architecture, Experience Blueprinting, Design Sprint.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "experience-design",
+        "name": "Experience Design",
+        "description": "Translates validated user needs into concrete interface designs, prototypes, and a coherent design system ready for engineering handoff.",
+        "category": "Engineering"
+      }
+    ],
+    "services": [
+      {
+        "code": "information-architecture-map",
+        "capabilityCode": "experience-design",
+        "name": "Information Architecture Map",
+        "contractDescription": "Content structure and navigation."
+      },
+      {
+        "code": "wireframes",
+        "capabilityCode": "experience-design",
+        "name": "Wireframes",
+        "contractDescription": "Low-fidelity interface designs."
+      },
+      {
+        "code": "clickable-prototype",
+        "capabilityCode": "experience-design",
+        "name": "Clickable Prototype",
+        "contractDescription": "Interactive prototype documentation."
+      },
+      {
+        "code": "design-system-ui-kit",
+        "capabilityCode": "experience-design",
+        "name": "Design System & UI Kit",
+        "contractDescription": "Visual design standards."
+      },
+      {
+        "code": "design-tokens",
+        "capabilityCode": "experience-design",
+        "name": "Design Tokens",
+        "contractDescription": "Design system variables and tokens."
+      },
+      {
+        "code": "content-strategy-voice-tone-guide",
+        "capabilityCode": "experience-design",
+        "name": "Content Strategy & Voice/Tone Guide",
+        "contractDescription": "Content guidelines."
+      },
+      {
+        "code": "accessibility-compliance-checklist",
+        "capabilityCode": "experience-design",
+        "name": "Accessibility Compliance Checklist",
+        "contractDescription": "Accessibility requirements."
+      },
+      {
+        "code": "usability-test-plan-report",
+        "capabilityCode": "experience-design",
+        "name": "Usability Test Plan & Report",
+        "contractDescription": "User testing methodology and results."
+      }
+    ],
+    "checklists": [
+      {
+        "code": "design-decisions-traceable-to-research",
+        "statement": "Design decisions in the wireframes and prototypes are traceable back to discovery research and usability findings.",
+        "classification": "judgment",
+        "prompt": "Can the key layout and interaction decisions in the wireframes and prototypes be traced back to discovery research or usability test findings?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes"
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "review-experience-design",
+        "statement": "The Experience Design's deliverables have been reviewed and accepted as sufficient to proceed to Technical Discovery & Architecture.",
+        "classification": "human-attested",
+        "prompt": "Is the design system, prototype, and usability evidence sufficiently mature and accessible to justify moving into Technical Discovery & Architecture?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance"
+      }
+    ]
+  }
+}

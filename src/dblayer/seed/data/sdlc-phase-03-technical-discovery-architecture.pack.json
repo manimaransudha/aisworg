@@ -1,0 +1,97 @@
+{
+  "code": "technical-architecture-discovery",
+  "name": "Technical Discovery & Architecture (SDLC Phase 3)",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Defining technical architecture and system design — aka Solution Architecture, Systems Design, Tech Blueprint, Foundations Sprint.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "technical-architecture-discovery",
+        "name": "Technical Discovery & Architecture",
+        "description": "Defines the technical architecture, data model, and integration strategy needed to build the product reliably at scale.",
+        "category": "Engineering"
+      }
+    ],
+    "services": [
+      {
+        "code": "solution-architecture-document",
+        "capabilityCode": "technical-architecture-discovery",
+        "name": "Solution Architecture Document",
+        "contractDescription": "High-level system architecture."
+      },
+      {
+        "code": "c4-diagrams",
+        "capabilityCode": "technical-architecture-discovery",
+        "name": "C4 Diagrams",
+        "contractDescription": "System architecture visualization."
+      },
+      {
+        "code": "api-design-spec",
+        "capabilityCode": "technical-architecture-discovery",
+        "name": "API Design Specification",
+        "contractDescription": "API contracts and endpoints."
+      },
+      {
+        "code": "data-model-erd",
+        "capabilityCode": "technical-architecture-discovery",
+        "name": "Data Model & ERD",
+        "contractDescription": "Database design and relationships."
+      },
+      {
+        "code": "non-functional-requirements-spec",
+        "capabilityCode": "technical-architecture-discovery",
+        "name": "Non-Functional Requirements Spec",
+        "contractDescription": "Performance and quality requirements."
+      },
+      {
+        "code": "tenancy-model",
+        "capabilityCode": "technical-architecture-discovery",
+        "name": "Tenancy Model",
+        "contractDescription": "Multi-tenant architecture design."
+      },
+      {
+        "code": "data-residency-privacy-plan",
+        "capabilityCode": "technical-architecture-discovery",
+        "name": "Data Residency & Privacy Plan",
+        "contractDescription": "Data governance strategy."
+      },
+      {
+        "code": "tech-stack-evaluation-matrix",
+        "capabilityCode": "technical-architecture-discovery",
+        "name": "Tech Stack Evaluation Matrix",
+        "contractDescription": "Technology selection criteria."
+      },
+      {
+        "code": "integration-architecture-overview",
+        "capabilityCode": "technical-architecture-discovery",
+        "name": "Integration Architecture Overview",
+        "contractDescription": "Third-party integrations."
+      }
+    ],
+    "checklists": [
+      {
+        "code": "architecture-decisions-documented",
+        "statement": "Architecture decisions are documented with clear rationale and trade-offs rather than left implicit.",
+        "classification": "judgment",
+        "prompt": "Does the solution architecture document capture the rationale and trade-offs behind each major architecture decision rather than stating conclusions alone?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes"
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "review-technical-architecture-discovery",
+        "statement": "The Technical Discovery & Architecture's deliverables have been reviewed and accepted as sufficient to proceed to Security, Privacy & Compliance.",
+        "classification": "human-attested",
+        "prompt": "Is the solution architecture, data model, and integration strategy sufficiently sound and complete to justify moving into Security, Privacy & Compliance?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance"
+      }
+    ]
+  }
+}

@@ -27,6 +27,7 @@ function loadJson<T>(fileName: string): T {
 
 interface TemplateSeed {
   code: string;
+  templateVersion?: string;
   name: string;
   requiredCapabilityCodes: string[];
   mandatoryPackCodes: string[];
@@ -49,6 +50,7 @@ async function run(): Promise<void> {
 
     const { data: template, error: templateErr } = await templatesDB.upsert({
       code: templateSeed.code,
+      templateVersion: templateSeed.templateVersion,
       name: templateSeed.name,
       deliverableCatalogue: templateSeed.deliverableCatalogue,
     });

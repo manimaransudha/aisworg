@@ -44,12 +44,12 @@ after(async () => {
 // longer assume their ambient status.
 test("compositionEngine.compose resolves a Template's mandatory Pack plus a Profile's optional Pack, deterministically", async () => {
   const mandatory = await publishPack({
-    seed: { code: `test-compose-mandatory-${randomUUID()}`, name: "Test Mandatory Pack", category: "Platform", packVersion: "1.0.0", installationClassification: "Mandatory", contributions: {} },
+    seed: { code: `test-compose-mandatory-${randomUUID()}`, name: "Test Mandatory Pack", category: "Engineering", packVersion: "1.0.0", installationClassification: "Mandatory", contributions: {} },
     actorRole: "power", actorId: "1001",
     activate: true,
   });
   const optional = await publishPack({
-    seed: { code: `test-compose-optional-${randomUUID()}`, name: "Test Optional Pack", category: "Technology", packVersion: "1.0.0", installationClassification: "Optional", contributions: {} },
+    seed: { code: `test-compose-optional-${randomUUID()}`, name: "Test Optional Pack", category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", contributions: {} },
     actorRole: "power", actorId: "1001",
     activate: true,
   });
@@ -143,7 +143,7 @@ test("transitionEngine.evaluate handles the Objective entity type (Post-MVP Phas
 test("dependencyEngine: Deliverable-type edge becomes Satisfied only once the target reaches the required state", async () => {
   const { data: objective } = await objectivesDB.create({ statement: `engine-test-${randomUUID()}`, tier: "Strategic" });
   await ensureWebAppTemplateFixture();
-  const { data: template } = await templatesDB.findByCode("template-web-application");
+  const { data: template } = await templatesDB.findByCode("enterprise-web-application");
   const { data: profile } = await profilesDB.findByCode("profile-default-development");
   const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id });
   assert.ok(seu);
@@ -186,7 +186,7 @@ test("dependencyEngine: Deliverable-type edge becomes Satisfied only once the ta
 test("dependencyEngine: Capability-type edge becomes Satisfied once the SEU's Capability requirement is Fulfilled", async () => {
   const { data: objective } = await objectivesDB.create({ statement: `engine-test-${randomUUID()}`, tier: "Strategic" });
   await ensureWebAppTemplateFixture();
-  const { data: template } = await templatesDB.findByCode("template-web-application");
+  const { data: template } = await templatesDB.findByCode("enterprise-web-application");
   const { data: profile } = await profilesDB.findByCode("profile-default-development");
   const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id });
   const { data: capability } = await capabilitiesDB.findByCodes(["requirements-analysis"]);

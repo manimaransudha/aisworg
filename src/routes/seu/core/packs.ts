@@ -16,7 +16,8 @@
 // dependency matching (a declared dependency's Pack code must exist in the
 // Registry; the exact declared version is not cross-checked).
 import { packsDB } from "../../../dblayer/packsDB.js";
-import { packCategoriesDB } from "../../../dblayer/packCategoriesDB.js";
+import { assertCanonicalCategory } from "./ontology.js";
+import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
 import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { authorityRulesDB } from "../../../dblayer/authorityRulesDB.js";
@@ -77,7 +78,6 @@ export function packMetadataFromSeed(seed: PackSeedInput): Record<string, string
 
 const PACK_DEPENDENCY_TYPES: PackDependencyType[] = ["required", "optional", "conditional", "incompatible"];
 
-const PACK_CLASSIFICATIONS: PackClassification[] = ["Mandatory", "Recommended", "Optional", "Conditional"];
 const SEMVER_RE = /^\d+\.\d+\.\d+$/;
 
 export type PackValidationResult = { ok: true } | { ok: false; errors: string[] };
@@ -90,15 +90,41 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
 
   if (!seed.code?.trim()) errors.push("code is required");
   if (!seed.name?.trim()) errors.push("name is required");
-  // CR-015: category is validated against the pack_category table (data), not a
-  // hardcoded list — a new category is a data insert, no code change.
-  if (!seed.category || !(await packCategoriesDB.isActive(seed.category))) {
-    const { data: active } = await packCategoriesDB.findActive();
-    errors.push(`category must be an active Pack category (${(active ?? []).map((c) => c.code).join(", ")}), got: ${seed.category}`);
+  // CR-022: Ontology concepts are tenant-scoped now (Platform's + this Pack's
+  // own owning tenant) — scope the check by the Pack's own tenantId (its real
+  // ownership, packsDB.create's own default when unset is the Platform
+  // tenant, so an unauthored/CLI-published Pack sees Platform's vocabulary
+  // only, same as before this change).
+  const ontologyViewer = { isRoot: false, tenantId: seed.tenantId ?? PLATFORM_TENANT_ID };
+  // CR-020: category is validated against the Ontology's category:pack
+  // concepts (data), not a hardcoded list or the now-superseded pack_category
+  // table — a new category is an Ontology Management data change, no code
+  // change. assertCanonicalCategory throws; converted to an accumulated error
+  // here since validatePackSeed collects every problem rather than failing fast.
+  try {
+    await assertCanonicalCategory("category:pack", seed.category ?? "", ontologyViewer);
+  } catch (err) {
+    errors.push((err as Error).message);
   }
   if (!SEMVER_RE.test(seed.packVersion ?? "")) errors.push(`packVersion must be semver (x.y.z), got: "${seed.packVersion}"`);
-  if (!PACK_CLASSIFICATIONS.includes(seed.installationClassification)) {
-    errors.push(`installationClassification must be one of ${PACK_CLASSIFICATIONS.join(", ")}, got: ${seed.installationClassification}`);
+  // CR-020: same Ontology treatment as category — installation-classification
+  // concepts (migration 051), not a hardcoded array.
+  try {
+    await assertCanonicalCategory("installation-classification", seed.installationClassification ?? "", ontologyViewer);
+  } catch (err) {
+    errors.push((err as Error).message);
+  }
+  // CR-030 (owner: "these have to be declared as composition strategy in
+  // Ontology and on the pack, this is a dropdown field") — same Ontology
+  // treatment, but compositionStrategy stays OPTIONAL (unlike category/
+  // installationClassification): only validated when the author actually
+  // set one, so an unset field remains valid exactly as it always was.
+  if (seed.compositionStrategy?.trim()) {
+    try {
+      await assertCanonicalCategory("composition-strategy", seed.compositionStrategy, ontologyViewer);
+    } catch (err) {
+      errors.push((err as Error).message);
+    }
   }
 
   function checkDuplicates(label: string, items: Array<{ code: string }> | undefined): void {
@@ -152,16 +178,21 @@ export interface PublishPackResult {
 // transitionDefinitions.json can resolve their ids, and
 // transitionDefinitions.json's Pack rows must exist before this Pack's own
 // Draft -> Validated -> Published -> Active lifecycle can be driven through
-// transitionEngine. createPackDraft/advancePackLifecycle let seedSeu.ts
-// interleave those two steps correctly for the bootstrap Pack; every Pack
-// published afterwards (including a second real Pack, or a second version
-// of the first) has no such ordering problem and can just call the combined
+// transitionEngine. createPackDraft/advancePackLifecycle let a caller
+// interleave those two steps correctly for a genuinely first, bootstrap Pack
+// (platform-core-engineering has this chicken-and-egg problem: its own
+// contributions are what power its own transitions); every Pack published
+// afterwards (including a second real Pack, or a second version of the
+// first) has no such ordering problem and can just call the combined
 // publishPack below.
 export async function createPackDraft(seed: PackSeedInput): Promise<{ ok: true; pack: PackRow; alreadyExists: boolean } | { ok: false; errors: string[] }> {
   const validation = await validatePackSeed(seed);
   if (!validation.ok) return { ok: false, errors: validation.errors };
 
-  const { data: existing } = await packsDB.findByCodeAndVersion(seed.code, seed.packVersion);
+  // CR-026 Part 2: scoped to this seed's own tenant — otherwise re-publishing
+  // a Platform pack idempotently could resolve to a DIFFERENT tenant's
+  // same-code-and-version row instead of treating it as a fresh publish.
+  const { data: existing } = await packsDB.findByCodeAndVersion(seed.code, seed.packVersion, seed.tenantId ?? PLATFORM_TENANT_ID);
   if (existing) {
     await seedContributions(existing, seed);
     return { ok: true, pack: existing, alreadyExists: true };
@@ -200,7 +231,7 @@ export async function advancePackLifecycle(pack: PackRow, actorRole: string, act
 
   let supersededPack: PackRow | null = null;
   if (options?.activate && currentPack.status === "Published") {
-    const { data: previousActive } = await packsDB.findActiveByCode(currentPack.code);
+    const { data: previousActive } = await packsDB.findActiveByCode(currentPack.code, currentPack.tenant_id);
     const activateResult = await transitionPack({ packId: currentPack.id, targetState: "Active", actorRole, actorId });
     if (!activateResult.ok) return { ok: false, pack: currentPack, errors: [`transition to "Active" failed: ${"detail" in activateResult ? activateResult.detail : activateResult.reason}`] };
     currentPack = activateResult.pack;
@@ -235,7 +266,7 @@ export async function advancePackOneStep(pack: PackRow, actorRole: string, actor
   if (!targetState) return { ok: false, pack, errors: [`Pack is already ${pack.status} — no further authoring step`] };
 
   if (targetState === "Active") {
-    const { data: previousActive } = await packsDB.findActiveByCode(pack.code);
+    const { data: previousActive } = await packsDB.findActiveByCode(pack.code, pack.tenant_id);
     const activateResult = await transitionPack({ packId: pack.id, targetState: "Active", actorRole, actorId });
     if (!activateResult.ok) return { ok: false, pack, errors: [`transition to "Active" failed: ${"detail" in activateResult ? activateResult.detail : activateResult.reason}`] };
     let supersededPack: PackRow | null = null;
@@ -443,7 +474,7 @@ export async function transitionPack(input: { packId: string; targetState: strin
 // currently Active for this code, same as any other activation. The old row
 // itself is untouched and stays at its old status forever.
 async function reactivateAsNewVersion(pack: PackRow, actorRole: string, actorId: string | undefined): Promise<PublishPackResult> {
-  const nextVersion = await nextAvailablePatchVersion(pack.code, pack.pack_version);
+  const nextVersion = await nextAvailablePatchVersion(pack.code, pack.pack_version, pack.tenant_id);
   const seed: PackSeedInput = {
     code: pack.code,
     name: pack.name,
@@ -460,16 +491,49 @@ async function reactivateAsNewVersion(pack: PackRow, actorRole: string, actorId:
   return publishPack({ seed, actorRole, actorId, activate: true });
 }
 
-async function nextAvailablePatchVersion(code: string, fromVersion: string): Promise<string> {
+// CR-026 Part 2: scoped to the reactivating Pack's own tenant — a bumped
+// version only needs to dodge THIS tenant's own existing rows, not every
+// other tenant (or Platform's) unrelated same-code history.
+async function nextAvailablePatchVersion(code: string, fromVersion: string, tenantId: string): Promise<string> {
   const [major, minor, startingPatch] = fromVersion.split(".").map(Number);
   let patch = startingPatch ?? 0;
   for (let attempts = 0; attempts < 1000; attempts++) {
     patch += 1;
     const candidate = `${major}.${minor}.${patch}`;
-    const { data: existing } = await packsDB.findByCodeAndVersion(code, candidate);
+    const { data: existing } = await packsDB.findByCodeAndVersion(code, candidate, tenantId);
     if (!existing) return candidate;
   }
   throw new Error(`could not find an unused version for Pack ${code} after bumping from ${fromVersion}`);
+}
+
+// Registry "Copy" action (owner, 2026-08-19: "Add a Copy button... enabled
+// for users that have *_define badge. It should create a copy and bump up
+// the version"). Unlike reactivateAsNewVersion (reactivation, straight to
+// Active) this lands in Draft — a real, editable starting point, not an
+// instant republish. No lineage recorded (parent_template_id-style field
+// doesn't exist on Pack) — a copy is not Inheritance (CR-026's parent-code-
+// lock model): it's a new, independently-editable Draft that merely starts
+// from this row's current content, same code, bumped version, same tenant
+// (ownership doesn't change just because someone with authoring rights
+// copied it forward).
+export async function copyPackAsNewDraft(packId: string, actorId: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
+  const { data: source } = await packsDB.findById(packId);
+  if (!source) return { ok: false, errors: ["Pack not found"] };
+  const nextVersion = await nextAvailablePatchVersion(source.code, source.pack_version, source.tenant_id);
+  const { data: pack, error } = await packsDB.create({
+    code: source.code,
+    name: source.name,
+    category: source.category,
+    packVersion: nextVersion,
+    installationClassification: source.installation_classification,
+    contributions: source.contributions,
+    dependencies: source.dependencies,
+    metadata: source.metadata,
+    authoredBy: Number(actorId),
+    tenantId: source.tenant_id,
+  });
+  if (error || !pack) return { ok: false, errors: [(error ?? new Error("failed to copy Pack")).message] };
+  return { ok: true, draftId: pack.id };
 }
 
 export interface PackWithNextStates {

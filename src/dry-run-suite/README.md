@@ -10,12 +10,11 @@ It is **independent of the repo's own `tests/`**: zero dependencies, plain Node 
 
 ## Prerequisites (one-time per clean database)
 
-A clean-slate database has no commissionable Template (post-reset, templates are authored through the SDK UI). Seed the packs/capabilities/templates/profiles the suite commissions against, from the repo:
+`seed:seu` is retired (owner, 2026-08-20 — it was the only thing creating `platform-core-engineering`/`technology-nodejs` and left them un-reset by every later `db:clean-slate`, "polluting the db"). The suite needs an Active Template satisfying `requirements-analysis`/`architecture`/`development` — `db:clean-slate`'s own step 8 now publishes several (the CR-034 standard category Templates, e.g. `saas-product`), so a clean-slated database already has one. `platform-core-engineering`/`technology-nodejs` themselves are still expected to already exist (`db:clean-slate` preserves, never (re)creates them) — this repo's own dev database already has them from prior work; a genuinely from-scratch database needs them authored once via the SDK Authoring UI before anything here or `db:clean-slate`'s own sanity check will pass.
 
 ```
 cd <aisworg repo>
 pnpm db:clean-slate      # optional: reset to a known clean state first
-pnpm seed:seu            # idempotent: packs -> capabilities, web-application template, profiles
 ```
 
 Then start an instance with the test auto-login active (a single root identity), on a spare port:
@@ -53,7 +52,7 @@ SUITE_BASE_URL=http://127.0.0.1:4900/aisworg node run.mjs
 - **Compliance Model (Ch.27, Phase 15)** — a Pack-registered Framework + declarative Requirements, evaluated read-only over the SEU's governance state (never modifying it, §9); a requirement satisfied via the real primitive it composes (an Accepted Security Review flips its requirement to satisfied); a Waiver moving an unsatisfied requirement to waived; and a compliance report derived from engineering state.
 - **Ontology Model (Ch.18, Phase 17)** — the platform-owned canonical vocabulary is queryable; write-path enforcement rejects an off-canonical category (400) and accepts a canonical one (201, stored verbatim); a tenant rename-only alias makes the *same* canonical code resolve to different labels for Atlas vs Babylon on one core; clearing an alias reverts to the platform default.
 - **Governance & EBM (Ch.3/Ch.21, Phase 16)** — an SEU exposes one effective Governance Model derived from its EBM (versioned; authority rules + policies + quality gates traceable to their contributing Packs). (Composition conflict hard-block and Quality Gates on Pack/Objective are covered in-process — they need SDK-only pack authoring / platform-entity transitions not reachable black-box.)
-- **Separation of duties via the dev Act-As switcher (CR-001)** — the god identity assumes the `approver` badge through the dev-only Act-As switcher and is denied the creator-only `Defined → In Progress` transition (`authority_denied`); resetting to root ungates it. This exercises a genuine authority denial end-to-end — see below.
+- **Separation of duties via the dev Act-As switcher (CR-001)** — the god identity assumes the `deliverable_approve` noun_verb badge through the dev-only Act-As switcher and is denied the `deliverable_create`-gated `Defined → In Progress` transition (`authority_denied`); resetting to root ungates it. This exercises a genuine authority denial end-to-end — see below.
 
 ## Previously-known limitation — now closed (CR-001)
 

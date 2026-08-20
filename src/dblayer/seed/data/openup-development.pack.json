@@ -1,7 +1,7 @@
 {
-  "code": "openup-development",
+  "code": "development",
   "name": "Development (OpenUP Capability Pattern)",
-  "category": "Platform",
+  "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
   "description": "EPF/OpenUP's Development (Design & Implementation) capability pattern, modelled as a Pack: the Developer role, its implementation/build work products, and the tasks for designing, implementing, and integrating a solution increment.",

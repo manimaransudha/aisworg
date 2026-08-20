@@ -1,0 +1,8 @@
+{
+  "code": "profile-saas-product-development",
+  "name": "SaaS Product — Default Development Profile",
+  "baseTemplateCode": "saas-product",
+  "environment": "development",
+  "configParameters": {},
+  "optionalPackCodes": ["technology-nodejs"]
+}

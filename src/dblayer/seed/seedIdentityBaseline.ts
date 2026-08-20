@@ -122,6 +122,20 @@ function objectiveVerbs(): string[] {
   return [...set].sort();
 }
 
+// Generic form of objectiveVerbs()/packVerbs() below — the distinct lifecycle
+// verbs for any entityType, derived from the vocabulary. Added 2026-08-18
+// alongside Template/Profile's six-hop lifecycle seed change, so their
+// authoring-fixture users (below) stop being pinned to a hardcoded
+// ["define","publish"] that stale the moment the seeded graph grows past it —
+// the same bug packVerbs()/objectiveVerbs() were already written to avoid.
+function entityLifecycleVerbs(entityType: string): string[] {
+  const raw = readFileSync(path.join(__dirname, "data", "authorityVocabulary.json"), "utf8");
+  const transitions = (JSON.parse(raw) as { transitions: VocabTransition[] }).transitions;
+  const set = new Set<string>();
+  for (const t of transitions) if (t.entityType === entityType) set.add(t.verb);
+  return [...set].sort();
+}
+
 // The distinct Pack lifecycle verbs (validate/publish/activate/deprecate/
 // retire/archive), derived from the vocabulary so this stays correct if the
 // graph changes.
@@ -228,20 +242,38 @@ export async function seedIdentityBaseline(): Promise<void> {
     // CR-014 — SDK authoring authority users for the other three authorable
     // nouns (Template/Profile/TransitionDefinition), so every authoring surface
     // is testable now that sdk_creator/sdk_approver are retired. `{noun}_define`
-    // = author, `{noun}_publish` = publisher; one per verb + one "{noun}_all".
-    // Athens only, reserved id ranges (clear of pack 2101–2108, objective 2001–2017).
-    const AUTHORING_NOUNS: Array<{ noun: string; slug: string; baseId: number }> = [
-      { noun: "template", slug: "template", baseId: 2201 },
-      { noun: "profile", slug: "profile", baseId: 2211 },
-      { noun: "transitiondefinition", slug: "transdef", baseId: 2221 },
+    // = author, one per verb + one "{noun}_all". Athens only, reserved id
+    // ranges (clear of pack 2101–2108, objective 2001–2017) — each range is
+    // 10 ids wide, enough for Template/Profile's now-7 verbs (define + the six
+    // lifecycle verbs, same shape as pkVerbs above) plus the "-all" user.
+    //
+    // Bug fix (owner, 2026-08-18): `verbs` used to be one hardcoded
+    // `["define", "publish"]` shared by all three nouns — correct back when
+    // Template/Profile genuinely only had that one lifecycle hop, but it
+    // silently stayed frozen there after the seed change gave them Pack's full
+    // six-hop lifecycle (transitionDefinitions.json / authorityVocabulary.json),
+    // so template-all@/profile-all@ etc. kept holding only 2 of their now 7
+    // badges. Template/Profile derive their verb list the same way Pack's own
+    // pkVerbs does (entityLifecycleVerbs, mirroring packVerbs); TransitionDefinition
+    // is authored through its own noun × verb form instead (CR-019, not this
+    // pipeline) and genuinely still only has define/publish, so it stays explicit.
+    const AUTHORING_NOUNS: Array<{ noun: string; slug: string; baseId: number; verbs: string[] }> = [
+      { noun: "template", slug: "template", baseId: 2201, verbs: [...entityLifecycleVerbs("Template"), "define"] },
+      { noun: "profile", slug: "profile", baseId: 2211, verbs: [...entityLifecycleVerbs("Profile"), "define"] },
+      { noun: "transitiondefinition", slug: "transdef", baseId: 2221, verbs: ["define", "publish"] },
+      // CR-022 — ontology_define gates add/retire on a tenant's OWN Ontology
+      // vocabulary (never Platform's, which stays root-only regardless of
+      // this badge). Single-verb noun, same shape TransitionDefinition's own
+      // authority-vocabulary management already has (one badge covers the
+      // whole CRUD surface — no separate "retire" verb).
+      { noun: "ontology", slug: "ontology", baseId: 2231, verbs: ["define"] },
     ];
-    const AUTHORING_VERBS = ["define", "publish"];
     const authoringUsers: Array<{ id: number; email: string; name: string; tenantId: string; badges: string[] }> = [];
     for (const n of AUTHORING_NOUNS) {
-      AUTHORING_VERBS.forEach((verb, i) => {
+      n.verbs.forEach((verb, i) => {
         authoringUsers.push({ id: n.baseId + i, email: `${n.slug}-${verb}@athens.com`, name: `Athens — ${n.noun}_${verb}`, tenantId: ATHENS_TENANT_ID, badges: [`${n.noun}_${verb}`] });
       });
-      authoringUsers.push({ id: n.baseId + AUTHORING_VERBS.length, email: `${n.slug}-all@athens.com`, name: `Athens — ${n.noun}_all`, tenantId: ATHENS_TENANT_ID, badges: AUTHORING_VERBS.map((v) => `${n.noun}_${v}`) });
+      authoringUsers.push({ id: n.baseId + n.verbs.length, email: `${n.slug}-all@athens.com`, name: `Athens — ${n.noun}_all`, tenantId: ATHENS_TENANT_ID, badges: n.verbs.map((v) => `${n.noun}_${v}`) });
     }
 
     // Owner (2026-08-17): a Platform-type pack_all holder — same 7-badge set as

@@ -31,19 +31,48 @@
     </div>
 
     <% const _base = locals.listBasePath || '/aisworg/seu/packs'; %>
+    <%
+      // Registry category tabs (owner, 2026-08-19: "the different categories
+      // have to be separate tabs. Page registry also should change to be a
+      // tabbed one") — one link tab per category actually present, plus All.
+      var _categories = locals.categories || [];
+      var _activeCategory = locals.activeCategory || '';
+      var _categoryTabs = [{ key: '', label: 'All categories', href: _base }].concat(
+        _categories.map(function (c) { return { key: c, label: c, href: _base + '?category=' + encodeURIComponent(c) }; })
+      );
+    %>
+    <div class="d-flex flex-column flex-md-row gap-4 align-items-start">
+    <%- include('../../partials/verticalTabs', { tabs: _categoryTabs, active: _activeCategory }) %>
+    <div class="flex-grow-1" style="min-width: 0;">
+
     <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search name / code / category' }) %>
     <div class="small text-muted mb-3">Sort:
       <%- sortLink('Name', 'name', list, _base) %> &middot;
       <%- sortLink('Version', 'version', list, _base) %> &middot;
-      <%- sortLink('Status', 'status', list, _base) %> &middot;
-      <%- sortLink('Category', 'category', list, _base) %>
+      <%- sortLink('Status', 'status', list, _base) %>
+    </div>
+
+    <%
+      // Registry state filter (owner: "Include filters to filter by state:
+      // Active, Deprecated etc.") — a row of chips, composes with the
+      // category tab in the sidebar.
+      var _states = locals.states || [];
+      var _activeStatus = locals.activeStatus || '';
+    %>
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      <a href="<%= _base + listQueryString(list, { status: '' }) %>" class="btn btn-sm <%= _activeStatus ? 'btn-outline-secondary' : 'btn-secondary' %>">All states</a>
+      <% _states.forEach(function(s) { %>
+        <a href="<%= _base + listQueryString(list, { status: s }) %>" class="btn btn-sm <%= _activeStatus === s ? 'btn-secondary' : 'btn-outline-secondary' %>"><%= s %></a>
+      <% }) %>
     </div>
 
     <% if (list.total === 0) { %>
       <% if (list.q) { %>
         <div class="alert alert-warning">No Packs match your search.</div>
+      <% } else if (_activeStatus || _activeCategory) { %>
+        <div class="alert alert-warning">No Packs<%= _activeStatus ? (' in state "' + _activeStatus + '"') : '' %><%= _activeCategory ? (' in category "' + _activeCategory + '"') : '' %>.</div>
       <% } else { %>
-        <div class="alert alert-warning">No Packs published — run <code>pnpm seed:seu</code> or <code>pnpm pack:publish &lt;file&gt; --activate</code>.</div>
+        <div class="alert alert-warning">No Packs published — run <code>pnpm db:clean-slate</code> or <code>pnpm pack:publish &lt;file&gt; --activate</code>.</div>
       <% } %>
     <% } else { %>
       <% list.items.forEach(function(p) { %>
@@ -74,23 +103,19 @@
                 <% p.pack.dependencies.forEach(function(d, i) { %><code><%= d.packCode %>@<%= d.version %></code><%= i < p.pack.dependencies.length - 1 ? ', ' : '' %><% }) %>
               </p>
             <% } %>
-            <% if (p.possibleNextStates.length > 0) { %>
-              <form method="POST" action="/aisworg/seu/packs/<%= p.pack.id %>/transition" class="d-flex align-items-center gap-2">
+            <% if (locals.canCopy) { %>
+              <form method="POST" action="/aisworg/seu/packs/<%= p.pack.id %>/copy">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <select name="targetState" class="form-select form-select-sm" style="width: auto;">
-                  <% p.possibleNextStates.forEach(function(s) { %>
-                    <option value="<%= s %>"><%= s %></option>
-                  <% }) %>
-                </select>
-                <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
+                <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-copy me-1"></i>Copy</button>
               </form>
-            <% } else { %>
-              <span class="text-muted small">no further transitions defined</span>
             <% } %>
           </div>
         </div>
       <% }) %>
     <% } %>
+
+    </div>
+    </div>
   </main>
 
   <%- include('../../partials/footer') %>

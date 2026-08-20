@@ -4,6 +4,25 @@ A running register of change requests raised against the platform — feature ad
 
 | CR | Title | Status |
 |----|-------|--------|
+| [CR-038](change-requests/CR-038-template-form-category-tabbed-packs-derived-capabilities.md) | Template form: category-tabbed Pack pickers, derived Required Capabilities, Ontology-backed Deliverable Catalogue | 🟡 Proposed (not scheduled) |
+| [CR-037](change-requests/CR-037-authoring-tabs-verb-queue.md) | Authoring tabs: "I defined" (any status) + per-verb queues only | ✅ Built 2026-08-20 |
+| [CR-036](change-requests/CR-036-registry-view-only-copy-state-filter.md) | Pack/Template/Profile Registry: view-only + state filters + badge-gated Copy; lifecycle governance moved to Authoring | ✅ Built 2026-08-20 |
+| [CR-035](change-requests/CR-035-template-candidate-tenant-scoping.md) | `findCandidateTemplates` scoped to Platform + caller's tenant (was fully unscoped) | ✅ Built 2026-08-19 |
+| [CR-034](change-requests/CR-034-sdlc-templates-standard-packs.md) | SDLC Templates: 16 phase Packs + 9 standard category Templates | ✅ Built 2026-08-19 |
+| [CR-033](change-requests/CR-033-remove-vestigial-sdk-bootstrap-templates.md) | Remove the 4 vestigial SDK-authoring bootstrap Templates/Profiles | ✅ Built 2026-08-19 |
+| [CR-032](change-requests/CR-032-dev-act-as-noun-verb-badges.md) | Dev Act-As switcher: assume real noun_verb badges, not the retired Creator/Reviewer/Approver family | ✅ Built 2026-08-19 |
+| [CR-031](change-requests/CR-031-pack-composition-strategy-engine.md) | Pack `compositionStrategy`: wire `compositionEngine` to the chosen strategy | 🟡 Proposed (not scheduled) |
+| [CR-030](change-requests/CR-030-pack-composition-strategy-ontology.md) | Pack `compositionStrategy`: a real, Ontology-backed dropdown | ✅ Built 2026-08-19 |
+| [CR-029](change-requests/CR-029-template-profile-registries.md) | Template Registry + Profile Registry, Pack Registry re-tabbed | ✅ Built 2026-08-19 |
+| [CR-028](change-requests/CR-028-profile-identity-schema-events.md) | Profile: versioning, inheritance, full §7 schema, real events | ✅ Built 2026-08-19 |
+| [CR-027](change-requests/CR-027-sdk-authoring-vertical-tabs.md) | SDK / Authoring surfaces: horizontal tabs → vertical side tabs | ✅ Built 2026-08-19 |
+| [CR-026](change-requests/CR-026-template-inheritance-and-pack-tenant-scoped-versioning.md) | Template Inheritance (Ch.6 §9) + Pack tenant-scoped `(code, packVersion)` versioning | ✅ Built 2026-08-19 |
+| [CR-025](change-requests/CR-025-template-named-events.md) | Real named Template events, mirroring Pack | ✅ Built 2026-08-19 |
+| [CR-024](change-requests/CR-024-template-versioning-immutability.md) | Template versioning and immutability, mirroring Pack | ✅ Built 2026-08-19 |
+| [CR-023](change-requests/CR-023-template-purpose-field.md) | Template `purpose` field, seeded from per-category Ontology guidance | ✅ Built 2026-08-19 |
+| [CR-022](change-requests/CR-022-ontology-tenant-scoped-badge-gated.md) | Ontology becomes tenant-scoped and badge-gated (not root-only) | ✅ Built 2026-08-19 |
+| [CR-021](change-requests/CR-021-template-categories-ontology.md) | Template `code` rooted in a new `template-categories` Ontology concept type | ✅ Built 2026-08-19 |
+| [CR-020](change-requests/CR-020-ontology-management-crud.md) | Ontology Management: seed `capability-name`, admin CRUD on `ontology_concepts` | ✅ Built 2026-08-18 |
 | [CR-019](change-requests/CR-019-consolidate-transition-definition-authoring.md) | Consolidate transition-definition authoring on the CR-007 form (drop the stale SDK grammar path) | ✅ Built 2026-08-14 |
 | [CR-018](change-requests/CR-018-complete-pack-validator-metadata.md) | Complete the Pack validator: §8 metadata, §10 dependency types, §13 compatibility fields | ✅ Built 2026-08-14 |
 | [CR-017](change-requests/CR-017-form-based-schema-registry.md) | Form-based schema-registry authoring (author validators from a meta-schema) | ✅ Built 2026-08-14 |

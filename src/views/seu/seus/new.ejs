@@ -23,7 +23,7 @@
 
     <% if (capabilities.length === 0) { %>
       <div class="alert alert-warning">
-        No Capabilities are loaded yet — run <code>pnpm seed:seu</code> before commissioning an SEU.
+        No Capabilities are loaded yet — run <code>pnpm db:clean-slate</code> (base Packs must already exist) or author a Pack via the SDK Authoring UI before commissioning an SEU.
       </div>
     <% } else { %>
       <form method="POST" action="/aisworg/seu/seus" class="card border-0 shadow-sm p-4">

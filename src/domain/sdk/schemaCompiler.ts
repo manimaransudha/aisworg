@@ -11,7 +11,7 @@
 import type { JsonSchemaDocument, JsonSchemaProperty } from "./formGenerator.js";
 
 export const FIELD_TYPES = ["string", "number", "boolean", "object", "array"] as const;
-export const FIELD_WIDGETS = ["none", "json", "referential-select"] as const;
+export const FIELD_WIDGETS = ["none", "json", "referential-select", "textarea", "version"] as const;
 // CR-019: TransitionDefinition is not grammar-authored (it uses the CR-007 form).
 export const SCHEMA_KINDS = ["Pack", "Template", "Profile"] as const;
 
@@ -22,6 +22,10 @@ export interface AuthoredField {
   enumValues: string; // comma-separated
   widget: string; // one of FIELD_WIDGETS
   referentialSource: string;
+  // Ch.18 Ontology (owner: "the schema has to pick the values from the
+  // ontology"): when true, referentialSource is the exact Ontology
+  // concept_type to resolve options from, not an arbitrary registry key.
+  ontology: boolean;
   help: string;
   pattern: string;
 }
@@ -49,6 +53,7 @@ export const META_SCHEMA: JsonSchemaDocument = {
           enumValues: { type: "string" },
           widget: { type: "string", enum: [...FIELD_WIDGETS] },
           referentialSource: { type: "string" },
+          ontology: { type: "boolean" },
           help: { type: "string" },
           pattern: { type: "string" },
         },
@@ -73,6 +78,7 @@ export function fieldListToJsonSchema(authored: AuthoredSchema): JsonSchemaDocum
     if (enums.length) prop.enum = enums;
     if (f.widget && f.widget !== "none") prop["x-widget"] = f.widget as JsonSchemaProperty["x-widget"];
     if ((f.referentialSource ?? "").trim()) prop["x-referential-source"] = f.referentialSource.trim();
+    if (f.ontology === true) prop["x-ontology"] = true;
     if ((f.pattern ?? "").trim()) prop.pattern = f.pattern.trim();
     if ((f.help ?? "").trim()) prop["x-help"] = f.help.trim();
     properties[name] = prop;
@@ -91,6 +97,7 @@ export function jsonSchemaToFieldList(schema: JsonSchemaDocument): AuthoredField
     enumValues: (def.enum ?? []).join(", "),
     widget: def["x-widget"] ?? "none",
     referentialSource: def["x-referential-source"] ?? "",
+    ontology: def["x-ontology"] === true,
     help: def["x-help"] ?? "",
     pattern: def.pattern ?? "",
   }));

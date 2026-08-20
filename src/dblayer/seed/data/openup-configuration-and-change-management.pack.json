@@ -1,7 +1,7 @@
 {
-  "code": "openup-configuration-and-change-management",
+  "code": "configuration-management",
   "name": "Configuration & Change Management (OpenUP Capability Pattern)",
-  "category": "Platform",
+  "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
   "description": "EPF/OpenUP's Configuration and Change Management capability pattern, modelled as a Pack: change-control work products and the tasks for requesting, dispositioning, and baselining changes to engineering assets.",

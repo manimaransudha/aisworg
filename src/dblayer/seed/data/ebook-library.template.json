@@ -1,5 +1,6 @@
 {
-  "code": "template-ebook-library-system",
+  "code": "enterprise-web-application",
+  "templateVersion": "1.1.0",
   "name": "E-Book Library Management System",
   "requiredCapabilityCodes": [
     "requirements-analysis",

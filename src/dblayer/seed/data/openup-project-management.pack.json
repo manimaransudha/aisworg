@@ -1,7 +1,7 @@
 {
-  "code": "openup-project-management",
+  "code": "project-management",
   "name": "Project Management (OpenUP Capability Pattern)",
-  "category": "Platform",
+  "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
   "description": "EPF/OpenUP's Project Management capability pattern, modelled as a Pack: the Project Manager role, planning/risk work products, and the tasks for planning, coordinating, and monitoring the engineering effort.",

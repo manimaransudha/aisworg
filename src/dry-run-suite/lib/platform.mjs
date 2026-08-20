@@ -62,7 +62,7 @@ export async function createObjective(statement, requiredCapabilityCodes) {
 export async function pickTemplate(capabilityCodes) {
   const body = expect(await http("GET", urls.api(`/templates?capabilityCodes=${capabilityCodes.join(",")}`)), 200, "GET /templates");
   const t = (body.candidates || []).find((c) => c.satisfies);
-  if (!t) throw new Error(`no Template satisfies [${capabilityCodes.join(", ")}] — did you run the seed prerequisite (pnpm seed:seu)?`);
+  if (!t) throw new Error(`no Template satisfies [${capabilityCodes.join(", ")}] — did you run the seed prerequisite (pnpm db:clean-slate)?`);
   return t;
 }
 

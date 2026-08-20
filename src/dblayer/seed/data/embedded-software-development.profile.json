@@ -1,0 +1,8 @@
+{
+  "code": "profile-embedded-software-development",
+  "name": "Embedded Software — Default Development Profile",
+  "baseTemplateCode": "embedded-software",
+  "environment": "development",
+  "configParameters": {},
+  "optionalPackCodes": ["technology-nodejs"]
+}

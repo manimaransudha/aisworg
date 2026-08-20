@@ -638,7 +638,7 @@ test("Phase 9 — a Pack published through the SDK is visible on the platform-wi
   const seed = {
     code: `webflow-phase9-pack-${randomUUID()}`,
     name: "WebFlow Phase9 Test Pack",
-    category: "Technology" as const,
+    category: "Engineering" as const,
     packVersion: "1.0.0",
     installationClassification: "Optional" as const,
     contributions: {},
@@ -654,17 +654,25 @@ test("Phase 9 — a Pack published through the SDK is visible on the platform-wi
   assert.equal(registryPage.status, 200);
   assert.match(registryPage.html, new RegExp(seed.code));
   assert.match(registryPage.html, /v1\.0\.0/);
-  const csrf = extractCsrf(registryPage.html);
 
-  const transition = await postForm(request, `/seu/packs/${published.pack!.id}/transition`, csrf, { targetState: "Deprecated" });
+  // Registry governance relocated to the Authoring page (owner, 2026-08-19:
+  // Registry is view-only now — filters + a badge-gated Copy button, no
+  // transition control). The Pack Authoring detail page is where the
+  // lifecycle transition itself happens now.
+  const authoringPage = await getPage(request, `/seu/sdk/pack-authoring/${published.pack!.id}`);
+  assert.equal(authoringPage.status, 200);
+  const csrf = extractCsrf(authoringPage.html);
+
+  const transition = await postForm(request, `/seu/sdk/pack-authoring/${published.pack!.id}/transition`, csrf, { targetState: "Deprecated" });
   assert.equal(transition.status, 302);
 
-  const afterTransition = await getPage(request, `/seu/packs?q=${seed.code}`);
+  const afterTransition = await getPage(request, `/seu/sdk/pack-authoring/${published.pack!.id}`);
   assert.match(afterTransition.html, /alert-success/);
-  // Two occurrences of the code exist post-transition: the flash message and
-  // the Pack's own card below it — the card (not the flash) is what needs to
-  // show the new state, so match the *last* occurrence's nearby state badge.
-  const packCardMatches = [...afterTransition.html.matchAll(new RegExp(`${seed.code}[\\s\\S]{0,400}?state-badge state-(\\w+)`, "g"))];
+  assert.match(afterTransition.html, /state-badge state-Deprecated/);
+
+  // The Registry (view-only) reflects the new state too.
+  const registryAfter = await getPage(request, `/seu/packs?q=${seed.code}`);
+  const packCardMatches = [...registryAfter.html.matchAll(new RegExp(`${seed.code}[\\s\\S]{0,400}?state-badge state-(\\w+)`, "g"))];
   assert.ok(packCardMatches.length > 0, "expected to find the fixture Pack's card on the Registry page");
   assert.equal(packCardMatches[packCardMatches.length - 1]![1], "Deprecated");
 });

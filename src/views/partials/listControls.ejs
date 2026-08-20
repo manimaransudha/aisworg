@@ -14,6 +14,11 @@ function _qs(overrides) {
     dir: overrides.dir !== undefined ? overrides.dir : (_list ? _list.dir : ''),
     page: overrides.page !== undefined ? overrides.page : (_list ? _list.page : 1),
     pageSize: _list ? _list.pageSize : undefined,
+    // Registry category tabs — same no-op-elsewhere treatment as helpers.ejs's
+    // own listQueryString.
+    category: overrides.category !== undefined ? overrides.category : (_list ? _list.category : ''),
+    // Registry state filter — same no-op-elsewhere treatment as category above.
+    status: overrides.status !== undefined ? overrides.status : (_list ? _list.status : ''),
   };
   const p = new URLSearchParams();
   if (st.q) p.set('q', st.q);
@@ -21,6 +26,8 @@ function _qs(overrides) {
   if (st.dir) p.set('dir', st.dir);
   if (st.page && Number(st.page) > 1) p.set('page', String(st.page));
   if (st.pageSize) p.set('pageSize', String(st.pageSize));
+  if (st.category) p.set('category', st.category);
+  if (st.status) p.set('status', st.status);
   const s = p.toString();
   return s ? ('?' + s) : '';
 }
@@ -35,6 +42,8 @@ if (_list) {
     <input type="hidden" name="sort" value="<%= _list.sort %>">
     <input type="hidden" name="dir" value="<%= _list.dir %>">
     <input type="hidden" name="pageSize" value="<%= _list.pageSize %>">
+    <% if (_list.category) { %><input type="hidden" name="category" value="<%= _list.category %>"><% } %>
+    <% if (_list.status) { %><input type="hidden" name="status" value="<%= _list.status %>"><% } %>
     <div class="input-group input-group-sm" style="width: 16rem; max-width: 100%;">
       <span class="input-group-text"><i class="bi bi-search"></i></span>
       <input type="text" name="q" class="form-control" placeholder="<%= _ph %>" value="<%= _list.q %>">

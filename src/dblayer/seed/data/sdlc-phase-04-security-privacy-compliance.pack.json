@@ -1,0 +1,79 @@
+{
+  "code": "security-privacy-compliance",
+  "name": "Security, Privacy & Compliance (SDLC Phase 4)",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Establishing security and compliance frameworks — aka Trust & Safety, SecOps Hardening, Compliance Sprint, Risk & Assurance.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "security-privacy-compliance",
+        "name": "Security, Privacy & Compliance",
+        "description": "Establishes the security controls, privacy safeguards, and compliance posture required before further platform investment.",
+        "category": "Compliance"
+      }
+    ],
+    "services": [
+      {
+        "code": "threat-model-stride",
+        "capabilityCode": "security-privacy-compliance",
+        "name": "Threat Model (STRIDE)",
+        "contractDescription": "Security threat analysis."
+      },
+      {
+        "code": "security-controls-matrix",
+        "capabilityCode": "security-privacy-compliance",
+        "name": "Security Controls Matrix",
+        "contractDescription": "Security control implementation."
+      },
+      {
+        "code": "privacy-impact-assessment",
+        "capabilityCode": "security-privacy-compliance",
+        "name": "Privacy Impact Assessment",
+        "contractDescription": "Privacy risk evaluation."
+      },
+      {
+        "code": "data-protection-addendum-vendor-list",
+        "capabilityCode": "security-privacy-compliance",
+        "name": "Data Protection Addendum & Vendor List",
+        "contractDescription": "Vendor compliance."
+      },
+      {
+        "code": "compliance-readiness-checklist",
+        "capabilityCode": "security-privacy-compliance",
+        "name": "Compliance Readiness Checklist",
+        "contractDescription": "Regulatory compliance tracking."
+      },
+      {
+        "code": "secure-sdlc-guidelines",
+        "capabilityCode": "security-privacy-compliance",
+        "name": "Secure SDLC Guidelines",
+        "contractDescription": "Secure development practices."
+      }
+    ],
+    "checklists": [
+      {
+        "code": "security-controls-mapped-to-threats",
+        "statement": "Every identified STRIDE threat has a corresponding documented security control or explicit accepted risk.",
+        "classification": "human-attested",
+        "prompt": "Does the security controls matrix address every threat identified in the STRIDE model, either with a control or an explicitly accepted risk?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes"
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "review-security-privacy-compliance",
+        "statement": "The Security, Privacy & Compliance's deliverables have been reviewed and accepted as sufficient to proceed to Platform & Developer Experience.",
+        "classification": "human-attested",
+        "prompt": "Are the threat model, security controls, and compliance readiness sufficiently addressed to justify moving into Platform & Developer Experience?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance"
+      }
+    ]
+  }
+}

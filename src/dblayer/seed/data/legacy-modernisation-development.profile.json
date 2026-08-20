@@ -1,0 +1,8 @@
+{
+  "code": "profile-legacy-modernisation-development",
+  "name": "Legacy Modernisation — Default Development Profile",
+  "baseTemplateCode": "legacy-modernisation",
+  "environment": "development",
+  "configParameters": {},
+  "optionalPackCodes": ["technology-nodejs"]
+}

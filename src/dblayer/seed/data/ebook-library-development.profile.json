@@ -1,7 +1,7 @@
 {
   "code": "profile-ebook-library-development",
   "name": "E-Book Library Development Profile",
-  "baseTemplateCode": "template-ebook-library-system",
+  "baseTemplateCode": "enterprise-web-application",
   "environment": "development",
   "configParameters": {},
   "optionalPackCodes": ["technology-nodejs"]

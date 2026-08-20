@@ -23,7 +23,9 @@
       </p>
     </div>
 
+    <div class="d-flex flex-column flex-md-row gap-4 align-items-start">
     <%- include('../../../partials/authorityTabs', { active: activeTab }) %>
+    <div class="flex-grow-1" style="min-width: 0;">
 
     <% const canWrite = locals.canWrite; %>
 
@@ -150,6 +152,9 @@
           <% } %>
         </table>
       </div>
+    </div>
+
+    </div>
     </div>
   </main>
 

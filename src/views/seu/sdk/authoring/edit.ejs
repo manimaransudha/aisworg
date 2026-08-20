@@ -59,6 +59,12 @@
     <div class="mb-4 d-flex justify-content-between align-items-start">
       <div>
         <h2 class="h3 mb-1 text-dark fw-bold"><%= kindLabel %> Definition</h2>
+        <% if (!isNew && draft.purpose) { %>
+          <%# CR-023 (owner: "In view mode, show this as a sub text under the
+              title") — Template's `purpose`, wherever it has a real value
+              (blank/absent for Pack/Profile, which have no purpose field). %>
+          <p class="mb-1"><%= draft.purpose %></p>
+        <% } %>
         <p class="text-muted small mb-0">
           Generated from <code>schema_definitions</code>, not a hand-built form.
           <a href="/aisworg/seu/sdk/<%= slug %>">&larr; All <%= kindLabel %>s</a>
@@ -82,6 +88,62 @@
       // different verb-holder takes the next step.
       var verbLabel = nextVerb ? nextVerb.charAt(0).toUpperCase() + nextVerb.slice(1) : '';
     %>
+    <% if (isNew && locals.inheritableTemplates && inheritableTemplates.length > 0) { %>
+      <%# CR-026 Template Inheritance (Ch.6 §9, owner: "show a dropdown of
+          codes (Platform published + tenant published). Give a button to
+          inherit."). A plain GET reload of this same page with
+          ?parentTemplateId= — the form below then arrives pre-filled from
+          the chosen parent's real content (inheritedTemplateContent), code
+          locked to the parent's own. Never shown to a Platform author or root
+          (owner: "no change to the way template is created by a platform
+          user") — the route only computes this list for a real tenant viewer. %>
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+          <h6 class="text-uppercase text-muted small fw-bold mb-2">Inherit from an existing Template</h6>
+          <p class="text-muted small mb-2">Start from a Platform or your own tenant's published Template — its code, capabilities, mandatory Packs, and deliverables carry over as an editable starting point. Its mandatory Packs must stay mandatory in your Derived Template.</p>
+          <% if (locals.inheritingFromTemplateId) { %>
+            <p class="small mb-2"><i class="bi bi-check-circle text-success me-1"></i>Inheriting below — code is locked to the parent's.</p>
+          <% } %>
+          <form method="GET" action="/aisworg/seu/sdk/<%= slug %>/new" class="d-flex gap-2">
+            <select name="parentTemplateId" class="form-select form-select-sm" style="max-width: 420px;">
+              <option value="">Choose a Template to inherit from&hellip;</option>
+              <% inheritableTemplates.forEach(function (t) { %>
+                <option value="<%= t.id %>" <%= locals.inheritingFromTemplateId === t.id ? 'selected' : '' %>><%= t.name %> (<%= t.code %> v<%= t.templateVersion %>)</option>
+              <% }) %>
+            </select>
+            <button type="submit" class="btn btn-sm btn-outline-primary">Inherit</button>
+          </form>
+        </div>
+      </div>
+    <% } %>
+
+    <% if (isNew && locals.inheritableProfiles && inheritableProfiles.length > 0) { %>
+      <%# Ch.7 §9 Profile Inheritance (owner, 2026-08-19), same treatment as
+          Template's Inherit control above — a plain GET reload with
+          ?parentProfileId=, pre-filled from the chosen parent's real content
+          (inheritedProfileContent), code locked to the parent's own. Never
+          shown to a Platform author or root, same "no change to the way
+          [it] is created by a platform user" rule as Template's. %>
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+          <h6 class="text-uppercase text-muted small fw-bold mb-2">Inherit from an existing Profile</h6>
+          <p class="text-muted small mb-2">Start from a Platform or your own tenant's published Profile — its code, Pack selections, and configuration carry over as an editable starting point.</p>
+          <% if (locals.inheritingFromProfileId) { %>
+            <p class="small mb-2"><i class="bi bi-check-circle text-success me-1"></i>Inheriting below — code is locked to the parent's.</p>
+          <% } %>
+          <form method="GET" action="/aisworg/seu/sdk/<%= slug %>/new" class="d-flex gap-2">
+            <select name="parentProfileId" class="form-select form-select-sm" style="max-width: 420px;">
+              <option value="">Choose a Profile to inherit from&hellip;</option>
+              <% inheritableProfiles.forEach(function (p) { %>
+                <option value="<%= p.id %>" <%= locals.inheritingFromProfileId === p.id ? 'selected' : '' %>><%= p.name %> (<%= p.code %> v<%= p.profileVersion %>)</option>
+              <% }) %>
+            </select>
+            <button type="submit" class="btn btn-sm btn-outline-primary">Inherit</button>
+          </form>
+        </div>
+      </div>
+    <% } %>
+
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-body">
         <h6 class="text-uppercase text-muted small fw-bold mb-3">Generated form</h6>
@@ -93,6 +155,16 @@
             tracking. %>
         <form method="POST" id="authoring-form" action="<%= isNew ? ('/aisworg/seu/sdk/' + slug) : ('/aisworg/seu/sdk/' + slug + '/' + draft.id + '/save') %>">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <%# CR-026 Template Inheritance — parentTemplateId isn't a generated
+              schema field (it's identity/lineage, not authored content), so it
+              rides along as its own hidden input set only when this new-draft
+              form was reached via the "Inherit" control below. %>
+          <% if (locals.inheritingFromTemplateId) { %>
+            <input type="hidden" name="parentTemplateId" value="<%= inheritingFromTemplateId %>">
+          <% } %>
+          <% if (locals.inheritingFromProfileId) { %>
+            <input type="hidden" name="parentProfileId" value="<%= inheritingFromProfileId %>">
+          <% } %>
 
           <%
             // Only worth a stepper if there's actually an Items pane to split
@@ -113,20 +185,20 @@
             </div>
 
             <div class="stepper-pane" data-step="1">
-              <%- include('../_generatedFieldGroups', { groups: groups, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, contributionHelp: locals.contributionHelp, verifiableFieldHelp: locals.verifiableFieldHelp, sections: ['metadata', 'compatibility'], idPrefix: 'step1' }) %>
+              <%- include('../_generatedFieldGroups', { groups: groups, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, templateOptions: locals.templateOptions, ontologyOptions: locals.ontologyOptions, contributionHelp: locals.contributionHelp, verifiableFieldHelp: locals.verifiableFieldHelp, sections: ['metadata', 'compatibility'], idPrefix: 'step1' }) %>
               <div class="d-flex justify-content-end mb-4">
                 <button type="button" class="btn btn-sm btn-primary" data-goto="2">Next: Items <i class="bi bi-arrow-right ms-1"></i></button>
               </div>
             </div>
 
             <div class="stepper-pane d-none" data-step="2">
-              <%- include('../_generatedFieldGroups', { groups: groups, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, contributionHelp: locals.contributionHelp, verifiableFieldHelp: locals.verifiableFieldHelp, sections: ['dependencies', 'contributions'], idPrefix: 'step2' }) %>
+              <%- include('../_generatedFieldGroups', { groups: groups, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, templateOptions: locals.templateOptions, ontologyOptions: locals.ontologyOptions, contributionHelp: locals.contributionHelp, verifiableFieldHelp: locals.verifiableFieldHelp, sections: ['dependencies', 'contributions'], idPrefix: 'step2' }) %>
               <div class="mb-2">
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-goto="1"><i class="bi bi-arrow-left me-1"></i> Back: Meta</button>
               </div>
             </div>
           <% } else { %>
-            <%- include('../_generatedFieldGroups', { groups: groups, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, contributionHelp: locals.contributionHelp, verifiableFieldHelp: locals.verifiableFieldHelp, idPrefix: 'flat' }) %>
+            <%- include('../_generatedFieldGroups', { groups: groups, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, templateOptions: locals.templateOptions, ontologyOptions: locals.ontologyOptions, contributionHelp: locals.contributionHelp, verifiableFieldHelp: locals.verifiableFieldHelp, idPrefix: 'flat' }) %>
           <% } %>
 
           <% if (canEdit || canPublish) { %>
@@ -159,6 +231,30 @@
         </form>
       </div>
     </div>
+
+    <% if (!isNew && (locals.possibleNextStates || []).length > 0) { %>
+      <%
+        // Registry governance, relocated here (owner, 2026-08-19: "Add it
+        // back to Authoring" — the Registry page is now view-only). Every
+        // possible next state off the entity's CURRENT status is offered —
+        // the real per-target-state authority check happens server-side in
+        // POST .../transition, same as the removed Registry dropdown did.
+      %>
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+          <h6 class="text-uppercase text-muted small fw-bold mb-2">Lifecycle</h6>
+          <form method="POST" action="/aisworg/seu/sdk/<%= slug %>/<%= draft.id %>/transition" class="d-flex align-items-center gap-2">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <select name="targetState" class="form-select form-select-sm" style="width: auto;">
+              <% locals.possibleNextStates.forEach(function(s) { %>
+                <option value="<%= s %>"><%= s %></option>
+              <% }) %>
+            </select>
+            <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
+          </form>
+        </div>
+      </div>
+    <% } %>
 
     <% if (!isNew && canEdit) { %>
       <div class="card border-0 shadow-sm mb-4">
@@ -323,15 +419,41 @@
       // field itself is readonly; this is the ONLY way its value changes.
       // Patch-bump (x.y.z -> x.y.(z+1)); anything not already valid semver
       // (shouldn't happen — the route always seeds 1.0.0) resets to 1.0.0.
-      var versionField = document.getElementById('packVersion-field');
-      var versionBtn = document.getElementById('next-version-btn');
-      if (versionField && versionBtn) {
-        versionBtn.addEventListener('click', function () {
+      // CR-024: generic over every .next-version-btn on the page (Pack's
+      // packVersion and Template's templateVersion both use this now, kind
+      // "version" — see _generatedFieldGroups.ejs), not one hardcoded pair
+      // of element ids.
+      document.querySelectorAll('.next-version-btn').forEach(function (btn) {
+        var targetId = btn.getAttribute('data-version-target');
+        var versionField = targetId && document.getElementById(targetId);
+        if (!versionField) return;
+        btn.addEventListener('click', function () {
           var m = /^(\d+)\.(\d+)\.(\d+)$/.exec(versionField.value.trim());
           versionField.value = m ? (m[1] + '.' + m[2] + '.' + (parseInt(m[3], 10) + 1)) : '1.0.0';
           markDirty();
         });
+      });
+
+      // Ontology-backed picker guidance (owner: "when the dropdown is chosen,
+      // show this as guidance") — reads the selected <option>'s
+      // data-description (set from ontologyOptions[...].description,
+      // _generatedFieldGroups.ejs) into the field's own guidance <div>.
+      // Generic over every .ontology-select on the page (Template's `code`
+      // today; any future ontology-backed field the same way, no per-field
+      // wiring) — runs once on load too, so a prefilled/edit-mode value shows
+      // its guidance immediately, not only after the author touches it.
+      function showOntologyGuidance(select) {
+        var targetId = select.getAttribute('data-guidance-target');
+        var target = targetId && document.getElementById(targetId);
+        if (!target) return;
+        var opt = select.options[select.selectedIndex];
+        var description = opt ? opt.getAttribute('data-description') : '';
+        target.textContent = description || '';
       }
+      document.querySelectorAll('.ontology-select').forEach(function (select) {
+        showOntologyGuidance(select);
+        select.addEventListener('change', function () { showOntologyGuidance(select); });
+      });
     })();
   </script>
 

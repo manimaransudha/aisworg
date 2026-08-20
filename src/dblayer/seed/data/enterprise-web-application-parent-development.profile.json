@@ -1,0 +1,8 @@
+{
+  "code": "profile-enterprise-web-application-parent-development",
+  "name": "Enterprise Web Application (Standard) — Default Development Profile",
+  "baseTemplateCode": "enterprise-web-application",
+  "environment": "development",
+  "configParameters": {},
+  "optionalPackCodes": ["technology-nodejs"]
+}

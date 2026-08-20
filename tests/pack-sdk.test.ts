@@ -14,6 +14,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
+import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
@@ -25,12 +26,17 @@ after(async () => {
   await pool.end();
 });
 
+// CR-026 — a real, seeded tenant (seedIdentityBaseline.ts's ATHENS_TENANT_ID's
+// sibling "Demo" tenant), used only to prove Pack's tenant-scoped versioning
+// against a genuine second tenant, not a made-up UUID.
+const DEMO_TENANT_ID = "22222222-2222-2222-2222-222222222222";
+
 function freshPackSeed(overrides: Partial<PackSeedInput> = {}): PackSeedInput {
   const code = `test-pack-${randomUUID()}`;
   return {
     code,
     name: "Test Pack",
-    category: "Technology",
+    category: "Engineering",
     packVersion: "1.0.0",
     installationClassification: "Optional",
     contributions: {
@@ -346,6 +352,57 @@ test("reactivating a Pack supersedes whatever else is currently Active for the s
 
   const { data: activeForCode } = await packsDB.findActiveByCode(code);
   assert.equal(activeForCode?.id, reactivated.pack.id, "exactly one Active row for this code after reactivation");
+});
+
+// CR-026 — packs_code_version_key (migration 010) never included tenant_id,
+// even after Pack ownership existed (migration 044): two tenants (or a tenant
+// and Platform) each publishing the exact same (code, packVersion) collided
+// on a row that wasn't actually theirs. packs_code_version_tenant_key
+// (migration 063) fixes the identity; this proves the fix, not just the
+// constraint — publishPack's own rerun-safety check must scope by tenant too,
+// or a tenant's "new" publish could silently resolve to Platform's row.
+test("CR-026: two tenants publishing the exact same (code, packVersion) no longer collide, and each tenant's Active row is independent", async () => {
+  const code = `test-tenant-scoped-${randomUUID()}`;
+  const platformResult = await publishPack({ seed: freshPackSeed({ code, packVersion: "1.0.0", tenantId: PLATFORM_TENANT_ID }), actorRole: "power", actorId: "1001", activate: true });
+  assert.equal(platformResult.ok, true, !platformResult.ok ? JSON.stringify(platformResult.errors) : undefined);
+
+  const tenantResult = await publishPack({ seed: freshPackSeed({ code, packVersion: "1.0.0", tenantId: DEMO_TENANT_ID }), actorRole: "power", actorId: "1001", activate: true });
+  assert.equal(tenantResult.ok, true, !tenantResult.ok ? JSON.stringify(tenantResult.errors) : "a tenant's own Pack at the same (code, packVersion) as Platform's must not collide");
+  assert.notEqual(tenantResult.pack!.id, platformResult.pack!.id, "must be two genuinely distinct rows, not one resolved for both tenants");
+  assert.equal(tenantResult.alreadyPublished, false, "must be treated as a real new publish, not Platform's row mistaken for an idempotent rerun");
+
+  const { data: platformActive } = await packsDB.findActiveByCode(code, PLATFORM_TENANT_ID);
+  const { data: tenantActive } = await packsDB.findActiveByCode(code, DEMO_TENANT_ID);
+  assert.equal(platformActive?.id, platformResult.pack!.id, "Platform's own Active row, unaffected by the tenant's activation");
+  assert.equal(tenantActive?.id, tenantResult.pack!.id, "the tenant's own Active row, distinct from Platform's");
+});
+
+test("CR-026: reactivating a Pack supersedes only its OWN tenant's Active row, never a different tenant's row at the same code", async () => {
+  const code = `test-tenant-reactivate-${randomUUID()}`;
+  const platformV1 = await publishPack({ seed: freshPackSeed({ code, packVersion: "1.0.0", tenantId: PLATFORM_TENANT_ID }), actorRole: "power", actorId: "1001", activate: true });
+  assert.equal(platformV1.ok, true);
+  const toDeprecated = await transitionPack({ packId: platformV1.pack!.id, targetState: "Deprecated", actorRole: "power", actorId: "1001" });
+  assert.equal(toDeprecated.ok, true);
+
+  // A different tenant's row at the exact same code+version, currently Active.
+  const tenantV1 = await publishPack({ seed: freshPackSeed({ code, packVersion: "1.0.0", tenantId: DEMO_TENANT_ID }), actorRole: "power", actorId: "1001", activate: true });
+  assert.equal(tenantV1.ok, true, !tenantV1.ok ? JSON.stringify(tenantV1.errors) : undefined);
+  assert.equal(tenantV1.pack!.status, "Active");
+
+  // Reactivating Platform's own (Deprecated) row must bump within Platform's
+  // own history and must NOT touch the tenant's unrelated Active row.
+  const reactivated = await transitionPack({ packId: platformV1.pack!.id, targetState: "Active", actorRole: "power", actorId: "1001" });
+  assert.equal(reactivated.ok, true, !reactivated.ok ? JSON.stringify(reactivated) : undefined);
+  if (!reactivated.ok) return;
+  assert.equal(reactivated.pack.pack_version, "1.0.1", "bumped within Platform's own tenant history, not blocked by the tenant's identical (code, packVersion)");
+
+  const { data: tenantStillActive } = await packsDB.findById(tenantV1.pack!.id);
+  assert.equal(tenantStillActive?.status, "Active", "a different tenant's Active row for the same code must be untouched by Platform's reactivation");
+
+  const { data: platformActive } = await packsDB.findActiveByCode(code, PLATFORM_TENANT_ID);
+  const { data: tenantActive } = await packsDB.findActiveByCode(code, DEMO_TENANT_ID);
+  assert.equal(platformActive?.id, reactivated.pack.id, "Platform's own Active row is the reactivated one");
+  assert.equal(tenantActive?.id, tenantV1.pack!.id, "the tenant's own Active row is untouched — a separate (code, tenant) axis entirely");
 });
 
 test("reactivating a Pack requires 'power' — a 'general' actor is denied", async () => {

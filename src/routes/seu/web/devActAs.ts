@@ -12,7 +12,7 @@ const router = express.Router();
 import type { Request, Response, NextFunction } from "express";
 import { flashError, flashSuccess } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
-import { devActAsAvailable, findOrMintGrant, listBadgeTypes } from "../../../dev/actAs.js";
+import { devActAsAvailable, findOrMintGrant, isAssumableBadgeCode } from "../../../dev/actAs.js";
 
 // Gate: the whole router is invisible unless the feature is live for this
 // caller. 404 (not 403) so its very existence isn't disclosed otherwise.
@@ -31,13 +31,11 @@ router.post("/dev/act-as", async (req: Request, res: Response) => {
     const tenantId = typeof req.body?.tenantId === "string" && req.body.tenantId.trim() !== "" ? req.body.tenantId : null;
     const badgeType = typeof req.body?.badgeType === "string" && req.body.badgeType.trim() !== "" ? req.body.badgeType : "root";
 
-    // Validate the badge type is a real vocabulary entry for the tenant (root
-    // is always valid — it's the platform default / reset).
-    if (badgeType !== "root") {
-      const types = await listBadgeTypes(tenantId);
-      if (!types.some((t) => t.code === badgeType)) {
-        return flashError(req, res, back, `Unknown badge type "${badgeType}" for the selected tenant.`);
-      }
+    // Validate the badge type is a real vocabulary entry for the tenant —
+    // either a Layer 1/2 badge_types row (root is always valid) or a live
+    // CR-006 noun_verb work badge (e.g. "deliverable_approve").
+    if (!(await isAssumableBadgeCode(badgeType, tenantId))) {
+      return flashError(req, res, back, `Unknown badge type "${badgeType}" for the selected tenant.`);
     }
 
     (req.session as unknown as { actAs?: { tenantId: string | null; badgeType: string } }).actAs = { tenantId, badgeType };

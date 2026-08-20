@@ -31,7 +31,15 @@ router.get("/identity", requirePlatformBadge("root"), attachVM("seu/identity/ind
     const view = await getIdentityDashboardView();
     req.vm.req.title = "Identity Management";
     req.vm.req.counts = {
-      tenants: view.tenants.length,
+      // Bug fix (owner, 2026-08-19: "There are only 5 tenants. But .../identity
+      // page shows 6 tenants") — getIdentityDashboardView's own `tenants` is
+      // deliberately unfiltered (Badge Management's tenant-scoped picker,
+      // .../identity/badges, needs the reserved Platform system tenant as a
+      // real scope option) — but this hub tile links straight through to
+      // .../identity/tenants, which correctly counts operational tenants only
+      // (findAllOperational, CR-004). The tile's own number must match what's
+      // actually on the other side of that link.
+      tenants: view.tenants.filter((t) => !t.is_system).length,
       badgeTypes: view.badgeTypes.length,
       grants: view.grants.length,
       users: view.users.length,

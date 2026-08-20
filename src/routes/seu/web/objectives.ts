@@ -292,6 +292,7 @@ router.post("/objectives/:id/commission", async (req: Request, res: Response) =>
       actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
       requestedBy: req.session?.user?.id ?? null,
       profileId: typeof profileId === "string" && profileId.trim() ? profileId : undefined,
+      tenantId: req.session?.user?.tenant_id ?? null,
     });
     if (!result.ok) {
       return flashError(req, res, backTo, `Commissioning failed at "${result.stage}": ${result.reason}`);

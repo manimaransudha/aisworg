@@ -1,7 +1,7 @@
 {
-  "code": "openup-requirements",
+  "code": "requirements-analysis",
   "name": "Requirements (OpenUP Capability Pattern)",
-  "category": "Platform",
+  "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
   "description": "EPF/OpenUP's Requirements capability pattern, modelled as a Pack: the Stakeholder/Analyst roles, work products, and tasks for eliciting, detailing, and reviewing requirements.",

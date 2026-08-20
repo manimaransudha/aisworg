@@ -118,7 +118,7 @@ test("commissionSeu requires the Objective to be Active — blocks Proposed, suc
     status: "Proposed",
   });
   await ensureWebAppTemplateFixture();
-  const { data: template } = await templatesDB.findByCode("template-web-application");
+  const { data: template } = await templatesDB.findByCode("enterprise-web-application");
   assert.ok(template);
   const profile = await createProfile({ templateId: template.id, environment: "development" });
 
@@ -159,14 +159,14 @@ test("suggestCapabilityCodes matches on word overlap with a Capability's name/de
 // more than one Template satisfies: the first alphabetically-sorted match
 // won, not the tightest fit. This only became observable once a second real
 // Template (requiring strictly more Capabilities than
-// template-web-application) existed in the Registry — see
-// seedEbookLibraryPilot.ts. Requesting exactly template-web-application's 3
+// enterprise-web-application) existed in the Registry — see
+// seedEbookLibraryPilot.ts. Requesting exactly enterprise-web-application's 3
 // required Capabilities must select it over any looser-fitting Template
 // that also happens to satisfy, regardless of code ordering.
 test("findCandidateTemplates picks the tightest-fitting satisfying Template, not whichever sorts first alphabetically", async () => {
   await ensureWebAppTemplateFixture();
-  const { data: webApp } = await templatesDB.findByCode("template-web-application");
-  assert.ok(webApp, "expected template-web-application to be seeded");
+  const { data: webApp } = await templatesDB.findByCode("enterprise-web-application");
+  assert.ok(webApp, "expected enterprise-web-application to be seeded");
   const { data: webAppCapabilities } = await templatesDB.getRequiredCapabilities(webApp!.id);
   assert.ok(webAppCapabilities && webAppCapabilities.length > 0);
 
@@ -180,5 +180,5 @@ test("findCandidateTemplates picks the tightest-fitting satisfying Template, not
   }
 
   const selected = satisfying[0];
-  assert.equal(selected?.code, "template-web-application", `expected the exact-fit Template to win, got: ${selected?.code}`);
+  assert.equal(selected?.code, "enterprise-web-application", `expected the exact-fit Template to win, got: ${selected?.code}`);
 });

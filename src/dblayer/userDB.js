@@ -16,6 +16,19 @@ export const userDB = {
     }
   },
 
+  async findById(id) {
+    try {
+      const { rows } = await query(
+        'SELECT * FROM users WHERE id = $1 LIMIT 1',
+        [id]
+      );
+      return rows[0] || null;
+    } catch (err) {
+      logger.error('[userDB] findById error:', err);
+      throw err;
+    }
+  },
+
   async findByVerificationToken(token) {
     try {
       const { rows } = await query(

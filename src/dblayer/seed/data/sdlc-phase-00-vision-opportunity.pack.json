@@ -1,0 +1,85 @@
+{
+  "code": "vision-opportunity-framing",
+  "name": "Vision & Opportunity (SDLC Phase 0)",
+  "category": "Organisation",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Establishing the foundational product vision and market opportunity before any solution work begins — aka North Star, Product Strategy, Problem Framing, Opportunity Mapping, Lean Inception, 0→1.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "vision-opportunity-framing",
+        "name": "Vision & Opportunity Framing",
+        "description": "Establishes the product vision, business model, and market opportunity that justifies building the product at all.",
+        "category": "Organisation"
+      }
+    ],
+    "services": [
+      {
+        "code": "vision-one-pager",
+        "capabilityCode": "vision-opportunity-framing",
+        "name": "Vision One-Pager",
+        "contractDescription": "Product vision and strategic direction, condensed to one page."
+      },
+      {
+        "code": "lean-business-model-canvas",
+        "capabilityCode": "vision-opportunity-framing",
+        "name": "Lean Business Model Canvas",
+        "contractDescription": "Business model framework covering value proposition, channels, revenue, and cost structure."
+      },
+      {
+        "code": "market-sizing-brief",
+        "capabilityCode": "vision-opportunity-framing",
+        "name": "Market Sizing Brief",
+        "contractDescription": "Market analysis and opportunity sizing (TAM/SAM/SOM)."
+      },
+      {
+        "code": "competitive-teardown",
+        "capabilityCode": "vision-opportunity-framing",
+        "name": "Competitive Teardown",
+        "contractDescription": "Competitive landscape analysis of comparable products and their positioning."
+      },
+      {
+        "code": "jtbd-insights-summary",
+        "capabilityCode": "vision-opportunity-framing",
+        "name": "JTBD Insights Summary",
+        "contractDescription": "Jobs-to-be-done research insights motivating the opportunity."
+      },
+      {
+        "code": "success-metrics-okrs-draft",
+        "capabilityCode": "vision-opportunity-framing",
+        "name": "Success Metrics & OKRs Draft",
+        "contractDescription": "Initial success metrics and objectives/key-results definition for the opportunity."
+      },
+      {
+        "code": "initial-risks-assumptions-log",
+        "capabilityCode": "vision-opportunity-framing",
+        "name": "Initial Risks & Assumptions Log",
+        "contractDescription": "Early identification of the risks and unvalidated assumptions the opportunity rests on."
+      }
+    ],
+    "checklists": [
+      {
+        "code": "vision-grounded-in-evidence",
+        "statement": "The stated vision and opportunity sizing are grounded in real market/user evidence, not assertion alone.",
+        "classification": "judgment",
+        "prompt": "Does the vision one-pager cite market sizing and JTBD/competitive evidence rather than resting on unsupported claims?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes"
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "review-vision-opportunity",
+        "statement": "The vision and opportunity framing has been reviewed and accepted as sufficient to proceed to Product Discovery.",
+        "classification": "human-attested",
+        "prompt": "Is the vision, business model, and opportunity sizing sufficiently clear and credible to justify moving into discovery?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance"
+      }
+    ]
+  }
+}

@@ -1,7 +1,7 @@
 {
-  "code": "openup-architecture",
+  "code": "architecture-solution-design",
   "name": "Architecture (OpenUP Capability Pattern)",
-  "category": "Platform",
+  "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
   "description": "EPF/OpenUP's Architecture capability pattern, modelled as a Pack: the Architect role, the Architecture Notebook work product, and the tasks for designing and validating the solution structure.",

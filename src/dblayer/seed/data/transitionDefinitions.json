@@ -684,6 +684,62 @@
   {
     "entityType": "Template",
     "fromState": "Draft",
+    "toState": "Validated",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Template",
+    "fromState": "Validated",
+    "toState": "Published",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Template",
+    "fromState": "Published",
+    "toState": "Active",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Template",
+    "fromState": "Active",
+    "toState": "Deprecated",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Template",
+    "fromState": "Deprecated",
+    "toState": "Retired",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Template",
+    "fromState": "Retired",
+    "toState": "Archived",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Template",
+    "fromState": "Deprecated",
+    "toState": "Active",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Template",
+    "fromState": "Retired",
+    "toState": "Active",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Template",
+    "fromState": "Archived",
     "toState": "Active",
     "requiredAuthorityRuleCode": null,
     "requiredPolicyCodes": []
@@ -691,6 +747,62 @@
   {
     "entityType": "Profile",
     "fromState": "Draft",
+    "toState": "Validated",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Profile",
+    "fromState": "Validated",
+    "toState": "Published",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Profile",
+    "fromState": "Published",
+    "toState": "Active",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Profile",
+    "fromState": "Active",
+    "toState": "Deprecated",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Profile",
+    "fromState": "Deprecated",
+    "toState": "Retired",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Profile",
+    "fromState": "Retired",
+    "toState": "Archived",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Profile",
+    "fromState": "Deprecated",
+    "toState": "Active",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Profile",
+    "fromState": "Retired",
+    "toState": "Active",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Profile",
+    "fromState": "Archived",
     "toState": "Active",
     "requiredAuthorityRuleCode": null,
     "requiredPolicyCodes": []

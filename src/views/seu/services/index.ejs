@@ -37,7 +37,7 @@
     </div>
 
     <% if (list.total === 0) { %>
-      <div class="alert alert-warning"><%= list.q ? 'No Services match your search.' : 'No Services loaded — run pnpm seed:seu.' %></div>
+      <div class="alert alert-warning"><%= list.q ? 'No Services match your search.' : 'No Services loaded — run pnpm db:clean-slate (base Packs must already exist).' %></div>
     <% } else { %>
       <% list.items.forEach(function(s) { %>
         <div class="card border-0 shadow-sm mb-3">

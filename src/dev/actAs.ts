@@ -16,6 +16,7 @@ import type { Request } from "express";
 import { tenantsDB } from "../dblayer/tenantsDB.js";
 import { badgeTypesDB } from "../dblayer/badgeTypesDB.js";
 import { badgeGrantsDB } from "../dblayer/badgeGrantsDB.js";
+import { authorityVocabularyDB } from "../dblayer/authorityVocabularyDB.js";
 import type { BadgeGrantRow, TenantRow, BadgeTypeRow, TransitionEntityType } from "../dblayer/seuTypes.js";
 import { logger } from "../utils/logger.js";
 
@@ -85,6 +86,21 @@ export async function listBadgeTypes(tenantId: string | null): Promise<BadgeType
 }
 
 /**
+ * Is `code` something the switcher can actually assume? Either a Layer 1/2
+ * badge_types row (root, tenant_admin, viewer, …) or a live CR-006 noun_verb
+ * work badge (e.g. "deliverable_approve") — migration 043 retired the old
+ * Creator/Reviewer/Approver badge_types family those used to be covered by,
+ * so they now only exist in authority_noun_verbs.
+ */
+export async function isAssumableBadgeCode(code: string, tenantId: string | null): Promise<boolean> {
+  if (code === "root") return true;
+  const types = await listBadgeTypes(tenantId);
+  if (types.some((t) => t.code === code)) return true;
+  const { data: pairs } = await authorityVocabularyDB.listActiveMappingPairs();
+  return (pairs ?? []).some((p) => `${p.noun_code.toLowerCase()}_${p.verb_code}` === code);
+}
+
+/**
  * Find-or-mint an Active grant of `badgeType` for `holderId` at the given
  * scope. Minting is permitted ONLY because the feature is live (dev + god
  * user); returns null and mints nothing otherwise, so production is untouched.
@@ -107,28 +123,33 @@ export async function findOrMintGrant(
 
   const bt = await badgeTypesDB.resolveForTenant(input.badgeType, input.tenantId);
   const badgeTypeRow = bt.data;
-  if (!badgeTypeRow) {
-    logger.warn(`[dev/actAs] badge type "${input.badgeType}" does not resolve — not minting`);
-    return null;
-  }
 
   // Derive the scope the grant must carry from the badge type's scope_kind.
+  // No badge_types row (migration 043 retired the old Creator/Reviewer/
+  // Approver family) doesn't mean the code is bogus — it may be a live
+  // CR-006 noun_verb work badge (e.g. "deliverable_approve"), which is
+  // always unscoped (scope is a separate gate the noun_verb authority check
+  // never applies — badgeAuthorityEngine.authorise). Left as fully unscoped
+  // here; badgeGrantsDB.create's own validateBadgeGrant resolves it against
+  // authority_noun_verbs (or rejects it) below.
   let governedEntityType: TransitionEntityType | null = null;
   let capabilityId: string | null = null;
   let scopeId: string | null = null;
-  switch (badgeTypeRow.scope_kind) {
-    case "None":
-      break; // unscoped (e.g. root)
-    case "Tenant":
-      scopeId = input.tenantId;
-      break;
-    case "SEU":
-    case "Pack":
-    case "SEU_or_Pack":
-      governedEntityType = input.entityType ?? null;
-      capabilityId = input.capabilityId ?? null;
-      scopeId = input.scopeId ?? null;
-      break;
+  if (badgeTypeRow) {
+    switch (badgeTypeRow.scope_kind) {
+      case "None":
+        break; // unscoped (e.g. root)
+      case "Tenant":
+        scopeId = input.tenantId;
+        break;
+      case "SEU":
+      case "Pack":
+      case "SEU_or_Pack":
+        governedEntityType = input.entityType ?? null;
+        capabilityId = input.capabilityId ?? null;
+        scopeId = input.scopeId ?? null;
+        break;
+    }
   }
 
   // Look for an existing Active grant that matches this scope exactly.
@@ -150,7 +171,7 @@ export async function findOrMintGrant(
     scopeId,
   });
   if ("data" in created) {
-    logger.info(`[dev/actAs] minted "${input.badgeType}" grant for holder ${input.holderId} (scope_kind ${badgeTypeRow.scope_kind})`);
+    logger.info(`[dev/actAs] minted "${input.badgeType}" grant for holder ${input.holderId} (scope_kind ${badgeTypeRow?.scope_kind ?? "None (noun_verb)"})`);
     return created.data ?? null;
   }
   const why = "validationErrors" in created ? created.validationErrors.join("; ") : created.error.message;

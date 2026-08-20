@@ -1,0 +1,79 @@
+{
+  "code": "beta-early-access-management",
+  "name": "Beta / Early Access (SDLC Phase 10)",
+  "category": "Organisation",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Managing beta program and early user feedback — aka Private Beta, Pilot, Dogfooding, Soft Launch.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "beta-early-access-management",
+        "name": "Beta / Early Access Management",
+        "description": "Runs a controlled early-access program that captures real user feedback and validates readiness before general availability.",
+        "category": "Organisation"
+      }
+    ],
+    "services": [
+      {
+        "code": "beta-entry-exit-criteria",
+        "capabilityCode": "beta-early-access-management",
+        "name": "Beta Entry/Exit Criteria",
+        "contractDescription": "Beta program parameters."
+      },
+      {
+        "code": "feedback-capture-analysis-plan",
+        "capabilityCode": "beta-early-access-management",
+        "name": "Feedback Capture & Analysis Plan",
+        "contractDescription": "User feedback management."
+      },
+      {
+        "code": "beta-success-metrics",
+        "capabilityCode": "beta-early-access-management",
+        "name": "Beta Success Metrics",
+        "contractDescription": "Beta program measurement."
+      },
+      {
+        "code": "support-playbook-beta-users",
+        "capabilityCode": "beta-early-access-management",
+        "name": "Support Playbook for Beta Users",
+        "contractDescription": "Beta user support."
+      },
+      {
+        "code": "known-issues-log",
+        "capabilityCode": "beta-early-access-management",
+        "name": "Known Issues Log",
+        "contractDescription": "Issue tracking and communication."
+      },
+      {
+        "code": "risk-mitigation-plan",
+        "capabilityCode": "beta-early-access-management",
+        "name": "Risk Mitigation Plan",
+        "contractDescription": "Beta program risk management."
+      }
+    ],
+    "checklists": [
+      {
+        "code": "beta-feedback-loop-operating",
+        "statement": "Feedback from beta users is being captured, triaged, and reflected in the known issues log on an ongoing basis.",
+        "classification": "human-attested",
+        "prompt": "Is beta user feedback actively captured, triaged, and reflected in the known issues log rather than collected and ignored?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes"
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "review-beta-early-access-management",
+        "statement": "The Beta / Early Access's deliverables have been reviewed and accepted as sufficient to proceed to Launch.",
+        "classification": "human-attested",
+        "prompt": "Do the beta success metrics and known issues log show sufficient stability and readiness to justify moving into Launch?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance"
+      }
+    ]
+  }
+}

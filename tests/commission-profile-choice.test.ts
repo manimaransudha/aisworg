@@ -90,10 +90,10 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   // technology-nodejs as optional, so composing it is directly observable.
   const plainCode = `verify-profile-choice-plain-${randomUUID()}`;
   const nodejsCode = `verify-profile-choice-nodejs-${randomUUID()}`;
-  const plainPublished = await publishProfile({ code: plainCode, name: "Plain Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: [] });
-  assert.equal(plainPublished.ok, true);
-  const nodejsPublished = await publishProfile({ code: nodejsCode, name: "Nodejs Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: ["technology-nodejs"] });
-  assert.equal(nodejsPublished.ok, true);
+  const plainPublished = await publishProfile({ code: plainCode, name: "Plain Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: [], profileVersion: "1.0.0", category: "startup" });
+  assert.equal(plainPublished.ok, true, !plainPublished.ok ? plainPublished.errors.join("; ") : undefined);
+  const nodejsPublished = await publishProfile({ code: nodejsCode, name: "Nodejs Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: ["technology-nodejs"], profileVersion: "1.0.0", category: "startup" });
+  assert.equal(nodejsPublished.ok, true, !nodejsPublished.ok ? nodejsPublished.errors.join("; ") : undefined);
   if (!nodejsPublished.ok || !plainPublished.ok) return;
 
   // CR-009: Engineering Objectives need a Strategic parent (only Strategic may be a root).

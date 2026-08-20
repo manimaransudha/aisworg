@@ -28,6 +28,16 @@ export interface ListResult<T> {
   q: string;
   sort: string;
   dir: SortDir;
+  // Registry category tabs (owner: "the different categories have to be
+  // separate tabs") — set by the caller after paginateList when the list is
+  // also filtered by a category tab (Pack/Template/Profile Registries);
+  // undefined everywhere else. Read by helpers.ejs/listControls.ejs's own
+  // querystring builders so sort/page/search links keep the active tab.
+  category?: string;
+  // Registry state filter (owner, 2026-08-19: "Include filters to filter by
+  // state: Active, Deprecated etc.") — same no-op-elsewhere treatment as
+  // category above.
+  status?: string;
 }
 
 const DEFAULT_PAGE_SIZE = clampInt(process.env.LIST_PAGE_SIZE_DEFAULT, 20, 1, 500);

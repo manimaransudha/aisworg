@@ -584,3 +584,100 @@ Implementation of this chapter shall produce:
 - Deliverable APIs.
 - Deliverable events.
 - Deliverable versioning service.
+
+---
+
+# 21. Implementation Specifics
+
+*(2026-08-20 — reviewed against the real codebase, not assumed from the chapter alone. The `deliverables` table (`src/dblayer/migrations/002_seu_platform.sql:216-228`) has never been altered by any later migration — 10 columns, unchanged since it was first created.)*
+
+## 21.1 ⚠️ Definition & Structure (§4, §8) — 6 of 13 declared fields are real
+
+```sql
+CREATE TABLE deliverables (
+  id, seu_id, name, category, lifecycle_state, acceptance_criteria,
+  acquisition_scope, producing_capability_id, created_at, updated_at
+);
+```
+
+| §8 field | Status |
+|---|---|
+| Identifier, Name, Category, Current State, Dependencies (as edges), Producing Capabilities (singular, not many) | ✅ built |
+| Acceptance Criteria | column exists, **entirely inert** — zero code anywhere reads or writes it (only the DDL, the type, and a comment noting non-enforcement) |
+| Acquisition Scope | column exists — see §21.4, the single most nuanced finding in this review |
+| Description, Consuming Capabilities, Knowledge References, Evidence References, Engineering History | ❌ **no column, no field, anywhere** |
+
+Knowledge/Evidence "references" exist only as the *inverse* FK (`knowledge_items.deliverable_id`, Evidence's polymorphic `related_object_id`), read by `core/traceability.ts`, not as fields the Deliverable itself declares.
+
+DM-001/002/003/006 (primary execution object, evolves through states, persistent, independent of Participants) are all built. DM-005 (governed by the EBM) is only partially true: `transition_definitions` has a **global** `UNIQUE (entity_type, from_state, to_state)` — one row platform-wide, not one per EBM — so "the EBM governs this" really means "Packs seeded the platform's one shared rule set," not that two SEUs can have different Deliverable lifecycles.
+
+## 21.2 Functional Requirements (§6)
+
+FR-15.1/.2/.3/.5/.7 ✅ built. **FR-15.4 (acceptance criteria) ❌ not built** — the dead column, see §21.1. FR-15.6 (complete history) ⚠️ partial — see §21.9. FR-15.8 (Acquisition Scope) — schema built, only the default value is ever reachable, see §21.4.
+
+## 21.3 ⚠️ Deliverable Categories (§7) — Ontology-backed, but a different 5-value vocabulary, not the chapter's 6
+
+Category is enforced via Ontology (`assertCanonicalCategory("category:deliverable", ...)`, `core/deliverables.ts:51`), not free text — but the real seeded vocabulary (`migrations/030_ontology.sql:53-57`) is **`Documentation`, `Implementation`, `Architecture`, `Design`, `Requirements`** — five values, only two of which (`Documentation`, `Implementation`) are ever actually used across all 11 seeded Templates (78 vs. 11 occurrences). None of the chapter's six categories (Analysis/Design/Construction/Validation/Deployment/Knowledge) match except "Design" by coincidence.
+
+A *closer* match to §7's intent already exists and is unused: the `deliverable-name` Ontology concept type (migration 048, 23 concepts — Requirements Specification, Source Code, Test Suite, …) has **zero consumers anywhere**, per its own migration header. Worth revisiting for CR-038's Deliverable Catalogue redesign, which is exactly what that concept type was seeded for.
+
+The Ontology check is also only enforced on the ad-hoc API creation path (`core/deliverables.ts:51`) — the bulk commissioning path, which creates the overwhelming majority of real Deliverables, calls `deliverablesDB.create` directly (`commissioning.ts:178-183`) with no validation at all. "New categories may be introduced through Packs" — not built; no `ontologyConcepts` key exists in the Pack contribution schema.
+
+## 21.4 ⚠️ Deliverable Acquisition Scope (§9) — schema real, behaviour lives on Knowledge instead
+
+The column, type, and 4-value CHECK (`SEU`/`Capability`/`Enterprise`/`Platform`, default `SEU`) are exactly as the chapter specifies (`migrations/002_seu_platform.sql:223-224`). But:
+
+- **No caller ever supplies a non-default value.** Both creation paths omit it; no Template `deliverableCatalogue` entry carries it. Every Deliverable in the system is `SEU`-scoped, always.
+- **No setter exists** on `deliverablesDB` (contrast `knowledgeItemsDB.updateAcquisitionScope`).
+- **No propagation logic** — nothing queries Deliverables from other SEUs by scope.
+
+The real, working version of everything §9 describes — promotion, Engineering Capital, the SEU→Capability→Enterprise→Platform tiered authority (general/power/super badges) — is built, but on **`knowledge_items.acquisition_scope`**, via a *separate governed-transition entity type* `KnowledgeScope` (`migrations/008_engineering_capital.sql`), not on the Deliverable. `promoteKnowledgeItemScope` (`core/knowledge.ts:143-201`) runs through `transitionEngine`, publishes `KnowledgeScopePromoted` with actor+badge, and raises a codification Obligation. `getEngineeringCapital` (`core/knowledge.ts:204-207`, `knowledgeItemsDB.ts:90-105`) is real and working.
+
+So: a Deliverable's own `acquisition_scope` is, today, a write-once-to-default field whose only real job is seeding the Knowledge Item it produces (`core/knowledge.ts:40`) — after which Knowledge evolves its scope independently. The chapter frames Acquisition Scope as something the *Deliverable* does; what got built is something *Knowledge* does, seeded from the Deliverable.
+
+## 21.5 ⚠️ Lifecycle & State (§10, §11) — 4 of 8 chapter states exist; 1 of 5 named transitions exists
+
+Real transitions, confirmed against seed data (`transitionDefinitions.json:32-58`, three rows only):
+
+```
+Defined → In Progress → Approved → Baselined
+```
+
+| §10 state | Real? |
+|---|---|
+| Defined, In Progress, Approved, Baselined | ✅ |
+| Planned, Under Review, Superseded, Archived | ❌ none exist for Deliverable (`deliverablesDB.ts:92-95`'s own comment confirms it explicitly) |
+
+Of §11's five named transitions, only `Approved → Baselined` matches a real one; the platform collapses the chapter's 5-step path to 3 by eliding `Planned` and `Under Review` entirely. "The EBM may define additional lifecycle states" is mechanically possible (no CHECK constraint on `lifecycle_state`) but has never happened — no Pack has ever contributed one.
+
+## 21.6 ❌ Deliverable Relationships (§12) — 1 of 7 built
+
+Only **dependency** is real (`dependency_edges`, gated pre-transition at `core/deliverables.ts:135-136`). Derivation, refinement, validation, implementation, supersession, and decomposition **do not exist** — no columns, no mechanisms, confirmed by direct grep (only unrelated prose/comment hits). Supersession and decomposition are both real mechanisms *elsewhere* in the platform (Pack/Template/Profile versioning; Objective parent/child) — just never built for Deliverable.
+
+## 21.7 ⚠️ Ownership (§13) — true by schema shape, zero enforcement code
+
+`seu_id NOT NULL` plus the fact that the *only* `UPDATE deliverables` statement in the codebase touches `lifecycle_state` only (`deliverablesDB.ts:112-122`) makes ownership immutable in practice — but there is no ownership-validation function, no transfer-prevention check. It holds because nothing tries to violate it, not because something stops it.
+
+## 21.8 ✅ Acceptance (§14) — built, but through Quality Gates, not the dead `acceptance_criteria` column
+
+The real acceptance chain (`core/deliverables.ts:130-215`): dependency readiness → **Quality Gate** → Authority/Policy → empty-centre presence check → dispatchability. Two gates are actually seeded for Deliverable (`core-engineering.pack.json:171-190`): `no_unresolved_obligations` on `In Progress → Approved`, `requires_accepted_evidence_or_approved_decision` on `Approved → Baselined`. A third criteria type, `requires_accepted_review`, is built in the engine but never seeded for any Deliverable transition. Of the chapter's five acceptance inputs — review (built, unseeded), evidence (built+seeded), obligations (built+seeded), approval (built, badge-gated), automated validation (not built) — four exist in some form.
+
+## 21.9 ❌ Evolution / Versioning (§15, §18) — no versioning exists
+
+**No `deliverable_versions` table, no version column.** A Deliverable is one mutable row, updated in place. Versioning is real elsewhere in this platform (EBM, Template, Pack, Profile) — its absence here is a real gap, not a stylistic choice. "Historical versions remain accessible" resolves in practice to four append-only trails: `deliverable_references` (one row per Work Item completion, carrying an **opaque, platform-never-parses VCS reference** to the actual artifact — a pointer to something external, not a stored version), `attestations` (minted only at acceptance transitions), `events`, and `quality_gate_evaluations`. Recovering "what did this look like before" means resolving an external VCS reference the platform has no integration with.
+
+## 21.10 ✅ State Transitions (§16) — built, and stricter than the chapter describes
+
+The strongest-built claim in this review. A transition request only *dispatches* — the state changes only when a Participant reports `done` via the result callback (`core/workItems.ts:114`), and the dispatch API correctly returns **202 Accepted**, not 200. The single production write path to `lifecycle_state` is that one call site; the only other callers are two test fixtures staging readiness state directly (`tests/engine.test.ts:166,179`). Every transition publishes `DeliverableTransitioned` carrying the real acting `actorId` (`command.requested_by`) and `authorityBadge` (`deliverable_${verb}`) — `core/workItems.ts:149-159`, persisted via migration 041's actor-accountability columns. "Never without traceability" holds in every real code path.
+
+## 21.11 ❌ Events (§17) — 0 of 7 named events; one generic event instead
+
+`DeliverableCreated`, `DeliverableUpdated`, `DeliverableStateChanged`, `DeliverableApproved`, `DeliverableBaselined`, `DeliverableSuperseded`, `DeliverableArchived` — **none exist**, zero hits for any of the seven. What's actually published is a single generic **`DeliverableTransitioned`** event (`core/workItems.ts:155-159`), payload `{fromState, toState, commandId, workItemId, participantId, reference}` plus the standard envelope. **There is no creation event at all** — `createDeliverable` and the commissioning bulk-create path publish nothing.
+
+## 21.12 Non-Functional Requirements (§18)
+
+Independent of Participants ✅, deterministic transitions ✅ (global one-row-per-triple governance, fail-closed policy/gate evaluation). Complete history ⚠️ partial (§21.9). **Versioning ❌ not built. Concurrent evolution ❌ not built** — `updateLifecycleState` is an unconditional `UPDATE ... WHERE id = $2` with no expected-prior-state guard; two concurrent Work Item completions on the same Deliverable would last-write-win.
+
+## 21.13 Summary
+
+What's real: identity, the 3-state Defined→In Progress→Approved→Baselined lifecycle, dependency-edge gating, Quality-Gate-based acceptance, and — done more rigorously than the chapter even asks for — traceable, Participant-completion-gated state transitions with real actor+badge accountability. What's aspirational: 6 of the chapter's 7 named events (only a generic `DeliverableTransitioned` exists, and there's no creation event at all), 6 of 7 named relationship types, half the lifecycle states, any form of Deliverable versioning, concurrency control, and — the most structurally interesting gap — Acquisition Scope, whose schema and vocabulary live correctly on the Deliverable exactly as specified, but whose entire *behaviour* (promotion, Engineering Capital, tiered authority) was built one level over, on the Knowledge Items a Deliverable produces, not on the Deliverable itself.

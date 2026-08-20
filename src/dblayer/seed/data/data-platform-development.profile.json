@@ -1,0 +1,8 @@
+{
+  "code": "profile-data-platform-development",
+  "name": "Data Platform — Default Development Profile",
+  "baseTemplateCode": "data-platform",
+  "environment": "development",
+  "configParameters": {},
+  "optionalPackCodes": ["technology-nodejs"]
+}

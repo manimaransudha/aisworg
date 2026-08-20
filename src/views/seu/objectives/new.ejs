@@ -28,7 +28,7 @@
     <% } %>
 
     <% if (capabilities.length === 0) { %>
-      <div class="alert alert-warning">No Capabilities are loaded yet — run <code>pnpm seed:seu</code> first.</div>
+      <div class="alert alert-warning">No Capabilities are loaded yet — run <code>pnpm db:clean-slate</code> (base Packs must already exist) first.</div>
     <% } else { %>
       <form method="POST" action="/aisworg/seu/objectives" class="card border-0 shadow-sm p-4">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">

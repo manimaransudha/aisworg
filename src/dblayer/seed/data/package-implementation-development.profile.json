@@ -1,0 +1,8 @@
+{
+  "code": "profile-package-implementation-development",
+  "name": "Package Implementation — Default Development Profile",
+  "baseTemplateCode": "package-implementation",
+  "environment": "development",
+  "configParameters": {},
+  "optionalPackCodes": ["technology-nodejs"]
+}

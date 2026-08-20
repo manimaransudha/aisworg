@@ -1,0 +1,8 @@
+{
+  "code": "profile-mobile-application-development",
+  "name": "Mobile Application — Default Development Profile",
+  "baseTemplateCode": "mobile-application",
+  "environment": "development",
+  "configParameters": {},
+  "optionalPackCodes": ["technology-nodejs"]
+}

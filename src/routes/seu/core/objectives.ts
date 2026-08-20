@@ -4,6 +4,7 @@ import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
+import { userDB } from "../../../dblayer/userDB.js";
 import { findCandidateTemplates } from "./templates.js";
 import { listRealProfilesForTemplate } from "./profiles.js";
 import type { CapabilityRow, ObjectiveRow, ObjectiveStatus, ObjectiveTier } from "../../../dblayer/seuTypes.js";
@@ -196,7 +197,14 @@ export async function getObjectiveDetail(id: string): Promise<ObjectiveDetailVie
   let commissioningPreview: CommissioningPreview | null = null;
   // CR-009: commissionable only if a non-Strategic leaf (and Active).
   if (objective.status === "Active" && objective.tier !== "Strategic" && isLeaf) {
-    const candidates = await findCandidateTemplates((requiredCapabilities ?? []).map((c) => c.code));
+    // Objectives have no tenant_id column of their own, but requested_by
+    // (owner, 2026-08-19: "they are tied to a user that is tied to a
+    // tenant") resolves one — the requester's own tenant, same as any other
+    // acting-user tenant lookup. Falls back to Platform-only (no tenant) for
+    // a null/system-created requested_by, same conservative default
+    // findCandidateTemplates itself already applies when given none.
+    const requester = objective.requested_by != null ? await userDB.findById(objective.requested_by) : null;
+    const candidates = await findCandidateTemplates((requiredCapabilities ?? []).map((c) => c.code), requester?.tenant_id ?? null);
     const template = candidates.find((c) => c.satisfies);
     if (template) {
       const realProfiles = await listRealProfilesForTemplate(template.id);

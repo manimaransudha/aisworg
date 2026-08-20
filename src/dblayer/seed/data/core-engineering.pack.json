@@ -1,7 +1,7 @@
 {
   "code": "platform-core-engineering",
   "name": "Core Engineering Practices",
-  "category": "Platform",
+  "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Mandatory",
   "contributions": {

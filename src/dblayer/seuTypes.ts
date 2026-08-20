@@ -45,9 +45,14 @@ export interface ServiceRow {
   created_at: string;
 }
 
-export type PackCategory = "Platform" | "Organisation" | "Domain" | "Compliance" | "Technology" | "Integration";
+// CR-020: category is Ontology-governed (concept_type category:pack) — a data
+// change adds a category, not a code change, so this is no longer a fixed
+// literal union (that would have to be hand-kept in sync with the Ontology
+// Management admin page, defeating the point).
+export type PackCategory = string;
 export type PackStatus = "Draft" | "Validated" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
-export type PackClassification = "Mandatory" | "Recommended" | "Optional" | "Conditional";
+// CR-020: same Ontology-governed treatment (concept_type installation-classification).
+export type PackClassification = string;
 
 // CR-016 (Ch.5 §20) — the per-item executable-verification metadata. `statement`
 // is the human-readable standard; `classification` is who/what determines pass/
@@ -155,12 +160,18 @@ export interface TemplateRow {
   id: string;
   code: string;
   name: string;
-  template_version: number;
+  // CR-024: semver TEXT now, mirroring Pack's pack_version — was a plain
+  // INTEGER counter, never read or written anywhere (migration 059).
+  template_version: string;
   status: PackStatus;
   parent_template_id: string | null;
   deliverable_catalogue: TemplateDeliverableSeed[];
   authored_by: number | null;
   draft_content: Record<string, unknown>;
+  // CR-026: Template ownership, mirroring packs.tenant_id (migration 044) —
+  // always a real tenants.id, the reserved Platform tenant for a
+  // platform-wide Template, never NULL.
+  tenant_id: string;
   created_at: string;
 }
 
@@ -174,6 +185,18 @@ export interface ProfileRow {
   status: PackStatus;
   authored_by: number | null;
   draft_content: Record<string, unknown>;
+  // Profile identity foundation (owner, 2026-08-19): mirrors packs.tenant_id /
+  // templates.tenant_id + template_version + parent_template_id exactly
+  // (migration 064) — always a real tenants.id, the reserved Platform tenant
+  // for a platform-wide Profile, never NULL.
+  profile_version: string;
+  tenant_id: string;
+  parent_profile_id: string | null;
+  // Ch.7 §8 Profile Categories — Ontology-rooted (concept type
+  // profile-categories, migration 065), kept as its OWN field, not folded
+  // into `code` the way Template's category is (see migration 064's comment).
+  // Nullable: every row created before this field existed has none.
+  category: string | null;
   created_at: string;
 }
 
@@ -447,7 +470,14 @@ export interface OntologyConceptRow {
   concept_type: string;
   code: string;
   default_label: string;
+  // CR-023: the longer "when to use this" guidance text, separate from the
+  // short default_label. Generic to any concept_type; null where unset.
+  description: string | null;
   contributed_by_pack: string | null;
+  is_active: boolean;
+  // CR-022: Platform's tenant_id for the shared canonical set; a tenant's own
+  // tenant_id for their own vocabulary.
+  tenant_id: string;
   created_at: string;
 }
 

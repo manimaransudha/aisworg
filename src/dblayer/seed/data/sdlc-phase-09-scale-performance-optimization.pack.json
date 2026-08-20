@@ -1,0 +1,79 @@
+{
+  "code": "scale-performance-optimization",
+  "name": "Scale & Performance Optimization (SDLC Phase 9)",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Optimizing for scale and performance — aka Scale-Up, Resilience, Stress & Chaos Testing, FinOps Optimization.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "scale-performance-optimization",
+        "name": "Scale & Performance Optimization",
+        "description": "Validates and improves the system's ability to scale, remain resilient, and operate cost-efficiently under real-world load.",
+        "category": "Engineering"
+      }
+    ],
+    "services": [
+      {
+        "code": "capacity-scaling-model",
+        "capabilityCode": "scale-performance-optimization",
+        "name": "Capacity & Scaling Model",
+        "contractDescription": "Scaling strategy and projections."
+      },
+      {
+        "code": "autoscaling-caching-strategy",
+        "capabilityCode": "scale-performance-optimization",
+        "name": "Autoscaling & Caching Strategy",
+        "contractDescription": "Performance optimization."
+      },
+      {
+        "code": "cdn-edge-strategy",
+        "capabilityCode": "scale-performance-optimization",
+        "name": "CDN & Edge Strategy",
+        "contractDescription": "Content delivery optimization."
+      },
+      {
+        "code": "multi-region-disaster-recovery-plan",
+        "capabilityCode": "scale-performance-optimization",
+        "name": "Multi-Region & Disaster Recovery Plan",
+        "contractDescription": "Business continuity."
+      },
+      {
+        "code": "chaos-engineering-report",
+        "capabilityCode": "scale-performance-optimization",
+        "name": "Chaos Engineering Report",
+        "contractDescription": "System resilience testing."
+      },
+      {
+        "code": "cost-optimization-finops-plan",
+        "capabilityCode": "scale-performance-optimization",
+        "name": "Cost Optimization & FinOps Plan",
+        "contractDescription": "Financial optimization."
+      }
+    ],
+    "checklists": [
+      {
+        "code": "scaling-model-tested-under-load",
+        "statement": "The capacity and scaling model's assumptions have been validated against actual load and chaos testing results, not projected in isolation.",
+        "classification": "judgment",
+        "prompt": "Do the load test and chaos engineering results confirm the assumptions in the capacity and scaling model?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes"
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "review-scale-performance-optimization",
+        "statement": "The Scale & Performance Optimization's deliverables have been reviewed and accepted as sufficient to proceed to Beta / Early Access.",
+        "classification": "human-attested",
+        "prompt": "Is the system's scaling, resilience, and cost posture sufficiently validated to justify moving into Beta / Early Access?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance"
+      }
+    ]
+  }
+}

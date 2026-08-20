@@ -1,0 +1,8 @@
+{
+  "code": "profile-ai-platform-development",
+  "name": "AI Platform — Default Development Profile",
+  "baseTemplateCode": "ai-platform",
+  "environment": "development",
+  "configParameters": {},
+  "optionalPackCodes": ["technology-nodejs"]
+}

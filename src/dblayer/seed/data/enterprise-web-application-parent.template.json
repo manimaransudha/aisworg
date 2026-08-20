@@ -1,0 +1,79 @@
+{
+  "code": "enterprise-web-application",
+  "templateVersion": "1.2.0",
+  "name": "Enterprise Web Application (Standard)",
+  "requiredCapabilityCodes": ["requirements-analysis", "architecture", "development", "technical-architecture-discovery", "security-privacy-compliance", "platform-developer-experience", "backlog-release-planning", "implementation-engineering", "quality-engineering-hardening", "launch-management", "ongoing-operations-governance", "product-discovery", "experience-design"],
+  "mandatoryPackCodes": ["platform-core-engineering", "technical-architecture-discovery", "security-privacy-compliance", "platform-developer-experience", "backlog-release-planning", "implementation-engineering", "quality-engineering-hardening", "launch-management", "ongoing-operations-governance", "product-discovery", "experience-design"],
+  "deliverableCatalogue": [
+    {
+      "code": "requirements-spec",
+      "name": "Requirements Specification",
+      "category": "Documentation",
+      "producingCapabilityCode": "requirements-analysis"
+    },
+    {
+      "code": "architecture-doc",
+      "name": "Architecture Document",
+      "category": "Documentation",
+      "producingCapabilityCode": "architecture",
+      "dependsOnDeliverableCodes": ["requirements-spec"],
+      "dependsOnCapabilityServiceCodes": ["requirements-analysis"]
+    },
+    {
+      "code": "technical-architecture-doc",
+      "name": "Technical Architecture & Discovery Document",
+      "category": "Documentation",
+      "producingCapabilityCode": "technical-architecture-discovery",
+      "dependsOnDeliverableCodes": ["architecture-doc"],
+      "dependsOnCapabilityServiceCodes": ["architecture"]
+    },
+    {
+      "code": "security-compliance-review",
+      "name": "Security & Compliance Review",
+      "category": "Documentation",
+      "producingCapabilityCode": "security-privacy-compliance",
+      "dependsOnDeliverableCodes": ["technical-architecture-doc"],
+      "dependsOnCapabilityServiceCodes": ["technical-architecture-discovery"]
+    },
+    {
+      "code": "platform-setup",
+      "name": "Platform & Developer Experience Setup",
+      "category": "Documentation",
+      "producingCapabilityCode": "platform-developer-experience",
+      "dependsOnDeliverableCodes": ["security-compliance-review"],
+      "dependsOnCapabilityServiceCodes": ["security-privacy-compliance"]
+    },
+    {
+      "code": "source-code",
+      "name": "Source Code",
+      "category": "Implementation",
+      "producingCapabilityCode": "development",
+      "dependsOnDeliverableCodes": ["platform-setup"],
+      "dependsOnCapabilityServiceCodes": ["platform-developer-experience"]
+    },
+    {
+      "code": "quality-report",
+      "name": "Quality Engineering Report",
+      "category": "Documentation",
+      "producingCapabilityCode": "quality-engineering-hardening",
+      "dependsOnDeliverableCodes": ["source-code"],
+      "dependsOnCapabilityServiceCodes": ["development"]
+    },
+    {
+      "code": "launch-readiness-review",
+      "name": "Launch Readiness Review",
+      "category": "Documentation",
+      "producingCapabilityCode": "launch-management",
+      "dependsOnDeliverableCodes": ["quality-report"],
+      "dependsOnCapabilityServiceCodes": ["quality-engineering-hardening"]
+    },
+    {
+      "code": "operations-runbook",
+      "name": "Operations Runbook",
+      "category": "Documentation",
+      "producingCapabilityCode": "ongoing-operations-governance",
+      "dependsOnDeliverableCodes": ["launch-readiness-review"],
+      "dependsOnCapabilityServiceCodes": ["launch-management"]
+    }
+  ]
+}

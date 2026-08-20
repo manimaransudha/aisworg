@@ -1,0 +1,73 @@
+{
+  "code": "internationalization-localization",
+  "name": "Internationalization & Localization (SDLC Phase 14)",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Expanding to global markets — aka i18n/L10n, Globalization, Regionalization.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "internationalization-localization",
+        "name": "Internationalization & Localization",
+        "description": "Adapts the product's language, formatting, and cultural presentation to operate correctly in new regional markets.",
+        "category": "Engineering"
+      }
+    ],
+    "services": [
+      {
+        "code": "locale-language-strategy",
+        "capabilityCode": "internationalization-localization",
+        "name": "Locale & Language Strategy",
+        "contractDescription": "Global expansion strategy."
+      },
+      {
+        "code": "translation-glossary-style-guide",
+        "capabilityCode": "internationalization-localization",
+        "name": "Translation Glossary & Style Guide",
+        "contractDescription": "Localization standards."
+      },
+      {
+        "code": "pseudolocalization-report",
+        "capabilityCode": "internationalization-localization",
+        "name": "Pseudolocalization Report",
+        "contractDescription": "Localization testing."
+      },
+      {
+        "code": "rtl-cultural-adaptation-review",
+        "capabilityCode": "internationalization-localization",
+        "name": "RTL & Cultural Adaptation Review",
+        "contractDescription": "Cultural customization."
+      },
+      {
+        "code": "regional-compliance-addenda",
+        "capabilityCode": "internationalization-localization",
+        "name": "Regional Compliance Addenda",
+        "contractDescription": "Local regulatory compliance."
+      }
+    ],
+    "checklists": [
+      {
+        "code": "localization-tested-pseudolocalized",
+        "statement": "The product has been pseudolocalized and tested to catch layout, truncation, and encoding issues before real translations are applied.",
+        "classification": "judgment",
+        "prompt": "Does the pseudolocalization report confirm the UI handles expanded text length, RTL layout, and encoding without breaking?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes"
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "review-internationalization-localization",
+        "statement": "The Internationalization & Localization's deliverables have been reviewed and accepted as sufficient to proceed to Ongoing Operations & Governance.",
+        "classification": "human-attested",
+        "prompt": "Is the locale strategy, translation quality, and regional compliance sufficiently addressed to justify moving into Ongoing Operations & Governance?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance"
+      }
+    ]
+  }
+}

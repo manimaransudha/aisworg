@@ -2,21 +2,16 @@
 /* CR-006 — the four tabs of the authority / Transition Definition surface.
    Include with data: { active: 'nouns' | 'verbs' | 'mapping' | 'definitions' }.
    Read-only browse for now (Stage 1b); the SDK-authoring write paths come
-   with a later stage. */
+   with a later stage.
+   CR-027 — now a vertical tab list (verticalTabs.ejs), not a horizontal row;
+   the including page is responsible for wrapping it alongside its own
+   content in a flex row (see authority/index.ejs, authoring/index.ejs). */
 const _active = (typeof active !== 'undefined' && active) ? active : 'definitions';
 const _tabs = [
-  { key: 'nouns',       label: 'Work outcome',        sub: 'Nouns',              href: '/aisworg/seu/authority/nouns' },
-  { key: 'verbs',       label: 'Work process',        sub: 'Verbs',              href: '/aisworg/seu/authority/verbs' },
-  { key: 'mapping',     label: 'Mapping',             sub: 'Noun + allowed verbs', href: '/aisworg/seu/authority/mapping' },
-  { key: 'definitions', label: 'Transition Definition', sub: 'From → To, per verb', href: '/aisworg/seu/sdk/transition-definition-authoring' },
+  { key: 'nouns',       label: 'Work outcome',          sub: 'Nouns',                href: '/aisworg/seu/authority/nouns' },
+  { key: 'verbs',       label: 'Work process',          sub: 'Verbs',                href: '/aisworg/seu/authority/verbs' },
+  { key: 'mapping',     label: 'Mapping',               sub: 'Noun + allowed verbs', href: '/aisworg/seu/authority/mapping' },
+  { key: 'definitions', label: 'Transition Definition', sub: 'From → To, per verb',  href: '/aisworg/seu/sdk/transition-definition-authoring' },
 ];
 %>
-<ul class="nav nav-tabs mb-4">
-  <% _tabs.forEach(function(t) { %>
-    <li class="nav-item">
-      <a class="nav-link <%= _active === t.key ? 'active' : '' %>" href="<%= t.href %>">
-        <%= t.label %> <span class="text-muted small">· <%= t.sub %></span>
-      </a>
-    </li>
-  <% }) %>
-</ul>
+<%- include('verticalTabs', { tabs: _tabs, active: _active }) %>

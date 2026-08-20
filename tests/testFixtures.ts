@@ -1,22 +1,24 @@
 // Shared test-only fixture — NOT part of any production seed pipeline
-// (seedSeu.ts, cleanSlate.ts). Several tests were written against
-// template-web-application/profile-default-development, which used to be
-// seeded ambiently by seedSeu.ts; db:clean-slate deliberately no longer
-// recreates them (the intended path post-reset is authoring through the SDK
-// UI, not a pre-seeded demo — see Database Clean Slate — Instructions.md).
-// That's the right call for the real database, but it left these tests
-// depending on ambient state nothing guarantees anymore.
+// (cleanSlate.ts). Several tests were written against
+// enterprise-web-application/profile-default-development, which used to be
+// seeded ambiently by seedSeu.ts; that script is retired entirely now (owner,
+// 2026-08-20: it left platform-core-engineering/technology-nodejs un-reset by
+// every later db:clean-slate — "That is polluting the db") and
+// db:clean-slate deliberately no longer recreates these two either way (the
+// intended path post-reset is authoring through the SDK UI, not a pre-seeded
+// demo — see Database Clean Slate — Instructions.md). That's the right call
+// for the real database, but it left these tests depending on ambient state
+// nothing guarantees anymore.
 //
 // Fix: reuse the exact original seed data (web-application.template.json /
-// default-development.profile.json — never deleted, only the DB rows were)
-// via one idempotent, test-scoped helper, instead of each test file
-// re-deriving its own throwaway Template and losing the specific shape
-// (dependsOnCapabilityServiceCodes wiring, mandatoryPackCodes) some of these
-// tests are specifically about. Safe to call from many test files/processes
-// concurrently (upsert, not create) and safe to leave in place after a real
-// db:clean-slate run — it recreates itself the next time tests run, the
-// same way seedSdkAuthoringBootstrap.ts does for the SDK's own bootstrap
-// rows.
+// default-development.profile.json — still real files, just no longer
+// referenced by any production script) via one idempotent, test-scoped
+// helper, instead of each test file re-deriving its own throwaway Template
+// and losing the specific shape (dependsOnCapabilityServiceCodes wiring,
+// mandatoryPackCodes) some of these tests are specifically about. Safe to
+// call from many test files/processes concurrently (upsert, not create) and
+// safe to leave in place after a real db:clean-slate run — it recreates
+// itself the next time tests run.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -116,7 +118,7 @@ function sameSet(a: string[], b: string[]): boolean {
 // and profilesDB.setOptionalPacks each DELETE their junction rows then
 // loop-INSERT fresh ones — not atomic — so two files' concurrent calls could
 // interleave, and a *third* file's findCandidateTemplates could catch
-// template-web-application with its required_capabilities junction rows
+// enterprise-web-application with its required_capabilities junction rows
 // transiently empty (DELETE already ran, INSERTs hadn't yet), making it
 // briefly fail to satisfy any request. Fixed by checking first: only write
 // when the junction tables don't already hold the fixture's exact target

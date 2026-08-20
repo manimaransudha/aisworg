@@ -24,9 +24,23 @@ export interface JsonSchemaProperty {
   pattern?: string;
   minLength?: number;
   default?: unknown;
-  "x-widget"?: "json" | "referential-list" | "referential-select";
+  // "version" — CR-024, generalising Pack's originally hardcoded-by-field-name
+  // `packVersion` convention (readonly, only advanced by a "Next version"
+  // patch-bump button) into a real schema-driven widget, the same way
+  // "textarea" generalised Template's `purpose`. Any semver-versioned kind
+  // (Pack's `packVersion`, Template's `templateVersion`) marks its field this
+  // way; the view dispatches on `kind === "version"`, never a field name.
+  "x-widget"?: "json" | "referential-list" | "referential-select" | "textarea" | "version";
   "x-referential"?: string;
   "x-referential-source"?: string;
+  // Owner (2026-08-19): "do not hard code in the schema. The schema has to
+  // pick the values from the ontology" — when true, `x-referential-source`
+  // is not an arbitrary registry key but the exact Ontology (Ch.18)
+  // `concept_type` to resolve options from (ontologyConceptTypesIn / the
+  // route's generic ontology-options loader below). Applies uniformly to
+  // Pack/Template/Profile — which fields are ontology-backed is entirely a
+  // schema fact, never a per-field-name branch in code.
+  "x-ontology"?: boolean;
   "x-help"?: string;
   items?: JsonSchemaProperty & { properties?: Record<string, JsonSchemaProperty> };
 }
@@ -48,8 +62,15 @@ export interface ReferentialListItemField {
 
 export type GeneratedField =
   | { kind: "string"; name: string; label: string; required: boolean; value: string; help?: string }
+  // Same free-text field as "string" — multi-line box instead of a
+  // single-line input (owner: Template's `purpose`, a few sentences of
+  // author-written guidance, not a slug).
+  | { kind: "textarea"; name: string; label: string; required: boolean; value: string; help?: string }
+  // Readonly, semver, advanced only by its own "Next version" button — never
+  // hand-typed (owner: "Editable text is not the correct approach").
+  | { kind: "version"; name: string; label: string; required: boolean; value: string; help?: string }
   | { kind: "select"; name: string; label: string; required: boolean; value: string; options: string[]; help?: string }
-  | { kind: "referential-select"; name: string; label: string; required: boolean; value: string; referentialSource: string; help?: string }
+  | { kind: "referential-select"; name: string; label: string; required: boolean; value: string; referentialSource: string; ontology: boolean; help?: string }
   | { kind: "json"; name: string; label: string; required: boolean; value: string; help?: string }
   // Bug fix (UI redesign, owner: "extremely unfriendly"): `existingCount` marks
   // how many of `rows` are the content's OWN rows vs. blank ones offered so an
@@ -116,7 +137,23 @@ export function generateFields(schema: JsonSchemaDocument, content: Record<strin
     }
 
     if (def["x-widget"] === "referential-select") {
-      fields.push({ kind: "referential-select", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? String(rawValue) : "", referentialSource: def["x-referential-source"] ?? "", help: def["x-help"] });
+      fields.push({
+        kind: "referential-select", name, label: labelize(name), required: isRequired,
+        value: rawValue !== undefined ? String(rawValue) : "",
+        referentialSource: def["x-referential-source"] ?? "",
+        ontology: def["x-ontology"] === true,
+        help: def["x-help"],
+      });
+      continue;
+    }
+
+    if (def["x-widget"] === "textarea") {
+      fields.push({ kind: "textarea", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? String(rawValue) : "", help: def["x-help"] });
+      continue;
+    }
+
+    if (def["x-widget"] === "version") {
+      fields.push({ kind: "version", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? String(rawValue) : "", help: def["x-help"] });
       continue;
     }
 
@@ -129,6 +166,22 @@ export function generateFields(schema: JsonSchemaDocument, content: Record<strin
   }
 
   return fields;
+}
+
+// Every distinct Ontology concept_type a schema needs option values for —
+// purely a scan of the schema's own `x-ontology`/`x-referential-source`
+// markers (owner: "the schema has to pick the values from the ontology...
+// use a generic function so this is still driven by the schema"). One
+// function for Pack, Template, and Profile alike — a new ontology-backed
+// field on any of them is a schema change only, never a new loader.
+export function ontologyConceptTypesIn(schema: JsonSchemaDocument): string[] {
+  const types = new Set<string>();
+  for (const def of Object.values(schema.properties ?? {})) {
+    if (def["x-widget"] === "referential-select" && def["x-ontology"] === true && (def["x-referential-source"] ?? "").trim()) {
+      types.add(def["x-referential-source"]!.trim());
+    }
+  }
+  return [...types];
 }
 
 // --- Display grouping (UI redesign, owner: "extremely unfriendly") --------
@@ -150,8 +203,9 @@ export interface FieldGroups {
 }
 
 const METADATA_FIELD_NAMES = new Set([
-  "name", "owner", "category", "publisher", "description", "packVersion", "installationClassification", "compositionStrategy",
+  "name", "owner", "category", "publisher", "description", "packVersion", "templateVersion", "installationClassification", "compositionStrategy", "purpose",
   "code", "environment", "baseTemplateCode", "deliverableCatalogue", "requiredCapabilityCodes", "mandatoryPackCodes", "optionalPackCodes", "configParameters",
+  "profileVersion", "featureFlagCodes", "compositionOptions", "technologyPackCodes", "domainPackCodes", "compliancePackCodes", "integrationPackCodes",
 ]);
 const COMPATIBILITY_FIELD_NAMES = new Set(["supportedPlatformVersion", "minSupportedPlatformVersion", "maxSupportedPlatformVersion", "incompatiblePackVersions", "migrationGuidance"]);
 

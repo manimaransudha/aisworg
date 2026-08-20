@@ -21,7 +21,12 @@ import { userDB } from "../src/dblayer/userDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
-import { createAuthoringDraft, saveAuthoringDraft, publishAuthoringDraft } from "../src/routes/seu/core/sdkAuthoring.js";
+import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
+import {
+  createAuthoringDraft, saveAuthoringDraft, publishAuthoringDraft,
+  listInheritableTemplates, inheritedTemplateContent,
+  listInheritableProfiles, inheritedProfileContent,
+} from "../src/routes/seu/core/sdkAuthoring.js";
 import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 
 // Bug fix (owner, 2026-08-17): "the pollution is coming from your tests. They
@@ -37,14 +42,52 @@ import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 // out of running this file exactly as it went in.
 const createdUserIds: string[] = [];
 const createdGrantIds: string[] = [];
+// CR-026 — inheritance tests can't rely on a randomUUID()'d `code` the way
+// every other test here does (an inherited Draft's code is FORCED to match
+// its parent's — that's the whole point) — so a rerun against the same,
+// never-reset dev database would collide with the previous run's own leftover
+// row at the same (parent's code, "1.0.0", tenant). Tracked and deleted here,
+// same discipline as the user/grant cleanup above.
+const createdTemplateIds: string[] = [];
+// Owner, 2026-08-19 — same discipline for Profile now that it has real
+// (code, version, tenant) identity + inheritance too: an inheriting Draft's
+// code is FORCED to match its parent's, so leftover rows from a prior run
+// would collide the same way Template's own leftovers would.
+const createdProfileIds: string[] = [];
 
 after(async () => {
   if (createdGrantIds.length) await pool.query("DELETE FROM badge_grants WHERE id = ANY($1::uuid[])", [createdGrantIds]);
   if (createdUserIds.length) await pool.query("DELETE FROM users WHERE id = ANY($1::bigint[])", [createdUserIds]);
+  if (createdProfileIds.length) {
+    // Profiles reference Templates via base_template_id — must be deleted
+    // before createdTemplateIds' own cleanup below runs. Clear
+    // parent_profile_id references first too — deleting a parent before its
+    // child (inheritance) would otherwise violate the self-FK.
+    await pool.query("UPDATE profiles SET parent_profile_id = NULL WHERE id = ANY($1::uuid[])", [createdProfileIds]);
+    await pool.query("DELETE FROM profile_packs WHERE profile_id = ANY($1::uuid[])", [createdProfileIds]);
+    await pool.query("DELETE FROM events WHERE originating_object_type = 'Profile' AND originating_object_id = ANY($1::uuid[])", [createdProfileIds]);
+    await pool.query("DELETE FROM profiles WHERE id = ANY($1::uuid[])", [createdProfileIds]);
+  }
+  if (createdTemplateIds.length) {
+    await pool.query("DELETE FROM template_packs WHERE template_id = ANY($1::uuid[])", [createdTemplateIds]);
+    await pool.query("DELETE FROM template_capabilities WHERE template_id = ANY($1::uuid[])", [createdTemplateIds]);
+    await pool.query("DELETE FROM events WHERE originating_object_type = 'Template' AND originating_object_id = ANY($1::uuid[])", [createdTemplateIds]);
+    await pool.query("DELETE FROM templates WHERE id = ANY($1::uuid[])", [createdTemplateIds]);
+  }
   await pool.end();
 });
 
 const ROOT_ACTOR_ID = "1";
+
+// CR-026 — real, seeded tenants (seedIdentityBaseline.ts's "Demo" and
+// "Athens" tenants), used only to prove Template Inheritance/ownership
+// against genuine, distinct tenants, not made-up UUIDs. Two distinct tenants
+// are needed across the tests below: each inheriting Draft's identity is
+// (parent's code, "1.0.0", tenant) — two Drafts inheriting the SAME parent
+// under the SAME tenant would collide on that first free version, the same
+// way two Drafts of anything else would (assertTemplateCodeVersionFree).
+const DEMO_TENANT_ID = "22222222-2222-2222-2222-222222222222";
+const ATHENS_TENANT_ID = "adfbc3d0-d00e-440b-a115-6b7988ca2865";
 
 async function createTestUser(label: string): Promise<string> {
   const email = `sdk-authoring-${label}-${randomUUID()}@example.com`;
@@ -74,7 +117,7 @@ async function advanceToActive(kind: "Pack" | "Template" | "Profile", id: string
 }
 
 function validPackContent(code: string): Record<string, unknown> {
-  return { code, name: "SDK Test Pack", category: "Platform", packVersion: "1.0.0", installationClassification: "Optional", dependencies: [] };
+  return { code, name: "SDK Test Pack", category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", dependencies: [] };
 }
 
 test("Pack authoring (entity-direct): root creates a Draft, authors, and publishes — a real Active Pack comes out, with the real actor + noun_verb badge on the event", async () => {
@@ -229,7 +272,12 @@ test("Template authoring (entity-direct): the same pipeline as Pack produces a r
 
   await saveAuthoringDraft({ kind: "Template", id: created.draftId, content: validTemplateContent(code) });
 
-  const published = await publishAuthoringDraft({ kind: "Template", id: created.draftId, actorId: ROOT_ACTOR_ID, actorRole: "general" });
+  // Bug fix (owner, 2026-08-18): Template now has the same six-hop lifecycle
+  // Pack does (transitionDefinitions.json / authorityVocabulary.json seed
+  // change) — one publishAuthoringDraft call only advances one hop, same as
+  // Pack; root holds every verb, so advanceToActive drives it straight
+  // through, same as the Pack test above.
+  const published = await advanceToActive("Template", created.draftId, ROOT_ACTOR_ID, "general");
   assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : undefined);
 
   const { data: template } = await templatesDB.findByCode(code);
@@ -242,7 +290,7 @@ test("Template authoring (entity-direct): the same pipeline as Pack produces a r
 test("Profile authoring (entity-direct): produces a real Active Profile row referencing a real Template by code", async () => {
   await ensureWebAppTemplateFixture();
   const code = `sdk-test-profile-${randomUUID()}`;
-  const content: Record<string, unknown> = { code, name: "SDK Test Profile", baseTemplateCode: "template-web-application", environment: "development", configParameters: {}, optionalPackCodes: [] };
+  const content: Record<string, unknown> = { code, name: "SDK Test Profile", baseTemplateCode: "enterprise-web-application", environment: "development", category: "startup", configParameters: {}, optionalPackCodes: [] };
 
   const created = await createAuthoringDraft({ kind: "Profile", actorId: ROOT_ACTOR_ID, content });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
@@ -250,13 +298,14 @@ test("Profile authoring (entity-direct): produces a real Active Profile row refe
 
   await saveAuthoringDraft({ kind: "Profile", id: created.draftId, content });
 
-  const published = await publishAuthoringDraft({ kind: "Profile", id: created.draftId, actorId: ROOT_ACTOR_ID, actorRole: "general" });
+  // Bug fix (owner, 2026-08-18): same six-hop lifecycle change as Template above.
+  const published = await advanceToActive("Profile", created.draftId, ROOT_ACTOR_ID, "general");
   assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : undefined);
 
   const { data: profile } = await profilesDB.findByCode(code);
   assert.ok(profile, "expected the authored Profile to be registered");
   assert.equal(profile!.status, "Active");
-  const { data: baseTemplate } = await templatesDB.findByCode("template-web-application");
+  const { data: baseTemplate } = await templatesDB.findByCode("enterprise-web-application");
   assert.equal(profile!.base_template_id, baseTemplate!.id);
 });
 
@@ -270,4 +319,139 @@ test("Template authoring: referential validation rejects a mandatoryPackCode tha
   const published = await publishAuthoringDraft({ kind: "Template", id: created.draftId, actorId: ROOT_ACTOR_ID, actorRole: "general" });
   assert.equal(published.ok, false);
   assert.match((!published.ok && published.errors.join(";")) || "", /this-pack-code-does-not-exist/);
+});
+
+// CR-026 — Template Inheritance (Ch.6 §9). Option A, per explicit owner
+// agreement: a Derived Template keeps its parent's own `code`, disambiguated
+// by the child's own `tenant_id` (templates_code_version_tenant_key, migration
+// 062) — not a new identity per generation. `enterprise-web-application`
+// (ensureWebAppTemplateFixture) is a real, Active, Platform-owned Template
+// with a real mandatory Pack (`platform-core-engineering`), used as the
+// parent throughout.
+test("CR-026: a tenant author inheriting an Active Platform Template gets a Draft locked to the parent's code, owned by their own tenant, with parent_template_id recorded", async () => {
+  const { template: parent } = await ensureWebAppTemplateFixture();
+
+  const inheritable = await listInheritableTemplates(DEMO_TENANT_ID);
+  assert.ok(inheritable.some((t) => t.id === parent.id), "the Active Platform Template must be offered to a tenant viewer's Inherit dropdown");
+
+  const inherited = await inheritedTemplateContent(parent.id, DEMO_TENANT_ID);
+  assert.equal(inherited.ok, true, !inherited.ok ? inherited.error : undefined);
+  if (!inherited.ok) return;
+  assert.equal(inherited.content.code, parent.code, "the pre-filled content's code matches the parent's");
+
+  // A tampered/stale submission tries to pick a different code — the server
+  // must ignore it and lock to the parent's own, not just the UI.
+  const created = await createAuthoringDraft({
+    kind: "Template",
+    actorId: ROOT_ACTOR_ID,
+    tenantId: DEMO_TENANT_ID,
+    parentTemplateId: parent.id,
+    content: { ...inherited.content, name: "Tenant's inherited Web Application", code: "attempted-override" },
+  });
+  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
+  if (!created.ok) return;
+  createdTemplateIds.push(created.draftId);
+
+  const { data: draft } = await templatesDB.findById(created.draftId);
+  assert.equal(draft?.code, parent.code, "code is FORCED to the parent's code, ignoring the tampered submission");
+  assert.equal(draft?.tenant_id, DEMO_TENANT_ID, "the new Draft is owned by the inheriting tenant, not Platform");
+  assert.equal(draft?.parent_template_id, parent.id, "lineage recorded");
+  assert.equal(draft?.template_version, "1.0.0", "the tenant's own version starts fresh, independent of the parent's");
+
+  // Same code, different tenant — legal now (templates_code_version_tenant_key).
+  const { data: parentStillFine } = await templatesDB.findById(parent.id);
+  assert.equal(parentStillFine?.status, "Active", "the parent Template is untouched by a tenant inheriting from it");
+});
+
+test("CR-026: publishing a Derived Template is rejected if it drops one of its parent's mandatory Packs, and succeeds once the full set is restored", async () => {
+  const { template: parent } = await ensureWebAppTemplateFixture();
+  const { data: parentMandatory } = await templatesDB.getMandatoryPackCodes(parent.id);
+  assert.ok((parentMandatory ?? []).length > 0, "the fixture parent must have at least one mandatory Pack for this test to mean anything");
+
+  // A different tenant than the previous test's — same parent, same starting
+  // version ("1.0.0"), would otherwise collide with that test's own leftover
+  // Draft under templates_code_version_tenant_key.
+  const inherited = await inheritedTemplateContent(parent.id, ATHENS_TENANT_ID);
+  assert.equal(inherited.ok, true);
+  if (!inherited.ok) return;
+
+  const created = await createAuthoringDraft({ kind: "Template", actorId: ROOT_ACTOR_ID, tenantId: ATHENS_TENANT_ID, parentTemplateId: parent.id, content: inherited.content });
+  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
+  if (!created.ok) return;
+  createdTemplateIds.push(created.draftId);
+
+  // templateVersion must round-trip on Save, the same way the real form's
+  // readonly field always does (CR-024) — inheritedTemplateContent doesn't
+  // carry it (it isn't part of a Template's authored content).
+  const strippedContent = { ...inherited.content, templateVersion: "1.0.0", mandatoryPackCodes: [] };
+  const savedStripped = await saveAuthoringDraft({ kind: "Template", id: created.draftId, content: strippedContent });
+  assert.equal(savedStripped.ok, true, "WIP is allowed to be incomplete — Save itself must not block this");
+
+  const rejectedPublish = await publishAuthoringDraft({ kind: "Template", id: created.draftId, actorId: ROOT_ACTOR_ID, actorRole: "general" });
+  assert.equal(rejectedPublish.ok, false, "an inherited Template must keep every one of its parent's mandatory Packs");
+  assert.match((!rejectedPublish.ok && rejectedPublish.errors.join(";")) || "", new RegExp(parentMandatory![0]!));
+  const { data: stillDraft } = await templatesDB.findById(created.draftId);
+  assert.equal(stillDraft?.status, "Draft", "a rejected publish leaves the Draft a Draft");
+
+  const restored = await saveAuthoringDraft({ kind: "Template", id: created.draftId, content: { ...inherited.content, templateVersion: "1.0.0" } });
+  assert.equal(restored.ok, true);
+
+  const acceptedPublish = await advanceToActive("Template", created.draftId, ROOT_ACTOR_ID, "general");
+  assert.equal(acceptedPublish.ok, true, !acceptedPublish.ok ? acceptedPublish.errors.join("; ") : undefined);
+  const { data: active } = await templatesDB.findById(created.draftId);
+  assert.equal(active?.status, "Active");
+});
+
+// Owner, 2026-08-19: "19.2 and 19.3 has to be fixed similar to pack and
+// template" — Profile Inheritance (Ch.7 §9), mirroring the Template
+// Inheritance tests above exactly. `enterprise-web-application`
+// (ensureWebAppTemplateFixture) is a real, Active, Platform-owned Template —
+// used as the base Template for a fresh, real, Active Platform Profile,
+// which is then the parent for the inheritance assertions.
+test("Profile Inheritance: a tenant author inheriting an Active Platform Profile gets a Draft locked to the parent's code, owned by their own tenant, with parent_profile_id recorded", async () => {
+  await ensureWebAppTemplateFixture();
+  const code = `sdk-test-profile-parent-${randomUUID()}`;
+  const created = await createAuthoringDraft({
+    kind: "Profile",
+    actorId: ROOT_ACTOR_ID,
+    tenantId: PLATFORM_TENANT_ID,
+    content: { code, name: "SDK Test Parent Profile", baseTemplateCode: "enterprise-web-application", environment: "development", category: "startup", optionalPackCodes: [] },
+  });
+  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
+  if (!created.ok) return;
+  createdProfileIds.push(created.draftId);
+  const parentPublish = await advanceToActive("Profile", created.draftId, ROOT_ACTOR_ID, "general");
+  assert.equal(parentPublish.ok, true, !parentPublish.ok ? parentPublish.errors.join("; ") : undefined);
+  const { data: parent } = await profilesDB.findById(created.draftId);
+  assert.equal(parent?.status, "Active");
+
+  const inheritable = await listInheritableProfiles(DEMO_TENANT_ID);
+  assert.ok(inheritable.some((p) => p.id === parent!.id), "the Active Platform Profile must be offered to a tenant viewer's Inherit dropdown");
+
+  const inherited = await inheritedProfileContent(parent!.id, DEMO_TENANT_ID);
+  assert.equal(inherited.ok, true, !inherited.ok ? inherited.error : undefined);
+  if (!inherited.ok) return;
+  assert.equal(inherited.content.code, parent!.code, "the pre-filled content's code matches the parent's");
+
+  // A tampered/stale submission tries to pick a different code — the server
+  // must ignore it and lock to the parent's own, not just the UI.
+  const inheritedDraft = await createAuthoringDraft({
+    kind: "Profile",
+    actorId: ROOT_ACTOR_ID,
+    tenantId: DEMO_TENANT_ID,
+    parentProfileId: parent!.id,
+    content: { ...inherited.content, name: "Tenant's inherited Profile", code: "attempted-override" },
+  });
+  assert.equal(inheritedDraft.ok, true, !inheritedDraft.ok ? inheritedDraft.errors.join("; ") : undefined);
+  if (!inheritedDraft.ok) return;
+  createdProfileIds.push(inheritedDraft.draftId);
+
+  const { data: draft } = await profilesDB.findById(inheritedDraft.draftId);
+  assert.equal(draft?.code, parent!.code, "code is FORCED to the parent's code, ignoring the tampered submission");
+  assert.equal(draft?.tenant_id, DEMO_TENANT_ID, "the new Draft is owned by the inheriting tenant, not Platform");
+  assert.equal(draft?.parent_profile_id, parent!.id, "lineage recorded");
+  assert.equal(draft?.profile_version, "1.0.0", "the tenant's own version starts fresh, independent of the parent's");
+
+  const { data: parentStillFine } = await profilesDB.findById(parent!.id);
+  assert.equal(parentStillFine?.status, "Active", "the parent Profile is untouched by a tenant inheriting from it");
 });

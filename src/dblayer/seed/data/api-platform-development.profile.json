@@ -1,0 +1,8 @@
+{
+  "code": "profile-api-platform-development",
+  "name": "API Platform — Default Development Profile",
+  "baseTemplateCode": "api-platform",
+  "environment": "development",
+  "configParameters": {},
+  "optionalPackCodes": ["technology-nodejs"]
+}

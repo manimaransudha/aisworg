@@ -68,6 +68,10 @@
     {
       "code": "TransitionDefinition",
       "label": "Transition Definition"
+    },
+    {
+      "code": "Ontology",
+      "label": "Ontology"
     }
   ],
   "verbs": [
@@ -706,14 +710,110 @@
     {
       "entityType": "Template",
       "fromState": "Draft",
-      "toState": "Active",
+      "toState": "Validated",
+      "verb": "validate"
+    },
+    {
+      "entityType": "Template",
+      "fromState": "Validated",
+      "toState": "Published",
       "verb": "publish"
+    },
+    {
+      "entityType": "Template",
+      "fromState": "Published",
+      "toState": "Active",
+      "verb": "activate"
+    },
+    {
+      "entityType": "Template",
+      "fromState": "Active",
+      "toState": "Deprecated",
+      "verb": "deprecate"
+    },
+    {
+      "entityType": "Template",
+      "fromState": "Deprecated",
+      "toState": "Retired",
+      "verb": "retire"
+    },
+    {
+      "entityType": "Template",
+      "fromState": "Retired",
+      "toState": "Archived",
+      "verb": "archive"
+    },
+    {
+      "entityType": "Template",
+      "fromState": "Deprecated",
+      "toState": "Active",
+      "verb": "activate"
+    },
+    {
+      "entityType": "Template",
+      "fromState": "Retired",
+      "toState": "Active",
+      "verb": "activate"
+    },
+    {
+      "entityType": "Template",
+      "fromState": "Archived",
+      "toState": "Active",
+      "verb": "activate"
     },
     {
       "entityType": "Profile",
       "fromState": "Draft",
-      "toState": "Active",
+      "toState": "Validated",
+      "verb": "validate"
+    },
+    {
+      "entityType": "Profile",
+      "fromState": "Validated",
+      "toState": "Published",
       "verb": "publish"
+    },
+    {
+      "entityType": "Profile",
+      "fromState": "Published",
+      "toState": "Active",
+      "verb": "activate"
+    },
+    {
+      "entityType": "Profile",
+      "fromState": "Active",
+      "toState": "Deprecated",
+      "verb": "deprecate"
+    },
+    {
+      "entityType": "Profile",
+      "fromState": "Deprecated",
+      "toState": "Retired",
+      "verb": "retire"
+    },
+    {
+      "entityType": "Profile",
+      "fromState": "Retired",
+      "toState": "Archived",
+      "verb": "archive"
+    },
+    {
+      "entityType": "Profile",
+      "fromState": "Deprecated",
+      "toState": "Active",
+      "verb": "activate"
+    },
+    {
+      "entityType": "Profile",
+      "fromState": "Retired",
+      "toState": "Active",
+      "verb": "activate"
+    },
+    {
+      "entityType": "Profile",
+      "fromState": "Archived",
+      "toState": "Active",
+      "verb": "activate"
     }
   ],
   "_authoringMappingsComment": "CR-014 \u2014 noun\u2192verb mappings that are NOT lifecycle transitions: the authoring authority for each SDK-authorable entity. `{noun}_define` = author (create/edit a draft), `{noun}_publish` = publisher (approve + materialise). Seeded into authority_noun_verbs alongside the transition-derived pairs. These gate the SDK authoring surfaces (replacing the retired sdk_creator/sdk_approver Platform badges).",
@@ -744,6 +844,12 @@
       "verbs": [
         "define",
         "publish"
+      ]
+    },
+    {
+      "noun": "Ontology",
+      "verbs": [
+        "define"
       ]
     }
   ]

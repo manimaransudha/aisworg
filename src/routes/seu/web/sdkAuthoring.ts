@@ -25,14 +25,20 @@ import { packsDB } from "../../../dblayer/packsDB.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { badgeGrantsDB } from "../../../dblayer/badgeGrantsDB.js";
 import {
-  generateFields, parseFormBody, validateAgainstSchema, groupFieldsForDisplay,
+  generateFields, parseFormBody, validateAgainstSchema, groupFieldsForDisplay, ontologyConceptTypesIn,
   CONTRIBUTION_SECTION_HELP, VERIFIABLE_ITEM_FIELD_HELP, type JsonSchemaDocument,
 } from "../../../domain/sdk/formGenerator.js";
-import { packCategoriesDB } from "../../../dblayer/packCategoriesDB.js";
+import { listConceptsForType } from "../core/ontology.js";
 import {
-  listAuthoringByVerb, listAuthoringQueue, getAuthoringDraft, createAuthoringDraft, saveAuthoringDraft, publishAuthoringDraft,
+  listAuthoringQueue, listMyAuthoredRows, getAuthoringDraft, createAuthoringDraft, saveAuthoringDraft, publishAuthoringDraft,
+  listInheritableTemplates, inheritedTemplateContent, listInheritableProfiles, inheritedProfileContent,
   type AuthoringDraftSummary,
 } from "../core/sdkAuthoring.js";
+import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
+import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
+import { transitionPack } from "../core/packs.js";
+import { transitionTemplate } from "../core/templates.js";
+import { transitionProfile } from "../core/profiles.js";
 import { listCurrentTransitionDefinitions, getTransitionDefinitionDetail, addTransitionDefinition, retireTransitionDefinition } from "../core/transitionDefinitions.js";
 import {
   listAuthorityNouns, listAuthorityVerbs, listAuthorityMapping,
@@ -121,25 +127,6 @@ async function requireAuthorityAdmin(req: Request, res: Response, next: NextFunc
   return denyAuthoring(req, res);
 }
 
-// Owner: "it should show in separate tabs: Active packs, User defined packs,
-// User reviewed packs etc. based on howmanyever verbs are there." One tab per
-// verb the entity's noun ACTUALLY has — derived from its own governed
-// transitions (data-driven: Pack has 7 verbs, Template/Profile have 2 — never
-// hardcoded per kind), each tab held only if the actor holds that badge:
-//   - the verb landing on Active is the live catalog ("Active Packs" —
-//     everyone with ANY Pack authority sees it, not just whoever holds the
-//     one specific verb landing there) — scoped by Pack ownership, not actor:
-//     Platform Packs plus this viewer's own tenant's (root sees every
-//     tenant's, owner: "platform packs + tenant packs corresponding to the
-//     tenant the user belongs to").
-//   - every other verb is scoped to what THIS actor did — resolved from the
-//     real actor + badge Part 1 now captures on every governed-transition
-//     event ("User reviewed Packs" = Packs I ran `pack_validate` on and are
-//     still sitting in Validated, not just "Packs that got validated").
-const VERB_PAST_TENSE: Record<string, string> = { define: "defined", validate: "reviewed", publish: "published", deprecate: "deprecated", retire: "retired", archive: "archived" };
-function verbPastTense(verb: string): string {
-  return VERB_PAST_TENSE[verb] ?? `${verb}d`;
-}
 
 async function buildAuthoringTabs(kind: SchemaDefinitionEntityKind, held: Set<string>, isRoot: boolean, myId: number | null, viewerTenantId: string | null): Promise<Array<{ key: string; label: string; verb: string; rows: AuthoringDraftSummary[] }>> {
   const allTds = await listCurrentTransitionDefinitions();
@@ -166,47 +153,33 @@ async function buildAuthoringTabs(kind: SchemaDefinitionEntityKind, held: Set<st
     current = next.toState;
   }
 
+  // Redesign (owner, 2026-08-20): "The vertical tabs should show the ones on
+  // my verb queue. Eg. Packs that I defined irrespective of whatever status
+  // it is in, packs that are in validate etc. Tabs like All Validated packs
+  // are not required as they are available in the Pack registry." Drops the
+  // old per-verb "what did I already do" tabs (All/User {Verb}ed {kind}s,
+  // Active {kind}s) entirely — that's exactly what the now-filterable
+  // Registry (CR-036) shows. What's left: one "I defined" tab (any status,
+  // not just Draft — listMyAuthoredRows, not listAuthoringByVerb's own
+  // toState-scoped "define" branch) plus one Queue tab per verb this actor
+  // actually holds the badge for (unchanged from before).
   const viewer = viewerTenantId ? { isRoot, tenantId: viewerTenantId } : null;
   const tabs: Array<{ key: string; label: string; verb: string; rows: AuthoringDraftSummary[] }> = [];
-  for (const { verb, toState, fromState } of verbOrder) {
+  const defineBadge = `${kind.toLowerCase()}_define`;
+  if ((isRoot || held.has(defineBadge)) && myId != null) {
+    const rows = await listMyAuthoredRows(kind, myId);
+    tabs.push({ key: "define", label: `I defined`, verb: defineBadge, rows });
+  }
+  for (const { verb, fromState } of verbOrder) {
+    if (verb === "define") continue;
     const badge = `${kind.toLowerCase()}_${verb}`;
-    const isLiveCatalog = toState === "Active";
-    // Bug fix (owner: "Active packs tab have to be shown for all pack_*
-    // badges"): the comment above already said the live-catalog tab is
-    // "global, unscoped... everyone with any Pack authority should see the
-    // whole live set, not just their own" — but the gate below it still only
-    // checked the ONE specific badge that happens to land on Active (e.g.
-    // pack_activate), so a pack_define/pack_validate/pack_deprecate/…-only
-    // holder never saw it at all. Every other (non-live-catalog) tab is
-    // unaffected — those stay gated on their own specific verb, same as ever.
-    const canSeeTab = isRoot || (isLiveCatalog ? [...held].some((b) => b.startsWith(`${kind.toLowerCase()}_`)) : held.has(badge));
-    if (!canSeeTab) continue;
-
-    // Owner: "add a tab to show what is the queue applicable to the badge
-    // you hold... a tab to show queue that needs validation." Every OTHER
-    // tab here answers "what did I already do" (listAuthoringByVerb, below);
-    // this answers "what's waiting for my verb" — rows sitting in fromState,
-    // full stop, not scoped to prior action (there isn't any yet). No queue
-    // for `define` — Draft is birth, nothing upstream to wait in.
-    //
-    // Bug fix (caught in smoke-testing, not the owner's report): a Queue tab
-    // is separation-of-duties work THIS verb's holder specifically can act
-    // on — it must NEVER inherit isLiveCatalog's broadened "any {kind}_*
-    // badge" check above (that broadening is only correct for the live
-    // catalog itself, "Active Packs"). A pack_define-only holder was
-    // otherwise getting an "Activate Packs" queue tab it has no authority to
-    // act on, just because canSeeTab was true for the unrelated live-catalog
-    // reason.
-    const canActThisVerb = isRoot || held.has(badge);
-    if (verb !== "define" && canActThisVerb) {
-      const queueRows = await listAuthoringQueue(kind, fromState, viewer);
-      const verbLabel = verb.charAt(0).toUpperCase() + verb.slice(1);
-      tabs.push({ key: `${verb}-queue`, label: `${verbLabel} ${kind}s`, verb: badge, rows: queueRows });
-    }
-
-    const rows = await listAuthoringByVerb(kind, verb, toState, isLiveCatalog ? null : (isRoot ? null : myId), viewer);
-    const label = isLiveCatalog ? `Active ${kind}s` : `${isRoot ? "All" : "User"} ${verbPastTense(verb)} ${kind}s`;
-    tabs.push({ key: verb, label, verb: badge, rows });
+    // Separation of duties: a Queue tab is only ever shown to a holder of
+    // THIS specific verb's own badge (root bypasses) — never broadened the
+    // way the old live-catalog tab's own visibility check used to be.
+    if (!isRoot && !held.has(badge)) continue;
+    const queueRows = await listAuthoringQueue(kind, fromState, viewer);
+    const verbLabel = verb.charAt(0).toUpperCase() + verb.slice(1);
+    tabs.push({ key: `${verb}-queue`, label: `${verbLabel} queue`, verb: badge, rows: queueRows });
   }
   return tabs;
 }
@@ -423,19 +396,52 @@ router.get("/authority/transition-definitions/:id", requireAuthorityAdmin, attac
 // Pack this viewer is allowed to see. Pack ownership (owner: "This applies to
 // the packs dropdown in any of the packs dropdown"): root sees every tenant's;
 // everyone else sees Platform-owned Packs plus their own tenant's.
+// Owner, 2026-08-19: Profile's featureFlagCodes is a plain referential-list
+// (not the x-ontology top-level-select mechanism loadOntologyOptions below
+// handles) whose item field sources "feature-flag" — an Ontology concept
+// type, same tenant-scoped visibility (Platform + this viewer's own) as
+// every other Ontology lookup on this page, just resolved as a flat code
+// list the same way pack-code/template-code already are.
 async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: string | null }): Promise<Record<string, string[]>> {
-  const [{ data: packs }, { data: templates }, { data: categories }] = await Promise.all([
+  const [{ data: packs }, { data: templates }, featureFlags] = await Promise.all([
     viewer.isRoot || !viewer.tenantId ? packsDB.findAll() : packsDB.findAllVisibleTo(viewer.tenantId),
     templatesDB.findAllActive(),
-    packCategoriesDB.findActive(),
+    listConceptsForType("feature-flag", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
   ]);
   const activePacks = (packs ?? []).filter((p) => p.status === "Active");
   return {
     "pack-code": [...new Set(activePacks.map((p) => p.code))].sort(),
     "template-code": [...new Set((templates ?? []).map((t) => t.code))].sort(),
-    // CR-015 — Pack category options come from the pack_category table (data).
-    "pack-category": (categories ?? []).map((c) => c.code),
+    "feature-flag": [...new Set(featureFlags.map((c) => c.code))].sort(),
   };
+}
+
+// Ontology-backed referential-select options — ONE resolver for every such
+// field across Pack/Template/Profile (owner: "The form generator should say
+// which fields are from ontology and use a generic function so this is still
+// driven by the schema pointing to the ontology. Every field that needs the
+// ontology... has to follow this" / "do not hard code in the schema. The
+// schema has to pick the values from the ontology"). Which fields are
+// ontology-backed, and which concept_type each resolves, comes entirely from
+// the schema's own x-ontology/x-referential-source markers
+// (ontologyConceptTypesIn) — nothing here branches on a field name or kind.
+// A new ontology-backed field on any of the three kinds is a schema change +
+// an Ontology Management data change, never a new loader function.
+//
+// CR-022: concepts are tenant-scoped now — `viewer` shows this author
+// Platform's shared vocabulary plus their own tenant's (root sees every
+// tenant's), the same visibility every other Pack/Template picker on this
+// page already uses.
+async function loadOntologyOptions(schema: JsonSchemaDocument, viewer: { isRoot: boolean; tenantId: string | null }): Promise<Record<string, Array<{ code: string; label: string; description: string | null }>>> {
+  const conceptTypes = ontologyConceptTypesIn(schema);
+  const entries = await Promise.all(conceptTypes.map(async (conceptType) => {
+    const concepts = await listConceptsForType(conceptType, viewer, false); // active only — the picker view, not the admin view
+    // CR-023: description travels alongside code/label now — "when to use
+    // this" guidance (e.g. template-categories), shown live as the author
+    // picks an option (edit.ejs's script), not just on the admin page.
+    return [conceptType, concepts.map((c) => ({ code: c.code, label: c.default_label, description: c.description })).sort((a, b) => a.label.localeCompare(b.label))] as const;
+  }));
+  return Object.fromEntries(entries);
 }
 
 // Owner: "Pack code should include the pack and the version number in the
@@ -444,13 +450,32 @@ async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: strin
 // than the flat code list above: the version to show/auto-fill alongside each
 // code, and the category to filter by. One row per Active Pack visible to
 // this viewer (at most one per code, same invariant as above).
-export interface PackDependencyOption { code: string; version: string; category: string }
+//
+// `name` (owner, 2026-08-18: "Pack code dropdown has to be platform + tenant
+// ones" + the CR-015 legibility half it never got — "the dependency picker
+// should display name for legibility"): every picker sourced from this list
+// (Pack's own Dependencies tab, Template's mandatoryPackCodes, Profile's
+// optionalPackCodes) now shows the Pack's `name` as the option label — `code`
+// is a system UUID (CR-015) with nothing readable in it — while still
+// submitting `code` as the value underneath.
+export interface PackDependencyOption { code: string; name: string; version: string; category: string }
 async function loadActivePackDependencyOptions(viewer: { isRoot: boolean; tenantId: string | null }): Promise<PackDependencyOption[]> {
   const { data: packs } = viewer.isRoot || !viewer.tenantId ? await packsDB.findAll() : await packsDB.findAllVisibleTo(viewer.tenantId);
   return (packs ?? [])
     .filter((p) => p.status === "Active")
-    .map((p) => ({ code: p.code, version: p.pack_version, category: p.category }))
-    .sort((a, b) => a.code.localeCompare(b.code));
+    .map((p) => ({ code: p.code, name: p.name, version: p.pack_version, category: p.category }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Same legibility fix, for Profile's baseTemplateCode picker — Template's own
+// `code` is now also a system UUID (migration 045, owner: "Why is code not
+// auto generated?"), so the picker needs `name` too. Active Templates only,
+// same invariant as the Pack picker above. Templates have no Pack-style
+// tenant ownership (Ch.6 §20), so this stays unscoped for every viewer.
+export interface TemplateOption { code: string; name: string }
+async function loadActiveTemplateOptions(): Promise<TemplateOption[]> {
+  const { data: templates } = await templatesDB.findAllActive();
+  return (templates ?? []).map((t) => ({ code: t.code, name: t.name })).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 async function latestSchemaFor(kind: SchemaDefinitionEntityKind): Promise<JsonSchemaDocument | null> {
@@ -475,7 +500,7 @@ async function nextHop(kind: SchemaDefinitionEntityKind, fromState: string): Pro
 // Shared renderer for both the "new" (no draft yet) and "edit" (existing draft)
 // forms — entity-direct: the form is generated from the kind's schema and
 // prefilled from the Draft entity's own content.
-async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefinitionEntityKind, slug: string, draft: { id: string; code: string; name: string; status: string; content: Record<string, unknown> } | null): Promise<void> {
+async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefinitionEntityKind, slug: string, draft: { id: string; code: string; name: string; status: string; content: Record<string, unknown> } | null, prefill?: { content: Record<string, unknown>; parentTemplateId?: string; parentProfileId?: string }): Promise<void> {
   const schema = await latestSchemaFor(kind);
   if (!schema) return flashError(req, res, backToIndex(slug), `No schema_definitions grammar for ${kind}.`);
   const held = await heldBadges(req);
@@ -495,29 +520,69 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   // regardless of this actor's authority.
   const hop = await nextHop(kind, draft ? draft.status : "Draft");
   const canAdvance = !!hop && (isRoot || held.has(`${kind.toLowerCase()}_${hop.verb}`));
+  // Registry governance moved here (owner, 2026-08-19: "Add it back to
+  // Authoring" — the Registry page is view-only now). Once a Draft leaves
+  // the Draft state, `nextHop`'s own single-match .find() is no longer
+  // sufficient — a Published/Active/Deprecated/Retired/Archived row can have
+  // MULTIPLE valid next states (e.g. Deprecated -> Retired AND Deprecated ->
+  // Active, a reactivation edge), not just the one linear authoring hop. Every
+  // possible next state is offered here (mirrors the removed Registry
+  // dropdown exactly); the real authority check still happens server-side in
+  // transitionPack/transitionTemplate/transitionProfile, same as it always did.
+  const possibleNextStates = draft && draft.status !== "Draft" && kind !== "TransitionDefinition" ? (await transitionDefinitionsDB.findPossibleNextStates(kind, draft.status)).data ?? [] : [];
   req.vm.req.title = draft ? `${kind} Definition — ${draft.status}` : `New ${kind}`;
   req.vm.req.kindLabel = kind;
   req.vm.req.slug = slug;
-  req.vm.req.draft = draft ? { id: draft.id, code: draft.code, name: draft.name, status: draft.status } : null;
+  req.vm.req.possibleNextStates = possibleNextStates;
+  // CR-023: `purpose` (Template only; undefined/blank for Pack/Profile) rides
+  // along on the draft summary so the view can show it as a subtitle under
+  // the title, without pulling in the whole content object.
+  req.vm.req.draft = draft ? { id: draft.id, code: draft.code, name: draft.name, status: draft.status, purpose: typeof draft.content.purpose === "string" ? draft.content.purpose : "" } : null;
   // UI redesign (owner: "extremely unfriendly") — group the flat field list
   // into the sections the page actually renders as separate cards, instead of
   // handing the view 23 interleaved fields with no structure.
   // Owner: "Version should be autogenerated using a next version button.
-  // Editable text is not the correct approach." — packVersion is never typed;
-  // a brand-new draft starts at 1.0.0 (harmless no-op for Template/Profile,
-  // whose schemas have no packVersion property at all), and from then on it's
-  // only advanced by the readonly field's "Next version" button
-  // (_generatedFieldGroups.ejs / edit.ejs's patch-bump script).
-  const contentForForm = { packVersion: "1.0.0", ...(draft?.content ?? {}) };
+  // Editable text is not the correct approach." — packVersion/templateVersion
+  // are never typed; a brand-new draft starts at 1.0.0 (harmless no-op for
+  // whichever of the two a given kind's schema doesn't declare — Profile has
+  // neither), and from then on it's only advanced by the readonly field's own
+  // "Next version" button (_generatedFieldGroups.ejs / edit.ejs's patch-bump
+  // script, generic over kind "version" — CR-024).
+  const contentForForm = { packVersion: "1.0.0", templateVersion: "1.0.0", profileVersion: "1.0.0", ...(draft?.content ?? prefill?.content ?? {}) };
   req.vm.req.groups = groupFieldsForDisplay(generateFields(schema, contentForForm));
   req.vm.req.contentJson = JSON.stringify(draft?.content ?? {}, null, 2);
   req.vm.req.canEdit = canDefine && isDraft;
   req.vm.req.canPublish = canAdvance;
   req.vm.req.nextState = hop?.toState ?? null;
   req.vm.req.nextVerb = hop?.verb ?? null;
+  // CR-026 Template Inheritance / Profile Inheritance (owner, 2026-08-19) —
+  // the hidden field the main form submits alongside its schema fields
+  // (parentTemplateId/parentProfileId aren't schema properties, so
+  // parseFormBody would otherwise drop them) so createAuthoringDraft can lock
+  // the new Draft's code and lineage to the chosen parent.
+  req.vm.req.inheritingFromTemplateId = prefill?.parentTemplateId ?? null;
+  req.vm.req.inheritingFromProfileId = prefill?.parentProfileId ?? null;
   const viewer = { isRoot, tenantId: req.session?.user?.tenant_id ?? null };
   req.vm.opt.referentialOptions = await loadReferentialOptions(viewer);
-  req.vm.opt.packDependencyOptions = kind === "Pack" ? await loadActivePackDependencyOptions(viewer) : [];
+  // CR-026 Template Inheritance (Ch.6 §9, owner: "There is no change to the
+  // way template is created by a platform user... When a tenant wants to
+  // define a template, show a dropdown of codes"): only offered on a brand
+  // new Template Draft, only to a real tenant author (never Platform, never
+  // root — "no change" for Platform's own flow). Ch.7 §9 Profile Inheritance
+  // (owner, 2026-08-19): same treatment, for Profile.
+  req.vm.opt.inheritableTemplates = kind === "Template" && !draft && viewer.tenantId && viewer.tenantId !== PLATFORM_TENANT_ID
+    ? await listInheritableTemplates(viewer.tenantId)
+    : [];
+  req.vm.opt.inheritableProfiles = kind === "Profile" && !draft && viewer.tenantId && viewer.tenantId !== PLATFORM_TENANT_ID
+    ? await listInheritableProfiles(viewer.tenantId)
+    : [];
+  // Owner: "Why is code not auto generated?" made every kind's Pack-code
+  // pickers need real names now (§ above) — Template's mandatoryPackCodes and
+  // Profile's optionalPackCodes use this too, not just Pack's own Dependencies
+  // tab, so this is no longer conditional on kind === "Pack".
+  req.vm.opt.packDependencyOptions = await loadActivePackDependencyOptions(viewer);
+  req.vm.opt.templateOptions = kind === "Profile" ? await loadActiveTemplateOptions() : [];
+  req.vm.opt.ontologyOptions = await loadOntologyOptions(schema, viewer);
   req.vm.opt.contributionHelp = CONTRIBUTION_SECTION_HELP;
   req.vm.opt.verifiableFieldHelp = VERIFIABLE_ITEM_FIELD_HELP;
   req.vm.opt.flash = getFlash(req);
@@ -530,6 +595,24 @@ router.get("/sdk/:slug/new", requireAuthoring("define"), attachVM("seu/sdk/autho
   const kind = resolveKind(slug);
   if (!kind || kind === "TransitionDefinition") return next();
   try {
+    // CR-026 Template Inheritance / Ch.7 §9 Profile Inheritance — "Inherit"
+    // resubmits this same page with ?parentTemplateId=/?parentProfileId=, so
+    // the form reloads pre-filled from the chosen parent's real content
+    // before the author writes anything of their own.
+    const parentTemplateId = kind === "Template" && typeof req.query.parentTemplateId === "string" ? req.query.parentTemplateId.trim() : "";
+    const parentProfileId = kind === "Profile" && typeof req.query.parentProfileId === "string" ? req.query.parentProfileId.trim() : "";
+    if (parentTemplateId) {
+      const viewerTenantId = req.session?.user?.tenant_id ?? "";
+      const inherited = await inheritedTemplateContent(parentTemplateId, viewerTenantId);
+      if (!inherited.ok) return flashError(req, res, backToIndex(slug), inherited.error);
+      return await renderAuthoringForm(req, res, kind, slug, null, { content: inherited.content, parentTemplateId });
+    }
+    if (parentProfileId) {
+      const viewerTenantId = req.session?.user?.tenant_id ?? "";
+      const inherited = await inheritedProfileContent(parentProfileId, viewerTenantId);
+      if (!inherited.ok) return flashError(req, res, backToIndex(slug), inherited.error);
+      return await renderAuthoringForm(req, res, kind, slug, null, { content: inherited.content, parentProfileId });
+    }
     return await renderAuthoringForm(req, res, kind, slug, null);
   } catch (err) {
     logger.error("[web/seu/sdkAuthoring] GET /sdk/:slug/new error", err as Error);
@@ -551,11 +634,17 @@ router.post("/sdk/:slug", requireAuthoring("define"), async (req: Request, res: 
     const schema = await latestSchemaFor(kind);
     if (!schema) return flashError(req, res, backToIndex(slug), `No schema_definitions grammar for ${kind}.`);
     const content = parseFormBody(schema, req.body ?? {});
-    // Pack ownership (owner: "Packs will have ownership"): a fresh Pack Draft
-    // is owned by its real author's own tenant — read straight off the
-    // session (CR-004 already puts it there; ignored for Template/Profile).
+    // Pack/Template/Profile ownership (owner: "Packs will have ownership" /
+    // CR-026 / 2026-08-19): a fresh Draft is owned by its real author's own
+    // tenant — read straight off the session (CR-004 already puts it there).
     const tenantId = req.session?.user?.tenant_id ?? undefined;
-    const result = await createAuthoringDraft({ kind, actorId, tenantId, content });
+    // CR-026 Template Inheritance / Ch.7 §9 Profile Inheritance:
+    // parentTemplateId/parentProfileId aren't schema properties (parseFormBody
+    // wouldn't carry them) — they travel as their own hidden field, set only
+    // when the author reached this form via the "Inherit" control.
+    const parentTemplateId = kind === "Template" && typeof req.body?.parentTemplateId === "string" && req.body.parentTemplateId.trim() ? req.body.parentTemplateId.trim() : undefined;
+    const parentProfileId = kind === "Profile" && typeof req.body?.parentProfileId === "string" && req.body.parentProfileId.trim() ? req.body.parentProfileId.trim() : undefined;
+    const result = await createAuthoringDraft({ kind, actorId, tenantId, parentTemplateId, parentProfileId, content });
     if (!result.ok) return flashError(req, res, backToIndex(slug), result.errors.join("; "));
     return flashSuccess(req, res, backTo(slug, result.draftId), `Started a new ${kind} draft.`);
   } catch (err) {
@@ -650,6 +739,46 @@ router.post("/sdk/:slug/:draftId/publish", requireAuthoring("any"), async (req: 
     return flashSuccess(req, res, backTo(slug, draftId), `Advanced to ${result.status}.`);
   } catch (err) {
     logger.error("[web/seu/sdkAuthoring] POST .../publish error", err as Error);
+    return flashError(req, res, backTo(slug, draftId), (err as Error).message);
+  }
+});
+
+/** POST /aisworg/seu/sdk/:slug/:draftId/transition — post-Active Registry governance
+ *  (Active -> Deprecated -> Retired -> Archived, and reactivation), relocated
+ *  from the now view-only Registry page (owner, 2026-08-19). Gate is "any" for
+ *  the same reason /publish's is — the real authority for THIS specific target
+ *  state is enforced inside transitionPack/transitionTemplate/transitionProfile's
+ *  own transitionEngine call. */
+router.post("/sdk/:slug/:draftId/transition", requireAuthoring("any"), async (req: Request, res: Response, next: NextFunction) => {
+  const slug = String(req.params.slug);
+  const kind = resolveKind(slug);
+  if (!kind) return next();
+  const draftId = String(req.params.draftId);
+  const { targetState } = req.body ?? {};
+  if (typeof targetState !== "string" || !targetState.trim()) {
+    return flashError(req, res, backTo(slug, draftId), "Target state is required.");
+  }
+  const actorRole = req.session?.user?.role ?? "general";
+  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
+  try {
+    if (kind === "Pack") {
+      const result = await transitionPack({ packId: draftId, targetState, actorRole, actorId });
+      if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${"detail" in result ? result.detail : result.reason}`);
+      return flashSuccess(req, res, backTo(slug, draftId), `Moved to "${result.appliedTransition.toState}".`);
+    }
+    if (kind === "Template") {
+      const result = await transitionTemplate({ templateId: draftId, targetState: targetState as never, actorRole, actorId });
+      if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
+      return flashSuccess(req, res, backTo(slug, draftId), `Moved to "${result.template.status}".`);
+    }
+    if (kind === "Profile") {
+      const result = await transitionProfile({ profileId: draftId, targetState: targetState as never, actorRole, actorId });
+      if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
+      return flashSuccess(req, res, backTo(slug, draftId), `Moved to "${result.profile.status}".`);
+    }
+    return next();
+  } catch (err) {
+    logger.error("[web/seu/sdkAuthoring] POST .../transition error", err as Error);
     return flashError(req, res, backTo(slug, draftId), (err as Error).message);
   }
 });

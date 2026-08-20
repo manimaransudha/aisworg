@@ -595,17 +595,21 @@ async function edgeCases() {
     });
 
     // The negative case is now REACHABLE black-box. CR-001's dev-only Act-As
-    // switcher lets the single god identity assume any badge; 012_badge_model
-    // gates Defined->In Progress to `creator`, so assuming `approver` must be
-    // denied that transition — and root must not be.
+    // switcher lets the single god identity assume any badge; CR-006 gates
+    // Deliverable Defined->In Progress to the noun_verb badge
+    // `deliverable_create` (migration 035/012_badge_model's original
+    // Creator/Approver badge_types family was retired by migration 043 —
+    // authority_noun_verbs is the live vocabulary now), so assuming
+    // `deliverable_approve` instead must be denied that transition — and
+    // root must not be.
     const sd = await commissionOnly(Atlas.tenantId, "SoD switcher check (no participants)");
     const target = del(sd.deliverables, "Requirements Specification");
 
-    await must("assume the approver badge via the dev Act-As switcher", async () => {
-      const r = await P.actAs(Atlas.tenantId, "approver");
+    await must("assume the deliverable_approve badge via the dev Act-As switcher", async () => {
+      const r = await P.actAs(Atlas.tenantId, "deliverable_approve");
       assert.equal(r.status, 302, "web form redirects on success");
     });
-    await check("acting as approver, the creator-only transition (Defined -> In Progress) is denied — authority_denied", async () => {
+    await check("acting as deliverable_approve, the deliverable_create-gated transition (Defined -> In Progress) is denied — authority_denied", async () => {
       const d = await P.dispatchTransition(target.id, "In Progress");
       assert.equal(d.status, 409, `expected 409, got ${d.status} — ${JSON.stringify(d.body)}`);
       assert.equal(d.body.reason, "authority_denied", `expected authority_denied, got ${JSON.stringify(d.body)}`);

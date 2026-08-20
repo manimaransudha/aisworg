@@ -1,5 +1,5 @@
 {
-  "code": "template-web-application",
+  "code": "enterprise-web-application",
   "name": "Web Application",
   "requiredCapabilityCodes": ["requirements-analysis", "architecture", "development"],
   "mandatoryPackCodes": ["platform-core-engineering"],

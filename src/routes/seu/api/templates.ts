@@ -12,7 +12,7 @@ router.get("/templates", async (req: Request, res: Response) => {
   try {
     const raw = typeof req.query.capabilityCodes === "string" ? req.query.capabilityCodes : "";
     const capabilityCodes = raw.split(",").map((s) => s.trim()).filter(Boolean);
-    const candidates = await findCandidateTemplates(capabilityCodes);
+    const candidates = await findCandidateTemplates(capabilityCodes, req.session?.user?.tenant_id ?? null);
     res.status(200).json({ candidates });
   } catch (err) {
     logger.error("[api/seu/templates] GET error", err as Error);

@@ -20,6 +20,14 @@ listQueryString = function(list, overrides = {}) {
     dir: overrides.dir !== undefined ? overrides.dir : (list ? list.dir : "desc"),
     page: overrides.page !== undefined ? overrides.page : (list ? list.page : 1),
     pageSize: list ? list.pageSize : undefined,
+    // Registry category tabs (owner: "the different categories have to be
+    // separate tabs") — a no-op for every list page that doesn't set
+    // list.category (undefined everywhere except the Pack/Template/Profile
+    // Registries), so sort/page links keep preserving it the same way they
+    // already preserve `q`.
+    category: overrides.category !== undefined ? overrides.category : (list ? list.category : ""),
+    // Registry state filter — same no-op-elsewhere treatment as category above.
+    status: overrides.status !== undefined ? overrides.status : (list ? list.status : ""),
   };
   const p = new URLSearchParams();
   if (state.q) p.set("q", state.q);
@@ -27,6 +35,8 @@ listQueryString = function(list, overrides = {}) {
   if (state.dir) p.set("dir", state.dir);
   if (state.page && Number(state.page) > 1) p.set("page", String(state.page));
   if (state.pageSize) p.set("pageSize", String(state.pageSize));
+  if (state.category) p.set("category", state.category);
+  if (state.status) p.set("status", state.status);
   const s = p.toString();
   return s ? ("?" + s) : "";
 };

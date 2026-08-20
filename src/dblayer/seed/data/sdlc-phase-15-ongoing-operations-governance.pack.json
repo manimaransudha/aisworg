@@ -1,0 +1,79 @@
+{
+  "code": "ongoing-operations-governance",
+  "name": "Ongoing Operations & Governance (SDLC Phase 15)",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Establishing long-term operational excellence — aka SRE & Ops, Continuous Improvement, Risk & Compliance Governance.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "ongoing-operations-governance",
+        "name": "Ongoing Operations & Governance",
+        "description": "Sustains long-term operational reliability, compliance, and architectural health through recurring governance practices.",
+        "category": "Engineering"
+      }
+    ],
+    "services": [
+      {
+        "code": "sre-playbook",
+        "capabilityCode": "ongoing-operations-governance",
+        "name": "SRE Playbook",
+        "contractDescription": "Site reliability engineering procedures."
+      },
+      {
+        "code": "incident-change-management-process",
+        "capabilityCode": "ongoing-operations-governance",
+        "name": "Incident & Change Management Process",
+        "contractDescription": "Operational processes."
+      },
+      {
+        "code": "audit-evidence-catalog",
+        "capabilityCode": "ongoing-operations-governance",
+        "name": "Audit Evidence Catalog",
+        "contractDescription": "Compliance documentation."
+      },
+      {
+        "code": "business-continuity-dr-plan",
+        "capabilityCode": "ongoing-operations-governance",
+        "name": "Business Continuity & DR Plan",
+        "contractDescription": "Disaster recovery procedures."
+      },
+      {
+        "code": "tech-debt-register",
+        "capabilityCode": "ongoing-operations-governance",
+        "name": "Tech Debt Register",
+        "contractDescription": "Technical debt management."
+      },
+      {
+        "code": "quarterly-architecture-review",
+        "capabilityCode": "ongoing-operations-governance",
+        "name": "Quarterly Architecture Review",
+        "contractDescription": "Architecture governance."
+      }
+    ],
+    "checklists": [
+      {
+        "code": "tech-debt-register-actively-maintained",
+        "statement": "The tech debt register is reviewed and updated on a recurring cadence rather than left stale after creation.",
+        "classification": "human-attested",
+        "prompt": "Is the tech debt register actively reviewed and updated at each quarterly architecture review?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes"
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "review-ongoing-operations-governance",
+        "statement": "The ongoing operations and governance practices have been reviewed and accepted as the steady-state operating model for the product.",
+        "classification": "human-attested",
+        "prompt": "Are the SRE, incident management, and governance practices sufficiently mature and sustainable to serve as the steady-state operating model for the product?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance"
+      }
+    ]
+  }
+}

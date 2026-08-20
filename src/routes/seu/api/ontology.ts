@@ -18,7 +18,9 @@ router.get("/ontology/concepts", async (req: Request, res: Response) => {
   try {
     const conceptType = typeof req.query.conceptType === "string" ? req.query.conceptType : "";
     if (!conceptType) return res.status(400).json({ error: "conceptType query parameter is required" });
-    const { data } = await ontologyDB.findConceptsByType(conceptType);
+    // CR-022: no tenant context on this generic endpoint — Platform's shared
+    // vocabulary only (unchanged from its pre-tenant-scoping behaviour).
+    const { data } = await ontologyDB.findConceptsByType(conceptType, { isRoot: false, tenantId: null });
     res.status(200).json({ concepts: data ?? [] });
   } catch (err) {
     logger.error("[api/seu/ontology] GET /ontology/concepts error", err as Error);

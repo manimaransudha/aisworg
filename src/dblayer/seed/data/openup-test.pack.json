@@ -1,7 +1,7 @@
 {
-  "code": "openup-test",
+  "code": "testing-qa",
   "name": "Test (OpenUP Capability Pattern)",
-  "category": "Platform",
+  "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
   "description": "EPF/OpenUP's Test capability pattern, modelled as a Pack: the Tester role, test work products, and the tasks for identifying, implementing, and evaluating tests against requirements.",

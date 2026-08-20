@@ -1,0 +1,19 @@
+# CR-029 — Template Registry + Profile Registry, Pack Registry re-tabbed
+
+**Raised:** 2026-08-19 · **Origin:** owner — "Build the template and profile registry. The different categories have to be separate tabs. Page registry also should change to be a tabbed one." · **Status:** ✅ Built 2026-08-19
+
+> **Built 2026-08-19.** `tsc` clean. Smoke-verified over real HTTP (booted the real app): `/aisworg/seu/packs` (re-tabbed), `/aisworg/seu/templates`, `/aisworg/seu/templates?category=`, and `/aisworg/seu/profiles` all return 200 with the new `vertical-tabs` sidebar present. `<div>`/`</div>` balance checked on every edited/new view file.
+
+### What's built here
+- **`/aisworg/seu/templates`** and **`/aisworg/seu/profiles`** — new pages, closing Ch.6 §20.12's "no Template/Profile registry page" gap for both nouns. Each lists every Version of every row visible to the viewer (`listTemplatesWithNextStates`/`listProfilesWithNextStates`, `core/templates.ts`/`core/profiles.ts`, mirroring `listPacksWithNextStates` exactly — new `templatesDB.findAll`/`profilesDB.findAll` added alongside), with the same generic `POST .../:id/transition` form Pack's Registry already has. This is also the UI trigger Ch.6 §20.3/CR-024 flagged as missing for Template reactivation, and the only place Profile's own new reactivation mechanism (CR-028) can be triggered from — closed for both nouns by the same page, not a special case.
+- **Category tabs, all three Registries**, using CR-027's `verticalTabs.ejs` sidebar: Pack's own `category` column, Template's `code` (which *is* its category, CR-021 — one tab per Ontology-rooted code), Profile's new `category` field (CR-028). Pack's pre-existing Registry was re-tabbed the same way, not left inconsistent with the two new pages.
+- **Category state now survives sort/search/pagination within a tab** — `helpers.ejs`'s `listQueryString`/`sortLink` and `listControls.ejs`'s own querystring builder both gained a `category` key, read from `list.category` the exact same way they already read `list.q` — a small, additive, backward-compatible change (a no-op on every other list page in the app, since none of them set `list.category`). `ListResult<T>` gained an optional `category?: string` field to carry it.
+- Navbar gained "Template Registry"/"Profile Registry" entries alongside "Pack Registry"; `attachVM.js`'s `activePage` auto-detection extended for both new URL prefixes.
+
+### Design decisions
+- **One shared category-tab mechanism across three structurally different "categories."** Pack has a real `category` column; Template's category *is* its identity (`code`); Profile's category is a brand-new field this same day's CR-028 added. Rather than three bespoke tab implementations, all three routes compute a `categories` list + `activeCategory` from whichever field is the right one for that noun, and hand the same shape to `verticalTabs.ejs` — the tab mechanism doesn't know or care which field it's tabbing by.
+- **No count/relationship enrichment on the Template/Profile Registry cards** (e.g. required-Capability counts, mandatory/optional-Pack counts) — Pack's own Registry gets these for free from `contributions`, an embedded JSON column; Template's/Profile's equivalents live in join tables, and fetching them per row would be an N+1 query per page load. Left out deliberately for a first pass; the cards still show code/name/version/status/tenant/purpose-or-description, which is most of the value.
+
+### Not in scope
+- Any change to `routes/seu/api/profiles.ts` or an equivalent Template API — the Registry pages read through the core functions directly, not through a REST layer (CR-028's own note on Profile's API staying thin).
+- Reactivation from the Registry for Pack (already existed) — unaffected; this CR only adds the equivalent capability for Template/Profile.

@@ -67,13 +67,19 @@
 
           <!-- SDK / Authoring dropdown — Pack/Template/Profile/Transition Definition authoring, Schema Registry, Pack Registry -->
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle <%= ['seu-packs','seu-sdk-pack-authoring','seu-sdk-template-authoring','seu-sdk-profile-authoring','seu-sdk-transition-definition-authoring','seu-sdk-schema-registry'].includes(currentPage) ? 'active' : '' %>"
+            <a class="nav-link dropdown-toggle <%= ['seu-packs','seu-templates','seu-profiles','seu-sdk-pack-authoring','seu-sdk-template-authoring','seu-sdk-profile-authoring','seu-sdk-transition-definition-authoring','seu-sdk-schema-registry','seu-sdk-ontology'].includes(currentPage) ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               SDK / Authoring
             </a>
             <ul class="dropdown-menu dropdown-menu-dark">
               <li><a class="dropdown-item <%= currentPage === 'seu-packs' ? 'active' : '' %>" href="/aisworg/seu/packs">
                 <i class="bi bi-box-seam me-2"></i>Pack Registry
+              </a></li>
+              <li><a class="dropdown-item <%= currentPage === 'seu-templates' ? 'active' : '' %>" href="/aisworg/seu/templates">
+                <i class="bi bi-file-earmark-ruled me-2"></i>Template Registry
+              </a></li>
+              <li><a class="dropdown-item <%= currentPage === 'seu-profiles' ? 'active' : '' %>" href="/aisworg/seu/profiles">
+                <i class="bi bi-sliders me-2"></i>Profile Registry
               </a></li>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-pack-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/pack-authoring">
@@ -91,6 +97,9 @@
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-schema-registry' ? 'active' : '' %>" href="/aisworg/seu/sdk/schema-registry">
                 <i class="bi bi-braces me-2"></i>Schema Registry
+              </a></li>
+              <li><a class="dropdown-item <%= currentPage === 'seu-sdk-ontology' ? 'active' : '' %>" href="/aisworg/seu/sdk/ontology">
+                <i class="bi bi-diagram-3 me-2"></i>Ontology Management
               </a></li>
             </ul>
           </li>

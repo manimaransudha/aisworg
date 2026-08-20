@@ -275,7 +275,7 @@ export async function commissionFromForm(input: {
     requestedBy: input.requestedBy,
   });
 
-  const candidates = await findCandidateTemplates(input.requiredCapabilityCodes);
+  const candidates = await findCandidateTemplates(input.requiredCapabilityCodes, input.tenantId);
   const template = candidates.find((c) => c.satisfies);
   if (!template) {
     return {
@@ -317,11 +317,15 @@ export async function commissionFromExistingObjective(input: {
   // commissionSeu's own base_template_id check catches a mismatched id, so
   // this doesn't re-validate it belongs to the matched Template.
   profileId?: string;
+  // Scopes findCandidateTemplates to Platform + this tenant (see its own
+  // header comment) — the acting user's tenant, not derived from the
+  // Objective itself (Objectives are not tenant-owned in this model).
+  tenantId?: string | null;
 }): Promise<CommissionFromObjectiveResult> {
   const { data: requiredCapabilities } = await objectivesDB.getRequiredCapabilities(input.objectiveId);
   const capabilityCodes = (requiredCapabilities ?? []).map((c) => c.code);
 
-  const candidates = await findCandidateTemplates(capabilityCodes);
+  const candidates = await findCandidateTemplates(capabilityCodes, input.tenantId);
   const template = candidates.find((c) => c.satisfies);
   if (!template) {
     return {

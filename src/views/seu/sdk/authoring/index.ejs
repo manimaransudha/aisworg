@@ -15,14 +15,6 @@
       </div>
     <% } %>
 
-    <%# CR-006 Stage 1b: on the Transition Definition surface, show the four
-        authority tabs (this is the "Transition Definition" tab). Only that
-        kind sets `definitions`, so the tabs never render on Pack/Template/
-        Profile authoring which share this view. %>
-    <% if (locals.definitions) { %>
-      <%- include('../../../partials/authorityTabs', { active: 'definitions' }) %>
-    <% } %>
-
     <div class="d-flex justify-content-between align-items-start mb-4">
       <div>
         <h2 class="h3 mb-1 text-dark fw-bold"><%= kindLabel %> Authoring</h2>
@@ -36,17 +28,22 @@
       <% } %>
     </div>
 
+    <%# CR-027 — one vertical-tab sidebar for the whole page: the per-verb
+        Draft tabs for Pack/Template/Profile, or (Transition Definition only,
+        `definitions` set) the CR-006 Stage 1b authority tabs — everything
+        else on the page (the tab content, and for Transition Definition the
+        Current Transition Definitions section below) sits in the content
+        column beside it. %>
+    <div class="d-flex flex-column flex-md-row gap-4 align-items-start">
+    <% if (locals.definitions) { %>
+      <%- include('../../../partials/authorityTabs', { active: 'definitions' }) %>
+    <% } else { %>
+      <%- include('../../../partials/verticalTabs', { tabs: (locals.tabs || []).map(function (t) { return { key: t.key, label: t.label, sub: '<code>' + t.verb + '</code>' }; }), paneMode: true }) %>
+    <% } %>
+    <div class="flex-grow-1" style="min-width: 0;">
+
     <% if (typeof showDrafts === 'undefined' || showDrafts) { %>
       <% const _tabs = locals.tabs || []; %>
-      <ul class="nav nav-tabs mb-3" role="tablist">
-        <% _tabs.forEach(function(t, i) { %>
-          <li class="nav-item" role="presentation">
-            <button class="nav-link <%= i === 0 ? 'active' : '' %>" data-bs-toggle="tab" data-bs-target="#tab-<%= t.key %>" type="button" role="tab">
-              <%= t.label %> <code class="small text-muted"><%= t.verb %></code>
-            </button>
-          </li>
-        <% }) %>
-      </ul>
       <div class="tab-content">
         <% _tabs.forEach(function(t, i) { %>
           <div class="tab-pane fade <%= i === 0 ? 'show active' : '' %>" id="tab-<%= t.key %>" role="tabpanel">
@@ -165,6 +162,9 @@
         </div>
       </div>
     <% } %>
+
+    </div>
+    </div>
   </main>
 
   <%- include('../../../partials/footer') %>

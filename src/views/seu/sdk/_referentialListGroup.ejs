@@ -3,8 +3,11 @@
     exactly one blank "New item" row at the end doubling as the clone
     template for the "+ Add another" button (edit.ejs's script). Locals:
     field (GeneratedField, kind referential-list), canEdit (bool),
-    referentialOptions, packDependencyOptions (PackDependencyOption[],
-    Dependencies only — code/version/category of every Active Pack). %>
+    referentialOptions, packDependencyOptions (PackDependencyOption[] —
+    name/code/version/category of every Active Pack visible to this viewer;
+    used by Dependencies AND any other referential-list whose item field
+    sources "pack-code" — Template's mandatoryPackCodes, Profile's
+    optionalPackCodes). %>
 <%
   function ilabel(n) { return n.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, function(c){ return c.toUpperCase(); }); }
   var isDependencies = field.name === 'dependencies';
@@ -48,7 +51,7 @@
             <select name="<%= field.name %>[<%= i %>][packCode]" class="form-select form-select-sm dep-pack-select" <%- canEdit ? '' : 'disabled' %>>
               <option value="">— Pack —</option>
               <% packOptions.forEach(function(p) { %>
-                <option value="<%= p.code %>" data-version="<%= p.version %>" data-category="<%= p.category %>" <%= pv === p.code ? 'selected' : '' %>><%= p.code %> — v<%= p.version %></option>
+                <option value="<%= p.code %>" data-version="<%= p.version %>" data-category="<%= p.category %>" <%= pv === p.code ? 'selected' : '' %>><%= p.name %> — v<%= p.version %></option>
               <% }) %>
               <% if (pv && !knownPack) { %>
                 <option value="<%= pv %>" selected data-version="<%= row.version || '' %>" data-category="">&#9888; <%= pv %> (not currently Active)</option>
@@ -73,7 +76,36 @@
             <div class="<%= full ? 'col-12' : 'col-sm-6 col-lg-4' %>">
               <label class="form-label small text-muted mb-1"><%= ilabel(itemField.name) %></label>
 
-              <% if (itemField.kind === 'referential') { %>
+              <% if (itemField.kind === 'referential' && itemField.referentialSource.indexOf('pack-code') === 0) { %>
+                <%# Owner: "Why is code not auto generated?... Pack code
+                    dropdown has to be platform + tenant ones." — code is a
+                    system UUID (CR-015); packOptions (already Platform +
+                    this viewer's tenant, per loadActivePackDependencyOptions)
+                    is what makes the option legible. Same list Dependencies
+                    itself uses above — this is Template's mandatoryPackCodes
+                    / Profile's optionalPackCodes, the other two "pack code
+                    dropdown"s.
+                    CR (Profile §7 fields, 2026-08-19): `x-referential` can
+                    also carry a fixed category suffix — "pack-code:Technology"
+                    — for a field whose whole purpose IS one category (Profile's
+                    technology/domain/compliance/integrationPackCodes). The
+                    category is baked into the field, not a picker the author
+                    chooses (unlike Dependencies' own client-side category
+                    filter above) — server-side filtered against the same
+                    category:pack Ontology vocabulary Pack's own `category`
+                    already uses. %>
+                <% var _fixedCategory = itemField.referentialSource.indexOf(':') !== -1 ? itemField.referentialSource.split(':')[1] : ''; %>
+                <% var _packChoices = _fixedCategory ? packOptions.filter(function(p) { return p.category === _fixedCategory; }) : packOptions; %>
+                <select name="<%= inputName %>" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %>>
+                  <option value="">— Pack —</option>
+                  <% _packChoices.forEach(function(p) { %>
+                    <option value="<%= p.code %>" <%= value === p.code ? 'selected' : '' %>><%= p.name %> — v<%= p.version %></option>
+                  <% }) %>
+                  <% if (value && !_packChoices.some(function(p) { return p.code === value; })) { %>
+                    <option value="<%= value %>" selected>&#9888; <%= value %> (not currently Active<%= _fixedCategory ? (' / not ' + _fixedCategory) : '' %>)</option>
+                  <% } %>
+                </select>
+              <% } else if (itemField.kind === 'referential') { %>
                 <select name="<%= inputName %>" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %>>
                   <option value="">— <%= ilabel(itemField.name) %> —</option>
                   <% ((locals.referentialOptions || {})[itemField.referentialSource] || []).forEach(function(opt) { %>

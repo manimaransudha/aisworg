@@ -1,0 +1,85 @@
+{
+  "code": "quality-engineering-hardening",
+  "name": "Quality Engineering & Hardening (SDLC Phase 8)",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Ensuring product quality and reliability — aka QA, Verification & Validation, Test Fest, Quality Gate.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "quality-engineering-hardening",
+        "name": "Quality Engineering & Hardening",
+        "description": "Verifies the product meets functional, performance, security, and accessibility quality bars before it is exposed to real users.",
+        "category": "Engineering"
+      }
+    ],
+    "services": [
+      {
+        "code": "master-test-plan",
+        "capabilityCode": "quality-engineering-hardening",
+        "name": "Master Test Plan",
+        "contractDescription": "Comprehensive testing strategy."
+      },
+      {
+        "code": "test-cases-traceability-matrix",
+        "capabilityCode": "quality-engineering-hardening",
+        "name": "Test Cases & Traceability Matrix",
+        "contractDescription": "Test coverage mapping."
+      },
+      {
+        "code": "automated-test-suite-reports",
+        "capabilityCode": "quality-engineering-hardening",
+        "name": "Automated Test Suite Reports",
+        "contractDescription": "Test automation results."
+      },
+      {
+        "code": "performance-load-test-plan-results",
+        "capabilityCode": "quality-engineering-hardening",
+        "name": "Performance & Load Test Plan/Results",
+        "contractDescription": "Performance validation."
+      },
+      {
+        "code": "security-testing-report",
+        "capabilityCode": "quality-engineering-hardening",
+        "name": "Security Testing Report",
+        "contractDescription": "Security validation results."
+      },
+      {
+        "code": "accessibility-audit",
+        "capabilityCode": "quality-engineering-hardening",
+        "name": "Accessibility Audit",
+        "contractDescription": "Accessibility compliance verification."
+      },
+      {
+        "code": "uat-plan-sign-off-report",
+        "capabilityCode": "quality-engineering-hardening",
+        "name": "UAT Plan & Sign-off Report",
+        "contractDescription": "User acceptance testing."
+      }
+    ],
+    "checklists": [
+      {
+        "code": "test-coverage-traces-to-requirements",
+        "statement": "The test cases and traceability matrix demonstrate coverage against every requirement in scope for this release.",
+        "classification": "judgment",
+        "prompt": "Does the traceability matrix show every in-scope requirement covered by at least one test case?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes"
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "review-quality-engineering-hardening",
+        "statement": "The Quality Engineering & Hardening's deliverables have been reviewed and accepted as sufficient to proceed to Scale & Performance Optimization.",
+        "classification": "human-attested",
+        "prompt": "Do the test results, security testing, and UAT sign-off demonstrate sufficient quality to justify moving into Scale & Performance Optimization?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance"
+      }
+    ]
+  }
+}

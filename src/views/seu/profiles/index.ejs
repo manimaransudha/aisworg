@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+  <style>
+    .version-badge { font-size: 0.68rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 4px; background: #f1f5f9; color: #334155; }
+  </style>
+</head>
+<body>
+  <%- include('../../partials/helpers') %>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5" style="max-width: 1000px;">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-1 text-dark fw-bold">Profiles</h2>
+      <p class="text-muted small mb-0">
+        Profile Registry (Ch.7 §19.10) — every published Version of every Profile. Each Version is an immutable row
+        (Ch.41 VM-002); publishing a new version of an existing (code, tenant) creates a new row and supersedes the
+        previously-Active one rather than mutating it.
+      </p>
+    </div>
+
+    <% const _base = locals.listBasePath || '/aisworg/seu/profiles'; %>
+    <%
+      var _categories = locals.categories || [];
+      var _activeCategory = locals.activeCategory || '';
+      var _categoryTabs = [{ key: '', label: 'All categories', href: _base }].concat(
+        _categories.map(function (c) { return { key: c, label: c, href: _base + '?category=' + encodeURIComponent(c) }; })
+      );
+    %>
+    <div class="d-flex flex-column flex-md-row gap-4 align-items-start">
+    <%- include('../../partials/verticalTabs', { tabs: _categoryTabs, active: _activeCategory }) %>
+    <div class="flex-grow-1" style="min-width: 0;">
+
+    <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search name / code / category' }) %>
+    <div class="small text-muted mb-3">Sort:
+      <%- sortLink('Name', 'name', list, _base) %> &middot;
+      <%- sortLink('Version', 'version', list, _base) %> &middot;
+      <%- sortLink('Status', 'status', list, _base) %>
+    </div>
+
+    <%
+      var _states = locals.states || [];
+      var _activeStatus = locals.activeStatus || '';
+    %>
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      <a href="<%= _base + listQueryString(list, { status: '' }) %>" class="btn btn-sm <%= _activeStatus ? 'btn-outline-secondary' : 'btn-secondary' %>">All states</a>
+      <% _states.forEach(function(s) { %>
+        <a href="<%= _base + listQueryString(list, { status: s }) %>" class="btn btn-sm <%= _activeStatus === s ? 'btn-secondary' : 'btn-outline-secondary' %>"><%= s %></a>
+      <% }) %>
+    </div>
+
+    <% if (list.total === 0) { %>
+      <% if (list.q) { %>
+        <div class="alert alert-warning">No Profiles match your search.</div>
+      <% } else if (_activeStatus || _activeCategory) { %>
+        <div class="alert alert-warning">No Profiles<%= _activeStatus ? (' in state "' + _activeStatus + '"') : '' %><%= _activeCategory ? (' in category "' + _activeCategory + '"') : '' %>.</div>
+      <% } else { %>
+        <div class="alert alert-warning">No Profiles published yet — author one via SDK / Authoring &rarr; Profile Authoring.</div>
+      <% } %>
+    <% } else { %>
+      <% list.items.forEach(function(p) { %>
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <h5 class="mb-1">
+                  <%= p.profile.name %> <code class="text-muted small"><%= p.profile.code %></code>
+                  <span class="version-badge ms-1">v<%= p.profile.profile_version %></span>
+                </h5>
+                <p class="text-muted small mb-2">
+                  <span class="state-badge state-<%= p.profile.status %>"><%= p.profile.status %></span>
+                  <% if (p.profile.category) { %><span class="badge bg-light text-dark border"><%= p.profile.category %></span><% } %>
+                  <span class="badge bg-info-subtle text-info-emphasis border"><%= p.profile.environment %></span>
+                  <% if (p.profile.tenant_id === locals.platformTenantId) { %>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Platform</span>
+                  <% } else { %>
+                    <span class="badge bg-light text-dark border">Your tenant</span>
+                  <% } %>
+                  <% if (p.profile.parent_profile_id) { %>
+                    <span class="badge bg-secondary-subtle text-secondary border">Derived (Ch.7 §9)</span>
+                  <% } %>
+                </p>
+                <% var _description = p.profile.draft_content && p.profile.draft_content.description; %>
+                <% if (_description) { %><p class="small mb-2"><%= _description %></p><% } %>
+              </div>
+            </div>
+            <% if (locals.canCopy) { %>
+              <form method="POST" action="/aisworg/seu/profiles/<%= p.profile.id %>/copy">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-copy me-1"></i>Copy</button>
+              </form>
+            <% } %>
+          </div>
+        </div>
+      <% }) %>
+    <% } %>
+
+    </div>
+    </div>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

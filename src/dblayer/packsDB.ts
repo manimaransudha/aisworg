@@ -163,9 +163,16 @@ export const packsDB = {
     }
   },
 
-  async findByCodeAndVersion(code: string, packVersion: string): Promise<DbResult<PackRow | null>> {
+  // CR-026 Part 2: (code, pack_version) alone is no longer the unique identity
+  // (packs_code_version_tenant_key, migration 063) — a tenant param narrows
+  // the lookup to that tenant's own row. Omitted = unscoped (existing callers
+  // that predate tenant-scoped identity, e.g. dependency resolution, keep
+  // their original latest-match-wins behaviour).
+  async findByCodeAndVersion(code: string, packVersion: string, tenantId?: string): Promise<DbResult<PackRow | null>> {
     try {
-      const { rows } = await query<PackRow>("SELECT * FROM packs WHERE code = $1 AND pack_version = $2", [code, packVersion]);
+      const { rows } = tenantId == null
+        ? await query<PackRow>("SELECT * FROM packs WHERE code = $1 AND pack_version = $2", [code, packVersion])
+        : await query<PackRow>("SELECT * FROM packs WHERE code = $1 AND pack_version = $2 AND tenant_id = $3", [code, packVersion, tenantId]);
       return { data: rows[0] ?? null };
     } catch (err) {
       logger.error("[packsDB] findByCodeAndVersion error", err as Error);
@@ -190,9 +197,16 @@ export const packsDB = {
 
   // The one row (if any) currently Active for a code — publishPack's
   // supersede step uses this to find what a newly-activated version replaces.
-  async findActiveByCode(code: string): Promise<DbResult<PackRow | null>> {
+  // CR-026 Part 2: "one Active per code" is now per (code, tenant_id) — two
+  // tenants (or a tenant and Platform) can each have their own Active row for
+  // the same code without superseding each other. tenantId omitted = unscoped
+  // (compositionEngine's code->Active-row resolution predates any tenant
+  // concept on Template/Profile and stays exactly as it was).
+  async findActiveByCode(code: string, tenantId?: string): Promise<DbResult<PackRow | null>> {
     try {
-      const { rows } = await query<PackRow>("SELECT * FROM packs WHERE code = $1 AND status = 'Active' ORDER BY created_at DESC LIMIT 1", [code]);
+      const { rows } = tenantId == null
+        ? await query<PackRow>("SELECT * FROM packs WHERE code = $1 AND status = 'Active' ORDER BY created_at DESC LIMIT 1", [code])
+        : await query<PackRow>("SELECT * FROM packs WHERE code = $1 AND status = 'Active' AND tenant_id = $2 ORDER BY created_at DESC LIMIT 1", [code, tenantId]);
       return { data: rows[0] ?? null };
     } catch (err) {
       logger.error("[packsDB] findActiveByCode error", err as Error);

@@ -1,0 +1,67 @@
+<%
+/* CR-027 — shared vertical tab list, replacing this app's various horizontal
+   `nav-tabs` rows (the per-verb authoring tabs, Ontology's concept-type
+   tabs, the Authority surface's 4 tabs) with one component. Two interaction
+   modes:
+   - link tabs (default): each tab is a real navigation <a href> — pass
+     `active` (the current tab's key) to mark it. Used by Ontology and
+     Authority.
+   - pane tabs (`paneMode: true`): each tab is a data-bs-toggle="tab" button
+     switching a sibling `.tab-content` pane in place — Bootstrap's own
+     vertical-pills pattern. The first tab starts active by default;
+     `activePaneIndex` overrides which one (the generated form jumps straight
+     to whichever section already has real content, not always the first).
+     `paneIdPrefix` (default "tab") sets the target pane id prefix
+     (`#<prefix>-<key>`) — the generated form uses its own `idPrefix` local so
+     two copies of it on one page (the Meta/Items stepper) never collide on
+     pane ids.
+   Callers wrap this alongside their own content in a flex row (see
+   authority/index.ejs, authoring/index.ejs, ontology/index.ejs,
+   _generatedFieldGroups.ejs) — this partial only renders the tab column itself.
+   data: { tabs: [{ key, label, sub?, href? }], active?, paneMode?, paneIdPrefix?, activePaneIndex? } */
+const _tabs = typeof tabs !== 'undefined' ? tabs : [];
+const _active = typeof active !== 'undefined' ? active : null;
+const _paneMode = typeof paneMode !== 'undefined' && paneMode;
+const _paneIdPrefix = typeof paneIdPrefix !== 'undefined' ? paneIdPrefix : 'tab';
+const _activePaneIndex = typeof activePaneIndex !== 'undefined' && activePaneIndex >= 0 ? activePaneIndex : 0;
+%>
+<div class="nav flex-column nav-pills vertical-tabs" role="tablist" aria-orientation="vertical">
+  <% _tabs.forEach(function(t, i) { %>
+    <% if (_paneMode) { %>
+      <button class="nav-link <%= i === _activePaneIndex ? 'active' : '' %>" data-bs-toggle="tab" data-bs-target="#<%= _paneIdPrefix %>-<%= t.key %>" type="button" role="tab">
+        <%= t.label %><% if (t.sub) { %><span class="vt-sub"><%- t.sub %></span><% } %>
+      </button>
+    <% } else { %>
+      <a class="nav-link <%= _active === t.key ? 'active' : '' %>" href="<%= t.href %>">
+        <%= t.label %><% if (t.sub) { %><span class="vt-sub"><%- t.sub %></span><% } %>
+      </a>
+    <% } %>
+  <% }) %>
+  <% if (_tabs.length === 0) { %><span class="nav-link disabled">No tabs</span><% } %>
+</div>
+<style>
+  /* A framed panel, not a bare column of links — the whole point being that
+     this reads as a NAV component sitting beside the content, not as one
+     more column of the same list (owner: "It feels like another column on
+     the list"). Light panel background + border give it a boundary of its
+     own; sticky keeps it in view against a long content column. */
+  .vertical-tabs {
+    min-width: 210px; max-width: 260px; flex: 0 0 auto;
+    background: #f8f9fa; border: 1px solid #e9ecef; border-radius: .6rem;
+    padding: .4rem; position: sticky; top: 1rem;
+  }
+  .vertical-tabs .nav-link {
+    color: #495057; font-weight: 500; border-radius: .4rem;
+    padding: .55rem .8rem; margin-bottom: .15rem; text-align: left;
+    border: 1px solid transparent;
+  }
+  .vertical-tabs .nav-link:last-child { margin-bottom: 0; }
+  .vertical-tabs .nav-link:hover { background: #fff; border-color: #dee2e6; }
+  .vertical-tabs .nav-link.active { background: #0d6efd; color: #fff; box-shadow: 0 1px 3px rgba(13, 110, 253, .35); }
+  .vertical-tabs .vt-sub { display: block; font-size: .75rem; font-weight: 400; color: #868e96; margin-top: .1rem; }
+  .vertical-tabs .nav-link.active .vt-sub { color: rgba(255, 255, 255, .85); }
+  @media (max-width: 767.98px) {
+    .vertical-tabs { max-width: none; width: 100%; flex-direction: row !important; flex-wrap: wrap; gap: .25rem; position: static; }
+    .vertical-tabs .nav-link { margin-bottom: 0; }
+  }
+</style>
