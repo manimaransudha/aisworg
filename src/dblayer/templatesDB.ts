@@ -333,17 +333,15 @@ export const templatesDB = {
   // 013_template_profile_pack_by_code.sql. A Template names which Pack
   // codes it requires; which Version that resolves to is decided fresh at
   // every commissioning (compositionEngine.compose), not frozen here.
+  //
+  // CR-038 — a thin wrapper over setPackSelection's own 'mandatory' slot
+  // (mirrors profilesDB.setOptionalPacks's identical relationship to its own
+  // setPackSelection), not a separate unfiltered-delete implementation —
+  // scoping the delete to list_kind='mandatory' is what stops this from
+  // wiping out the six category-specific slots below when both are ever
+  // touched for the same Template.
   async setMandatoryPacks(templateId: string, packCodes: string[]): Promise<DbResult<void>> {
-    try {
-      await query("DELETE FROM template_packs WHERE template_id = $1", [templateId]);
-      for (const packCode of packCodes) {
-        await query("INSERT INTO template_packs (template_id, pack_code) VALUES ($1, $2)", [templateId, packCode]);
-      }
-      return { data: undefined };
-    } catch (err) {
-      logger.error("[templatesDB] setMandatoryPacks error", err as Error);
-      return { error: err as Error };
-    }
+    return templatesDB.setPackSelection(templateId, "mandatory", packCodes);
   },
 
   async getMandatoryPackCodes(templateId: string): Promise<DbResult<string[]>> {
@@ -355,6 +353,40 @@ export const templatesDB = {
       return { data: rows.map((r) => r.pack_code) };
     } catch (err) {
       logger.error("[templatesDB] getMandatoryPackCodes error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // CR-038 — Template's mandatory Packs get the same category-scoped slots
+  // Profile's own Pack selections already have (profilesDB.setPackSelection/
+  // getPackSelection, migration 067) — same join table, disambiguated by
+  // list_kind (migration 077) rather than six new tables. Scoped writes/reads
+  // — unlike setMandatoryPacks/getMandatoryPackCodes above (still real,
+  // still used by callers that only care about the flat "every mandatory
+  // Pack regardless of category" set, e.g. compositionEngine), these only
+  // touch their own list_kind slot.
+  async setPackSelection(templateId: string, listKind: string, packCodes: string[]): Promise<DbResult<void>> {
+    try {
+      await query("DELETE FROM template_packs WHERE template_id = $1 AND list_kind = $2", [templateId, listKind]);
+      for (const packCode of packCodes) {
+        await query("INSERT INTO template_packs (template_id, pack_code, list_kind) VALUES ($1, $2, $3)", [templateId, packCode, listKind]);
+      }
+      return { data: undefined };
+    } catch (err) {
+      logger.error("[templatesDB] setPackSelection error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async getPackSelection(templateId: string, listKind: string): Promise<DbResult<string[]>> {
+    try {
+      const { rows } = await query<{ pack_code: string }>(
+        "SELECT pack_code FROM template_packs WHERE template_id = $1 AND list_kind = $2 ORDER BY pack_code",
+        [templateId, listKind]
+      );
+      return { data: rows.map((r) => r.pack_code) };
+    } catch (err) {
+      logger.error("[templatesDB] getPackSelection error", err as Error);
       return { error: err as Error };
     }
   },

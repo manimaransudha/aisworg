@@ -1,78 +1,150 @@
 {
   "code": "mobile-application",
   "name": "Mobile Application",
-  "requiredCapabilityCodes": ["requirements-analysis", "architecture", "development", "technical-architecture-discovery", "security-privacy-compliance", "platform-developer-experience", "backlog-release-planning", "implementation-engineering", "quality-engineering-hardening", "launch-management", "ongoing-operations-governance", "vision-opportunity-framing", "product-discovery", "experience-design", "scale-performance-optimization", "beta-early-access-management", "internationalization-localization"],
-  "mandatoryPackCodes": ["platform-core-engineering", "technical-architecture-discovery", "security-privacy-compliance", "platform-developer-experience", "backlog-release-planning", "implementation-engineering", "quality-engineering-hardening", "launch-management", "ongoing-operations-governance", "vision-opportunity-framing", "product-discovery", "experience-design", "scale-performance-optimization", "beta-early-access-management", "internationalization-localization"],
+  "mandatoryPackCodes": [
+    "platform-core-engineering",
+    "technical-architecture-discovery",
+    "security-privacy-compliance",
+    "platform-developer-experience",
+    "backlog-release-planning",
+    "implementation-engineering",
+    "quality-engineering-hardening",
+    "launch-management",
+    "ongoing-operations-governance",
+    "vision-opportunity-framing",
+    "product-discovery",
+    "experience-design",
+    "scale-performance-optimization",
+    "beta-early-access-management",
+    "internationalization-localization"
+  ],
   "deliverableCatalogue": [
     {
-      "code": "requirements-spec",
       "name": "Requirements Specification",
       "category": "Documentation",
       "producingCapabilityCode": "requirements-analysis"
     },
     {
-      "code": "architecture-doc",
       "name": "Architecture Document",
       "category": "Documentation",
-      "producingCapabilityCode": "architecture",
-      "dependsOnDeliverableCodes": ["requirements-spec"],
-      "dependsOnCapabilityServiceCodes": ["requirements-analysis"]
+      "producingCapabilityCode": "architecture"
     },
     {
-      "code": "technical-architecture-doc",
       "name": "Technical Architecture & Discovery Document",
       "category": "Documentation",
-      "producingCapabilityCode": "technical-architecture-discovery",
-      "dependsOnDeliverableCodes": ["architecture-doc"],
-      "dependsOnCapabilityServiceCodes": ["architecture"]
+      "producingCapabilityCode": "technical-architecture-discovery"
     },
     {
-      "code": "security-compliance-review",
       "name": "Security & Compliance Review",
       "category": "Documentation",
-      "producingCapabilityCode": "security-privacy-compliance",
-      "dependsOnDeliverableCodes": ["technical-architecture-doc"],
-      "dependsOnCapabilityServiceCodes": ["technical-architecture-discovery"]
+      "producingCapabilityCode": "security-privacy-compliance"
     },
     {
-      "code": "platform-setup",
       "name": "Platform & Developer Experience Setup",
       "category": "Documentation",
-      "producingCapabilityCode": "platform-developer-experience",
-      "dependsOnDeliverableCodes": ["security-compliance-review"],
-      "dependsOnCapabilityServiceCodes": ["security-privacy-compliance"]
+      "producingCapabilityCode": "platform-developer-experience"
     },
     {
-      "code": "source-code",
       "name": "Source Code",
       "category": "Implementation",
-      "producingCapabilityCode": "development",
-      "dependsOnDeliverableCodes": ["platform-setup"],
-      "dependsOnCapabilityServiceCodes": ["platform-developer-experience"]
+      "producingCapabilityCode": "development"
     },
     {
-      "code": "quality-report",
       "name": "Quality Engineering Report",
       "category": "Documentation",
-      "producingCapabilityCode": "quality-engineering-hardening",
-      "dependsOnDeliverableCodes": ["source-code"],
-      "dependsOnCapabilityServiceCodes": ["development"]
+      "producingCapabilityCode": "quality-engineering-hardening"
     },
     {
-      "code": "launch-readiness-review",
       "name": "Launch Readiness Review",
       "category": "Documentation",
-      "producingCapabilityCode": "launch-management",
-      "dependsOnDeliverableCodes": ["quality-report"],
-      "dependsOnCapabilityServiceCodes": ["quality-engineering-hardening"]
+      "producingCapabilityCode": "launch-management"
     },
     {
-      "code": "operations-runbook",
       "name": "Operations Runbook",
       "category": "Documentation",
-      "producingCapabilityCode": "ongoing-operations-governance",
-      "dependsOnDeliverableCodes": ["launch-readiness-review"],
-      "dependsOnCapabilityServiceCodes": ["launch-management"]
+      "producingCapabilityCode": "ongoing-operations-governance"
+    }
+  ],
+  "dependencyGraph": [
+    {
+      "toName": "Architecture Document",
+      "fromType": "Deliverable",
+      "fromName": "Requirements Specification"
+    },
+    {
+      "toName": "Architecture Document",
+      "fromType": "Capability",
+      "fromCapabilityCode": "architecture"
+    },
+    {
+      "toName": "Technical Architecture & Discovery Document",
+      "fromType": "Deliverable",
+      "fromName": "Architecture Document"
+    },
+    {
+      "toName": "Technical Architecture & Discovery Document",
+      "fromType": "Capability",
+      "fromCapabilityCode": "technical-architecture-discovery"
+    },
+    {
+      "toName": "Security & Compliance Review",
+      "fromType": "Deliverable",
+      "fromName": "Technical Architecture & Discovery Document"
+    },
+    {
+      "toName": "Security & Compliance Review",
+      "fromType": "Capability",
+      "fromCapabilityCode": "security-privacy-compliance"
+    },
+    {
+      "toName": "Platform & Developer Experience Setup",
+      "fromType": "Deliverable",
+      "fromName": "Security & Compliance Review"
+    },
+    {
+      "toName": "Platform & Developer Experience Setup",
+      "fromType": "Capability",
+      "fromCapabilityCode": "platform-developer-experience"
+    },
+    {
+      "toName": "Source Code",
+      "fromType": "Deliverable",
+      "fromName": "Platform & Developer Experience Setup"
+    },
+    {
+      "toName": "Source Code",
+      "fromType": "Capability",
+      "fromCapabilityCode": "development"
+    },
+    {
+      "toName": "Quality Engineering Report",
+      "fromType": "Deliverable",
+      "fromName": "Source Code"
+    },
+    {
+      "toName": "Quality Engineering Report",
+      "fromType": "Capability",
+      "fromCapabilityCode": "quality-engineering-hardening"
+    },
+    {
+      "toName": "Launch Readiness Review",
+      "fromType": "Deliverable",
+      "fromName": "Quality Engineering Report"
+    },
+    {
+      "toName": "Launch Readiness Review",
+      "fromType": "Capability",
+      "fromCapabilityCode": "launch-management"
+    },
+    {
+      "toName": "Operations Runbook",
+      "fromType": "Deliverable",
+      "fromName": "Launch Readiness Review"
+    },
+    {
+      "toName": "Operations Runbook",
+      "fromType": "Capability",
+      "fromCapabilityCode": "ongoing-operations-governance"
     }
   ]
 }

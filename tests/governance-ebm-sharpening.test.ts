@@ -22,9 +22,16 @@ import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { qualityGateEvaluationsDB } from "../src/dblayer/qualityGateEvaluationsDB.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
-import { ensureWebAppTemplateFixture } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, registerTestOntologyCode, deleteTestOntologyCodes } from "./testFixtures.js";
+
+// CR-046 (owner: "the test script should use a code present in the
+// ontology") — Pack.code is Ontology-validated (capability-name) at publish
+// time now; the two real concepts this file registers are tracked and
+// cleaned up here, same discipline as pack-sdk.test.ts's own.
+const createdOntologyCodes: Array<{ conceptType: string; code: string }> = [];
 
 after(async () => {
+  await deleteTestOntologyCodes(createdOntologyCodes);
   await pool.end();
 });
 
@@ -55,10 +62,14 @@ test("FR-21.1: an SEU exposes one effective Governance Model derived from its EB
 
 test("FR-3.6/3.7: a composition conflict hard-blocks commissioning; the SEU never reaches Operational", async () => {
   const run = randomUUID().slice(0, 8);
+  const codeA = await registerTestOntologyCode("capability-name", "conflict-a");
+  createdOntologyCodes.push({ conceptType: "capability-name", code: codeA });
+  const codeB = await registerTestOntologyCode("capability-name", "conflict-b");
+  createdOntologyCodes.push({ conceptType: "capability-name", code: codeB });
   // Two packs contributing authority rules for the SAME governedTransition with DIFFERENT roles.
-  const packA = { code: `conflict-a-${run}`, name: "Conflict A", category: "Organisation", packVersion: "1.0.0", installationClassification: "Mandatory",
+  const packA = { code: codeA, name: "Conflict A", category: "Organisation", packVersion: "1.0.0", installationClassification: "Mandatory",
     contributions: { authorityRules: [{ code: `auth-a-${run}`, governedTransition: `x.transition.${run}`, authorisedRole: "general" }] } };
-  const packB = { code: `conflict-b-${run}`, name: "Conflict B", category: "Organisation", packVersion: "1.0.0", installationClassification: "Mandatory",
+  const packB = { code: codeB, name: "Conflict B", category: "Organisation", packVersion: "1.0.0", installationClassification: "Mandatory",
     contributions: { authorityRules: [{ code: `auth-b-${run}`, governedTransition: `x.transition.${run}`, authorisedRole: "super" }] } };
   const pubA = await publishPack({ seed: packA as any, actorRole: "super", actorId: "1001", activate: true });
   const pubB = await publishPack({ seed: packB as any, actorRole: "super", actorId: "1001", activate: true });

@@ -25,8 +25,8 @@ import {
   advancePackOneStep, validatePackSeed, packMetadataFromSeed,
   type PackSeedInput,
 } from "./packs.js";
-import { advanceTemplateOneStep, materialiseTemplateDraft, validateTemplateSeed, type TemplateSeedInput } from "./templates.js";
-import { advanceProfileOneStep, materialiseProfileDraft, validateProfileSeed, type ProfileSeedInput } from "./profiles.js";
+import { advanceTemplateOneStep, materialiseTemplateDraft, validateTemplateSeed, getPackSelectionsByCategory, getDependencyGraphContent, PACK_SELECTION_SLOTS, type TemplateSeedInput, type PackSelectionsByCategory } from "./templates.js";
+import { advanceProfileOneStep, materialiseProfileDraft, validateProfileSeed, getProfilePackSelections, type ProfileSeedInput } from "./profiles.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 import type { PackContributions, PackRow, ProfileRow, SchemaDefinitionEntityKind, TemplateRow } from "../../../dblayer/seuTypes.js";
 import { randomUUID } from "node:crypto";
@@ -111,9 +111,20 @@ export function toTemplateSeedInput(content: Record<string, unknown>): TemplateS
     // a first-class entry point, not just the generated form) — an object or
     // other truthy non-array would otherwise survive `?? []` and blow up the
     // first `for...of` that iterates it.
-    requiredCapabilityCodes: Array.isArray(content.requiredCapabilityCodes) ? (content.requiredCapabilityCodes as string[]) : [],
-    mandatoryPackCodes: normalizePackCodes(content.mandatoryPackCodes),
+    // CR-038 — requiredCapabilityCodes/mandatoryPackCodes are gone; six
+    // category-scoped Pack fields replace the flat one (same
+    // normalizePackCodes row-unwrapping every other referential-list Pack
+    // field already uses).
+    compliancePackCodes: normalizePackCodes(content.compliancePackCodes),
+    domainPackCodes: normalizePackCodes(content.domainPackCodes),
+    engineeringPackCodes: normalizePackCodes(content.engineeringPackCodes),
+    integrationPackCodes: normalizePackCodes(content.integrationPackCodes),
+    organisationPackCodes: normalizePackCodes(content.organisationPackCodes),
+    technologyPackCodes: normalizePackCodes(content.technologyPackCodes),
     deliverableCatalogue: Array.isArray(content.deliverableCatalogue) ? (content.deliverableCatalogue as TemplateSeedInput["deliverableCatalogue"]) : [],
+    // CR-041 — the dependency graph, authored as its own field (not embedded
+    // per deliverableCatalogue entry).
+    dependencyGraph: Array.isArray(content.dependencyGraph) ? (content.dependencyGraph as TemplateSeedInput["dependencyGraph"]) : [],
   };
 }
 
@@ -273,6 +284,24 @@ export async function listAuthoringQueue(kind: SchemaDefinitionEntityKind, fromS
   return [];
 }
 
+// CR-045 follow-up — getPackSelectionsByCategory/getProfilePackSelections
+// return the SEED-level shape (a bare string[] of Pack codes, what
+// TemplateSeedInput/ProfileSeedInput and validate*Seed actually consume) —
+// but the FORM/schema-level shape a referential-list field's own item
+// properties expect (generateFields/parseFormBody) is an array of {packCode}
+// objects, matching the migration 077/078/066 schema exactly. Without this
+// conversion, generateFields reads row["packCode"] off a bare string and
+// gets undefined every time — every resolved code silently renders as
+// blank/"None" even though the row genuinely exists.
+function toPackCodeRows(codes: string[] | undefined): Array<{ packCode: string }> {
+  return (codes ?? []).map((packCode) => ({ packCode }));
+}
+function packSelectionsToFormShape<T extends Record<string, string[] | undefined>>(selections: T): { [K in keyof T]: Array<{ packCode: string }> } {
+  const out = {} as { [K in keyof T]: Array<{ packCode: string }> };
+  for (const key of Object.keys(selections) as Array<keyof T>) out[key] = toPackCodeRows(selections[key]);
+  return out;
+}
+
 // --- Get one draft (form-shaped content) ------------------------------------
 export async function getAuthoringDraft(kind: SchemaDefinitionEntityKind, id: string): Promise<AuthoringDraft | null> {
   if (kind === "Pack") {
@@ -290,7 +319,22 @@ export async function getAuthoringDraft(kind: SchemaDefinitionEntityKind, id: st
     // CR-026: tenantId/parentTemplateId ride along the same way
     // packRowToContent's tenantId does — publishAuthoringDraft's re-validation
     // needs both (Ontology visibility scoping, the inheritance superset check).
-    return { id: t.id, code: t.code, name: t.name, status: t.status, content: { code: t.code, name: t.name, ...(t.draft_content ?? {}), templateVersion: t.template_version, tenantId: t.tenant_id, parentTemplateId: t.parent_template_id } };
+    //
+    // CR-045 follow-up — the same "real column wins" treatment extends to
+    // Pack Codes/Deliverable Catalogue/Dependency Graph once this Template
+    // isn't a Draft any more. draft_content is the WIP truth WHILE authoring
+    // (the real tables aren't materialised until publish), but past Draft the
+    // relational tables (template_packs, the deliverable_catalogue column,
+    // dependency_definitions) are what's real — and for a Template created
+    // outside the authoring form entirely (every seed script), draft_content
+    // was never written at all, so trusting it exclusively showed "None" for
+    // data that genuinely exists and is genuinely in effect.
+    const materialised = t.status === "Draft" ? {} : {
+      ...packSelectionsToFormShape(await getPackSelectionsByCategory(t.id)),
+      deliverableCatalogue: t.deliverable_catalogue,
+      dependencyGraph: await getDependencyGraphContent(t.id),
+    };
+    return { id: t.id, code: t.code, name: t.name, status: t.status, content: { code: t.code, name: t.name, ...(t.draft_content ?? {}), ...materialised, templateVersion: t.template_version, tenantId: t.tenant_id, parentTemplateId: t.parent_template_id } };
   }
   if (kind === "Profile") {
     const { data: p } = await profilesDB.findById(id);
@@ -298,7 +342,14 @@ export async function getAuthoringDraft(kind: SchemaDefinitionEntityKind, id: st
     // Mirrors Template's own getAuthoringDraft treatment exactly — the
     // entity's own authoritative columns always win for these; tenantId/
     // parentProfileId ride along for publishAuthoringDraft's re-validation.
-    return { id: p.id, code: p.code, name: p.name, status: p.status, content: { code: p.code, name: p.name, ...(p.draft_content ?? {}), profileVersion: p.profile_version, category: p.category, tenantId: p.tenant_id, parentProfileId: p.parent_profile_id } };
+    // CR-045 follow-up — same "real join tables win once past Draft"
+    // treatment as Template's own Pack-selection fields: a Profile created
+    // outside the authoring form (every seed script) never writes
+    // draft_content, but its Pack selections are real profile_packs rows
+    // regardless (description/featureFlagCodes/compositionOptions have no
+    // real-table equivalent, so those stay draft_content-only either way).
+    const materialised = p.status === "Draft" ? {} : packSelectionsToFormShape(await getProfilePackSelections(p.id));
+    return { id: p.id, code: p.code, name: p.name, status: p.status, content: { code: p.code, name: p.name, ...(p.draft_content ?? {}), ...materialised, profileVersion: p.profile_version, category: p.category, tenantId: p.tenant_id, parentProfileId: p.parent_profile_id } };
   }
   return null;
 }
@@ -367,8 +418,11 @@ export async function inheritedTemplateContent(parentTemplateId: string, viewerT
   if (parent.tenant_id !== PLATFORM_TENANT_ID && parent.tenant_id !== viewerTenantId) {
     return { ok: false, error: "parent Template is not visible to this tenant" };
   }
-  const { data: requiredCaps } = await templatesDB.getRequiredCapabilities(parent.id);
-  const { data: mandatoryPackCodes } = await templatesDB.getMandatoryPackCodes(parent.id);
+  // CR-038 — requiredCapabilityCodes isn't carried through; it's derived
+  // fresh from whichever Packs the new Draft ends up with, same as any other
+  // authoring path. Six category-scoped slots off the parent's real
+  // join-table rows, mirroring inheritedProfileContent's own pattern exactly.
+  const packSelections = await getPackSelectionsByCategory(parent.id);
   const purpose = typeof (parent.draft_content as Record<string, unknown> | null)?.purpose === "string" ? (parent.draft_content as Record<string, unknown>).purpose : undefined;
   return {
     ok: true,
@@ -376,8 +430,7 @@ export async function inheritedTemplateContent(parentTemplateId: string, viewerT
       code: parent.code,
       name: parent.name,
       purpose,
-      requiredCapabilityCodes: (requiredCaps ?? []).map((c) => c.code),
-      mandatoryPackCodes: (mandatoryPackCodes ?? []).map((packCode) => ({ packCode })),
+      ...Object.fromEntries(PACK_SELECTION_SLOTS.map((slot) => [slot.field, ((packSelections[slot.field as keyof PackSelectionsByCategory] as string[] | undefined) ?? []).map((packCode) => ({ packCode }))])),
       deliverableCatalogue: parent.deliverable_catalogue,
     },
   };

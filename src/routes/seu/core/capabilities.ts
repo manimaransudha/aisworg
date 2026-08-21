@@ -3,6 +3,8 @@
 import { seuCapabilitiesDB } from "../../../dblayer/seuCapabilitiesDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { capabilityFulfilmentsDB } from "../../../dblayer/capabilityFulfilmentsDB.js";
+import { servicesDB } from "../../../dblayer/servicesDB.js";
+import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import type { CapabilityFulfilmentRow, ParticipantRow, ParticipantType } from "../../../dblayer/seuTypes.js";
 
@@ -38,6 +40,20 @@ export async function fulfilCapability(input: {
   if (fulfilmentErr || !fulfilment) throw fulfilmentErr ?? new Error("failed to create capability fulfilment");
 
   await seuCapabilitiesDB.markFulfilled(seuCapability.id);
+
+  // CR-042 — dependency_definitions Capability-type rows are keyed by
+  // Service code, not the bare Capability code (materialiseDependencyGraph
+  // already expands one fromCapabilityCode into one row per Service that
+  // Capability provides), so push-evaluation fires once per Service here.
+  const { data: fulfilledServices } = await servicesDB.findByCapabilityId(input.capabilityId);
+  for (const service of fulfilledServices ?? []) {
+    await dependencyDefinitionEngine.evaluateAndPublishFromTransition({
+      seuId: input.seuId,
+      entityType: "Capability",
+      name: service.code,
+      newState: "Fulfilled",
+    });
+  }
 
   // Ch.13 §16 — about the Participant now existing, not about the
   // Capability being fulfilled (CapabilityFulfilled, published right below,

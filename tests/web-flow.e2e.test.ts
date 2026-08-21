@@ -31,7 +31,13 @@ import { appConfig } from "../src/config/appconfig.js";
 import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
-import { ensureWebAppTemplateFixture } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, registerTestOntologyCode, deleteTestOntologyCodes } from "./testFixtures.js";
+
+// CR-046 (owner: "the test script should use a code present in the
+// ontology") — Pack.code is Ontology-validated (capability-name) at publish
+// time now; the one real concept this file registers is tracked and cleaned
+// up here, same discipline as pack-sdk.test.ts's own.
+const createdOntologyCodes: Array<{ conceptType: string; code: string }> = [];
 
 type Session = ReturnType<typeof fetchCookie>;
 
@@ -48,6 +54,7 @@ before(async () => {
 });
 
 after(async () => {
+  await deleteTestOntologyCodes(createdOntologyCodes);
   await new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())));
   await pool.end();
 });
@@ -635,8 +642,10 @@ test("Phase 8 — a blocked Quality Gate and a failed External Interaction both 
 // Registry listing and the lifecycle-transition form.
 test("Phase 9 — a Pack published through the SDK is visible on the platform-wide Registry, and its lifecycle transitions over real HTTP", async () => {
   const request = newSession();
+  const packCode = await registerTestOntologyCode("capability-name", "webflow-phase9-pack");
+  createdOntologyCodes.push({ conceptType: "capability-name", code: packCode });
   const seed = {
-    code: `webflow-phase9-pack-${randomUUID()}`,
+    code: packCode,
     name: "WebFlow Phase9 Test Pack",
     category: "Engineering" as const,
     packVersion: "1.0.0",

@@ -198,16 +198,57 @@ export interface FieldGroups {
   metadata: GeneratedField[];
   compatibility: GeneratedField[];
   dependencies: GeneratedField | null;
+  // Template's own six category-scoped Pack pickers (CR-038) — split into
+  // their own tab (owner: "A tab for pack codes. In this tab show the
+  // categories") rather than crammed into Identity & Metadata alongside
+  // Code/Name/Purpose/Template Version. Profile shares four of these six
+  // field names (its own §7 category pickers) and picks up the same tab for
+  // free — purely name-driven, same "harmless for Template/Profile" grouping
+  // discipline this function already followed before this change.
+  packSelection: GeneratedField[];
+  // Template's deliverableCatalogue + dependencyGraph (CR-038/CR-041) — one
+  // tab, catalogue before graph, since the graph's toName picker resolves
+  // against the catalogue's own rows (owner: "A tab for deliverable
+  // catalogue. This is where the dependency graph should be").
+  deliverables: GeneratedField[];
   contributions: FieldGroup[];
   other: GeneratedField[];
 }
 
 const METADATA_FIELD_NAMES = new Set([
   "name", "owner", "category", "publisher", "description", "packVersion", "templateVersion", "installationClassification", "compositionStrategy", "purpose",
-  "code", "environment", "baseTemplateCode", "deliverableCatalogue", "requiredCapabilityCodes", "mandatoryPackCodes", "optionalPackCodes", "configParameters",
-  "profileVersion", "featureFlagCodes", "compositionOptions", "technologyPackCodes", "domainPackCodes", "compliancePackCodes", "integrationPackCodes",
+  "code", "environment", "baseTemplateCode", "requiredCapabilityCodes", "mandatoryPackCodes", "optionalPackCodes", "configParameters",
+  "profileVersion", "featureFlagCodes", "compositionOptions",
 ]);
 const COMPATIBILITY_FIELD_NAMES = new Set(["supportedPlatformVersion", "minSupportedPlatformVersion", "maxSupportedPlatformVersion", "incompatiblePackVersions", "migrationGuidance"]);
+// Bug fix in passing: engineeringPackCodes/organisationPackCodes/dependencyGraph
+// were missing from the old METADATA_FIELD_NAMES set entirely (never added
+// alongside their siblings in migrations 077/078/076), so they silently fell
+// into the catch-all `other` bucket instead of Identity & Metadata. Naming
+// them explicitly here, in their own dedicated groups, fixes that too.
+const PACK_SELECTION_FIELD_NAMES = new Set(["compliancePackCodes", "domainPackCodes", "engineeringPackCodes", "integrationPackCodes", "organisationPackCodes", "technologyPackCodes"]);
+const DELIVERABLES_FIELD_NAMES = new Set(["deliverableCatalogue", "dependencyGraph"]);
+
+// Owner: "Code, Name, Purpose, Template version" — the display order within
+// a group, independent of schema.properties' own key order (jsonb doesn't
+// preserve object-key insertion order, so generateFields()'s iteration order
+// isn't reliable to author-facing display order). Unlisted fields keep their
+// original relative order, appended after every listed one (Array.sort is
+// stable in Node, so this only ever pulls named fields forward).
+const FIELD_DISPLAY_ORDER = [
+  "code", "name", "purpose", "templateVersion", "profileVersion", "packVersion",
+  "owner", "publisher", "category", "description", "environment", "baseTemplateCode",
+  "installationClassification", "compositionStrategy",
+  "compliancePackCodes", "domainPackCodes", "engineeringPackCodes", "integrationPackCodes", "organisationPackCodes", "technologyPackCodes",
+  "deliverableCatalogue", "dependencyGraph",
+];
+function byDisplayOrder(a: GeneratedField, b: GeneratedField): number {
+  const ia = FIELD_DISPLAY_ORDER.indexOf(a.name);
+  const ib = FIELD_DISPLAY_ORDER.indexOf(b.name);
+  if (ia === -1) return ib === -1 ? 0 : 1;
+  if (ib === -1) return -1;
+  return ia - ib;
+}
 
 // "contributionQualityGates" -> "Quality Gates"; "contributionsCompliance" ->
 // "Compliance" (the one field using the "contributions" — plural — prefix).
@@ -216,14 +257,19 @@ function labelizeContribution(name: string): string {
 }
 
 export function groupFieldsForDisplay(fields: GeneratedField[]): FieldGroups {
-  const groups: FieldGroups = { metadata: [], compatibility: [], dependencies: null, contributions: [], other: [] };
+  const groups: FieldGroups = { metadata: [], compatibility: [], dependencies: null, packSelection: [], deliverables: [], contributions: [], other: [] };
   for (const f of fields) {
     if (f.name === "dependencies") { groups.dependencies = f; continue; }
     if (/^contributions?[A-Z]/.test(f.name)) { groups.contributions.push({ key: f.name, label: labelizeContribution(f.name), field: f }); continue; }
     if (COMPATIBILITY_FIELD_NAMES.has(f.name)) { groups.compatibility.push(f); continue; }
+    if (PACK_SELECTION_FIELD_NAMES.has(f.name)) { groups.packSelection.push(f); continue; }
+    if (DELIVERABLES_FIELD_NAMES.has(f.name)) { groups.deliverables.push(f); continue; }
     if (METADATA_FIELD_NAMES.has(f.name)) { groups.metadata.push(f); continue; }
     groups.other.push(f);
   }
+  groups.metadata.sort(byDisplayOrder);
+  groups.packSelection.sort(byDisplayOrder);
+  groups.deliverables.sort(byDisplayOrder);
   return groups;
 }
 

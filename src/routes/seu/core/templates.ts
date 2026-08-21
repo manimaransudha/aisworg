@@ -4,8 +4,11 @@ import { packsDB } from "../../../dblayer/packsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
+import { materialiseDependencyGraph } from "../../../domain/engine/materialiseDependencyGraph.js";
+import { dependencyDefinitionsDB } from "../../../dblayer/dependencyDefinitionsDB.js";
+import { assertCanonicalCategory } from "./ontology.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
-import type { TemplateDeliverableSeed, TemplateRow } from "../../../dblayer/seuTypes.js";
+import type { TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../../../dblayer/seuTypes.js";
 
 export interface TemplateCandidate {
   id: string;
@@ -74,9 +77,29 @@ export interface TemplateSeedInput {
   name: string;
   // CR-024 — versioning/immutability, mirroring Pack (Ch.41 VM-002) exactly.
   templateVersion: string;
-  requiredCapabilityCodes: string[];
-  mandatoryPackCodes: string[];
+  // CR-038 — requiredCapabilityCodes is no longer authored input at all
+  // (owner: "The Required Capability codes need not be an UI field. It is
+  // derived from the selections the user makes") — computed by
+  // deriveCapabilityCodesFromPackCodes from whichever Packs are selected
+  // below, always, not read from anywhere. mandatoryPackCodes is likewise
+  // replaced by six category-scoped slots — the real category:pack
+  // vocabulary in full (Compliance/Domain/Engineering/Integration/
+  // Organisation/Technology) — mirroring Profile's own four-slot
+  // technologyPackCodes/domainPackCodes/compliancePackCodes/
+  // integrationPackCodes model (migration 067) exactly, extended to all six
+  // since a Template's mandatory Packs (unlike Profile's optional
+  // supplements) can span any category.
+  compliancePackCodes?: string[];
+  domainPackCodes?: string[];
+  engineeringPackCodes?: string[];
+  integrationPackCodes?: string[];
+  organisationPackCodes?: string[];
+  technologyPackCodes?: string[];
   deliverableCatalogue: TemplateDeliverableSeed[];
+  // CR-041 — the dependency graph, authored explicitly (not embedded per
+  // deliverableCatalogue entry). Optional: a catalogue with no dependencies
+  // (e.g. a single-Deliverable Template) has nothing to declare here.
+  dependencyGraph?: TemplateDependencyGraphEntry[];
   // CR-026 — Template ownership, mirroring PackSeedInput.tenantId. Optional:
   // seed scripts/the CLI publishing with no human author default to Platform
   // (templatesDB.upsert's own default); interactive authoring always sets it
@@ -95,47 +118,114 @@ export type TemplateValidationResult = { ok: true } | { ok: false; errors: strin
 
 const SEMVER_RE = /^\d+\.\d+\.\d+$/;
 
+// CR-038 — the real category:pack vocabulary in full. Each slot's Pack
+// codes are cross-checked against that Pack's OWN category (mirrors
+// Profile's PACK_SELECTION_SLOTS, core/profiles.ts, exactly) — a code
+// resolving to *some* Pack isn't enough; it must actually be categorised the
+// way the slot it was put in claims.
+export const PACK_SELECTION_SLOTS: Array<{ field: keyof TemplateSeedInput; listKind: string; packCategory: string }> = [
+  { field: "compliancePackCodes", listKind: "compliance", packCategory: "Compliance" },
+  { field: "domainPackCodes", listKind: "domain", packCategory: "Domain" },
+  { field: "engineeringPackCodes", listKind: "engineering", packCategory: "Engineering" },
+  { field: "integrationPackCodes", listKind: "integration", packCategory: "Integration" },
+  { field: "organisationPackCodes", listKind: "organisation", packCategory: "Organisation" },
+  { field: "technologyPackCodes", listKind: "technology", packCategory: "Technology" },
+];
+
+// Every Pack code selected across all six category slots, deduplicated —
+// the set whose contributed Capabilities become requiredCapabilityCodes,
+// and whose union is what Template Inheritance's superset rule checks.
+function collectAllPackCodes(seed: TemplateSeedInput): string[] {
+  return [...new Set(PACK_SELECTION_SLOTS.flatMap((slot) => (seed[slot.field] as string[] | undefined) ?? []))];
+}
+
+// CR-038 — "The Required Capability codes need not be a UI field. It is
+// derived from the selections the user makes." Resolves each selected Pack
+// code to its currently-Active row, then every Capability that Pack
+// contributed (originating_pack_id) — never read from anywhere, always
+// computed fresh from the live selection, at both publish time and
+// (separately, in the web route) render time for producingCapabilityCode's
+// own options.
+export async function deriveCapabilityCodesFromPackCodes(packCodes: string[]): Promise<string[]> {
+  const packIds: string[] = [];
+  for (const code of packCodes) {
+    const { data: pack } = await packsDB.findActiveByCode(code);
+    if (pack) packIds.push(pack.id);
+  }
+  if (packIds.length === 0) return [];
+  const { data: capabilities } = await capabilitiesDB.findByOriginatingPackIds(packIds);
+  return [...new Set((capabilities ?? []).map((c) => c.code))];
+}
+
 export async function validateTemplateSeed(seed: TemplateSeedInput): Promise<TemplateValidationResult> {
   const errors: string[] = [];
-  if (!seed.code?.trim()) errors.push("code is required");
   if (!seed.name?.trim()) errors.push("name is required");
   if (!SEMVER_RE.test(seed.templateVersion ?? "")) errors.push(`templateVersion must be semver (x.y.z), got: "${seed.templateVersion}"`);
-
-  for (const code of seed.requiredCapabilityCodes ?? []) {
-    const { data } = await capabilitiesDB.findByCodes([code]);
-    if (!data?.[0]) errors.push(`requiredCapabilityCodes references unknown Capability "${code}"`);
+  // CR-046 bug fix (owner: "why are test scripts adding code that is not in
+  // the ontology??? I thought we fixed this") — code (migration 054,
+  // template-categories, x-ontology: true) was never actually checked
+  // server-side, only constrained by the browser's own dropdown — mirrors
+  // validatePackSeed's identical fix for Pack.code, same real gap.
+  try {
+    await assertCanonicalCategory("template-categories", seed.code ?? "", { isRoot: false, tenantId: seed.tenantId ?? PLATFORM_TENANT_ID });
+  } catch (err) {
+    errors.push((err as Error).message);
   }
-  for (const code of seed.mandatoryPackCodes ?? []) {
-    const { data } = await packsDB.findByCode(code);
-    if (!data) errors.push(`mandatoryPackCodes references unknown Pack code "${code}"`);
+
+  for (const slot of PACK_SELECTION_SLOTS) {
+    const codes = (seed[slot.field] as string[] | undefined) ?? [];
+    for (const code of codes) {
+      const { data: pack } = await packsDB.findByCode(code);
+      if (!pack) errors.push(`${String(slot.field)} references unknown Pack code "${code}"`);
+      else if (pack.category !== slot.packCategory) errors.push(`${String(slot.field)} references Pack "${code}" whose category is "${pack.category}", not "${slot.packCategory}"`);
+    }
   }
 
-  const seenDeliverableCodes = new Set<string>();
+  const derivedCapabilityCodes = await deriveCapabilityCodesFromPackCodes(collectAllPackCodes(seed));
+
+  const seenDeliverableNames = new Set<string>();
   for (const entry of seed.deliverableCatalogue ?? []) {
-    if (!entry.code?.trim()) errors.push("deliverableCatalogue entry is missing a code");
-    if (!entry.name?.trim()) errors.push(`deliverableCatalogue entry "${entry.code}" is missing a name`);
-    if (!entry.category?.trim()) errors.push(`deliverableCatalogue entry "${entry.code}" is missing a category`);
-    if (entry.producingCapabilityCode && !(seed.requiredCapabilityCodes ?? []).includes(entry.producingCapabilityCode)) {
-      errors.push(`deliverableCatalogue entry "${entry.code}" producingCapabilityCode "${entry.producingCapabilityCode}" is not in requiredCapabilityCodes`);
+    if (!entry.name?.trim()) errors.push("deliverableCatalogue entry is missing a name");
+    if (!entry.category?.trim()) errors.push(`deliverableCatalogue entry "${entry.name}" is missing a category`);
+    if (entry.name && seenDeliverableNames.has(entry.name)) errors.push(`deliverableCatalogue entry "${entry.name}" is a duplicate — names must be unique within one Template's catalogue`);
+    if (entry.producingCapabilityCode && !derivedCapabilityCodes.includes(entry.producingCapabilityCode)) {
+      errors.push(`deliverableCatalogue entry "${entry.name}" producingCapabilityCode "${entry.producingCapabilityCode}" is not among the Capabilities the selected Packs contribute`);
     }
-    // Referential check the schema itself can't express (SDK UI Layer Plan):
-    // dependsOnDeliverableCodes must reference an entry earlier in this same
-    // catalogue, checked live, not as a grammar constraint.
-    for (const dep of entry.dependsOnDeliverableCodes ?? []) {
-      if (!seenDeliverableCodes.has(dep)) {
-        errors.push(`deliverableCatalogue entry "${entry.code}" dependsOnDeliverableCodes references "${dep}", which must appear earlier in the catalogue`);
+    if (entry.name) seenDeliverableNames.add(entry.name);
+  }
+
+  // CR-041 — referential checks the schema itself can't express: toName/
+  // fromName must resolve to a real catalogue entry (by name — bug fix, see
+  // TemplateDependencyGraphEntry's own comment, seuTypes.ts); fromCapabilityCode
+  // must resolve to a real, derived Capability. Cycle detection (a
+  // dependencyGraph entry whose toName is transitively its own prerequisite)
+  // is deliberately not checked here — parked as CR-041's own authoring-time
+  // widget concern, not a structural/referential validation.
+  for (const entry of seed.dependencyGraph ?? []) {
+    if (!seenDeliverableNames.has(entry.toName)) {
+      errors.push(`dependencyGraph entry toName "${entry.toName}" does not match a deliverableCatalogue entry`);
+    }
+    if (entry.fromType === "Deliverable") {
+      if (!entry.fromName || !seenDeliverableNames.has(entry.fromName)) {
+        errors.push(`dependencyGraph entry (toName "${entry.toName}") fromName "${entry.fromName}" does not match a deliverableCatalogue entry`);
       }
+    } else if (entry.fromType === "Capability") {
+      if (!entry.fromCapabilityCode || !derivedCapabilityCodes.includes(entry.fromCapabilityCode)) {
+        errors.push(`dependencyGraph entry (toName "${entry.toName}") fromCapabilityCode "${entry.fromCapabilityCode}" is not among the Capabilities the selected Packs contribute`);
+      }
+    } else {
+      errors.push(`dependencyGraph entry (toName "${entry.toName}") has an unrecognised fromType "${entry.fromType}"`);
     }
-    if (entry.code) seenDeliverableCodes.add(entry.code);
   }
 
   // CR-026 Template Inheritance (Ch.6 §9, owner: "All mandatory packs in the
   // parent template have to remain mandatory in the inherited one also"): a
   // Derived Template's identity is locked to its parent's code (enforced at
-  // Draft creation, not re-litigated here) and its mandatoryPackCodes must
-  // stay a superset of the parent's CURRENT mandatory set — checked live, not
-  // frozen at inheritance time, so a parent that later adds a mandatory Pack
-  // still binds its existing children.
+  // Draft creation, not re-litigated here) and its mandatory Packs (union
+  // across all six category slots now, CR-038) must stay a superset of the
+  // parent's CURRENT mandatory set — checked live, not frozen at inheritance
+  // time, so a parent that later adds a mandatory Pack still binds its
+  // existing children.
   if (seed.parentTemplateId) {
     const { data: parent } = await templatesDB.findById(seed.parentTemplateId);
     if (!parent) {
@@ -145,7 +235,8 @@ export async function validateTemplateSeed(seed: TemplateSeedInput): Promise<Tem
         errors.push(`an inherited Template must keep its parent's code ("${parent.code}") — Derived Templates shall not modify parent Templates (Ch.6 §9)`);
       }
       const { data: parentMandatory } = await templatesDB.getMandatoryPackCodes(parent.id);
-      const missing = (parentMandatory ?? []).filter((code) => !(seed.mandatoryPackCodes ?? []).includes(code));
+      const allSeedPackCodes = collectAllPackCodes(seed);
+      const missing = (parentMandatory ?? []).filter((code) => !allSeedPackCodes.includes(code));
       if (missing.length > 0) {
         errors.push(`an inherited Template must keep all of its parent's mandatory Packs — missing: ${missing.join(", ")}`);
       }
@@ -153,6 +244,70 @@ export async function validateTemplateSeed(seed: TemplateSeedInput): Promise<Tem
   }
 
   return errors.length > 0 ? { ok: false, errors } : { ok: true };
+}
+
+export type PackSelectionsByCategory = Pick<TemplateSeedInput, "compliancePackCodes" | "domainPackCodes" | "engineeringPackCodes" | "integrationPackCodes" | "organisationPackCodes" | "technologyPackCodes">;
+
+// CR-038 — for reactivateAsNewVersion/copyTemplateAsNewDraft/
+// inheritedTemplateContent (sdkAuthoring.ts) carrying a Template's current
+// Pack selections forward into a new Draft, bucketed by category for
+// display. Deliberately reads via getMandatoryPackCodes (every row for this
+// Template, regardless of list_kind) and resolves each code's own REAL
+// category (packsDB.findByCode) rather than trusting which list_kind slot
+// it happens to be stored under — every seed script (and the pre-CR-038
+// data they've already written) stores mandatory Packs under the flat
+// 'mandatory' list_kind, not the six new category-specific ones, so reading
+// only the new slots would see nothing at all for any seed-created Template
+// (breaking inheritance/copy of every one of them). Resolving by the Pack's
+// own real category makes this correct regardless of which list_kind wrote
+// the row — old flat writes and new category-scoped writes both land in the
+// right bucket.
+export async function getPackSelectionsByCategory(templateId: string): Promise<PackSelectionsByCategory> {
+  const { data: allCodes } = await templatesDB.getMandatoryPackCodes(templateId);
+  const result: PackSelectionsByCategory = {};
+  for (const slot of PACK_SELECTION_SLOTS) result[slot.field as keyof PackSelectionsByCategory] = [];
+  for (const code of allCodes ?? []) {
+    const { data: pack } = await packsDB.findByCode(code);
+    const slot = PACK_SELECTION_SLOTS.find((s) => s.packCategory === pack?.category);
+    if (slot) (result[slot.field as keyof PackSelectionsByCategory] as string[]).push(code);
+  }
+  return result;
+}
+
+// CR-045 follow-up — the view page's own read source for a Template that
+// isn't a Draft (owner: "Why is the seed data not populating a dependency
+// graph for the templates?" — it was: dependency_definitions rows are real
+// and correctly materialised by every seed path, but getAuthoringDraft only
+// ever read draft_content, which stays empty for any Template created
+// outside the authoring form itself, e.g. seedSdlcStandardTemplates.ts).
+// Reconstructs the real, currently-materialised graph — not the originally
+// AUTHORED seed shape: a Capability-type row's own fromCapabilityCode isn't
+// stored anywhere once materialised (dependency_definitions is Service-code
+// keyed, one row per Service that Capability provides — CR-042's own note on
+// the same expansion), so this surfaces the real Service code(s) in fromName
+// instead, which is accurate information, just not round-trippable back into
+// a single authored fromCapabilityCode row.
+export async function getDependencyGraphContent(templateId: string): Promise<TemplateDependencyGraphEntry[]> {
+  const { data: rows } = await dependencyDefinitionsDB.findByOwner("Template", templateId);
+  return (rows ?? []).map((r) => ({
+    toName: r.to_name,
+    fromType: r.from_entity_type as "Deliverable" | "Capability",
+    fromName: r.from_name ?? "",
+    requiredState: r.from_state,
+  }));
+}
+
+// CR-038 — shared by publishTemplate and materialiseTemplateDraft: write the
+// six category-scoped Pack selections, then derive and store
+// requiredCapabilityCodes fresh from that same selection (never read from
+// the seed itself — there's nothing to read, it's not an input any more).
+async function materialisePackSelectionsAndCapabilities(templateId: string, seed: TemplateSeedInput): Promise<void> {
+  for (const slot of PACK_SELECTION_SLOTS) {
+    await templatesDB.setPackSelection(templateId, slot.listKind, (seed[slot.field] as string[] | undefined) ?? []);
+  }
+  const derivedCapabilityCodes = await deriveCapabilityCodesFromPackCodes(collectAllPackCodes(seed));
+  const { data: capabilities } = await capabilitiesDB.findByCodes(derivedCapabilityCodes);
+  await templatesDB.setRequiredCapabilities(templateId, (capabilities ?? []).map((c) => c.id));
 }
 
 export type PublishTemplateResult = { ok: true; templateId: string } | { ok: false; errors: string[] };
@@ -170,13 +325,13 @@ export async function publishTemplate(seed: TemplateSeedInput): Promise<PublishT
   const { data: template, error } = await templatesDB.upsert({ code: seed.code, name: seed.name, templateVersion: seed.templateVersion, deliverableCatalogue: seed.deliverableCatalogue, tenantId: seed.tenantId });
   if (error || !template) return { ok: false, errors: [(error ?? new Error("failed to upsert template")).message] };
 
-  const capabilityIds: string[] = [];
-  for (const code of seed.requiredCapabilityCodes ?? []) {
-    const { data } = await capabilitiesDB.findByCodes([code]);
-    if (data?.[0]) capabilityIds.push(data[0].id);
-  }
-  await templatesDB.setRequiredCapabilities(template.id, capabilityIds);
-  await templatesDB.setMandatoryPacks(template.id, seed.mandatoryPackCodes ?? []);
+  await materialisePackSelectionsAndCapabilities(template.id, seed);
+  await materialiseDependencyGraph({
+    owningEntityType: "Template",
+    owningEntityId: template.id,
+    deliverableCatalogue: seed.deliverableCatalogue ?? [],
+    dependencyGraph: seed.dependencyGraph ?? [],
+  });
 
   // CR-025 — real named events (Ch.6 §16), mirroring PackRegistered
   // (core/packs.ts's createPackDraft) exactly, including the same asymmetry:
@@ -284,14 +439,12 @@ async function nextAvailablePatchVersion(code: string, fromVersion: string, tena
 // column reads.
 async function reactivateAsNewVersion(template: TemplateRow, actorRole: string, actorId: string | undefined): Promise<TransitionTemplateResult> {
   const nextVersion = await nextAvailablePatchVersion(template.code, template.template_version, template.tenant_id);
-  const { data: requiredCaps } = await templatesDB.getRequiredCapabilities(template.id);
-  const { data: mandatoryPackCodes } = await templatesDB.getMandatoryPackCodes(template.id);
+  const packSelections = await getPackSelectionsByCategory(template.id);
   const seed: TemplateSeedInput = {
     code: template.code,
     name: template.name,
     templateVersion: nextVersion,
-    requiredCapabilityCodes: (requiredCaps ?? []).map((c) => c.code),
-    mandatoryPackCodes: mandatoryPackCodes ?? [],
+    ...packSelections,
     deliverableCatalogue: template.deliverable_catalogue,
     // Reactivation is versioning, not a change of ownership or lineage — the
     // new Version stays owned by the same tenant and keeps the same parent
@@ -345,15 +498,20 @@ export async function copyTemplateAsNewDraft(templateId: string, actorId: string
   const { data: source } = await templatesDB.findById(templateId);
   if (!source) return { ok: false, errors: ["Template not found"] };
   const nextVersion = await nextAvailablePatchVersion(source.code, source.template_version, source.tenant_id);
-  const { data: requiredCaps } = await templatesDB.getRequiredCapabilities(source.id);
-  const { data: mandatoryPackCodes } = await templatesDB.getMandatoryPackCodes(source.id);
+  const packSelections = await getPackSelectionsByCategory(source.id);
   const purpose = typeof (source.draft_content as Record<string, unknown> | null)?.purpose === "string" ? (source.draft_content as Record<string, unknown>).purpose : undefined;
   const draftContent = {
     code: source.code,
     name: source.name,
     purpose,
-    requiredCapabilityCodes: (requiredCaps ?? []).map((c) => c.code),
-    mandatoryPackCodes: (mandatoryPackCodes ?? []).map((packCode) => ({ packCode })),
+    // CR-038 — form-posted row shape ({packCode} objects), matching how
+    // parseFormBody reconstructs a referential-list field from a real POST —
+    // this draftContent is what re-opening the copied Draft in the form
+    // renders from, same convention this function already used for Packs
+    // before requiredCapabilityCodes/mandatoryPackCodes existed as a flat
+    // pair. requiredCapabilityCodes is omitted entirely — it's derived, not
+    // stored content, so there's nothing to copy forward.
+    ...Object.fromEntries(PACK_SELECTION_SLOTS.map((slot) => [slot.field, ((packSelections[slot.field as keyof PackSelectionsByCategory] as string[] | undefined) ?? []).map((packCode) => ({ packCode }))])),
     deliverableCatalogue: source.deliverable_catalogue,
   };
   const { data: newDraft, error } = await templatesDB.createDraft({
@@ -415,14 +573,14 @@ export async function advanceTemplateOneStep(template: TemplateRow, actorRole: s
 // content is already real (same discipline Pack's own Draft-only validation
 // gate uses — core/sdkAuthoring.ts's publishAuthoringDraft calls both).
 export async function materialiseTemplateDraft(templateId: string, seed: TemplateSeedInput): Promise<void> {
-  const capabilityIds: string[] = [];
-  for (const code of seed.requiredCapabilityCodes ?? []) {
-    const { data } = await capabilitiesDB.findByCodes([code]);
-    if (data?.[0]) capabilityIds.push(data[0].id);
-  }
   await templatesDB.setDeliverableCatalogue(templateId, seed.deliverableCatalogue ?? []);
-  await templatesDB.setRequiredCapabilities(templateId, capabilityIds);
-  await templatesDB.setMandatoryPacks(templateId, seed.mandatoryPackCodes ?? []);
+  await materialisePackSelectionsAndCapabilities(templateId, seed);
+  await materialiseDependencyGraph({
+    owningEntityType: "Template",
+    owningEntityId: templateId,
+    deliverableCatalogue: seed.deliverableCatalogue ?? [],
+    dependencyGraph: seed.dependencyGraph ?? [],
+  });
 }
 
 export interface TemplateWithNextStates {

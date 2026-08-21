@@ -158,7 +158,6 @@ const USAGE_DATA_TABLES = [
   "capability_fulfilments",
   "seu_capabilities",
   "participants",
-  "dependency_edges",
   "deliverable_authoring_content",
   "deliverables",
   "ebms",
@@ -231,7 +230,15 @@ async function run(): Promise<void> {
     // profile would block deleting the template it points at if templates
     // went first). Cascades template_capabilities, template_packs,
     // profile_packs automatically (real ON DELETE CASCADE FKs, confirmed
-    // against the schema). No bootstrap-code exclusion any more: the SDK
+    // against the schema). dependency_definitions (CR-039, migration 072;
+    // CR-043, migration 074) does NOT cascade any more — its owner is
+    // polymorphic (Template/Pack/Profile), which Postgres can't express as a
+    // real FK, so Template/Profile-owned rows are deleted explicitly here
+    // before their owner goes; Pack-owned rows are handled in step 2c below,
+    // alongside non-base Pack deletion. Every Template's own rows are
+    // re-materialised fresh from its own authored dependencyGraph by
+    // seedSdlcStandardTemplates()'s own call to materialiseDependencyGraph in
+    // step 7 anyway. No bootstrap-code exclusion any more: the SDK
     // authoring bootstrap Templates/Profiles were themselves deleted as
     // vestigial (owner, 2026-08-19 — sdkAuthoring.ts's own header already
     // called them out as unused by entity-direct authoring; the SDK UI's
@@ -239,9 +246,14 @@ async function run(): Promise<void> {
     // against one of these) — nothing survives step 2a needing protection
     // any more. Matches the README's own claim: "a clean-slate database has
     // no commissionable Template."
+    const dependencyDefsForTemplatesProfilesDeleted = await client.query(
+      "DELETE FROM dependency_definitions WHERE owning_entity_type IN ('Template', 'Profile')"
+    );
     const profilesDeleted = await client.query("DELETE FROM profiles");
     const templatesDeleted = await client.query("DELETE FROM templates");
-    logger.info(`[db:clean-slate] step 2a — deleted ${profilesDeleted.rowCount} profiles, ${templatesDeleted.rowCount} templates.`);
+    logger.info(
+      `[db:clean-slate] step 2a — deleted ${dependencyDefsForTemplatesProfilesDeleted.rowCount} Template/Profile-owned dependency_definitions rows, ${profilesDeleted.rowCount} profiles, ${templatesDeleted.rowCount} templates.`
+    );
 
     // Step 2b — vocabulary rows attributed to a non-base Pack. Order matters:
     // services must go before capabilities (services.providing_capability_id
@@ -295,9 +307,18 @@ async function run(): Promise<void> {
     // policies, quality_gates, services) has already been filtered above.
     // template_packs/profile_packs store the Pack's code as plain text, not
     // an FK (013_template_profile_pack_by_code.sql) — Pack deletion was
-    // never blocked by them.
+    // never blocked by them. dependency_definitions rows owned by a
+    // non-base Pack (CR-043's polymorphic owner — no real FK, so these
+    // would otherwise orphan silently rather than block or cascade) are
+    // cleaned up first, same as step 2a does for Template/Profile owners —
+    // no real Pack-owned rows exist today (nothing authors them yet), but
+    // this keeps the invariant true once something does.
+    const dependencyDefsForPacksDeleted = await client.query(
+      "DELETE FROM dependency_definitions WHERE owning_entity_type = 'Pack' AND owning_entity_id NOT IN (SELECT id FROM packs WHERE code = ANY($1::text[]))",
+      [BASE_PACK_CODES]
+    );
     const packsDeleted = await client.query("DELETE FROM packs WHERE code != ALL($1::text[])", [BASE_PACK_CODES]);
-    logger.info(`[db:clean-slate] step 2c — deleted ${packsDeleted.rowCount} non-base packs.`);
+    logger.info(`[db:clean-slate] step 2c — deleted ${dependencyDefsForPacksDeleted.rowCount} non-base-Pack-owned dependency_definitions rows, ${packsDeleted.rowCount} non-base packs.`);
 
     // Step 2d — non-reserved Tenants (and everything FK-bound to them). The
     // reserved tenants are fixtures that must survive: 'default' (commissioning

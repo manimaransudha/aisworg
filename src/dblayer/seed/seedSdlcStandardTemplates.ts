@@ -26,7 +26,9 @@ import { templatesDB } from "../templatesDB.js";
 import { profilesDB } from "../profilesDB.js";
 import { capabilitiesDB } from "../capabilitiesDB.js";
 import { packsDB } from "../packsDB.js";
-import type { TemplateDeliverableSeed } from "../seuTypes.js";
+import { materialiseDependencyGraph } from "../../domain/engine/materialiseDependencyGraph.js";
+import { deriveCapabilityCodesFromPackCodes } from "../../routes/seu/core/templates.js";
+import type { TemplateDeliverableSeed, TemplateDependencyGraphEntry } from "../seuTypes.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "data");
@@ -39,9 +41,9 @@ interface TemplateSeed {
   code: string;
   templateVersion?: string;
   name: string;
-  requiredCapabilityCodes: string[];
   mandatoryPackCodes: string[];
   deliverableCatalogue: TemplateDeliverableSeed[];
+  dependencyGraph?: TemplateDependencyGraphEntry[];
 }
 
 interface ProfileSeed {
@@ -78,20 +80,32 @@ async function seedOne(templateFile: string, profileFile: string): Promise<void>
   });
   if (error || !template) throw error ?? new Error(`template upsert failed: ${templateSeed.code}`);
 
-  const { data: capabilities } = await capabilitiesDB.findByCodes(templateSeed.requiredCapabilityCodes);
-  const capabilityIdByCode = new Map((capabilities ?? []).map((c) => [c.code, c.id]));
-  const requiredCapabilityIds = templateSeed.requiredCapabilityCodes.map((code) => {
-    const id = capabilityIdByCode.get(code);
-    if (!id) throw new Error(`template ${templateSeed.code} requires unknown capability ${code} — did seedSdlcPhasePacks run first, and does platform-core-engineering already exist?`);
-    return id;
+  // CR-039/CR-041 — the Template's canonical dependency graph is materialised
+  // here, at authoring/seed time, not per-SEU at commissioning
+  // (dependency_definitions is Template-scoped; it must already fully exist
+  // independent of whether anything has been commissioned from this Template
+  // yet). dependencyGraph is now the real authored source (no more deriving
+  // it from embedded per-entry codes).
+  await materialiseDependencyGraph({
+    owningEntityType: "Template",
+    owningEntityId: template.id,
+    deliverableCatalogue: templateSeed.deliverableCatalogue,
+    dependencyGraph: templateSeed.dependencyGraph ?? [],
   });
-  await templatesDB.setRequiredCapabilities(template.id, requiredCapabilityIds);
 
   for (const code of templateSeed.mandatoryPackCodes) {
     const { data: pack } = await packsDB.findByCode(code);
     if (!pack) throw new Error(`template ${templateSeed.code} requires unknown pack ${code} — did seedSdlcPhasePacks run first, and does platform-core-engineering already exist?`);
   }
   await templatesDB.setMandatoryPacks(template.id, templateSeed.mandatoryPackCodes);
+
+  // CR-038 — requiredCapabilityCodes is derived from the real mandatory-Pack
+  // selection now, same as the live authoring form does, not read from the
+  // seed's own (now removed) hand-typed field — "no bridge" applies here too:
+  // this is the same derivation, not a second, possibly-stale source of truth.
+  const derivedCapabilityCodes = await deriveCapabilityCodesFromPackCodes(templateSeed.mandatoryPackCodes);
+  const { data: capabilities } = await capabilitiesDB.findByCodes(derivedCapabilityCodes);
+  await templatesDB.setRequiredCapabilities(template.id, (capabilities ?? []).map((c) => c.id));
 
   logger.info(`[seed:sdlc-standard-templates] template ${template.code}@${template.template_version} -> ${template.id}`);
 

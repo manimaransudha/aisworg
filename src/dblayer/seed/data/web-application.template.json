@@ -1,30 +1,46 @@
 {
   "code": "enterprise-web-application",
   "name": "Web Application",
-  "requiredCapabilityCodes": ["requirements-analysis", "architecture", "development"],
-  "mandatoryPackCodes": ["platform-core-engineering"],
+  "mandatoryPackCodes": [
+    "platform-core-engineering"
+  ],
   "deliverableCatalogue": [
     {
-      "code": "requirements-spec",
       "name": "Requirements Specification",
       "category": "Documentation",
       "producingCapabilityCode": "requirements-analysis"
     },
     {
-      "code": "architecture-doc",
       "name": "Architecture Document",
       "category": "Documentation",
-      "producingCapabilityCode": "architecture",
-      "dependsOnDeliverableCodes": ["requirements-spec"],
-      "dependsOnCapabilityServiceCodes": ["requirements-analysis"]
+      "producingCapabilityCode": "architecture"
     },
     {
-      "code": "source-code",
       "name": "Source Code",
       "category": "Implementation",
-      "producingCapabilityCode": "development",
-      "dependsOnDeliverableCodes": ["architecture-doc"],
-      "dependsOnCapabilityServiceCodes": ["architecture"]
+      "producingCapabilityCode": "development"
+    }
+  ],
+  "dependencyGraph": [
+    {
+      "toName": "Architecture Document",
+      "fromType": "Deliverable",
+      "fromName": "Requirements Specification"
+    },
+    {
+      "toName": "Architecture Document",
+      "fromType": "Capability",
+      "fromCapabilityCode": "requirements-analysis"
+    },
+    {
+      "toName": "Source Code",
+      "fromType": "Deliverable",
+      "fromName": "Architecture Document"
+    },
+    {
+      "toName": "Source Code",
+      "fromType": "Capability",
+      "fromCapabilityCode": "architecture"
     }
   ]
 }

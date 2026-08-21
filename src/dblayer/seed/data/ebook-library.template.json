@@ -10,45 +10,92 @@
     "development",
     "code-review"
   ],
-  "mandatoryPackCodes": ["platform-core-engineering", "domain-ebook-library"],
+  "mandatoryPackCodes": [
+    "platform-core-engineering",
+    "domain-ebook-library"
+  ],
   "deliverableCatalogue": [
     {
-      "code": "requirements-spec",
       "name": "Requirements Specification",
       "category": "Documentation",
       "producingCapabilityCode": "requirements-analysis"
     },
     {
-      "code": "architecture-doc",
       "name": "Architecture Document",
       "category": "Documentation",
-      "producingCapabilityCode": "architecture",
-      "dependsOnDeliverableCodes": ["requirements-spec"],
-      "dependsOnCapabilityServiceCodes": ["requirements-analysis"]
+      "producingCapabilityCode": "architecture"
     },
     {
-      "code": "catalog-metadata-design",
       "name": "Catalog Metadata Design",
       "category": "Documentation",
-      "producingCapabilityCode": "catalog-management",
-      "dependsOnDeliverableCodes": ["architecture-doc"],
-      "dependsOnCapabilityServiceCodes": ["architecture"]
+      "producingCapabilityCode": "catalog-management"
     },
     {
-      "code": "circulation-rules-spec",
       "name": "Circulation Rules Specification",
       "category": "Documentation",
-      "producingCapabilityCode": "circulation-management",
-      "dependsOnDeliverableCodes": ["architecture-doc"],
-      "dependsOnCapabilityServiceCodes": ["architecture"]
+      "producingCapabilityCode": "circulation-management"
     },
     {
-      "code": "source-code",
       "name": "Source Code",
       "category": "Implementation",
-      "producingCapabilityCode": "development",
-      "dependsOnDeliverableCodes": ["catalog-metadata-design", "circulation-rules-spec"],
-      "dependsOnCapabilityServiceCodes": ["catalog-management", "circulation-management", "code-review"]
+      "producingCapabilityCode": "development"
+    }
+  ],
+  "dependencyGraph": [
+    {
+      "toName": "Architecture Document",
+      "fromType": "Deliverable",
+      "fromName": "Requirements Specification"
+    },
+    {
+      "toName": "Architecture Document",
+      "fromType": "Capability",
+      "fromCapabilityCode": "requirements-analysis"
+    },
+    {
+      "toName": "Catalog Metadata Design",
+      "fromType": "Deliverable",
+      "fromName": "Architecture Document"
+    },
+    {
+      "toName": "Catalog Metadata Design",
+      "fromType": "Capability",
+      "fromCapabilityCode": "architecture"
+    },
+    {
+      "toName": "Circulation Rules Specification",
+      "fromType": "Deliverable",
+      "fromName": "Architecture Document"
+    },
+    {
+      "toName": "Circulation Rules Specification",
+      "fromType": "Capability",
+      "fromCapabilityCode": "architecture"
+    },
+    {
+      "toName": "Source Code",
+      "fromType": "Deliverable",
+      "fromName": "Catalog Metadata Design"
+    },
+    {
+      "toName": "Source Code",
+      "fromType": "Deliverable",
+      "fromName": "Circulation Rules Specification"
+    },
+    {
+      "toName": "Source Code",
+      "fromType": "Capability",
+      "fromCapabilityCode": "catalog-management"
+    },
+    {
+      "toName": "Source Code",
+      "fromType": "Capability",
+      "fromCapabilityCode": "circulation-management"
+    },
+    {
+      "toName": "Source Code",
+      "fromType": "Capability",
+      "fromCapabilityCode": "code-review"
     }
   ]
 }

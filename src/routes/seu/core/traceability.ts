@@ -17,7 +17,10 @@
 // live call into any tenant VCS or orchestrator, and it works identically
 // regardless of which provider produced the references (they are opaque here).
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
-import { dependencyEdgesDB } from "../../../dblayer/dependencyEdgesDB.js";
+import { seusDB } from "../../../dblayer/seusDB.js";
+import { ebmsDB } from "../../../dblayer/ebmsDB.js";
+import { dependencyDefinitionsDB, type DependencyOwningScope } from "../../../dblayer/dependencyDefinitionsDB.js";
+import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
 import { attestationsDB } from "../../../dblayer/attestationsDB.js";
 import { deliverableReferencesDB } from "../../../dblayer/deliverableReferencesDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
@@ -95,17 +98,28 @@ async function participantLabel(participantId: string | null): Promise<string | 
   return data ? `${data.display_name} (${data.type})` : "(unknown Participant)";
 }
 
+// CR-043 — the SEU's full owning scope (Template + every composed Pack +
+// Profile), for the two dependency_definitions lookups below.
+async function resolveOwningScope(seu: { template_id: string; profile_id: string; active_ebm_id: string | null }): Promise<DependencyOwningScope> {
+  const { data: ebm } = seu.active_ebm_id ? await ebmsDB.findById(seu.active_ebm_id) : { data: null };
+  return { templateId: seu.template_id, profileId: seu.profile_id, packIds: (ebm?.composed_packs ?? []).map((p) => p.packId) };
+}
+
 // FR-20.4 / FR-20.6 / FR-20.7 — "Explain this Deliverable." Where did each of
 // its states come from, and what supports it.
 export async function explainDeliverable(deliverableId: string): Promise<DeliverableExplanation | null> {
   const { data: deliverable } = await deliverablesDB.findById(deliverableId);
   if (!deliverable) return null;
 
-  const [{ data: references }, { data: attestations }, { data: edges }, { data: evidence }, { data: decisions }, { data: obligations }, { data: knowledge }, { data: reviews }, { data: findings }] =
+  const { data: seu } = await seusDB.findById(deliverable.seu_id);
+  if (!seu) return null;
+  const scope = await resolveOwningScope(seu);
+
+  const [{ data: references }, { data: attestations }, { data: rows }, { data: evidence }, { data: decisions }, { data: obligations }, { data: knowledge }, { data: reviews }, { data: findings }] =
     await Promise.all([
       deliverableReferencesDB.findByDeliverableId(deliverableId),
       attestationsDB.findByDeliverableId(deliverableId),
-      dependencyEdgesDB.findByFromDeliverable(deliverableId),
+      dependencyDefinitionsDB.findByTargetName(scope, "Deliverable", deliverable.name),
       evidenceDB.findByRelatedObject("Deliverable", deliverableId),
       decisionsDB.findByRelatedObject("Deliverable", deliverableId),
       obligationsDB.findByRelatedObject("Deliverable", deliverableId),
@@ -139,14 +153,22 @@ export async function explainDeliverable(deliverableId: string): Promise<Deliver
     producingCapability = cap ? { id: cap.id, label: `${cap.name} (${cap.code})` } : { id: deliverable.producing_capability_id, label: "(unknown Capability)" };
   }
 
+  // CR-039 — dependency_definitions is Template-scoped and name-keyed; a row
+  // carries no per-SEU instance FK, so the target instance (if any) is
+  // resolved here for display, same as the old edge's to_deliverable_id/
+  // to_service_id resolution used to be.
   const dependsOn: DependencyLink[] = [];
-  for (const edge of edges ?? []) {
-    if (edge.dependency_type === "Deliverable" && edge.to_deliverable_id) {
-      const { data: target } = await deliverablesDB.findById(edge.to_deliverable_id);
-      dependsOn.push({ type: "Deliverable", targetId: edge.to_deliverable_id, targetLabel: target?.name ?? "(unknown Deliverable)", requiredState: edge.required_state, readinessState: edge.readiness_state });
-    } else if (edge.dependency_type === "Capability" && edge.to_service_id) {
-      const { data: service } = await servicesDB.findById(edge.to_service_id);
-      dependsOn.push({ type: "Capability", targetId: edge.to_service_id, targetLabel: service?.name ?? "(unknown Service)", requiredState: edge.required_state, readinessState: edge.readiness_state });
+  for (const row of rows ?? []) {
+    const satisfied = await dependencyDefinitionEngine.isRowSatisfied(seu.id, row);
+    const readinessState = satisfied ? "Satisfied" : "Pending";
+    if (row.from_entity_type === "Deliverable") {
+      const { data: siblings } = await deliverablesDB.findBySeuId(seu.id);
+      const target = siblings?.find((d) => d.name === row.from_name);
+      dependsOn.push({ type: "Deliverable", targetId: target?.id ?? null, targetLabel: row.from_name ?? "(unknown Deliverable)", requiredState: row.from_state, readinessState });
+    } else if (row.from_entity_type === "Capability") {
+      const { data: services } = await servicesDB.findAll();
+      const service = services?.find((s) => s.code === row.from_name);
+      dependsOn.push({ type: "Capability", targetId: service?.id ?? null, targetLabel: service?.name ?? "(unknown Service)", requiredState: row.from_state, readinessState });
     }
   }
 
@@ -178,28 +200,38 @@ export async function explainDeliverable(deliverableId: string): Promise<Deliver
 export async function impactOfDeliverable(deliverableId: string): Promise<DeliverableImpact | null> {
   const { data: deliverable } = await deliverablesDB.findById(deliverableId);
   if (!deliverable) return null;
+  const { data: seu } = await seusDB.findById(deliverable.seu_id);
+  if (!seu) return null;
+  const scope = await resolveOwningScope(seu);
+  const { data: siblings } = await deliverablesDB.findBySeuId(seu.id);
+  const siblingByName = new Map((siblings ?? []).map((d) => [d.name, d]));
 
   const impacted: ImpactNode[] = [];
   const visited = new Set<string>([deliverableId]);
-  const queue: string[] = [deliverableId];
+  const queue: string[] = [deliverable.name];
 
+  // CR-039 — walking forward now means "what names is this one a from_*
+  // prerequisite for" (findBySourceName), the opposite direction from the
+  // gating lookup (findByTargetName), then resolving each downstream name to
+  // its real instance within this same SEU — dependency_definitions has no
+  // instance FK of its own to walk directly, unlike the old edges table.
   while (queue.length > 0) {
-    const current = queue.shift()!;
-    const { data: edges } = await dependencyEdgesDB.findByToDeliverable(current);
-    for (const edge of edges ?? []) {
-      const downstreamId = edge.from_deliverable_id;
-      if (visited.has(downstreamId)) continue;
-      visited.add(downstreamId);
-      const { data: down } = await deliverablesDB.findById(downstreamId);
+    const currentName = queue.shift()!;
+    const { data: rows } = await dependencyDefinitionsDB.findBySourceName(scope, "Deliverable", currentName);
+    for (const row of rows ?? []) {
+      const down = siblingByName.get(row.to_name);
+      if (!down || visited.has(down.id)) continue;
+      visited.add(down.id);
+      const satisfied = await dependencyDefinitionEngine.isRowSatisfied(seu.id, row);
       impacted.push({
-        deliverableId: downstreamId,
-        name: down?.name ?? "(unknown Deliverable)",
-        lifecycleState: down?.lifecycle_state ?? "(unknown)",
-        requiredState: edge.required_state,
-        readinessState: edge.readiness_state,
-        dependencyEdgeId: edge.id,
+        deliverableId: down.id,
+        name: down.name,
+        lifecycleState: down.lifecycle_state,
+        requiredState: row.from_state,
+        readinessState: satisfied ? "Satisfied" : "Pending",
+        dependencyEdgeId: row.id,
       });
-      queue.push(downstreamId);
+      queue.push(down.name);
     }
   }
 

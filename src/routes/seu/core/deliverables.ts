@@ -1,8 +1,9 @@
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
-import { dependencyEdgesDB } from "../../../dblayer/dependencyEdgesDB.js";
+import { seusDB } from "../../../dblayer/seusDB.js";
+import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { deliverableReferencesDB } from "../../../dblayer/deliverableReferencesDB.js";
 import { badgeGrantsDB } from "../../../dblayer/badgeGrantsDB.js";
-import { dependencyEngine } from "../../../domain/engine/dependencyEngine.js";
+import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
 import { executionEngine } from "../../../domain/engine/executionEngine.js";
@@ -11,7 +12,7 @@ import { checkSustainedQualityGateBlocking } from "./telemetry.js";
 import { raiseAttentionItem } from "./attentionItems.js";
 import { AUTHORING_SCOPE_PACK_CODE } from "../../../domain/sdk/authoringScope.js";
 import { assertCanonicalCategory } from "./ontology.js";
-import type { DeliverableRow, DependencyEdgeRow } from "../../../dblayer/seuTypes.js";
+import type { DeliverableRow, DependencyDefinitionRow } from "../../../dblayer/seuTypes.js";
 
 // Phase 10 (badge model) — §10's badge-switcher UI isn't built yet (§17.2,
 // deliberately deferred to when Participant deployment/provisioning is
@@ -41,33 +42,38 @@ async function resolveAutoActingBadge(actorId: string, deliverable: DeliverableR
   return qualifying.length === 1 ? qualifying[0].id : null;
 }
 
-export async function createDeliverable(input: {
-  seuId: string;
-  name: string;
-  category: string;
-  dependsOnDeliverableIds?: string[];
-  dependsOnServiceIds?: string[];
-}): Promise<{ deliverable: DeliverableRow; dependencyEdges: DependencyEdgeRow[] }> {
+// CR-039 — a Deliverable created beyond commissioning ("beyond whatever the
+// Template catalogue pre-seeded," Ch.15) must still be a real member of its
+// Template's own canonical dependency graph, not an ungoverned one-off. The
+// old model let a caller wire bespoke, per-instance dependency_edges for any
+// name at all (dependsOnDeliverableIds/dependsOnServiceIds, now removed);
+// under the canonical (entity_type, name, state) model, dependency behaviour
+// is inherited automatically by matching name against the Template's own
+// dependency_definitions rows, never specified per call. That only works if
+// name is guaranteed to be one the Template actually declared — so this is
+// "instantiate a catalogue entry commissioning didn't already create," not
+// "create anything." (Owner, 2026-08-20: "a new deliverable has to inherit
+// from the template so the dependencies are inherited.")
+export async function createDeliverable(input: { seuId: string; name: string; category: string }): Promise<{ deliverable: DeliverableRow }> {
   await assertCanonicalCategory("category:deliverable", input.category);
+
+  const { data: seu } = await seusDB.findById(input.seuId);
+  if (!seu) throw new Error("SEU not found");
+  const { data: template } = await templatesDB.findById(seu.template_id);
+  if (!template) throw new Error("template not found");
+  if (!template.deliverable_catalogue.some((entry) => entry.name === input.name)) {
+    throw new Error(`"${input.name}" is not a Deliverable this SEU's Template declares — only names already in the Template's own catalogue can be added`);
+  }
+
+  const { data: existing } = await deliverablesDB.findBySeuId(input.seuId);
+  if (existing?.some((d) => d.name === input.name)) {
+    throw new Error(`a Deliverable named "${input.name}" already exists on this SEU`);
+  }
+
   const { data: deliverable, error } = await deliverablesDB.create({ seuId: input.seuId, name: input.name, category: input.category });
   if (error || !deliverable) throw error ?? new Error("failed to create deliverable");
 
-  const edges: DependencyEdgeRow[] = [];
-  for (const toDeliverableId of input.dependsOnDeliverableIds ?? []) {
-    const { data: edge } = await dependencyEdgesDB.createDeliverableEdge({
-      seuId: input.seuId,
-      fromDeliverableId: deliverable.id,
-      toDeliverableId,
-      requiredState: "Approved",
-    });
-    if (edge) edges.push(edge);
-  }
-  for (const toServiceId of input.dependsOnServiceIds ?? []) {
-    const { data: edge } = await dependencyEdgesDB.createCapabilityEdge({ seuId: input.seuId, fromDeliverableId: deliverable.id, toServiceId });
-    if (edge) edges.push(edge);
-  }
-
-  return { deliverable, dependencyEdges: edges };
+  return { deliverable };
 }
 
 export type TransitionDeliverableResult =
@@ -78,7 +84,7 @@ export type TransitionDeliverableResult =
   // this call means "dispatched and outstanding," not "transitioned."
   | { ok: true; dispatched: true; workItemId: string; participantId?: string; pendingTransition: { fromState: string; toState: string } }
   | { ok: false; reason: "not_found" }
-  | { ok: false; reason: "dependency_not_satisfied"; edges: DependencyEdgeRow[] }
+  | { ok: false; reason: "dependency_not_satisfied"; rows: DependencyDefinitionRow[] }
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition"; detail: string }
   // Empty-centre presence check (Participant Integration Plan, Resolution 4):
@@ -123,8 +129,27 @@ export async function transitionDeliverable(input: {
   const { data: deliverable } = await deliverablesDB.findById(input.deliverableId);
   if (!deliverable) return { ok: false, reason: "not_found" };
 
-  const readiness = await dependencyEngine.isDeliverableReady(deliverable.id);
-  if (!readiness.ready) return { ok: false, reason: "dependency_not_satisfied", edges: readiness.edges };
+  // CR-039/CR-043 — the canonical graph gates by (name, targetState), not by
+  // instance FK, gathered across every scope relevant to this SEU (its
+  // Template, every composed Pack, its Profile), and only carries rows for
+  // the transitions actually declared (today: Defined -> In Progress). A
+  // target state with no rows resolves ready trivially, same as an
+  // ungoverned Deliverable always has.
+  const readiness = await dependencyDefinitionEngine.isTargetReady(deliverable.seu_id, "Deliverable", deliverable.name, input.targetState);
+  if (!readiness.ready) {
+    // CR-042 — mirrors qualityGateEngine.recordAndBlock's own pattern: the
+    // real counterpart to evaluateAndPublishFromTransition's DeliverableReady,
+    // published at the exact point a gated transition is actually refused.
+    const reason = `${readiness.rows.length} governing dependency row(s) not yet satisfied (${readiness.rows.map((r) => `${r.from_entity_type}${r.from_name ? ` "${r.from_name}"` : ""} -> ${r.from_state}`).join(", ")})`;
+    await eventBus.publish({
+      eventType: "DeliverableBlocked",
+      originatingObjectType: "Deliverable",
+      originatingObjectId: deliverable.id,
+      correlationId: eventBus.newCorrelationId(),
+      payload: { entityType: "Deliverable", entityId: deliverable.id, seuId: deliverable.seu_id, reason },
+    });
+    return { ok: false, reason: "dependency_not_satisfied", rows: readiness.rows };
+  }
 
   const fromState = deliverable.lifecycle_state;
 

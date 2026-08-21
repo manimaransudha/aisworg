@@ -54,10 +54,21 @@ const createdTemplateIds: string[] = [];
 // code is FORCED to match its parent's, so leftover rows from a prior run
 // would collide the same way Template's own leftovers would.
 const createdProfileIds: string[] = [];
+// CR-046 (owner: "why are test scripts adding code that is not in the
+// ontology??? ... Make sure the pack and profile view pages are also
+// cleaned up and test data population does not corrupt the database") —
+// Pack rows this file publishes were never tracked for cleanup at all before
+// this fix, unlike Template/Profile above; every run left an Active Pack
+// behind permanently.
+const createdPackIds: string[] = [];
 
 after(async () => {
   if (createdGrantIds.length) await pool.query("DELETE FROM badge_grants WHERE id = ANY($1::uuid[])", [createdGrantIds]);
   if (createdUserIds.length) await pool.query("DELETE FROM users WHERE id = ANY($1::bigint[])", [createdUserIds]);
+  if (createdPackIds.length) {
+    await pool.query("DELETE FROM events WHERE originating_object_type = 'Pack' AND originating_object_id = ANY($1::uuid[])", [createdPackIds]);
+    await pool.query("DELETE FROM packs WHERE id = ANY($1::uuid[])", [createdPackIds]);
+  }
   if (createdProfileIds.length) {
     // Profiles reference Templates via base_template_id — must be deleted
     // before createdTemplateIds' own cleanup below runs. Clear
@@ -116,16 +127,34 @@ async function advanceToActive(kind: "Pack" | "Template" | "Profile", id: string
   return { ok: false, errors: ["did not reach Active within 10 hops"] };
 }
 
-function validPackContent(code: string): Record<string, unknown> {
-  return { code, name: "SDK Test Pack", category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", dependencies: [] };
+// CR-046 (owner: "the test script should use a code present in the
+// ontology") — Pack.code (capability-name) and Template.code
+// (template-categories) are now server-side Ontology-validated at publish
+// time (validatePackSeed/validateTemplateSeed's own assertCanonicalCategory
+// check — see the fix that added it), so a hand-typed random string no
+// longer survives Publish here. Identity across repeated runs against this
+// file's own, never-reset dev database instead comes from a fresh
+// packVersion/templateVersion each call — free text, no Ontology
+// constraint — not from code, which now stays a small set of real, fixed
+// concepts.
+function uniqueVersion(): string {
+  return `0.0.${Date.now()}${Math.floor(Math.random() * 1000)}`;
+}
+const REAL_PACK_CODE = "development"; // real, seeded capability-name concept
+const REAL_TEMPLATE_CODE = "mobile-application"; // real, seeded template-categories concept
+
+function validPackContent(code: string, packVersion: string): Record<string, unknown> {
+  return { code, name: "SDK Test Pack", category: "Engineering", packVersion, installationClassification: "Optional", dependencies: [] };
 }
 
 test("Pack authoring (entity-direct): root creates a Draft, authors, and publishes — a real Active Pack comes out, with the real actor + noun_verb badge on the event", async () => {
-  const code = `sdk-test-pack-root-${randomUUID()}`;
+  const code = REAL_PACK_CODE;
+  const packVersion = uniqueVersion();
 
-  const created = await createAuthoringDraft({ kind: "Pack", actorId: ROOT_ACTOR_ID, content: validPackContent(code) });
+  const created = await createAuthoringDraft({ kind: "Pack", actorId: ROOT_ACTOR_ID, content: validPackContent(code, packVersion) });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
   if (!created.ok) return;
+  createdPackIds.push(created.draftId);
 
   // The Draft is a real Pack row, in Draft, authored_by the real actor — no
   // bootstrap SEU / Deliverable anywhere.
@@ -133,13 +162,13 @@ test("Pack authoring (entity-direct): root creates a Draft, authors, and publish
   assert.equal(draftPack!.status, "Draft");
   assert.equal(draftPack!.authored_by, Number(ROOT_ACTOR_ID));
 
-  const saved = await saveAuthoringDraft({ kind: "Pack", id: created.draftId, content: validPackContent(code) });
+  const saved = await saveAuthoringDraft({ kind: "Pack", id: created.draftId, content: validPackContent(code, packVersion) });
   assert.equal(saved.ok, true, !saved.ok ? saved.errors.join("; ") : undefined);
 
   const published = await advanceToActive("Pack", created.draftId, ROOT_ACTOR_ID, "general");
   assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : undefined);
 
-  const { data: activePack } = await packsDB.findActiveByCode(code);
+  const { data: activePack } = await packsDB.findByCodeAndVersion(code, packVersion);
   assert.ok(activePack, "expected the authored Pack to be published and Active");
   assert.equal(activePack!.name, "SDK Test Pack");
 
@@ -161,21 +190,22 @@ test("Pack authoring authority is noun × verb: a non-root holder of the Pack li
   const publisherId = await createTestUser("pack-publisher");
   for (const v of ["validate", "publish", "activate", "deprecate"]) await grant(publisherId, `pack_${v}`);
 
-  const okCode = `sdk-test-pack-authz-ok-${randomUUID()}`;
-  const okDraft = await createAuthoringDraft({ kind: "Pack", actorId: publisherId, content: validPackContent(okCode) });
+  const okVersion = uniqueVersion();
+  const okDraft = await createAuthoringDraft({ kind: "Pack", actorId: publisherId, content: validPackContent(REAL_PACK_CODE, okVersion) });
   assert.equal(okDraft.ok, true, !okDraft.ok ? okDraft.errors.join("; ") : undefined);
   if (!okDraft.ok) return;
+  createdPackIds.push(okDraft.draftId);
   const okPublish = await advanceToActive("Pack", okDraft.draftId, publisherId, "general");
   assert.equal(okPublish.ok, true, !okPublish.ok ? okPublish.errors.join("; ") : undefined);
-  const { data: activeOk } = await packsDB.findActiveByCode(okCode);
+  const { data: activeOk } = await packsDB.findByCodeAndVersion(REAL_PACK_CODE, okVersion);
   assert.ok(activeOk, "publisher with the Pack lifecycle badges should produce an Active Pack");
 
   // A holder with NO Pack authority is denied at the governed transition.
   const outsiderId = await createTestUser("pack-outsider");
-  const denyCode = `sdk-test-pack-authz-deny-${randomUUID()}`;
-  const denyDraft = await createAuthoringDraft({ kind: "Pack", actorId: outsiderId, content: validPackContent(denyCode) });
+  const denyDraft = await createAuthoringDraft({ kind: "Pack", actorId: outsiderId, content: validPackContent(REAL_PACK_CODE, uniqueVersion()) });
   assert.equal(denyDraft.ok, true);
   if (!denyDraft.ok) return;
+  createdPackIds.push(denyDraft.draftId);
   const denyPublish = await publishAuthoringDraft({ kind: "Pack", id: denyDraft.draftId, actorId: outsiderId, actorRole: "general" });
   assert.equal(denyPublish.ok, false, "a holder without Pack authority must NOT be able to publish");
   const { data: stillDraft } = await packsDB.findById(denyDraft.draftId);
@@ -191,10 +221,11 @@ test("Pack authoring, separation of duties: FOUR different single-verb actors ea
   await grant(publisher, "pack_publish");
   await grant(activator, "pack_activate");
 
-  const code = `sdk-test-pack-sod-${randomUUID()}`;
-  const created = await createAuthoringDraft({ kind: "Pack", actorId: author, content: validPackContent(code) });
+  const packVersion = uniqueVersion();
+  const created = await createAuthoringDraft({ kind: "Pack", actorId: author, content: validPackContent(REAL_PACK_CODE, packVersion) });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
   if (!created.ok) return;
+  createdPackIds.push(created.draftId);
   const { data: draftPack } = await packsDB.findById(created.draftId);
   assert.equal(draftPack!.authored_by, Number(author), "authored_by is the real defining actor");
 
@@ -218,7 +249,7 @@ test("Pack authoring, separation of duties: FOUR different single-verb actors ea
   assert.equal(step3.ok, true, !step3.ok ? step3.errors.join("; ") : undefined);
   if (step3.ok) assert.equal(step3.status, "Active");
 
-  const { data: activePack } = await packsDB.findActiveByCode(code);
+  const { data: activePack } = await packsDB.findByCodeAndVersion(REAL_PACK_CODE, packVersion);
   assert.ok(activePack, "the pack reached Active through four different single-verb actors");
 
   // Accountability: three distinct real actors on the three governed hops —
@@ -236,13 +267,14 @@ test("Pack authoring, separation of duties: FOUR different single-verb actors ea
 });
 
 test("Pack authoring: Publish is blocked by referential validation (unresolvable dependency), leaving the Draft a Draft", async () => {
-  const code = `sdk-test-pack-invalid-${randomUUID()}`;
-  const created = await createAuthoringDraft({ kind: "Pack", actorId: ROOT_ACTOR_ID, content: validPackContent(code) });
+  const packVersion = uniqueVersion();
+  const created = await createAuthoringDraft({ kind: "Pack", actorId: ROOT_ACTOR_ID, content: validPackContent(REAL_PACK_CODE, packVersion) });
   assert.equal(created.ok, true);
   if (!created.ok) return;
+  createdPackIds.push(created.draftId);
 
   // A dependency on a Pack that doesn't exist — fails validatePackSeed at publish.
-  await saveAuthoringDraft({ kind: "Pack", id: created.draftId, content: { ...validPackContent(code), dependencies: [{ packCode: "this-pack-does-not-exist", version: "1.0.0", type: "required" }] } });
+  await saveAuthoringDraft({ kind: "Pack", id: created.draftId, content: { ...validPackContent(REAL_PACK_CODE, packVersion), dependencies: [{ packCode: "this-pack-does-not-exist", version: "1.0.0", type: "required" }] } });
 
   const published = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: ROOT_ACTOR_ID, actorRole: "general" });
   assert.equal(published.ok, false);
@@ -252,12 +284,17 @@ test("Pack authoring: Publish is blocked by referential validation (unresolvable
   assert.equal(stillDraft!.status, "Draft");
 });
 
-function validTemplateContent(code: string): Record<string, unknown> {
+// CR-038 — requiredCapabilityCodes/mandatoryPackCodes replaced by
+// engineeringPackCodes: platform-core-engineering (a real, base, Active Pack
+// — category Engineering) contributes requirements-analysis among its
+// capabilities, so requiredCapabilityCodes is derived from this selection,
+// not hand-typed.
+function validTemplateContent(code: string, templateVersion: string): Record<string, unknown> {
   return {
     code,
+    templateVersion,
     name: "SDK Test Template",
-    requiredCapabilityCodes: ["requirements-analysis"],
-    mandatoryPackCodes: [],
+    engineeringPackCodes: [{ packCode: "platform-core-engineering" }],
     deliverableCatalogue: [
       { code: "requirements-spec", name: "Requirements Specification", category: "Documentation", producingCapabilityCode: "requirements-analysis" },
     ],
@@ -265,12 +302,13 @@ function validTemplateContent(code: string): Record<string, unknown> {
 }
 
 test("Template authoring (entity-direct): the same pipeline as Pack produces a real Active Template row", async () => {
-  const code = `sdk-test-template-${randomUUID()}`;
-  const created = await createAuthoringDraft({ kind: "Template", actorId: ROOT_ACTOR_ID, content: validTemplateContent(code) });
+  const templateVersion = uniqueVersion();
+  const created = await createAuthoringDraft({ kind: "Template", actorId: ROOT_ACTOR_ID, content: validTemplateContent(REAL_TEMPLATE_CODE, templateVersion) });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
   if (!created.ok) return;
+  createdTemplateIds.push(created.draftId);
 
-  await saveAuthoringDraft({ kind: "Template", id: created.draftId, content: validTemplateContent(code) });
+  await saveAuthoringDraft({ kind: "Template", id: created.draftId, content: validTemplateContent(REAL_TEMPLATE_CODE, templateVersion) });
 
   // Bug fix (owner, 2026-08-18): Template now has the same six-hop lifecycle
   // Pack does (transitionDefinitions.json / authorityVocabulary.json seed
@@ -280,7 +318,7 @@ test("Template authoring (entity-direct): the same pipeline as Pack produces a r
   const published = await advanceToActive("Template", created.draftId, ROOT_ACTOR_ID, "general");
   assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : undefined);
 
-  const { data: template } = await templatesDB.findByCode(code);
+  const { data: template } = await templatesDB.findByCodeAndVersion(REAL_TEMPLATE_CODE, templateVersion);
   assert.ok(template, "expected the authored Template to be registered");
   assert.equal(template!.status, "Active");
   const { data: requiredCapabilities } = await templatesDB.getRequiredCapabilities(template!.id);
@@ -310,11 +348,12 @@ test("Profile authoring (entity-direct): produces a real Active Profile row refe
 });
 
 test("Template authoring: referential validation rejects a mandatoryPackCode that doesn't resolve to a real Pack (blocks publish)", async () => {
-  const code = `sdk-test-template-badpack-${randomUUID()}`;
-  const created = await createAuthoringDraft({ kind: "Template", actorId: ROOT_ACTOR_ID, content: validTemplateContent(code) });
+  const templateVersion = uniqueVersion();
+  const created = await createAuthoringDraft({ kind: "Template", actorId: ROOT_ACTOR_ID, content: validTemplateContent(REAL_TEMPLATE_CODE, templateVersion) });
   assert.equal(created.ok, true);
   if (!created.ok) return;
-  await saveAuthoringDraft({ kind: "Template", id: created.draftId, content: { ...validTemplateContent(code), mandatoryPackCodes: ["this-pack-code-does-not-exist"] } });
+  createdTemplateIds.push(created.draftId);
+  await saveAuthoringDraft({ kind: "Template", id: created.draftId, content: { ...validTemplateContent(REAL_TEMPLATE_CODE, templateVersion), engineeringPackCodes: [{ packCode: "this-pack-code-does-not-exist" }] } });
 
   const published = await publishAuthoringDraft({ kind: "Template", id: created.draftId, actorId: ROOT_ACTOR_ID, actorRole: "general" });
   assert.equal(published.ok, false);
@@ -383,7 +422,10 @@ test("CR-026: publishing a Derived Template is rejected if it drops one of its p
   // templateVersion must round-trip on Save, the same way the real form's
   // readonly field always does (CR-024) — inheritedTemplateContent doesn't
   // carry it (it isn't part of a Template's authored content).
-  const strippedContent = { ...inherited.content, templateVersion: "1.0.0", mandatoryPackCodes: [] };
+  // CR-038 — platform-core-engineering (the fixture's own real mandatory
+  // Pack, per the comment above) is category Engineering, so dropping it
+  // means blanking engineeringPackCodes specifically now, not a flat list.
+  const strippedContent = { ...inherited.content, templateVersion: "1.0.0", engineeringPackCodes: [] };
   const savedStripped = await saveAuthoringDraft({ kind: "Template", id: created.draftId, content: strippedContent });
   assert.equal(savedStripped.ok, true, "WIP is allowed to be incomplete — Save itself must not block this");
 

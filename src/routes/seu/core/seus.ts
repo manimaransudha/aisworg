@@ -2,7 +2,7 @@ import { seusDB } from "../../../dblayer/seusDB.js";
 import { listResult, type ListParams, type ListResult } from "../../../utils/listQuery.js";
 import { seuCapabilitiesDB } from "../../../dblayer/seuCapabilitiesDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
-import { dependencyEdgesDB } from "../../../dblayer/dependencyEdgesDB.js";
+import { dependencyDefinitionsDB, type DependencyOwningScope } from "../../../dblayer/dependencyDefinitionsDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { objectivesDB } from "../../../dblayer/objectivesDB.js";
@@ -11,7 +11,7 @@ import { commandsDB } from "../../../dblayer/commandsDB.js";
 import { workItemsDB } from "../../../dblayer/workItemsDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { capabilityFulfilmentsDB } from "../../../dblayer/capabilityFulfilmentsDB.js";
-import { dependencyEngine } from "../../../domain/engine/dependencyEngine.js";
+import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
 import { getSeuEvents } from "./events.js";
 import { listObligationsWithNextStates } from "./obligations.js";
 import { listEvidenceWithNextStates } from "./evidence.js";
@@ -263,32 +263,34 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     })
   );
 
+  // CR-039 — resolved once, outside the per-Deliverable loop, so a Capability-
+  // type row's Service name doesn't cost an extra query per Deliverable.
+  const { data: allServices } = await servicesDB.findAll();
+  const serviceNameByCode = new Map((allServices ?? []).map((s) => [s.code, s.name]));
+
+  // CR-043 — the SEU's full owning scope (Template + every composed Pack +
+  // Profile), built from data already fetched above — ebm.composed_packs is
+  // already loaded, so this costs no extra query.
+  const scope: DependencyOwningScope = { templateId: seu.template_id, profileId: seu.profile_id, packIds: (ebm?.composed_packs ?? []).map((p) => p.packId) };
+
   const deliverableViews: SeuDetailDeliverable[] = await Promise.all(
     (deliverables ?? []).map(async (d) => {
-      const [{ data: edges }, { data: nextStates }] = await Promise.all([
-        dependencyEdgesDB.findByFromDeliverable(d.id),
+      const [{ data: rows }, { data: nextStates }] = await Promise.all([
+        dependencyDefinitionsDB.findByTargetName(scope, "Deliverable", d.name),
         transitionDefinitionsDB.findPossibleNextStates("Deliverable", d.lifecycle_state),
       ]);
-      // Recompute against live data before display — the stored readiness_state
-      // is a write-side cache only updated as a side effect of a transition
-      // attempt on this exact Deliverable, so reading it raw shows stale status
-      // on every plain page load. See design/mvp-build-plan/Open Design
-      // Questions.md for the related, still-open scope-of-gating question.
-      const refreshedEdges = await Promise.all((edges ?? []).map((edge) => dependencyEngine.refreshEdge(edge)));
+      // Recomputed against live data on every page load, not cached — the
+      // canonical row itself carries no per-SEU state to go stale (unlike
+      // dependency_edges' old readiness_state column).
       const enrichedEdges: SeuDetailDependencyEdge[] = await Promise.all(
-        refreshedEdges.map(async (edge) => {
-          let targetLabel: string;
-          if (edge.dependency_type === "Deliverable") {
-            targetLabel = (edge.to_deliverable_id && deliverableNameById.get(edge.to_deliverable_id)) || "(unknown Deliverable)";
-          } else {
-            const { data: service } = edge.to_service_id ? await servicesDB.findById(edge.to_service_id) : { data: null };
-            targetLabel = service ? `Service: ${service.name}` : "(unknown Service)";
-          }
+        (rows ?? []).map(async (row) => {
+          const satisfied = await dependencyDefinitionEngine.isRowSatisfied(seu.id, row);
+          const targetLabel = row.from_entity_type === "Capability" ? `Service: ${serviceNameByCode.get(row.from_name ?? "") ?? row.from_name}` : row.from_name ?? "(any)";
           return {
-            id: edge.id,
-            dependencyType: edge.dependency_type,
-            requiredState: edge.required_state,
-            readinessState: edge.readiness_state,
+            id: row.id,
+            dependencyType: row.from_entity_type as DependencyType,
+            requiredState: row.from_state,
+            readinessState: satisfied ? "Satisfied" : "Pending",
             targetLabel,
           };
         })

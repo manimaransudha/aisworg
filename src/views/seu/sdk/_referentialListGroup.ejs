@@ -1,8 +1,11 @@
-<%# One referential-list field, rendered as a stack of labeled cards (not a
-    horizontal strip of unlabeled inline boxes) — existing rows shown filled,
-    exactly one blank "New item" row at the end doubling as the clone
-    template for the "+ Add another" button (edit.ejs's script). Locals:
-    field (GeneratedField, kind referential-list), canEdit (bool),
+<%# One referential-list field. Editable (canEdit): a stack of labeled cards
+    (not a horizontal strip of unlabeled inline boxes) — existing rows shown
+    filled, exactly one blank "New item" row at the end doubling as the clone
+    template for the "+ Add another" button (edit.ejs's script). Read-only
+    (!canEdit, owner: "The view should show the details... just not
+    editable, showing dropdowns etc"): plain text rows, existing content
+    only — no disabled controls, no blank offered row, no Add/Remove.
+    Locals: field (GeneratedField, kind referential-list), canEdit (bool),
     referentialOptions, packDependencyOptions (PackDependencyOption[] —
     name/code/version/category of every Active Pack visible to this viewer;
     used by Dependencies AND any other referential-list whose item field
@@ -15,6 +18,84 @@
   var categoryOptions = (locals.referentialOptions || {})['pack-category'] || [];
   var typeItemField = isDependencies ? field.itemFields.find(function(f) { return f.name === 'type'; }) : null;
 %>
+<% if (!canEdit) { %>
+  <%# View mode — plain read rows, not disabled form controls (owner: "The
+      view should show the details... just not editable, showing dropdowns
+      etc" — a disabled <select> still renders as an interactive-looking
+      dropdown even though it does nothing). Only real, existing rows: the
+      blank "New item" rows generateFields() always appends for the edit
+      form's own convenience have nothing to show here. Referential values
+      resolve to the same human-readable label their <option> would have
+      shown (Pack name + version, Ontology label) rather than a bare code. %>
+  <%
+    // Owner: "Item 1 / Pack Code - this is all not adding any value in a
+    // view form. It should just list the code, name, and a link to view the
+    // pack." — a row that's just ONE Pack-code reference (Template's six
+    // category fields, its legacy mandatoryPackCodes, Profile's
+    // optionalPackCodes/four category fields) gets a compact list line
+    // instead of an "Item N" card; Dependencies (Pack + Type) gets the same
+    // compact treatment with Type alongside. Any OTHER shape (Deliverable
+    // Catalogue, Dependency Graph — no Pack reference involved) keeps the
+    // card layout below, unchanged.
+    var soloPackCodeField = (!isDependencies && field.itemFields.length === 1 && field.itemFields[0].kind === 'referential' && field.itemFields[0].referentialSource.indexOf('pack-code') === 0) ? field.itemFields[0] : null;
+    function packLink(matchedPack) {
+      return matchedPack ? ('<a href="/aisworg/seu/sdk/pack-authoring/' + matchedPack.id + '" class="btn btn-sm btn-link p-0">View</a>') : '';
+    }
+  %>
+  <% var existingRows = field.rows.slice(0, field.existingCount); %>
+  <% if (existingRows.length === 0) { %>
+    <p class="text-muted small mb-0">None</p>
+  <% } else if (isDependencies || soloPackCodeField) { %>
+    <ul class="list-group list-group-flush">
+      <% existingRows.forEach(function(row) { %>
+        <% var pv = isDependencies ? (row.packCode || '') : (row[soloPackCodeField.name] || ''); %>
+        <% var matchedPack = packOptions.find(function(p) { return p.code === pv; }); %>
+        <li class="list-group-item px-0 d-flex justify-content-between align-items-center small">
+          <span>
+            <% if (matchedPack) { %>
+              <%= matchedPack.name %> <code class="text-muted"><%= matchedPack.code %></code> <span class="text-muted">v<%= matchedPack.version %></span>
+            <% } else if (pv) { %>
+              ⚠ <%= pv %> (not currently Active)
+            <% } else { %>
+              —
+            <% } %>
+            <% if (isDependencies) { %><span class="badge bg-light text-dark border ms-2"><%= row.type || '—' %></span><% } %>
+          </span>
+          <%- packLink(matchedPack) %>
+        </li>
+      <% }) %>
+    </ul>
+  <% } else { %>
+    <% existingRows.forEach(function(row, i) { %>
+      <div class="card card-body bg-light border-0 mb-2">
+        <div class="mb-2"><span class="badge bg-secondary-subtle text-secondary small fw-normal">Item <%= i + 1 %></span></div>
+        <div class="row g-2">
+          <% field.itemFields.forEach(function(itemField) { %>
+            <% var value = row[itemField.name] || ''; %>
+            <div class="col-sm-6 col-lg-4">
+              <div class="small text-muted mb-1"><%= ilabel(itemField.name) %></div>
+              <div class="small">
+                <% if (itemField.kind === 'boolean') { %>
+                  <%= value === 'true' ? 'Yes' : 'No' %>
+                <% } else if (itemField.kind === 'referential' && itemField.referentialSource.indexOf('pack-code') === 0) { %>
+                  <% var _fixedCategory = itemField.referentialSource.indexOf(':') !== -1 ? itemField.referentialSource.split(':')[1] : ''; %>
+                  <% var matchedItemPack = packOptions.find(function(p) { return p.code === value; }); %>
+                  <% if (matchedItemPack) { %>
+                    <%= matchedItemPack.name %> <code class="text-muted"><%= matchedItemPack.code %></code> v<%= matchedItemPack.version %> <%- packLink(matchedItemPack) %>
+                  <% } else { %>
+                    <%= value ? ('⚠ ' + value + ' (not currently Active' + (_fixedCategory ? ' / not ' + _fixedCategory : '') + ')') : '—' %>
+                  <% } %>
+                <% } else { %>
+                  <%= value || '—' %>
+                <% } %>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    <% }) %>
+  <% } %>
+<% } else { %>
 <div class="referential-list-group" data-field-name="<%= field.name %>" data-next-index="<%= field.rows.length %>">
   <% field.rows.forEach(function(row, i) { %>
     <% var isExisting = i < field.existingCount; %>
@@ -140,3 +221,4 @@
     </button>
   <% } %>
 </div>
+<% } %>

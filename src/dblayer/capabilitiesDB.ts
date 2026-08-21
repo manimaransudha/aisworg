@@ -46,6 +46,20 @@ export const capabilitiesDB = {
     }
   },
 
+  // CR-038 — "Required Capability codes... derived from the [Pack]
+  // selections the user makes." Given the Active Pack rows a Template's
+  // selected codes resolve to, every Capability those Packs contributed
+  // (originating_pack_id) is the derived requiredCapabilityCodes set.
+  async findByOriginatingPackIds(packIds: string[]): Promise<DbResult<CapabilityRow[]>> {
+    try {
+      const { rows } = await query<CapabilityRow>("SELECT * FROM capabilities WHERE originating_pack_id = ANY($1::uuid[])", [packIds]);
+      return { data: rows };
+    } catch (err) {
+      logger.error("[capabilitiesDB] findByOriginatingPackIds error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findAll(): Promise<DbResult<CapabilityRow[]>> {
     try {
       const { rows } = await query<CapabilityRow>("SELECT * FROM capabilities ORDER BY code");

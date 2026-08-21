@@ -10,8 +10,6 @@ import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { seuCapabilitiesDB } from "../../../dblayer/seuCapabilitiesDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
-import { dependencyEdgesDB } from "../../../dblayer/dependencyEdgesDB.js";
-import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
@@ -170,7 +168,17 @@ export async function commissionSeu(input: {
   const { data: requiredCapabilities } = await templatesDB.getRequiredCapabilities(template.id);
   await seuCapabilitiesDB.createMany(seu.id, (requiredCapabilities ?? []).map((c) => c.id));
 
-  const deliverableIdByCode = new Map<string, string>();
+  // CR-039/CR-041 — the dependency graph itself is not created here. It's
+  // owner-scoped (dependency_definitions, CR-043's polymorphic owner),
+  // materialised once when the Template is authored/seeded
+  // (materialiseDependencyGraph, called from each of those call sites) — not
+  // re-derived per SEU. Commissioning only creates this SEU's own Deliverable
+  // instances; the canonical graph they'll be evaluated against already
+  // exists independent of this commission ever happening.
+  // CR-038 — keyed by name now, not a separate catalogue-local code (dropped
+  // outright — see TemplateDeliverableSeed's own comment); this map only
+  // ever fed the commissioning report's own diagnostic list below.
+  const deliverableIdByName = new Map<string, string>();
   for (const seed of template.deliverable_catalogue) {
     const producingCapability = seed.producingCapabilityCode
       ? (requiredCapabilities ?? []).find((c) => c.code === seed.producingCapabilityCode)
@@ -181,31 +189,7 @@ export async function commissionSeu(input: {
       category: seed.category,
       producingCapabilityId: producingCapability?.id ?? null,
     });
-    if (deliverable) deliverableIdByCode.set(seed.code, deliverable.id);
-  }
-  for (const seed of template.deliverable_catalogue) {
-    const fromId = deliverableIdByCode.get(seed.code);
-    if (!fromId) continue;
-    for (const dependsOnCode of seed.dependsOnDeliverableCodes ?? []) {
-      const toId = deliverableIdByCode.get(dependsOnCode);
-      if (toId) {
-        await dependencyEdgesDB.createDeliverableEdge({ seuId: seu.id, fromDeliverableId: fromId, toDeliverableId: toId, requiredState: "Approved" });
-      }
-    }
-    // Ch.9 §8 / Ch.11 §9 (Post-MVP Phase 2): a Capability edge names the
-    // specific Service, not the bare Capability — satisfied once the SEU's
-    // requirement for that Service's providing Capability is Fulfilled.
-    // Distinct from the Deliverable edge above: that asks whether the
-    // upstream artefact reached a state; this asks whether anyone is actually
-    // assigned to the upstream Capability at all.
-    for (const capabilityCode of seed.dependsOnCapabilityServiceCodes ?? []) {
-      const capability = (requiredCapabilities ?? []).find((c) => c.code === capabilityCode);
-      if (!capability) continue;
-      const { data: services } = await servicesDB.findByCapabilityId(capability.id);
-      for (const service of services ?? []) {
-        await dependencyEdgesDB.createCapabilityEdge({ seuId: seu.id, fromDeliverableId: fromId, toServiceId: service.id });
-      }
-    }
+    if (deliverable) deliverableIdByName.set(seed.name, deliverable.id);
   }
 
   // Ch.37 — remaining transitions are system-internal for MVP (no Authority/
@@ -227,7 +211,7 @@ export async function commissionSeu(input: {
     validation: { errors: [] },
     runtime: {
       initialCapabilities: (requiredCapabilities ?? []).map((c) => c.code),
-      initialDeliverables: [...deliverableIdByCode.keys()],
+      initialDeliverables: [...deliverableIdByName.keys()],
     },
   };
   await seusDB.setCommissioningReport(seu.id, report);

@@ -115,6 +115,30 @@ const PACK_SELECTION_SLOTS: Array<{ field: keyof ProfileSeedInput; packCategory:
   { field: "integrationPackCodes", packCategory: "Integration" },
 ];
 
+// CR-045 follow-up — the real, join-table-backed Pack selections (unlike
+// description/featureFlagCodes/compositionOptions, which have no real column
+// and live only in draft_content). Shared by reactivateAsNewVersion,
+// copyProfileAsNewDraft, and getAuthoringDraft's Profile branch — all three
+// need "what is this Profile's Pack selection, regardless of whether
+// draft_content was ever written" (a Profile created outside the authoring
+// form, e.g. seedSdlcStandardTemplates.ts, never writes draft_content at all).
+export async function getProfilePackSelections(profileId: string): Promise<Pick<ProfileSeedInput, "optionalPackCodes" | "technologyPackCodes" | "domainPackCodes" | "compliancePackCodes" | "integrationPackCodes">> {
+  const [optionalPackCodes, technologyPackCodes, domainPackCodes, compliancePackCodes, integrationPackCodes] = await Promise.all([
+    profilesDB.getPackSelection(profileId, "optional"),
+    profilesDB.getPackSelection(profileId, "technology"),
+    profilesDB.getPackSelection(profileId, "domain"),
+    profilesDB.getPackSelection(profileId, "compliance"),
+    profilesDB.getPackSelection(profileId, "integration"),
+  ]);
+  return {
+    optionalPackCodes: optionalPackCodes.data ?? [],
+    technologyPackCodes: technologyPackCodes.data ?? [],
+    domainPackCodes: domainPackCodes.data ?? [],
+    compliancePackCodes: compliancePackCodes.data ?? [],
+    integrationPackCodes: integrationPackCodes.data ?? [],
+  };
+}
+
 export async function validateProfileSeed(seed: ProfileSeedInput): Promise<ProfileValidationResult> {
   const errors: string[] = [];
   if (!seed.code?.trim()) errors.push("code is required");
@@ -307,13 +331,7 @@ async function reactivateAsNewVersion(profile: ProfileRow, actorRole: string, ac
   const { data: template } = await templatesDB.findById(profile.base_template_id);
   if (!template) return { ok: false, reason: "policy_blocked", detail: `base Template ${profile.base_template_id} no longer exists` };
 
-  const [optionalPackCodes, technologyPackCodes, domainPackCodes, compliancePackCodes, integrationPackCodes] = await Promise.all([
-    profilesDB.getPackSelection(profile.id, "optional"),
-    profilesDB.getPackSelection(profile.id, "technology"),
-    profilesDB.getPackSelection(profile.id, "domain"),
-    profilesDB.getPackSelection(profile.id, "compliance"),
-    profilesDB.getPackSelection(profile.id, "integration"),
-  ]);
+  const packSelections = await getProfilePackSelections(profile.id);
 
   const priorContent = (profile.draft_content ?? {}) as Record<string, unknown>;
   const seed: ProfileSeedInput = {
@@ -322,7 +340,6 @@ async function reactivateAsNewVersion(profile: ProfileRow, actorRole: string, ac
     baseTemplateCode: template.code,
     environment: profile.environment,
     configParameters: profile.config_parameters,
-    optionalPackCodes: optionalPackCodes.data ?? [],
     profileVersion: nextVersion,
     // Reactivation is versioning, not a change of ownership or lineage —
     // mirrors reactivateAsNewVersion's own tenantId/parentTemplateId
@@ -332,10 +349,7 @@ async function reactivateAsNewVersion(profile: ProfileRow, actorRole: string, ac
     category: profile.category ?? "",
     description: typeof priorContent.description === "string" ? priorContent.description : undefined,
     compositionOptions: typeof priorContent.compositionOptions === "object" && priorContent.compositionOptions ? (priorContent.compositionOptions as Record<string, unknown>) : undefined,
-    technologyPackCodes: technologyPackCodes.data ?? [],
-    domainPackCodes: domainPackCodes.data ?? [],
-    compliancePackCodes: compliancePackCodes.data ?? [],
-    integrationPackCodes: integrationPackCodes.data ?? [],
+    ...packSelections,
   };
   // featureFlagCodes has no real column/join table of its own to re-derive
   // from (unlike the Pack-selection slots above) — it only ever lived in
@@ -388,13 +402,7 @@ export async function copyProfileAsNewDraft(profileId: string, actorId: string):
   const { data: template } = await templatesDB.findById(source.base_template_id);
   if (!template) return { ok: false, errors: [`base Template ${source.base_template_id} no longer exists`] };
 
-  const [optionalPackCodes, technologyPackCodes, domainPackCodes, compliancePackCodes, integrationPackCodes] = await Promise.all([
-    profilesDB.getPackSelection(source.id, "optional"),
-    profilesDB.getPackSelection(source.id, "technology"),
-    profilesDB.getPackSelection(source.id, "domain"),
-    profilesDB.getPackSelection(source.id, "compliance"),
-    profilesDB.getPackSelection(source.id, "integration"),
-  ]);
+  const packSelections = await getProfilePackSelections(source.id);
   const priorContent = (source.draft_content ?? {}) as Record<string, unknown>;
   const featureFlagCodes = Array.isArray(priorContent.featureFlagCodes)
     ? (priorContent.featureFlagCodes as unknown[]).map((v) => (typeof v === "string" ? v : (v as { featureCode?: string })?.featureCode ?? "")).filter((v) => v !== "")
@@ -405,14 +413,10 @@ export async function copyProfileAsNewDraft(profileId: string, actorId: string):
     baseTemplateCode: template.code,
     environment: source.environment,
     configParameters: source.config_parameters,
-    optionalPackCodes: optionalPackCodes.data ?? [],
     category: source.category ?? "",
     description: typeof priorContent.description === "string" ? priorContent.description : undefined,
     compositionOptions: typeof priorContent.compositionOptions === "object" && priorContent.compositionOptions ? (priorContent.compositionOptions as Record<string, unknown>) : undefined,
-    technologyPackCodes: technologyPackCodes.data ?? [],
-    domainPackCodes: domainPackCodes.data ?? [],
-    compliancePackCodes: compliancePackCodes.data ?? [],
-    integrationPackCodes: integrationPackCodes.data ?? [],
+    ...packSelections,
     featureFlagCodes,
   };
   const { data: newDraft, error } = await profilesDB.createDraft({

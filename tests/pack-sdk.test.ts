@@ -21,8 +21,15 @@ import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { compositionEngine } from "../src/domain/engine/compositionEngine.js";
 import { validatePackSeed, publishPack, transitionPack, createPackDraft, listPacksWithNextStates, type PackSeedInput } from "../src/routes/seu/core/packs.js";
+import { registerTestOntologyCode, deleteTestOntologyCodes } from "./testFixtures.js";
+
+// CR-046 — every real capability-name concept freshPackSeed registers
+// (see freshPackSeed's own comment), cleaned up here same as the other
+// user/grant/row-tracking cleanup discipline this codebase's test files use.
+const createdOntologyCodes: Array<{ conceptType: string; code: string }> = [];
 
 after(async () => {
+  await deleteTestOntologyCodes(createdOntologyCodes);
   await pool.end();
 });
 
@@ -31,8 +38,18 @@ after(async () => {
 // against a genuine second tenant, not a made-up UUID.
 const DEMO_TENANT_ID = "22222222-2222-2222-2222-222222222222";
 
-function freshPackSeed(overrides: Partial<PackSeedInput> = {}): PackSeedInput {
-  const code = `test-pack-${randomUUID()}`;
+// CR-046 (owner: "the test script should use a code present in the
+// ontology") — code is Ontology-validated (capability-name) at publish time
+// now, so a bare random string no longer survives. A caller not overriding
+// code gets a freshly REGISTERED real concept (registerTestOntologyCode);
+// a caller that already registered one itself (the v1/v2-same-code tests
+// below) passes it through untouched via overrides.
+async function freshPackSeed(overrides: Partial<PackSeedInput> = {}): Promise<PackSeedInput> {
+  let code = overrides.code;
+  if (!code) {
+    code = await registerTestOntologyCode("capability-name", "test-pack");
+    createdOntologyCodes.push({ conceptType: "capability-name", code });
+  }
   return {
     code,
     name: "Test Pack",
@@ -47,7 +64,7 @@ function freshPackSeed(overrides: Partial<PackSeedInput> = {}): PackSeedInput {
 }
 
 test("validatePackSeed rejects a non-semver packVersion, duplicate contribution codes, an unresolved service->capability reference, and an unresolved dependency", async () => {
-  const seed = freshPackSeed({
+  const seed = await freshPackSeed({
     packVersion: "not-semver",
     dependencies: [{ packCode: `nonexistent-${randomUUID()}`, version: "1.0.0", type: "required" }],
     contributions: {
@@ -66,7 +83,7 @@ test("validatePackSeed rejects a non-semver packVersion, duplicate contribution 
 });
 
 test("validatePackSeed accepts a well-formed Pack and resolves a real dependency", async () => {
-  const seed = freshPackSeed({
+  const seed = await freshPackSeed({
     dependencies: [{ packCode: "platform-core-engineering", version: "1.0.0", type: "required" }],
   });
   const result = await validatePackSeed(seed);
@@ -74,7 +91,7 @@ test("validatePackSeed accepts a well-formed Pack and resolves a real dependency
 });
 
 test("publishPack without activate: true walks the Pack to Published but not Active", async () => {
-  const seed = freshPackSeed();
+  const seed = await freshPackSeed();
   const result = await publishPack({ seed, actorRole: "general", actorId: "1001" });
   assert.equal(result.ok, true, !result.ok ? JSON.stringify(result.errors) : undefined);
   assert.equal(result.pack!.status, "Published");
@@ -89,14 +106,14 @@ test("publishPack without activate: true walks the Pack to Published but not Act
 // badge-model.test.ts. Activation-happy-path is covered by the test below.
 
 test("publishPack with activate: true and a 'power' actor reaches Active", async () => {
-  const seed = freshPackSeed();
+  const seed = await freshPackSeed();
   const result = await publishPack({ seed, actorRole: "power", actorId: "1001", activate: true });
   assert.equal(result.ok, true, !result.ok ? JSON.stringify(result.errors) : undefined);
   assert.equal(result.pack!.status, "Active");
 });
 
 test("republishing the exact same (code, packVersion) is idempotent — a no-op that returns the existing immutable row (VM-002)", async () => {
-  const seed = freshPackSeed();
+  const seed = await freshPackSeed();
   const first = await publishPack({ seed, actorRole: "power", actorId: "1001", activate: true });
   assert.equal(first.ok, true);
 
@@ -107,13 +124,14 @@ test("republishing the exact same (code, packVersion) is idempotent — a no-op 
 });
 
 test("publishing a new version of an existing Pack code creates a new immutable row and, when activated, supersedes the previously-Active version", async () => {
-  const code = `test-pack-${randomUUID()}`;
-  const seedV1 = freshPackSeed({ code, packVersion: "1.0.0" });
+  const code = await registerTestOntologyCode("capability-name", "test-pack");
+  createdOntologyCodes.push({ conceptType: "capability-name", code });
+  const seedV1 = await freshPackSeed({ code, packVersion: "1.0.0" });
   const v1 = await publishPack({ seed: seedV1, actorRole: "power", actorId: "1001", activate: true });
   assert.equal(v1.ok, true);
   assert.equal(v1.pack!.status, "Active");
 
-  const seedV2 = freshPackSeed({ code, packVersion: "1.1.0" });
+  const seedV2 = await freshPackSeed({ code, packVersion: "1.1.0" });
   const v2 = await publishPack({ seed: seedV2, actorRole: "power", actorId: "1001", activate: true });
   assert.equal(v2.ok, true, !v2.ok ? JSON.stringify(v2.errors) : undefined);
   assert.notEqual(v2.pack!.id, v1.pack!.id, "a new version must be a new row, not a mutation of the old one");
@@ -131,7 +149,7 @@ test("publishing a new version of an existing Pack code creates a new immutable 
 });
 
 test("transitionPack rejects an undefined transition (Draft -> Active, skipping Validated/Published)", async () => {
-  const { data: rawDraftPack } = await packsDB.create(freshPackSeed());
+  const { data: rawDraftPack } = await packsDB.create(await freshPackSeed());
   assert.ok(rawDraftPack);
   const result = await transitionPack({ packId: rawDraftPack!.id, targetState: "Active", actorRole: "power", actorId: "1001" });
   assert.equal(result.ok, false);
@@ -140,7 +158,7 @@ test("transitionPack rejects an undefined transition (Draft -> Active, skipping 
 });
 
 test("Pack Registry (listPacksWithNextStates) reports the correct possibleNextStates per lifecycle state", async () => {
-  const seed = freshPackSeed();
+  const seed = await freshPackSeed();
   const published = await publishPack({ seed, actorRole: "general", actorId: "1001" });
   assert.equal(published.ok, true);
 
@@ -167,9 +185,10 @@ test("Pack Registry (listPacksWithNextStates) reports the correct possibleNextSt
 // just deduping two resolutions of the *same* row now, not two different
 // rows — because both sides do genuinely name this code.
 test("compositionEngine.compose resolves the same code referenced by both a Template and a Profile to one Version, and still warns about the duplicate reference", async () => {
-  const code = `test-conflict-${randomUUID()}`;
-  const v1Draft = await createPackDraft(freshPackSeed({ code, packVersion: "1.0.0" }));
-  const v2Draft = await createPackDraft(freshPackSeed({ code, packVersion: "1.1.0" }));
+  const code = await registerTestOntologyCode("capability-name", "test-conflict");
+  createdOntologyCodes.push({ conceptType: "capability-name", code });
+  const v1Draft = await createPackDraft(await freshPackSeed({ code, packVersion: "1.0.0" }));
+  const v2Draft = await createPackDraft(await freshPackSeed({ code, packVersion: "1.1.0" }));
   assert.equal(v1Draft.ok, true);
   assert.equal(v2Draft.ok, true);
   if (!v1Draft.ok || !v2Draft.ok) throw new Error("unreachable");
@@ -221,7 +240,7 @@ test("compositionEngine.compose resolves the same code referenced by both a Temp
 //      already covered by every other composition test using a freshly-
 //      published, Active Pack.)
 test("compositionEngine.compose excludes a Pack code with no Active Version and warns about it by name", async () => {
-  const mandatory = await publishPack({ seed: freshPackSeed(), actorRole: "power", actorId: "1001", activate: true });
+  const mandatory = await publishPack({ seed: await freshPackSeed(), actorRole: "power", actorId: "1001", activate: true });
   assert.equal(mandatory.ok, true);
   const archived = await transitionPack({ packId: mandatory.pack!.id, targetState: "Deprecated", actorRole: "power", actorId: "1001" });
   assert.equal(archived.ok, true);
@@ -233,7 +252,7 @@ test("compositionEngine.compose excludes a Pack code with no Active Version and 
   if (!finalArchived.ok) throw new Error("unreachable");
   assert.equal(finalArchived.pack.status, "Archived");
 
-  const stillActiveOptional = await publishPack({ seed: freshPackSeed(), actorRole: "power", actorId: "1001", activate: true });
+  const stillActiveOptional = await publishPack({ seed: await freshPackSeed(), actorRole: "power", actorId: "1001", activate: true });
   assert.equal(stillActiveOptional.ok, true);
 
   const { data: template } = await templatesDB.upsert({ code: `test-archived-template-${randomUUID()}`, name: "Archived Pack Test Template" });
@@ -261,8 +280,9 @@ test("compositionEngine.compose excludes a Pack code with no Active Version and 
 // in between, with *zero* edits to the Template itself — the second
 // composition must pick up the new Version automatically.
 test("a Template automatically composes a newer Active Version of its mandatory Pack's code, with no edit to the Template itself", async () => {
-  const code = `test-live-code-${randomUUID()}`;
-  const v1 = await publishPack({ seed: freshPackSeed({ code, packVersion: "1.0.0" }), actorRole: "power", actorId: "1001", activate: true });
+  const code = await registerTestOntologyCode("capability-name", "test-live-code");
+  createdOntologyCodes.push({ conceptType: "capability-name", code });
+  const v1 = await publishPack({ seed: await freshPackSeed({ code, packVersion: "1.0.0" }), actorRole: "power", actorId: "1001", activate: true });
   assert.equal(v1.ok, true, !v1.ok ? JSON.stringify(v1) : undefined);
   if (!v1.ok) throw new Error("unreachable");
 
@@ -280,7 +300,7 @@ test("a Template automatically composes a newer Active Version of its mandatory 
   // supersedes (Deprecates) v1 the normal way, through publishPack's own
   // activate+supersede step, exactly like the real bug report's scenario
   // (an Active Pack getting archived and a new Version taking over).
-  const v2 = await publishPack({ seed: freshPackSeed({ code, packVersion: "2.0.0" }), actorRole: "power", actorId: "1001", activate: true });
+  const v2 = await publishPack({ seed: await freshPackSeed({ code, packVersion: "2.0.0" }), actorRole: "power", actorId: "1001", activate: true });
   assert.equal(v2.ok, true, !v2.ok ? JSON.stringify(v2) : undefined);
   if (!v2.ok) throw new Error("unreachable");
   const { data: v1Reloaded } = await packsDB.findById(v1.pack!.id);
@@ -299,7 +319,7 @@ test("a Template automatically composes a newer Active Version of its mandatory 
 // immutable); it publishes a new Version with an auto-bumped patch number.
 for (const terminalState of ["Deprecated", "Retired", "Archived"]) {
   test(`transitionPack from ${terminalState} to Active publishes a new Version rather than resurrecting the old row`, async () => {
-    const seed = freshPackSeed();
+    const seed = await freshPackSeed();
     const published = await publishPack({ seed, actorRole: "power", actorId: "1001", activate: true });
     assert.equal(published.ok, true);
     const original = published.pack!;
@@ -329,14 +349,15 @@ for (const terminalState of ["Deprecated", "Retired", "Archived"]) {
 }
 
 test("reactivating a Pack supersedes whatever else is currently Active for the same code", async () => {
-  const code = `test-reactivate-supersede-${randomUUID()}`;
-  const v1 = await publishPack({ seed: freshPackSeed({ code, packVersion: "1.0.0" }), actorRole: "power", actorId: "1001", activate: true });
+  const code = await registerTestOntologyCode("capability-name", "test-reactivate-supersede");
+  createdOntologyCodes.push({ conceptType: "capability-name", code });
+  const v1 = await publishPack({ seed: await freshPackSeed({ code, packVersion: "1.0.0" }), actorRole: "power", actorId: "1001", activate: true });
   assert.equal(v1.ok, true);
   const toDeprecated = await transitionPack({ packId: v1.pack!.id, targetState: "Deprecated", actorRole: "power", actorId: "1001" });
   assert.equal(toDeprecated.ok, true);
 
   // A second, unrelated Version of the same code takes over as Active.
-  const v2 = await publishPack({ seed: freshPackSeed({ code, packVersion: "2.0.0" }), actorRole: "power", actorId: "1001", activate: true });
+  const v2 = await publishPack({ seed: await freshPackSeed({ code, packVersion: "2.0.0" }), actorRole: "power", actorId: "1001", activate: true });
   assert.equal(v2.ok, true);
   assert.equal(v2.pack!.status, "Active");
 
@@ -362,11 +383,12 @@ test("reactivating a Pack supersedes whatever else is currently Active for the s
 // constraint — publishPack's own rerun-safety check must scope by tenant too,
 // or a tenant's "new" publish could silently resolve to Platform's row.
 test("CR-026: two tenants publishing the exact same (code, packVersion) no longer collide, and each tenant's Active row is independent", async () => {
-  const code = `test-tenant-scoped-${randomUUID()}`;
-  const platformResult = await publishPack({ seed: freshPackSeed({ code, packVersion: "1.0.0", tenantId: PLATFORM_TENANT_ID }), actorRole: "power", actorId: "1001", activate: true });
+  const code = await registerTestOntologyCode("capability-name", "test-tenant-scoped");
+  createdOntologyCodes.push({ conceptType: "capability-name", code });
+  const platformResult = await publishPack({ seed: await freshPackSeed({ code, packVersion: "1.0.0", tenantId: PLATFORM_TENANT_ID }), actorRole: "power", actorId: "1001", activate: true });
   assert.equal(platformResult.ok, true, !platformResult.ok ? JSON.stringify(platformResult.errors) : undefined);
 
-  const tenantResult = await publishPack({ seed: freshPackSeed({ code, packVersion: "1.0.0", tenantId: DEMO_TENANT_ID }), actorRole: "power", actorId: "1001", activate: true });
+  const tenantResult = await publishPack({ seed: await freshPackSeed({ code, packVersion: "1.0.0", tenantId: DEMO_TENANT_ID }), actorRole: "power", actorId: "1001", activate: true });
   assert.equal(tenantResult.ok, true, !tenantResult.ok ? JSON.stringify(tenantResult.errors) : "a tenant's own Pack at the same (code, packVersion) as Platform's must not collide");
   assert.notEqual(tenantResult.pack!.id, platformResult.pack!.id, "must be two genuinely distinct rows, not one resolved for both tenants");
   assert.equal(tenantResult.alreadyPublished, false, "must be treated as a real new publish, not Platform's row mistaken for an idempotent rerun");
@@ -378,14 +400,15 @@ test("CR-026: two tenants publishing the exact same (code, packVersion) no longe
 });
 
 test("CR-026: reactivating a Pack supersedes only its OWN tenant's Active row, never a different tenant's row at the same code", async () => {
-  const code = `test-tenant-reactivate-${randomUUID()}`;
-  const platformV1 = await publishPack({ seed: freshPackSeed({ code, packVersion: "1.0.0", tenantId: PLATFORM_TENANT_ID }), actorRole: "power", actorId: "1001", activate: true });
+  const code = await registerTestOntologyCode("capability-name", "test-tenant-reactivate");
+  createdOntologyCodes.push({ conceptType: "capability-name", code });
+  const platformV1 = await publishPack({ seed: await freshPackSeed({ code, packVersion: "1.0.0", tenantId: PLATFORM_TENANT_ID }), actorRole: "power", actorId: "1001", activate: true });
   assert.equal(platformV1.ok, true);
   const toDeprecated = await transitionPack({ packId: platformV1.pack!.id, targetState: "Deprecated", actorRole: "power", actorId: "1001" });
   assert.equal(toDeprecated.ok, true);
 
   // A different tenant's row at the exact same code+version, currently Active.
-  const tenantV1 = await publishPack({ seed: freshPackSeed({ code, packVersion: "1.0.0", tenantId: DEMO_TENANT_ID }), actorRole: "power", actorId: "1001", activate: true });
+  const tenantV1 = await publishPack({ seed: await freshPackSeed({ code, packVersion: "1.0.0", tenantId: DEMO_TENANT_ID }), actorRole: "power", actorId: "1001", activate: true });
   assert.equal(tenantV1.ok, true, !tenantV1.ok ? JSON.stringify(tenantV1.errors) : undefined);
   assert.equal(tenantV1.pack!.status, "Active");
 
@@ -406,7 +429,7 @@ test("CR-026: reactivating a Pack supersedes only its OWN tenant's Active row, n
 });
 
 test("reactivating a Pack requires 'power' — a 'general' actor is denied", async () => {
-  const published = await publishPack({ seed: freshPackSeed(), actorRole: "power", actorId: "1001", activate: true });
+  const published = await publishPack({ seed: await freshPackSeed(), actorRole: "power", actorId: "1001", activate: true });
   assert.equal(published.ok, true);
   const deprecated = await transitionPack({ packId: published.pack!.id, targetState: "Deprecated", actorRole: "power", actorId: "1001" });
   assert.equal(deprecated.ok, true);

@@ -11,23 +11,23 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { compositionEngine } from "../src/domain/engine/compositionEngine.js";
 import { transitionEngine } from "../src/domain/engine/transitionEngine.js";
-import { dependencyEngine } from "../src/domain/engine/dependencyEngine.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
 
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { objectivesDB } from "../src/dblayer/objectivesDB.js";
-import { seusDB } from "../src/dblayer/seusDB.js";
-import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
-import { dependencyEdgesDB } from "../src/dblayer/dependencyEdgesDB.js";
-import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
-import { servicesDB } from "../src/dblayer/servicesDB.js";
-import { seuCapabilitiesDB } from "../src/dblayer/seuCapabilitiesDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
-import { ensureWebAppTemplateFixture } from "./testFixtures.js";
+import { registerTestOntologyCode, deleteTestOntologyCodes } from "./testFixtures.js";
+
+// CR-046 (owner: "the test script should use a code present in the
+// ontology") — Pack.code is Ontology-validated (capability-name) at publish
+// time now; the two real concepts this file registers are tracked and
+// cleaned up here, same discipline as pack-sdk.test.ts's own.
+const createdOntologyCodes: Array<{ conceptType: string; code: string }> = [];
 
 after(async () => {
+  await deleteTestOntologyCodes(createdOntologyCodes);
   await pool.end();
 });
 
@@ -43,13 +43,18 @@ after(async () => {
 // Archived-Packs-compose-silently bug below was found), so this test can no
 // longer assume their ambient status.
 test("compositionEngine.compose resolves a Template's mandatory Pack plus a Profile's optional Pack, deterministically", async () => {
+  const mandatoryCode = await registerTestOntologyCode("capability-name", "test-compose-mandatory");
+  createdOntologyCodes.push({ conceptType: "capability-name", code: mandatoryCode });
+  const optionalCode = await registerTestOntologyCode("capability-name", "test-compose-optional");
+  createdOntologyCodes.push({ conceptType: "capability-name", code: optionalCode });
+
   const mandatory = await publishPack({
-    seed: { code: `test-compose-mandatory-${randomUUID()}`, name: "Test Mandatory Pack", category: "Engineering", packVersion: "1.0.0", installationClassification: "Mandatory", contributions: {} },
+    seed: { code: mandatoryCode, name: "Test Mandatory Pack", category: "Engineering", packVersion: "1.0.0", installationClassification: "Mandatory", contributions: {} },
     actorRole: "power", actorId: "1001",
     activate: true,
   });
   const optional = await publishPack({
-    seed: { code: `test-compose-optional-${randomUUID()}`, name: "Test Optional Pack", category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", contributions: {} },
+    seed: { code: optionalCode, name: "Test Optional Pack", category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", contributions: {} },
     actorRole: "power", actorId: "1001",
     activate: true,
   });
@@ -138,81 +143,6 @@ test("transitionEngine.evaluate handles the Objective entity type (Post-MVP Phas
   });
   assert.equal(undefinedTransition.allowed, false);
   if (!undefinedTransition.allowed) assert.equal(undefinedTransition.reason, "no_transition_definition");
-});
-
-test("dependencyEngine: Deliverable-type edge becomes Satisfied only once the target reaches the required state", async () => {
-  const { data: objective } = await objectivesDB.create({ statement: `engine-test-${randomUUID()}`, tier: "Strategic" });
-  await ensureWebAppTemplateFixture();
-  const { data: template } = await templatesDB.findByCode("enterprise-web-application");
-  const { data: profile } = await profilesDB.findByCode("profile-default-development");
-  const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id });
-  assert.ok(seu);
-
-  const { data: upstream } = await deliverablesDB.create({ seuId: seu.id, name: "Requirements Specification", category: "Documentation" });
-  const { data: downstream } = await deliverablesDB.create({ seuId: seu.id, name: "Architecture Document", category: "Documentation" });
-  assert.ok(upstream && downstream);
-
-  await dependencyEdgesDB.createDeliverableEdge({
-    seuId: seu.id,
-    fromDeliverableId: downstream.id,
-    toDeliverableId: upstream.id,
-    requiredState: "Approved",
-  });
-
-  const before = await dependencyEngine.isDeliverableReady(downstream.id);
-  assert.equal(before.ready, false);
-  assert.equal(before.edges[0]?.readiness_state, "Pending");
-
-  await deliverablesDB.updateLifecycleState(upstream.id, "Approved");
-
-  const after1 = await dependencyEngine.isDeliverableReady(downstream.id);
-  assert.equal(after1.ready, true);
-  assert.equal(after1.edges[0]?.readiness_state, "Satisfied");
-
-  // Regression test for a real bug found auditing Phase 5's Evidence-gated
-  // transition: the upstream Deliverable moving PAST its required state
-  // (Approved -> Baselined) must not flip an already-Satisfied edge back to
-  // Pending. The original check was exact-equality against required_state,
-  // so any further upstream progress permanently un-satisfied every
-  // downstream edge pointing at an earlier state, with no way back short of
-  // moving the upstream Deliverable backward (which the engine disallows).
-  await deliverablesDB.updateLifecycleState(upstream.id, "Baselined");
-
-  const after2 = await dependencyEngine.isDeliverableReady(downstream.id);
-  assert.equal(after2.ready, true, "an upstream Deliverable that has moved PAST the required state must still satisfy the dependency, not flip back to Pending");
-  assert.equal(after2.edges[0]?.readiness_state, "Satisfied");
-});
-
-test("dependencyEngine: Capability-type edge becomes Satisfied once the SEU's Capability requirement is Fulfilled", async () => {
-  const { data: objective } = await objectivesDB.create({ statement: `engine-test-${randomUUID()}`, tier: "Strategic" });
-  await ensureWebAppTemplateFixture();
-  const { data: template } = await templatesDB.findByCode("enterprise-web-application");
-  const { data: profile } = await profilesDB.findByCode("profile-default-development");
-  const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id });
-  const { data: capability } = await capabilitiesDB.findByCodes(["requirements-analysis"]);
-  const requirementsCapability = capability?.[0];
-  assert.ok(seu && requirementsCapability);
-
-  const { data: services } = await servicesDB.findByCapabilityId(requirementsCapability.id);
-  const service = services?.[0];
-  assert.ok(service);
-
-  const { data: seuCapabilities } = await seuCapabilitiesDB.createMany(seu.id, [requirementsCapability.id]);
-  const seuCapability = seuCapabilities?.[0];
-  assert.ok(seuCapability);
-
-  const { data: deliverable } = await deliverablesDB.create({ seuId: seu.id, name: "Requirements Specification", category: "Documentation" });
-  assert.ok(deliverable);
-
-  await dependencyEdgesDB.createCapabilityEdge({ seuId: seu.id, fromDeliverableId: deliverable.id, toServiceId: service.id });
-
-  const before = await dependencyEngine.isDeliverableReady(deliverable.id);
-  assert.equal(before.ready, false);
-
-  await seuCapabilitiesDB.markFulfilled(seuCapability.id);
-
-  const after1 = await dependencyEngine.isDeliverableReady(deliverable.id);
-  assert.equal(after1.ready, true);
 });
 
 test("eventBus.publish persists the event and notifies subscribers exactly once", async () => {

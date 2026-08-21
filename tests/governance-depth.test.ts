@@ -18,7 +18,7 @@ import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
 import { transitionDeliverableSync as transitionDeliverable } from "./testFixtures.js";
 import { createObligation, transitionObligation } from "../src/routes/seu/core/obligations.js";
-import { dependencyEngine } from "../src/domain/engine/dependencyEngine.js";
+import { dependencyDefinitionEngine } from "../src/domain/engine/dependencyDefinitionEngine.js";
 import { transitionEngine } from "../src/domain/engine/transitionEngine.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
@@ -62,9 +62,9 @@ test("Quality Gate blocks a Deliverable transition while an Obligation is unreso
   // dependsOnCapabilityServiceCodes in the seeded Template — confirm the
   // Dependency Engine has nothing to say here at all, so any block that
   // follows can only be the Quality Gate/Obligation, not the dependency graph.
-  const readiness = await dependencyEngine.isDeliverableReady(requirementsSpec.id);
+  const readiness = await dependencyDefinitionEngine.isTargetReady(seuId, "Deliverable", "Requirements Specification", "In Progress");
   assert.equal(readiness.ready, true);
-  assert.equal(readiness.edges.length, 0);
+  assert.equal(readiness.rows.length, 0);
 
   await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantType: "AI", displayName: "Phase4 Test Analyst" });
 
@@ -83,7 +83,7 @@ test("Quality Gate blocks a Deliverable transition while an Obligation is unreso
 
   // Dependency Engine still has nothing to say — re-confirm right before the
   // blocked attempt, not just at the start.
-  const readinessBeforeBlock = await dependencyEngine.isDeliverableReady(requirementsSpec.id);
+  const readinessBeforeBlock = await dependencyDefinitionEngine.isTargetReady(seuId, "Deliverable", "Requirements Specification", "Approved");
   assert.equal(readinessBeforeBlock.ready, true);
 
   const blocked = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "Approved", actorRole: "super", actorId: "1" });

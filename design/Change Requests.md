@@ -4,7 +4,19 @@ A running register of change requests raised against the platform — feature ad
 
 | CR | Title | Status |
 |----|-------|--------|
-| [CR-038](change-requests/CR-038-template-form-category-tabbed-packs-derived-capabilities.md) | Template form: category-tabbed Pack pickers, derived Required Capabilities, Ontology-backed Deliverable Catalogue | 🟡 Proposed (not scheduled) |
+| [CR-050](change-requests/CR-050-commissioning-active-definition-check.md) | SEU commissioning must check referenced Definitions are Active at commissioning time | 🟡 Proposed (not scheduled) |
+| [CR-049](change-requests/CR-049-deliverable-authoring-and-relationships.md) | Deliverable authoring: tenant specialisation from Ontology-defined Platform "code," and the Derivation/Implementation/Decomposition relationship types | 🟡 Proposed (design in progress) |
+| [CR-048](change-requests/CR-048-constraint-detection-flow-optimisation.md) | Constraint Detection (§11) + Flow Optimisation (§14): continuous incoming-edge-unsatisfied checking | 🟡 Proposed (not scheduled) |
+| [CR-047](change-requests/CR-047-dependency-graph-widget-full-vocabulary-pack-profile.md) | dependencyGraph authoring widget: full type vocabulary, symmetric TO side, and Pack/Profile schemas | 🟡 Proposed (not scheduled) |
+| [CR-046](change-requests/CR-046-registry-view-button-and-ontology-code-validation.md) | Registry "View" button, view-page data-source fix, Capability dependency widget fix, real server-side Ontology code validation | ✅ Built 2026-08-20 |
+| [CR-045](change-requests/CR-045-authoring-view-mode-plain-read-rendering.md) | Authoring view mode: plain read text, not disabled dropdowns/inputs | ✅ Built 2026-08-20 |
+| [CR-044](change-requests/CR-044-template-form-reorder-pack-deliverable-tabs.md) | Template authoring form: Code/Name/Purpose/Version first, dedicated Pack Codes and Deliverable Catalogue tabs | ✅ Built 2026-08-20 |
+| [CR-043](change-requests/CR-043-dependency-definitions-polymorphic-owner.md) | `dependency_definitions`: polymorphic owning scope (Template / Pack / Profile) | ✅ Built 2026-08-20 |
+| [CR-042](change-requests/CR-042-wire-dependency-push-evaluation.md) | Wire dependency push-evaluation into live transition-completion paths; publish `DeliverableReady`/`DeliverableBlocked` (CR-040's surviving residue) | ✅ Built 2026-08-20 |
+| [CR-041](change-requests/CR-041-dependency-graph-authoring-widget.md) | Dependency graph authoring widget — generic self-referential repeatable-list mechanism, prerequisite for CR-038's Deliverable Catalogue redesign | ✅ Built 2026-08-20 |
+| [CR-040](change-requests/CR-040-dependency-engine-full-event-taxonomy.md) | Dependency Engine: full nine-event taxonomy (Ch.9 §15) | ❌ Closed 2026-08-20 — not needed, residue moved to CR-042 |
+| [CR-039](change-requests/CR-039-dependency-engine-canonical-form.md) | Dependency Engine: canonical `(entity_type, name?, state)` node form, Template-scoped, push-evaluated | ✅ Built 2026-08-20 |
+| [CR-038](change-requests/CR-038-template-form-category-tabbed-packs-derived-capabilities.md) | Template form: category-tabbed Pack pickers, derived Required Capabilities, Ontology-backed Deliverable Catalogue | ✅ Built 2026-08-20 |
 | [CR-037](change-requests/CR-037-authoring-tabs-verb-queue.md) | Authoring tabs: "I defined" (any status) + per-verb queues only | ✅ Built 2026-08-20 |
 | [CR-036](change-requests/CR-036-registry-view-only-copy-state-filter.md) | Pack/Template/Profile Registry: view-only + state filters + badge-gated Copy; lifecycle governance moved to Authoring | ✅ Built 2026-08-20 |
 | [CR-035](change-requests/CR-035-template-candidate-tenant-scoping.md) | `findCandidateTemplates` scoped to Platform + caller's tenant (was fully unscoped) | ✅ Built 2026-08-19 |

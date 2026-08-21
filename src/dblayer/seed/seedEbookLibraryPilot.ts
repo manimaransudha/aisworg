@@ -16,7 +16,8 @@ import { templatesDB } from "../templatesDB.js";
 import { profilesDB } from "../profilesDB.js";
 import { capabilitiesDB } from "../capabilitiesDB.js";
 import { packsDB } from "../packsDB.js";
-import type { TemplateDeliverableSeed } from "../seuTypes.js";
+import { materialiseDependencyGraph } from "../../domain/engine/materialiseDependencyGraph.js";
+import type { TemplateDeliverableSeed, TemplateDependencyGraphEntry } from "../seuTypes.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "data");
@@ -32,6 +33,7 @@ interface TemplateSeed {
   requiredCapabilityCodes: string[];
   mandatoryPackCodes: string[];
   deliverableCatalogue: TemplateDeliverableSeed[];
+  dependencyGraph?: TemplateDependencyGraphEntry[];
 }
 
 interface ProfileSeed {
@@ -55,6 +57,15 @@ async function run(): Promise<void> {
       deliverableCatalogue: templateSeed.deliverableCatalogue,
     });
     if (templateErr || !template) throw templateErr ?? new Error(`template upsert failed: ${templateSeed.code}`);
+
+    // CR-039/CR-041 — materialised at seed time (Template-scoped), not at
+    // commissioning. dependencyGraph is the real authored source.
+    await materialiseDependencyGraph({
+      owningEntityType: "Template",
+      owningEntityId: template.id,
+      deliverableCatalogue: templateSeed.deliverableCatalogue,
+      dependencyGraph: templateSeed.dependencyGraph ?? [],
+    });
 
     const { data: capabilities } = await capabilitiesDB.findByCodes(templateSeed.requiredCapabilityCodes);
     const capabilityIdByCode = new Map((capabilities ?? []).map((c) => [c.code, c.id]));

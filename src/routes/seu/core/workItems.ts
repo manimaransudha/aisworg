@@ -18,6 +18,7 @@ import { deliverableReferencesDB } from "../../../dblayer/deliverableReferencesD
 import { attestationsDB } from "../../../dblayer/attestationsDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
+import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { raiseAttentionItem } from "./attentionItems.js";
 import type { DeliverableRow, WorkItemRow } from "../../../dblayer/seuTypes.js";
@@ -113,6 +114,17 @@ export async function completeWorkItem(input: {
   // A / Plan Resolution 1).
   const { data: updated, error } = await deliverablesDB.updateLifecycleState(command.entity_id, command.to_state);
   if (error || !updated) throw error ?? new Error("failed to apply deliverable transition on work item completion");
+
+  // CR-042 — the real state-change point: tell the canonical dependency
+  // graph a Deliverable just landed in a new state, so it can publish
+  // DeliverableReady for whatever downstream node this just unblocked.
+  await dependencyDefinitionEngine.evaluateAndPublishFromTransition({
+    seuId: command.seu_id,
+    entityType: "Deliverable",
+    name: updated.name,
+    newState: command.to_state,
+    correlationId,
+  });
 
   // Durable raw reference (Resolution 3): the candidate output the Participant
   // returned, bound to the state its Work Item drove toward. Recorded for every

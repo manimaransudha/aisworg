@@ -142,18 +142,47 @@ export interface PackRow {
   created_at: string;
 }
 
+// CR-038 — `code` dropped outright: dependencyGraph moved to name-based
+// cross-references (bug fix, see TemplateDependencyGraphEntry's own
+// comment), and commissioning's own use of it was purely a report-list
+// convenience (initialDeliverables, now name-keyed instead) — nothing
+// functional ever needed a separate catalogue-local identifier once `name`
+// itself is Ontology-backed (deliverable-name concept) and therefore already
+// a stable, controlled value. `name` is the real identity throughout the
+// runtime system (deliverables.name, dependency_definitions' name-keyed
+// columns) — this just stops pretending there's a second one.
 export interface TemplateDeliverableSeed {
-  code: string;
   name: string;
   category: string;
   producingCapabilityCode?: string;
-  dependsOnDeliverableCodes?: string[]; // other codes within the same catalogue, required state 'Approved'
-  // Post-MVP Phase 2 (Ch.9 §8 / Ch.11 §9): capability codes whose declared
-  // Service this Deliverable depends on — distinct from dependsOnDeliverableCodes.
-  // A Deliverable edge asks "is the upstream artefact in the right state?"; a
-  // Capability edge asks "is anyone actually assigned to that upstream
-  // Capability for this SEU?" Both can be true for the same pair of Deliverables.
-  dependsOnCapabilityServiceCodes?: string[];
+}
+
+// CR-041 — the dependency graph is authored explicitly, as its own top-level
+// list, not embedded per-catalogue-entry (the old dependsOnDeliverableCodes/
+// dependsOnCapabilityServiceCodes shape, retired — see migration that
+// converted every seed Template's data).
+//
+// toName/fromName reference deliverableCatalogue's own `name` values within
+// the same Template — NAME, not `code` (bug fix, found building CR-038: the
+// live widget's self-referential picker resolves against catalogue *names*
+// (migration 076's own toName/fromName field names, `x-referential:
+// "self:deliverableCatalogue"`, populated from each entry's `.name`), and
+// dependency_definitions itself is name-keyed throughout (matches
+// deliverables.name at runtime) — code was never the right shape here, only
+// ever a leftover from the pre-CR-041 embedded-code model). fromCapabilityCode
+// names a required Capability (resolved to that Capability's declared
+// Service(s) — Ch.9 §8/Ch.11 §9: a Capability edge asks "is anyone actually
+// assigned to this upstream Capability," distinct from a Deliverable edge's
+// "did the upstream artefact reach the right state" — both can gate the same
+// target). requiredState is optional — absent means a sensible default
+// applies (Approved for Deliverable, Fulfilled for Capability); when
+// present, it's an explicit author override.
+export interface TemplateDependencyGraphEntry {
+  toName: string;
+  fromType: "Deliverable" | "Capability";
+  fromName?: string;
+  fromCapabilityCode?: string;
+  requiredState?: string;
 }
 
 export interface TemplateRow {
@@ -312,15 +341,32 @@ export interface DeliverableRow {
 export type DependencyType = "Deliverable" | "Capability";
 export type ReadinessState = "Unknown" | "Pending" | "Satisfied" | "Blocked";
 
-export interface DependencyEdgeRow {
+// CR-039 — canonical, Template-scoped dependency graph replacing
+// dependency_edges' per-SEU-instance rows (migration 072's own header comment
+// has the full design rationale). entity_type is deliberately not narrowed to
+// TransitionEntityType here: Capability is a valid from/to type but carries no
+// transition_definitions state machine of its own (it's a Service-fulfilment
+// check, not a lifecycle), so the column stays plain string at the type level
+// too, same as the DB column.
+export type DependencyDefinitionEntityType = TransitionEntityType | "Capability";
+
+// CR-043 — a rule can be authored on the Template it's a fact about, a Pack
+// (applies wherever that Pack gets composed, across every Template that
+// pulls it in), or a Profile (environment-specific). No real FK — same
+// soft-reference tradeoff as related_object_type/related_object_id.
+export type DependencyDefinitionOwnerType = "Template" | "Pack" | "Profile";
+
+export interface DependencyDefinitionRow {
   id: string;
-  seu_id: string;
-  from_deliverable_id: string;
-  dependency_type: DependencyType;
-  to_deliverable_id: string | null;
-  to_service_id: string | null;
-  required_state: string | null;
-  readiness_state: ReadinessState;
+  owning_entity_type: DependencyDefinitionOwnerType;
+  owning_entity_id: string;
+  from_entity_type: DependencyDefinitionEntityType;
+  from_name: string | null;
+  from_state: string;
+  to_entity_type: DependencyDefinitionEntityType;
+  to_name: string;
+  to_state: string;
+  created_at: string;
 }
 
 export interface AuthorityRuleRow {

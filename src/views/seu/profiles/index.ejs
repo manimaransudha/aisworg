@@ -92,12 +92,15 @@
                 <% if (_description) { %><p class="small mb-2"><%= _description %></p><% } %>
               </div>
             </div>
-            <% if (locals.canCopy) { %>
-              <form method="POST" action="/aisworg/seu/profiles/<%= p.profile.id %>/copy">
-                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-copy me-1"></i>Copy</button>
-              </form>
-            <% } %>
+            <div class="d-flex gap-2">
+              <a href="/aisworg/seu/sdk/profile-authoring/<%= p.profile.id %>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye me-1"></i>View</a>
+              <% if (locals.canCopy) { %>
+                <form method="POST" action="/aisworg/seu/profiles/<%= p.profile.id %>/copy">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-copy me-1"></i>Copy</button>
+                </form>
+              <% } %>
+            </div>
           </div>
         </div>
       <% }) %>

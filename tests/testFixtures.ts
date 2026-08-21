@@ -19,15 +19,49 @@
 // call from many test files/processes concurrently (upsert, not create) and
 // safe to leave in place after a real db:clean-slate run — it recreates
 // itself the next time tests run.
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
+import { dependencyDefinitionsDB } from "../src/dblayer/dependencyDefinitionsDB.js";
+import { materialiseDependencyGraph } from "../src/domain/engine/materialiseDependencyGraph.js";
+import { deriveCapabilityCodesFromPackCodes } from "../src/routes/seu/core/templates.js";
+import { addConcept } from "../src/routes/seu/core/ontology.js";
+import pool from "../src/utils/db.js";
 import { transitionDeliverable, type TransitionDeliverableResult } from "../src/routes/seu/core/deliverables.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
-import type { DeliverableRow, ProfileRow, TemplateDeliverableSeed, TemplateRow } from "../src/dblayer/seuTypes.js";
+import type { DeliverableRow, ProfileRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../src/dblayer/seuTypes.js";
+
+// CR-046 (owner: "why are test scripts adding code that is not in the
+// ontology??? I thought we fixed this" / "the test script should use a code
+// present in the ontology") — Pack.code (capability-name) and Template.code
+// (template-categories) are now server-side Ontology-validated at publish
+// time (validatePackSeed/validateTemplateSeed's own assertCanonicalCategory
+// check). Most tests need a fresh, per-call-unique identity (to avoid
+// colliding with a prior run's own leftover rows in this never-reset dev
+// database) — reusing one of the small pre-seeded vocabulary's fixed values
+// wouldn't give that, so this registers a REAL Ontology concept first,
+// genuinely "present in the ontology," not just coincidentally matching one.
+// Callers track the returned code themselves and delete the row in their own
+// after(), matching the existing user/grant/Template cleanup discipline
+// already in these files (e.g. sdk-authoring.test.ts) — this helper only
+// creates, it never cleans up on its own.
+export async function registerTestOntologyCode(conceptType: string, prefix: string): Promise<string> {
+  const code = `${prefix}-${randomUUID()}`;
+  await addConcept({ conceptType, code, defaultLabel: prefix }, { isRoot: true, tenantId: null });
+  return code;
+}
+
+// Shared delete helper for the above — one raw DELETE, callers just track
+// which (conceptType, code) pairs they registered.
+export async function deleteTestOntologyCodes(entries: Array<{ conceptType: string; code: string }>): Promise<void> {
+  for (const { conceptType, code } of entries) {
+    await pool.query("DELETE FROM ontology_concepts WHERE concept_type = $1 AND code = $2", [conceptType, code]);
+  }
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "..", "src", "dblayer", "seed", "data");
@@ -39,9 +73,9 @@ function loadJson<T>(fileName: string): T {
 interface TemplateSeed {
   code: string;
   name: string;
-  requiredCapabilityCodes: string[];
   mandatoryPackCodes: string[];
   deliverableCatalogue: TemplateDeliverableSeed[];
+  dependencyGraph?: TemplateDependencyGraphEntry[];
 }
 
 interface ProfileSeed {
@@ -136,22 +170,38 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
   });
   if (templateErr || !template) throw templateErr ?? new Error(`template upsert failed: ${templateSeed.code}`);
 
-  const { data: capabilities } = await capabilitiesDB.findByCodes(templateSeed.requiredCapabilityCodes);
-  const capabilityIdByCode = new Map((capabilities ?? []).map((c) => [c.code, c.id]));
-  const requiredCapabilityIds = templateSeed.requiredCapabilityCodes.map((code) => {
-    const id = capabilityIdByCode.get(code);
-    if (!id) throw new Error(`template ${templateSeed.code} requires unknown capability ${code}`);
-    return id;
-  });
+  const { data: existingMandatory } = await templatesDB.getMandatoryPackCodes(template.id);
+  if (!sameSet(existingMandatory ?? [], templateSeed.mandatoryPackCodes)) {
+    await templatesDB.setMandatoryPacks(template.id, templateSeed.mandatoryPackCodes);
+  }
+
+  // CR-038 — requiredCapabilityCodes is derived from the real mandatory-Pack
+  // selection now, same as the live authoring form and the SDLC seed script
+  // both do, not read from the seed's own (now removed) hand-typed field —
+  // verified to reproduce platform-core-engineering's exact 3-capability set
+  // for this fixture before this change was made.
+  const derivedCapabilityCodes = await deriveCapabilityCodesFromPackCodes(templateSeed.mandatoryPackCodes);
+  const { data: capabilities } = await capabilitiesDB.findByCodes(derivedCapabilityCodes);
+  const requiredCapabilityIds = (capabilities ?? []).map((c) => c.id);
 
   const { data: existingRequired } = await templatesDB.getRequiredCapabilities(template.id);
   if (!sameSet((existingRequired ?? []).map((c) => c.id), requiredCapabilityIds)) {
     await templatesDB.setRequiredCapabilities(template.id, requiredCapabilityIds);
   }
 
-  const { data: existingMandatory } = await templatesDB.getMandatoryPackCodes(template.id);
-  if (!sameSet(existingMandatory ?? [], templateSeed.mandatoryPackCodes)) {
-    await templatesDB.setMandatoryPacks(template.id, templateSeed.mandatoryPackCodes);
+  // CR-039/CR-041 — same guard as above: the seed's dependencyGraph never
+  // changes across a run, so only materialise once (a non-empty result is
+  // that "already holds the fixture's exact target data" state), avoiding
+  // the same concurrent DELETE+INSERT race this file's own header warns
+  // about (belt-and-braces alongside migration 075's real unique constraint).
+  const { data: existingDependencyDefinitions } = await dependencyDefinitionsDB.findByOwner("Template", template.id);
+  if (!existingDependencyDefinitions || existingDependencyDefinitions.length === 0) {
+    await materialiseDependencyGraph({
+      owningEntityType: "Template",
+      owningEntityId: template.id,
+      deliverableCatalogue: templateSeed.deliverableCatalogue,
+      dependencyGraph: templateSeed.dependencyGraph ?? [],
+    });
   }
 
   const { data: profile, error: profileErr } = await profilesDB.upsert({

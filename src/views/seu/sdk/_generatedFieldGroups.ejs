@@ -1,21 +1,27 @@
 <%# Grouped, TABBED rendering of a groupFieldsForDisplay() result — the Pack/
     Template/Profile authoring redesign (owner: "extremely unfriendly", then
     "each of the sections ... has to be a separate tab"). Every section —
-    Identity & Metadata, Compatibility, Dependencies, and each individual
-    Contribution type — is its own Bootstrap tab, not a stacked card or a
-    nested accordion; only one section's fields are on screen at a time.
+    Identity & Metadata, Pack Codes, Deliverable Catalogue, Compatibility,
+    Dependencies, and each individual Contribution type — is its own
+    Bootstrap tab, not a stacked card or a nested accordion; only one
+    section's fields are on screen at a time. Pack Codes / Deliverable
+    Catalogue are Template's own tabs (owner: "A tab for pack codes... A tab
+    for deliverable catalogue. This is where the dependency graph should
+    be") — they render only when the entity's schema actually has those
+    fields (Template does; Profile picks up Pack Codes too, for the four
+    category names it shares; Pack has neither).
     Locals: groups (FieldGroups), canEdit (bool), referentialOptions,
     contributionHelp (Record<string,string>), verifiableFieldHelp
     (Record<string,string>), sections (string[], optional — which of
-    metadata/compatibility/dependencies/contributions to include; omitted =
-    all), idPrefix (string, optional — keeps tab/pane element ids unique when
-    this partial is included more than once on the same page, e.g. once per
-    stepper pane).
+    metadata/packSelection/deliverables/compatibility/dependencies/contributions
+    to include; omitted = all), idPrefix (string, optional — keeps tab/pane
+    element ids unique when this partial is included more than once on the
+    same page, e.g. once per stepper pane).
     Self-contained — doesn't share markup with _generatedFields.ejs, which the
     schema-registry's own meta-schema form still uses unchanged, so this
     redesign carries zero risk to that page. %>
 <%
-  var sections = locals.sections || ['metadata', 'compatibility', 'dependencies', 'contributions'];
+  var sections = locals.sections || ['metadata', 'packSelection', 'deliverables', 'compatibility', 'dependencies', 'contributions'];
   var wantSection = function(key) { return sections.indexOf(key) !== -1; };
   var idPrefix = locals.idPrefix || 'sec';
   var simpleFields = (locals.groups.other || []).concat(locals.groups.metadata || []);
@@ -30,6 +36,12 @@
   var tabs = [];
   if (wantSection('metadata') && simpleFields.length) {
     tabs.push({ id: 'metadata', label: 'Identity & Metadata', type: 'simple', fields: simpleFields, hasContent: false });
+  }
+  if (wantSection('packSelection') && (locals.groups.packSelection || []).length) {
+    tabs.push({ id: 'packSelection', label: 'Pack Codes', type: 'simple', fields: locals.groups.packSelection, hasContent: false });
+  }
+  if (wantSection('deliverables') && (locals.groups.deliverables || []).length) {
+    tabs.push({ id: 'deliverables', label: 'Deliverable Catalogue', type: 'simple', fields: locals.groups.deliverables, hasContent: false });
   }
   if (wantSection('compatibility') && (locals.groups.compatibility || []).length) {
     tabs.push({ id: 'compatibility', label: 'Compatibility', type: 'simple', fields: locals.groups.compatibility, hasContent: false });
@@ -84,13 +96,39 @@
                     needs the room), same partial Pack's own Dependencies tab
                     uses. %>
                 <div class="col-12">
-                  <label class="form-label small fw-semibold"><%= f.label %><% if (f.required) { %> <span class="text-danger">*</span><% } %></label>
+                  <%# Owner: "In a view page why will a mandatory * indicator
+                      show up?" — required is an editing affordance (what you
+                      must still fill in); meaningless once the page is just
+                      showing what was already saved. %>
+                  <label class="form-label small fw-semibold"><%= f.label %><% if (f.required && canEdit) { %> <span class="text-danger">*</span><% } %></label>
                   <%- include('_referentialListGroup', { field: f, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions }) %>
                   <% if (f.help) { %><div class="form-text small"><%= f.help %></div><% } %>
                 </div>
               <% } else { %>
               <div class="col-md-6">
-                <label class="form-label small fw-semibold"><%= f.label %><% if (f.required) { %> <span class="text-danger">*</span><% } %></label>
+                <label class="form-label small fw-semibold"><%= f.label %><% if (f.required && canEdit) { %> <span class="text-danger">*</span><% } %></label>
+                <% if (!canEdit) { %>
+                  <%# View mode — plain text, not a disabled control (owner:
+                      "The view should show the details... just not
+                      editable, showing dropdowns etc"). Referential values
+                      resolve to the same human-readable label their
+                      <option> would have shown, not the bare stored code. %>
+                  <% if (f.kind === 'textarea' || f.kind === 'string' || f.kind === 'version' || f.kind === 'select') { %>
+                    <div class="small <%= f.kind === 'version' ? 'font-monospace' : '' %>" style="white-space: pre-wrap;"><%= f.value || '—' %></div>
+                  <% } else if (f.kind === 'json') { %>
+                    <pre class="small bg-light border rounded p-2 mb-0"><%= f.value %></pre>
+                  <% } else if (f.kind === 'referential-select' && f.ontology) { %>
+                    <% var _ontOpts = ((locals.ontologyOptions || {})[f.referentialSource] || []); %>
+                    <% var _matchedOnt = _ontOpts.find(function(opt) { return opt.code === f.value; }); %>
+                    <div class="small"><%= _matchedOnt ? _matchedOnt.label : (f.value ? ('⚠ ' + f.value + ' (not currently active)') : '—') %></div>
+                    <% if (_matchedOnt && _matchedOnt.description) { %><div class="form-text small fst-italic"><%= _matchedOnt.description %></div><% } %>
+                  <% } else if (f.kind === 'referential-select' && f.referentialSource === 'template-code') { %>
+                    <% var _matchedTemplate = (locals.templateOptions || []).find(function(t) { return t.code === f.value; }); %>
+                    <div class="small"><%= _matchedTemplate ? _matchedTemplate.name : (f.value ? ('⚠ ' + f.value + ' (not currently Active)') : '—') %></div>
+                  <% } else { %>
+                    <div class="small"><%= f.value || '—' %></div>
+                  <% } %>
+                <% } else { %>
                 <% if (f.kind === 'version') { %>
                   <%# Owner: "Version should be autogenerated using a next
                       version button. Editable text is not the correct
@@ -162,6 +200,7 @@
                 <% } else if (f.kind === 'json') { %>
                   <textarea name="<%= f.name %>" class="form-control form-control-sm font-monospace" rows="4" <%- canEdit ? '' : 'disabled' %>><%= f.value %></textarea>
                 <% } %>
+                <% } %>
                 <% if (f.help) { %><div class="form-text small"><%= f.help %></div><% } %>
               </div>
               <% } %>
@@ -187,7 +226,9 @@
               <% }) %>
             </ul>
           <% } %>
-          <% if (t.type === 'json') { %>
+          <% if (t.type === 'json' && !canEdit) { %>
+            <pre class="small bg-light border rounded p-2 mb-0"><%= t.field.value %></pre>
+          <% } else if (t.type === 'json') { %>
             <textarea name="<%= t.field.name %>" class="form-control form-control-sm font-monospace" rows="6" <%- canEdit ? '' : 'disabled' %>><%= t.field.value %></textarea>
           <% } else { %>
             <%- include('_referentialListGroup', { field: t.field, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions }) %>

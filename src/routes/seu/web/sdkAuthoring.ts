@@ -37,7 +37,7 @@ import {
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionPack } from "../core/packs.js";
-import { transitionTemplate } from "../core/templates.js";
+import { transitionTemplate, PACK_SELECTION_SLOTS, deriveCapabilityCodesFromPackCodes } from "../core/templates.js";
 import { transitionProfile } from "../core/profiles.js";
 import { listCurrentTransitionDefinitions, getTransitionDefinitionDetail, addTransitionDefinition, retireTransitionDefinition } from "../core/transitionDefinitions.js";
 import {
@@ -403,17 +403,80 @@ router.get("/authority/transition-definitions/:id", requireAuthorityAdmin, attac
 // every other Ontology lookup on this page, just resolved as a flat code
 // list the same way pack-code/template-code already are.
 async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: string | null }): Promise<Record<string, string[]>> {
-  const [{ data: packs }, { data: templates }, featureFlags] = await Promise.all([
+  const [{ data: packs }, { data: templates }, featureFlags, deliverableNames, deliverableCategories] = await Promise.all([
     viewer.isRoot || !viewer.tenantId ? packsDB.findAll() : packsDB.findAllVisibleTo(viewer.tenantId),
     templatesDB.findAllActive(),
     listConceptsForType("feature-flag", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
+    listConceptsForType("deliverable-name", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
+    listConceptsForType("category:deliverable", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
   ]);
   const activePacks = (packs ?? []).filter((p) => p.status === "Active");
   return {
     "pack-code": [...new Set(activePacks.map((p) => p.code))].sort(),
     "template-code": [...new Set((templates ?? []).map((t) => t.code))].sort(),
     "feature-flag": [...new Set(featureFlags.map((c) => c.code))].sort(),
+    // CR-038 — unlike feature-flag (a stable slug checked elsewhere in code),
+    // these submit the concept's own default_label, not its code: the value
+    // has to BE the human name that ends up in deliverables.name at runtime,
+    // the same thing dependencyGraph's self-referential toName/fromName
+    // already expect from this same field.
+    "deliverable-name": [...new Set(deliverableNames.map((c) => c.default_label))].sort(),
+    "category:deliverable": [...new Set(deliverableCategories.map((c) => c.default_label))].sort(),
   };
+}
+
+// CR-038 — "The Required Capability codes need not be an UI field. It is
+// derived from the selections the user makes" — producingCapabilityCode's
+// own options are exactly that derivation, run live against whichever Packs
+// are CURRENTLY selected on this Draft (not yet saved/published), so the
+// picker always offers what publishing would actually derive. content's Pack
+// fields may be raw {packCode} rows (as posted) or already-flat strings
+// (reactivateAsNewVersion's own draftContent convention) — normalised
+// defensively either way.
+function extractPackCodes(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((row) => (typeof row === "string" ? row : (row as Record<string, unknown> | null)?.packCode))
+    .filter((code): code is string => typeof code === "string" && code.trim() !== "");
+}
+
+async function loadDerivedPackCapabilityOptions(content: Record<string, unknown>): Promise<Record<string, string[]>> {
+  const packCodes = [...new Set(PACK_SELECTION_SLOTS.flatMap((slot) => extractPackCodes(content[slot.field as string])))];
+  const derived = await deriveCapabilityCodesFromPackCodes(packCodes);
+  return { "derived:requiredCapabilityCodes": derived.sort() };
+}
+
+// CR-041 — self-referential referential-list options: "pick from the rows
+// already entered in another field of this same Draft," not an external
+// registry. Schema-driven and entity-kind-agnostic by construction (any
+// referential-list item field whose x-referential starts with "self:" gets
+// resolved this way, whichever kind's schema declares it — Template's
+// dependencyGraph.toName -> "self:deliverableCatalogue" is the first, not
+// the only, caller) — no per-kind branch here, same discipline
+// loadOntologyOptions already follows for x-ontology fields.
+function selfReferentialFieldNamesIn(schema: JsonSchemaDocument): string[] {
+  const names = new Set<string>();
+  for (const def of Object.values(schema.properties ?? {})) {
+    if (def["x-widget"] !== "referential-list") continue;
+    for (const itemDef of Object.values(def.items?.properties ?? {})) {
+      const source = itemDef["x-referential"];
+      if (source?.startsWith("self:")) names.add(source.slice("self:".length));
+    }
+  }
+  return [...names];
+}
+
+// content is the Draft's own already-parsed content (JSONB, not the raw
+// posted textarea string) — the same object generateFields itself renders
+// from. Identifying value per row is its own `name`, matching every
+// self-referential source built so far (deliverableCatalogue entries).
+function loadSelfReferentialOptions(schema: JsonSchemaDocument, content: Record<string, unknown>): Record<string, string[]> {
+  const options: Record<string, string[]> = {};
+  for (const fieldName of selfReferentialFieldNamesIn(schema)) {
+    const rows = Array.isArray(content[fieldName]) ? (content[fieldName] as Array<Record<string, unknown>>) : [];
+    options[`self:${fieldName}`] = [...new Set(rows.map((r) => (typeof r.name === "string" ? r.name : "")).filter(Boolean))];
+  }
+  return options;
 }
 
 // Ontology-backed referential-select options — ONE resolver for every such
@@ -458,12 +521,15 @@ async function loadOntologyOptions(schema: JsonSchemaDocument, viewer: { isRoot:
 // optionalPackCodes) now shows the Pack's `name` as the option label — `code`
 // is a system UUID (CR-015) with nothing readable in it — while still
 // submitting `code` as the value underneath.
-export interface PackDependencyOption { code: string; name: string; version: string; category: string }
+// `id` (CR-046) — the view-mode row rendering (_referentialListGroup.ejs)
+// links a resolved Pack reference straight to its own authoring/view page;
+// a code alone isn't a routable URL (the authoring route is id-keyed).
+export interface PackDependencyOption { id: string; code: string; name: string; version: string; category: string }
 async function loadActivePackDependencyOptions(viewer: { isRoot: boolean; tenantId: string | null }): Promise<PackDependencyOption[]> {
   const { data: packs } = viewer.isRoot || !viewer.tenantId ? await packsDB.findAll() : await packsDB.findAllVisibleTo(viewer.tenantId);
   return (packs ?? [])
     .filter((p) => p.status === "Active")
-    .map((p) => ({ code: p.code, name: p.name, version: p.pack_version, category: p.category }))
+    .map((p) => ({ id: p.id, code: p.code, name: p.name, version: p.pack_version, category: p.category }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -563,7 +629,11 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   req.vm.req.inheritingFromTemplateId = prefill?.parentTemplateId ?? null;
   req.vm.req.inheritingFromProfileId = prefill?.parentProfileId ?? null;
   const viewer = { isRoot, tenantId: req.session?.user?.tenant_id ?? null };
-  req.vm.opt.referentialOptions = await loadReferentialOptions(viewer);
+  req.vm.opt.referentialOptions = {
+    ...(await loadReferentialOptions(viewer)),
+    ...loadSelfReferentialOptions(schema, contentForForm),
+    ...(await loadDerivedPackCapabilityOptions(contentForForm)),
+  };
   // CR-026 Template Inheritance (Ch.6 §9, owner: "There is no change to the
   // way template is created by a platform user... When a tenant wants to
   // define a template, show a dropdown of codes"): only offered on a brand
@@ -653,8 +723,17 @@ router.post("/sdk/:slug", requireAuthoring("define"), async (req: Request, res: 
   }
 });
 
-/** GET /aisworg/seu/sdk/:slug/:draftId — the generated form, prefilled from the Draft entity. */
-router.get("/sdk/:slug/:draftId", requireAuthoring("any"), attachVM("seu/sdk/authoring/edit"), async (req: Request, res: Response, next: NextFunction) => {
+/** GET /aisworg/seu/sdk/:slug/:draftId — the generated form, prefilled from the Draft entity.
+ * Deliberately NOT requireAuthoring-gated (bug fix, CR-046: a Registry "View"
+ * link must work for anyone logged in, matching the Registry list pages
+ * themselves — which carry no badge requirement at all — not just the
+ * subset of viewers who happen to hold a define/publish/etc. badge for this
+ * kind). renderAuthoringForm computes held/canDefine/canEdit/canPublish
+ * independently of this route's own gate, so a badge-less viewer correctly
+ * gets a genuine read-only page (CR-045's plain-text rendering), not a
+ * disabled one; every mutating action (save/publish/transition/import)
+ * keeps its own separate requireAuthoring gate below, unaffected. */
+router.get("/sdk/:slug/:draftId", attachVM("seu/sdk/authoring/edit"), async (req: Request, res: Response, next: NextFunction) => {
   const slug = String(req.params.slug);
   const kind = resolveKind(slug);
   if (!kind) return next();

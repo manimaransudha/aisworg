@@ -88,7 +88,6 @@ export type PackValidationResult = { ok: true } | { ok: false; errors: string[] 
 export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidationResult> {
   const errors: string[] = [];
 
-  if (!seed.code?.trim()) errors.push("code is required");
   if (!seed.name?.trim()) errors.push("name is required");
   // CR-022: Ontology concepts are tenant-scoped now (Platform's + this Pack's
   // own owning tenant) — scope the check by the Pack's own tenantId (its real
@@ -96,6 +95,20 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
   // tenant, so an unauthored/CLI-published Pack sees Platform's vocabulary
   // only, same as before this change).
   const ontologyViewer = { isRoot: false, tenantId: seed.tenantId ?? PLATFORM_TENANT_ID };
+  // CR-046 bug fix (owner: "why are test scripts adding code that is not in
+  // the ontology??? I thought we fixed this") — code (migration 050,
+  // capability-name, x-ontology: true) was the one Ontology-backed field on
+  // this entire entity that never actually got assertCanonicalCategory
+  // treatment, unlike category/installationClassification/compositionStrategy
+  // right below, which all did from the start. The browser's own dropdown
+  // (x-referential-select) already constrained a real author to a valid
+  // value; this is what makes that constraint real for every OTHER caller —
+  // tests, scripts, a future API client — not just the browser form.
+  try {
+    await assertCanonicalCategory("capability-name", seed.code ?? "", ontologyViewer);
+  } catch (err) {
+    errors.push((err as Error).message);
+  }
   // CR-020: category is validated against the Ontology's category:pack
   // concepts (data), not a hardcoded list or the now-superseded pack_category
   // table — a new category is an Ontology Management data change, no code
