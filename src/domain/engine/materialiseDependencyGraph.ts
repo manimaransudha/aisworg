@@ -32,7 +32,10 @@ import { dependencyDefinitionsDB } from "../../dblayer/dependencyDefinitionsDB.j
 import type { DbResult, DependencyDefinitionOwnerType, DependencyDefinitionRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry } from "../../dblayer/seuTypes.js";
 
 const GATED_TO_STATE = "In Progress";
-const DEFAULT_DELIVERABLE_REQUIRED_STATE = "Approved";
+// Exported — the Ch.15 §12 (CR-049 Phase 2) Inheritance check in
+// core/templates.ts needs the same default when comparing an unsaved
+// child seed's requiredState against the parent's already-materialised one.
+export const DEFAULT_DELIVERABLE_REQUIRED_STATE = "Approved";
 const DEFAULT_CAPABILITY_REQUIRED_STATE = "Fulfilled";
 
 export async function materialiseDependencyGraph(input: {
@@ -69,6 +72,7 @@ export async function materialiseDependencyGraph(input: {
         toEntityType: "Deliverable",
         toName: entry.toName,
         toState: GATED_TO_STATE,
+        relationshipKind: entry.relationshipKind ?? "dependency",
       });
       if (data) created.push(data);
       continue;
@@ -76,6 +80,10 @@ export async function materialiseDependencyGraph(input: {
 
     // fromType === "Capability" — a capability code names every Service it
     // declares (Ch.9 §8/Ch.11 §9); one dependency_definitions row per Service.
+    // relationshipKind is Deliverable-to-Deliverable only (CR-049) — a
+    // Capability-type edge always defaults to plain "dependency" regardless
+    // of what the entry carries (the widget never offers the picker for this
+    // fromType); threaded through only for structural consistency.
     const capabilityId = entry.fromCapabilityCode ? capabilityIdByCode.get(entry.fromCapabilityCode) : undefined;
     if (!capabilityId) continue;
     for (const serviceCode of servicesByCapabilityId.get(capabilityId) ?? []) {
@@ -88,6 +96,7 @@ export async function materialiseDependencyGraph(input: {
         toEntityType: "Deliverable",
         toName: entry.toName,
         toState: GATED_TO_STATE,
+        relationshipKind: "dependency",
       });
       if (data) created.push(data);
     }

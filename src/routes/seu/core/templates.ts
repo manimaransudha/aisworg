@@ -4,8 +4,9 @@ import { packsDB } from "../../../dblayer/packsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { materialiseDependencyGraph } from "../../../domain/engine/materialiseDependencyGraph.js";
+import { materialiseDependencyGraph, DEFAULT_DELIVERABLE_REQUIRED_STATE } from "../../../domain/engine/materialiseDependencyGraph.js";
 import { dependencyDefinitionsDB } from "../../../dblayer/dependencyDefinitionsDB.js";
+import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
 import { assertCanonicalCategory } from "./ontology.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import type { TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../../../dblayer/seuTypes.js";
@@ -157,6 +158,51 @@ export async function deriveCapabilityCodesFromPackCodes(packCodes: string[]): P
   return [...new Set((capabilities ?? []).map((c) => c.code))];
 }
 
+// Owner: "Producing Capability Code as a link to the pack" — the Deliverable
+// Catalogue view's own read-mode needs to resolve a derived capability code
+// back to the real Pack that contributes it, not just the flat code list
+// deriveCapabilityCodesFromPackCodes returns. Same packId resolution as that
+// function; kept separate rather than widening its own return shape, since
+// every other caller only ever wants the flat code list.
+export interface CapabilityProducingPack { id: string; code: string; name: string; category: string }
+export async function deriveCapabilityProducingPacksFromPackCodes(packCodes: string[]): Promise<Record<string, CapabilityProducingPack>> {
+  const packById = new Map<string, CapabilityProducingPack>();
+  for (const code of packCodes) {
+    const { data: pack } = await packsDB.findActiveByCode(code);
+    if (pack) packById.set(pack.id, { id: pack.id, code: pack.code, name: pack.name, category: pack.category });
+  }
+  if (packById.size === 0) return {};
+  const { data: capabilities } = await capabilitiesDB.findByOriginatingPackIds([...packById.keys()]);
+  const result: Record<string, CapabilityProducingPack> = {};
+  for (const capability of capabilities ?? []) {
+    const pack = capability.originating_pack_id ? packById.get(capability.originating_pack_id) : undefined;
+    if (pack) result[capability.code] = pack;
+  }
+  return result;
+}
+
+// Ch.15 §12 (CR-049 Phase 2) — is `childName` either identical to
+// `parentName`, or a legitimate "rename" of it: a Deliverable Definition the
+// child's own tenant derived (however many hops), whose lineage
+// (parent_deliverable_definition_id) eventually reaches a Definition sharing
+// `parentName`'s code? Confirmed by the owner's own worked example — the
+// match is purely by walking the child's resolved Definition's own ancestor
+// chain and comparing codes; no cross-referencing back into the PARENT
+// Template's own tenant is needed.
+const MAX_LINEAGE_HOPS = 20;
+async function isRenameOf(childName: string, parentName: string, tenantId: string): Promise<boolean> {
+  if (childName === parentName) return true;
+  const { data: resolved } = await deliverableDefinitionsDB.findActiveByCode(childName, tenantId);
+  let current = resolved ?? null;
+  for (let hop = 0; current?.parent_deliverable_definition_id && hop < MAX_LINEAGE_HOPS; hop++) {
+    const { data: ancestor } = await deliverableDefinitionsDB.findById(current.parent_deliverable_definition_id);
+    if (!ancestor) return false;
+    if (ancestor.code === parentName) return true;
+    current = ancestor;
+  }
+  return false;
+}
+
 export async function validateTemplateSeed(seed: TemplateSeedInput): Promise<TemplateValidationResult> {
   const errors: string[] = [];
   if (!seed.name?.trim()) errors.push("name is required");
@@ -240,6 +286,40 @@ export async function validateTemplateSeed(seed: TemplateSeedInput): Promise<Tem
       if (missing.length > 0) {
         errors.push(`an inherited Template must keep all of its parent's mandatory Packs — missing: ${missing.join(", ")}`);
       }
+
+      // Ch.15 §12 (CR-049 Phase 2, owner: "For a derivation dependency graph
+      // change is allowed. For the other two it is not") — Implementation/
+      // Decomposition edges must survive inheritance unaltered; Derivation
+      // is exempt entirely, freely editable, no check at all. "Unaltered"
+      // allows a rename of either end (isRenameOf, above) but not a change
+      // to which state gates it or a drop/addition relative to the parent's
+      // CURRENT set — checked live, same discipline as the mandatory-Pack
+      // check just above, not frozen at the moment of inheriting.
+      const LOCKED_RELATIONSHIP_KINDS = new Set(["implementation", "decomposition"]);
+      const parentGraph = await getDependencyGraphContent(parent.id);
+      const lockedParentEdges = parentGraph.filter((e) => LOCKED_RELATIONSHIP_KINDS.has(e.relationshipKind ?? "dependency"));
+      if (lockedParentEdges.length > 0) {
+        const tenantId = seed.tenantId ?? PLATFORM_TENANT_ID;
+        const candidateChildEdges = (seed.dependencyGraph ?? []).filter((e) => LOCKED_RELATIONSHIP_KINDS.has(e.relationshipKind ?? "dependency"));
+        const consumed = new Set<number>();
+        for (const parentEdge of lockedParentEdges) {
+          let matched = false;
+          for (let i = 0; i < candidateChildEdges.length; i++) {
+            if (consumed.has(i)) continue;
+            const childEdge = candidateChildEdges[i];
+            if (childEdge.relationshipKind !== parentEdge.relationshipKind) continue;
+            if ((childEdge.requiredState ?? DEFAULT_DELIVERABLE_REQUIRED_STATE) !== parentEdge.requiredState) continue;
+            if (!childEdge.fromName || !(await isRenameOf(childEdge.fromName, parentEdge.fromName ?? "", tenantId))) continue;
+            if (!(await isRenameOf(childEdge.toName, parentEdge.toName, tenantId))) continue;
+            consumed.add(i);
+            matched = true;
+            break;
+          }
+          if (!matched) {
+            errors.push(`an inherited Template must keep its parent's "${parentEdge.relationshipKind}" edge ("${parentEdge.fromName}" → "${parentEdge.toName}") unaltered — either end may be renamed to your own specialised Deliverable Definition, but the edge itself cannot be dropped or restructured`);
+          }
+        }
+      }
     }
   }
 
@@ -294,6 +374,7 @@ export async function getDependencyGraphContent(templateId: string): Promise<Tem
     fromType: r.from_entity_type as "Deliverable" | "Capability",
     fromName: r.from_name ?? "",
     requiredState: r.from_state,
+    relationshipKind: r.relationship_kind,
   }));
 }
 

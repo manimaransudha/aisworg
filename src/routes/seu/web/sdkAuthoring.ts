@@ -37,8 +37,9 @@ import {
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionPack } from "../core/packs.js";
-import { transitionTemplate, PACK_SELECTION_SLOTS, deriveCapabilityCodesFromPackCodes } from "../core/templates.js";
+import { transitionTemplate, PACK_SELECTION_SLOTS, deriveCapabilityCodesFromPackCodes, deriveCapabilityProducingPacksFromPackCodes } from "../core/templates.js";
 import { transitionProfile } from "../core/profiles.js";
+import { transitionDeliverableDefinition, listInheritableDeliverableDefinitions, inheritedDeliverableDefinitionContent } from "../core/deliverableDefinitions.js";
 import { listCurrentTransitionDefinitions, getTransitionDefinitionDetail, addTransitionDefinition, retireTransitionDefinition } from "../core/transitionDefinitions.js";
 import {
   listAuthorityNouns, listAuthorityVerbs, listAuthorityMapping,
@@ -53,12 +54,14 @@ const KIND_BY_SLUG: Record<string, SchemaDefinitionEntityKind> = {
   "template-authoring": "Template",
   "profile-authoring": "Profile",
   "transition-definition-authoring": "TransitionDefinition",
+  "deliverable-authoring": "Deliverable",
 };
 const PUBLISH_REDIRECT_BY_KIND: Record<SchemaDefinitionEntityKind, string> = {
   Pack: "/aisworg/seu/packs",
   Template: "/aisworg/seu/sdk/template-authoring",
   Profile: "/aisworg/seu/sdk/profile-authoring",
   TransitionDefinition: "/aisworg/seu/sdk/transition-definition-authoring",
+  Deliverable: "/aisworg/seu/sdk/deliverable-authoring",
 };
 
 function resolveKind(slug: string): SchemaDefinitionEntityKind | null {
@@ -446,6 +449,14 @@ async function loadDerivedPackCapabilityOptions(content: Record<string, unknown>
   return { "derived:requiredCapabilityCodes": derived.sort() };
 }
 
+// Owner: "Producing Capability Code as a link to the pack" — Deliverable
+// Catalogue's own view-mode rendering (_referentialListGroup.ejs) needs to
+// resolve producingCapabilityCode back to the real Pack that contributes it.
+async function loadProducingCapabilityPacks(content: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const packCodes = [...new Set(PACK_SELECTION_SLOTS.flatMap((slot) => extractPackCodes(content[slot.field as string])))];
+  return deriveCapabilityProducingPacksFromPackCodes(packCodes);
+}
+
 // CR-041 — self-referential referential-list options: "pick from the rows
 // already entered in another field of this same Draft," not an external
 // registry. Schema-driven and entity-kind-agnostic by construction (any
@@ -566,7 +577,7 @@ async function nextHop(kind: SchemaDefinitionEntityKind, fromState: string): Pro
 // Shared renderer for both the "new" (no draft yet) and "edit" (existing draft)
 // forms — entity-direct: the form is generated from the kind's schema and
 // prefilled from the Draft entity's own content.
-async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefinitionEntityKind, slug: string, draft: { id: string; code: string; name: string; status: string; content: Record<string, unknown> } | null, prefill?: { content: Record<string, unknown>; parentTemplateId?: string; parentProfileId?: string }): Promise<void> {
+async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefinitionEntityKind, slug: string, draft: { id: string; code: string; name: string; status: string; content: Record<string, unknown> } | null, prefill?: { content: Record<string, unknown>; parentTemplateId?: string; parentProfileId?: string; parentDeliverableDefinitionId?: string }): Promise<void> {
   const schema = await latestSchemaFor(kind);
   if (!schema) return flashError(req, res, backToIndex(slug), `No schema_definitions grammar for ${kind}.`);
   const held = await heldBadges(req);
@@ -614,7 +625,7 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   // neither), and from then on it's only advanced by the readonly field's own
   // "Next version" button (_generatedFieldGroups.ejs / edit.ejs's patch-bump
   // script, generic over kind "version" — CR-024).
-  const contentForForm = { packVersion: "1.0.0", templateVersion: "1.0.0", profileVersion: "1.0.0", ...(draft?.content ?? prefill?.content ?? {}) };
+  const contentForForm = { packVersion: "1.0.0", templateVersion: "1.0.0", profileVersion: "1.0.0", definitionVersion: "1.0.0", ...(draft?.content ?? prefill?.content ?? {}) };
   req.vm.req.groups = groupFieldsForDisplay(generateFields(schema, contentForForm));
   req.vm.req.contentJson = JSON.stringify(draft?.content ?? {}, null, 2);
   req.vm.req.canEdit = canDefine && isDraft;
@@ -628,12 +639,14 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   // the new Draft's code and lineage to the chosen parent.
   req.vm.req.inheritingFromTemplateId = prefill?.parentTemplateId ?? null;
   req.vm.req.inheritingFromProfileId = prefill?.parentProfileId ?? null;
+  req.vm.req.inheritingFromDeliverableDefinitionId = prefill?.parentDeliverableDefinitionId ?? null;
   const viewer = { isRoot, tenantId: req.session?.user?.tenant_id ?? null };
   req.vm.opt.referentialOptions = {
     ...(await loadReferentialOptions(viewer)),
     ...loadSelfReferentialOptions(schema, contentForForm),
     ...(await loadDerivedPackCapabilityOptions(contentForForm)),
   };
+  req.vm.opt.producingCapabilityPacks = kind === "Template" ? await loadProducingCapabilityPacks(contentForForm) : {};
   // CR-026 Template Inheritance (Ch.6 §9, owner: "There is no change to the
   // way template is created by a platform user... When a tenant wants to
   // define a template, show a dropdown of codes"): only offered on a brand
@@ -645,6 +658,12 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
     : [];
   req.vm.opt.inheritableProfiles = kind === "Profile" && !draft && viewer.tenantId && viewer.tenantId !== PLATFORM_TENANT_ID
     ? await listInheritableProfiles(viewer.tenantId)
+    : [];
+  // Ch.15 §12 (CR-049) — same treatment, for Deliverable Definition. Unlike
+  // Template/Profile, the inheritable list is Platform-owned only (the
+  // canonical root to specialise from), not "Platform + own tenant".
+  req.vm.opt.inheritableDeliverableDefinitions = kind === "Deliverable" && !draft && viewer.tenantId && viewer.tenantId !== PLATFORM_TENANT_ID
+    ? await listInheritableDeliverableDefinitions()
     : [];
   // Owner: "Why is code not auto generated?" made every kind's Pack-code
   // pickers need real names now (§ above) — Template's mandatoryPackCodes and
@@ -671,6 +690,7 @@ router.get("/sdk/:slug/new", requireAuthoring("define"), attachVM("seu/sdk/autho
     // before the author writes anything of their own.
     const parentTemplateId = kind === "Template" && typeof req.query.parentTemplateId === "string" ? req.query.parentTemplateId.trim() : "";
     const parentProfileId = kind === "Profile" && typeof req.query.parentProfileId === "string" ? req.query.parentProfileId.trim() : "";
+    const parentDeliverableDefinitionId = kind === "Deliverable" && typeof req.query.parentDeliverableDefinitionId === "string" ? req.query.parentDeliverableDefinitionId.trim() : "";
     if (parentTemplateId) {
       const viewerTenantId = req.session?.user?.tenant_id ?? "";
       const inherited = await inheritedTemplateContent(parentTemplateId, viewerTenantId);
@@ -682,6 +702,11 @@ router.get("/sdk/:slug/new", requireAuthoring("define"), attachVM("seu/sdk/autho
       const inherited = await inheritedProfileContent(parentProfileId, viewerTenantId);
       if (!inherited.ok) return flashError(req, res, backToIndex(slug), inherited.error);
       return await renderAuthoringForm(req, res, kind, slug, null, { content: inherited.content, parentProfileId });
+    }
+    if (parentDeliverableDefinitionId) {
+      const inherited = await inheritedDeliverableDefinitionContent(parentDeliverableDefinitionId);
+      if (!inherited.ok) return flashError(req, res, backToIndex(slug), inherited.error);
+      return await renderAuthoringForm(req, res, kind, slug, null, { content: inherited.content, parentDeliverableDefinitionId });
     }
     return await renderAuthoringForm(req, res, kind, slug, null);
   } catch (err) {
@@ -714,7 +739,8 @@ router.post("/sdk/:slug", requireAuthoring("define"), async (req: Request, res: 
     // when the author reached this form via the "Inherit" control.
     const parentTemplateId = kind === "Template" && typeof req.body?.parentTemplateId === "string" && req.body.parentTemplateId.trim() ? req.body.parentTemplateId.trim() : undefined;
     const parentProfileId = kind === "Profile" && typeof req.body?.parentProfileId === "string" && req.body.parentProfileId.trim() ? req.body.parentProfileId.trim() : undefined;
-    const result = await createAuthoringDraft({ kind, actorId, tenantId, parentTemplateId, parentProfileId, content });
+    const parentDeliverableDefinitionId = kind === "Deliverable" && typeof req.body?.parentDeliverableDefinitionId === "string" && req.body.parentDeliverableDefinitionId.trim() ? req.body.parentDeliverableDefinitionId.trim() : undefined;
+    const result = await createAuthoringDraft({ kind, actorId, tenantId, parentTemplateId, parentProfileId, parentDeliverableDefinitionId, content });
     if (!result.ok) return flashError(req, res, backToIndex(slug), result.errors.join("; "));
     return flashSuccess(req, res, backTo(slug, result.draftId), `Started a new ${kind} draft.`);
   } catch (err) {
@@ -854,6 +880,11 @@ router.post("/sdk/:slug/:draftId/transition", requireAuthoring("any"), async (re
       const result = await transitionProfile({ profileId: draftId, targetState: targetState as never, actorRole, actorId });
       if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
       return flashSuccess(req, res, backTo(slug, draftId), `Moved to "${result.profile.status}".`);
+    }
+    if (kind === "Deliverable") {
+      const result = await transitionDeliverableDefinition({ deliverableDefinitionId: draftId, targetState: targetState as never, actorRole, actorId });
+      if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
+      return flashSuccess(req, res, backTo(slug, draftId), `Moved to "${result.deliverableDefinition.status}".`);
     }
     return next();
   } catch (err) {

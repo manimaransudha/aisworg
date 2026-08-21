@@ -144,6 +144,33 @@
       </div>
     <% } %>
 
+    <% if (isNew && locals.inheritableDeliverableDefinitions && inheritableDeliverableDefinitions.length > 0) { %>
+      <%# Ch.15 §12 Deliverable inheritance (CR-049), same "Inherit" pattern as
+          Template/Profile above — a plain GET reload with
+          ?parentDeliverableDefinitionId=, pre-filled from the chosen parent's
+          real content (inheritedDeliverableDefinitionContent). Unlike
+          Template/Profile, code is NOT locked to the parent's own — a
+          specialisation is expected to have its own genuinely new name. %>
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+          <h6 class="text-uppercase text-muted small fw-bold mb-2">Inherit from an existing Deliverable Definition</h6>
+          <p class="text-muted small mb-2">Start from a Platform-published Deliverable Definition — its code and description carry over as an editable starting point. Give your specialisation its own name if it needs one.</p>
+          <% if (locals.inheritingFromDeliverableDefinitionId) { %>
+            <p class="small mb-2"><i class="bi bi-check-circle text-success me-1"></i>Inheriting below.</p>
+          <% } %>
+          <form method="GET" action="/aisworg/seu/sdk/<%= slug %>/new" class="d-flex gap-2">
+            <select name="parentDeliverableDefinitionId" class="form-select form-select-sm" style="max-width: 420px;">
+              <option value="">Choose a Deliverable Definition to inherit from&hellip;</option>
+              <% inheritableDeliverableDefinitions.forEach(function (d) { %>
+                <option value="<%= d.id %>" <%= locals.inheritingFromDeliverableDefinitionId === d.id ? 'selected' : '' %>><%= d.code %> v<%= d.definitionVersion %></option>
+              <% }) %>
+            </select>
+            <button type="submit" class="btn btn-sm btn-outline-primary">Inherit</button>
+          </form>
+        </div>
+      </div>
+    <% } %>
+
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-body">
         <h6 class="text-uppercase text-muted small fw-bold mb-3">Generated form</h6>
@@ -164,6 +191,9 @@
           <% } %>
           <% if (locals.inheritingFromProfileId) { %>
             <input type="hidden" name="parentProfileId" value="<%= inheritingFromProfileId %>">
+          <% } %>
+          <% if (locals.inheritingFromDeliverableDefinitionId) { %>
+            <input type="hidden" name="parentDeliverableDefinitionId" value="<%= inheritingFromDeliverableDefinitionId %>">
           <% } %>
 
           <%

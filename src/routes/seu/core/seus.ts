@@ -14,7 +14,7 @@ import { capabilityFulfilmentsDB } from "../../../dblayer/capabilityFulfilmentsD
 import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
 import { getSeuEvents } from "./events.js";
 import { listObligationsWithNextStates } from "./obligations.js";
-import { listEvidenceWithNextStates } from "./evidence.js";
+import { listEvidenceWithNextStates, listEvidenceRelationships, listEvidenceLinkedToSeu } from "./evidence.js";
 import { listKnowledgeItemsWithNextStates } from "./knowledge.js";
 import { listDecisionsWithNextStates } from "./decisions.js";
 import { listExternalInteractionsWithNextStates } from "./externalInteractions.js";
@@ -178,10 +178,26 @@ export interface SeuDetailObligation {
 
 // Post-MVP Phase 5: Evidence/Knowledge/Decision shown against the Deliverable
 // they're attached to, same shape as Obligations' own display.
+// CR-051 item 1 (Ch.17 §20.2/§20.8) — an Evidence row can now support many
+// artefacts, not just one; relatedObjectLabels replaces the old singular
+// deliverableName to show all of them, not just the first.
 export interface SeuDetailEvidence {
   evidence: EvidenceRow;
-  deliverableName: string;
+  relatedObjectLabels: string[];
   possibleNextStates: string[];
+  // CR-051 item 3 (Ch.17 §12/§20.10) — resolved provenance labels for
+  // display; null where that provenance field wasn't captured.
+  provenance: {
+    deliverableName: string | null;
+    participantName: string | null;
+    capabilityName: string | null;
+    decisionTitle: string | null;
+    activity: string | null;
+  };
+  // CR-051 item 4 (Ch.17 §15/§20.13) — title of the Evidence Item this one
+  // corrects, if any. Deliberately one-directional: the predecessor's own
+  // row shows nothing (no cross-SEU signal, per the owner's own decision).
+  predecessorTitle: string | null;
 }
 
 export interface SeuDetailKnowledgeItem {
@@ -227,6 +243,12 @@ export interface SeuDetailView {
   deliverables: SeuDetailDeliverable[];
   commands: SeuDetailCommand[];
   obligations: SeuDetailObligation[];
+  // CR-051 item 3 — options for the Evidence collection form's provenance
+  // fields (Participant/Capability/Decision selects).
+  participants: Array<{ id: string; displayName: string; type: string }>;
+  // CR-051 item 4 — options for the Evidence collection form's "Corrects"
+  // select. Includes cross-SEU-shared Evidence, not just this SEU's own.
+  evidenceSupersedeCandidates: Array<{ id: string; title: string }>;
   evidence: SeuDetailEvidence[];
   knowledgeItems: SeuDetailKnowledgeItem[];
   decisions: SeuDetailDecision[];
@@ -241,15 +263,19 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
   const { data: seu } = await seusDB.findById(seuId);
   if (!seu) return null;
 
-  const [{ data: objective }, { data: capabilities }, { data: deliverables }, { data: ebm }, events] = await Promise.all([
+  const [{ data: objective }, { data: capabilities }, { data: deliverables }, { data: ebm }, events, { data: seuParticipants }] = await Promise.all([
     objectivesDB.findById(seu.objective_id),
     seuCapabilitiesDB.findBySeuId(seuId),
     deliverablesDB.findBySeuId(seuId),
     seu.active_ebm_id ? ebmsDB.findById(seu.active_ebm_id) : Promise.resolve({ data: null }),
     getSeuEvents(seuId),
+    participantsDB.findBySeuId(seuId),
   ]);
 
   const deliverableNameById = new Map((deliverables ?? []).map((d) => [d.id, d.name]));
+  // CR-051 item 3 — provenance display lookups.
+  const participantNameById = new Map((seuParticipants ?? []).map((p) => [p.id, `${p.display_name} (${p.type})`]));
+  const capabilityNameById = new Map((capabilities ?? []).map((c) => [c.capability_id, `${c.capability_name} (${c.capability_code})`]));
 
   const capabilityViews = await Promise.all(
     (capabilities ?? []).map(async (c) => {
@@ -352,16 +378,42 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     possibleNextStates,
   }));
 
-  const [evidenceWithNextStates, knowledgeItemsWithNextStates, decisionsWithNextStates] = await Promise.all([
+  const [evidenceWithNextStates, knowledgeItemsWithNextStates, decisionsWithNextStates, evidenceSupersedeCandidates] = await Promise.all([
     listEvidenceWithNextStates(seuId),
     listKnowledgeItemsWithNextStates(seuId),
     listDecisionsWithNextStates(seuId),
+    // CR-051 item 4 — every Evidence Item linked to anything in this SEU,
+    // including cross-SEU-shared Evidence originating elsewhere; powers the
+    // "Corrects" select and resolves predecessorTitle below.
+    listEvidenceLinkedToSeu(seuId),
   ]);
-  const evidenceViews: SeuDetailEvidence[] = evidenceWithNextStates.map(({ evidence, possibleNextStates }) => ({
-    evidence,
-    deliverableName: relatedObjectLabel(evidence.related_object_type, evidence.related_object_id),
-    possibleNextStates,
-  }));
+  // CR-051 item 3 — decision titles, for Evidence provenance display.
+  const decisionTitleById = new Map(decisionsWithNextStates.map(({ decision }) => [decision.id, decision.title]));
+  // CR-051 item 4 — this SEU's own Evidence plus every cross-SEU candidate
+  // covers every Evidence Item that could legitimately appear as a
+  // predecessor from this SEU's own page.
+  const evidenceTitleById = new Map([
+    ...evidenceWithNextStates.map(({ evidence }) => [evidence.id, evidence.title] as const),
+    ...evidenceSupersedeCandidates.map((e) => [e.id, e.title] as const),
+  ]);
+  const evidenceViews: SeuDetailEvidence[] = await Promise.all(
+    evidenceWithNextStates.map(async ({ evidence, possibleNextStates }) => {
+      const relationships = await listEvidenceRelationships(evidence.id);
+      return {
+        evidence,
+        relatedObjectLabels: relationships.map((r) => relatedObjectLabel(r.related_object_type, r.related_object_id)),
+        possibleNextStates,
+        provenance: {
+          deliverableName: evidence.originating_deliverable_id ? deliverableNameById.get(evidence.originating_deliverable_id) ?? "(unknown Deliverable)" : null,
+          participantName: evidence.originating_participant_id ? participantNameById.get(evidence.originating_participant_id) ?? "(unknown Participant)" : null,
+          capabilityName: evidence.originating_capability_id ? capabilityNameById.get(evidence.originating_capability_id) ?? "(unknown Capability)" : null,
+          decisionTitle: evidence.originating_decision_id ? decisionTitleById.get(evidence.originating_decision_id) ?? "(unknown Decision)" : null,
+          activity: evidence.originating_activity,
+        },
+        predecessorTitle: evidence.supersedes_evidence_id ? evidenceTitleById.get(evidence.supersedes_evidence_id) ?? "(unknown Evidence)" : null,
+      };
+    })
+  );
   const knowledgeItemViews: SeuDetailKnowledgeItem[] = knowledgeItemsWithNextStates.map(({ knowledgeItem, possibleNextStates, possibleNextScopes }) => ({
     knowledgeItem,
     deliverableName: deliverableNameById.get(knowledgeItem.deliverable_id) ?? "(unknown Deliverable)",
@@ -389,6 +441,8 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     deliverables: deliverableViews,
     commands: commandViews,
     obligations: obligationViews,
+    participants: (seuParticipants ?? []).map((p) => ({ id: p.id, displayName: p.display_name, type: p.type })),
+    evidenceSupersedeCandidates: evidenceSupersedeCandidates.map((e) => ({ id: e.id, title: e.title })),
     evidence: evidenceViews,
     knowledgeItems: knowledgeItemViews,
     decisions: decisionViews,

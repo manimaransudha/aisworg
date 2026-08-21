@@ -219,6 +219,24 @@
     ]
   },
   {
+    "entityType": "Evidence",
+    "fromState": "Collected",
+    "toState": "Rejected",
+    "requiredAuthorityRuleCode": "authority-transition-evidence",
+    "requiredPolicyCodes": [
+      "policy-evidence-transition-baseline"
+    ]
+  },
+  {
+    "entityType": "Evidence",
+    "fromState": "Validated",
+    "toState": "Rejected",
+    "requiredAuthorityRuleCode": "authority-transition-evidence",
+    "requiredPolicyCodes": [
+      "policy-evidence-transition-baseline"
+    ]
+  },
+  {
     "entityType": "Knowledge",
     "fromState": "Observed",
     "toState": "Proposed",
@@ -739,6 +757,69 @@
   },
   {
     "entityType": "Template",
+    "fromState": "Archived",
+    "toState": "Active",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Deliverable",
+    "fromState": "Draft",
+    "toState": "Validated",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Deliverable",
+    "fromState": "Validated",
+    "toState": "Published",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Deliverable",
+    "fromState": "Published",
+    "toState": "Active",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Deliverable",
+    "fromState": "Active",
+    "toState": "Deprecated",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Deliverable",
+    "fromState": "Deprecated",
+    "toState": "Retired",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Deliverable",
+    "fromState": "Retired",
+    "toState": "Archived",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Deliverable",
+    "fromState": "Deprecated",
+    "toState": "Active",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Deliverable",
+    "fromState": "Retired",
+    "toState": "Active",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Deliverable",
     "fromState": "Archived",
     "toState": "Active",
     "requiredAuthorityRuleCode": null,

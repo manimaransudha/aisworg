@@ -291,20 +291,72 @@
           <div class="col-auto">
             <button type="submit" class="btn btn-sm btn-primary">Collect Evidence</button>
           </div>
+          <%# CR-051 item 3 (Ch.17 §12/§20.10) — provenance, all optional:
+              who/what produced this Evidence. %>
+          <div class="col-auto">
+            <select name="participantId" class="form-select form-select-sm">
+              <option value="">Participant&hellip;</option>
+              <% detail.participants.forEach(function(p) { %>
+                <option value="<%= p.id %>"><%= p.displayName %> (<%= p.type %>)</option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="col-auto">
+            <select name="capabilityId" class="form-select form-select-sm">
+              <option value="">Capability&hellip;</option>
+              <% detail.capabilities.forEach(function(c) { %>
+                <option value="<%= c.capabilityId %>"><%= c.name %> (<%= c.code %>)</option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="col-auto">
+            <select name="decisionId" class="form-select form-select-sm">
+              <option value="">Decision&hellip;</option>
+              <% detail.decisions.forEach(function(d) { %>
+                <option value="<%= d.decision.id %>"><%= d.decision.title %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="col-auto">
+            <input type="text" name="activity" class="form-control form-control-sm" placeholder="Engineering activity" style="width: 160px;">
+          </div>
+          <%# CR-051 item 4 (Ch.17 §15/§20.13) — versioning: this new Evidence
+              Item corrects an earlier one. Includes cross-SEU-shared
+              candidates, not just this SEU's own Evidence. %>
+          <div class="col-auto">
+            <select name="predecessorEvidenceId" class="form-select form-select-sm">
+              <option value="">Corrects&hellip;</option>
+              <% detail.evidenceSupersedeCandidates.forEach(function(ev) { %>
+                <option value="<%= ev.id %>"><%= ev.title %></option>
+              <% }) %>
+            </select>
+          </div>
         </form>
       </div>
       <div class="table-responsive">
         <table class="table table-sm mb-0 align-middle">
-          <thead class="table-light"><tr><th>Deliverable</th><th>Title</th><th>Category / Confidence</th><th>Status</th><th>Transition</th></tr></thead>
+          <thead class="table-light"><tr><th>Supports</th><th>Title</th><th>Category / Confidence</th><th>Provenance</th><th>Status</th><th>Transition</th><th>Link another</th></tr></thead>
           <tbody>
             <% if (detail.evidence.length === 0) { %>
-              <tr><td colspan="5" class="text-muted small">No Evidence collected yet — the "Approved" &rarr; "Baselined" Quality Gate needs at least one Accepted Evidence Item or an approved Decision.</td></tr>
+              <tr><td colspan="7" class="text-muted small">No Evidence collected yet — the "Approved" &rarr; "Baselined" Quality Gate needs at least one Accepted Evidence Item or an approved Decision.</td></tr>
             <% } %>
             <% detail.evidence.forEach(function(e) { %>
               <tr>
-                <td class="small"><%= e.deliverableName %></td>
-                <td class="small"><%= e.evidence.title %></td>
+                <%# CR-051 item 1 (Ch.17 §20.2/§20.8) — one Evidence Item may
+                    support many artefacts; relatedObjectLabels lists all of
+                    them, not just the first. %>
+                <td class="small"><%= e.relatedObjectLabels.join(', ') || '—' %></td>
+                <%# CR-051 item 4 (Ch.17 §15/§20.13) — shown only on the
+                    correcting row itself; nothing added to the predecessor's
+                    own row (no cross-SEU signal, deliberately). %>
+                <td class="small"><%= e.evidence.title %><% if (e.predecessorTitle) { %> <span class="text-muted">(corrects: <%= e.predecessorTitle %>)</span><% } %></td>
                 <td class="small"><%= e.evidence.category %> &middot; <%= e.evidence.confidence_level %></td>
+                <%# CR-051 item 3 (Ch.17 §12/§20.10) — provenance, whichever
+                    fields were captured; a bare '—' when none were. %>
+                <td class="small">
+                  <% var prov = [e.provenance.deliverableName, e.provenance.participantName, e.provenance.capabilityName, e.provenance.decisionTitle, e.provenance.activity].filter(function(x) { return x; }); %>
+                  <%= prov.join(', ') || '—' %>
+                </td>
                 <td><span class="state-badge state-<%= e.evidence.status %>"><%= e.evidence.status %></span></td>
                 <td>
                   <% if (e.possibleNextStates.length === 0) { %>
@@ -321,6 +373,19 @@
                       <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
                     </form>
                   <% } %>
+                </td>
+                <td>
+                  <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/evidence/<%= e.evidence.id %>/link"
+                        class="d-flex align-items-center gap-2">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <select name="deliverableId" class="form-select form-select-sm" style="width: auto;" required>
+                      <option value="" disabled selected>Deliverable&hellip;</option>
+                      <% detail.deliverables.forEach(function(d) { %>
+                        <option value="<%= d.id %>"><%= d.name %></option>
+                      <% }) %>
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">Link</button>
+                  </form>
                 </td>
               </tr>
             <% }) %>

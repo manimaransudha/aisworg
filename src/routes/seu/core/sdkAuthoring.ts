@@ -21,12 +21,18 @@ import { packsDB } from "../../../dblayer/packsDB.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { profilesDB } from "../../../dblayer/profilesDB.js";
+import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
 import {
   advancePackOneStep, validatePackSeed, packMetadataFromSeed,
   type PackSeedInput,
 } from "./packs.js";
 import { advanceTemplateOneStep, materialiseTemplateDraft, validateTemplateSeed, getPackSelectionsByCategory, getDependencyGraphContent, PACK_SELECTION_SLOTS, type TemplateSeedInput, type PackSelectionsByCategory } from "./templates.js";
 import { advanceProfileOneStep, materialiseProfileDraft, validateProfileSeed, getProfilePackSelections, type ProfileSeedInput } from "./profiles.js";
+import {
+  advanceDeliverableDefinitionOneStep, validateDeliverableDefinitionSeed,
+  inheritedDeliverableDefinitionContent,
+  type DeliverableDefinitionSeedInput,
+} from "./deliverableDefinitions.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 import type { PackContributions, PackRow, ProfileRow, SchemaDefinitionEntityKind, TemplateRow } from "../../../dblayer/seuTypes.js";
 import { randomUUID } from "node:crypto";
@@ -151,11 +157,23 @@ export function toProfileSeedInput(content: Record<string, unknown>): ProfileSee
   };
 }
 
+// CR-049 — same code/version fallback shape as toTemplateSeedInput.
+// parentDeliverableDefinitionId is not schema content — it rides alongside,
+// same as toTemplateSeedInput never reads parentTemplateId off `content`.
+export function toDeliverableDefinitionSeedInput(content: Record<string, unknown>): DeliverableDefinitionSeedInput {
+  return {
+    code: typeof content.code === "string" ? content.code : "",
+    description: typeof content.description === "string" ? content.description : undefined,
+    definitionVersion: typeof content.definitionVersion === "string" && content.definitionVersion.trim() ? content.definitionVersion.trim() : "1.0.0",
+  };
+}
+
 // Structural + referential validation, per kind.
 export async function validateAuthoredContent(kind: SchemaDefinitionEntityKind, content: Record<string, unknown>): Promise<{ ok: true } | { ok: false; errors: string[] }> {
   if (kind === "Pack") return validatePackSeed(toPackSeedInput(content));
   if (kind === "Template") return validateTemplateSeed(toTemplateSeedInput(content));
   if (kind === "Profile") return validateProfileSeed(toProfileSeedInput(content));
+  if (kind === "Deliverable") return validateDeliverableDefinitionSeed(toDeliverableDefinitionSeedInput(content));
   return { ok: false, errors: [`no validator wired for kind "${kind}"`] };
 }
 
@@ -250,6 +268,10 @@ export async function listMyAuthoredRows(kind: SchemaDefinitionEntityKind, actor
     const { data } = await profilesDB.findAll();
     return (data ?? []).filter((p) => p.authored_by === actorId).map(toSummary);
   }
+  if (kind === "Deliverable") {
+    const { data } = await deliverableDefinitionsDB.findAll();
+    return (data ?? []).filter((d) => d.authored_by === actorId).map((d) => toSummary({ id: d.id, code: d.code, name: d.code, status: d.status, created_at: d.created_at }));
+  }
   return [];
 }
 
@@ -280,6 +302,10 @@ export async function listAuthoringQueue(kind: SchemaDefinitionEntityKind, fromS
   if (kind === "Profile") {
     const { data } = await profilesDB.findByStatus(fromState as ProfileRow["status"], viewer && !viewer.isRoot ? viewer.tenantId : null);
     return (data ?? []).map(toSummary);
+  }
+  if (kind === "Deliverable") {
+    const { data } = await deliverableDefinitionsDB.findByStatus(fromState as TemplateRow["status"], viewer && !viewer.isRoot ? viewer.tenantId : null);
+    return (data ?? []).map((d) => toSummary({ id: d.id, code: d.code, name: d.code, status: d.status, created_at: d.created_at }));
   }
   return [];
 }
@@ -350,6 +376,13 @@ export async function getAuthoringDraft(kind: SchemaDefinitionEntityKind, id: st
     // real-table equivalent, so those stay draft_content-only either way).
     const materialised = p.status === "Draft" ? {} : packSelectionsToFormShape(await getProfilePackSelections(p.id));
     return { id: p.id, code: p.code, name: p.name, status: p.status, content: { code: p.code, name: p.name, ...(p.draft_content ?? {}), ...materialised, profileVersion: p.profile_version, category: p.category, tenantId: p.tenant_id, parentProfileId: p.parent_profile_id } };
+  }
+  if (kind === "Deliverable") {
+    const { data: d } = await deliverableDefinitionsDB.findById(id);
+    if (!d) return null;
+    // Real columns always win, same "authoritative column over possibly-stale
+    // draft_content" discipline getAuthoringDraft's Template branch uses.
+    return { id: d.id, code: d.code, name: d.code, status: d.status, content: { ...(d.draft_content ?? {}), code: d.code, description: d.description ?? "", definitionVersion: d.version, tenantId: d.tenant_id, parentDeliverableDefinitionId: d.parent_deliverable_definition_id } };
   }
   return null;
 }
@@ -521,7 +554,7 @@ async function withDefaultTemplatePurpose(content: Record<string, unknown>, code
 // it's ignored for that kind. parentTemplateId (CR-026 Template Inheritance,
 // Template only) — set only when the author chose a parent via the "Inherit"
 // control; ignored for every other kind.
-export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntityKind; actorId: string; tenantId?: string; parentTemplateId?: string; parentProfileId?: string; content: Record<string, unknown> }): Promise<AuthoringResult> {
+export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntityKind; actorId: string; tenantId?: string; parentTemplateId?: string; parentProfileId?: string; parentDeliverableDefinitionId?: string; content: Record<string, unknown> }): Promise<AuthoringResult> {
   const authoredBy = Number(input.actorId);
   if (input.kind === "Pack") {
     // A Pack Draft is created directly (status Draft) from the authored content;
@@ -617,6 +650,31 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     if (error || !p) return { ok: false, errors: [(error ?? new Error("failed to create Profile draft")).message] };
     return { ok: true, draftId: p.id };
   }
+  if (input.kind === "Deliverable") {
+    const seed = toDeliverableDefinitionSeedInput(input.content);
+    const tenantId = input.tenantId ?? PLATFORM_TENANT_ID;
+    // Ch.15 §12 inheritance — unlike Template, code is NOT locked to the
+    // parent's own (see validateDeliverableDefinitionSeed's own comment).
+    if (input.parentDeliverableDefinitionId) {
+      const inherited = await inheritedDeliverableDefinitionContent(input.parentDeliverableDefinitionId);
+      if (!inherited.ok) return { ok: false, errors: [inherited.error] };
+      if (!seed.code) seed.code = inherited.content.code as string;
+      if (!seed.description) seed.description = inherited.content.description as string;
+    }
+    const validation = await validateDeliverableDefinitionSeed({ ...seed, tenantId, parentDeliverableDefinitionId: input.parentDeliverableDefinitionId }, undefined);
+    if (!validation.ok) return { ok: false, errors: validation.errors };
+    const { data: d, error } = await deliverableDefinitionsDB.createDraft({
+      code: seed.code,
+      description: seed.description ?? null,
+      version: seed.definitionVersion,
+      authoredBy,
+      draftContent: input.content,
+      tenantId,
+      parentDeliverableDefinitionId: input.parentDeliverableDefinitionId ?? null,
+    });
+    if (error || !d) return { ok: false, errors: [(error ?? new Error("failed to create Deliverable Definition draft")).message] };
+    return { ok: true, draftId: d.id };
+  }
   return { ok: false, errors: [`kind "${input.kind}" is not authorable`] };
 }
 
@@ -695,6 +753,17 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     if (!data) return { ok: false, errors: ["draft not found or no longer editable"] };
     return { ok: true };
   }
+  if (input.kind === "Deliverable") {
+    const { data: existing } = await deliverableDefinitionsDB.findById(input.id);
+    if (!existing) return { ok: false, errors: ["draft not found or no longer editable (only Draft rows can be saved)"] };
+    const seed = toDeliverableDefinitionSeedInput({ ...input.content });
+    const validation = await validateDeliverableDefinitionSeed({ ...seed, tenantId: existing.tenant_id, parentDeliverableDefinitionId: existing.parent_deliverable_definition_id ?? undefined }, input.id);
+    if (!validation.ok) return { ok: false, errors: validation.errors };
+    const { data, error } = await deliverableDefinitionsDB.updateDraftContent(input.id, { code: seed.code, description: seed.description ?? null, version: seed.definitionVersion, draftContent: input.content });
+    if (error) return { ok: false, errors: [error.message] };
+    if (!data) return { ok: false, errors: ["draft not found or no longer editable (only Draft rows can be saved)"] };
+    return { ok: true };
+  }
   return { ok: false, errors: [`kind "${input.kind}" is not authorable`] };
 }
 
@@ -766,6 +835,18 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
     const advanced = await advanceProfileOneStep(p, input.actorRole, input.actorId);
     if (!advanced.ok) return { ok: false, errors: [`${advanced.reason}${advanced.detail ? `: ${advanced.detail}` : ""}`] };
     return { ok: true, status: advanced.profile.status };
+  }
+  if (input.kind === "Deliverable") {
+    const { data: d } = await deliverableDefinitionsDB.findById(input.id);
+    if (!d) return { ok: false, errors: ["Deliverable Definition draft not found"] };
+    if (d.status === "Draft") {
+      const seed = toDeliverableDefinitionSeedInput({ code: d.code, description: d.description ?? undefined, definitionVersion: d.version, ...(d.draft_content ?? {}) });
+      const validation = await validateDeliverableDefinitionSeed({ ...seed, tenantId: d.tenant_id, parentDeliverableDefinitionId: d.parent_deliverable_definition_id ?? undefined }, d.id);
+      if (!validation.ok) return { ok: false, errors: validation.errors };
+    }
+    const advanced = await advanceDeliverableDefinitionOneStep(d, input.actorRole, input.actorId);
+    if (!advanced.ok) return { ok: false, errors: [`${advanced.reason}${advanced.detail ? `: ${advanced.detail}` : ""}`] };
+    return { ok: true, status: advanced.deliverableDefinition.status };
   }
   return { ok: false, errors: [`kind "${input.kind}" is not authorable`] };
 }

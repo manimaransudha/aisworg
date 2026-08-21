@@ -57,4 +57,3 @@ Capability Patterns (reusable process fragments)
 --------
 
 
-

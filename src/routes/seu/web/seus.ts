@@ -16,7 +16,7 @@ import { fulfilCapability } from "../core/capabilities.js";
 import { replaceParticipant } from "../core/participants.js";
 import { transitionDeliverable } from "../core/deliverables.js";
 import { createObligation, transitionObligation } from "../core/obligations.js";
-import { createEvidence, transitionEvidence } from "../core/evidence.js";
+import { createEvidence, transitionEvidence, linkEvidenceToObject } from "../core/evidence.js";
 import { createKnowledgeItem, promoteKnowledgeItemScope, transitionKnowledgeItem } from "../core/knowledge.js";
 import { createDecision, transitionDecision } from "../core/decisions.js";
 import { createExternalInteraction, transitionExternalInteraction } from "../core/externalInteractions.js";
@@ -255,14 +255,21 @@ router.post("/seus/:id/obligations/:obligationId/transition", async (req: Reques
 router.post("/seus/:id/evidence", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}`;
-  const { deliverableId, category, title, description, source, confidenceLevel } = req.body ?? {};
+  const { deliverableId, category, title, description, source, confidenceLevel, participantId, capabilityId, decisionId, activity, predecessorEvidenceId } = req.body ?? {};
 
   if (typeof deliverableId !== "string" || !deliverableId.trim() || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
     return flashError(req, res, backTo, "Deliverable, category and title are required.");
   }
 
   try {
-    const evidence = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category, title, description, source, confidenceLevel });
+    const evidence = await createEvidence({
+      seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category, title, description, source, confidenceLevel,
+      originatingParticipantId: participantId || null,
+      originatingCapabilityId: capabilityId || null,
+      originatingDecisionId: decisionId || null,
+      originatingActivity: activity || null,
+      supersedesEvidenceId: predecessorEvidenceId || null,
+    });
     return flashSuccess(req, res, backTo, `Evidence "${evidence.title}" collected (${evidence.category}, confidence ${evidence.confidence_level}).`);
   } catch (err) {
     logger.error("[web/seu/seus] POST /seus/:id/evidence error", err as Error);
@@ -294,6 +301,32 @@ router.post("/seus/:id/evidence/:evidenceId/transition", async (req: Request, re
     return flashSuccess(req, res, backTo, `Evidence moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`);
   } catch (err) {
     logger.error("[web/seu/seus] POST /seus/:id/evidence/:evidenceId/transition error", err as Error);
+    return flashError(req, res, backTo, (err as Error).message);
+  }
+});
+
+/** POST /aisworg/seu/seus/:id/evidence/:evidenceId/link — CR-051 item 1
+ *  (Ch.17 §20.2/§20.8): link an existing Evidence Item to another object it
+ *  also supports. Deliverable-only from this form for now, same as
+ *  collection above — the API route accepts any TransitionEntityType. */
+router.post("/seus/:id/evidence/:evidenceId/link", async (req: Request, res: Response) => {
+  const seuId = String(req.params.id);
+  const backTo = `/aisworg/seu/seus/${seuId}`;
+  const { deliverableId } = req.body ?? {};
+
+  if (typeof deliverableId !== "string" || !deliverableId.trim()) {
+    return flashError(req, res, backTo, "Deliverable is required.");
+  }
+
+  try {
+    const result = await linkEvidenceToObject(String(req.params.evidenceId), "Deliverable", deliverableId);
+    if (!result.ok) {
+      if (result.reason === "not_found") return flashError(req, res, backTo, "Evidence not found.");
+      return flashError(req, res, backTo, `Could not link Evidence: ${result.detail}`);
+    }
+    return flashSuccess(req, res, backTo, "Evidence linked.");
+  } catch (err) {
+    logger.error("[web/seu/seus] POST /seus/:id/evidence/:evidenceId/link error", err as Error);
     return flashError(req, res, backTo, (err as Error).message);
   }
 });

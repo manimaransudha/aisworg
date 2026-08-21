@@ -67,7 +67,7 @@
 
           <!-- SDK / Authoring dropdown — Pack/Template/Profile/Transition Definition authoring, Schema Registry, Pack Registry -->
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle <%= ['seu-packs','seu-templates','seu-profiles','seu-sdk-pack-authoring','seu-sdk-template-authoring','seu-sdk-profile-authoring','seu-sdk-transition-definition-authoring','seu-sdk-schema-registry','seu-sdk-ontology'].includes(currentPage) ? 'active' : '' %>"
+            <a class="nav-link dropdown-toggle <%= ['seu-packs','seu-templates','seu-profiles','seu-deliverable-definitions','seu-sdk-pack-authoring','seu-sdk-template-authoring','seu-sdk-profile-authoring','seu-sdk-transition-definition-authoring','seu-sdk-deliverable-authoring','seu-sdk-schema-registry','seu-sdk-ontology'].includes(currentPage) ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               SDK / Authoring
             </a>
@@ -81,6 +81,9 @@
               <li><a class="dropdown-item <%= currentPage === 'seu-profiles' ? 'active' : '' %>" href="/aisworg/seu/profiles">
                 <i class="bi bi-sliders me-2"></i>Profile Registry
               </a></li>
+              <li><a class="dropdown-item <%= currentPage === 'seu-deliverable-definitions' ? 'active' : '' %>" href="/aisworg/seu/deliverable-definitions">
+                <i class="bi bi-box-seam me-2"></i>Deliverable Registry
+              </a></li>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-pack-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/pack-authoring">
                 <i class="bi bi-file-earmark-code me-2"></i>Pack Authoring
@@ -93,6 +96,9 @@
               </a></li>
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-transition-definition-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/transition-definition-authoring">
                 <i class="bi bi-file-earmark-code me-2"></i>Transition Definition Authoring
+              </a></li>
+              <li><a class="dropdown-item <%= currentPage === 'seu-sdk-deliverable-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/deliverable-authoring">
+                <i class="bi bi-file-earmark-code me-2"></i>Deliverable Authoring
               </a></li>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-schema-registry' ? 'active' : '' %>" href="/aisworg/seu/sdk/schema-registry">

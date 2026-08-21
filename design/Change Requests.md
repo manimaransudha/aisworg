@@ -4,8 +4,10 @@ A running register of change requests raised against the platform — feature ad
 
 | CR | Title | Status |
 |----|-------|--------|
+| [CR-052](change-requests/CR-052-evidence-accumulation-via-event-bus.md) | Evidence accumulation via the Event Bus (exploratory) | 🟡 Proposed (exploratory, not designed) |
+| [CR-051](change-requests/CR-051-evidence-multi-relationship-provenance-versioning-events.md) | Evidence Model: multi-relationship support, cross-SEU sharing, provenance fields, versioning, and the full named event set | ✅ Built 2026-08-21 — all five items complete |
 | [CR-050](change-requests/CR-050-commissioning-active-definition-check.md) | SEU commissioning must check referenced Definitions are Active at commissioning time | 🟡 Proposed (not scheduled) |
-| [CR-049](change-requests/CR-049-deliverable-authoring-and-relationships.md) | Deliverable authoring: tenant specialisation from Ontology-defined Platform "code," and the Derivation/Implementation/Decomposition relationship types | 🟡 Proposed (design in progress) |
+| [CR-049](change-requests/CR-049-deliverable-authoring-and-relationships.md) | Deliverable authoring: tenant specialisation from Ontology-defined Platform "code," and the Derivation/Implementation/Decomposition relationship types | ✅ Built 2026-08-21 (Phase 1 + Phase 2) |
 | [CR-048](change-requests/CR-048-constraint-detection-flow-optimisation.md) | Constraint Detection (§11) + Flow Optimisation (§14): continuous incoming-edge-unsatisfied checking | 🟡 Proposed (not scheduled) |
 | [CR-047](change-requests/CR-047-dependency-graph-widget-full-vocabulary-pack-profile.md) | dependencyGraph authoring widget: full type vocabulary, symmetric TO side, and Pack/Profile schemas | 🟡 Proposed (not scheduled) |
 | [CR-046](change-requests/CR-046-registry-view-button-and-ontology-code-validation.md) | Registry "View" button, view-page data-source fix, Capability dependency widget fix, real server-side Ontology code validation | ✅ Built 2026-08-20 |

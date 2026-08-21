@@ -1,6 +1,6 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import type { DbResult, DependencyDefinitionOwnerType, DependencyDefinitionRow } from "./seuTypes.js";
+import type { DbResult, DependencyDefinitionOwnerType, DependencyDefinitionRow, DependencyRelationshipKind } from "./seuTypes.js";
 
 // CR-043 — the full set of scopes one SEU's rules can be authored under: its
 // own Template, every Pack actually composed into its active EBM, and its
@@ -39,14 +39,15 @@ export const dependencyDefinitionsDB = {
     toEntityType: string;
     toName: string;
     toState: string;
+    relationshipKind?: DependencyRelationshipKind;
   }): Promise<DbResult<DependencyDefinitionRow | undefined>> {
     try {
       const { rows } = await query<DependencyDefinitionRow>(
-        `INSERT INTO dependency_definitions (owning_entity_type, owning_entity_id, from_entity_type, from_name, from_state, to_entity_type, to_name, to_state)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `INSERT INTO dependency_definitions (owning_entity_type, owning_entity_id, from_entity_type, from_name, from_state, to_entity_type, to_name, to_state, relationship_kind)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          ON CONFLICT ON CONSTRAINT dependency_definitions_natural_key DO NOTHING
          RETURNING *`,
-        [input.owningEntityType, input.owningEntityId, input.fromEntityType, input.fromName ?? null, input.fromState, input.toEntityType, input.toName, input.toState]
+        [input.owningEntityType, input.owningEntityId, input.fromEntityType, input.fromName ?? null, input.fromState, input.toEntityType, input.toName, input.toState, input.relationshipKind ?? "dependency"]
       );
       return { data: rows[0] };
     } catch (err) {

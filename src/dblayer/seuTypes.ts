@@ -177,12 +177,24 @@ export interface TemplateDeliverableSeed {
 // target). requiredState is optional — absent means a sensible default
 // applies (Approved for Deliverable, Fulfilled for Capability); when
 // present, it's an explicit author override.
+// Ch.15 §12 (CR-049 Phase 2) — dependency is the existing plain edge label;
+// derivation/implementation/decomposition are Deliverable-to-Deliverable
+// only, structurally identical, just a different edge label. Defaults to
+// "dependency" wherever omitted — existing authored content round-trips
+// unchanged. Drives exactly one thing downstream: Template Inheritance's
+// publish-time check (validateTemplateSeed) — implementation/decomposition
+// edges must survive inheritance unaltered (a rename of either end is
+// allowed, tracing back through the tenant's own Deliverable Definition
+// lineage — CR-049's own resolution); derivation edges are freely editable.
+export type DependencyRelationshipKind = "dependency" | "derivation" | "implementation" | "decomposition";
+
 export interface TemplateDependencyGraphEntry {
   toName: string;
   fromType: "Deliverable" | "Capability";
   fromName?: string;
   fromCapabilityCode?: string;
   requiredState?: string;
+  relationshipKind?: DependencyRelationshipKind;
 }
 
 export interface TemplateRow {
@@ -201,6 +213,22 @@ export interface TemplateRow {
   // always a real tenants.id, the reserved Platform tenant for a
   // platform-wide Template, never NULL.
   tenant_id: string;
+  created_at: string;
+}
+
+// CR-049 Phase 1 — Deliverable Definition, a first-class authored entity
+// mirroring TemplateRow's own shape column-for-column (its own table, not a
+// shared one — see 081_deliverable_definitions.sql's own header comment).
+export interface DeliverableDefinitionRow {
+  id: string;
+  code: string;
+  description: string | null;
+  version: string;
+  status: PackStatus;
+  draft_content: Record<string, unknown>;
+  authored_by: number | null;
+  tenant_id: string;
+  parent_deliverable_definition_id: string | null;
   created_at: string;
 }
 
@@ -366,6 +394,7 @@ export interface DependencyDefinitionRow {
   to_entity_type: DependencyDefinitionEntityType;
   to_name: string;
   to_state: string;
+  relationship_kind: DependencyRelationshipKind;
   created_at: string;
 }
 
@@ -748,19 +777,40 @@ export interface QualityGateEvaluationRow {
 
 // Post-MVP Phase 5 (Ch.17 Evidence Model). status is not a fixed union — same
 // dynamic-validation-by-transitionEngine precedent as Deliverable/Obligation.
+// CR-051 item 1 (Ch.17 §20.2/§20.8) — related_object_type/id moved off this
+// row entirely, onto evidence_relationships (below): one Evidence Item may
+// support many engineering artefacts, not just one.
 export interface EvidenceRow {
   id: string;
   seu_id: string;
-  related_object_type: TransitionEntityType;
-  related_object_id: string;
   category: string;
   title: string;
   description: string | null;
   source: string | null;
   confidence_level: string;
   status: string;
+  // CR-051 item 3 (Ch.17 §12/§20.10) — provenance. All nullable: captured
+  // when known at creation time, not required.
+  originating_deliverable_id: string | null;
+  originating_participant_id: string | null;
+  originating_capability_id: string | null;
+  originating_decision_id: string | null;
+  originating_activity: string | null;
+  // CR-051 item 4 (Ch.17 §15/§20.13) — supersession chain, nullable.
+  supersedes_evidence_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// CR-051 item 1 — one row per (Evidence, related object) pair. Many rows can
+// share the same evidence_id (one Evidence supporting many artefacts) or the
+// same related_object_type/id (many Evidence Items supporting one artefact).
+export interface EvidenceRelationshipRow {
+  id: string;
+  evidence_id: string;
+  related_object_type: TransitionEntityType;
+  related_object_id: string;
+  created_at: string;
 }
 
 // Post-MVP Phase 5 (Ch.16 Knowledge Model). acquisition_scope reuses
@@ -934,7 +984,7 @@ export interface BadgeGrantRow {
 // via their own bootstrap Template ("Core principle"), not a new
 // TransitionEntityType. These four support tables are what's actually new.
 
-export type SchemaDefinitionEntityKind = "Pack" | "Template" | "Profile" | "TransitionDefinition";
+export type SchemaDefinitionEntityKind = "Pack" | "Template" | "Profile" | "TransitionDefinition" | "Deliverable";
 
 // One row per (entity kind, schema version) — the grammar and its validator
 // share one version (see the plan's versioning section); schema is a

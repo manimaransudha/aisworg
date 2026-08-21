@@ -236,6 +236,10 @@
     {
       "code": "waive",
       "label": "Waive"
+    },
+    {
+      "code": "reject",
+      "label": "Reject"
     }
   ],
   "transitions": [
@@ -388,6 +392,18 @@
       "fromState": "Referenced",
       "toState": "Archived",
       "verb": "archive"
+    },
+    {
+      "entityType": "Evidence",
+      "fromState": "Collected",
+      "toState": "Rejected",
+      "verb": "reject"
+    },
+    {
+      "entityType": "Evidence",
+      "fromState": "Validated",
+      "toState": "Rejected",
+      "verb": "reject"
     },
     {
       "entityType": "Knowledge",
@@ -762,6 +778,60 @@
       "verb": "activate"
     },
     {
+      "entityType": "Deliverable",
+      "fromState": "Draft",
+      "toState": "Validated",
+      "verb": "validate"
+    },
+    {
+      "entityType": "Deliverable",
+      "fromState": "Validated",
+      "toState": "Published",
+      "verb": "publish"
+    },
+    {
+      "entityType": "Deliverable",
+      "fromState": "Published",
+      "toState": "Active",
+      "verb": "activate"
+    },
+    {
+      "entityType": "Deliverable",
+      "fromState": "Active",
+      "toState": "Deprecated",
+      "verb": "deprecate"
+    },
+    {
+      "entityType": "Deliverable",
+      "fromState": "Deprecated",
+      "toState": "Retired",
+      "verb": "retire"
+    },
+    {
+      "entityType": "Deliverable",
+      "fromState": "Retired",
+      "toState": "Archived",
+      "verb": "archive"
+    },
+    {
+      "entityType": "Deliverable",
+      "fromState": "Deprecated",
+      "toState": "Active",
+      "verb": "activate"
+    },
+    {
+      "entityType": "Deliverable",
+      "fromState": "Retired",
+      "toState": "Active",
+      "verb": "activate"
+    },
+    {
+      "entityType": "Deliverable",
+      "fromState": "Archived",
+      "toState": "Active",
+      "verb": "activate"
+    },
+    {
       "entityType": "Profile",
       "fromState": "Draft",
       "toState": "Validated",
@@ -834,6 +904,13 @@
     },
     {
       "noun": "Profile",
+      "verbs": [
+        "define",
+        "publish"
+      ]
+    },
+    {
+      "noun": "Deliverable",
       "verbs": [
         "define",
         "publish"

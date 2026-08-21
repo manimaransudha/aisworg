@@ -41,10 +41,111 @@
     function packLink(matchedPack) {
       return matchedPack ? ('<a href="/aisworg/seu/sdk/pack-authoring/' + matchedPack.id + '" class="btn btn-sm btn-link p-0">View</a>') : '';
     }
+    // Owner: "Now there is item1, item2 etc. labels which is not relevant.
+    // Name, Category, Producing Capability Code as a link to the pack" —
+    // same compact-list treatment as the solo-Pack-code case above, for
+    // Template's Deliverable Catalogue specifically. producingCapabilityPacks
+    // (web/sdkAuthoring.ts's loadProducingCapabilityPacks) maps a derived
+    // capability code to the real Pack that contributes it.
+    var isDeliverableCatalogue = field.name === 'deliverableCatalogue';
+    var producingCapabilityPacks = locals.producingCapabilityPacks || {};
+    // Owner: "Instead of showing the dependency graph as a list, is there a
+    // better way of showing this?" — grouped-by-target (recommended over a
+    // diagram: no new client-side library, consistent with the rest of this
+    // view-mode redesign): each gated deliverable shown once, its
+    // prerequisites listed underneath with relationship kind + required
+    // state as badges, instead of one "Item N" card per edge.
+    var isDependencyGraph = field.name === 'dependencyGraph';
+    function relationshipLabel(kind) {
+      var k = kind || 'dependency';
+      return k.charAt(0).toUpperCase() + k.slice(1);
+    }
+    // Owner: "Can we show this under two sub headings? Deliverable
+    // dependency, Capability dependency" — the two fromType kinds answer
+    // structurally different questions (artefact state vs. Capability
+    // fulfilment/staffing, per CR-041's own design), so they're grouped and
+    // headed separately, not interleaved by target.
+    function groupedByTarget(rows) {
+      var groups = [];
+      var indexByTarget = {};
+      rows.forEach(function(row) {
+        var key = row.toName || '';
+        if (!(key in indexByTarget)) {
+          indexByTarget[key] = groups.length;
+          groups.push({ toName: key, prerequisites: [] });
+        }
+        groups[indexByTarget[key]].prerequisites.push(row);
+      });
+      return groups;
+    }
   %>
   <% var existingRows = field.rows.slice(0, field.existingCount); %>
   <% if (existingRows.length === 0) { %>
     <p class="text-muted small mb-0">None</p>
+  <% } else if (isDependencyGraph) { %>
+    <%
+      var deliverableGroups = groupedByTarget(existingRows.filter(function(row) { return row.fromType !== 'Capability'; }));
+      var capabilityGroups = groupedByTarget(existingRows.filter(function(row) { return row.fromType === 'Capability'; }));
+      function renderDependencyGroups(groups) { %>
+        <ul class="list-group list-group-flush">
+          <% groups.forEach(function(group) { %>
+            <li class="list-group-item px-0 small">
+              <div><strong><%= group.toName || '—' %></strong></div>
+              <ul class="list-unstyled mt-1 mb-0 ps-3">
+                <% group.prerequisites.forEach(function(row) { %>
+                  <li class="text-muted">
+                    <%# Owner-established quirk (getDependencyGraphContent, core/templates.ts):
+                        once materialised, a Capability-type row's real value —
+                        the resolved Service code(s) — lives in fromName, not
+                        fromCapabilityCode (that field only exists pre-materialisation,
+                        in a Draft's own freshly-authored form content). %>
+                    requires
+                    <% if (row.fromType === 'Capability') { %>
+                      Capability <code class="text-muted"><%= row.fromName || row.fromCapabilityCode || '—' %></code>
+                    <% } else { %>
+                      <%= row.fromName || '—' %>
+                    <% } %>
+                    (<%= row.requiredState || '—' %>)
+                    <span class="badge bg-light text-dark border ms-1"><%= relationshipLabel(row.relationshipKind) %></span>
+                  </li>
+                <% }) %>
+              </ul>
+            </li>
+          <% }) %>
+        </ul>
+      <% } %>
+    <h6 class="text-uppercase text-muted small fw-bold mb-2">Deliverable dependency</h6>
+    <% if (deliverableGroups.length === 0) { %>
+      <p class="text-muted small mb-3">None</p>
+    <% } else { %>
+      <div class="mb-3"><% renderDependencyGroups(deliverableGroups); %></div>
+    <% } %>
+    <h6 class="text-uppercase text-muted small fw-bold mb-2">Capability dependency</h6>
+    <% if (capabilityGroups.length === 0) { %>
+      <p class="text-muted small mb-0">None</p>
+    <% } else { %>
+      <% renderDependencyGroups(capabilityGroups); %>
+    <% } %>
+  <% } else if (isDeliverableCatalogue) { %>
+    <ul class="list-group list-group-flush">
+      <% existingRows.forEach(function(row) { %>
+        <% var capCode = row.producingCapabilityCode || ''; %>
+        <% var producingPack = capCode ? producingCapabilityPacks[capCode] : null; %>
+        <li class="list-group-item px-0 small">
+          <div class="d-flex justify-content-between align-items-center">
+            <span><strong><%= row.name || '—' %></strong> <span class="badge bg-light text-dark border ms-1"><%= row.category || '—' %></span></span>
+          </div>
+          <% if (capCode) { %>
+            <div class="text-muted mt-1">
+              Produced by: <code class="text-muted"><%= capCode %></code>
+              <% if (producingPack) { %> — <%= producingPack.name %> <%- packLink(producingPack) %>
+              <% } else { %> (Pack not currently Active)
+              <% } %>
+            </div>
+          <% } %>
+        </li>
+      <% }) %>
+    </ul>
   <% } else if (isDependencies || soloPackCodeField) { %>
     <ul class="list-group list-group-flush">
       <% existingRows.forEach(function(row) { %>

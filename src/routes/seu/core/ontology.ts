@@ -104,6 +104,15 @@ export async function addConcept(input: { conceptType: string; code: string; def
   assertOntologyCodeFormat("concept type", conceptType);
   assertOntologyCodeFormat("code", code);
   if (!defaultLabel) throw new Error("label is required");
+  // CR-049 — `deliverable-name` graduated out of plain CRUD into a real
+  // authored entity (Deliverable Definition, its own deliverable_definitions
+  // table + Draft->...->Active lifecycle) so a tenant's specialisation is a
+  // tracked derivation of Platform's own concept, not an orphan row that
+  // happens to share a string. A hand-added row here would bypass that
+  // lineage entirely, undermining the whole point of the CR.
+  if (conceptType === "deliverable-name") {
+    throw new Error('Deliverable names are authored at /aisworg/seu/sdk/deliverable-authoring now, not added directly here — use "Inherit" there to derive from an existing Platform Deliverable Definition, or start a new one.');
+  }
   const tenantId = actor.isRoot ? (input.targetTenantId ?? PLATFORM_TENANT_ID) : actor.tenantId;
   if (!tenantId) throw new Error("no tenant to add this concept to");
   const { data, error } = await ontologyDB.upsertConcept({ conceptType, code, defaultLabel, tenantId, description: description || null });
