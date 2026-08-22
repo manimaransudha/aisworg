@@ -36,6 +36,7 @@ import {
 } from "../core/sdkAuthoring.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
+import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { transitionPack } from "../core/packs.js";
 import { transitionTemplate, PACK_SELECTION_SLOTS, deriveCapabilityCodesFromPackCodes, deriveCapabilityProducingPacksFromPackCodes } from "../core/templates.js";
 import { transitionProfile } from "../core/profiles.js";
@@ -406,12 +407,18 @@ router.get("/authority/transition-definitions/:id", requireAuthorityAdmin, attac
 // every other Ontology lookup on this page, just resolved as a flat code
 // list the same way pack-code/template-code already are.
 async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: string | null }): Promise<Record<string, string[]>> {
-  const [{ data: packs }, { data: templates }, featureFlags, deliverableNames, deliverableCategories] = await Promise.all([
+  const [{ data: packs }, { data: templates }, featureFlags, deliverableNames, deliverableCategories, qualityGateCategories, { data: transitionDefinitions }, { data: policies }] = await Promise.all([
     viewer.isRoot || !viewer.tenantId ? packsDB.findAll() : packsDB.findAllVisibleTo(viewer.tenantId),
     templatesDB.findAllActive(),
     listConceptsForType("feature-flag", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
     listConceptsForType("deliverable-name", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
     listConceptsForType("category:deliverable", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
+    // CR-058 — category:quality-gate is a small, enum-like slug set
+    // (Entry/Exit/Release/Compliance/Operational), same "submit the code"
+    // treatment as feature-flag, not deliverable-name's human-label treatment.
+    listConceptsForType("category:quality-gate", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
+    transitionDefinitionsDB.listAll(),
+    policiesDB.findAll(),
   ]);
   const activePacks = (packs ?? []).filter((p) => p.status === "Active");
   return {
@@ -425,6 +432,18 @@ async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: strin
     // already expect from this same field.
     "deliverable-name": [...new Set(deliverableNames.map((c) => c.default_label))].sort(),
     "category:deliverable": [...new Set(deliverableCategories.map((c) => c.default_label))].sort(),
+    "category:quality-gate": [...new Set(qualityGateCategories.map((c) => c.code))].sort(),
+    // CR-058 — a Quality Gate's Scope/Applicable Lifecycle Transition,
+    // picked from real transition_definitions rows only (owner: "the pack
+    // should not define something beyond what a transition definition
+    // already holds"). Submitted value is the machine-parseable delimited
+    // triple (core/packs.ts's parseGovernedTransition splits it back apart
+    // at seedContributions time); the option's own display TEXT (set in the
+    // view, options are plain strings here) needs to stay legible, so the
+    // delimited value itself uses a readable separator rather than an
+    // opaque id.
+    "transition-definition": [...new Set((transitionDefinitions ?? []).filter((t) => t.is_active).map((t) => `${t.entity_type}|${t.from_state}|${t.to_state}`))].sort(),
+    "policy-code": [...new Set((policies ?? []).map((p) => p.code))].sort(),
   };
 }
 

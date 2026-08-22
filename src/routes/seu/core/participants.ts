@@ -65,8 +65,9 @@ export async function transitionParticipant(input: { participantId: string; targ
       eventType,
       originatingObjectType: "Participant",
       originatingObjectId: participant.id,
+      seuId: participant.seu_id,
       correlationId: eventBus.newCorrelationId(),
-      payload: { fromState, toState: input.targetState, seuId: participant.seu_id },
+      payload: { fromState, toState: input.targetState },
       actorId: input.actorId ?? null,
       authorityBadge: gate.authorityBadge,
     });
@@ -126,8 +127,9 @@ export async function replaceParticipant(input: {
     eventType: "ParticipantCreated",
     originatingObjectType: "Participant",
     originatingObjectId: newParticipant.id,
+    seuId: oldParticipant.seu_id,
     correlationId: eventBus.newCorrelationId(),
-    payload: { seuId: oldParticipant.seu_id, participantType: input.newParticipantType },
+    payload: { participantType: input.newParticipantType },
   });
 
   // Same primitive (revoked_at) every other "active" fulfilment query
@@ -147,8 +149,9 @@ export async function replaceParticipant(input: {
     eventType: "ParticipantReplaced",
     originatingObjectType: "Participant",
     originatingObjectId: newParticipant.id,
+    seuId: oldParticipant.seu_id,
     correlationId: eventBus.newCorrelationId(),
-    payload: { seuId: oldParticipant.seu_id, oldParticipantId: oldParticipant.id, newParticipantId: newParticipant.id, seuCapabilityId: fulfilment.seu_capability_id },
+    payload: { oldParticipantId: oldParticipant.id, newParticipantId: newParticipant.id, seuCapabilityId: fulfilment.seu_capability_id },
   });
 
   return { ok: true, oldParticipant: toArchived.participant, newParticipant };

@@ -62,14 +62,16 @@ export async function fulfilCapability(input: {
     eventType: "ParticipantCreated",
     originatingObjectType: "Participant",
     originatingObjectId: participant.id,
+    seuId: input.seuId,
     correlationId: eventBus.newCorrelationId(),
-    payload: { seuId: input.seuId, participantType: input.participantType },
+    payload: { participantType: input.participantType },
   });
 
   await eventBus.publish({
     eventType: "CapabilityFulfilled",
     originatingObjectType: "SEU",
     originatingObjectId: input.seuId,
+    seuId: input.seuId,
     correlationId: eventBus.newCorrelationId(),
     payload: { capabilityId: input.capabilityId, participantId: participant.id },
   });

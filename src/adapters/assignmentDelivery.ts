@@ -15,12 +15,12 @@ import { seusDB } from "../dblayer/seusDB.js";
 import { ebmsDB } from "../dblayer/ebmsDB.js";
 import { tenantsDB } from "../dblayer/tenantsDB.js";
 import { tenantContractsDB } from "../dblayer/tenantContractsDB.js";
-import { eventBus } from "../domain/engine/eventBus.js";
 import { logger } from "../utils/logger.js";
 import { resolveExecutionTarget } from "./executionTargetResolver.js";
 import { resolveAdapter } from "./adapterRegistry.js";
 import type { AssignmentOut } from "./participantAdapter.js";
 import type { CommandRow, DeliverableRow, WorkItemRow } from "../dblayer/seuTypes.js";
+import type { EventHandler } from "../domain/engine/eventBus.js";
 
 // CR-043 — the SEU's full owning scope (Template + every composed Pack +
 // Profile).
@@ -108,19 +108,12 @@ export async function deliverAssignmentForWorkItem(workItemId: string): Promise<
   }
 }
 
-let registered = false;
-
-// Wire the edge subscriber once, at app boot. Idempotent so repeated imports /
-// boots do not stack handlers.
-export function registerAssignmentDelivery(): void {
-  if (registered) return;
-  registered = true;
-  eventBus.subscribe(async (event) => {
-    if (event.event_type !== "WorkItemDispatched") return;
-    try {
-      await deliverAssignmentForWorkItem(event.originating_object_id);
-    } catch (err) {
-      logger.error(`[assignmentDelivery] failed delivering Work Item ${event.originating_object_id}`, err as Error);
-    }
-  });
-}
+// Ch.30 Event Bus redesign — registered against WorkItemDispatched via the
+// DB-backed event_subscriptions table (seedEventSubscriptions.ts), resolved
+// to this function by name ("assignmentDelivery") through
+// eventHandlerRegistry.ts, not by an imperative eventBus.subscribe() call at
+// boot. Only ever invoked for WorkItemDispatched — no self-filtering guard
+// needed here, the subscription itself is the filter.
+export const assignmentDeliveryHandler: EventHandler = async (event) => {
+  await deliverAssignmentForWorkItem(event.originating_object_id);
+};

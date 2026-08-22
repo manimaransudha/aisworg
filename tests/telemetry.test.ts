@@ -18,8 +18,21 @@ import { transitionDeliverableSync as transitionDeliverable } from "./testFixtur
 import { createObligation, transitionObligation } from "../src/routes/seu/core/obligations.js";
 import { getFlowMetrics, getGovernanceMetrics } from "../src/routes/seu/core/telemetry.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
-import { eventBus } from "../src/domain/engine/eventBus.js";
 import { ensureWebAppTemplateFixture } from "./testFixtures.js";
+
+// Ch.30 Event Bus redesign — publish() still persists every event
+// synchronously (only dispatch/consumption is fire-and-forget), so querying
+// the events table by payload after the fact reliably replaces the old
+// eventBus.subscribe()-based live capture. QualityGate events' own
+// originating_object_id is the gate's id, not the entity being evaluated,
+// so this filters on the entityId the engine already records in payload.
+async function qualityGateEventTypesForEntity(entityId: string): Promise<string[]> {
+  const { rows } = await pool.query<{ event_type: string }>(
+    "SELECT event_type FROM events WHERE originating_object_type = 'QualityGate' AND payload->>'entityId' = $1",
+    [entityId]
+  );
+  return rows.map((r) => r.event_type);
+}
 
 after(async () => {
   await pool.end();
@@ -119,23 +132,18 @@ test("a sustained pattern of Quality Gate blocking raises exactly one Organisati
 });
 
 test("qualityGateEngine publishes QualityGateBlocked and QualityGatePassed on the event bus (Ch.26 §15)", async () => {
-  const received: string[] = [];
-  eventBus.subscribe((event) => {
-    if (event.originating_object_type === "QualityGate") received.push(event.event_type);
-  });
-
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("phase7-quality-gate-events");
   await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
 
   const obligation = await createObligation({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase7 event test obligation" });
   const blocked = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
   assert.equal(blocked.ok, false);
-  assert.ok(received.includes("QualityGateBlocked"));
+  assert.ok((await qualityGateEventTypesForEntity(deliverableId)).includes("QualityGateBlocked"));
 
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
     await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: "1001" });
   }
   const passed = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
   assert.equal(passed.ok, true);
-  assert.ok(received.includes("QualityGatePassed"));
+  assert.ok((await qualityGateEventTypesForEntity(deliverableId)).includes("QualityGatePassed"));
 });

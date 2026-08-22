@@ -48,6 +48,7 @@ export async function createObligation(input: {
     eventType: "ObligationCreated",
     originatingObjectType: "Obligation",
     originatingObjectId: obligation.id,
+    seuId: obligation.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { relatedObjectType: input.relatedObjectType, relatedObjectId: input.relatedObjectId, category: input.category, severity: obligation.severity },
   });
@@ -124,6 +125,7 @@ export async function transitionObligation(input: { obligationId: string; target
     eventType: "ObligationTransitioned",
     originatingObjectType: "Obligation",
     originatingObjectId: obligation.id,
+    seuId: obligation.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
     actorId: input.actorId ?? null,

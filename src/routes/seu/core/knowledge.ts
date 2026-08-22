@@ -45,6 +45,7 @@ export async function createKnowledgeItem(input: {
     eventType: "KnowledgeObserved",
     originatingObjectType: "Knowledge",
     originatingObjectId: knowledgeItem.id,
+    seuId: knowledgeItem.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { deliverableId: input.deliverableId, category: input.category, acquisitionScope: knowledgeItem.acquisition_scope },
   });
@@ -121,6 +122,7 @@ export async function transitionKnowledgeItem(input: { knowledgeItemId: string; 
     eventType: "KnowledgeUpdated",
     originatingObjectType: "Knowledge",
     originatingObjectId: knowledgeItem.id,
+    seuId: knowledgeItem.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
     actorId: input.actorId ?? null,
@@ -182,6 +184,7 @@ export async function promoteKnowledgeItemScope(input: { knowledgeItemId: string
     eventType: "KnowledgeScopePromoted",
     originatingObjectType: "Knowledge",
     originatingObjectId: knowledgeItem.id,
+    seuId: knowledgeItem.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromScope, toScope: input.targetScope },
     actorId: input.actorId ?? null,

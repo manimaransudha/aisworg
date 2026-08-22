@@ -146,6 +146,7 @@ export async function transitionDeliverableDefinition(input: { deliverableDefini
     eventType: EVENT_BY_TARGET_STATE[input.targetState] ?? "DeliverableDefinitionTransitioned",
     originatingObjectType: "DeliverableDefinition",
     originatingObjectId: updated.id,
+    seuId: null, // platform catalog entity, not SEU-scoped
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: updated.code },
     actorId: input.actorId ?? null,

@@ -209,6 +209,7 @@ async function raiseSustainedPatternObligation(input: {
     eventType: "SustainedPatternDetected",
     originatingObjectType: input.originatingObjectType,
     originatingObjectId: input.originatingObjectId,
+    seuId: input.seuId,
     correlationId: eventBus.newCorrelationId(),
     payload: { ...input.eventPayload, obligationId: obligation.id },
   });

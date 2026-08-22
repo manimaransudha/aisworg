@@ -575,19 +575,19 @@ Implementation of this chapter shall produce:
 
 *Recorded 2026-08-13. This section documents how the Pack Model is realised in the current build. It does not change the requirements above (PM-001–005, §§6–17); it records what is built, what is partial, and what is still open — the same convention as Chapter 1 §18 (keep the normative spec stable; capture realisation decisions separately). Status markers: ✅ built · ⚠️ partial · ***open*** not built.*
 
-## 19.1 A Pack is a persisted row; contributions are declarative JSONB — ✅ (the "Packs are Declarative" ADR, realised)
+## 19.1 ✅ A Pack is a persisted row; contributions are declarative JSONB (the "Packs are Declarative" ADR, realised)
 
 A Pack is a single `packs` row (migration `002`). Its behaviour lives entirely in a declarative `contributions` JSONB payload and a `dependencies` JSONB array — **no executable code**. At publish time `seedContributions` (`core/packs.ts`) interprets that payload into real vocabulary rows (Capabilities, Services, Authority Rules, Policies, Quality Gates, Compliance Frameworks/Requirements); the Composition Engine and the generic engines then interpret those. This is the ADR from the chapter preamble made literal: a Pack is reasoned about, validated, composed and authored (via the SDK UI) without ever executing arbitrary code.
 
-## 19.2 Identity and immutable versioning — ✅ (PM-003, §12)
+## 19.2 ✅ Identity and immutable versioning (PM-003, §12)
 
 Pack identity is `(code, pack_version)` (`UNIQUE`, migration `010`), not `code` alone. Each published version is its own immutable row; republishing under a new version creates a new row and transitions the previously-Active version of the same code to `Deprecated` (`publishPack`). Every EBM records the exact `packCode` + `packVersion` it composed (`compositionEngine` → `composedPacks`), so a historical EBM is reproducible (§12, §11 "historical versions remain available"). **Caveat (Ch.41 scope note):** immutability is enforced at the **Pack-row** level only — the individual contributed sub-objects (capabilities, policies, authority rules, quality gates) still upsert by their own `code`, so a re-published Pack version can mutate a shared contributed object in place. Generalising immutability to every contributed object is a known residual gap, not solved here.
 
-## 19.3 Lifecycle is governed by the same engine as every entity — ✅ (§11)
+## 19.3 ✅ Lifecycle is governed by the same engine as every entity (§11)
 
 `packs.status` carries all seven states (`Draft → Validated → Published → Active → Deprecated → Retired → Archived`, CHECK in `002`), and Pack is a first-class `TransitionEntityType` — its lifecycle runs through the same generic `transitionEngine` as Deliverables/Objectives/etc., with authority + policy declared as ordinary `transition_definitions` rows (no Pack-specific evaluation code). `createPackDraft`/`advancePackLifecycle`/`publishPack`/`transitionPack` drive the hops. Reactivation from a terminal state does **not** resurrect the old row — it mints a new version (`reactivateAsNewVersion`), preserving §12 immutability.
 
-## 19.4 Contributions — structured & schema-defined; verifiable types added — ✅ mostly (§9; CR-016)
+## 19.4 ✅ Contributions — structured & schema-defined; verifiable types added; Quality Gate contribution structure built (§9; CR-016; CR-058)
 
 Contributions are no longer an opaque JSON blob. The Pack grammar declares each kind as a **flattened, structured list** (`contributionCapabilities[]`, `contributionServices[]`, `contributionAuthorityRules[]`, `contributionPolicies[]`, `contributionQualityGates[]`, `contributionChecklists[]`, `contributionReviewGates[]`, `contributionObligationDefinitions[]`), so the form and validation follow from the validator (CR-016). At publish they are reassembled into `PackContributions` (`seuTypes.ts`) and persist in `packs.contributions` (JSONB).
 
@@ -595,42 +595,43 @@ Contributions are no longer an opaque JSON blob. The Pack grammar declares each 
 - **Verifiable items** (checklist item, quality-gate criterion, review requirement, obligation) carry their own §20 fields — `statement`, `classification` (machine-verifiable / judgment / human-attested), `externalEvidence`, `prompt`, `participant`, `outputContract`, `assurance` — **per item** (a checklist can hold a machine-verifiable *and* a judgment item).
 - **Still not Pack-contributable:** Ontology, Knowledge Assets, User-Interface Components, Templates (a separate top-level entity that *references* Packs), and Metrics-via-Pack.
 - **Materialisation caveat:** `seedContributions` still materialises only Capabilities/Services/Authority Rules/Policies/Quality Gates into their tables. Checklists/Review Gates/Obligation Definitions and the §20 fields live in `packs.contributions` (JSONB) **only** — declaration; nothing consumes them yet (§19.14 execution).
+- **Quality Gate contributions now carry Chapter 26 §8's own structure — ✅ built (CR-058).** `contributionQualityGates[]` renders as a real repeatable-card form (the same generic `referential-list` widget as the Template Deliverable Catalogue, not raw JSON), and its schema now exposes an Ontology-backed `category` (`category:quality-gate`), a `transition_definitions`-sourced `governedTransition` picker (a Pack may only attach a gate to a transition that already exists — `validatePackSeed` checks it resolves), 4 named criteria types including a new Required-Policies type, and — outside the authored form, since neither is Pack-author-facing — badge-gated Waiver Rules (`quality_gate_waivers`, `qualitygate_waive`) and a Quality Gate version independent of the contributing Pack's own (`(code, version)` identity, new row per version). Deliberately kept to one criteria type per gate, no generic AND/OR — composite logic resolves once, inside participant execution, before the gate ever runs.
 
-## 19.5 Metadata coverage — ✅ built (§8; CR-018)
+## 19.5 ✅ Metadata coverage (§8; CR-018)
 
 `packs` carries the §8 set: Identifier (`id`/`code`), Name, Category, Version (`pack_version`), Status, Installation Classification, Dependencies, Contributions, and — added by CR-018 — **Description, Owner, Publisher, Composition Strategy, Supported Platform Version** (plus the §13 compatibility fields, §19.9). These live in a `packs.metadata` (JSONB) column, authored on the form and validated for shape. **Declaration only:** Composition Strategy is recorded but composition still applies the fixed "later-overrides-earlier" (Override) strategy (§19.7/§19.8); `owner`/`publisher` are free text (no Identity linkage yet).
 
-## 19.6 Taxonomy is data-driven — ✅ built (§6/§17; CR-015)
+## 19.6 ✅ Taxonomy is data-driven (§6/§17; CR-015)
 
 Pack categories are **data**: a `pack_category` table (code / label / `is_active`, same discipline as `authority_nouns`) holds them, the hardcoded `packs.category` CHECK is dropped, and category is validated in code against active rows. The Pack grammar's `category` is a **referential select** sourced from the table, so a **new category is a data insert** that flows to the form with no code change — closing §16/§17's "new Pack categories without changing the Runtime Kernel." (The same treatment CR-006 gave the authority noun vocabulary.)
 
-## 19.7 Installation classification is recorded; composition-time enforcement is partial — ⚠️ (§7)
+## 19.7 ⚠️ Installation classification is recorded; composition-time enforcement is partial (§7)
 
 `installation_classification` stores all four values (Mandatory / Recommended / Optional / Conditional), but **composition membership is driven by the Template and Profile, not by the classification column**: `compositionEngine` composes the **Template's mandatory Pack set** + the **Profile's optional Pack set** (`templatesDB.getMandatoryPackCodes` / `profilesDB.getOptionalPackCodes`). Consequences vs §7: "Mandatory = required for *every* SEU" is realised as "in the Template's mandatory set," not as an automatic platform-wide inclusion of every Mandatory-classified Pack; **Recommended** does not yet emit an "omitted" warning; **Conditional** conditions are not evaluated. The classification is today closer to descriptive metadata than an enforced composition rule.
 
-## 19.8 Composition conflict detection stands in for "Incompatible Packs prevent composition" — ✅ (§17)
+## 19.8 ✅ Composition conflict detection stands in for "Incompatible Packs prevent composition" (§17)
 
 Composition is deterministic (`002`/Ch.4): a resolved Pack with no Active version is **excluded with a warning** (never silently dropped), and a Pack contributed more than once is resolved by the **Override** strategy (later wins, with a warning). Genuine **cross-Pack governance conflicts** — two different Packs assigning different authorised roles to the same transition, or two Packs contributing a Quality Gate to the same `(entityType, fromState, toState)` — are detected by `detectGovernanceConflicts` and **block commissioning** (FR-3.6 / FR-21.7) until resolved. This is how "incompatible Packs prevent composition" (§17) is realised in practice. The declared **Incompatible dependency type** (§10) now exists on the validator (CR-018) but is **not yet enforced** at composition (§19.9).
 
-## 19.9 Dependencies, compatibility, and dependency events — ⚠️ declared, enforcement ***open*** (§10, §13, §15)
+## 19.9 ⚠️ Dependencies, compatibility, and dependency events — declared; enforcement ***open*** (§10, §13, §15)
 
 - **Dependencies (§10).** The `dependencies` JSONB now declares the full type set — **`required` / `optional` / `conditional` / `incompatible`** (CR-018) — and `validatePackSeed` resolves *required* deps at author time. But there is still **no transitive dependency resolution at composition** — composition uses the Template/Profile Pack sets (§19.7), not each Pack's declared dependencies; optional/conditional/incompatible are recorded, not acted on. ***Enforcement open.***
 - **Compatibility (§13).** The **fields are now declared** and stored (CR-018): `supportedPlatformVersion`, `minSupportedPlatformVersion`, `maxSupportedPlatformVersion`, `incompatiblePackVersions`, `migrationGuidance`. But nothing **validates** compatibility at composition, and there is no platform-version concept to compare against yet. ***Enforcement open.***
 - **Events (§15).** Lifecycle events are published, one per hop (`PackRegistered` on draft creation; `PackValidated / PackPublished / PackActivated / PackDeprecated / PackRetired / PackArchived` on transition). **`PackDependencyResolved` / `PackDependencyFailed` are not published**, consistent with dependency resolution not being built. ***Open.***
 
-## 19.10 Traceability of every contribution — ✅ (PM-005)
+## 19.10 ✅ Traceability of every contribution (PM-005)
 
 Every contributed vocabulary row carries an `originating_pack_id` FK back to `packs(id)` (capabilities, services, authority_rules, policies — `002`; governance depth — `006`; metric_definitions — `017`; compliance — `029`). A contribution is therefore always traceable to the Pack (and, with §19.2's versioned row, the Pack *version*) that introduced it. This FK is also what `db:clean-slate` keys on to keep base-Pack vocabulary while removing test-fixture Packs.
 
-## 19.11 Packs are authored entity-direct; the validator is the single source of truth — ✅ (§14; CR-015/016/017; entity-direct authoring corrected 2026-08-17, folded into CR-014)
+## 19.11 ✅ Packs are authored entity-direct; the validator is the single source of truth (§14; CR-015/016/017; entity-direct authoring corrected 2026-08-17, folded into CR-014)
 
 Pack, Template and Profile are the three entity-direct-authored kinds (`schema_definitions` entity kinds `Pack`/`Template`/`Profile`; the `/aisworg/seu/sdk/{pack,template,profile}-authoring` surfaces — Transition Definition is authored through its own noun × verb form instead, CR-019, not this pipeline). Authoring is **entity-direct**: a Draft row of the entity itself (`createAuthoringDraft`), edited in place (`saveAuthoringDraft`), and driven through §19.3's governed lifecycle **one governed hop at a time** (`publishAuthoringDraft`), each hop under the **real session actor**, gated on that hop's own `{kind}_<verb>` badge. There is no bootstrap SEU, no Deliverable indirection, and no system actor standing in for the author — a bug fix correcting CR-014 (2026-08-17; see [[every-transition-real-actor-and-badge]]), which had wrapped authoring in exactly that indirection to dodge a perceived double-gate. The **versioned schema validator** (`schema_definitions`) is the single source of truth: the form is generated *from* it (`formGenerator`) and every submission **and JSON import** is validated *against* it (`validateAgainstSchema` — hard-reject on import, warn-not-block on incremental save; CR-015). A Pack's `code` is a **system UUID**, not a hand-typed field (CR-015). And the **validator itself is now authored in a form**, not raw JSON — the schema registry generates its form from a constrained *meta-schema* and compiles the authored field list to the stored JSON Schema (CR-017; raw-JSON kept as an "Advanced" path for nested shapes). Net: adding/changing a Pack/Template/Profile field is a governed, form-driven change to the validator — the form and validation follow.
 
-## 19.12 Relationship to Chapter 1 §10 (Objective → Capability derivation)
+## 19.12 ⚠️ Relationship to Chapter 1 §10 (Objective → Capability derivation)
 
 Chapter 1 §10 envisages required Capabilities being **derived** from Objective content "using Capability Packs (Chapter 5)." A Pack **does** contribute Capability *definitions* today (§19.4), but the Objective-content-to-Capability **derivation mechanism** itself is not built (only explicit declaration + a word-overlap suggestion heuristic) — tracked as **CR-011**. The Pack side (a place for contributed Capabilities to live, traceably) is ready; the derivation step that would consume it is the open half.
 
-## 19.13 Pack authority — badge-based (noun × verb), no Pack-specific code — ✅
+## 19.13 ✅ Pack authority — badge-based (noun × verb), no Pack-specific code
 
 Pack authorisation rides the CR-006 `noun × verb` badge model with **zero Pack-specific code**, exactly as Objectives do (Ch.1 §18.10). `Pack` is a noun; every Pack transition carries a verb (`authorityVocabulary.json`); `transitionPack` calls `transitionEngine.evaluate({ entityType: "Pack", …, actorId })` with the same shape as `transitionObjective`/`transitionDeliverable`. The engine derives `requiredBadge = pack_<verb>` and asks `badgeAuthorityEngine.authorise` — root bypass, or the actor holds that Active badge. Every hop runs under the real actor, never a system bypass — two callers, two shapes, over the same `transitionPack` + badge check:
 
@@ -652,7 +653,7 @@ Per-hop badges:
 
 **Granting** the `pack_*` badges (who holds `pack_publish`, etc.) is the same separate grant concern as `objective_*` — today root bypasses and the `tester-all` fixture holds every `noun_verb`. (Legacy detail: the denial message interpolates `gate.authorityRuleCode`, a pre-CR-006 field name that now carries the `pack_<verb>` badge code.)
 
-## 19.14 Executable contributions & verification classification (§20) — declaration ✅ built (CR-016), execution ***open***
+## 19.14 ⚠️ Executable contributions & verification classification (§20) — declaration built (CR-016); execution ***open***
 
 §20 defines a model in which every *verifiable* Pack contribution (a checklist item, a quality-gate criterion, a review requirement, an obligation) carries its own execution: a **Statement**, a **Classification** (machine-verifiable / judgment / human-attested), a **Prompt**, a **Participant assignment**, an **Output contract**, and an optional **Assurance policy**. The **declaration half is now built**; the **execution half is open**.
 
@@ -753,6 +754,7 @@ Learning loop. Graduation candidates need not be guessed. Engineering Telemetry 
 Discipline. The split axis is classification only, two sub-Packs per master. The master remains the unit consumers depend on. Tenants should not depend on the sub-Packs directly, or the aggregation benefit is lost and Packs proliferate.
 
 
+## My  notes. 
 [Sudha: You're right, and this is the crux. Let me concede the core point plainly, because it's the important one: if every actual check is handed to an external participant and the platform only requires-and-records, then the differentiation over Jira-plus-audit-trail is thin. "An external participant verifies and it comes back" does just push the question — the real "how" happens somewhere the platform can't see. That's coordination, not execution.
 
 So here is the line I think is actually correct, and it's a refinement of "execution is external", not a contradiction:

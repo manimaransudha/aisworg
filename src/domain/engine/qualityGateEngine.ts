@@ -10,10 +10,13 @@
 // Richer criteria (Review-based, per Ch.26 §9) are future scope.
 import { qualityGatesDB } from "../../dblayer/qualityGatesDB.js";
 import { qualityGateEvaluationsDB } from "../../dblayer/qualityGateEvaluationsDB.js";
+import { qualityGateWaiversDB } from "../../dblayer/qualityGateWaiversDB.js";
 import { obligationsDB } from "../../dblayer/obligationsDB.js";
 import { evidenceDB } from "../../dblayer/evidenceDB.js";
 import { decisionsDB } from "../../dblayer/decisionsDB.js";
 import { reviewsDB } from "../../dblayer/reviewsDB.js";
+import { policiesDB } from "../../dblayer/policiesDB.js";
+import { evaluateCondition, type PolicyCondition } from "./policyCondition.js";
 import { eventBus } from "./eventBus.js";
 import type { QualityGateRow, TransitionEntityType } from "../../dblayer/seuTypes.js";
 
@@ -38,21 +41,35 @@ const QUALIFYING_REVIEW_OUTCOMES = new Set(["Passed", "Passed with Recommendatio
 export type QualityGateEvaluationResult =
   | { outcome: "NotApplicable" }
   | { outcome: "Passed"; gate: QualityGateRow }
-  | { outcome: "Blocked"; gate: QualityGateRow; reason: string };
+  | { outcome: "Blocked"; gate: QualityGateRow; reason: string }
+  | { outcome: "Waived"; gate: QualityGateRow; reason: string };
 
-export type QualityGateListEvaluationResult = { outcome: "Passed" | "NotApplicable" } | { outcome: "Blocked"; gate: QualityGateRow; reason: string };
+export type QualityGateListEvaluationResult =
+  | { outcome: "Passed" | "NotApplicable" }
+  | { outcome: "Blocked"; gate: QualityGateRow; reason: string }
+  | { outcome: "Waived"; gate: QualityGateRow; reason: string };
 
 export const qualityGateEngine = {
+  // CR-058 — a transition may now have several active gates (one per
+  // category, owner: "one gate per category"). All must pass; short-circuits
+  // and reports the first one that blocks or is waived, same "first
+  // blocking gate wins" semantics evaluateByIds already had for explicit
+  // gate-id references — now shared by both paths.
   async evaluate(input: {
     entityType: TransitionEntityType;
     entityId: string;
     seuId: string | null;
     fromState: string;
     toState: string;
-  }): Promise<QualityGateEvaluationResult> {
-    const { data: gate } = await qualityGatesDB.find(input.entityType, input.fromState, input.toState);
-    if (!gate) return { outcome: "NotApplicable" };
-    return this.evaluateGate(gate, input);
+    context?: Record<string, unknown>;
+  }): Promise<QualityGateListEvaluationResult> {
+    const { data: gates } = await qualityGatesDB.findAllActive(input.entityType, input.fromState, input.toState);
+    if (!gates || gates.length === 0) return { outcome: "NotApplicable" };
+    for (const gate of gates) {
+      const result = await this.evaluateGate(gate, input);
+      if (result.outcome === "Blocked" || result.outcome === "Waived") return result;
+    }
+    return { outcome: "Passed" };
   },
 
   // SDK UI Layer Plan, Transition Definition section, "Mechanism — resolved"
@@ -64,23 +81,23 @@ export const qualityGateEngine = {
   // entity types' own core/*.ts functions still do it (unchanged, still
   // live). All gates must pass; short-circuits and reports the first one
   // that blocks, same "first blocking gate wins" semantics evaluate's own
-  // single-gate check already has.
+  // multi-gate check above shares.
   async evaluateByIds(
     gateIds: string[],
-    input: { entityType: TransitionEntityType; entityId: string; seuId: string | null }
+    input: { entityType: TransitionEntityType; entityId: string; seuId: string | null; context?: Record<string, unknown> }
   ): Promise<QualityGateListEvaluationResult> {
     if (gateIds.length === 0) return { outcome: "NotApplicable" };
     const { data: gates } = await qualityGatesDB.findByIds(gateIds);
     for (const gate of gates ?? []) {
       const result = await this.evaluateGate(gate, input);
-      if (result.outcome === "Blocked") return result;
+      if (result.outcome === "Blocked" || result.outcome === "Waived") return result;
     }
     return { outcome: "Passed" };
   },
 
   async evaluateGate(
     gate: QualityGateRow,
-    input: { entityType: TransitionEntityType; entityId: string; seuId: string | null }
+    input: { entityType: TransitionEntityType; entityId: string; seuId: string | null; context?: Record<string, unknown> }
   ): Promise<QualityGateEvaluationResult> {
     const criteriaType = (gate.criteria as { type?: string }).type;
 
@@ -96,7 +113,7 @@ export const qualityGateEngine = {
       const { data: obligations } = await obligationsDB.findByRelatedObject(input.entityType, input.entityId);
       const unresolved = (obligations ?? []).filter((o) => !RESOLVED_OBLIGATION_STATUSES.has(o.status));
       if (unresolved.length > 0) {
-        return this.recordAndBlock(gate, input, `${unresolved.length} unresolved Obligation(s) (${unresolved.map((o) => o.title).join(", ")})`, {
+        return this.blockOrWaive(gate, input, `${unresolved.length} unresolved Obligation(s) (${unresolved.map((o) => o.title).join(", ")})`, {
           unresolvedObligationIds: unresolved.map((o) => o.id),
         });
       }
@@ -104,12 +121,17 @@ export const qualityGateEngine = {
     }
 
     if (criteriaType === "requires_accepted_evidence_or_approved_decision") {
+      // CR-058 — an optional `category` narrows this the same way
+      // requires_accepted_review already did (checked directly against
+      // qualifying Evidence's own category / qualifying Decision's own
+      // category — one shared param, whichever entity type qualifies).
+      const requiredCategory = (gate.criteria as { category?: string }).category;
       const [{ data: evidence }, { data: decisions }] = await Promise.all([
         evidenceDB.findByRelatedObject(input.entityType, input.entityId),
         decisionsDB.findByRelatedObject(input.entityType, input.entityId),
       ]);
-      const qualifyingEvidence = (evidence ?? []).filter((e) => QUALIFYING_EVIDENCE_STATUSES.has(e.status));
-      const qualifyingDecisions = (decisions ?? []).filter((d) => QUALIFYING_DECISION_STATUSES.has(d.status));
+      const qualifyingEvidence = (evidence ?? []).filter((e) => QUALIFYING_EVIDENCE_STATUSES.has(e.status) && (!requiredCategory || e.category === requiredCategory));
+      const qualifyingDecisions = (decisions ?? []).filter((d) => QUALIFYING_DECISION_STATUSES.has(d.status) && (!requiredCategory || d.category === requiredCategory));
 
       // Participant Integration & Attestation — Plan step 2, refined 2026-08-11:
       // the acceptance attestation is deliberately NOT accepted as satisfying
@@ -121,7 +143,12 @@ export const qualityGateEngine = {
       // the attestation's role is provenance + the empty-centre presence check,
       // not gate satisfaction.)
       if (qualifyingEvidence.length === 0 && qualifyingDecisions.length === 0) {
-        return this.recordAndBlock(gate, input, "no accepted Evidence or approved Decision found for this entity", {});
+        return this.blockOrWaive(
+          gate,
+          input,
+          requiredCategory ? `no accepted Evidence or approved Decision of category "${requiredCategory}" found for this entity` : "no accepted Evidence or approved Decision found for this entity",
+          { requiredCategory }
+        );
       }
       return this.recordAndPass(gate, input);
     }
@@ -138,14 +165,53 @@ export const qualityGateEngine = {
         (r) => r.status === "Accepted" && r.outcome != null && QUALIFYING_REVIEW_OUTCOMES.has(r.outcome) && (!requiredCategory || r.category === requiredCategory)
       );
       if (qualifying.length === 0) {
-        return this.recordAndBlock(gate, input, requiredCategory ? `no Accepted, passing "${requiredCategory}" Review found for this entity` : "no Accepted, passing Review found for this entity", { requiredCategory });
+        return this.blockOrWaive(gate, input, requiredCategory ? `no Accepted, passing "${requiredCategory}" Review found for this entity` : "no Accepted, passing Review found for this entity", { requiredCategory });
+      }
+      return this.recordAndPass(gate, input);
+    }
+
+    // CR-058 — Ch.26 §9 ¶2: "a Quality Gate may still choose to treat
+    // adherence as blocking for that specific gate... even though the
+    // underlying Policy does not block by default elsewhere." That's exactly
+    // what this criteria type is: unlike transitionEngine's own Policy
+    // handling (which only blocks for constraint_type "Policy", letting
+    // "Standard" deviate non-blockingly), a Policy explicitly referenced by
+    // a Quality Gate always blocks on non-satisfaction, regardless of its
+    // own constraint_type — the gate IS the explicit override the chapter
+    // describes.
+    if (criteriaType === "requires_active_policy") {
+      const policyCode = (gate.criteria as { policyCode?: string }).policyCode;
+      if (!policyCode) return this.blockOrWaive(gate, input, "requires_active_policy criteria has no policyCode configured", {});
+      const { data: policy } = await policiesDB.findByCode(policyCode);
+      if (!policy) return this.blockOrWaive(gate, input, `referenced Policy "${policyCode}" does not exist`, { policyCode });
+      const satisfied = evaluateCondition(policy.condition as PolicyCondition, input.context ?? {});
+      if (!satisfied) {
+        return this.blockOrWaive(gate, input, `Policy "${policyCode}" is not satisfied for this entity`, { policyCode });
       }
       return this.recordAndPass(gate, input);
     }
 
     // Unrecognised criteria type fails closed, same discipline as
     // transitionEngine's policy-condition evaluation.
-    return this.recordAndBlock(gate, input, `unrecognised Quality Gate criteria type: ${criteriaType}`, { criteriaType });
+    return this.blockOrWaive(gate, input, `unrecognised Quality Gate criteria type: ${criteriaType}`, { criteriaType });
+  },
+
+  // CR-058 §13 — checked before a would-be block is finalized: an active,
+  // unexpired waiver for this exact (gate, entity) pair turns a Blocked
+  // outcome into a real, recorded Waived one instead. Waivers are granted
+  // per entity instance, never per gate definition globally (core/
+  // qualityGateWaivers.ts) — the same criteria failure can be waived for one
+  // Deliverable without silently waiving it for every other entity the gate
+  // also applies to.
+  async blockOrWaive(
+    gate: QualityGateRow,
+    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string },
+    reason: string,
+    detail: Record<string, unknown>
+  ): Promise<QualityGateEvaluationResult> {
+    const { data: waiver } = await qualityGateWaiversDB.findActive(gate.id, input.entityType, input.entityId);
+    if (waiver) return this.recordAndWaive(gate, input, reason, waiver.id);
+    return this.recordAndBlock(gate, input, reason, detail);
   },
 
   async recordAndPass(gate: QualityGateRow, input: { seuId: string | null; entityType: TransitionEntityType; entityId: string }): Promise<QualityGateEvaluationResult> {
@@ -157,8 +223,9 @@ export const qualityGateEngine = {
       eventType: "QualityGatePassed",
       originatingObjectType: "QualityGate",
       originatingObjectId: gate.id,
+      seuId: input.seuId,
       correlationId: eventBus.newCorrelationId(),
-      payload: { entityType: input.entityType, entityId: input.entityId, seuId: input.seuId },
+      payload: { entityType: input.entityType, entityId: input.entityId },
     });
     return { outcome: "Passed", gate };
   },
@@ -174,9 +241,28 @@ export const qualityGateEngine = {
       eventType: "QualityGateBlocked",
       originatingObjectType: "QualityGate",
       originatingObjectId: gate.id,
+      seuId: input.seuId,
       correlationId: eventBus.newCorrelationId(),
-      payload: { entityType: input.entityType, entityId: input.entityId, seuId: input.seuId, reason },
+      payload: { entityType: input.entityType, entityId: input.entityId, reason },
     });
     return { outcome: "Blocked", gate, reason };
+  },
+
+  async recordAndWaive(
+    gate: QualityGateRow,
+    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string },
+    reason: string,
+    waiverId: string
+  ): Promise<QualityGateEvaluationResult> {
+    await qualityGateEvaluationsDB.create({ qualityGateId: gate.id, seuId: input.seuId, entityType: input.entityType, entityId: input.entityId, outcome: "Waived", detail: { reason, waiverId } });
+    await eventBus.publish({
+      eventType: "QualityGateWaived",
+      originatingObjectType: "QualityGate",
+      originatingObjectId: gate.id,
+      seuId: input.seuId,
+      correlationId: eventBus.newCorrelationId(),
+      payload: { entityType: input.entityType, entityId: input.entityId, reason, waiverId },
+    });
+    return { outcome: "Waived", gate, reason };
   },
 };

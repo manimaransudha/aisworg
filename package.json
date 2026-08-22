@@ -14,6 +14,7 @@
     "seed:identity-baseline": "tsx src/dblayer/seed/seedIdentityBaseline.ts",
     "seed:transition-definitions": "tsx src/dblayer/seed/seedTransitionDefinitions.ts",
     "seed:authority-vocab": "tsx src/dblayer/seed/seedAuthorityVocabulary.ts",
+    "seed:event-subscriptions": "tsx src/dblayer/seed/seedEventSubscriptions.ts",
     "seed:capability-pattern-packs": "tsx src/dblayer/seed/seedCapabilityPatternPacks.ts",
     "seed:sdlc-phase-packs": "tsx src/dblayer/seed/seedSdlcPhasePacks.ts",
     "seed:sdlc-standard-templates": "tsx src/dblayer/seed/seedSdlcStandardTemplates.ts",

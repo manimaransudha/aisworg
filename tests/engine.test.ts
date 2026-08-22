@@ -8,10 +8,11 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
-import pool from "../src/utils/db.js";
+import pool, { query } from "../src/utils/db.js";
 import { compositionEngine } from "../src/domain/engine/compositionEngine.js";
 import { transitionEngine } from "../src/domain/engine/transitionEngine.js";
-import { eventBus } from "../src/domain/engine/eventBus.js";
+import { eventBus, dispatch } from "../src/domain/engine/eventBus.js";
+import { HANDLER_REGISTRY } from "../src/domain/engine/eventHandlerRegistry.js";
 
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
@@ -106,8 +107,8 @@ test("transitionEngine.evaluate denies an under-privileged actor", async () => {
 test("transitionEngine.evaluate rejects a transition with no Transition Definition", async () => {
   const outcome = await transitionEngine.evaluate({
     entityType: "SEU",
-    fromState: "Operational",
-    toState: "Retired",
+    fromState: "Commissioned",
+    toState: "Archived",
     actorRole: "super", actorId: "1001",
   });
   assert.equal(outcome.allowed, false);
@@ -145,25 +146,103 @@ test("transitionEngine.evaluate handles the Objective entity type (Post-MVP Phas
   if (!undefinedTransition.allowed) assert.equal(undefinedTransition.reason, "no_transition_definition");
 });
 
-test("eventBus.publish persists the event and notifies subscribers exactly once", async () => {
-  const received: string[] = [];
-  eventBus.subscribe((event) => {
-    if (event.originating_object_type === "engine-test") received.push(event.event_type);
-  });
-
+test("eventBus.publish persists the event with the correct seu_id and an empty consumption_state when nobody subscribes", async () => {
   const correlationId = eventBus.newCorrelationId();
   const objectId = randomUUID();
-  await eventBus.publish({
+  const event = await eventBus.publish({
     eventType: "EngineTestFired",
     originatingObjectType: "engine-test",
     originatingObjectId: objectId,
+    seuId: null,
     correlationId,
     payload: { ok: true },
   });
 
-  assert.deepEqual(received, ["EngineTestFired"]);
+  assert.equal(event.seu_id, null);
+  assert.deepEqual(event.consumption_state, {});
 
   const { data: persisted } = await eventsDB.findByOriginatingObject("engine-test", objectId);
   assert.equal(persisted?.length, 1);
   assert.equal(persisted?.[0]?.correlation_id, correlationId);
+});
+
+// Ch.30 Event Bus redesign — dispatch() is exported standalone specifically
+// so it's testable without going through publish()'s fire-and-forget timing.
+// Real handler invocation + per-handler consumption_state tracking, tested
+// directly.
+test("dispatch invokes each handler and records its own consumption_state entry, independently of other handlers", async () => {
+  const event = await eventBus.publish({
+    eventType: "EngineTestDispatch",
+    originatingObjectType: "engine-test",
+    originatingObjectId: randomUUID(),
+    seuId: null,
+    correlationId: eventBus.newCorrelationId(),
+    payload: {},
+  });
+
+  const received: string[] = [];
+  await dispatch(event, [
+    { name: "engineTestOk", handler: async (e) => { received.push(e.event_type); } },
+    { name: "engineTestThrows", handler: async () => { throw new Error("engine-test deliberate failure"); } },
+  ]);
+
+  assert.deepEqual(received, ["EngineTestDispatch"]);
+
+  const { data: refetched } = await eventsDB.findByOriginatingObject("engine-test", event.originating_object_id);
+  const state = refetched?.[0]?.consumption_state ?? {};
+  assert.equal(state.engineTestOk?.status, "consumed");
+  assert.ok(typeof state.engineTestOk?.consumedAt === "string");
+  // The failing handler does not affect the succeeding one's own entry (Ch.30 §9).
+  assert.equal(state.engineTestThrows?.status, "failed");
+  assert.equal(state.engineTestThrows?.consumedAt, null);
+  assert.match(state.engineTestThrows?.error ?? "", /engine-test deliberate failure/);
+});
+
+// Proves publish() genuinely never blocks on a handler's own work — the
+// actual behavior CR-052/this redesign was built to fix (assignmentDelivery.ts's
+// own external delivery call previously ran inline inside publish()).
+test("eventBus.publish returns well before a slow registered handler resolves", async () => {
+  const eventType = `EngineTestSlow-${randomUUID()}`;
+  const handlerName = "engineTestSlowHandler";
+  let handlerStarted = false;
+  let handlerFinished = false;
+  HANDLER_REGISTRY[handlerName] = async () => {
+    handlerStarted = true;
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    handlerFinished = true;
+  };
+
+  await query("INSERT INTO event_registry (event_type) VALUES ($1)", [eventType]);
+  await query("INSERT INTO event_subscriptions (event_type, handler_name) VALUES ($1, $2)", [eventType, handlerName]);
+  try {
+    await eventBus.loadSubscriptions();
+
+    const start = Date.now();
+    const event = await eventBus.publish({
+      eventType,
+      originatingObjectType: "engine-test",
+      originatingObjectId: randomUUID(),
+      seuId: null,
+      correlationId: eventBus.newCorrelationId(),
+      payload: {},
+    });
+    const publishDuration = Date.now() - start;
+
+    assert.ok(publishDuration < 250, `publish() should return well before the handler's 300ms delay — took ${publishDuration}ms`);
+    assert.equal(event.consumption_state[handlerName]?.status, "pending");
+    assert.equal(handlerFinished, false, "the handler must not have finished yet when publish() already returned");
+
+    // Let the fire-and-forget dispatch actually run and settle.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    assert.equal(handlerStarted, true);
+    assert.equal(handlerFinished, true);
+    const { data: refetched } = await eventsDB.findByOriginatingObject("engine-test", event.originating_object_id);
+    assert.equal(refetched?.[0]?.consumption_state[handlerName]?.status, "consumed");
+  } finally {
+    delete HANDLER_REGISTRY[handlerName];
+    await query("DELETE FROM event_subscriptions WHERE event_type = $1", [eventType]);
+    await query("DELETE FROM events WHERE event_type = $1", [eventType]);
+    await query("DELETE FROM event_registry WHERE event_type = $1", [eventType]);
+    await eventBus.loadSubscriptions(); // restore the real map
+  }
 });

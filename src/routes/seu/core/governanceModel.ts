@@ -14,7 +14,7 @@ export interface EffectiveGovernanceModel {
   ebm: { id: string; version: number; status: string; composedPacks: Array<{ packCode: string; packVersion: string }> };
   authorityRules: Array<{ code: string; governedTransition: string; authorisedRole: string; fromPack: string }>;
   policies: Array<{ code: string; name: string; governedTransition: string; fromPack: string }>;
-  qualityGates: Array<{ code: string; name: string; entityType: string; fromState: string; toState: string; criteria: Record<string, unknown>; fromPack: string }>;
+  qualityGates: Array<{ code: string; name: string; category: string; governedTransition: string; criteriaType: string; fromPack: string }>;
   conflicts: string[];
 }
 
@@ -48,7 +48,7 @@ export async function getEffectiveGovernanceModel(seuId: string): Promise<Effect
     for (const g of pack.contributions?.qualityGates ?? []) {
       if (seenGate.has(g.code)) continue;
       seenGate.add(g.code);
-      qualityGates.push({ code: g.code, name: g.name, entityType: g.entityType, fromState: g.fromState, toState: g.toState, criteria: g.criteria ?? {}, fromPack: pack.code });
+      qualityGates.push({ code: g.code, name: g.name, category: g.category, governedTransition: g.governedTransition, criteriaType: g.criteriaType, fromPack: pack.code });
     }
   }
 
@@ -56,6 +56,7 @@ export async function getEffectiveGovernanceModel(seuId: string): Promise<Effect
     eventType: "GovernanceModelInspected",
     originatingObjectType: "SEU",
     originatingObjectId: seuId,
+    seuId,
     correlationId: eventBus.newCorrelationId(),
     payload: { ebmVersion: ebm.version, authorityRules: authorityRules.length, policies: policies.length, qualityGates: qualityGates.length },
   });

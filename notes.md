@@ -57,3 +57,13 @@ Capability Patterns (reusable process fragments)
 --------
 
 
+Summary of the most load-bearing new findings for §20
+EBM has no transition mechanism at all — status set once at INSERT, never updated by any code (ebmsDB.ts), despite being one of the chapter's 9 named "Managed Objects."
+"Runtime Services" is a pure documentation concept — zero matches anywhere in src/.
+9 additional real governed entity types exist beyond the chapter's list of 9 — full real set is 16, confirmed identical between the live transition_definitions table and the TransitionEntityType TypeScript union.
+Participant has a concrete FR-29.4 violation: 4 of its 10 governed transitions (Assigned→Executing, Assigned→Released, Available→Released, Executing→Released) commit state with zero event published, due to a stale lookup table (CH13_EVENT_BY_TRANSITION, participants.ts:27-34) that only covers 6 of the 10 real transitions.
+No optimistic/pessimistic concurrency control exists anywhere in the transition-write path — every checked entity's UPDATE is unconditional on id, no FOR UPDATE, no version column guard. This is the single most consequential gap versus FR-29.6/§14's claims.
+No versioning exists on any of the six primary governed entities (Deliverable, Decision, Knowledge, Evidence, Obligation, Participant) — directly falsifying FR-29.2 for all of them.
+"Transition Definitions contributed through Packs" is not implemented — they are seeded from a static JSON file and/or edited through a separate SDK-authoring admin API; Pack installation code never writes to transition_definitions.
+No recovery mechanism exists anywhere (SM-006/FR-29.5/§13 all collapse to the same zero-result grep).
+No generic "transition rationale" concept exists in the running code (§9); "applicable policies satisfied" is never recorded in history (§15) — only blocking/deviation policies leave any trace.

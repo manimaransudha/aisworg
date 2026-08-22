@@ -145,8 +145,9 @@ export async function transitionDeliverable(input: {
       eventType: "DeliverableBlocked",
       originatingObjectType: "Deliverable",
       originatingObjectId: deliverable.id,
+      seuId: deliverable.seu_id,
       correlationId: eventBus.newCorrelationId(),
-      payload: { entityType: "Deliverable", entityId: deliverable.id, seuId: deliverable.seu_id, reason },
+      payload: { entityType: "Deliverable", entityId: deliverable.id, reason },
     });
     return { ok: false, reason: "dependency_not_satisfied", rows: readiness.rows };
   }

@@ -46,15 +46,19 @@ export const executionEngine = {
     });
     if (error || !command) throw error ?? new Error("failed to generate command");
 
-    await eventBus.publish({
+    const commandGeneratedEvent = await eventBus.publish({
       eventType: "CommandGenerated",
       originatingObjectType: "Command",
       originatingObjectId: command.id,
+      seuId: input.seuId,
       correlationId: input.correlationId,
       payload: { entityType: input.entityType, entityId: input.entityId, fromState: input.fromState, toState: input.toState },
     });
 
-    const workItem = await workItemGenerator.generate({ command, correlationId: input.correlationId });
+    // Ch.30 causation fix — WorkItemGenerated is genuinely caused by this
+    // CommandGenerated event, threaded through explicitly rather than
+    // workItemGenerator.ts fabricating a reference from the Command's own id.
+    const workItem = await workItemGenerator.generate({ command, seuId: input.seuId, correlationId: input.correlationId, causationEventId: commandGeneratedEvent.id });
 
     const dispatch = await dispatchEngine.dispatch({
       workItem,

@@ -69,6 +69,7 @@ export const dispatchEngine = {
         eventType: "WorkItemDispatched",
         originatingObjectType: "WorkItem",
         originatingObjectId: input.workItem.id,
+        seuId: input.seuId,
         correlationId: input.correlationId,
         payload: { participantId: null },
       });
@@ -85,6 +86,7 @@ export const dispatchEngine = {
         eventType: "DispatchDeferred",
         originatingObjectType: "WorkItem",
         originatingObjectId: input.workItem.id,
+        seuId: input.seuId,
         correlationId: input.correlationId,
         payload: { reason: "no_eligible_participant" },
       });
@@ -118,6 +120,7 @@ export const dispatchEngine = {
       eventType: "ParticipantAssigned",
       originatingObjectType: "Participant",
       originatingObjectId: participantId,
+      seuId: input.seuId,
       correlationId: input.correlationId,
       payload: { workItemId: input.workItem.id },
     });
@@ -128,6 +131,7 @@ export const dispatchEngine = {
       eventType: "ParticipantSelected",
       originatingObjectType: "WorkItem",
       originatingObjectId: input.workItem.id,
+      seuId: input.seuId,
       correlationId: input.correlationId,
       payload: { participantId, strategy: SOLE_ELIGIBLE_PARTICIPANT },
     });
@@ -135,6 +139,7 @@ export const dispatchEngine = {
       eventType: "WorkItemDispatched",
       originatingObjectType: "WorkItem",
       originatingObjectId: input.workItem.id,
+      seuId: input.seuId,
       correlationId: input.correlationId,
       payload: { participantId },
     });

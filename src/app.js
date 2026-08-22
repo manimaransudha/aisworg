@@ -26,13 +26,15 @@ import { router as authRouter } from "./routes/web/auth.js";
 import { router as demoRouter } from "./routes/web/demo.js";
 import { router as seuApiRouter } from "./routes/seu/api/index.js";
 import { router as seuWebRouter } from "./routes/seu/web/index.js";
-import { registerAssignmentDelivery } from "./adapters/assignmentDelivery.js";
+import { eventBus } from "./domain/engine/eventBus.js";
 import { devActAsAvailable, currentActAs, listTenants, listBadgeTypes } from "./dev/actAs.js";
 
-// Participant Integration — Plan step 5: wire the assignment-out edge subscriber
-// so a dispatched Work Item is delivered to its Capability's execution target
-// (human-on-UI or an external orchestrator) via the adapter seam. Idempotent.
-registerAssignmentDelivery();
+// Ch.30 Event Bus redesign — loads event_subscriptions into the in-memory
+// routing map once at module load (same unconditional placement the old
+// registerAssignmentDelivery() call had, so tests that import `app` directly
+// without going through the app.listen() block below still get
+// subscriptions loaded, e.g. WorkItemDispatched -> assignmentDelivery).
+await eventBus.loadSubscriptions();
 
 const app = express();
 const PORT = process.env.PORT || 4800;

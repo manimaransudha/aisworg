@@ -30,6 +30,41 @@
     "requiredPolicyCodes": []
   },
   {
+    "entityType": "SEU",
+    "fromState": "Operational",
+    "toState": "Suspended",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Suspended",
+    "toState": "Operational",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Operational",
+    "toState": "Retired",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Suspended",
+    "toState": "Retired",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Retired",
+    "toState": "Archived",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
     "entityType": "Deliverable",
     "fromState": "Defined",
     "toState": "In Progress",

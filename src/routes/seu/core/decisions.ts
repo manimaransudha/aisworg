@@ -49,6 +49,7 @@ export async function createDecision(input: {
     eventType: "DecisionIdentified",
     originatingObjectType: "Decision",
     originatingObjectId: decision.id,
+    seuId: decision.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { relatedObjectType: input.relatedObjectType, relatedObjectId: input.relatedObjectId, category: input.category },
   });
@@ -121,6 +122,7 @@ export async function transitionDecision(input: { decisionId: string; targetStat
     eventType: "DecisionTransitioned",
     originatingObjectType: "Decision",
     originatingObjectId: decision.id,
+    seuId: decision.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
     actorId: input.actorId ?? null,

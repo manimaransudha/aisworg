@@ -25,8 +25,9 @@ export async function createAttentionItem(input: {
     eventType: "AttentionCreated",
     originatingObjectType: "AttentionItem",
     originatingObjectId: attentionItem.id,
+    seuId: input.seuId,
     correlationId: eventBus.newCorrelationId(),
-    payload: { seuId: input.seuId, category: input.category, relatedObjectType: input.relatedObjectType, relatedObjectId: input.relatedObjectId },
+    payload: { category: input.category, relatedObjectType: input.relatedObjectType, relatedObjectId: input.relatedObjectId },
   });
 
   return attentionItem;
@@ -125,6 +126,7 @@ export async function transitionAttentionItem(input: { attentionItemId: string; 
     eventType: "AttentionItemTransitioned",
     originatingObjectType: "AttentionItem",
     originatingObjectId: attentionItem.id,
+    seuId: attentionItem.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
     actorId: input.actorId ?? null,

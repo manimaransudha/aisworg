@@ -85,6 +85,7 @@ export async function completeWorkItem(input: {
       eventType: "WorkItemFailed",
       originatingObjectType: "WorkItem",
       originatingObjectId: workItem.id,
+      seuId: command.seu_id,
       correlationId,
       payload: { outcome: input.outcome, deliverableId: command.entity_id },
     });
@@ -164,21 +165,30 @@ export async function completeWorkItem(input: {
   // `noun_verb` badge it was authorised under (derived from the same transition
   // definition the dispatch was gated on). Never a system substitute.
   const { data: deliverableTd } = await transitionDefinitionsDB.find("Deliverable", command.from_state, command.to_state);
-  await eventBus.publish({
+  // Ch.30 causation fix — completeWorkItem is invoked directly by a
+  // Participant's completion report (an external action, not an Event), so
+  // there is no real prior Bus event causing this one. causationId is
+  // deliberately absent, not fabricated.
+  const deliverableTransitionedEvent = await eventBus.publish({
     eventType: "DeliverableTransitioned",
     originatingObjectType: "Deliverable",
     originatingObjectId: command.entity_id,
+    seuId: command.seu_id,
     correlationId,
-    causationId: workItem.id,
     payload: { fromState: command.from_state, toState: command.to_state, commandId: command.id, workItemId: workItem.id, participantId: workItem.participant_id, reference: input.reference ?? null },
     actorId: command.requested_by != null ? String(command.requested_by) : null,
     authorityBadge: deliverableTd?.verb ? `deliverable_${deliverableTd.verb}` : null,
   });
 
   await workItemsDB.updateStatus(workItem.id, "Completed");
-  await eventBus.publish({ eventType: "WorkItemCompleted", originatingObjectType: "WorkItem", originatingObjectId: workItem.id, correlationId, payload: {} });
+  // Ch.30 causation fix — genuinely caused by the DeliverableTransitioned
+  // event published just above, in this same flow.
+  await eventBus.publish({
+    eventType: "WorkItemCompleted", originatingObjectType: "WorkItem", originatingObjectId: workItem.id, seuId: command.seu_id,
+    correlationId, causationId: deliverableTransitionedEvent.id, payload: {},
+  });
   await workItemsDB.updateStatus(workItem.id, "Disposed");
-  await eventBus.publish({ eventType: "WorkItemDisposed", originatingObjectType: "WorkItem", originatingObjectId: workItem.id, correlationId, payload: {} });
+  await eventBus.publish({ eventType: "WorkItemDisposed", originatingObjectType: "WorkItem", originatingObjectId: workItem.id, seuId: command.seu_id, correlationId, payload: {} });
   await commandsDB.updateStatus(command.id, "Completed");
 
   // Idle, not Available (Ch.13 §9): still held by an open Capability
@@ -189,6 +199,7 @@ export async function completeWorkItem(input: {
       eventType: "ParticipantIdle",
       originatingObjectType: "Participant",
       originatingObjectId: workItem.participant_id,
+      seuId: command.seu_id,
       correlationId,
       payload: { workItemId: workItem.id },
     });

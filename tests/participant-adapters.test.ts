@@ -24,7 +24,7 @@ import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { registerAdapter, resolveAdapter } from "../src/adapters/adapterRegistry.js";
 import { humanOnUiAdapter } from "../src/adapters/humanOnUiAdapter.js";
 import { externalOrchestratorAdapter } from "../src/adapters/externalOrchestratorAdapter.js";
-import { registerAssignmentDelivery } from "../src/adapters/assignmentDelivery.js";
+import { eventBus } from "../src/domain/engine/eventBus.js";
 import type { ParticipantAdapter } from "../src/adapters/participantAdapter.js";
 import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 
@@ -35,8 +35,22 @@ let captureServer: http.Server;
 let captureUrl: string;
 let defaultTenantId: string;
 
+// Ch.30 Event Bus redesign — dispatch is fire-and-forget, so anything
+// waiting on assignmentDelivery's own side effect (here, delivery to the
+// capture server) must poll rather than assume it's done synchronously.
+async function waitUntil(condition: () => boolean, timeoutMs = 2000, intervalMs = 20): Promise<void> {
+  const start = Date.now();
+  while (!condition()) {
+    if (Date.now() - start > timeoutMs) return; // let the caller's own assertion report the failure
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+}
+
 before(async () => {
-  registerAssignmentDelivery();
+  // Ch.30 Event Bus redesign — the assignmentDelivery subscriber is now
+  // DB-backed (event_subscriptions), loaded into memory here instead of the
+  // old imperative registerAssignmentDelivery() call.
+  await eventBus.loadSubscriptions();
   const { data: def } = await tenantsDB.findDefault();
   assert.ok(def, "a default tenant must be seeded");
   defaultTenantId = def!.id;
@@ -113,6 +127,9 @@ test("external-orchestrator: dispatching delivers the assignment to the tenant e
   assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : undefined);
   if (!dispatched.ok) throw new Error("unreachable");
 
+  // Ch.30 Event Bus redesign — dispatch is fire-and-forget; poll for delivery
+  // rather than assuming it's already landed synchronously.
+  await waitUntil(() => captured.slice(before).some((c) => c.workItemId === dispatched.workItemId));
   const mine = captured.slice(before).find((c) => c.workItemId === dispatched.workItemId);
   assert.ok(mine, "the orchestrator endpoint should have received the assignment");
   assert.equal(mine!.body.transition.fromState, "Defined");
@@ -134,6 +151,9 @@ test("human-on-UI (default, no execution target): dispatching makes no external 
   assert.equal(dispatched.ok, true);
   if (!dispatched.ok) throw new Error("unreachable");
 
+  // Ch.30 Event Bus redesign — dispatch is fire-and-forget; give a
+  // (would-be erroneous) delivery a moment to land before asserting absence.
+  await new Promise((resolve) => setTimeout(resolve, 200));
   const mine = captured.slice(before).find((c) => c.workItemId === dispatched.workItemId);
   assert.equal(mine, undefined, "the human-on-UI path makes no wire call — the item is fulfilled through the platform UI");
 });

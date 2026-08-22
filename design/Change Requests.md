@@ -4,7 +4,13 @@ A running register of change requests raised against the platform — feature ad
 
 | CR | Title | Status |
 |----|-------|--------|
-| [CR-052](change-requests/CR-052-evidence-accumulation-via-event-bus.md) | Evidence accumulation via the Event Bus (exploratory) | 🟡 Proposed (exploratory, not designed) |
+| [CR-058](change-requests/CR-058-quality-gate-full-structure.md) | Quality Gate: Ontology-backed Category, transition-scoped picker, Required-Policies criteria type, badge-gated Waivers, independent Versioning | ✅ Built 2026-08-22 |
+| [CR-057](change-requests/CR-057-transition-definition-full-structure.md) | Transition Definition: add required Reviews/Evidence/Obligations columns, catch up the schema registry, extend the authoring UI | 🟡 Proposed (design in progress) |
+| [CR-056](change-requests/CR-056-decision-category-pack-contribution.md) | Decision categories (and, more broadly, other `category:*` concept types) contributed through Packs | 🟡 Proposed (not designed) |
+| [CR-055](change-requests/CR-055-multi-statement-transaction-audit.md) | Audit the codebase for multi-statement operations that should be transactional | 🟡 Proposed (audit not yet performed) |
+| [CR-054](change-requests/CR-054-state-transition-log.md) | State Transition Log: a dedicated state table, coexisting with entity tables | 🟡 Proposed (not designed in full) |
+| [CR-053](change-requests/CR-053-event-bus-consumption-retry-reconciliation.md) | Event Bus: retry/reconciliation for failed or stuck consumption | 🟡 Proposed (not designed) |
+| [CR-052](change-requests/CR-052-evidence-accumulation-via-event-bus.md) | Evidence accumulation via the Event Bus (exploratory) | 🟡 Proposed — Event Bus itself redesigned 2026-08-21 (publish/consume separation, Registry, Subscriptions); Evidence-accumulation idea itself still unresolved |
 | [CR-051](change-requests/CR-051-evidence-multi-relationship-provenance-versioning-events.md) | Evidence Model: multi-relationship support, cross-SEU sharing, provenance fields, versioning, and the full named event set | ✅ Built 2026-08-21 — all five items complete |
 | [CR-050](change-requests/CR-050-commissioning-active-definition-check.md) | SEU commissioning must check referenced Definitions are Active at commissioning time | 🟡 Proposed (not scheduled) |
 | [CR-049](change-requests/CR-049-deliverable-authoring-and-relationships.md) | Deliverable authoring: tenant specialisation from Ontology-defined Platform "code," and the Derivation/Implementation/Decomposition relationship types | ✅ Built 2026-08-21 (Phase 1 + Phase 2) |

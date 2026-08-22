@@ -101,10 +101,13 @@ export async function commissionSeu(input: {
   if (seuErr || !seu) return { ok: false, stage: "allocate_runtime", reason: (seuErr ?? new Error("failed to create SEU")).message };
 
   const correlationId = eventBus.newCorrelationId();
-  await eventBus.publish({
+  // Ch.30 causation fix — first event in this activity; nothing on the Bus
+  // caused it (an HTTP request did), so causationId is deliberately absent.
+  const requestedEvent = await eventBus.publish({
     eventType: "SEUCommissionRequested",
     originatingObjectType: "SEU",
     originatingObjectId: seu.id,
+    seuId: seu.id,
     correlationId,
     payload: { objectiveId: objective.id, templateId: template.id, profileId: profile.id },
   });
@@ -124,8 +127,9 @@ export async function commissionSeu(input: {
       eventType: "SEUCommissionRejected",
       originatingObjectType: "SEU",
       originatingObjectId: seu.id,
+      seuId: seu.id,
       correlationId,
-      causationId: correlationId,
+      causationId: requestedEvent.id,
       payload: gate,
     });
     return { ok: false, stage: "validate_request", reason: describeRejection(gate), seuId: seu.id };
@@ -143,8 +147,9 @@ export async function commissionSeu(input: {
       eventType: "SEUCommissionRejected",
       originatingObjectType: "SEU",
       originatingObjectId: seu.id,
+      seuId: seu.id,
       correlationId,
-      causationId: correlationId,
+      causationId: requestedEvent.id,
       payload: { reason: "composition_conflict", conflicts: compositionReport.conflicts },
     });
     return { ok: false, stage: "compose_ebm", reason: `composition conflicts must be resolved before commissioning: ${compositionReport.conflicts.join(" | ")}`, seuId: seu.id };
@@ -161,7 +166,10 @@ export async function commissionSeu(input: {
   await seusDB.setActiveEbm(seu.id, ebm.id);
 
   await seusDB.updateLifecycleState(seu.id, "Commissioned");
-  await eventBus.publish({ eventType: "SEUCommissioned", originatingObjectType: "SEU", originatingObjectId: seu.id, correlationId, causationId: correlationId, actorId: input.actorId ?? null, authorityBadge: gate.authorityBadge });
+  let previousStepEvent = await eventBus.publish({
+    eventType: "SEUCommissioned", originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id, correlationId,
+    causationId: requestedEvent.id, actorId: input.actorId ?? null, authorityBadge: gate.authorityBadge,
+  });
 
   // Ch.8 §12 Create Engineering Assets — required Capabilities + the
   // Template's Deliverable Catalogue, wired into the Dependency Graph.
@@ -202,7 +210,14 @@ export async function commissionSeu(input: {
       return { ok: false, stage: `transition_${from}_to_${to}`, reason: describeRejection(step), seuId: seu.id };
     }
     await seusDB.updateLifecycleState(seu.id, to);
-    await eventBus.publish({ eventType: `SEU${to}`, originatingObjectType: "SEU", originatingObjectId: seu.id, correlationId, causationId: correlationId, actorId: input.actorId ?? null, authorityBadge: step.authorityBadge });
+    // Ch.30 causation fix — each cascade step is caused by the previous
+    // step's own event (SEUCommissioned causes SEUConfigured causes
+    // SEUActivated causes SEUOperational), a real chain, not a repeat of
+    // correlationId.
+    previousStepEvent = await eventBus.publish({
+      eventType: `SEU${to}`, originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id, correlationId,
+      causationId: previousStepEvent.id, actorId: input.actorId ?? null, authorityBadge: step.authorityBadge,
+    });
   }
 
   const report: CommissioningReport = {

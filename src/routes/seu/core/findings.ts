@@ -39,6 +39,7 @@ export async function createFinding(input: {
     eventType: "FindingCreated",
     originatingObjectType: "Finding",
     originatingObjectId: finding.id,
+    seuId: review.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { reviewId: review.id, severity: input.severity, relatedObjectType: review.related_object_type, relatedObjectId: review.related_object_id },
   });
@@ -93,6 +94,7 @@ export async function transitionFinding(input: { findingId: string; targetState:
     eventType: input.targetState === "Resolved" ? "FindingResolved" : "FindingTransitioned",
     originatingObjectType: "Finding",
     originatingObjectId: finding.id,
+    seuId: finding.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
     actorId: input.actorId ?? null,

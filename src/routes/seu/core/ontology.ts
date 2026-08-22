@@ -22,6 +22,11 @@ export const CATEGORY_CONCEPT_TYPE: Record<string, string> = {
   Decision: "category:decision",
   Knowledge: "category:knowledge",
   Obligation: "category:obligation",
+  // Ch.30 §7 — the illustrative Event Categories taxonomy (State/Governance/
+  // Runtime/Integration/Administrative), a property of event_registry.category.
+  EventType: "category:event-types",
+  // CR-058 — Ch.26 §7's 5 categories (Entry/Exit/Release/Compliance/Operational).
+  QualityGate: "category:quality-gate",
 };
 
 // Write-path enforcement (Ch.18 Decision 4): a category must be a canonical

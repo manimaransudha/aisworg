@@ -479,6 +479,7 @@ export async function transitionObjective(input: { objectiveId: string; targetSt
     eventType: "ObjectiveTransitioned",
     originatingObjectType: "Objective",
     originatingObjectId: objective.id,
+    seuId: null, // an Objective has no single owning SEU (zero-or-many, not stored on ObjectiveRow)
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
     actorId: input.actorId ?? null,

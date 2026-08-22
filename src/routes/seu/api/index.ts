@@ -22,6 +22,7 @@ import { router as executionTargetsRouter } from "./executionTargets.js";
 import { router as tenantsRouter } from "./tenants.js";
 import { router as reviewsRouter } from "./reviews.js";
 import { router as complianceRouter } from "./compliance.js";
+import { router as qualityGateWaiversRouter } from "./qualityGateWaivers.js";
 import { router as ontologyRouter } from "./ontology.js";
 
 router.use(objectivesRouter);
@@ -43,6 +44,7 @@ router.use(executionTargetsRouter);
 router.use(tenantsRouter);
 router.use(reviewsRouter);
 router.use(complianceRouter);
+router.use(qualityGateWaiversRouter);
 router.use(ontologyRouter);
 
 export { router };

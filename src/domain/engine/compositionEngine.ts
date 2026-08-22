@@ -121,19 +121,22 @@ function detectGovernanceConflicts(packs: PackRow[]): string[] {
     }
   }
 
-  // triple -> Set<packCode>
-  const packsByTriple = new Map<string, Set<string>>();
+  // CR-058 — a transition may now have several active gates, one per
+  // category (owner: "one gate per category"), so two Packs contributing to
+  // the SAME transition is no longer itself a conflict; only two Packs both
+  // targeting the same (transition, category) slot is.
+  const packsByTripleAndCategory = new Map<string, Set<string>>();
   for (const pack of packs) {
     for (const gate of pack.contributions?.qualityGates ?? []) {
-      const triple = `${gate.entityType} ${gate.fromState} -> ${gate.toState}`;
-      const set = packsByTriple.get(triple) ?? new Set<string>();
+      const key = `${gate.governedTransition} [${gate.category}]`;
+      const set = packsByTripleAndCategory.get(key) ?? new Set<string>();
       set.add(pack.code);
-      packsByTriple.set(triple, set);
+      packsByTripleAndCategory.set(key, set);
     }
   }
-  for (const [triple, packCodes] of packsByTriple) {
+  for (const [key, packCodes] of packsByTripleAndCategory) {
     if (packCodes.size > 1) {
-      conflicts.push(`Quality Gate conflict on ${triple}: contributed by ${[...packCodes].join(", ")}. Only one Quality Gate can gate a transition — resolve before commissioning.`);
+      conflicts.push(`Quality Gate conflict on ${key}: contributed by ${[...packCodes].join(", ")}. Only one Quality Gate can occupy the same transition + category — resolve before commissioning.`);
     }
   }
 

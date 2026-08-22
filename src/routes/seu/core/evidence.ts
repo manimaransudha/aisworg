@@ -102,6 +102,7 @@ export async function createEvidence(input: {
     eventType: "EvidenceCollected",
     originatingObjectType: "Evidence",
     originatingObjectId: evidence.id,
+    seuId: evidence.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { relatedObjectType: input.relatedObjectType, relatedObjectId: input.relatedObjectId, category: input.category },
   });
@@ -111,6 +112,7 @@ export async function createEvidence(input: {
       eventType: "EvidenceSuperseded",
       originatingObjectType: "Evidence",
       originatingObjectId: evidence.id,
+      seuId: evidence.seu_id,
       correlationId: eventBus.newCorrelationId(),
       payload: { supersedesEvidenceId: input.supersedesEvidenceId },
     });
@@ -170,6 +172,7 @@ export async function linkEvidenceToObject(evidenceId: string, relatedObjectType
     eventType: "EvidenceLinked",
     originatingObjectType: "Evidence",
     originatingObjectId: evidence.id,
+    seuId: evidence.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { relatedObjectType, relatedObjectId },
   });
@@ -237,6 +240,7 @@ export async function transitionEvidence(input: { evidenceId: string; targetStat
     eventType: EVENT_BY_TARGET_STATE[input.targetState] ?? "EvidenceTransitioned",
     originatingObjectType: "Evidence",
     originatingObjectId: evidence.id,
+    seuId: evidence.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
     actorId: input.actorId ?? null,

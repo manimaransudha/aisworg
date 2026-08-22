@@ -1,0 +1,8 @@
+{
+  "eventTypes": [
+    { "eventType": "WorkItemDispatched", "description": "A Work Item has been dispatched to a Participant for execution.", "category": "Runtime" }
+  ],
+  "subscriptions": [
+    { "eventType": "WorkItemDispatched", "handlerName": "assignmentDelivery" }
+  ]
+}

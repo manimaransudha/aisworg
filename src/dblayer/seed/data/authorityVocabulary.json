@@ -72,6 +72,10 @@
     {
       "code": "Ontology",
       "label": "Ontology"
+    },
+    {
+      "code": "QualityGate",
+      "label": "Quality Gate"
     }
   ],
   "verbs": [
@@ -128,6 +132,14 @@
     {
       "code": "archive",
       "label": "Archive"
+    },
+    {
+      "code": "suspend",
+      "label": "Suspend"
+    },
+    {
+      "code": "resume",
+      "label": "Resume"
     },
     {
       "code": "analyse",
@@ -266,6 +278,36 @@
       "fromState": "Activated",
       "toState": "Operational",
       "verb": "operationalise"
+    },
+    {
+      "entityType": "SEU",
+      "fromState": "Operational",
+      "toState": "Suspended",
+      "verb": "suspend"
+    },
+    {
+      "entityType": "SEU",
+      "fromState": "Suspended",
+      "toState": "Operational",
+      "verb": "resume"
+    },
+    {
+      "entityType": "SEU",
+      "fromState": "Operational",
+      "toState": "Retired",
+      "verb": "retire"
+    },
+    {
+      "entityType": "SEU",
+      "fromState": "Suspended",
+      "toState": "Retired",
+      "verb": "retire"
+    },
+    {
+      "entityType": "SEU",
+      "fromState": "Retired",
+      "toState": "Archived",
+      "verb": "archive"
     },
     {
       "entityType": "Deliverable",
@@ -927,6 +969,12 @@
       "noun": "Ontology",
       "verbs": [
         "define"
+      ]
+    },
+    {
+      "noun": "QualityGate",
+      "verbs": [
+        "waive"
       ]
     }
   ]

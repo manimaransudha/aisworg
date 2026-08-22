@@ -173,19 +173,15 @@
         "code": "qg-deliverable-in-progress-to-approved",
         "name": "No Unresolved Obligations",
         "category": "Exit",
-        "entityType": "Deliverable",
-        "fromState": "In Progress",
-        "toState": "Approved",
-        "criteria": { "type": "no_unresolved_obligations" }
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "criteriaType": "no_unresolved_obligations"
       },
       {
         "code": "qg-deliverable-approved-to-baselined",
         "name": "Requires Accepted Evidence or Approved Decision",
         "category": "Exit",
-        "entityType": "Deliverable",
-        "fromState": "Approved",
-        "toState": "Baselined",
-        "criteria": { "type": "requires_accepted_evidence_or_approved_decision" }
+        "governedTransition": "Deliverable|Approved|Baselined",
+        "criteriaType": "requires_accepted_evidence_or_approved_decision"
       }
     ]
   }

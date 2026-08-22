@@ -7,7 +7,7 @@ import { eventBus } from "./eventBus.js";
 import type { CommandRow, WorkItemRow } from "../../dblayer/seuTypes.js";
 
 export const workItemGenerator = {
-  async generate(input: { command: CommandRow; correlationId: string }): Promise<WorkItemRow> {
+  async generate(input: { command: CommandRow; seuId: string | null; correlationId: string; causationEventId: string | null }): Promise<WorkItemRow> {
     const { data: workItem, error } = await workItemsDB.create({ commandId: input.command.id });
     if (error || !workItem) throw error ?? new Error("failed to generate work item");
 
@@ -15,8 +15,9 @@ export const workItemGenerator = {
       eventType: "WorkItemGenerated",
       originatingObjectType: "WorkItem",
       originatingObjectId: workItem.id,
+      seuId: input.seuId,
       correlationId: input.correlationId,
-      causationId: input.command.id,
+      causationId: input.causationEventId,
       payload: { commandId: input.command.id },
     });
 

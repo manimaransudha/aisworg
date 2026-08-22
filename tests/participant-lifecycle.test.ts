@@ -28,8 +28,17 @@ import { transitionParticipant, replaceParticipant } from "../src/routes/seu/cor
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { participantsDB } from "../src/dblayer/participantsDB.js";
 import { capabilityFulfilmentsDB } from "../src/dblayer/capabilityFulfilmentsDB.js";
-import { eventBus } from "../src/domain/engine/eventBus.js";
+import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { ensureWebAppTemplateFixture } from "./testFixtures.js";
+
+// Ch.30 Event Bus redesign — publish() still persists every event
+// synchronously (only dispatch/consumption is fire-and-forget), so querying
+// the events table directly after the fact is a reliable, simpler
+// replacement for the old eventBus.subscribe()-based live capture.
+async function participantEventTypes(participantId: string): Promise<string[]> {
+  const { data } = await eventsDB.findByOriginatingObject("Participant", participantId);
+  return (data ?? []).map((e) => e.event_type);
+}
 
 after(async () => {
   await pool.end();
@@ -54,14 +63,9 @@ async function commissionAndFulfil(statementPrefix: string) {
 }
 
 test("Participant is created at Available (Ch.13 §10), not the old hardcoded Assigned, and ParticipantCreated fires", async () => {
-  const received: string[] = [];
-  eventBus.subscribe((event) => {
-    if (event.originating_object_type === "Participant") received.push(event.event_type);
-  });
-
   const { participant } = await commissionAndFulfil("participant-lifecycle-created");
   assert.equal(participant.state, "Available");
-  assert.ok(received.includes("ParticipantCreated"));
+  assert.ok((await participantEventTypes(participant.id)).includes("ParticipantCreated"));
 });
 
 test("Participant transition graph: the full Ch.13 §9 lifecycle is seeded and enforced, including the Assigned/Executing/Idle repeat cycle", async () => {
@@ -71,11 +75,6 @@ test("Participant transition graph: the full Ch.13 §9 lifecycle is seeded and e
   // confirms the seed data itself, not a live transition.
   const { data: createdToAvailable } = await transitionDefinitionsDB.find("Participant", "Created", "Available");
   assert.ok(createdToAvailable, "expected a seeded Created -> Available Transition Definition");
-
-  const received: string[] = [];
-  eventBus.subscribe((event) => {
-    if (event.originating_object_type === "Participant") received.push(`${event.event_type}`);
-  });
 
   const { participant } = await commissionAndFulfil("participant-lifecycle-graph");
 
@@ -114,6 +113,7 @@ test("Participant transition graph: the full Ch.13 §9 lifecycle is seeded and e
   assert.equal(skip.ok, false);
   if (!skip.ok) assert.equal(skip.reason, "no_transition_definition");
 
+  const received = await participantEventTypes(participant.id);
   assert.ok(received.includes("ParticipantActivated") === false, "no real Participant ever sits at Created, so ParticipantActivated (Created->Available) never fires in this test");
   assert.equal(received.filter((e) => e === "ParticipantAssigned").length >= 2, true, "expected ParticipantAssigned on both Available->Assigned and the repeat-cycle Idle->Assigned");
   assert.ok(received.includes("ParticipantIdle"));
@@ -124,11 +124,6 @@ test("Participant transition graph: the full Ch.13 §9 lifecycle is seeded and e
 test("Build order step 3: dispatchEngine moves the fulfilling Participant's own state as a real Deliverable transition dispatches, ending at Idle not Available", async () => {
   const { seuId, participant } = await commissionAndFulfil("participant-lifecycle-dispatch");
   assert.equal(participant.state, "Available");
-
-  const received: string[] = [];
-  eventBus.subscribe((event) => {
-    if (event.originating_object_type === "Participant" && event.originating_object_id === participant.id) received.push(event.event_type);
-  });
 
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Specification");
@@ -142,7 +137,7 @@ test("Build order step 3: dispatchEngine moves the fulfilling Participant's own 
   // it is holding an outstanding Work Item, not yet done.
   const { data: assigned } = await participantsDB.findById(participant.id);
   assert.equal(assigned?.state, "Assigned", "dispatched: the Participant is Assigned, holding the outstanding Work Item");
-  assert.ok(received.includes("ParticipantAssigned"), "expected Assigned on dispatch");
+  assert.ok((await participantEventTypes(participant.id)).includes("ParticipantAssigned"), "expected Assigned on dispatch");
 
   // The result callback disposes the Work Item and returns the Participant to
   // Idle, not Available (Ch.13 §9) — still held by the open Capability
@@ -152,17 +147,12 @@ test("Build order step 3: dispatchEngine moves the fulfilling Participant's own 
 
   const { data: after } = await participantsDB.findById(participant.id);
   assert.equal(after?.state, "Idle");
-  assert.ok(received.includes("ParticipantIdle"), "expected Idle once the Work Item completed/disposed");
+  assert.ok((await participantEventTypes(participant.id)).includes("ParticipantIdle"), "expected Idle once the Work Item completed/disposed");
 });
 
 test("Build order step 4: replaceParticipant hands a Capability Fulfilment from Available straight to a new Participant", async () => {
   const { participant: oldParticipant, seuCapabilityId } = await commissionAndFulfil("participant-lifecycle-replace-available");
   assert.equal(oldParticipant.state, "Available");
-
-  const received: string[] = [];
-  eventBus.subscribe((event) => {
-    if (event.originating_object_type === "Participant") received.push(event.event_type);
-  });
 
   const result = await replaceParticipant({
     oldParticipantId: oldParticipant.id,
@@ -183,7 +173,7 @@ test("Build order step 4: replaceParticipant hands a Capability Fulfilment from 
   const { data: oldFulfilment } = await capabilityFulfilmentsDB.findActiveByParticipantId(oldParticipant.id);
   assert.equal(oldFulfilment, null, "the old Participant must have no active Capability Fulfilment left");
 
-  assert.ok(received.includes("ParticipantReplaced"));
+  assert.ok((await participantEventTypes(result.newParticipant.id)).includes("ParticipantReplaced"));
 });
 
 test("Build order step 4: replaceParticipant works from Executing, not just Idle — Ch.13 §13 'any Participant'", async () => {

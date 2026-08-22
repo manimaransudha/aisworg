@@ -212,8 +212,9 @@ export const metricRegistryEngine = {
       eventType: "MetricCalculated",
       originatingObjectType: "MetricDefinition",
       originatingObjectId: definition.id,
+      seuId: scope.seuId ?? null,
       correlationId: eventBus.newCorrelationId(),
-      payload: { identifier: definition.identifier, category: definition.category, seuId: scope.seuId ?? null },
+      payload: { identifier: definition.identifier, category: definition.category },
     });
 
     return { outcome: "Computed", definition, value };

@@ -15,27 +15,8 @@ import { transitionDefinitionsDB } from "../../dblayer/transitionDefinitionsDB.j
 import { badgeAuthorityEngine } from "./badgeAuthorityEngine.js";
 import { qualityGateEngine } from "./qualityGateEngine.js";
 import { eventBus } from "./eventBus.js";
+import { evaluateCondition, type PolicyCondition } from "./policyCondition.js";
 import type { TransitionEntityType } from "../../dblayer/seuTypes.js";
-
-type PolicyCondition = { type: "always_true" } | { type: "field_in"; field: string; values: unknown[] } | Record<string, unknown>;
-
-function getField(context: Record<string, unknown>, path: string): unknown {
-  return path.split(".").reduce<unknown>((acc, key) => {
-    if (acc && typeof acc === "object") return (acc as Record<string, unknown>)[key];
-    return undefined;
-  }, context);
-}
-
-function evaluateCondition(condition: PolicyCondition, context: Record<string, unknown>): boolean {
-  const type = (condition as { type?: string }).type;
-  if (type === "always_true") return true;
-  if (type === "field_in") {
-    const c = condition as { field: string; values: unknown[] };
-    const value = getField(context, c.field);
-    return Array.isArray(c.values) && c.values.includes(value);
-  }
-  return false; // unrecognised condition types fail closed rather than silently pass
-}
 
 export type TransitionOutcome =
   // createsObligation: the transition_definitions row's own declared value
@@ -119,8 +100,9 @@ export const transitionEngine = {
             eventType: "StandardPolicyDeviation",
             originatingObjectType: "Policy",
             originatingObjectId: policy.id,
+            seuId: input.seuId ?? null,
             correlationId: eventBus.newCorrelationId(),
-            payload: { policyCode: policy.code, entityType: input.entityType, fromState: input.fromState, toState: input.toState, seuId: input.seuId ?? null },
+            payload: { policyCode: policy.code, entityType: input.entityType, fromState: input.fromState, toState: input.toState },
           });
         }
       }

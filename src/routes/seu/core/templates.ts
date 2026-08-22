@@ -423,6 +423,7 @@ export async function publishTemplate(seed: TemplateSeedInput): Promise<PublishT
     eventType: "TemplateCreated",
     originatingObjectType: "Template",
     originatingObjectId: template.id,
+    seuId: null, // platform catalog entity, not SEU-scoped
     correlationId: eventBus.newCorrelationId(),
     payload: { code: template.code, templateVersion: template.template_version },
   });
@@ -488,6 +489,7 @@ export async function transitionTemplate(input: { templateId: string; targetStat
     eventType: EVENT_BY_TARGET_STATE[input.targetState] ?? "TemplateTransitioned",
     originatingObjectType: "Template",
     originatingObjectId: template.id,
+    seuId: null, // platform catalog entity, not SEU-scoped
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: template.code },
     actorId: input.actorId ?? null,

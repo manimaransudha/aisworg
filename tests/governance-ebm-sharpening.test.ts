@@ -101,14 +101,23 @@ test("§4.3 / Open Q#3: a Quality Gate can gate a Pack transition with a null SE
   const { data: corePack } = await packsDB.findByCode("platform-core-engineering");
   assert.ok(corePack);
 
-  // A gate on a Pack transition (platform-level entity, no SEU).
-  await qualityGatesDB.upsert({ code: `qg-pack-${run}`, name: "Pack publish gate", entityType: "Pack", fromState: "Published", toState: "Active", criteria: { type: "no_unresolved_obligations" }, originatingPackId: corePack.id });
+  // A gate on a Pack transition (platform-level entity, no SEU). CR-058 —
+  // (entity_type, from_state, to_state, category) is now the active-slot
+  // uniqueness key, and a real "Exit"-category gate already occupies
+  // Pack/Published/Active (qg-pack-a44355c1) — a run-scoped category keeps
+  // this test's own fresh gate from colliding with it, same reason `code`
+  // is already run-scoped.
+  const { data: gate } = await qualityGatesDB.upsert({ code: `qg-pack-${run}`, name: "Pack publish gate", category: `test-${run}`, entityType: "Pack", fromState: "Published", toState: "Active", criteria: { type: "no_unresolved_obligations" }, originatingPackId: corePack.id });
   const evalResult = await qualityGateEngine.evaluate({ entityType: "Pack", entityId: corePack.id, seuId: null, fromState: "Published", toState: "Active" });
   assert.equal(evalResult.outcome, "Passed", "a Pack transition can be gated and evaluated with a null SEU");
 
   // The CHECK enforces the scope invariant (the DB layer surfaces the violation
   // as { error }, not a throw): a SEU-scoped entity may not have a null SEU...
-  const gateId = (evalResult as { gate: { id: string } }).gate.id;
+  // CR-058 — evaluate()'s "Passed" outcome no longer carries a `gate` (a
+  // transition may now have several active gates, one per category, so
+  // "the" gate that passed isn't well-defined from the result alone); the
+  // upsert's own return value is the real source for the gate's id here.
+  const gateId = gate!.id;
   const badDeliverable = await qualityGateEvaluationsDB.create({ qualityGateId: gateId, seuId: null, entityType: "Deliverable", entityId: corePack.id, outcome: "Passed" });
   assert.ok(badDeliverable.error, "a Deliverable evaluation with a null SEU is rejected by the CHECK");
   // ...and a platform-level entity may not carry a SEU.

@@ -62,4 +62,16 @@ export const policiesDB = {
       return { error: err as Error };
     }
   },
+
+  // CR-058 — the policy-code referential source for Quality Gate's new
+  // requires_active_policy criteria type picker.
+  async findAll(): Promise<DbResult<PolicyRow[]>> {
+    try {
+      const { rows } = await query<PolicyRow>("SELECT * FROM policies ORDER BY code");
+      return { data: rows };
+    } catch (err) {
+      logger.error("[policiesDB] findAll error", err as Error);
+      return { error: err as Error };
+    }
+  },
 };

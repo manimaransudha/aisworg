@@ -164,14 +164,14 @@ export async function evaluateCompliance(seuId: string, opts?: { persist?: boole
 
   if (opts?.persist !== false) {
     await complianceDB.recordEvaluation({ seuId, status, rationale: { counts, frameworks: frameworkCodes, conflicts }, results });
-    await eventBus.publish({ eventType: "ComplianceEvaluated", originatingObjectType: "SEU", originatingObjectId: seuId, correlationId: eventBus.newCorrelationId(), payload: { status, counts } });
+    await eventBus.publish({ eventType: "ComplianceEvaluated", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), payload: { status, counts } });
     if (previous && previous.status !== status) {
-      await eventBus.publish({ eventType: "ComplianceStatusChanged", originatingObjectType: "SEU", originatingObjectId: seuId, correlationId: eventBus.newCorrelationId(), payload: { from: previous.status, to: status } });
+      await eventBus.publish({ eventType: "ComplianceStatusChanged", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), payload: { from: previous.status, to: status } });
     }
     if (status === "Compliant") {
-      await eventBus.publish({ eventType: "ComplianceSatisfied", originatingObjectType: "SEU", originatingObjectId: seuId, correlationId: eventBus.newCorrelationId(), payload: {} });
+      await eventBus.publish({ eventType: "ComplianceSatisfied", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), payload: {} });
     } else if (status === "Non-Compliant" || status === "Partially Compliant") {
-      await eventBus.publish({ eventType: "ComplianceViolationDetected", originatingObjectType: "SEU", originatingObjectId: seuId, correlationId: eventBus.newCorrelationId(), payload: { status, unsatisfied: results.filter((r) => r.state === "unsatisfied").map((r) => r.requirementCode) } });
+      await eventBus.publish({ eventType: "ComplianceViolationDetected", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), payload: { status, unsatisfied: results.filter((r) => r.state === "unsatisfied").map((r) => r.requirementCode) } });
     }
   }
 
@@ -183,7 +183,7 @@ export async function grantWaiver(input: { seuId: string; requirementCode: strin
   if (!requirement) throw new Error(`compliance requirement not found: ${input.requirementCode}`);
   const { data: waiver, error } = await complianceDB.grantWaiver(input);
   if (error || !waiver) throw error ?? new Error("failed to grant waiver");
-  await eventBus.publish({ eventType: "ComplianceWaiverGranted", originatingObjectType: "SEU", originatingObjectId: input.seuId, correlationId: eventBus.newCorrelationId(), payload: { requirementCode: input.requirementCode } });
+  await eventBus.publish({ eventType: "ComplianceWaiverGranted", originatingObjectType: "SEU", originatingObjectId: input.seuId, seuId: input.seuId, correlationId: eventBus.newCorrelationId(), payload: { requirementCode: input.requirementCode } });
   return waiver;
 }
 
@@ -192,7 +192,7 @@ export async function grantWaiver(input: { seuId: string; requirementCode: strin
 export async function generateComplianceReport(seuId: string) {
   const evaluation = await evaluateCompliance(seuId, { persist: true });
   const { data: waivers } = await complianceDB.findActiveWaivers(seuId);
-  await eventBus.publish({ eventType: "ComplianceReportGenerated", originatingObjectType: "SEU", originatingObjectId: seuId, correlationId: eventBus.newCorrelationId(), payload: { status: evaluation.status } });
+  await eventBus.publish({ eventType: "ComplianceReportGenerated", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), payload: { status: evaluation.status } });
   return {
     seuId,
     generatedAt: new Date().toISOString(),

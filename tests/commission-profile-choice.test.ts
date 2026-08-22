@@ -57,6 +57,10 @@ async function cleanupPriorRuns(): Promise<void> {
   );
   const seuIds = seuRows.map((r) => r.id);
   if (seuIds.length > 0) {
+    // Ch.30 Event Bus redesign — events.seu_id is now a real FK (NO ACTION,
+    // same discipline as every other FK in this chain), so this run's own
+    // events must go before the SEU rows they reference.
+    await pool.query("DELETE FROM events WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM deliverables WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM seu_capabilities WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM seus WHERE id = ANY($1::uuid[])", [seuIds]);

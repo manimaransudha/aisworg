@@ -38,8 +38,9 @@ export async function createExternalInteraction(input: {
     eventType: "InteractionCreated",
     originatingObjectType: "ExternalInteraction",
     originatingObjectId: interaction.id,
+    seuId: input.seuId,
     correlationId: eventBus.newCorrelationId(),
-    payload: { seuId: input.seuId, targetSystem: input.targetSystem, direction: input.direction },
+    payload: { targetSystem: input.targetSystem, direction: input.direction },
   });
 
   return interaction;
@@ -114,6 +115,7 @@ export async function transitionExternalInteraction(input: { interactionId: stri
     eventType: input.targetState === "Failed" ? "InteractionFailed" : "InteractionCompleted",
     originatingObjectType: "ExternalInteraction",
     originatingObjectId: interaction.id,
+    seuId: interaction.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
     actorId: input.actorId ?? null,

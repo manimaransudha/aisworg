@@ -64,6 +64,7 @@ export async function sweepStalledWorkItems(input?: { now?: Date; seuId?: string
       eventType: "WorkItemStalled",
       originatingObjectType: "WorkItem",
       originatingObjectId: workItem.id,
+      seuId: command.seu_id,
       correlationId: command.correlation_id,
       payload: { deliverableId: command.entity_id, targetCompletionAt: workItem.target_completion_at, overdueBySeconds: overdueBy },
     });

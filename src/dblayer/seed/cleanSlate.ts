@@ -87,6 +87,7 @@ import { logger } from "../../utils/logger.js";
 import { seedIdentityBaseline } from "./seedIdentityBaseline.js";
 import { seedTransitionDefinitions } from "./seedTransitionDefinitions.js";
 import { seedAuthorityVocabulary } from "./seedAuthorityVocabulary.js";
+import { seedEventSubscriptions } from "./seedEventSubscriptions.js";
 import { seedCapabilityPatternPacks } from "./seedCapabilityPatternPacks.js";
 import { seedSdlcPhasePacks } from "./seedSdlcPhasePacks.js";
 import { seedSdlcStandardTemplates } from "./seedSdlcStandardTemplates.js";
@@ -398,6 +399,11 @@ async function run(): Promise<void> {
   // Step 5 — CR-006 authority vocabulary (nouns/verbs/mapping) + back-fill the
   // verb per transition. Atomic wipe+reseed; depends on step 4's fresh rows.
   await seedAuthorityVocabulary();
+
+  // Step 5b — Ch.30 Event Bus redesign: Event Registry + Event Subscriptions
+  // (the one real subscription, WorkItemDispatched -> assignmentDelivery,
+  // migrated off the old imperative eventBus.subscribe() call).
+  await seedEventSubscriptions();
 
   // Step 6 — EPF/OpenUP capability-pattern Packs (owner, 2026-08-17). Must run
   // AFTER steps 4/5: publishing each Pack drives it through transitionEngine

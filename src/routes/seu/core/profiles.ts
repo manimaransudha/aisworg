@@ -239,6 +239,7 @@ export async function publishProfile(seed: ProfileSeedInput): Promise<PublishPro
     eventType: "ProfileCreated",
     originatingObjectType: "Profile",
     originatingObjectId: profile.id,
+    seuId: null, // platform catalog entity, not SEU-scoped
     correlationId: eventBus.newCorrelationId(),
     payload: { code: profile.code, profileVersion: profile.profile_version },
   });
@@ -297,6 +298,7 @@ export async function transitionProfile(input: { profileId: string; targetState:
     eventType: EVENT_BY_TARGET_STATE[input.targetState] ?? "ProfileTransitioned",
     originatingObjectType: "Profile",
     originatingObjectId: profile.id,
+    seuId: null, // platform catalog entity, not SEU-scoped
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: profile.code },
     actorId: input.actorId ?? null,

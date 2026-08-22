@@ -27,7 +27,19 @@ import { complianceDB } from "../../../dblayer/complianceDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import type { PackCategory, PackClassification, PackContributions, PackRow } from "../../../dblayer/seuTypes.js";
+import type { PackCategory, PackClassification, PackContributions, PackRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
+
+// CR-058 — governedTransition is authored as a single delimited value
+// ("EntityType|fromState|toState"), picked from a referential list of real
+// transition_definitions rows (owner: "the pack should not define something
+// beyond what a transition definition already holds") — parsed back into
+// the 3 real quality_gates columns here, the one place both shapes meet.
+function parseGovernedTransition(value: string | undefined): { entityType: TransitionEntityType; fromState: string; toState: string } | null {
+  const parts = (value ?? "").split("|");
+  if (parts.length !== 3 || parts.some((p) => !p.trim())) return null;
+  const [entityType, fromState, toState] = parts;
+  return { entityType: entityType as TransitionEntityType, fromState, toState };
+}
 
 // CR-018 — §8/§13 metadata: recorded and validated for shape, not yet acted on
 // (dependency resolution, compatibility checks, composition strategy remain the
@@ -153,6 +165,36 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
   checkDuplicates("policy", seed.contributions.policies);
   checkDuplicates("quality gate", seed.contributions.qualityGates);
 
+  // CR-058 — each Quality Gate contribution: category must be a canonical
+  // category:quality-gate concept, governedTransition must resolve to a
+  // real transition_definitions row (the Pack may not invent a transition
+  // that doesn't already exist), and requires_active_policy must reference
+  // a real, resolvable Policy code.
+  for (const gate of seed.contributions.qualityGates ?? []) {
+    try {
+      await assertCanonicalCategory("category:quality-gate", gate.category ?? "", ontologyViewer);
+    } catch (err) {
+      errors.push((err as Error).message);
+    }
+    const scope = parseGovernedTransition(gate.governedTransition);
+    if (!scope) {
+      errors.push(`quality gate "${gate.code}" has an invalid governedTransition — expected "EntityType|fromState|toState"`);
+    } else {
+      const { data: definition } = await transitionDefinitionsDB.find(scope.entityType, scope.fromState, scope.toState);
+      if (!definition) {
+        errors.push(`quality gate "${gate.code}" references a transition that doesn't exist: ${scope.entityType} ${scope.fromState} -> ${scope.toState}`);
+      }
+    }
+    if (gate.criteriaType === "requires_active_policy") {
+      if (!gate.requiredPolicyCode?.trim()) {
+        errors.push(`quality gate "${gate.code}" has criteriaType requires_active_policy but no requiredPolicyCode`);
+      } else {
+        const { data: policy } = await policiesDB.findByCode(gate.requiredPolicyCode);
+        if (!policy) errors.push(`quality gate "${gate.code}" references unknown Policy code "${gate.requiredPolicyCode}"`);
+      }
+    }
+  }
+
   const capabilityCodes = new Set((seed.contributions.capabilities ?? []).map((c) => c.code));
   for (const svc of seed.contributions.services ?? []) {
     if (!capabilityCodes.has(svc.capabilityCode)) {
@@ -218,6 +260,7 @@ export async function createPackDraft(seed: PackSeedInput): Promise<{ ok: true; 
     eventType: "PackRegistered",
     originatingObjectType: "Pack",
     originatingObjectId: pack.id,
+    seuId: null, // platform catalog entity, not SEU-scoped
     correlationId: eventBus.newCorrelationId(),
     payload: { code: pack.code, packVersion: pack.pack_version },
   });
@@ -361,14 +404,27 @@ async function seedContributions(pack: PackRow, seed: PackSeedInput): Promise<vo
   }
 
   for (const gate of seed.contributions.qualityGates ?? []) {
+    const scope = parseGovernedTransition(gate.governedTransition);
+    if (!scope) throw new Error(`quality gate "${gate.code}" has an invalid governedTransition (validatePackSeed should have caught this)`);
+    // CR-058 — reassemble the flat, form-authored fields back into
+    // quality_gates.criteria's nested shape. criteriaCategory is the one
+    // shared param for both requires_accepted_review and
+    // requires_accepted_evidence_or_approved_decision (owner: "single
+    // shared category ... mirrors requires_accepted_review's exact shape").
+    const criteria: Record<string, unknown> =
+      gate.criteriaType === "requires_active_policy"
+        ? { type: gate.criteriaType, policyCode: gate.requiredPolicyCode }
+        : gate.criteriaType === "requires_accepted_review" || gate.criteriaType === "requires_accepted_evidence_or_approved_decision"
+          ? { type: gate.criteriaType, ...(gate.criteriaCategory?.trim() ? { category: gate.criteriaCategory } : {}) }
+          : { type: gate.criteriaType ?? "no_unresolved_obligations" };
     const { error } = await qualityGatesDB.upsert({
       code: gate.code,
       name: gate.name,
       category: gate.category,
-      entityType: gate.entityType,
-      fromState: gate.fromState,
-      toState: gate.toState,
-      criteria: gate.criteria,
+      entityType: scope.entityType,
+      fromState: scope.fromState,
+      toState: scope.toState,
+      criteria,
       originatingPackId: pack.id,
     });
     if (error) throw error;
@@ -466,6 +522,7 @@ export async function transitionPack(input: { packId: string; targetState: strin
     eventType: EVENT_BY_TARGET_STATE[input.targetState] ?? "PackTransitioned",
     originatingObjectType: "Pack",
     originatingObjectId: pack.id,
+    seuId: null, // platform catalog entity, not SEU-scoped
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: pack.code, packVersion: pack.pack_version },
     actorId: input.actorId ?? null,

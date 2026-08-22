@@ -194,9 +194,10 @@ export const dependencyDefinitionEngine = {
         eventType: "DeliverableReady",
         originatingObjectType: target.toEntityType as TransitionEntityType,
         originatingObjectId: to.instanceId,
+        seuId: input.seuId,
         correlationId: input.correlationId ?? eventBus.newCorrelationId(),
         causationId: input.correlationId ?? null,
-        payload: { seuId: input.seuId, toEntityType: target.toEntityType, toName: target.toName, toState: target.toState },
+        payload: { toEntityType: target.toEntityType, toName: target.toName, toState: target.toState },
       });
     }
   },

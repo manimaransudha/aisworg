@@ -83,16 +83,24 @@ export interface PackContributions {
     severity?: string;
   }>;
   // Post-MVP Phase 4 (Ch.26 FR-26.2: "Quality Gates shall be contributed
-  // through Packs"). entityType/fromState/toState scope the gate to one
-  // specific governed transition, same granularity as transition_definitions.
+  // through Packs"). CR-058 — the authored (form-facing) shape: category is
+  // Ontology-backed (category:quality-gate); governedTransition replaces the
+  // old free-typed entityType/fromState/toState triple ("the pack should not
+  // define something beyond what a transition definition already holds") —
+  // a delimited "EntityType|fromState|toState" value picked from real
+  // transition_definitions rows, parsed back into the 3 real columns at
+  // seedContributions time (core/packs.ts). criteriaType/criteriaCategory/
+  // requiredPolicyCode reassemble into quality_gates.criteria's nested shape
+  // there too — flat here because the referential-list form widget only
+  // authors flat per-row fields.
   qualityGates?: Array<{
     code: string;
     name: string;
-    category?: string;
-    entityType: TransitionEntityType;
-    fromState: string;
-    toState: string;
-    criteria?: Record<string, unknown>;
+    category: string;
+    governedTransition: string;
+    criteriaType: "no_unresolved_obligations" | "requires_accepted_evidence_or_approved_decision" | "requires_accepted_review" | "requires_active_policy";
+    criteriaCategory?: string;
+    requiredPolicyCode?: string;
   } & VerifiableItemFields>;
   // CR-016 (Ch.5 §20) — verifiable contributions carry their own execution.
   // Classification is per ITEM (a Checklist can hold a machine-verifiable item
@@ -708,11 +716,24 @@ export interface WorkItemRow {
   updated_at: string;
 }
 
+export type EventConsumptionStatus = "pending" | "consumed" | "failed";
+export interface EventConsumptionEntry {
+  status: EventConsumptionStatus;
+  consumedAt: string | null;
+  error?: string;
+}
+
 export interface EventRow {
   id: string;
   event_type: string;
   originating_object_type: string;
   originating_object_id: string;
+  // Ch.30 Event Bus redesign — the SEU this event happened under, distinct
+  // from originating_object_type/id (which name the specific entity the
+  // event is about, e.g. a single Evidence row — not which SEU it belongs
+  // to). Null for entities with no single owning SEU (Objective, Pack,
+  // Template, Profile, DeliverableDefinition).
+  seu_id: string | null;
   correlation_id: string;
   causation_id: string | null;
   payload: Record<string, unknown>;
@@ -723,6 +744,15 @@ export interface EventRow {
   authority_badge: string | null;
   occurred_at: string;
   sequence: string; // BIGSERIAL comes back as string via pg's default int8 handling
+  // Ch.30 Event Bus redesign — per-handler dispatch outcome, keyed by
+  // handler_name. Populated at publish time from the same lookup that
+  // determines who to notify; {} when nobody subscribes to this event_type.
+  consumption_state: Record<string, EventConsumptionEntry>;
+}
+
+export interface EventSubscriptionRow {
+  event_type: string;
+  handler_name: string;
 }
 
 // Post-MVP Phase 4 (Ch.23 Obligation Model). status is not a fixed union —
@@ -761,6 +791,13 @@ export interface QualityGateRow {
   to_state: string;
   criteria: Record<string, unknown>;
   originating_pack_id: string | null;
+  // CR-058 — a Quality Gate versions independently of the contributing
+  // Pack's own version (owner: "a pack can still be 1.0, but the quality
+  // gate associated with it moves to 1.4"). New immutable row per version,
+  // is_active marks the current one for a given (entity_type, from_state,
+  // to_state, category) tuple.
+  version: string;
+  is_active: boolean;
   created_at: string;
 }
 
@@ -773,6 +810,27 @@ export interface QualityGateEvaluationRow {
   outcome: QualityGateOutcomeValue;
   detail: Record<string, unknown>;
   evaluated_at: string;
+}
+
+// CR-058 §13 — a waiver applies to one specific blocked entity instance
+// (quality_gate_id + entity_type/entity_id), not the gate definition
+// globally: the same gate can be waived for one Deliverable without waiving
+// it for every other entity it also applies to. Modeled on
+// ComplianceWaiverRow's shape but badge-gated (authority_badge NOT NULL) —
+// Compliance's own grantedBy-only waiver has no authority check at all,
+// deliberately not mirrored here.
+export interface QualityGateWaiverRow {
+  id: string;
+  quality_gate_id: string;
+  seu_id: string;
+  entity_type: string;
+  entity_id: string;
+  rationale: string;
+  granted_by: number | null;
+  authority_badge: string;
+  status: "Active" | "Expired" | "Revoked";
+  expires_at: string | null;
+  created_at: string;
 }
 
 // Post-MVP Phase 5 (Ch.17 Evidence Model). status is not a fixed union — same

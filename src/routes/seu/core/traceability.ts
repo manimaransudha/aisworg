@@ -176,6 +176,7 @@ export async function explainDeliverable(deliverableId: string): Promise<Deliver
     eventType: "TraceabilityQueryExecuted",
     originatingObjectType: "Deliverable",
     originatingObjectId: deliverableId,
+    seuId: deliverable.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { query: "explainDeliverable" },
   });
@@ -239,6 +240,7 @@ export async function impactOfDeliverable(deliverableId: string): Promise<Delive
     eventType: "TraceabilityQueryExecuted",
     originatingObjectType: "Deliverable",
     originatingObjectId: deliverableId,
+    seuId: deliverable.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { query: "impactOfDeliverable" },
   });

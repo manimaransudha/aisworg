@@ -24,15 +24,29 @@ import { tenantContractsDB } from "../src/dblayer/tenantContractsDB.js";
 import { executionTargetsDB } from "../src/dblayer/executionTargetsDB.js";
 import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
-import { registerAssignmentDelivery } from "../src/adapters/assignmentDelivery.js";
+import { eventBus } from "../src/domain/engine/eventBus.js";
 import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 
 const captured: Array<{ url: string; body: any; auth: string | undefined }> = [];
 let captureServer: http.Server;
 let captureBase: string;
 
+// Ch.30 Event Bus redesign — dispatch is fire-and-forget, so anything
+// waiting on a handler's side effect (here, delivery to the capture server)
+// must poll rather than assume it's done synchronously.
+async function waitUntil(condition: () => boolean, timeoutMs = 2000, intervalMs = 20): Promise<void> {
+  const start = Date.now();
+  while (!condition()) {
+    if (Date.now() - start > timeoutMs) return; // let the caller's own assertion report the failure
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+}
+
 before(async () => {
-  registerAssignmentDelivery();
+  // Ch.30 Event Bus redesign — the assignmentDelivery subscriber is now
+  // DB-backed (event_subscriptions), loaded into memory here instead of the
+  // old imperative registerAssignmentDelivery() call.
+  await eventBus.loadSubscriptions();
   captureServer = http.createServer((req, res) => {
     let raw = "";
     req.on("data", (c) => (raw += c));
@@ -112,6 +126,12 @@ test("two tenants sharing no edge choice run on the same core; each Work Item ro
   // Same code path for both — only the tenant differs.
   const widA = await commissionAndDispatch("tenant-a", tenantA!.id);
   const widB = await commissionAndDispatch("tenant-b", tenantB!.id);
+
+  // Ch.30 Event Bus redesign — dispatch is now fire-and-forget (publish()
+  // no longer awaits the assignmentDelivery handler), so delivery to the
+  // capture server may still be in flight when commissionAndDispatch
+  // returns. Poll briefly rather than asserting immediately.
+  await waitUntil(() => captured.some((c) => c.body.workItemId === widA) && captured.some((c) => c.body.workItemId === widB));
 
   const deliveredA = captured.find((c) => c.body.workItemId === widA);
   const deliveredB = captured.find((c) => c.body.workItemId === widB);
