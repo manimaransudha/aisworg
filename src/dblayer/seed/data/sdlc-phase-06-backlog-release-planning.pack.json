@@ -4,8 +4,8 @@
   "category": "Organisation",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Planning feature development and releases — aka Roadmapping, Program Increment Planning, Flight Plan, Delivery Strategy.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Planning feature development and releases \u2014 aka Roadmapping, Program Increment Planning, Flight Plan, Delivery Strategy.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -65,15 +65,6 @@
         "outputContract": "passed-failed-notes"
       }
     ],
-    "reviewGates": [
-      {
-        "code": "review-backlog-release-planning",
-        "statement": "The Backlog & Release Planning's deliverables have been reviewed and accepted as sufficient to proceed to Implementation.",
-        "classification": "human-attested",
-        "prompt": "Is the roadmap, backlog, and release plan sufficiently sequenced and de-risked to justify moving into Implementation?",
-        "participant": "human",
-        "outputContract": "assessment-acceptance"
-      }
-    ]
+    "reviewGates": []
   }
 }

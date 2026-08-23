@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Designing the user experience and interface — aka UX/UI Design, Experience Architecture, Experience Blueprinting, Design Sprint.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Designing the user experience and interface \u2014 aka UX/UI Design, Experience Architecture, Experience Blueprinting, Design Sprint.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -79,12 +79,14 @@
     ],
     "reviewGates": [
       {
-        "code": "review-experience-design",
-        "statement": "The Experience Design's deliverables have been reviewed and accepted as sufficient to proceed to Technical Discovery & Architecture.",
+        "code": "UX/UI Design Specification",
+        "statement": "The UX/UI Design Specification (wireframes, prototype, design system) has been reviewed and accepted as sufficient to proceed to Technical Discovery & Architecture.",
         "classification": "human-attested",
-        "prompt": "Is the design system, prototype, and usability evidence sufficiently mature and accessible to justify moving into Technical Discovery & Architecture?",
+        "prompt": "Is the UX/UI Design Specification sufficiently detailed, usable, and accessible to guide implementation?",
         "participant": "human",
-        "outputContract": "assessment-acceptance"
+        "outputContract": "assessment-acceptance",
+        "name": "Experience Design Review",
+        "governedTransition": "Deliverable|In Progress|Approved"
       }
     ]
   }

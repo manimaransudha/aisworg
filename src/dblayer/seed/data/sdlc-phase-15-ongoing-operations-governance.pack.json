@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Establishing long-term operational excellence — aka SRE & Ops, Continuous Improvement, Risk & Compliance Governance.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Establishing long-term operational excellence \u2014 aka SRE & Ops, Continuous Improvement, Risk & Compliance Governance.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -67,12 +67,14 @@
     ],
     "reviewGates": [
       {
-        "code": "review-ongoing-operations-governance",
-        "statement": "The ongoing operations and governance practices have been reviewed and accepted as the steady-state operating model for the product.",
+        "code": "Runbook / Operational Documentation",
+        "statement": "The Runbook / Operational Documentation (SRE playbook, business continuity plan) has been reviewed and accepted as sufficient for ongoing operations.",
         "classification": "human-attested",
-        "prompt": "Are the SRE, incident management, and governance practices sufficiently mature and sustainable to serve as the steady-state operating model for the product?",
+        "prompt": "Does the Runbook / Operational Documentation sufficiently cover incident response, change management, and business continuity for steady-state operations?",
         "participant": "human",
-        "outputContract": "assessment-acceptance"
+        "outputContract": "assessment-acceptance",
+        "name": "Operational Readiness Review",
+        "governedTransition": "Deliverable|In Progress|Approved"
       }
     ]
   }

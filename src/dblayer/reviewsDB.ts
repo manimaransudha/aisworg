@@ -15,13 +15,14 @@ export const reviewsDB = {
     name: string;
     criteria?: Record<string, unknown>;
     reviewer?: string | null;
+    reviewGateId?: string | null;
   }): Promise<DbResult<ReviewRow>> {
     try {
       const { rows } = await query<ReviewRow>(
-        `INSERT INTO reviews (seu_id, related_object_type, related_object_id, category, name, criteria, reviewer)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO reviews (seu_id, related_object_type, related_object_id, category, name, criteria, reviewer, review_gate_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [input.seuId, input.relatedObjectType, input.relatedObjectId, input.category, input.name, JSON.stringify(input.criteria ?? {}), input.reviewer ?? null]
+        [input.seuId, input.relatedObjectType, input.relatedObjectId, input.category, input.name, JSON.stringify(input.criteria ?? {}), input.reviewer ?? null, input.reviewGateId ?? null]
       );
       return { data: rows[0] };
     } catch (err) {

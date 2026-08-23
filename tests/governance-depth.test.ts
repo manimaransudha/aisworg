@@ -16,7 +16,7 @@ import pool from "../src/utils/db.js";
 import { commissionFromForm } from "../src/routes/seu/core/commissioning.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
-import { transitionDeliverableSync as transitionDeliverable } from "./testFixtures.js";
+import { transitionDeliverableSync as transitionDeliverable, ensureCoreEngineeringQualityGates } from "./testFixtures.js";
 import { createObligation, transitionObligation } from "../src/routes/seu/core/obligations.js";
 import { dependencyDefinitionEngine } from "../src/domain/engine/dependencyDefinitionEngine.js";
 import { transitionEngine } from "../src/domain/engine/transitionEngine.js";
@@ -52,6 +52,7 @@ async function verifyObligation(obligationId: string) {
 }
 
 test("Quality Gate blocks a Deliverable transition while an Obligation is unresolved, and allows it once Verified — independently of the Dependency Engine", async () => {
+  await ensureCoreEngineeringQualityGates();
   const seuId = await commissionTestSeu("phase4-quality-gate");
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Specification");

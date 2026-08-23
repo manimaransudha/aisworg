@@ -4,8 +4,8 @@
   "category": "Compliance",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Establishing security and compliance frameworks — aka Trust & Safety, SecOps Hardening, Compliance Sprint, Risk & Assurance.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Establishing security and compliance frameworks \u2014 aka Trust & Safety, SecOps Hardening, Compliance Sprint, Risk & Assurance.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -67,12 +67,14 @@
     ],
     "reviewGates": [
       {
-        "code": "review-security-privacy-compliance",
-        "statement": "The Security, Privacy & Compliance's deliverables have been reviewed and accepted as sufficient to proceed to Platform & Developer Experience.",
+        "code": "Security Assessment Report",
+        "statement": "The Security Assessment Report (threat model, security controls, privacy impact assessment) has been reviewed and accepted as sufficient to proceed to Platform & Developer Experience.",
         "classification": "human-attested",
-        "prompt": "Are the threat model, security controls, and compliance readiness sufficiently addressed to justify moving into Platform & Developer Experience?",
+        "prompt": "Does the Security Assessment Report show the system's security, privacy, and compliance posture is sufficiently addressed?",
         "participant": "human",
-        "outputContract": "assessment-acceptance"
+        "outputContract": "assessment-acceptance",
+        "name": "Security Assessment Review",
+        "governedTransition": "Deliverable|In Progress|Approved"
       }
     ]
   }

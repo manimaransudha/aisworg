@@ -52,7 +52,9 @@
     ],
     "reviewGates": [
       {
-        "code": "test-and-evaluate",
+        "code": "Test Report / Results",
+        "name": "Test Results Evaluation",
+        "governedTransition": "Deliverable|In Progress|Approved",
         "statement": "Test results have been evaluated and the solution's quality/residual risk assessed.",
         "classification": "judgment",
         "prompt": "Given the test results, is the solution's quality acceptable, and is residual risk understood?",

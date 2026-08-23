@@ -33,6 +33,8 @@ import { addConcept } from "../src/routes/seu/core/ontology.js";
 import pool from "../src/utils/db.js";
 import { transitionDeliverable, type TransitionDeliverableResult } from "../src/routes/seu/core/deliverables.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
+import { packsDB } from "../src/dblayer/packsDB.js";
+import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import type { DeliverableRow, ProfileRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../src/dblayer/seuTypes.js";
 
 // CR-046 (owner: "why are test scripts adding code that is not in the
@@ -220,4 +222,50 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
   }
 
   return { template, profile };
+}
+
+// CR-058 follow-up — same class of gap as the Template/Profile fixture
+// above, discovered the same way: platform-core-engineering's own 2 real
+// Quality Gates (core-engineering.pack.json's qualityGates[]) were never
+// actually recreated by any working seed path (the old bootstrap script
+// that used to publish this Pack, seedSeu.ts, is the same one this file's
+// own header describes as retired; separately, validatePackSeed's
+// capability-name check — added after that retirement — means this Pack's
+// own `code` can never pass republish validation either way). Several tests
+// implicitly assumed these 2 gates already existed. Owner: "that just
+// simply means the test scripts have to be aligned to the changes we make
+// every time" — idempotent, memoized per process, same discipline as
+// ensureWebAppTemplateFixture above; mirrors exactly what
+// core-engineering.pack.json declares via the same qualityGatesDB.upsert
+// path seedContributions would use.
+let coreGatesCached: Promise<void> | null = null;
+
+export function ensureCoreEngineeringQualityGates(): Promise<void> {
+  if (!coreGatesCached) coreGatesCached = seedCoreGates();
+  return coreGatesCached;
+}
+
+async function seedCoreGates(): Promise<void> {
+  const { data: corePack } = await packsDB.findByCode("platform-core-engineering");
+  if (!corePack) throw new Error("platform-core-engineering not found — seed baseline is missing entirely, not just its Quality Gates");
+
+  await qualityGatesDB.upsert({
+    name: "No Unresolved Obligations",
+    category: "Review Evidence",
+    entityType: "Deliverable",
+    fromState: "In Progress",
+    toState: "Approved",
+    criteria: { type: "no_unresolved_obligations" },
+    originatingPackId: corePack.id,
+  });
+
+  await qualityGatesDB.upsert({
+    name: "Requires Accepted Evidence or Approved Decision",
+    category: "Validation Evidence",
+    entityType: "Deliverable",
+    fromState: "Approved",
+    toState: "Baselined",
+    criteria: { type: "requires_accepted_evidence_or_approved_decision" },
+    originatingPackId: corePack.id,
+  });
 }

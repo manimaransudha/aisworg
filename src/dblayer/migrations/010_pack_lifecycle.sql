@@ -29,15 +29,22 @@
 --    contributed sub-object is a real, larger undertaking flagged as a known
 --    residual gap rather than solved here (see Technology Decisions.md's
 --    post-Phase-9 note).
+-- CR-059 build-time fix — the ADD half below is superseded by migration 063
+-- (CR-026 tenant-scoped versioning): (code, pack_version) widened to
+-- (code, pack_version, tenant_id) so two tenants can publish the identical
+-- code+version independently. Replaying this file after 063 has already run
+-- silently resurrected the old global constraint (unconditional ADD, no
+-- guard against 063's later DROP), which reintroduced the exact cross-tenant
+-- collision CR-026 fixed — caught by tests/pack-sdk.test.ts's own CR-026
+-- coverage. Dropped only, matching 063's own settled design; not re-added.
 ALTER TABLE packs DROP CONSTRAINT IF EXISTS packs_code_key;
 ALTER TABLE packs DROP CONSTRAINT IF EXISTS packs_code_version_key;
-ALTER TABLE packs ADD CONSTRAINT packs_code_version_key UNIQUE (code, pack_version);
 
 ALTER TABLE packs ALTER COLUMN status SET DEFAULT 'Draft';
 
-ALTER TABLE transition_definitions DROP CONSTRAINT IF EXISTS transition_definitions_entity_type_check;
-ALTER TABLE transition_definitions ADD CONSTRAINT transition_definitions_entity_type_check
-  CHECK (entity_type IN ('SEU', 'Deliverable', 'Objective', 'Obligation', 'Evidence', 'Knowledge', 'Decision', 'KnowledgeScope', 'AttentionItem', 'ExternalInteraction', 'Pack', 'Participant', 'Review', 'Finding'));
+-- CR-059 build-time fix — superseded by migration 036 (CR-006, "the
+-- constraint stays dropped"); this transient re-add was breaking replay
+-- against real accumulated 'Template'/'Profile' rows. See 003's own note.
 
 ALTER TABLE quality_gates DROP CONSTRAINT IF EXISTS quality_gates_entity_type_check;
 ALTER TABLE quality_gates ADD CONSTRAINT quality_gates_entity_type_check

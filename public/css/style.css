@@ -1,0 +1,341 @@
+/* SEU Studio — site-wide stylesheet.
+ *
+ * This file didn't exist before (no public/ directory at all) — every page
+ * in the app was rendering on raw Bootstrap 5.3.2 defaults plus ~25 small,
+ * duplicated per-view <style> blocks (owner: "this is looking like a
+ * mainframe screen"). This consolidates those already-established patterns
+ * (state badges, section cards, stat tiles, auth cards — all real,
+ * consistent design already invented per-view, just never centralized)
+ * into one canonical stylesheet, plus fills the gaps every page shares:
+ * body background, navbar polish, buttons, tables, forms, typography.
+ *
+ * Bootstrap stays the foundation (owner: "it has to be bootstrap, modern
+ * UI") — nothing here replaces Bootstrap's grid/utilities/components, it's
+ * a skin layered on top, the same way most real Bootstrap-based products
+ * look nothing like bootstrap.min.css on its own.
+ *
+ * The exact per-view <style> blocks this supersedes are left in place for
+ * now (identical selectors/values, so harmless duplication, not a
+ * conflict) — removing them file-by-file is a separate, lower-risk cleanup
+ * pass, not required for this fix to work.
+ */
+
+/* ---------- Design tokens ---------- */
+:root {
+  --success: #10b981;
+  --danger: #f43f5e;
+  --warning: #f59e0b;
+  --primary: #6366f1;
+  --primary-dark: #4f46e5;
+  --dark: #0f172a;
+  --surface: #ffffff;
+  --surface-muted: #f8fafc;
+  --border: #e2e8f0;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow-sm: 0 4px 12px rgba(15, 23, 42, .04);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, .08);
+}
+
+/* ---------- Base ---------- */
+body {
+  background: var(--surface-muted);
+  color: var(--text);
+}
+h1, h2, h3, h4, h5, h6 { color: var(--text); font-weight: 700; }
+a { color: var(--primary-dark); }
+a:hover { color: var(--primary); }
+::selection { background: rgba(99, 102, 241, .18); }
+
+/* ---------- Navbar ---------- */
+.navbar { padding: 0.5rem 0; background: var(--dark) !important; }
+.navbar .logo { letter-spacing: -.01em; }
+.nav-links { gap: .15rem; }
+.nav-links .nav-link {
+  border-radius: 999px;
+  padding: .45rem .9rem;
+  transition: background .15s;
+}
+.nav-links .nav-link:hover,
+.nav-links .nav-link.active { background: rgba(255, 255, 255, .08); }
+.navbar .dropdown-menu-dark {
+  border: 1px solid rgba(255, 255, 255, .08);
+  box-shadow: var(--shadow-md);
+}
+.back-to-top {
+  transition: transform .15s, box-shadow .15s;
+}
+.back-to-top:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+
+/* ---------- Cards, generically ---------- */
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.card.border-0 { border: 1px solid var(--border) !important; }
+
+/* Section card — the single most-reused custom idiom in the app (attention,
+   compliance, reviews, telemetry, workqueue, seus/detail, and more). */
+.section-card {
+  border: none;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  background: var(--surface);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+.section-header {
+  background: var(--dark);
+  color: #fff;
+  font-weight: 600;
+  font-size: .9rem;
+  padding: .85rem 1.25rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+/* Stat/metric/hub "big number" tile family — metric-card (telemetry),
+   stat-tile (dashboard), hub-card (identity hub), principle-card/layer-card
+   (dashboard), category-card (settings) all share the same underlying
+   idiom; centralized here once instead of re-declared per view. */
+.metric-card,
+.stat-tile,
+.principle-card,
+.layer-card,
+.category-card,
+.hub-card,
+.card-tile {
+  border: none;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  background: var(--surface);
+}
+.metric-card, .stat-tile { padding: 1.25rem; text-align: center; }
+.metric-value, .stat-value, .hub-count { font-size: 1.8rem; font-weight: 700; color: var(--dark); }
+.metric-label, .stat-label, .hub-count-label {
+  font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted);
+}
+.layer-card, .category-card { margin-bottom: 1.5rem; overflow: hidden; }
+.layer-header, .category-header {
+  background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+  color: #fff; font-weight: 600; font-size: .95rem; padding: .85rem 1.25rem;
+  text-transform: uppercase; letter-spacing: .05em;
+}
+.hub-card {
+  padding: 1.75rem; height: 100%; text-decoration: none; display: block;
+  transition: box-shadow .15s, transform .15s;
+}
+.hub-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.card-tile { margin-bottom: 1rem; padding: 1.25rem; }
+
+/* ---------- Pill / badge system ---------- *
+ * The single biggest consolidation opportunity found: ~10 view-local
+ * "badge with a semantic color suffix" families, all hand-rolled with the
+ * same 5 color pairs. Kept as the exact class names already in use across
+ * the app (state-badge/priority-badge/status-pill/outcome-badge/etc, each
+ * with their own per-value suffix classes) rather than renamed, so no view
+ * markup needs to change — just centralized here as the canonical
+ * definition instead of copy-pasted per file. */
+.state-badge, .priority-badge, .status-pill, .outcome-badge, .scope-badge,
+.mode-badge, .classification-badge, .tier-badge, .req-state, .version-badge,
+.cap-badge, .sl-badge, .status-badge {
+  font-size: .7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+  padding: .22rem .6rem;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+/* Canonical state palette (seus/detail.ejs's own version is the fullest —
+   used as the master list every narrower per-view subset already agreed
+   with). Green = done/good, yellow = in-progress/pending, red = blocked/
+   failed, blue = in-progress (distinct hue for SEU's own "In Progress"),
+   gray = terminal/neutral. */
+.state-Operational, .state-Fulfilled, .state-Satisfied, .state-Approved,
+.state-Completed, .state-Dispatched, .state-Resolved, .state-Verified,
+.state-Closed, .state-Accepted, .state-Published, .state-Referenced,
+.state-Applied, .state-Baselined, .state-Active, .state-Achieved,
+.status-live { background: #dcfce7; color: #166534; }
+.state-Pending, .state-Commissioned, .state-Configured, .state-Activated,
+.state-Defined, .state-Unfulfilled, .state-Generated, .state-Assigned,
+.state-Executing, .state-Identified, .state-Analysed, .state-Collected,
+.state-Observed, .state-Proposed, .state-Validated, .state-Reviewed,
+.status-partial { background: #fef9c3; color: #854d0e; }
+.state-Blocked, .state-Suspended, .state-Retired, .state-Archived,
+.state-Deferred, .state-Cancelled, .state-Failed, .state-Deprecated,
+.state-Superseded { background: #fee2e2; color: #991b1b; }
+.state-Disposed, .state-Unknown, .state-Waived, .status-deferred { background: #f1f5f9; color: #64748b; }
+.state-In-Progress { background: #dbeafe; color: #1e40af; }
+
+/* Priority / severity */
+.priority-High, .priority-Critical, .sev-High, .sev-Critical { background: #fee2e2; color: #b91c1c; }
+.priority-Medium { background: #fef3c7; color: #92400e; }
+.priority-Low { background: #e2e8f0; color: #475569; }
+
+/* Compliance status pills */
+.status-Compliant { background: #dcfce7; color: #166534; }
+.status-Compliant-with-Exceptions { background: #dbeafe; color: #1e40af; }
+.status-Partially-Compliant { background: #fef3c7; color: #92400e; }
+.status-Non-Compliant { background: #fee2e2; color: #991b1b; }
+.status-Compliance-Unknown { background: #f1f5f9; color: #64748b; }
+.req-satisfied { background: #dcfce7; color: #166534; }
+.req-unsatisfied { background: #fee2e2; color: #991b1b; }
+.req-waived { background: #e2e8f0; color: #475569; }
+
+/* Review outcomes */
+.outcome-pass { background: #dcfce7; color: #166534; }
+.outcome-fail { background: #fee2e2; color: #991b1b; }
+.outcome-other { background: #fef3c7; color: #92400e; }
+
+/* Knowledge scope */
+.scope-Platform { background: #ede9fe; color: #5b21b6; }
+.scope-Enterprise { background: #dbeafe; color: #1e40af; }
+.scope-Capability { background: #dcfce7; color: #166534; }
+
+/* Work-queue mode */
+.mode-human-on-ui { background: #dbeafe; color: #1e40af; }
+.mode-external-orchestrator { background: #e2e8f0; color: #475569; }
+
+/* Neutral/informational pills — classification, version, capability, SLA,
+   tier — all the same flat gray/violet informational look. */
+.classification-badge, .version-badge, .cap-badge, .sl-badge {
+  background: #f1f5f9; color: #334155;
+}
+.classification-badge { background: #ede9fe; color: #5b21b6; }
+.tier-badge { background: #ede9fe; color: #5b21b6; border-radius: 6px; }
+.cap-badge { background: #ede9fe; color: #5b21b6; border-radius: 6px; }
+.version-badge { border-radius: 4px; font-size: .68rem; }
+
+/* ---------- Auth pages ---------- *
+ * login/forgot-password/reset-password/verify/disabled all hand-roll the
+ * same centered white card on a soft-gray background — consolidated once. */
+body:has(.login-card, .auth-card, .verify-card, .card-center) { background: var(--surface-muted); }
+.login-card, .auth-card, .verify-card, .card-center {
+  max-width: 420px;
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+  padding: 2.5rem 2rem;
+}
+.card-center { margin: 100px auto; text-align: center; }
+.auth-card, .verify-card { margin: 80px auto; }
+.brand { text-align: center; margin-bottom: 1.75rem; }
+.brand h1 { font-size: 1.5rem; font-weight: 700; color: var(--text); margin: 0; }
+.brand p { color: var(--text-muted); font-size: .875rem; margin: .25rem 0 0; }
+
+/* ---------- Vertical tab sidebar (partials/verticalTabs.ejs) — the shared
+   section-navigation column used by the authoring form, Pack/Template/
+   Profile registries, Authority, and Ontology. A framed panel, not a bare
+   column of links (owner: "It feels like another column on the list") —
+   light panel background + border give it a boundary of its own; sticky
+   keeps it in view against a long content column. Moved here from the
+   partial's own <style> block, which duplicated itself once per page that
+   includes it. ---------- */
+.vertical-tabs {
+  min-width: 210px; max-width: 260px; flex: 0 0 auto;
+  background: var(--surface-muted); border: 1px solid var(--border); border-radius: .6rem;
+  padding: .4rem; position: sticky; top: 1rem;
+  /* Owner's structural review: the tab list is fed a tenant-extensible
+     Ontology category list with no upper bound (category:pack today seeds
+     6 values, but a tenant can add more) — an unbounded sticky column would
+     just keep growing past the viewport rather than becoming its own
+     scroll region. Not broken at today's counts, but degrades gracefully
+     instead of silently breaking once a list grows past what fits. */
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+}
+.vertical-tabs .nav-link {
+  color: #495057; font-weight: 500; border-radius: .4rem;
+  padding: .55rem .8rem; margin-bottom: .15rem; text-align: left;
+  border: 1px solid transparent;
+}
+.vertical-tabs .nav-link:last-child { margin-bottom: 0; }
+.vertical-tabs .nav-link:hover { background: #fff; border-color: #dee2e6; }
+.vertical-tabs .nav-link.active { background: var(--primary-dark); color: #fff; box-shadow: 0 1px 3px rgba(79, 70, 229, .35); }
+.vertical-tabs .vt-sub { display: block; font-size: .75rem; font-weight: 400; color: #868e96; margin-top: .1rem; }
+.vertical-tabs .nav-link.active .vt-sub { color: rgba(255, 255, 255, .85); }
+@media (max-width: 767.98px) {
+  .vertical-tabs { max-width: none; width: 100%; flex-direction: row !important; flex-wrap: wrap; gap: .25rem; position: static; max-height: none; overflow: visible; }
+  .vertical-tabs .nav-link { margin-bottom: 0; }
+}
+
+/* ---------- Repeatable-item widget (Pack/Template/Profile SDK authoring:
+   Dependencies, Checklists, Quality Gates, Review Gates, Obligation
+   Definitions) — owner: "Review Gates form is pathetic... this is looking
+   like a mainframe screen." Moved here from authoring/edit.ejs's own local
+   <style> block (single source of truth; that page-local copy has been
+   removed) so it also benefits from the shared design tokens above. ---------- */
+.referential-list-group .referential-list-row {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  padding: 0 !important;
+  overflow: hidden;
+}
+.referential-list-group .referential-list-row > .d-flex {
+  margin: 0 !important;
+  padding: .6rem 1.1rem;
+  background: var(--surface-muted);
+  border-bottom: 1px solid var(--border);
+}
+.referential-list-group .referential-list-row > .row {
+  margin: 0 !important;
+  padding: 1.1rem 1.1rem 1.25rem;
+  --bs-gutter-x: 1.1rem;
+  --bs-gutter-y: 1rem;
+}
+.referential-list-group .referential-list-row .form-label {
+  color: var(--text) !important;
+  font-weight: 600;
+  font-size: .78rem;
+}
+.referential-list-group .referential-list-row .form-text { color: var(--text-muted) !important; }
+.referential-list-group .badge.bg-light {
+  background: transparent !important;
+  border: none !important;
+  color: #667085 !important;
+  font-weight: 600;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  font-size: .68rem !important;
+}
+.referential-list-group .badge.bg-secondary-subtle {
+  font-weight: 600;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  font-size: .68rem !important;
+}
+
+/* View-mode referential-list tables' search + sortable-header controls
+   (_referentialListGroup.ejs, wired up by public/js/referentialListGroup.js). */
+.rlg-sort-th { cursor: pointer; user-select: none; }
+.rlg-sort-th:hover { color: var(--text-dark, #0f172a); }
+.rlg-sort-icon { font-size: .7rem; color: #98a2b3; vertical-align: 1px; }
+.rlg-sort-th[data-sort-dir] .rlg-sort-icon { color: var(--primary-dark, #4338ca); }
+
+/* ---------- Buttons, forms, tables — the app-wide gaps: every page uses
+   these, none had any custom styling at all before this file. ---------- */
+.btn { border-radius: var(--radius-sm); font-weight: 500; }
+.btn-primary { background: var(--primary-dark); border-color: var(--primary-dark); }
+.btn-primary:hover { background: var(--primary); border-color: var(--primary); }
+
+.form-control, .form-select { border-radius: var(--radius-sm); border-color: var(--border); }
+.form-control:focus, .form-select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 .2rem rgba(99, 102, 241, .15);
+}
+.form-label { color: var(--text); }
+
+.table { --bs-table-hover-bg: #f8fafc; }
+.table thead th {
+  font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--text-muted); font-weight: 700; border-bottom-width: 1px;
+}
+
+.badge.bg-secondary-subtle { background: #eef1f5 !important; }

@@ -66,9 +66,9 @@ CREATE INDEX IF NOT EXISTS idx_external_interactions_deliverable ON external_int
 -- Kept as the full final union here and retrofitted into every earlier
 -- migration that touches this constraint (003, 006, 007, 008), so DROP+ADD
 -- stays a true no-op regardless of run order — the fix Phase 5 established.
-ALTER TABLE transition_definitions DROP CONSTRAINT IF EXISTS transition_definitions_entity_type_check;
-ALTER TABLE transition_definitions ADD CONSTRAINT transition_definitions_entity_type_check
-  CHECK (entity_type IN ('SEU', 'Deliverable', 'Objective', 'Obligation', 'Evidence', 'Knowledge', 'Decision', 'KnowledgeScope', 'AttentionItem', 'ExternalInteraction', 'Pack', 'Participant', 'Review', 'Finding'));
+-- CR-059 build-time fix — superseded by migration 036 (CR-006, "the
+-- constraint stays dropped"); this transient re-add was breaking replay
+-- against real accumulated 'Template'/'Profile' rows. See 003's own note.
 
 ALTER TABLE quality_gates DROP CONSTRAINT IF EXISTS quality_gates_entity_type_check;
 ALTER TABLE quality_gates ADD CONSTRAINT quality_gates_entity_type_check

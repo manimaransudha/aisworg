@@ -20,7 +20,7 @@ import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { evidenceDB } from "../src/dblayer/evidenceDB.js";
 import { createKnowledgeItem, transitionKnowledgeItem } from "../src/routes/seu/core/knowledge.js";
 import { createDecision, transitionDecision } from "../src/routes/seu/core/decisions.js";
-import { ensureWebAppTemplateFixture } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates } from "./testFixtures.js";
 
 after(async () => {
   await pool.end();
@@ -28,6 +28,7 @@ after(async () => {
 
 async function commissionTestSeu(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
+  await ensureCoreEngineeringQualityGates();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
@@ -67,7 +68,11 @@ test("Quality Gate blocks 'Approved' -> 'Baselined' until Evidence is Accepted, 
     assert.equal(blocked.reason, "quality_gate_blocked");
     if (blocked.reason === "quality_gate_blocked") {
       assert.match(blocked.detail, /Requires Accepted Evidence or Approved Decision/);
-      assert.match(blocked.detail, /no accepted Evidence or approved Decision found/);
+      // CR-058 follow-up 2 — the gate's own category (now = its code,
+      // category:evidence-backed) narrows the message; the real seeded
+      // gate for this transition is category "Validation Evidence",
+      // matching the Evidence this test creates below.
+      assert.match(blocked.detail, /no accepted Evidence of category "Validation Evidence" or approved Decision found/);
     }
   }
 

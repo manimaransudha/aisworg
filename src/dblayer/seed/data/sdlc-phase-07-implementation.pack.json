@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Building the product features and functionality — aka Build, Delivery, Engineering Execution, Construction, Maker Sprint.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Building the product features and functionality \u2014 aka Build, Delivery, Engineering Execution, Construction, Maker Sprint.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -79,12 +79,14 @@
     ],
     "reviewGates": [
       {
-        "code": "review-implementation-engineering",
-        "statement": "The Implementation's deliverables have been reviewed and accepted as sufficient to proceed to Quality Engineering & Hardening.",
+        "code": "Source Code",
+        "statement": "The Source Code has been reviewed and accepted as sufficient to proceed to Quality Engineering & Hardening.",
         "classification": "human-attested",
-        "prompt": "Is the implemented functionality, along with its specifications and ADRs, sufficiently complete to justify moving into Quality Engineering & Hardening?",
+        "prompt": "Does the Source Code meet the technical specifications, coding standards, and architecture decisions for this feature set?",
         "participant": "human",
-        "outputContract": "assessment-acceptance"
+        "outputContract": "assessment-acceptance",
+        "name": "Implementation Review",
+        "governedTransition": "Deliverable|In Progress|Approved"
       }
     ]
   }

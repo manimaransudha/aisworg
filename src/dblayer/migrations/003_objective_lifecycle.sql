@@ -15,13 +15,20 @@
 -- database that has since been seeded with real 'Obligation'/'Evidence'/
 -- 'Knowledge'/'Decision' rows (added by 006/007), re-narrowing to only
 -- ('SEU','Deliverable','Objective') fails outright — existing rows violate
--- it. Keeping every migration that touches this constraint declaring the
--- same final set makes DROP+ADD a true no-op regardless of run order or how
--- much data already exists, restoring the "safe to run repeatedly" contract
--- run.ts's own header comment promises.
-ALTER TABLE transition_definitions DROP CONSTRAINT IF EXISTS transition_definitions_entity_type_check;
-ALTER TABLE transition_definitions ADD CONSTRAINT transition_definitions_entity_type_check
-  CHECK (entity_type IN ('SEU', 'Deliverable', 'Objective', 'Obligation', 'Evidence', 'Knowledge', 'Decision', 'KnowledgeScope', 'AttentionItem', 'ExternalInteraction', 'Pack', 'Participant', 'Review', 'Finding'));
+-- it.
+--
+-- CR-059 build-time fix — this "keep every migration declaring the same
+-- final set" discipline was itself superseded by migration 036 (CR-006):
+-- the noun vocabulary became data (authority_nouns), so the hardcoded CHECK
+-- is retired there permanently ("the constraint stays dropped" — entity_type
+-- is validated against active authority_nouns at the app layer instead).
+-- Nobody removed this transient DROP+ADD afterward, so replaying from an
+-- empty database against real accumulated data (which now legitimately
+-- includes 'Template'/'Profile' rows, added long after 036 dropped the
+-- constraint) failed here regardless of what 036 does later — this file's
+-- own ADD runs first and rejects rows the final, correct state has no
+-- opinion on at all. Removed outright rather than widened again, matching
+-- 036's own already-settled intent.
 
 CREATE INDEX IF NOT EXISTS idx_objectives_parent ON objectives (parent_objective_id);
 CREATE INDEX IF NOT EXISTS idx_objectives_status ON objectives (status);

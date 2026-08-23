@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Defining technical architecture and system design — aka Solution Architecture, Systems Design, Tech Blueprint, Foundations Sprint.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Defining technical architecture and system design \u2014 aka Solution Architecture, Systems Design, Tech Blueprint, Foundations Sprint.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -85,12 +85,14 @@
     ],
     "reviewGates": [
       {
-        "code": "review-technical-architecture-discovery",
-        "statement": "The Technical Discovery & Architecture's deliverables have been reviewed and accepted as sufficient to proceed to Security, Privacy & Compliance.",
+        "code": "Solution / Architecture Document",
+        "statement": "The Solution Architecture Document has been reviewed and accepted as sufficient to proceed to Security, Privacy & Compliance.",
         "classification": "human-attested",
-        "prompt": "Is the solution architecture, data model, and integration strategy sufficiently sound and complete to justify moving into Security, Privacy & Compliance?",
+        "prompt": "Is the Solution Architecture Document sufficiently detailed, consistent, and approved to guide implementation?",
         "participant": "human",
-        "outputContract": "assessment-acceptance"
+        "outputContract": "assessment-acceptance",
+        "name": "Architecture Review",
+        "governedTransition": "Deliverable|In Progress|Approved"
       }
     ]
   }

@@ -20,7 +20,7 @@ import { transitionDeliverableSync as transitionDeliverable } from "./testFixtur
 import { createObligation, transitionObligation } from "../src/routes/seu/core/obligations.js";
 import { createAttentionItem, listAttentionItemsBySeu, transitionAttentionItem } from "../src/routes/seu/core/attentionItems.js";
 import { createExternalInteraction, listExternalInteractionsBySeu, transitionExternalInteraction } from "../src/routes/seu/core/externalInteractions.js";
-import { ensureWebAppTemplateFixture } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates } from "./testFixtures.js";
 
 after(async () => {
   await pool.end();
@@ -28,6 +28,7 @@ after(async () => {
 
 async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
+  await ensureCoreEngineeringQualityGates();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],

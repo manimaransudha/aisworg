@@ -20,6 +20,7 @@ import { reviewsDB } from "../src/dblayer/reviewsDB.js";
 import { findingsDB } from "../src/dblayer/findingsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
+import { reviewGatesDB } from "../src/dblayer/reviewGatesDB.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { ensureWebAppTemplateFixture } from "./testFixtures.js";
@@ -83,39 +84,59 @@ test("a Review runs its full lifecycle without modifying the reviewed object; it
   assert.equal(finalRow?.status, "Archived");
 });
 
-test("requires_accepted_review Quality Gate blocks a transition until an Accepted, passing Review of the required category exists", async () => {
+test("requires_accepted_review Quality Gate blocks a transition until an Accepted, passing Review against the required Review Gate exists (CR-059)", async () => {
   const { seuId, deliverable } = await commissionSeu("review-gate");
 
-  // A gate on an UNUSED triple so no real Deliverable flow is affected.
+  // A gate on a fully run-scoped triple, not just a run-scoped category —
+  // qualityGateEngine.evaluate() ANDs across EVERY active gate at a given
+  // (entityType, fromState, toState), regardless of category, so sharing
+  // the "unused" Deliverable Reviewed -> Baselined triple with any other
+  // test that also creates a gate there (transition-definition-authoring.test.ts
+  // does) can block this test on a completely unrelated gate's own criteria.
+  // Real, observed failure — a category-only fix (CR-058's own precedent)
+  // was not enough here.
   const { data: corePack } = await packsDB.findByCode("platform-core-engineering");
   assert.ok(corePack, "core pack must be seeded");
-  await qualityGatesDB.upsert({
-    code: "test-requires-architecture-review",
-    name: "Requires Architecture Review",
+  const run = randomUUID();
+  const fromState = `test-from-${run}`;
+  const toState = `test-to-${run}`;
+  const { data: reviewGate } = await reviewGatesDB.upsert({
+    code: `Solution / Architecture Document (test-${run})`,
+    name: "Architecture Notebook Review",
     entityType: "Deliverable",
-    fromState: "Reviewed",
-    toState: "Baselined",
-    criteria: { type: "requires_accepted_review", category: "Architecture" },
+    fromState,
+    toState,
     originatingPackId: corePack!.id,
   });
-  const evalGate = () => qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: deliverable.id, seuId, fromState: "Reviewed", toState: "Baselined" });
+  assert.ok(reviewGate);
+  await qualityGatesDB.upsert({
+    name: "Requires Architecture Review",
+    category: `test-${run}`,
+    entityType: "Deliverable",
+    fromState,
+    toState,
+    criteria: { type: "requires_accepted_review", reviewGateId: reviewGate!.id },
+    originatingPackId: corePack!.id,
+  });
+  const evalGate = () => qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: deliverable.id, seuId, fromState, toState });
 
   assert.equal((await evalGate()).outcome, "Blocked", "no Review yet -> blocked");
 
   // A Failed Architecture review does NOT satisfy it.
-  const failed = await createReview({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Architecture", name: "Arch review (fails)" });
+  const failed = await createReview({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Architecture", name: "Arch review (fails)", reviewGateId: reviewGate!.id });
   await walkReviewToAccepted(failed.id, "Failed");
   assert.equal((await evalGate()).outcome, "Blocked", "an Accepted but Failed Review does not satisfy the gate");
 
-  // A passing review in a DIFFERENT category does NOT satisfy the Architecture requirement.
-  const codeReview = await createReview({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Code", name: "Code review (passes)" });
-  await walkReviewToAccepted(codeReview.id, "Passed");
-  assert.equal((await evalGate()).outcome, "Blocked", "a passing Review of a different category does not satisfy a category-specific requirement");
+  // A passing review NOT linked to this Review Gate does NOT satisfy it — the
+  // FK match (CR-059) replaces the old free-text category comparison.
+  const unlinkedReview = await createReview({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Code", name: "Code review (passes, unlinked)" });
+  await walkReviewToAccepted(unlinkedReview.id, "Passed");
+  assert.equal((await evalGate()).outcome, "Blocked", "a passing Review not linked to the required Review Gate does not satisfy it");
 
-  // An Accepted + passing Architecture review satisfies it.
-  const arch = await createReview({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Architecture", name: "Arch review (passes)" });
+  // An Accepted + passing Review linked to the required Review Gate satisfies it.
+  const arch = await createReview({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Architecture", name: "Arch review (passes)", reviewGateId: reviewGate!.id });
   await walkReviewToAccepted(arch.id, "Passed");
-  assert.equal((await evalGate()).outcome, "Passed", "an Accepted, passing Architecture Review satisfies the gate");
+  assert.equal((await evalGate()).outcome, "Passed", "an Accepted, passing Review linked to the required Review Gate satisfies the gate");
 });
 
 test("Findings: a High-severity Finding auto-surfaces an Attention Item; a Finding resolves and can be converted to an Obligation", async () => {

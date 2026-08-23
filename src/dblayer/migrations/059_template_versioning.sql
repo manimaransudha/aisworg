@@ -19,5 +19,6 @@ ALTER TABLE templates ALTER COLUMN template_version DROP DEFAULT;
 ALTER TABLE templates ALTER COLUMN template_version TYPE TEXT USING '1.0.0';
 ALTER TABLE templates ALTER COLUMN template_version SET DEFAULT '1.0.0';
 
-ALTER TABLE templates DROP CONSTRAINT templates_code_key;
+ALTER TABLE templates DROP CONSTRAINT IF EXISTS templates_code_key;
+ALTER TABLE templates DROP CONSTRAINT IF EXISTS templates_code_version_key;
 ALTER TABLE templates ADD CONSTRAINT templates_code_version_key UNIQUE (code, template_version);

@@ -43,6 +43,28 @@ pnpm test
 If you ever need to run a single file directly instead of the whole suite, keep the same env var:
 NODE_ENV=test npx tsx --test tests/<file>.test.ts
  
+----------
+
+## Seed data 
+
+Here's the mapping. db:clean-slate (src/dblayer/seed/cleanSlate.ts) runs steps 3–8, each calling one seed module that reads specific JSON files from src/dblayer/seed/data/:
+
+Step	Seed module	JSON file(s) consumed
+3	seedIdentityBaseline.ts	authorityVocabulary.json (roles/badges only)
+4	seedTransitionDefinitions.ts	transitionDefinitions.json
+5	seedAuthorityVocabulary.ts	authorityVocabulary.json
+5b	seedEventSubscriptions.ts	eventSubscriptions.json
+6	seedCapabilityPatternPacks.ts	openup-requirements.pack.json, openup-architecture.pack.json, openup-development.pack.json, openup-test.pack.json, openup-project-management.pack.json, openup-configuration-and-change-management.pack.json
+7	seedSdlcPhasePacks.ts	sdlc-phase-00-vision-opportunity.pack.json … sdlc-phase-15-ongoing-operations-governance.pack.json (16 files)
+8	seedSdlcStandardTemplates.ts	the 9 *.template.json / *-development.profile.json pairs (saas-product, enterprise-web-application-parent, api-platform, data-platform, ai-platform, embedded-software, legacy-modernisation, mobile-application, package-implementation)
+Not touched by db:clean-slate at all — three files in the same data/ directory that clean-slate deliberately leaves alone:
+
+core-engineering.pack.json, technology-nodejs.pack.json — published once manually via pnpm pack:publish <file> --activate; clean-slate's BASE_PACK_CODES (cleanSlate.ts:107) protects platform-core-engineering and technology-nodejs from its own wipe rather than reseeding them from JSON.
+domain-ebook-library.pack.json, ebook-library.template.json, ebook-library-development.profile.json — consumed by a separate, unrelated script, seedEbookLibraryPilot.ts (not imported by cleanSlate.ts).
+So if you're chasing a "wrong data after clean-slate" bug, the file to edit is one of the ones in that table, keyed to whichever step's log line ([db:clean-slate] step N — ...) is producing the bad output. If it's about a base Pack (platform-core-engineering/technology-nodejs), editing the JSON alone won't do anything — it'd need re-publishing via pnpm pack:publish.
+
+--------
+
 https://zenfy.ac/get-started/
 
 obj-propose@babylon.com
@@ -55,15 +77,3 @@ Capability Patterns (reusable process fragments)
 
 
 --------
-
-
-Summary of the most load-bearing new findings for §20
-EBM has no transition mechanism at all — status set once at INSERT, never updated by any code (ebmsDB.ts), despite being one of the chapter's 9 named "Managed Objects."
-"Runtime Services" is a pure documentation concept — zero matches anywhere in src/.
-9 additional real governed entity types exist beyond the chapter's list of 9 — full real set is 16, confirmed identical between the live transition_definitions table and the TransitionEntityType TypeScript union.
-Participant has a concrete FR-29.4 violation: 4 of its 10 governed transitions (Assigned→Executing, Assigned→Released, Available→Released, Executing→Released) commit state with zero event published, due to a stale lookup table (CH13_EVENT_BY_TRANSITION, participants.ts:27-34) that only covers 6 of the 10 real transitions.
-No optimistic/pessimistic concurrency control exists anywhere in the transition-write path — every checked entity's UPDATE is unconditional on id, no FOR UPDATE, no version column guard. This is the single most consequential gap versus FR-29.6/§14's claims.
-No versioning exists on any of the six primary governed entities (Deliverable, Decision, Knowledge, Evidence, Obligation, Participant) — directly falsifying FR-29.2 for all of them.
-"Transition Definitions contributed through Packs" is not implemented — they are seeded from a static JSON file and/or edited through a separate SDK-authoring admin API; Pack installation code never writes to transition_definitions.
-No recovery mechanism exists anywhere (SM-006/FR-29.5/§13 all collapse to the same zero-result grep).
-No generic "transition rationale" concept exists in the running code (§9); "applicable policies satisfied" is never recorded in history (§15) — only blocking/deviation policies leave any trace.

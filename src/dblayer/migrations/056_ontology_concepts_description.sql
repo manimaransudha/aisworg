@@ -7,4 +7,5 @@
 -- template-categories — the same discipline as every other Ontology column
 -- (is_active, tenant_id): one shared shape for every concept, not a
 -- per-concept-type table.
-ALTER TABLE ontology_concepts ADD COLUMN description TEXT;
+-- CR-059 build-time fix — missing IF NOT EXISTS broke a second replay.
+ALTER TABLE ontology_concepts ADD COLUMN IF NOT EXISTS description TEXT;

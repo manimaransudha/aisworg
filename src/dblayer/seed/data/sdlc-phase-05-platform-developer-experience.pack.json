@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Setting up development and deployment infrastructure — aka DevOps Foundations, Paved Road, Golden Path, Platform Engineering.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Setting up development and deployment infrastructure \u2014 aka DevOps Foundations, Paved Road, Golden Path, Platform Engineering.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -73,12 +73,14 @@
     ],
     "reviewGates": [
       {
-        "code": "review-platform-developer-experience",
-        "statement": "The Platform & Developer Experience's deliverables have been reviewed and accepted as sufficient to proceed to Backlog & Release Planning.",
+        "code": "CI/CD Pipeline Definition",
+        "statement": "The CI/CD Pipeline Definition and supporting platform documentation have been reviewed and accepted as sufficient to proceed to Backlog & Release Planning.",
         "classification": "human-attested",
-        "prompt": "Is the deployment, infrastructure, and observability foundation sufficiently in place to justify moving into Backlog & Release Planning?",
+        "prompt": "Is the CI/CD Pipeline Definition, along with the environments, secrets management, and observability plans, sufficiently mature to support development and release?",
         "participant": "human",
-        "outputContract": "assessment-acceptance"
+        "outputContract": "assessment-acceptance",
+        "name": "Platform Readiness Review",
+        "governedTransition": "Deliverable|In Progress|Approved"
       }
     ]
   }

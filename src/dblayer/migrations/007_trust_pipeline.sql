@@ -107,10 +107,12 @@ CREATE INDEX IF NOT EXISTS idx_decisions_seu ON decisions (seu_id);
 -- Extend the generic transitionEngine's entity types (Ch.29 §10) to admit
 -- Evidence/Knowledge/Decision's own governed lifecycles — the same mechanism
 -- SEU/Deliverable/Objective/Obligation already use.
-ALTER TABLE transition_definitions DROP CONSTRAINT IF EXISTS transition_definitions_entity_type_check;
-ALTER TABLE transition_definitions ADD CONSTRAINT transition_definitions_entity_type_check
-  CHECK (entity_type IN ('SEU', 'Deliverable', 'Objective', 'Obligation', 'Evidence', 'Knowledge', 'Decision', 'KnowledgeScope', 'AttentionItem', 'ExternalInteraction', 'Pack', 'Participant', 'Review', 'Finding'));
-
+--
+-- CR-059 build-time fix — the transition_definitions half of this is
+-- superseded by migration 036 (CR-006, "the constraint stays dropped");
+-- this transient re-add was breaking replay against real accumulated
+-- 'Template'/'Profile' rows. See 003's own note. quality_gates.entity_type
+-- was never similarly retired, so that half stays.
 -- quality_gates.entity_type mirrors the same set.
 ALTER TABLE quality_gates DROP CONSTRAINT IF EXISTS quality_gates_entity_type_check;
 ALTER TABLE quality_gates ADD CONSTRAINT quality_gates_entity_type_check

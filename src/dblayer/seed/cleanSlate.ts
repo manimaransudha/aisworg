@@ -105,7 +105,16 @@ import { seedSdlcStandardTemplates } from "./seedSdlcStandardTemplates.js";
 // exist in the codebase any more either — the Creator/Approver badge family
 // it guarded was itself retired by migration 043).
 const BASE_PACK_CODES = ["platform-core-engineering", "technology-nodejs"];
-const REAL_QUALITY_GATE_CODES = ["qg-deliverable-in-progress-to-approved", "qg-deliverable-approved-to-baselined"];
+// CR-059 build-time fix — this allowlist was stale: still the pre-CR-058
+// derived-slug code format ("qg-<transition>-<category>"), from before
+// CR-058 made a Quality Gate's code = its own category directly ("Review
+// Evidence"/"Validation Evidence"). Neither stale value has matched any
+// live row since CR-058 shipped, meaning this filter had been silently
+// deleting the real seeded Quality Gates as "junk" on every clean-slate run
+// since — never caught because nothing exercises a real Quality Gate
+// immediately after a clean-slate run in the same session. Corrected to
+// the real, current codes.
+const REAL_QUALITY_GATE_CODES = ["Review Evidence", "Validation Evidence"];
 // Same special case as quality_gates (header comment) — policies' junk rows
 // are ALSO attributed to a real base Pack (platform-core-engineering), not a
 // throwaway one, so the pack-filter below doesn't catch them either. Found,
@@ -266,6 +275,22 @@ async function run(): Promise<void> {
     // authoring Capabilities, 2 base Authority Rules), not Pack-attributable
     // junk.
     const qgDeleted = await client.query("DELETE FROM quality_gates WHERE code != ALL($1::text[])", [REAL_QUALITY_GATE_CODES]);
+    // CR-059 — review_gates has a NO ACTION originating_pack_id FK into packs,
+    // same as quality_gates, but NOT the same "real content on a real base
+    // Pack" special case: platform-core-engineering.pack.json declares zero
+    // review gates (contributions.reviewGates is unset), so there is nothing
+    // to protect via a code allowlist — an allowlist here (first attempt)
+    // actively broke things: it correctly kept the real OpenUP review_gates
+    // rows, but their OWNING Packs still get wiped below (they're not base
+    // Packs either), leaving an orphaned FK. Matches capabilities/services'
+    // own plain pack-scoped filter instead — real OpenUP review_gates rows
+    // are wiped along with their Packs here and freshly recreated by the
+    // later seedCapabilityPatternPacks() reseed step, exactly like their
+    // capabilities/services already are.
+    const rgDeleted = await client.query(
+      "DELETE FROM review_gates WHERE originating_pack_id IS NOT NULL AND originating_pack_id NOT IN (SELECT id FROM packs WHERE code = ANY($1::text[]))",
+      [BASE_PACK_CODES]
+    );
     const policiesDeleted = await client.query(
       `DELETE FROM policies
        WHERE originating_pack_id IS NOT NULL
@@ -300,7 +325,7 @@ async function run(): Promise<void> {
     const complianceReqDeleted = await client.query("DELETE FROM compliance_requirements");
     const complianceFwDeleted = await client.query("DELETE FROM compliance_frameworks");
     logger.info(
-      `[db:clean-slate] step 2b — deleted ${qgDeleted.rowCount} junk quality_gates, ${policiesDeleted.rowCount} policies, ${authorityRulesDeleted.rowCount} authority_rules, ${servicesDeleted.rowCount} services, ${capabilitiesDeleted.rowCount} capabilities, ${metricsDeleted.rowCount} metric_definitions, ${complianceReqDeleted.rowCount} compliance_requirements, ${complianceFwDeleted.rowCount} compliance_frameworks.`
+      `[db:clean-slate] step 2b — deleted ${qgDeleted.rowCount} junk quality_gates, ${rgDeleted.rowCount} junk review_gates, ${policiesDeleted.rowCount} policies, ${authorityRulesDeleted.rowCount} authority_rules, ${servicesDeleted.rowCount} services, ${capabilitiesDeleted.rowCount} capabilities, ${metricsDeleted.rowCount} metric_definitions, ${complianceReqDeleted.rowCount} compliance_requirements, ${complianceFwDeleted.rowCount} compliance_frameworks.`
     );
 
     // Step 2c — non-base Packs. Safe now: every table with a NO ACTION FK

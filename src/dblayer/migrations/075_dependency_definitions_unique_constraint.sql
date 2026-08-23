@@ -9,6 +9,8 @@
 -- into a no-op instead. NULLS NOT DISTINCT (PG15+) so two unnamed-type rows
 -- (from_name IS NULL) with everything else equal collide too, not just
 -- named ones — plain UNIQUE treats NULL as distinct from itself otherwise.
+-- CR-059 build-time fix — missing guard broke a second replay.
+ALTER TABLE dependency_definitions DROP CONSTRAINT IF EXISTS dependency_definitions_natural_key;
 ALTER TABLE dependency_definitions
   ADD CONSTRAINT dependency_definitions_natural_key
   UNIQUE NULLS NOT DISTINCT (owning_entity_type, owning_entity_id, from_entity_type, from_name, from_state, to_entity_type, to_name, to_state);

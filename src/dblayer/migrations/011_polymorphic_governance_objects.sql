@@ -42,20 +42,14 @@ END $$;
 
 CREATE INDEX IF NOT EXISTS idx_obligations_related ON obligations (related_object_type, related_object_id);
 
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'evidence' AND column_name = 'deliverable_id') THEN
-    ALTER TABLE evidence ADD COLUMN related_object_type TEXT;
-    ALTER TABLE evidence ADD COLUMN related_object_id UUID;
-    UPDATE evidence SET related_object_type = 'Deliverable', related_object_id = deliverable_id WHERE related_object_id IS NULL;
-    ALTER TABLE evidence ALTER COLUMN related_object_type SET NOT NULL;
-    ALTER TABLE evidence ALTER COLUMN related_object_id SET NOT NULL;
-    DROP INDEX IF EXISTS idx_evidence_deliverable;
-    ALTER TABLE evidence DROP COLUMN deliverable_id;
-  END IF;
-END $$;
-
-CREATE INDEX IF NOT EXISTS idx_evidence_related ON evidence (related_object_type, related_object_id);
+-- CR-059 build-time fix — this block (and its trailing index) is superseded
+-- by migration 086 (CR-051): Evidence moved off a single related_object_type/
+-- related_object_id pair entirely, onto the many-to-many evidence_relationships
+-- table (multi-relationship provenance — an Evidence row can now relate to
+-- several objects, not just one). Evidence never got these columns under
+-- CR-051's shape, so the unconditional CREATE INDEX below failed replay
+-- outright ("column related_object_type does not exist"), not merely
+-- no-opped. Removed rather than guarded, matching 086's own settled design.
 
 DO $$
 BEGIN

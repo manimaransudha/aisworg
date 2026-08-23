@@ -5,12 +5,13 @@
 -- The remaining five are added here, all nullable — provenance is captured
 -- when known at creation time, not required (older flows and External
 -- Evidence in particular may not have all of it).
+-- CR-059 build-time fix — none of these were replay-safe (no IF NOT EXISTS).
 ALTER TABLE evidence
-  ADD COLUMN originating_deliverable_id UUID REFERENCES deliverables(id),
-  ADD COLUMN originating_participant_id UUID REFERENCES participants(id),
-  ADD COLUMN originating_capability_id UUID REFERENCES capabilities(id),
-  ADD COLUMN originating_decision_id UUID REFERENCES decisions(id),
-  ADD COLUMN originating_activity TEXT;
+  ADD COLUMN IF NOT EXISTS originating_deliverable_id UUID REFERENCES deliverables(id),
+  ADD COLUMN IF NOT EXISTS originating_participant_id UUID REFERENCES participants(id),
+  ADD COLUMN IF NOT EXISTS originating_capability_id UUID REFERENCES capabilities(id),
+  ADD COLUMN IF NOT EXISTS originating_decision_id UUID REFERENCES decisions(id),
+  ADD COLUMN IF NOT EXISTS originating_activity TEXT;
 
 -- Backfill originating_deliverable_id from each Evidence row's earliest
 -- Deliverable-type relationship (086_evidence_relationships.sql), matching

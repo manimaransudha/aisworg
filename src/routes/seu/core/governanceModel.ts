@@ -14,7 +14,7 @@ export interface EffectiveGovernanceModel {
   ebm: { id: string; version: number; status: string; composedPacks: Array<{ packCode: string; packVersion: string }> };
   authorityRules: Array<{ code: string; governedTransition: string; authorisedRole: string; fromPack: string }>;
   policies: Array<{ code: string; name: string; governedTransition: string; fromPack: string }>;
-  qualityGates: Array<{ code: string; name: string; category: string; governedTransition: string; criteriaType: string; fromPack: string }>;
+  qualityGates: Array<{ name: string; category: string; governedTransition: string; criteriaType: string; fromPack: string }>;
   conflicts: string[];
 }
 
@@ -46,9 +46,12 @@ export async function getEffectiveGovernanceModel(seuId: string): Promise<Effect
       policies.push({ code: p.code, name: p.name, governedTransition: p.governedTransition, fromPack: pack.code });
     }
     for (const g of pack.contributions?.qualityGates ?? []) {
-      if (seenGate.has(g.code)) continue;
-      seenGate.add(g.code);
-      qualityGates.push({ code: g.code, name: g.name, category: g.category, governedTransition: g.governedTransition, criteriaType: g.criteriaType, fromPack: pack.code });
+      // CR-058 follow-up — a gate's real identity is (governedTransition,
+      // category), not an author-typed code (that field no longer exists).
+      const slotKey = `${g.governedTransition}::${g.category}`;
+      if (seenGate.has(slotKey)) continue;
+      seenGate.add(slotKey);
+      qualityGates.push({ name: g.name, category: g.category, governedTransition: g.governedTransition, criteriaType: g.criteriaType, fromPack: pack.code });
     }
   }
 

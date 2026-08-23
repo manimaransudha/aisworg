@@ -38,7 +38,7 @@ CREATE INDEX IF NOT EXISTS idx_deliverable_definitions_tenant_id ON deliverable_
 -- schema field — mirrors Template's own parentTemplateId, which is a
 -- separate "Inherit" control outside the generic form engine, not a JSON
 -- Schema property.
-ALTER TABLE schema_definitions DROP CONSTRAINT schema_definitions_entity_kind_check;
+ALTER TABLE schema_definitions DROP CONSTRAINT IF EXISTS schema_definitions_entity_kind_check;
 ALTER TABLE schema_definitions ADD CONSTRAINT schema_definitions_entity_kind_check
   CHECK (entity_kind IN ('Pack', 'Template', 'Profile', 'TransitionDefinition', 'Deliverable'));
 

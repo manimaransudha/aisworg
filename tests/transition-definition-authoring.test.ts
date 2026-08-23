@@ -123,9 +123,17 @@ test("transitionEngine.evaluate itself enforces an authored Transition Definitio
 test("Transition Definition authoring: a Quality Gate code scoped to a different transition is rejected", async () => {
   const gateFromState = `td-mismatch-gate-from-${randomUUID()}`;
   const gateToState = `td-mismatch-gate-to-${randomUUID()}`;
+  // CR-059 build-time fix — since CR-058, `code` is no longer author-typed
+  // (qualityGatesDB.upsert always sets code = category); this test's own
+  // `code` field was silently ignored, so every un-categorized gate landed
+  // in the shared default "Exit" bucket. findByCode("Exit") then resolves
+  // ambiguously among every other "Exit"-category test gate in the shared
+  // dev DB (its own documented limitation), sometimes returning a
+  // different-transition gate than this one — a real, observed flake, not
+  // hypothetical. A run-scoped category makes the lookup unambiguous.
   const { data: gate, error: gateError } = await qualityGatesDB.upsert({
-    code: `td-mismatch-gate-${randomUUID()}`,
     name: "Transition Definition mismatch test gate",
+    category: `test-${randomUUID()}`,
     entityType: "AttentionItem",
     fromState: gateFromState,
     toState: gateToState,

@@ -23,6 +23,7 @@ import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { authorityRulesDB } from "../../../dblayer/authorityRulesDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { qualityGatesDB } from "../../../dblayer/qualityGatesDB.js";
+import { reviewGatesDB } from "../../../dblayer/reviewGatesDB.js";
 import { complianceDB } from "../../../dblayer/complianceDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
@@ -40,6 +41,11 @@ function parseGovernedTransition(value: string | undefined): { entityType: Trans
   const [entityType, fromState, toState] = parts;
   return { entityType: entityType as TransitionEntityType, fromState, toState };
 }
+
+// CR-058 follow-up 2 — a Quality Gate contribution has no author-typed
+// `code` at all (owner: "the code isn't a UUID or a freeform Pack-specific
+// string — it's the category identifier itself"). qualityGatesDB.upsert now
+// sets `code = category` itself; no derivation needed here.
 
 // CR-018 — §8/§13 metadata: recorded and validated for shape, not yet acted on
 // (dependency resolution, compatibility checks, composition strategy remain the
@@ -163,36 +169,92 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
   checkDuplicates("service", seed.contributions.services);
   checkDuplicates("authority rule", seed.contributions.authorityRules);
   checkDuplicates("policy", seed.contributions.policies);
-  checkDuplicates("quality gate", seed.contributions.qualityGates);
+
+  // CR-058 — no author-typed `code` on a Quality Gate contribution
+  // (deriveQualityGateCode above); duplicate detection within one Pack's
+  // own contributions checks the real identity pair instead — two rows
+  // targeting the same (governedTransition, category) would otherwise
+  // silently collapse into the same derived code at insert time.
+  const seenGateSlots = new Set<string>();
+  for (const gate of seed.contributions.qualityGates ?? []) {
+    const slotKey = `${gate.governedTransition ?? ""}::${gate.category ?? ""}`;
+    if (seenGateSlots.has(slotKey)) errors.push(`duplicate quality gate within Pack: "${gate.governedTransition}" [${gate.category}] is targeted by more than one contribution`);
+    seenGateSlots.add(slotKey);
+  }
 
   // CR-058 — each Quality Gate contribution: category must be a canonical
-  // category:quality-gate concept, governedTransition must resolve to a
-  // real transition_definitions row (the Pack may not invent a transition
-  // that doesn't already exist), and requires_active_policy must reference
-  // a real, resolvable Policy code.
+  // category:evidence concept (CR-058 follow-up 2: reused directly, not a
+  // separate quality-gate vocabulary — "the code isn't a UUID or a freeform
+  // Pack-specific string — it's the category identifier itself, drawn from
+  // the same Ontology-governed vocabulary as Ch.17 §7's Evidence
+  // Categories"), governedTransition must resolve to a real
+  // transition_definitions row (the Pack may not invent a transition that
+  // doesn't already exist), and requires_active_policy must reference a
+  // real, resolvable Policy code.
   for (const gate of seed.contributions.qualityGates ?? []) {
     try {
-      await assertCanonicalCategory("category:quality-gate", gate.category ?? "", ontologyViewer);
+      await assertCanonicalCategory("category:evidence", gate.category ?? "", ontologyViewer);
     } catch (err) {
       errors.push((err as Error).message);
     }
     const scope = parseGovernedTransition(gate.governedTransition);
     if (!scope) {
-      errors.push(`quality gate "${gate.code}" has an invalid governedTransition — expected "EntityType|fromState|toState"`);
+      errors.push(`quality gate "${gate.name}" has an invalid governedTransition — expected "EntityType|fromState|toState"`);
     } else {
       const { data: definition } = await transitionDefinitionsDB.find(scope.entityType, scope.fromState, scope.toState);
       if (!definition) {
-        errors.push(`quality gate "${gate.code}" references a transition that doesn't exist: ${scope.entityType} ${scope.fromState} -> ${scope.toState}`);
+        errors.push(`quality gate "${gate.name}" references a transition that doesn't exist: ${scope.entityType} ${scope.fromState} -> ${scope.toState}`);
       }
     }
     if (gate.criteriaType === "requires_active_policy") {
       if (!gate.requiredPolicyCode?.trim()) {
-        errors.push(`quality gate "${gate.code}" has criteriaType requires_active_policy but no requiredPolicyCode`);
+        errors.push(`quality gate "${gate.name}" has criteriaType requires_active_policy but no requiredPolicyCode`);
       } else {
         const { data: policy } = await policiesDB.findByCode(gate.requiredPolicyCode);
-        if (!policy) errors.push(`quality gate "${gate.code}" references unknown Policy code "${gate.requiredPolicyCode}"`);
+        if (!policy) errors.push(`quality gate "${gate.name}" references unknown Policy code "${gate.requiredPolicyCode}"`);
       }
     }
+    // CR-059 — requires_accepted_review must reference a real Review Gate,
+    // never a free-text category (owner: "the qualitygate now has to show
+    // the reviews in the dropdown to completely define it"). Scoped to this
+    // same Pack's own contributions only (owner: "if something is global,
+    // it has to be a policy" — Review Gates aren't the cross-Pack sharing
+    // mechanism).
+    if (gate.criteriaType === "requires_accepted_review") {
+      if (!gate.deliverableName?.trim()) {
+        errors.push(`quality gate "${gate.name}" has criteriaType requires_accepted_review but no deliverableName`);
+      } else if (!(seed.contributions.reviewGates ?? []).some((rg) => rg.code === gate.deliverableName)) {
+        errors.push(`quality gate "${gate.name}" references unknown Review Gate "${gate.deliverableName}" — the Review Gate must be declared in this same Pack's contributions`);
+      }
+    }
+  }
+
+  // CR-059 — Review Gate contributions: `code` (the deliverable type it's
+  // for) and `name` are both required; governedTransition must resolve to a
+  // real transition_definitions row, same discipline as Quality Gate's own
+  // scope check. `code` is picked via the same "deliverable-name" referential
+  // dropdown Template's own Deliverable Catalogue uses, but — matching that
+  // same field's own existing precedent (deliverableCatalogue.name is never
+  // re-validated via assertCanonicalCategory either) — not independently
+  // re-checked against the Ontology here: the concept's own code/default_label
+  // mismatch (deliverable_definitions' human name is stored as default_label,
+  // not the slug `code` assertCanonicalCategory matches on) would make that
+  // check always fail, the same reason no other deliverable-name consumer
+  // performs it.
+  const seenReviewGateSlots = new Set<string>();
+  for (const rg of seed.contributions.reviewGates ?? []) {
+    if (!rg.code?.trim()) errors.push("review gate is missing a code (deliverable type)");
+    if (!rg.name?.trim()) errors.push(`review gate "${rg.code}" is missing a name`);
+    const scope = parseGovernedTransition(rg.governedTransition);
+    if (!scope) {
+      errors.push(`review gate "${rg.name}" has an invalid governedTransition — expected "EntityType|fromState|toState"`);
+    } else {
+      const { data: definition } = await transitionDefinitionsDB.find(scope.entityType, scope.fromState, scope.toState);
+      if (!definition) errors.push(`review gate "${rg.name}" references a transition that doesn't exist: ${scope.entityType} ${scope.fromState} -> ${scope.toState}`);
+    }
+    const slotKey = `${rg.governedTransition ?? ""}::${rg.code ?? ""}`;
+    if (seenReviewGateSlots.has(slotKey)) errors.push(`duplicate review gate within Pack: "${rg.governedTransition}" [${rg.code}] is targeted by more than one contribution`);
+    seenReviewGateSlots.add(slotKey);
   }
 
   const capabilityCodes = new Set((seed.contributions.capabilities ?? []).map((c) => c.code));
@@ -403,22 +465,45 @@ async function seedContributions(pack: PackRow, seed: PackSeedInput): Promise<vo
     if (error) throw error;
   }
 
+  // CR-059 — processed before qualityGates: a requires_accepted_review gate
+  // resolves its target Review Gate's real id from this same map, mirroring
+  // exactly how capabilityIdByCode resolves a service's capabilityCode.
+  const reviewGateIdByCode = new Map<string, string>();
+  for (const rg of seed.contributions.reviewGates ?? []) {
+    const scope = parseGovernedTransition(rg.governedTransition);
+    if (!scope) throw new Error(`review gate "${rg.name}" has an invalid governedTransition (validatePackSeed should have caught this)`);
+    const { data: reviewGate, error } = await reviewGatesDB.upsert({
+      code: rg.code,
+      name: rg.name,
+      entityType: scope.entityType,
+      fromState: scope.fromState,
+      toState: scope.toState,
+      originatingPackId: pack.id,
+    });
+    if (error || !reviewGate) throw error ?? new Error(`review gate upsert failed: ${rg.code}`);
+    reviewGateIdByCode.set(rg.code, reviewGate.id);
+  }
+
   for (const gate of seed.contributions.qualityGates ?? []) {
     const scope = parseGovernedTransition(gate.governedTransition);
-    if (!scope) throw new Error(`quality gate "${gate.code}" has an invalid governedTransition (validatePackSeed should have caught this)`);
+    if (!scope) throw new Error(`quality gate "${gate.name}" has an invalid governedTransition (validatePackSeed should have caught this)`);
     // CR-058 — reassemble the flat, form-authored fields back into
-    // quality_gates.criteria's nested shape. criteriaCategory is the one
-    // shared param for both requires_accepted_review and
-    // requires_accepted_evidence_or_approved_decision (owner: "single
-    // shared category ... mirrors requires_accepted_review's exact shape").
+    // quality_gates.criteria's nested shape.
+    // CR-058 follow-up 2 — requires_accepted_evidence_or_approved_decision's
+    // category narrowing now reads the gate's own `category` column
+    // directly (qualityGateEngine.ts), so criteria stays a bare `{type}`
+    // for it.
+    // CR-059 — requires_accepted_review resolves its authored
+    // `deliverableName` (a reviewGates[].code reference) to the real
+    // Review Gate id created just above, once, here — not re-resolved at
+    // evaluation time (owner: explicit reference, "save a db trip").
     const criteria: Record<string, unknown> =
       gate.criteriaType === "requires_active_policy"
         ? { type: gate.criteriaType, policyCode: gate.requiredPolicyCode }
-        : gate.criteriaType === "requires_accepted_review" || gate.criteriaType === "requires_accepted_evidence_or_approved_decision"
-          ? { type: gate.criteriaType, ...(gate.criteriaCategory?.trim() ? { category: gate.criteriaCategory } : {}) }
+        : gate.criteriaType === "requires_accepted_review"
+          ? { type: gate.criteriaType, reviewGateId: gate.deliverableName ? reviewGateIdByCode.get(gate.deliverableName) : undefined }
           : { type: gate.criteriaType ?? "no_unresolved_obligations" };
     const { error } = await qualityGatesDB.upsert({
-      code: gate.code,
       name: gate.name,
       category: gate.category,
       entityType: scope.entityType,

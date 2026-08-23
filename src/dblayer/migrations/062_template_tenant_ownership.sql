@@ -15,5 +15,6 @@ ALTER TABLE templates ALTER COLUMN tenant_id SET NOT NULL;
 -- row and a tenant's own row of the same code+version must coexist. Mirrors
 -- how CR-024 already scoped this once (bare code -> (code, version)); this is
 -- the same move one dimension further ((code, version) -> (code, version, tenant_id)).
-ALTER TABLE templates DROP CONSTRAINT templates_code_version_key;
+ALTER TABLE templates DROP CONSTRAINT IF EXISTS templates_code_version_key;
+ALTER TABLE templates DROP CONSTRAINT IF EXISTS templates_code_version_tenant_key;
 ALTER TABLE templates ADD CONSTRAINT templates_code_version_tenant_key UNIQUE (code, template_version, tenant_id);

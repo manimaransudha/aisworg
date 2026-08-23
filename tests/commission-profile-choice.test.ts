@@ -57,10 +57,37 @@ async function cleanupPriorRuns(): Promise<void> {
   );
   const seuIds = seuRows.map((r) => r.id);
   if (seuIds.length > 0) {
-    // Ch.30 Event Bus redesign — events.seu_id is now a real FK (NO ACTION,
-    // same discipline as every other FK in this chain), so this run's own
-    // events must go before the SEU rows they reference.
+    // CR-059 build-time fix — every table with a direct NO ACTION FK to
+    // seus.id must be cleared before the SEU row itself (confirmed against
+    // information_schema, not guessed: 20 tables reference seus.id today).
+    // This helper previously covered only events/deliverables/seu_capabilities
+    // and broke — twice — once real accumulated state finally exercised the
+    // gap (quality_gate_evaluations, then reviews). findings must go before
+    // reviews (findings.review_id -> reviews.id), same discipline the events
+    // comment above already established for this chain.
+    await pool.query("DELETE FROM findings WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM events WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    await pool.query("DELETE FROM quality_gate_evaluations WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    await pool.query("DELETE FROM quality_gate_waivers WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    await pool.query("DELETE FROM reviews WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    await pool.query("DELETE FROM evidence WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    await pool.query("DELETE FROM decisions WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    await pool.query("DELETE FROM obligations WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    await pool.query("DELETE FROM knowledge_items WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    await pool.query("DELETE FROM attention_items WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    await pool.query("DELETE FROM external_interactions WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    await pool.query("DELETE FROM deliverable_references WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    await pool.query("DELETE FROM attestations WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    await pool.query("DELETE FROM compliance_waivers WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    await pool.query("DELETE FROM compliance_evaluations WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    // dependency_edges was dropped outright by migration 073 (CR-039 —
+    // superseded by the Template-scoped dependency_definitions model, no
+    // per-SEU instance table to clean up here anymore). It existed live
+    // when this cleanup chain was first written from a real
+    // information_schema query; a later full migration replay correctly
+    // dropped it, making this line reference a table that no longer exists.
+    await pool.query("DELETE FROM commands WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    await pool.query("DELETE FROM participants WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM deliverables WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM seu_capabilities WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM seus WHERE id = ANY($1::uuid[])", [seuIds]);

@@ -65,7 +65,9 @@
     ],
     "reviewGates": [
       {
-        "code": "review-requirements",
+        "code": "Requirements Specification",
+        "name": "Requirements Specification Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
         "statement": "The Requirements Specification has been reviewed and accepted by its Stakeholder(s).",
         "classification": "human-attested",
         "prompt": "Do the requirements reflect what the Stakeholder actually needs, and are they approved?",

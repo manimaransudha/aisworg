@@ -24,30 +24,24 @@
       padding: 0.6rem 0;
     }
     .pb-authoring-actions { padding-bottom: 4.5rem; }
-
-    /* Stepper (owner: "split as a stepper so it is easy to see what is meta
-       vs what is the actual item list") — Meta (Identity/Metadata +
-       Compatibility) and Items (Dependencies + Contributions) are one form,
-       shown one pane at a time; the nav is a plain jump, not a gated wizard —
-       both panes' fields exist in the DOM the whole time, so switching never
-       loses anything and Save always saves the whole document. */
-    .authoring-stepper { display: flex; align-items: center; margin-bottom: 1.5rem; }
-    .stepper-step {
-      display: flex; align-items: center; gap: 0.5rem; background: none; border: none;
-      padding: 0.25rem 0.75rem 0.25rem 0.25rem; border-radius: 999px; cursor: pointer; color: #6c757d;
-    }
-    .stepper-step:hover { background: #f1f3f5; }
-    .stepper-step.active { color: #0d6efd; font-weight: 600; }
-    .stepper-circle {
-      width: 1.75rem; height: 1.75rem; border-radius: 50%; background: #e9ecef; color: #495057;
-      display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; flex-shrink: 0;
-    }
-    .stepper-step.active .stepper-circle { background: #0d6efd; color: #fff; }
-    .stepper-connector { flex: 0 0 2.5rem; height: 2px; background: #dee2e6; margin: 0 0.25rem; }
-    .stepper-label { font-size: 0.85rem; }
   </style>
 
-  <main class="container py-5 pb-authoring-actions" style="max-width: 1000px;">
+  <%# Owner: "Review Gates form is pathetic... this is looking like a
+      mainframe screen" — root cause was /css/style.css 404ing (no public/
+      directory existed at all); now fixed site-wide by public/css/style.css,
+      which carries this page's own .referential-list-group rules too (moved
+      there from a page-local <style> block that used to live here). %>
+
+  <%# Owner: "There is so much of margin on the left and the right of the
+      actual content. that is all wasted space" — this inline max-width was
+      CAPPING Bootstrap's own, wider natural .container sizing (1140px at
+      the xl breakpoint, 1320px at xxl) down to a flat 1000px on every
+      screen, losing 140-320px of real width on any normal desktop viewport
+      — exactly the "columns squeezed for no reason" feeling, on a page that
+      already spends ~230-260px of that budget on the section sidebar.
+      Removed outright: plain .container already does the right,
+      breakpoint-responsive thing without an override. %>
+  <main class="container py-5 pb-authoring-actions">
     <% if (locals.flash) { %>
       <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
         <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
@@ -171,96 +165,73 @@
       </div>
     <% } %>
 
-    <div class="card border-0 shadow-sm mb-4">
-      <div class="card-body">
-        <h6 class="text-uppercase text-muted small fw-bold mb-3">Generated form</h6>
-        <%# One shared form/action-toolbar, not a separate floating button
-            elsewhere on the page: Save/Create posts here by default; the
-            verb-named advance action (e.g. "Validate Pack") is a formaction
-            override on the SAME form/fields, not a second disconnected form —
-            it cannot be enabled independent of this form's own saved-state
-            tracking. %>
-        <form method="POST" id="authoring-form" action="<%= isNew ? ('/aisworg/seu/sdk/' + slug) : ('/aisworg/seu/sdk/' + slug + '/' + draft.id + '/save') %>">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <%# CR-026 Template Inheritance — parentTemplateId isn't a generated
-              schema field (it's identity/lineage, not authored content), so it
-              rides along as its own hidden input set only when this new-draft
-              form was reached via the "Inherit" control below. %>
-          <% if (locals.inheritingFromTemplateId) { %>
-            <input type="hidden" name="parentTemplateId" value="<%= inheritingFromTemplateId %>">
-          <% } %>
-          <% if (locals.inheritingFromProfileId) { %>
-            <input type="hidden" name="parentProfileId" value="<%= inheritingFromProfileId %>">
-          <% } %>
-          <% if (locals.inheritingFromDeliverableDefinitionId) { %>
-            <input type="hidden" name="parentDeliverableDefinitionId" value="<%= inheritingFromDeliverableDefinitionId %>">
-          <% } %>
+    <%# Owner: "Pathetic UI... continuing to do a shallow pass" — this used
+        to be a Stepper (Meta / Items) wrapping, on its Items step, a
+        SEPARATE vertical-tabs sidebar for Dependencies + every Contribution
+        type — two stacked levels of tab-like navigation for what is really
+        one flat list of peer sections. _generatedFieldGroups.ejs already
+        natively renders every section (Identity & Metadata, Compatibility,
+        Dependencies, each Contribution type) as ONE unified set of tabs
+        when no `sections` filter is passed — the stepper was an artificial
+        split of a single call into two, not something the underlying
+        mechanism required. Removed outright: one call, one sidebar, every
+        section a peer — genuinely fewer navigation levels, not just a
+        restyled version of the same nesting. Also drops the outer
+        "Generated form" card wrapper (an internal/developer label, not
+        something an author needs framed as its own boxed section) so the
+        page isn't a card inside a card inside a card. %>
+    <%# One shared form/action-toolbar, not a separate floating button
+        elsewhere on the page: Save/Create posts here by default; the
+        verb-named advance action (e.g. "Validate Pack") is a formaction
+        override on the SAME form/fields, not a second disconnected form —
+        it cannot be enabled independent of this form's own saved-state
+        tracking. %>
+    <form method="POST" id="authoring-form" action="<%= isNew ? ('/aisworg/seu/sdk/' + slug) : ('/aisworg/seu/sdk/' + slug + '/' + draft.id + '/save') %>">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <%# CR-026 Template Inheritance — parentTemplateId isn't a generated
+          schema field (it's identity/lineage, not authored content), so it
+          rides along as its own hidden input set only when this new-draft
+          form was reached via the "Inherit" control below. %>
+      <% if (locals.inheritingFromTemplateId) { %>
+        <input type="hidden" name="parentTemplateId" value="<%= inheritingFromTemplateId %>">
+      <% } %>
+      <% if (locals.inheritingFromProfileId) { %>
+        <input type="hidden" name="parentProfileId" value="<%= inheritingFromProfileId %>">
+      <% } %>
+      <% if (locals.inheritingFromDeliverableDefinitionId) { %>
+        <input type="hidden" name="parentDeliverableDefinitionId" value="<%= inheritingFromDeliverableDefinitionId %>">
+      <% } %>
 
-          <%
-            // Only worth a stepper if there's actually an Items pane to split
-            // out to — Template/Profile have no dependencies/contributions
-            // fields today (Ch.5 §19.9), so they fall back to one flat pane
-            // exactly as before rather than showing an empty "Items" step.
-            var hasItemsStep = !!groups.dependencies || (groups.contributions && groups.contributions.length > 0);
-          %>
-          <% if (hasItemsStep) { %>
-            <div class="authoring-stepper">
-              <button type="button" class="stepper-step active" data-goto="1">
-                <span class="stepper-circle">1</span><span class="stepper-label">Meta</span>
-              </button>
-              <span class="stepper-connector"></span>
-              <button type="button" class="stepper-step" data-goto="2">
-                <span class="stepper-circle">2</span><span class="stepper-label">Items</span>
-              </button>
-            </div>
+      <%- include('../_generatedFieldGroups', { groups: groups, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, templateOptions: locals.templateOptions, ontologyOptions: locals.ontologyOptions, contributionHelp: locals.contributionHelp, verifiableFieldHelp: locals.verifiableFieldHelp }) %>
 
-            <div class="stepper-pane" data-step="1">
-              <%- include('../_generatedFieldGroups', { groups: groups, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, templateOptions: locals.templateOptions, ontologyOptions: locals.ontologyOptions, contributionHelp: locals.contributionHelp, verifiableFieldHelp: locals.verifiableFieldHelp, sections: ['metadata', 'compatibility'], idPrefix: 'step1' }) %>
-              <div class="d-flex justify-content-end mb-4">
-                <button type="button" class="btn btn-sm btn-primary" data-goto="2">Next: Items <i class="bi bi-arrow-right ms-1"></i></button>
-              </div>
-            </div>
-
-            <div class="stepper-pane d-none" data-step="2">
-              <%- include('../_generatedFieldGroups', { groups: groups, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, templateOptions: locals.templateOptions, ontologyOptions: locals.ontologyOptions, contributionHelp: locals.contributionHelp, verifiableFieldHelp: locals.verifiableFieldHelp, sections: ['dependencies', 'contributions'], idPrefix: 'step2' }) %>
-              <div class="mb-2">
-                <button type="button" class="btn btn-sm btn-outline-secondary" data-goto="1"><i class="bi bi-arrow-left me-1"></i> Back: Meta</button>
-              </div>
-            </div>
-          <% } else { %>
-            <%- include('../_generatedFieldGroups', { groups: groups, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, templateOptions: locals.templateOptions, ontologyOptions: locals.ontologyOptions, contributionHelp: locals.contributionHelp, verifiableFieldHelp: locals.verifiableFieldHelp, idPrefix: 'flat' }) %>
-          <% } %>
-
-          <% if (canEdit || canPublish) { %>
-            <div class="authoring-action-bar">
-              <div class="container d-flex gap-2 align-items-center" style="max-width: 1000px;">
-                <% if (canEdit) { %>
-                  <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-save me-1"></i><%= isNew ? 'Create draft' : 'Save draft' %></button>
-                  <a href="/aisworg/seu/sdk/<%= slug %>" class="btn btn-sm btn-outline-secondary">Cancel</a>
-                <% } %>
-                <% if (canPublish) { %>
-                  <%# Bug fix (owner: "I do not see the Validate button on the
-                      new pack form... why did you remove it") — it must stay
-                      VISIBLE on the new-draft form too, not appear only after
-                      the first Save, so its existence/label isn't a surprise.
-                      isNew: always disabled (there's no draft yet to act on) —
-                      formaction points nowhere real since a disabled button
-                      never submits. !isNew: starts enabled (the draft IS
-                      saved — nothing pending) and is disabled the instant any
-                      field in THIS form changes, by save-state-tracking.js
-                      below — re-enabled only by a fresh page load, which only
-                      happens after an actual Save. %>
-                  <button type="submit" id="advance-btn"
-                    <%- isNew ? 'disabled' : ('formaction="/aisworg/seu/sdk/' + slug + '/' + draft.id + '/publish"') %>
-                    formnovalidate class="btn btn-success btn-sm"><i class="bi bi-cloud-upload me-1"></i><%= verbLabel %> <%= kindLabel %></button>
-                  <span id="advance-hint" class="text-muted small <%= isNew ? '' : 'd-none' %>"><%= isNew ? 'Create the draft first.' : 'Save your changes first.' %></span>
-                <% } %>
-              </div>
-            </div>
-          <% } %>
-        </form>
-      </div>
-    </div>
+      <% if (canEdit || canPublish) { %>
+        <div class="authoring-action-bar">
+          <div class="container d-flex gap-2 align-items-center">
+            <% if (canEdit) { %>
+              <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-save me-1"></i><%= isNew ? 'Create draft' : 'Save draft' %></button>
+              <a href="/aisworg/seu/sdk/<%= slug %>" class="btn btn-sm btn-outline-secondary">Cancel</a>
+            <% } %>
+            <% if (canPublish) { %>
+              <%# Bug fix (owner: "I do not see the Validate button on the
+                  new pack form... why did you remove it") — it must stay
+                  VISIBLE on the new-draft form too, not appear only after
+                  the first Save, so its existence/label isn't a surprise.
+                  isNew: always disabled (there's no draft yet to act on) —
+                  formaction points nowhere real since a disabled button
+                  never submits. !isNew: starts enabled (the draft IS
+                  saved — nothing pending) and is disabled the instant any
+                  field in THIS form changes, by save-state-tracking.js
+                  below — re-enabled only by a fresh page load, which only
+                  happens after an actual Save. %>
+              <button type="submit" id="advance-btn"
+                <%- isNew ? 'disabled' : ('formaction="/aisworg/seu/sdk/' + slug + '/' + draft.id + '/publish"') %>
+                formnovalidate class="btn btn-success btn-sm"><i class="bi bi-cloud-upload me-1"></i><%= verbLabel %> <%= kindLabel %></button>
+              <span id="advance-hint" class="text-muted small <%= isNew ? '' : 'd-none' %>"><%= isNew ? 'Create the draft first.' : 'Save your changes first.' %></span>
+            <% } %>
+          </div>
+        </div>
+      <% } %>
+    </form>
 
     <% if (!isNew && (locals.possibleNextStates || []).length > 0) { %>
       <%
@@ -324,6 +295,10 @@
         btn.disabled = true;
         if (hint) hint.classList.remove('d-none');
       }
+      // Exposed so the shared referentialListGroup.js (add/remove-row
+      // wiring, loaded below) can flag the form dirty too, without this
+      // page's own dirty-tracking logic living in two places.
+      window.markDirty = markDirty;
 
       if (form && btn) {
         form.addEventListener('input', markDirty);
@@ -348,101 +323,14 @@
         });
       }
 
-      // UI redesign (owner: "extremely unfriendly") — "+ Add another" clones
-      // the LAST row in a referential-list group (whatever field kinds it
-      // has — referential-select/enum-select/checkbox/text — cloning the real
-      // rendered DOM means no need to reconstruct <select> option lists in
-      // JS), blanks every field in the clone, re-indexes its `name`
-      // attributes to the next row index, and inserts it before the button.
-      // "Remove" just detaches its own row — a removed row is simply absent
-      // from the submitted form data, nothing server-side to reconcile.
-      if (form) {
-        var groups = form.querySelectorAll('.referential-list-group');
-        groups.forEach(function (group) {
-          var addBtn = group.querySelector('.add-row-btn');
-          if (addBtn) {
-            addBtn.addEventListener('click', function () {
-              var rows = group.querySelectorAll('.referential-list-row');
-              if (!rows.length) return;
-              var clone = rows[rows.length - 1].cloneNode(true);
-              var nextIndex = parseInt(group.getAttribute('data-next-index'), 10) || rows.length;
-              clone.querySelectorAll('input, select, textarea').forEach(function (el) {
-                if (el.name) el.name = el.name.replace(/\[\d+\]/, '[' + nextIndex + ']');
-                if (el.tagName === 'SELECT') el.selectedIndex = 0;
-                else if (el.type === 'checkbox') el.checked = false;
-                else el.value = '';
-              });
-              var badge = clone.querySelector('.badge');
-              if (badge) { badge.className = 'badge bg-light text-muted border small fw-normal'; badge.textContent = 'New item — fill in to add'; }
-              // The category filter resets to "All categories" above, but a
-              // <select>'s `hidden` attribute on individual <option>s (left
-              // over from whatever the cloned row's filter was last set to)
-              // isn't touched by that — clear it explicitly so the reset
-              // filter and the actually-visible Pack options agree.
-              clone.querySelectorAll('.dep-pack-select option[hidden]').forEach(function (opt) { opt.hidden = false; });
-              group.setAttribute('data-next-index', String(nextIndex + 1));
-              addBtn.parentNode.insertBefore(clone, addBtn);
-              markDirty();
-            });
-          }
-          group.addEventListener('click', function (e) {
-            var removeBtn = e.target.closest ? e.target.closest('.remove-row-btn') : null;
-            if (!removeBtn) return;
-            var row = removeBtn.closest('.referential-list-row');
-            if (row) { row.remove(); markDirty(); }
-          });
-
-          // Dependencies tab (owner: "Pack code should include the pack and
-          // the version number in the dropdown. Version should not be a text
-          // field... a dropdown on the category" then "remove the text
-          // version field") — Category filters which Pack <option>s are
-          // visible (never submitted — it's a picker aid, not a stored
-          // field); picking a Pack fills the hidden Version input from that
-          // option's own data-version — no visible version box at all.
-          // Delegated on the group (not bound per-row) so it covers cloned
-          // rows for free.
-          if (group.getAttribute('data-field-name') === 'dependencies') {
-            group.addEventListener('change', function (e) {
-              var row = e.target.closest ? e.target.closest('.referential-list-row') : null;
-              if (!row) return;
-              if (e.target.classList.contains('dep-category-filter')) {
-                var category = e.target.value;
-                var packSelect = row.querySelector('.dep-pack-select');
-                Array.from(packSelect.options).forEach(function (opt) {
-                  if (!opt.value) return;
-                  opt.hidden = !!category && opt.getAttribute('data-category') !== category;
-                });
-                if (packSelect.selectedOptions[0] && packSelect.selectedOptions[0].hidden) {
-                  packSelect.value = '';
-                  var versionField = row.querySelector('.dep-version-field');
-                  if (versionField) versionField.value = '';
-                }
-              } else if (e.target.classList.contains('dep-pack-select')) {
-                var chosen = e.target.selectedOptions[0];
-                var versionField2 = row.querySelector('.dep-version-field');
-                if (versionField2) versionField2.value = chosen ? (chosen.getAttribute('data-version') || '') : '';
-              }
-            });
-          }
-        });
-      }
-
-      // Stepper nav (owner: "split as a stepper so it is easy to see what is
-      // meta vs what is the actual item list") — a plain jump between the two
-      // panes, not a gated wizard: both panes' fields stay in the DOM the
-      // whole time (nothing is removed/reset when hidden), so switching never
-      // loses data and Save always posts the whole document regardless of
-      // which pane is showing. No-ops when the kind has no Items step (the
-      // flat fallback render has no [data-goto] elements at all).
-      var stepperPanes = document.querySelectorAll('.stepper-pane');
-      var stepperSteps = document.querySelectorAll('.stepper-step');
-      function gotoStep(n) {
-        stepperPanes.forEach(function (p) { p.classList.toggle('d-none', p.getAttribute('data-step') !== n); });
-        stepperSteps.forEach(function (s) { s.classList.toggle('active', s.getAttribute('data-goto') === n); });
-      }
-      document.querySelectorAll('[data-goto]').forEach(function (el) {
-        el.addEventListener('click', function () { gotoStep(el.getAttribute('data-goto')); });
-      });
+      // "+ Add another" / "Remove" row wiring for every .referential-list-group
+      // on this page (Dependencies + every Contribution type) now lives in
+      // the shared public/js/referentialListGroup.js, loaded below — it also
+      // covers schema-registry/new.ejs's own referential-list field, which
+      // had no add/remove affordance at all before this (generateFields()
+      // only ever offers one blank row, so that form could only ever add ONE
+      // new field per saved schema version — a real functional gap, not
+      // cosmetic, fixed by sharing this instead of leaving it edit.ejs-only).
 
       // "Next version" (owner: "Version should be autogenerated using a next
       // version button. Editable text is not the correct approach.") — the
@@ -486,6 +374,7 @@
       });
     })();
   </script>
+  <script src="<%= baseUrl %>/js/referentialListGroup.js"></script>
 
   <%- include('../../../partials/footer') %>
 </body>

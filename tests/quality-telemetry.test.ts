@@ -15,7 +15,7 @@ import { transitionDeliverableSync as transitionDeliverable } from "./testFixtur
 import { createObligation, transitionObligation } from "../src/routes/seu/core/obligations.js";
 import { createEvidence, transitionEvidence } from "../src/routes/seu/core/evidence.js";
 import { getQualityMetrics } from "../src/routes/seu/core/telemetry.js";
-import { ensureWebAppTemplateFixture } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates } from "./testFixtures.js";
 
 after(async () => {
   await pool.end();
@@ -23,6 +23,7 @@ after(async () => {
 
 async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
+  await ensureCoreEngineeringQualityGates();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
@@ -78,8 +79,11 @@ test("Quality Telemetry: Deliverable acceptance rate reflects the real lifecycle
   assert.equal(approved.ok, true);
 
   // Approved -> Baselined is gated by "Requires Accepted Evidence or
-  // Approved Decision" — attach real, Accepted Evidence first.
-  const evidence = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Review", title: "Quality telemetry acceptance test evidence" });
+  // Approved Decision" — attach real, Accepted Evidence first. CR-058
+  // follow-up 2: the real seeded gate for this transition now narrows to
+  // category "Validation Evidence" (the gate's own category:evidence-backed
+  // category doubles as its code).
+  const evidence = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Validation Evidence", title: "Quality telemetry acceptance test evidence" });
   await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorRole: "general", actorId: "1001" });
   await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorRole: "general", actorId: "1001" });
 

@@ -83,23 +83,44 @@ export interface PackContributions {
     severity?: string;
   }>;
   // Post-MVP Phase 4 (Ch.26 FR-26.2: "Quality Gates shall be contributed
-  // through Packs"). CR-058 — the authored (form-facing) shape: category is
-  // Ontology-backed (category:quality-gate); governedTransition replaces the
-  // old free-typed entityType/fromState/toState triple ("the pack should not
-  // define something beyond what a transition definition already holds") —
-  // a delimited "EntityType|fromState|toState" value picked from real
+  // through Packs"). CR-058 — the authored (form-facing) shape:
+  // governedTransition replaces the old free-typed entityType/fromState/
+  // toState triple ("the pack should not define something beyond what a
+  // transition definition already holds") — a delimited
+  // "EntityType|fromState|toState" value picked from real
   // transition_definitions rows, parsed back into the 3 real columns at
-  // seedContributions time (core/packs.ts). criteriaType/criteriaCategory/
-  // requiredPolicyCode reassemble into quality_gates.criteria's nested shape
-  // there too — flat here because the referential-list form widget only
-  // authors flat per-row fields.
+  // seedContributions time (core/packs.ts). requiredPolicyCode reassembles
+  // into quality_gates.criteria's nested shape there too.
+  //
+  // CR-058 follow-up 2 (owner: "the code isn't a UUID or a freeform
+  // Pack-specific string — it's the category identifier itself, drawn from
+  // the same Ontology-governed vocabulary as Ch.17 §7's Evidence
+  // Categories"): `category` is Ontology-backed via category:evidence
+  // (reused directly, not a separate quality-gate vocabulary) and IS the
+  // gate's own code — qualityGatesDB.upsert sets `code = category` itself.
+  // requires_accepted_evidence_or_approved_decision reads this same
+  // `category` directly (qualityGateEngine.ts) — Evidence's own category
+  // column shares this vocabulary, so no separate field is needed there.
+  //
+  // No `code` field here at all — same CR-038 treatment
+  // TemplateDeliverableSeed's own `code` got ("dropped outright... nothing
+  // functional ever needed a separate identifier once the real identity
+  // fields exist").
+  // CR-059 — requires_accepted_review no longer takes a free-text
+  // `criteriaCategory` (Review's own unvalidated category vocabulary,
+  // matched against reviews.category by string). `deliverableName`
+  // replaces it: a reference to this SAME Pack's own reviewGates[].code
+  // (self-referential picker, sdkAuthoring.ts), resolved to a real
+  // review_gates row and then a real reviews.review_gate_id FK at
+  // seedContributions time (core/packs.ts) — a strict join, not a
+  // coincidence string match (owner: matching by category/string alone
+  // "can lead to corrupt data").
   qualityGates?: Array<{
-    code: string;
     name: string;
     category: string;
     governedTransition: string;
     criteriaType: "no_unresolved_obligations" | "requires_accepted_evidence_or_approved_decision" | "requires_accepted_review" | "requires_active_policy";
-    criteriaCategory?: string;
+    deliverableName?: string;
     requiredPolicyCode?: string;
   } & VerifiableItemFields>;
   // CR-016 (Ch.5 §20) — verifiable contributions carry their own execution.
@@ -108,7 +129,16 @@ export interface PackContributions {
   // Declaration-only: stored in packs.contributions (JSONB); executing them
   // (dispatch prompt -> Evidence -> gate, etc.) is the §19.14 B-group follow-up.
   checklists?: Array<{ checklist?: string; code?: string } & VerifiableItemFields>;
-  reviewGates?: Array<{ code?: string } & VerifiableItemFields>;
+  // CR-059 — a Review Gate is real and persisted now (review_gates table),
+  // unlike the other declaration-only rows in this interface. `code` is the
+  // deliverable type it's for (Ontology's deliverable-name vocabulary,
+  // same referential picker Template's own Deliverable Catalogue uses) and
+  // IS the gate's real identity alongside governedTransition — unlike
+  // Quality Gate's own code=category collapse, `code` stays a real,
+  // author-visible field (owner: "it should show up on the form"). `name`
+  // is a separate, required label (Ch.25 §8's own Name-distinct-from-
+  // criteria structure).
+  reviewGates?: Array<{ code: string; name: string; governedTransition: string } & VerifiableItemFields>;
   obligationDefinitions?: Array<{ code?: string; obligationType?: string } & VerifiableItemFields>;
   // Compliance Model — Plan (Phase 15, Ch.27 FR-27.1): a Pack contributes
   // Compliance Frameworks and their declarative Requirements. Compliance
@@ -636,6 +666,13 @@ export interface ReviewRow {
   status: string;
   reviewer: string | null;
   version: number;
+  // CR-059 — nullable FK to review_gates(id): which Review Gate declaration
+  // (if any) this Review was produced against. Null for standalone Reviews
+  // unrelated to any gate. qualityGateEngine's requires_accepted_review
+  // matches on this directly, not on `category` (a string match couldn't
+  // tell which transition's Review was intended, or that the Review
+  // actually followed the gate's own declared prompt/participant contract).
+  review_gate_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -796,6 +833,24 @@ export interface QualityGateRow {
   // gate associated with it moves to 1.4"). New immutable row per version,
   // is_active marks the current one for a given (entity_type, from_state,
   // to_state, category) tuple.
+  version: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+// CR-059 — Review Gate, real and persisted. No `category`/`criteria`: the
+// key IS the identity (entity_type, from_state, to_state, code), same
+// reasoning quality_gates' own VerifiableItemFields stay declaration-only
+// (never real columns here either — the Pack's raw contributions JSONB is
+// still where statement/prompt/participant/etc. live).
+export interface ReviewGateRow {
+  id: string;
+  code: string;
+  name: string;
+  entity_type: TransitionEntityType;
+  from_state: string;
+  to_state: string;
+  originating_pack_id: string | null;
   version: string;
   is_active: boolean;
   created_at: string;

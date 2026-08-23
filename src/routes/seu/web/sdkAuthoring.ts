@@ -406,17 +406,25 @@ router.get("/authority/transition-definitions/:id", requireAuthorityAdmin, attac
 // type, same tenant-scoped visibility (Platform + this viewer's own) as
 // every other Ontology lookup on this page, just resolved as a flat code
 // list the same way pack-code/template-code already are.
+// Ch.17 §7's own canonical 6 — the only values Quality Gate's category
+// picker should ever offer, regardless of what else has drifted into the
+// live category:evidence vocabulary over time.
+const CANONICAL_EVIDENCE_CATEGORIES = new Set(["Analytical Evidence", "Validation Evidence", "Operational Evidence", "Review Evidence", "Decision Evidence", "External Evidence"]);
+
 async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: string | null }): Promise<Record<string, string[]>> {
-  const [{ data: packs }, { data: templates }, featureFlags, deliverableNames, deliverableCategories, qualityGateCategories, { data: transitionDefinitions }, { data: policies }] = await Promise.all([
+  const [{ data: packs }, { data: templates }, featureFlags, deliverableNames, deliverableCategories, evidenceCategories, { data: transitionDefinitions }, { data: policies }] = await Promise.all([
     viewer.isRoot || !viewer.tenantId ? packsDB.findAll() : packsDB.findAllVisibleTo(viewer.tenantId),
     templatesDB.findAllActive(),
     listConceptsForType("feature-flag", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
     listConceptsForType("deliverable-name", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
     listConceptsForType("category:deliverable", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
-    // CR-058 — category:quality-gate is a small, enum-like slug set
-    // (Entry/Exit/Release/Compliance/Operational), same "submit the code"
-    // treatment as feature-flag, not deliverable-name's human-label treatment.
-    listConceptsForType("category:quality-gate", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
+    // CR-058 follow-up 2 (owner: "the code isn't a UUID or a freeform
+    // Pack-specific string — it's the category identifier itself, drawn
+    // from the same Ontology-governed vocabulary as Ch.17 §7's Evidence
+    // Categories") — a Quality Gate's category (and hence its code) is
+    // category:evidence, reused directly rather than a separate
+    // quality-gate-only vocabulary.
+    listConceptsForType("category:evidence", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
     transitionDefinitionsDB.listAll(),
     policiesDB.findAll(),
   ]);
@@ -432,7 +440,19 @@ async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: strin
     // already expect from this same field.
     "deliverable-name": [...new Set(deliverableNames.map((c) => c.default_label))].sort(),
     "category:deliverable": [...new Set(deliverableCategories.map((c) => c.default_label))].sort(),
-    "category:quality-gate": [...new Set(qualityGateCategories.map((c) => c.code))].sort(),
+    // Owner: "Review Gates form is pathetic... same feedback for quality
+    // gates" — the live category:evidence vocabulary carries 4 drifted,
+    // non-canonical values ("Review"/"Technical"/"Test"/"Validation") never
+    // cleaned up (a pre-existing Evidence-model gap, out of scope to fix at
+    // the Ontology-data level here — real Evidence rows already use them).
+    // This picker is Quality Gate's ONLY consumer of category:evidence
+    // (confirmed: no other schema field references this source), so
+    // narrowing what's OFFERED here to the real Ch.17 §7 canonical 6 is
+    // safe and fully scoped — doesn't touch the underlying Ontology data or
+    // any other picker/validation path.
+    "category:evidence": [...new Set(evidenceCategories.map((c) => c.code))]
+      .filter((c) => CANONICAL_EVIDENCE_CATEGORIES.has(c))
+      .sort(),
     // CR-058 — a Quality Gate's Scope/Applicable Lifecycle Transition,
     // picked from real transition_definitions rows only (owner: "the pack
     // should not define something beyond what a transition definition
@@ -498,13 +518,21 @@ function selfReferentialFieldNamesIn(schema: JsonSchemaDocument): string[] {
 
 // content is the Draft's own already-parsed content (JSONB, not the raw
 // posted textarea string) — the same object generateFields itself renders
-// from. Identifying value per row is its own `name`, matching every
-// self-referential source built so far (deliverableCatalogue entries).
+// from. Identifying value per row was always its own `name` until CR-059's
+// contributionQualityGates -> contributionReviewGates reference: Review
+// Gate's own identity is `code` (the deliverable type it's for), not `name`
+// (a separate label field). Which key applies is decided once, per FIELD,
+// from the schema itself (does that field's own item shape declare a
+// `code` property?) — not guessed per row, which would silently mix values
+// within one option list whenever a row happens to be missing whichever key
+// the fallback tried first (owner: "no fallback ; it has to be code... this
+// fallback will pollute").
 function loadSelfReferentialOptions(schema: JsonSchemaDocument, content: Record<string, unknown>): Record<string, string[]> {
   const options: Record<string, string[]> = {};
   for (const fieldName of selfReferentialFieldNamesIn(schema)) {
     const rows = Array.isArray(content[fieldName]) ? (content[fieldName] as Array<Record<string, unknown>>) : [];
-    options[`self:${fieldName}`] = [...new Set(rows.map((r) => (typeof r.name === "string" ? r.name : "")).filter(Boolean))];
+    const identityKey = schema.properties?.[fieldName]?.items?.properties?.code ? "code" : "name";
+    options[`self:${fieldName}`] = [...new Set(rows.map((r) => (typeof r[identityKey] === "string" ? (r[identityKey] as string) : "")).filter(Boolean))];
   }
   return options;
 }

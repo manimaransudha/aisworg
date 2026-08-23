@@ -25,8 +25,11 @@ export const CATEGORY_CONCEPT_TYPE: Record<string, string> = {
   // Ch.30 §7 — the illustrative Event Categories taxonomy (State/Governance/
   // Runtime/Integration/Administrative), a property of event_registry.category.
   EventType: "category:event-types",
-  // CR-058 — Ch.26 §7's 5 categories (Entry/Exit/Release/Compliance/Operational).
-  QualityGate: "category:quality-gate",
+  // CR-058 follow-up 2 — a Quality Gate's category (and its code — "the
+  // code isn't a UUID or a freeform Pack-specific string — it's the
+  // category identifier itself") reuses category:evidence directly rather
+  // than a separate quality-gate-only vocabulary.
+  QualityGate: "category:evidence",
 };
 
 // Write-path enforcement (Ch.18 Decision 4): a category must be a canonical

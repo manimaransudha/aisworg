@@ -48,13 +48,25 @@ CREATE TABLE IF NOT EXISTS dependency_definitions (
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- The real query shape: "what does reaching (to_entity_type, to_name,
--- to_state) require, for this template?" — every evaluation of a gated
--- transition starts here.
-CREATE INDEX IF NOT EXISTS idx_dependency_definitions_target
-  ON dependency_definitions (template_id, to_entity_type, to_name, to_state);
+-- CR-059 build-time fix — migration 074 later drops `template_id` entirely
+-- (polymorphic owning_entity_type/owning_entity_id) and recreates these
+-- same-named indexes without it. IF NOT EXISTS alone doesn't help on replay:
+-- Postgres still validates the column list before checking whether the
+-- index already exists by name, so referencing an already-dropped column
+-- fails outright even though the statement would ultimately no-op. Guarded
+-- to only run while template_id still exists (a truly fresh/pre-074 replay).
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'dependency_definitions' AND column_name = 'template_id') THEN
+    -- The real query shape: "what does reaching (to_entity_type, to_name,
+    -- to_state) require, for this template?" — every evaluation of a gated
+    -- transition starts here.
+    CREATE INDEX IF NOT EXISTS idx_dependency_definitions_target
+      ON dependency_definitions (template_id, to_entity_type, to_name, to_state);
 
--- The push-evaluation shape: "this (entity_type, name?, state) was just
--- reached — what does it unlock?"
-CREATE INDEX IF NOT EXISTS idx_dependency_definitions_source
-  ON dependency_definitions (template_id, from_entity_type, from_name, from_state);
+    -- The push-evaluation shape: "this (entity_type, name?, state) was just
+    -- reached — what does it unlock?"
+    CREATE INDEX IF NOT EXISTS idx_dependency_definitions_source
+      ON dependency_definitions (template_id, from_entity_type, from_name, from_state);
+  END IF;
+END $$;

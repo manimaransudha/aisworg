@@ -42,7 +42,25 @@ export interface JsonSchemaProperty {
   // schema fact, never a per-field-name branch in code.
   "x-ontology"?: boolean;
   "x-help"?: string;
-  items?: JsonSchemaProperty & { properties?: Record<string, JsonSchemaProperty> };
+  // Owner (CR-058 form redesign): "the form is very very poorly designed" —
+  // per-item-field help/required/label were previously only meaningful at
+  // the top level of a field (e.g. contributionQualityGates' own x-help,
+  // shown once above the whole repeatable list); items.properties.someField
+  // never carried its own. x-label overrides the auto-derived label
+  // (labelize(fieldName)) when the field name doesn't read well as one
+  // (e.g. `statement` -> "Description" for Quality Gates specifically).
+  "x-label"?: string;
+  // Postgres JSONB does not preserve object key insertion order — it
+  // reorders keys by length then lexicographically (confirmed live: a
+  // migration writing category/name/governedTransition/... came back as
+  // name/prompt/category/assurance/statement/... — exactly sorted by key
+  // length). schema.properties/items.properties key order was therefore
+  // never actually controllable via how a migration writes the JSON, for
+  // ANY referential-list field, not just this one. x-property-order is the
+  // explicit fix: an ordered name list generateFields sorts itemFields by;
+  // fields not listed fall back to whatever (post-JSONB-reorder) order they
+  // came in, appended at the end.
+  items?: JsonSchemaProperty & { properties?: Record<string, JsonSchemaProperty>; required?: string[]; "x-property-order"?: string[] };
 }
 
 // A referential-list row's fields, generically — referentialSource set means
@@ -53,11 +71,18 @@ export interface JsonSchemaProperty {
 // <select> (referential), a fixed <select> (enum), a checkbox (boolean), or a
 // text input (string). This is what lets a repeatable list author real structured
 // rows (e.g. a schema's field list), not just strings.
+//
+// CR-058 form redesign — required/help/label read from the item's own
+// x-help/x-label/items.required (never a per-field-name branch in code,
+// same discipline x-ontology already established for top-level fields).
 export interface ReferentialListItemField {
   name: string;
   kind: "string" | "enum" | "boolean" | "referential";
   referentialSource?: string;
   options?: string[];
+  required?: boolean;
+  help?: string;
+  label?: string;
 }
 
 export type GeneratedField =
@@ -114,12 +139,19 @@ export function generateFields(schema: JsonSchemaDocument, content: Record<strin
 
     if (def["x-widget"] === "referential-list") {
       const itemProps = def.items?.properties ?? {};
+      const itemRequired = new Set(def.items?.required ?? []);
       const itemFields: ReferentialListItemField[] = Object.entries(itemProps).map(([fieldName, fieldDef]) => {
-        if (fieldDef["x-referential"]) return { name: fieldName, kind: "referential", referentialSource: fieldDef["x-referential"] };
-        if (fieldDef.enum) return { name: fieldName, kind: "enum", options: fieldDef.enum };
-        if (fieldDef.type === "boolean") return { name: fieldName, kind: "boolean" };
-        return { name: fieldName, kind: "string" };
+        const common = { required: itemRequired.has(fieldName), help: fieldDef["x-help"], label: fieldDef["x-label"] ?? labelize(fieldName) };
+        if (fieldDef["x-referential"]) return { name: fieldName, kind: "referential", referentialSource: fieldDef["x-referential"], ...common };
+        if (fieldDef.enum) return { name: fieldName, kind: "enum", options: fieldDef.enum, ...common };
+        if (fieldDef.type === "boolean") return { name: fieldName, kind: "boolean", ...common };
+        return { name: fieldName, kind: "string", ...common };
       });
+      const propertyOrder = def.items?.["x-property-order"];
+      if (propertyOrder?.length) {
+        const rank = new Map(propertyOrder.map((n, i) => [n, i]));
+        itemFields.sort((a, b) => (rank.get(a.name) ?? propertyOrder.length) - (rank.get(b.name) ?? propertyOrder.length));
+      }
       const existingRows = Array.isArray(rawValue) ? (rawValue as Array<Record<string, unknown>>) : [];
       const rows: Array<Record<string, string>> = existingRows.map((row) => {
         const out: Record<string, string> = {};
@@ -333,6 +365,28 @@ export function validateAgainstSchema(schema: JsonSchemaDocument, content: Recor
     }
     if (def.minLength && typeof value === "string" && value.length < def.minLength) {
       errors.push(`"${name}" must be at least ${def.minLength} character(s)`);
+    }
+    // CR-058 form redesign — per-row required fields on a referential-list
+    // (e.g. Quality Gate's Category/Name/Governed Transition/Criteria Type).
+    // Blank "offered" rows (rowHasContent's own identifying-field check)
+    // are skipped, same discipline parseFormBody already uses, so an
+    // untouched blank template row is never flagged as missing its
+    // required fields.
+    if (def["x-widget"] === "referential-list" && def.items?.required?.length && Array.isArray(value)) {
+      const itemFields: ReferentialListItemField[] = Object.entries(def.items.properties ?? {}).map(([fieldName, fieldDef]) => {
+        if (fieldDef["x-referential"]) return { name: fieldName, kind: "referential", referentialSource: fieldDef["x-referential"] };
+        if (fieldDef.enum) return { name: fieldName, kind: "enum", options: fieldDef.enum };
+        if (fieldDef.type === "boolean") return { name: fieldName, kind: "boolean" };
+        return { name: fieldName, kind: "string" };
+      });
+      for (const [i, row] of (value as Array<Record<string, string>>).entries()) {
+        if (!rowHasContent(row, itemFields)) continue;
+        for (const requiredField of def.items.required) {
+          if (!(row[requiredField] ?? "").toString().trim()) {
+            errors.push(`"${name}" row ${i + 1}: "${requiredField}" is required`);
+          }
+        }
+      }
     }
   }
   return errors;

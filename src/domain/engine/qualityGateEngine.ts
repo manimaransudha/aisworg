@@ -121,17 +121,23 @@ export const qualityGateEngine = {
     }
 
     if (criteriaType === "requires_accepted_evidence_or_approved_decision") {
-      // CR-058 — an optional `category` narrows this the same way
-      // requires_accepted_review already did (checked directly against
-      // qualifying Evidence's own category / qualifying Decision's own
-      // category — one shared param, whichever entity type qualifies).
-      const requiredCategory = (gate.criteria as { category?: string }).category;
+      // CR-058 follow-up 2 — the gate's own `category` (now always a real
+      // category:evidence value — owner: "code = category ... drawn from
+      // the same vocabulary as Ch.17 §7's Evidence Categories") is what
+      // narrows this, replacing the old separate `criteriaCategory` param.
+      // Applied to Evidence only: Evidence's own `category` column shares
+      // this exact vocabulary, so it's a real, meaningful filter. Decision
+      // is deliberately left unfiltered — Decision has its own, different
+      // category vocabulary (category:decision, Ch.19 §7), so filtering it
+      // against an Evidence-vocabulary value could never meaningfully match;
+      // any Approved/Applied Decision still qualifies regardless of category.
+      const requiredCategory = gate.category;
       const [{ data: evidence }, { data: decisions }] = await Promise.all([
         evidenceDB.findByRelatedObject(input.entityType, input.entityId),
         decisionsDB.findByRelatedObject(input.entityType, input.entityId),
       ]);
-      const qualifyingEvidence = (evidence ?? []).filter((e) => QUALIFYING_EVIDENCE_STATUSES.has(e.status) && (!requiredCategory || e.category === requiredCategory));
-      const qualifyingDecisions = (decisions ?? []).filter((d) => QUALIFYING_DECISION_STATUSES.has(d.status) && (!requiredCategory || d.category === requiredCategory));
+      const qualifyingEvidence = (evidence ?? []).filter((e) => QUALIFYING_EVIDENCE_STATUSES.has(e.status) && e.category === requiredCategory);
+      const qualifyingDecisions = (decisions ?? []).filter((d) => QUALIFYING_DECISION_STATUSES.has(d.status));
 
       // Participant Integration & Attestation — Plan step 2, refined 2026-08-11:
       // the acceptance attestation is deliberately NOT accepted as satisfying
@@ -143,29 +149,34 @@ export const qualityGateEngine = {
       // the attestation's role is provenance + the empty-centre presence check,
       // not gate satisfaction.)
       if (qualifyingEvidence.length === 0 && qualifyingDecisions.length === 0) {
-        return this.blockOrWaive(
-          gate,
-          input,
-          requiredCategory ? `no accepted Evidence or approved Decision of category "${requiredCategory}" found for this entity` : "no accepted Evidence or approved Decision found for this entity",
-          { requiredCategory }
-        );
+        return this.blockOrWaive(gate, input, `no accepted Evidence of category "${requiredCategory}" or approved Decision found for this entity`, { requiredCategory });
       }
       return this.recordAndPass(gate, input);
     }
 
     // Review Model — Plan (Phase 14, Ch.25 §11): Governance consumes the Review
     // outcome. This gate blocks a transition until an Accepted Review with a
-    // passing outcome exists for the entity. An optional `category` narrows it
-    // to a specific Review category (e.g. "Architecture"). Reviews are
-    // polymorphic, so this works for any gated entity type.
+    // passing outcome exists for the entity. Reviews are polymorphic, so this
+    // works for any gated entity type.
+    //
+    // CR-059 — replaces the old free-text `criteria.category` match entirely.
+    // A quality gate must reference a real Review Gate (`criteria.reviewGateId`,
+    // resolved at seedContributions time from the authored `deliverableName`
+    // against this same Pack's own reviewGates[]), and the qualifying check is
+    // a strict `review_gate_id` FK match, not a category/string comparison
+    // (owner: a string match "can lead to corrupt data" — it can't tell which
+    // transition's Review was intended when the same deliverable type is
+    // reviewed more than once in a lifecycle, and can't guarantee the Review
+    // actually followed the gate's own declared prompt/participant contract).
     if (criteriaType === "requires_accepted_review") {
-      const requiredCategory = (gate.criteria as { category?: string }).category;
+      const reviewGateId = (gate.criteria as { reviewGateId?: string }).reviewGateId;
+      if (!reviewGateId) return this.blockOrWaive(gate, input, "requires_accepted_review criteria has no reviewGateId configured", {});
       const { data: reviews } = await reviewsDB.findByRelatedObject(input.entityType, input.entityId);
       const qualifying = (reviews ?? []).filter(
-        (r) => r.status === "Accepted" && r.outcome != null && QUALIFYING_REVIEW_OUTCOMES.has(r.outcome) && (!requiredCategory || r.category === requiredCategory)
+        (r) => r.status === "Accepted" && r.outcome != null && QUALIFYING_REVIEW_OUTCOMES.has(r.outcome) && r.review_gate_id === reviewGateId
       );
       if (qualifying.length === 0) {
-        return this.blockOrWaive(gate, input, requiredCategory ? `no Accepted, passing "${requiredCategory}" Review found for this entity` : "no Accepted, passing Review found for this entity", { requiredCategory });
+        return this.blockOrWaive(gate, input, "no Accepted, passing Review found for this entity against the required Review Gate", { reviewGateId });
       }
       return this.recordAndPass(gate, input);
     }

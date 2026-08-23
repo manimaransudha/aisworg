@@ -4,8 +4,8 @@
   "category": "Organisation",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Understanding user needs and defining product requirements — aka Discovery Sprint, Exploration Sprint, Problem/Solution Fit, Inception, Validation Sprint.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Understanding user needs and defining product requirements \u2014 aka Discovery Sprint, Exploration Sprint, Problem/Solution Fit, Inception, Validation Sprint.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -79,12 +79,14 @@
     ],
     "reviewGates": [
       {
-        "code": "review-product-discovery",
-        "statement": "The Product Discovery's deliverables have been reviewed and accepted as sufficient to proceed to Experience Design.",
+        "code": "Requirements Specification",
+        "statement": "The Product Requirements Document has been reviewed and accepted as sufficient to proceed to Experience Design.",
         "classification": "human-attested",
-        "prompt": "Are the product requirements, personas, and research findings sufficiently clear and validated to justify moving into Experience Design?",
+        "prompt": "Does the Product Requirements Document reflect validated user/market research and provide sufficient direction for Experience Design?",
         "participant": "human",
-        "outputContract": "assessment-acceptance"
+        "outputContract": "assessment-acceptance",
+        "name": "Product Requirements Review",
+        "governedTransition": "Deliverable|In Progress|Approved"
       }
     ]
   }

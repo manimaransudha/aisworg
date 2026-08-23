@@ -23,11 +23,21 @@ CREATE TABLE IF NOT EXISTS evidence_relationships (
 CREATE INDEX IF NOT EXISTS idx_evidence_relationships_evidence ON evidence_relationships (evidence_id);
 CREATE INDEX IF NOT EXISTS idx_evidence_relationships_related ON evidence_relationships (related_object_type, related_object_id);
 
--- Backfill: every existing Evidence row's own single relationship becomes
--- its first row here — no data lost.
-INSERT INTO evidence_relationships (evidence_id, related_object_type, related_object_id)
-SELECT id, related_object_type, related_object_id FROM evidence
-ON CONFLICT (evidence_id, related_object_type, related_object_id) DO NOTHING;
+-- CR-059 build-time fix — wrapped in the same existence-check idiom used
+-- elsewhere for a one-time backfill-then-drop transition: on a second
+-- replay, evidence.related_object_type/related_object_id are already gone
+-- (dropped by this same file's last 2 lines on the first run), so the
+-- backfill SELECT below fails to parse at all, not just redundantly.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'evidence' AND column_name = 'related_object_type') THEN
+    -- Backfill: every existing Evidence row's own single relationship
+    -- becomes its first row here — no data lost.
+    INSERT INTO evidence_relationships (evidence_id, related_object_type, related_object_id)
+    SELECT id, related_object_type, related_object_id FROM evidence
+    ON CONFLICT (evidence_id, related_object_type, related_object_id) DO NOTHING;
 
-ALTER TABLE evidence DROP COLUMN IF EXISTS related_object_type;
-ALTER TABLE evidence DROP COLUMN IF EXISTS related_object_id;
+    ALTER TABLE evidence DROP COLUMN related_object_type;
+    ALTER TABLE evidence DROP COLUMN related_object_id;
+  END IF;
+END $$;

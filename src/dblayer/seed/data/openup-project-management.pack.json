@@ -63,15 +63,6 @@
         "outputContract": "passed-failed-notes"
       }
     ],
-    "reviewGates": [
-      {
-        "code": "monitor-project",
-        "statement": "Project status has been reviewed against the plan and corrective action taken where needed.",
-        "classification": "human-attested",
-        "prompt": "Has project status been reviewed against the plan, with corrective action taken where warranted?",
-        "participant": "human",
-        "outputContract": "assessment-acceptance"
-      }
-    ]
+    "reviewGates": []
   }
 }

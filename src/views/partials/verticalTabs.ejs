@@ -39,29 +39,7 @@ const _activePaneIndex = typeof activePaneIndex !== 'undefined' && activePaneInd
   <% }) %>
   <% if (_tabs.length === 0) { %><span class="nav-link disabled">No tabs</span><% } %>
 </div>
-<style>
-  /* A framed panel, not a bare column of links — the whole point being that
-     this reads as a NAV component sitting beside the content, not as one
-     more column of the same list (owner: "It feels like another column on
-     the list"). Light panel background + border give it a boundary of its
-     own; sticky keeps it in view against a long content column. */
-  .vertical-tabs {
-    min-width: 210px; max-width: 260px; flex: 0 0 auto;
-    background: #f8f9fa; border: 1px solid #e9ecef; border-radius: .6rem;
-    padding: .4rem; position: sticky; top: 1rem;
-  }
-  .vertical-tabs .nav-link {
-    color: #495057; font-weight: 500; border-radius: .4rem;
-    padding: .55rem .8rem; margin-bottom: .15rem; text-align: left;
-    border: 1px solid transparent;
-  }
-  .vertical-tabs .nav-link:last-child { margin-bottom: 0; }
-  .vertical-tabs .nav-link:hover { background: #fff; border-color: #dee2e6; }
-  .vertical-tabs .nav-link.active { background: #0d6efd; color: #fff; box-shadow: 0 1px 3px rgba(13, 110, 253, .35); }
-  .vertical-tabs .vt-sub { display: block; font-size: .75rem; font-weight: 400; color: #868e96; margin-top: .1rem; }
-  .vertical-tabs .nav-link.active .vt-sub { color: rgba(255, 255, 255, .85); }
-  @media (max-width: 767.98px) {
-    .vertical-tabs { max-width: none; width: 100%; flex-direction: row !important; flex-wrap: wrap; gap: .25rem; position: static; }
-    .vertical-tabs .nav-link { margin-bottom: 0; }
-  }
-</style>
+<%# .vertical-tabs' own styling lives once, in public/css/style.css — this
+    partial gets included on every page that uses vertical-tab navigation
+    (authoring, packs/templates/profiles registries, authority, ontology),
+    so a <style> block here duplicated itself once per page. %>

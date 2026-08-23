@@ -12,5 +12,5 @@
 -- commissioning) already relies on; the six new per-category kinds are
 -- purely for the authoring form's own picker slots.
 ALTER TABLE template_packs ADD COLUMN IF NOT EXISTS list_kind TEXT NOT NULL DEFAULT 'mandatory';
-ALTER TABLE template_packs DROP CONSTRAINT template_packs_pkey;
+ALTER TABLE template_packs DROP CONSTRAINT IF EXISTS template_packs_pkey;
 ALTER TABLE template_packs ADD PRIMARY KEY (template_id, pack_code, list_kind);

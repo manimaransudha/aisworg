@@ -11,8 +11,9 @@
 -- the same mechanism as category:evidence/category:deliverable/etc.
 -- (core/ontology.ts). Extensible without a migration — a new category is an
 -- ontology_concepts row, not a schema/CHECK change.
+-- CR-059 build-time fix — missing IF NOT EXISTS broke a second replay.
 ALTER TABLE event_registry
-  ADD COLUMN category TEXT;
+  ADD COLUMN IF NOT EXISTS category TEXT;
 
 INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id) VALUES
   ('category:event-types', 'State', 'State Event', '11111111-1111-1111-1111-111111111111'),

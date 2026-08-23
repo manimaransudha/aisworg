@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Executing the product launch — aka Go-Live, GA, Rollout, Ignite.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Executing the product launch \u2014 aka Go-Live, GA, Rollout, Ignite.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -61,12 +61,14 @@
     ],
     "reviewGates": [
       {
-        "code": "review-launch-management",
-        "statement": "The Launch's deliverables have been reviewed and accepted as sufficient to proceed to Hypercare & Stabilization.",
+        "code": "Deployment Package",
+        "statement": "The Deployment Package and rollout plan have been reviewed and accepted as sufficient to proceed to Hypercare & Stabilization.",
         "classification": "human-attested",
-        "prompt": "Was the launch executed against the rollout plan with monitoring and communications in place, justifying the move into Hypercare & Stabilization?",
+        "prompt": "Is the Deployment Package, along with the incident response and monitoring plans, sufficiently ready to justify launching?",
         "participant": "human",
-        "outputContract": "assessment-acceptance"
+        "outputContract": "assessment-acceptance",
+        "name": "Launch Readiness Review",
+        "governedTransition": "Deliverable|In Progress|Approved"
       }
     ]
   }

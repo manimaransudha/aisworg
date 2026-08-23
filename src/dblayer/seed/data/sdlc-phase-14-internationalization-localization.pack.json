@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Expanding to global markets — aka i18n/L10n, Globalization, Regionalization.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Expanding to global markets \u2014 aka i18n/L10n, Globalization, Regionalization.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -59,15 +59,6 @@
         "outputContract": "passed-failed-notes"
       }
     ],
-    "reviewGates": [
-      {
-        "code": "review-internationalization-localization",
-        "statement": "The Internationalization & Localization's deliverables have been reviewed and accepted as sufficient to proceed to Ongoing Operations & Governance.",
-        "classification": "human-attested",
-        "prompt": "Is the locale strategy, translation quality, and regional compliance sufficiently addressed to justify moving into Ongoing Operations & Governance?",
-        "participant": "human",
-        "outputContract": "assessment-acceptance"
-      }
-    ]
+    "reviewGates": []
   }
 }

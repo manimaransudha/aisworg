@@ -6,13 +6,17 @@
 -- associated with it moves to 1.4" — new immutable row per version, same
 -- shape as Pack/Template/Profile's own (code, version) identity, not an
 -- in-place increment).
+-- CR-059 build-time fix — IF NOT EXISTS/IF EXISTS added throughout this
+-- file; none of it was replay-safe (the DROP/CREATE statements below all
+-- failed outright on a second replay).
 ALTER TABLE quality_gates
-  ADD COLUMN version TEXT NOT NULL DEFAULT '1.0',
-  ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT true;
+  ADD COLUMN IF NOT EXISTS version TEXT NOT NULL DEFAULT '1.0',
+  ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true;
 
 -- code was globally unique; now (code, version) is, so prior versions of the
 -- same gate can coexist as history.
-ALTER TABLE quality_gates DROP CONSTRAINT quality_gates_code_key;
+ALTER TABLE quality_gates DROP CONSTRAINT IF EXISTS quality_gates_code_key;
+ALTER TABLE quality_gates DROP CONSTRAINT IF EXISTS quality_gates_code_version_key;
 ALTER TABLE quality_gates ADD CONSTRAINT quality_gates_code_version_key UNIQUE (code, version);
 
 -- (entity_type, from_state, to_state) was globally unique — only one gate
@@ -24,8 +28,8 @@ ALTER TABLE quality_gates ADD CONSTRAINT quality_gates_code_version_key UNIQUE (
 -- partial index (WHERE is_active) keeps this a real uniqueness guarantee on
 -- the CURRENT gate per (transition, category) while still allowing
 -- historical (is_active = false) versions of that same tuple to exist.
-ALTER TABLE quality_gates DROP CONSTRAINT quality_gates_entity_type_from_state_to_state_key;
-CREATE UNIQUE INDEX quality_gates_active_scope_category_key
+ALTER TABLE quality_gates DROP CONSTRAINT IF EXISTS quality_gates_entity_type_from_state_to_state_key;
+CREATE UNIQUE INDEX IF NOT EXISTS quality_gates_active_scope_category_key
   ON quality_gates (entity_type, from_state, to_state, category)
   WHERE is_active;
 
@@ -37,7 +41,7 @@ CREATE UNIQUE INDEX quality_gates_active_scope_category_key
 -- (quality_gate_id + entity_type/entity_id), not the gate definition
 -- globally — the same gate definition can be waived for one Deliverable
 -- without waiving it for every other entity it also applies to.
-CREATE TABLE quality_gate_waivers (
+CREATE TABLE IF NOT EXISTS quality_gate_waivers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   quality_gate_id UUID NOT NULL REFERENCES quality_gates(id),
   seu_id UUID NOT NULL REFERENCES seus(id),
@@ -50,7 +54,7 @@ CREATE TABLE quality_gate_waivers (
   expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_quality_gate_waivers_lookup ON quality_gate_waivers (quality_gate_id, entity_id, status);
+CREATE INDEX IF NOT EXISTS idx_quality_gate_waivers_lookup ON quality_gate_waivers (quality_gate_id, entity_id, status);
 
 -- category:quality-gate Ontology concept type — Ch.26 §7's 5 baseline
 -- categories. Pack-contribution of NEW categories stays deferred (CR-056

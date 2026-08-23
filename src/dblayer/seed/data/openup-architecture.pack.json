@@ -45,7 +45,9 @@
     ],
     "reviewGates": [
       {
-        "code": "review-architecture",
+        "code": "Solution / Architecture Document",
+        "name": "Architecture Notebook Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
         "statement": "The Architecture Notebook has been reviewed and accepted as sufficient to guide implementation.",
         "classification": "human-attested",
         "prompt": "Is the architecture sufficiently detailed, consistent, and approved to guide implementation?",

@@ -6,7 +6,7 @@
 <body>
   <header><%- include('../../../partials/navbar') %></header>
 
-  <main class="container py-5" style="max-width: 900px;">
+  <main class="container py-5">
     <% if (locals.flash) { %>
       <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
         <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
@@ -33,6 +33,8 @@
       </div>
     </div>
   </main>
+
+  <script src="<%= baseUrl %>/js/referentialListGroup.js"></script>
 
   <%- include('../../../partials/footer') %>
 </body>

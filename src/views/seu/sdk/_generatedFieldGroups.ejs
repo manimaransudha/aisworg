@@ -211,12 +211,23 @@
           <% } %>
 
         <% } else { %>
+          <%# CR-058 form redesign (owner: "the help should be against each
+              field instead of a write-up at the top... the form is very
+              very poorly designed") — Quality Gates and Review Gates
+              (CR-059, same redesign discipline) now carry real per-field
+              help (items.properties.someField's own x-help, rendered
+              inline by _referentialListGroup.ejs), so the once-per-section
+              write-up + field-name bullet list below is suppressed for
+              both specifically. Every other contribution section
+              (Checklists/Obligation Definitions/Dependencies) doesn't have
+              inline help yet, so keeps this fallback unchanged. %>
+          <% var SECTIONS_WITH_INLINE_HELP = ['contributionQualityGates', 'contributionReviewGates']; %>
           <% if (t.id === 'dependencies') { %>
             <p class="text-muted small mb-2">Other Packs this one requires, allows alongside, or is incompatible with. A "required" dependency must resolve to a real, Active Pack.</p>
-          <% } else if ((locals.contributionHelp || {})[t.helpKey]) { %>
+          <% } else if (SECTIONS_WITH_INLINE_HELP.indexOf(t.id) === -1 && (locals.contributionHelp || {})[t.helpKey]) { %>
             <p class="text-muted small mb-2"><i class="bi bi-info-circle me-1"></i><%= contributionHelp[t.helpKey] %></p>
           <% } %>
-          <% var relevantVerifiableFields = t.type === 'referential-list' ? t.field.itemFields.filter(function(itemField){ return VERIFIABLE_FIELD_NAMES.indexOf(itemField.name) !== -1; }) : []; %>
+          <% var relevantVerifiableFields = (t.type === 'referential-list' && SECTIONS_WITH_INLINE_HELP.indexOf(t.id) === -1) ? t.field.itemFields.filter(function(itemField){ return VERIFIABLE_FIELD_NAMES.indexOf(itemField.name) !== -1; }) : []; %>
           <% if (relevantVerifiableFields.length) { %>
             <ul class="text-muted small mb-3 ps-3">
               <% relevantVerifiableFields.forEach(function(itemField) { %>

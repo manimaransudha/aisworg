@@ -4,8 +4,8 @@
   "category": "Organisation",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Establishing the foundational product vision and market opportunity before any solution work begins — aka North Star, Product Strategy, Problem Framing, Opportunity Mapping, Lean Inception, 0→1.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Establishing the foundational product vision and market opportunity before any solution work begins \u2014 aka North Star, Product Strategy, Problem Framing, Opportunity Mapping, Lean Inception, 0\u21921.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -71,15 +71,6 @@
         "outputContract": "passed-failed-notes"
       }
     ],
-    "reviewGates": [
-      {
-        "code": "review-vision-opportunity",
-        "statement": "The vision and opportunity framing has been reviewed and accepted as sufficient to proceed to Product Discovery.",
-        "classification": "human-attested",
-        "prompt": "Is the vision, business model, and opportunity sizing sufficiently clear and credible to justify moving into discovery?",
-        "participant": "human",
-        "outputContract": "assessment-acceptance"
-      }
-    ]
+    "reviewGates": []
   }
 }

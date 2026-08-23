@@ -2,28 +2,26 @@ import pool, { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, QualityGateRow, TransitionEntityType } from "./seuTypes.js";
 
-// CR-058 — a Quality Gate's identity is `code`, versioned exactly like
-// Pack/Template/Profile's own (code, version) identity: a new row per
-// version, never an in-place update, so history is preserved. version
-// starts at "1.0" and bumps the minor component on every real content
-// change (owner's own example: "moves to 1.4").
+// CR-058 follow-up 2 — a Quality Gate's `code` always mirrors its
+// `category` (owner: "the code isn't a UUID or a freeform Pack-specific
+// string — it's the category identifier itself"). The real versioning
+// identity is therefore the full slot: (entity_type, from_state, to_state,
+// category). version starts at "1.0" and bumps the minor component on
+// every real content change (owner's own example: "moves to 1.4").
 function bumpVersion(version: string): string {
   const [major, minor] = version.split(".").map((n) => parseInt(n, 10) || 0);
   return `${major}.${minor + 1}`;
 }
 
 export const qualityGatesDB = {
-  // Transactional: reads the current active row for this code, decides
-  // whether anything actually changed, and either no-ops, inserts the first
-  // version, or deactivates the old row + inserts the next version — all in
-  // one commit (same discipline as evidenceDB.create's 2-insert commit).
-  // A genuine slot collision (a DIFFERENT code trying to become the active
-  // gate for a (entity_type, from_state, to_state, category) tuple another
-  // code already occupies) surfaces as a real constraint-violation error
-  // here, not a silent overwrite — the partial unique index
-  // quality_gates_active_scope_category_key enforces it.
+  // Transactional: reads the current active row for this exact slot
+  // (entity_type, from_state, to_state, category), decides whether anything
+  // actually changed, and either no-ops, inserts the first version, or
+  // deactivates the old row + inserts the next version — all in one commit
+  // (same discipline as evidenceDB.create's 2-insert commit). The partial
+  // unique index quality_gates_active_scope_category_key is what makes this
+  // lookup unambiguous: at most one active row can ever exist per slot.
   async upsert(input: {
-    code: string;
     name: string;
     category?: string;
     entityType: TransitionEntityType;
@@ -36,20 +34,14 @@ export const qualityGatesDB = {
     try {
       await client.query("BEGIN");
       const category = input.category ?? "Exit";
+      const code = category;
       const criteria = input.criteria ?? { type: "no_unresolved_obligations" };
       const { rows: currentRows } = await client.query<QualityGateRow>(
-        "SELECT * FROM quality_gates WHERE code = $1 AND is_active = true",
-        [input.code]
+        "SELECT * FROM quality_gates WHERE entity_type = $1 AND from_state = $2 AND to_state = $3 AND category = $4 AND is_active = true",
+        [input.entityType, input.fromState, input.toState, category]
       );
       const current = currentRows[0];
-      const unchanged =
-        current &&
-        current.name === input.name &&
-        current.category === category &&
-        current.entity_type === input.entityType &&
-        current.from_state === input.fromState &&
-        current.to_state === input.toState &&
-        JSON.stringify(current.criteria) === JSON.stringify(criteria);
+      const unchanged = current && current.name === input.name && JSON.stringify(current.criteria) === JSON.stringify(criteria);
       if (unchanged) {
         await client.query("COMMIT");
         return { data: current };
@@ -62,7 +54,7 @@ export const qualityGatesDB = {
         `INSERT INTO quality_gates (code, name, category, entity_type, from_state, to_state, criteria, originating_pack_id, version, is_active)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true)
          RETURNING *`,
-        [input.code, input.name, category, input.entityType, input.fromState, input.toState, JSON.stringify(criteria), input.originatingPackId, nextVersion]
+        [code, input.name, category, input.entityType, input.fromState, input.toState, JSON.stringify(criteria), input.originatingPackId, nextVersion]
       );
       await client.query("COMMIT");
       return { data: rows[0] };
@@ -107,16 +99,18 @@ export const qualityGatesDB = {
   // qualityGateEngine.evaluateByIds resolves those ids back at evaluation
   // time (findByIds) — explicit reference replacing the coincidental
   // (entityType, fromState, toState) match, per the plan's "Schema" decision.
-  // Resolves to the CURRENT active version of the code.
   //
-  // CR-058 known limitation: an id captured this way (into
-  // transition_definitions.required_quality_gate_ids) is a specific row —
-  // if that gate is later superseded by a new version, the old row's
-  // is_active flips false but the captured id still points at it, so this
-  // reference path does not automatically pick up the new version. Real for
-  // the ~4 synthetic rows that currently exercise this path (Ch.26 §19.7);
-  // not solved here — the same class of "shell materialized once" question
-  // CR-057 already flags as open, deliberately not re-opened by this CR.
+  // CR-058 follow-up 2 known limitation: `code` now mirrors `category`, which
+  // is NOT globally unique (a "Review Evidence" gate can legitimately exist
+  // on many different transitions) — this resolves to whichever ACTIVE gate
+  // with that category happens to match first, ambiguous when more than one
+  // does. Not solved here: per the Ch.26 §19.7 audit this whole reference
+  // path (transition_definitions.required_quality_gate_ids) is already
+  // barely used (~4 synthetic test rows, zero real production transitions —
+  // the live enforcement path is qualityGateEngine.evaluate's own
+  // findAllActive, scoped by transition automatically, no cross-reference
+  // needed). Same "not re-opened by this CR" treatment as the version-
+  // tracking limitation above.
   async findByCode(code: string): Promise<DbResult<QualityGateRow | null>> {
     try {
       const { rows } = await query<QualityGateRow>("SELECT * FROM quality_gates WHERE code = $1 AND is_active = true", [code]);

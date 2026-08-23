@@ -11,9 +11,15 @@
 -- favour of Ontology validation in this same change — keeping the exact
 -- wording means every existing Pack's classification stays valid with zero
 -- migration of Pack rows themselves.
-INSERT INTO ontology_concepts (concept_type, code, default_label) VALUES
-  ('installation-classification', 'Mandatory', 'Mandatory'),
-  ('installation-classification', 'Recommended', 'Recommended'),
-  ('installation-classification', 'Optional', 'Optional'),
-  ('installation-classification', 'Conditional', 'Conditional')
-ON CONFLICT (concept_type, code) DO NOTHING;
+INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id) VALUES
+  ('installation-classification', 'Mandatory', 'Mandatory', '11111111-1111-1111-1111-111111111111'),
+  ('installation-classification', 'Recommended', 'Recommended', '11111111-1111-1111-1111-111111111111'),
+  ('installation-classification', 'Optional', 'Optional', '11111111-1111-1111-1111-111111111111'),
+  ('installation-classification', 'Conditional', 'Conditional', '11111111-1111-1111-1111-111111111111')
+ON CONFLICT (concept_type, code, tenant_id) DO NOTHING;
+
+-- CR-059 build-time fix — same class of bug as migrations 030/046:
+-- superseded by migration 055's tenant-scoping (ON CONFLICT target
+-- widened to (concept_type, code, tenant_id), tenant_id gained NOT NULL
+-- with no column default). Explicit Platform tenant_id + the 3-column
+-- ON CONFLICT restore both.

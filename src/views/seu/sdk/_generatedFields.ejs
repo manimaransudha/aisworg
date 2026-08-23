@@ -1,6 +1,9 @@
 <%# Shared renderer for a generateFields() result. Locals: fields (GeneratedField[]),
-    canEdit (bool), referentialOptions (Record<string,string[]>). Used by the authoring
-    edit form and the schema-registry form (CR-017). %>
+    canEdit (bool), referentialOptions (Record<string,string[]>), packDependencyOptions.
+    Used by the Schema Registry's own meta-schema form (CR-017) — the Pack/Template/
+    Profile authoring edit form moved to the tabbed _generatedFieldGroups.ejs instead
+    (that partial's own header comment), this one is schema-registry/new.ejs's only
+    consumer now. %>
 <% fields.forEach(function(f) { %>
   <div class="mb-3">
     <label class="form-label small fw-semibold"><%= f.label %><% if (f.required) { %> <span class="text-danger">*</span><% } %></label>
@@ -31,39 +34,20 @@
       <% if (f.help) { %><div class="form-text small"><%= f.help %></div><% } %>
 
     <% } else if (f.kind === 'referential-list') { %>
-      <div class="border rounded p-2">
-        <% f.rows.forEach(function(row, i) { %>
-          <div class="row g-2 mb-1">
-            <% f.itemFields.forEach(function(itemField) { %>
-              <div class="col-auto">
-                <% if (itemField.kind === 'referential') { %>
-                  <select name="<%= f.name %>[<%= i %>][<%= itemField.name %>]" class="form-select form-select-sm" style="min-width: 200px;" <%- canEdit ? '' : 'disabled' %>>
-                    <option value="">— <%= itemField.name %> —</option>
-                    <% ((locals.referentialOptions || {})[itemField.referentialSource] || []).forEach(function(opt) { %>
-                      <option value="<%= opt %>" <%= row[itemField.name] === opt ? 'selected' : '' %>><%= opt %></option>
-                    <% }) %>
-                  </select>
-                <% } else if (itemField.kind === 'enum') { %>
-                  <select name="<%= f.name %>[<%= i %>][<%= itemField.name %>]" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %>>
-                    <option value="">— <%= itemField.name %> —</option>
-                    <% (itemField.options || []).forEach(function(opt) { %>
-                      <option value="<%= opt %>" <%= row[itemField.name] === opt ? 'selected' : '' %>><%= opt %></option>
-                    <% }) %>
-                  </select>
-                <% } else if (itemField.kind === 'boolean') { %>
-                  <div class="form-check" title="<%= itemField.name %>">
-                    <input type="checkbox" class="form-check-input" name="<%= f.name %>[<%= i %>][<%= itemField.name %>]" value="true" <%= row[itemField.name] === 'true' ? 'checked' : '' %> <%- canEdit ? '' : 'disabled' %>>
-                    <label class="form-check-label small"><%= itemField.name %></label>
-                  </div>
-                <% } else { %>
-                  <input name="<%= f.name %>[<%= i %>][<%= itemField.name %>]" class="form-control form-control-sm" placeholder="<%= itemField.name %>" value="<%= row[itemField.name] %>" <%- canEdit ? '' : 'disabled' %>>
-                <% } %>
-              </div>
-            <% }) %>
-          </div>
-        <% }) %>
-        <div class="form-text small">Registry-backed fields are live-validated widgets, not bare text — blank rows are ignored.</div>
-      </div>
+      <%# Owner's structural-review finding — this used to be a stale,
+          unfixed duplicate of _referentialListGroup.ejs's own referential-
+          list rendering: no labels, every field crammed into a bare
+          col-auto regardless of kind, and (a real functional bug, not just
+          cosmetic) no add/remove-row affordance at all — generateFields()
+          only ever offers one blank row, so schema-registry/new.ejs's own
+          9-column META_SCHEMA fields editor could only ever add ONE new
+          field per saved schema version. Reusing the real, already-fixed
+          widget instead of maintaining a second, divergent copy — same
+          per-kind column sizing, same labeled cards, and (via the shared
+          public/js/referentialListGroup.js, now included by both pages)
+          the same working add/remove wiring. %>
+      <%- include('_referentialListGroup', { field: f, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions }) %>
+      <% if (f.help) { %><div class="form-text small"><%= f.help %></div><% } %>
     <% } %>
   </div>
 <% }) %>

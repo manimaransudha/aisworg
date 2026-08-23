@@ -16,11 +16,17 @@
 -- owner's list drops — existing Platform-categorised packs are unaffected,
 -- "Platform" just stops being offered for new Pack authoring, same
 -- drops-out-of-new-picks treatment as capability-name's "architecture" fold).
-INSERT INTO ontology_concepts (concept_type, code, default_label) VALUES
-  ('category:pack', 'Compliance', 'Compliance'),
-  ('category:pack', 'Domain', 'Domain'),
-  ('category:pack', 'Engineering', 'Engineering'),
-  ('category:pack', 'Organisation', 'Organisation'),
-  ('category:pack', 'Integration', 'Integration'),
-  ('category:pack', 'Technology', 'Technology')
-ON CONFLICT (concept_type, code) DO NOTHING;
+INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id) VALUES
+  ('category:pack', 'Compliance', 'Compliance', '11111111-1111-1111-1111-111111111111'),
+  ('category:pack', 'Domain', 'Domain', '11111111-1111-1111-1111-111111111111'),
+  ('category:pack', 'Engineering', 'Engineering', '11111111-1111-1111-1111-111111111111'),
+  ('category:pack', 'Organisation', 'Organisation', '11111111-1111-1111-1111-111111111111'),
+  ('category:pack', 'Integration', 'Integration', '11111111-1111-1111-1111-111111111111'),
+  ('category:pack', 'Technology', 'Technology', '11111111-1111-1111-1111-111111111111')
+ON CONFLICT (concept_type, code, tenant_id) DO NOTHING;
+
+-- CR-059 build-time fix — same class of bug as migrations 030/046:
+-- superseded by migration 055's tenant-scoping (ON CONFLICT target
+-- widened to (concept_type, code, tenant_id), tenant_id gained NOT NULL
+-- with no column default). Explicit Platform tenant_id + the 3-column
+-- ON CONFLICT restore both.

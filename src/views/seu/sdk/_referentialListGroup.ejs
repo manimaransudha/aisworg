@@ -167,36 +167,96 @@
       <% }) %>
     </ul>
   <% } else { %>
-    <% existingRows.forEach(function(row, i) { %>
-      <div class="card card-body bg-light border-0 mb-2">
-        <div class="mb-2"><span class="badge bg-secondary-subtle text-secondary small fw-normal">Item <%= i + 1 %></span></div>
-        <div class="row g-2">
-          <% field.itemFields.forEach(function(itemField) { %>
-            <% var value = row[itemField.name] || ''; %>
-            <div class="col-sm-6 col-lg-4">
-              <div class="small text-muted mb-1"><%= ilabel(itemField.name) %></div>
-              <div class="small">
-                <% if (itemField.kind === 'boolean') { %>
-                  <%= value === 'true' ? 'Yes' : 'No' %>
-                <% } else if (itemField.kind === 'referential' && itemField.referentialSource.indexOf('pack-code') === 0) { %>
-                  <% var _fixedCategory = itemField.referentialSource.indexOf(':') !== -1 ? itemField.referentialSource.split(':')[1] : ''; %>
-                  <% var matchedItemPack = packOptions.find(function(p) { return p.code === value; }); %>
-                  <% if (matchedItemPack) { %>
-                    <%= matchedItemPack.name %> <code class="text-muted"><%= matchedItemPack.code %></code> v<%= matchedItemPack.version %> <%- packLink(matchedItemPack) %>
-                  <% } else { %>
-                    <%= value ? ('⚠ ' + value + ' (not currently Active' + (_fixedCategory ? ' / not ' + _fixedCategory : '') + ')') : '—' %>
-                  <% } %>
-                <% } else { %>
-                  <%= value || '—' %>
-                <% } %>
-              </div>
-            </div>
-          <% }) %>
+    <%# Owner: "the lists should be shown as lists... What if there are 10
+        records? How readable is this?" — a first attempt here used inline
+        "Label: value" chips per row, which was still wrong: with several
+        records it's a wall of run-together text with no way to scan a
+        single column (e.g. every row's Category) and nothing separating
+        one record's fields from the next but a thin border — not
+        meaningfully more readable than the "Item N" cards it replaced. A
+        real list of N records with M fields each is a table: column
+        headers shown once, values aligned so the eye can scan down a
+        column, not repeated per row as a label.
+        Which columns need to wrap/widen (Quality Gate's statement/prompt,
+        Capabilities' description, Services' contractDescription, ...) has
+        no schema-level signal to key off — every item field is plain
+        {"type":"string"} regardless of length, confirmed live (no
+        x-widget/textarea marker item fields carry, unlike top-level
+        fields, which do). Decided from the real data instead: any column
+        where a value actually runs long gets room and wraps; short columns
+        stay tight. Wrong per-field-name guessing (statement/prompt only)
+        was tried and missed Capabilities' own description field — this
+        works for any contribution type's long-text field, not a
+        maintained allowlist. %>
+    <% var LONG_TEXT_THRESHOLD = 40; %>
+    <% var longColumns = {}; %>
+    <% field.itemFields.forEach(function(itemField) {
+         longColumns[itemField.name] = existingRows.some(function(row) { return (row[itemField.name] || '').length > LONG_TEXT_THRESHOLD; });
+       }); %>
+    <%# Owner: "All pages should have a search, filter and sort columns" —
+        same requirement as the site's registry list pages (coding_principles.md
+        "List UI Requirements"), applied client-side here rather than through
+        core/dbLayer: unlike a registry page, this table's rows are a Pack's
+        (or Template's/Profile's) own contributions JSONB array — already
+        fully loaded with the parent record, not a separately paginated
+        resource — so filtering/sorting what's already on the page is the
+        real equivalent of "server-side," not a wasted round trip.
+        Wired up by public/js/referentialListGroup.js, already loaded on this
+        widget's one host page (authoring/edit.ejs). Search box only above a
+        certain row count — clutter with nothing to search is worse than no
+        search box; sort headers cost nothing extra so they're always on. %>
+    <div class="rlg-view-table">
+      <% if (existingRows.length > 5) { %>
+        <div class="input-group input-group-sm mb-2" style="max-width: 16rem;">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="text" class="form-control rlg-view-search" placeholder="Search">
         </div>
+      <% } %>
+      <div style="overflow-x: auto;">
+        <table class="table table-sm table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <% field.itemFields.forEach(function(itemField) { %>
+                <th class="text-muted small text-uppercase fw-semibold rlg-sort-th <%= longColumns[itemField.name] ? '' : 'text-nowrap' %>" data-sort-key="<%= itemField.name %>">
+                  <%= itemField.label || ilabel(itemField.name) %><i class="bi bi-arrow-down-up ms-1 rlg-sort-icon"></i>
+                </th>
+              <% }) %>
+            </tr>
+          </thead>
+          <tbody>
+            <% existingRows.forEach(function(row) { %>
+              <tr>
+                <% field.itemFields.forEach(function(itemField) { %>
+                  <% var value = row[itemField.name] || ''; %>
+                  <td class="small <%= longColumns[itemField.name] ? '' : 'text-nowrap' %>" <%= longColumns[itemField.name] ? 'style="min-width: 22rem; white-space: normal;"' : '' %>>
+                    <% if (itemField.kind === 'boolean') { %>
+                      <% if (value === 'true') { %><i class="bi bi-check-circle-fill text-success"></i><% } else { %><span class="text-muted">—</span><% } %>
+                    <% } else if (itemField.kind === 'referential' && itemField.referentialSource.indexOf('pack-code') === 0) { %>
+                      <% var _fixedCategory = itemField.referentialSource.indexOf(':') !== -1 ? itemField.referentialSource.split(':')[1] : ''; %>
+                      <% var matchedItemPack = packOptions.find(function(p) { return p.code === value; }); %>
+                      <% if (matchedItemPack) { %>
+                        <%= matchedItemPack.name %> <code class="text-muted"><%= matchedItemPack.code %></code> v<%= matchedItemPack.version %> <%- packLink(matchedItemPack) %>
+                      <% } else { %>
+                        <%= value ? ('⚠ ' + value + ' (not currently Active' + (_fixedCategory ? ' / not ' + _fixedCategory : '') + ')') : '—' %>
+                      <% } %>
+                    <% } else { %>
+                      <%= value || '—' %>
+                    <% } %>
+                  </td>
+                <% }) %>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
       </div>
-    <% }) %>
+    </div>
   <% } %>
 <% } else { %>
+<%# CR-059 UI fix — .referential-list-group's own styling lives once, in
+    authoring/edit.ejs (the page-level view), not here: this partial gets
+    included once PER referential-list field (Dependencies, Checklists,
+    Quality Gates, Review Gates, Obligation Definitions, ...), so a <style>
+    block here would duplicate itself once per field on the page. %>
 <div class="referential-list-group" data-field-name="<%= field.name %>" data-next-index="<%= field.rows.length %>">
   <% field.rows.forEach(function(row, i) { %>
     <% var isExisting = i < field.existingCount; %>
@@ -255,8 +315,30 @@
             <% var full = (itemField.name === 'statement' || itemField.name === 'prompt'); %>
             <% var inputName = field.name + '[' + i + '][' + itemField.name + ']'; %>
             <% var value = row[itemField.name] || ''; %>
-            <div class="<%= full ? 'col-12' : 'col-sm-6 col-lg-4' %>">
-              <label class="form-label small text-muted mb-1"><%= ilabel(itemField.name) %></label>
+            <%# CR-058 form redesign (owner: "the form is very very poorly
+                designed") — label/required/help now come from the schema's
+                own items.properties.someField (x-label/items.required/x-help),
+                not just the auto-derived camelCase split. Required marking is
+                an editing affordance only (owner, elsewhere on this page:
+                "In a view page why will a mandatory * indicator show up?"). %>
+            <% var itemLabel = itemField.label || ilabel(itemField.name); %>
+            <% var isRequiredField = canEdit && itemField.required; %>
+            <%# Owner: "who puts form fields in columns blindly" — every
+                field used to get the identical col-sm-6 col-lg-4 regardless
+                of what it actually holds, so a boolean checkbox took the
+                same width as a referential dropdown whose option text can
+                run to 40+ characters. Sized by field KIND instead (never by
+                field name — the same discipline every other generic
+                mechanism on this page already follows): a boolean needs
+                barely any width; a short fixed-vocabulary enum needs a bit
+                more; a referential/free-text field gets real room since its
+                content length isn't bounded the way an enum's is. %>
+            <% var colClass = full ? 'col-12'
+                 : itemField.kind === 'boolean' ? 'col-sm-6 col-lg-3'
+                 : itemField.kind === 'enum' ? 'col-sm-6 col-lg-4'
+                 : 'col-sm-6 col-lg-6'; %>
+            <div class="<%= colClass %>">
+              <label class="form-label small text-muted mb-1"><%= itemLabel %><% if (isRequiredField) { %> <span class="text-danger">*</span><% } %></label>
 
               <% if (itemField.kind === 'referential' && itemField.referentialSource.indexOf('pack-code') === 0) { %>
                 <%# Owner: "Why is code not auto generated?... Pack code
@@ -288,15 +370,38 @@
                   <% } %>
                 </select>
               <% } else if (itemField.kind === 'referential') { %>
-                <select name="<%= inputName %>" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %>>
-                  <option value="">— <%= ilabel(itemField.name) %> —</option>
-                  <% ((locals.referentialOptions || {})[itemField.referentialSource] || []).forEach(function(opt) { %>
-                    <option value="<%= opt %>" <%= value === opt ? 'selected' : '' %>><%= opt %></option>
-                  <% }) %>
+                <%# Owner: "Review Gates form is pathetic... same feedback
+                    for quality gates" — governedTransition's own option list
+                    (transition-definition) is 100+ flat "EntityType|from|to"
+                    strings across every entity type with zero grouping, the
+                    single worst offender once actually viewed in a browser.
+                    Generic fix, not field-specific: any referential option
+                    list using the "EntityType|..." delimiter convention
+                    groups into <optgroup>s by that leading entity type;
+                    anything without "|" renders exactly as before. %>
+                <% var _refOpts = (locals.referentialOptions || {})[itemField.referentialSource] || []; %>
+                <% var _refGrouped = _refOpts.length && _refOpts[0].indexOf('|') !== -1; %>
+                <select name="<%= inputName %>" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %> <%- isRequiredField ? 'required' : '' %>>
+                  <option value="">— <%= itemLabel %> —</option>
+                  <% if (_refGrouped) { %>
+                    <% var _refGroups = {}; var _refGroupOrder = []; %>
+                    <% _refOpts.forEach(function(opt) { var g = opt.split('|')[0]; if (!_refGroups[g]) { _refGroups[g] = []; _refGroupOrder.push(g); } _refGroups[g].push(opt); }) %>
+                    <% _refGroupOrder.forEach(function(g) { %>
+                      <optgroup label="<%= g %>">
+                        <% _refGroups[g].forEach(function(opt) { %>
+                          <option value="<%= opt %>" <%= value === opt ? 'selected' : '' %>><%= opt.split('|').slice(1).join(' → ') %></option>
+                        <% }) %>
+                      </optgroup>
+                    <% }) %>
+                  <% } else { %>
+                    <% _refOpts.forEach(function(opt) { %>
+                      <option value="<%= opt %>" <%= value === opt ? 'selected' : '' %>><%= opt %></option>
+                    <% }) %>
+                  <% } %>
                 </select>
               <% } else if (itemField.kind === 'enum') { %>
-                <select name="<%= inputName %>" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %>>
-                  <option value="">— <%= ilabel(itemField.name) %> —</option>
+                <select name="<%= inputName %>" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %> <%- isRequiredField ? 'required' : '' %>>
+                  <option value="">— <%= itemLabel %> —</option>
                   <% (itemField.options || []).forEach(function(opt) { %>
                     <option value="<%= opt %>" <%= value === opt ? 'selected' : '' %>><%= opt %></option>
                   <% }) %>
@@ -306,10 +411,11 @@
                   <input type="checkbox" class="form-check-input" name="<%= inputName %>" value="true" <%= value === 'true' ? 'checked' : '' %> <%- canEdit ? '' : 'disabled' %>>
                 </div>
               <% } else if (full) { %>
-                <textarea name="<%= inputName %>" class="form-control form-control-sm" rows="2" <%- canEdit ? '' : 'disabled' %>><%= value %></textarea>
+                <textarea name="<%= inputName %>" class="form-control form-control-sm" rows="2" <%- canEdit ? '' : 'disabled' %> <%- isRequiredField ? 'required' : '' %>><%= value %></textarea>
               <% } else { %>
-                <input name="<%= inputName %>" class="form-control form-control-sm" value="<%= value %>" <%- canEdit ? '' : 'disabled' %>>
+                <input name="<%= inputName %>" class="form-control form-control-sm" value="<%= value %>" <%- canEdit ? '' : 'disabled' %> <%- isRequiredField ? 'required' : '' %>>
               <% } %>
+              <% if (itemField.help) { %><div class="form-text small"><%= itemField.help %></div><% } %>
             </div>
           <% }) %>
         </div>

@@ -18,7 +18,7 @@ import { transitionDeliverableSync as transitionDeliverable } from "./testFixtur
 import { createObligation, transitionObligation } from "../src/routes/seu/core/obligations.js";
 import { getFlowMetrics, getGovernanceMetrics } from "../src/routes/seu/core/telemetry.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
-import { ensureWebAppTemplateFixture } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates } from "./testFixtures.js";
 
 // Ch.30 Event Bus redesign — publish() still persists every event
 // synchronously (only dispatch/consumption is fire-and-forget), so querying
@@ -40,6 +40,7 @@ after(async () => {
 
 async function commissionTestSeu(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
+  await ensureCoreEngineeringQualityGates();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],

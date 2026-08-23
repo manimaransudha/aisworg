@@ -45,5 +45,6 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS category TEXT;
 -- templates_code_version_tenant_key (migration 062) exactly, one migration
 -- instead of two since Profile is starting from a bare UNIQUE(code) with
 -- nothing to preserve incrementally.
-ALTER TABLE profiles DROP CONSTRAINT profiles_code_key;
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_code_key;
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_code_version_tenant_key;
 ALTER TABLE profiles ADD CONSTRAINT profiles_code_version_tenant_key UNIQUE (code, profile_version, tenant_id);

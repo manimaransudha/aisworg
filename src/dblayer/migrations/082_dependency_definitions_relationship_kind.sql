@@ -8,6 +8,8 @@
 ALTER TABLE dependency_definitions
   ADD COLUMN IF NOT EXISTS relationship_kind TEXT NOT NULL DEFAULT 'dependency';
 
+-- CR-059 build-time fix — missing guard broke a second replay.
+ALTER TABLE dependency_definitions DROP CONSTRAINT IF EXISTS dependency_definitions_relationship_kind_check;
 ALTER TABLE dependency_definitions
   ADD CONSTRAINT dependency_definitions_relationship_kind_check
   CHECK (relationship_kind IN ('dependency', 'derivation', 'implementation', 'decomposition'));
@@ -16,6 +18,6 @@ ALTER TABLE dependency_definitions
 -- authored under two different kinds must be tracked as two distinct rows,
 -- not silently collapsed by the existing ON CONFLICT DO NOTHING (migration
 -- 075) onto whichever kind was inserted first.
-ALTER TABLE dependency_definitions DROP CONSTRAINT dependency_definitions_natural_key;
+ALTER TABLE dependency_definitions DROP CONSTRAINT IF EXISTS dependency_definitions_natural_key;
 ALTER TABLE dependency_definitions ADD CONSTRAINT dependency_definitions_natural_key
   UNIQUE NULLS NOT DISTINCT (owning_entity_type, owning_entity_id, from_entity_type, from_name, from_state, to_entity_type, to_name, to_state, relationship_kind);

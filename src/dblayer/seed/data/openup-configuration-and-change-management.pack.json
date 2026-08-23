@@ -49,15 +49,6 @@
         "outputContract": "passed-failed-notes"
       }
     ],
-    "reviewGates": [
-      {
-        "code": "manage-change-request",
-        "statement": "A Change Request has been dispositioned (approved, rejected, or deferred) by an authorised reviewer.",
-        "classification": "human-attested",
-        "prompt": "Has the Change Request been explicitly dispositioned by an authorised reviewer?",
-        "participant": "human",
-        "outputContract": "assessment-acceptance"
-      }
-    ]
+    "reviewGates": []
   }
 }

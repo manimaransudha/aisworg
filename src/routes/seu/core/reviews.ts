@@ -21,6 +21,11 @@ export async function createReview(input: {
   name: string;
   criteria?: Record<string, unknown>;
   reviewer?: string | null;
+  // CR-059 — which Review Gate declaration (if any) this Review was
+  // produced against. Set explicitly by whatever creates the Review in
+  // response to a gate's declared prompt/participant contract; null for a
+  // standalone Review unrelated to any gate.
+  reviewGateId?: string | null;
 }): Promise<ReviewRow> {
   if (input.relatedObjectType === "Deliverable") {
     const { data: deliverable } = await deliverablesDB.findById(input.relatedObjectId);
@@ -36,6 +41,7 @@ export async function createReview(input: {
     name: input.name,
     criteria: input.criteria,
     reviewer: input.reviewer,
+    reviewGateId: input.reviewGateId,
   });
   if (error || !review) throw error ?? new Error("failed to create review");
 

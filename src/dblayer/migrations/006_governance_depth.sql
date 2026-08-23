@@ -45,9 +45,9 @@ CREATE INDEX IF NOT EXISTS idx_obligations_seu ON obligations (seu_id);
 -- Post-MVP Phase 5 fix: kept as the full final union (see 003's updated
 -- comment) so this DROP+ADD stays a true no-op no matter what order
 -- migrations run in against an already-seeded database.
-ALTER TABLE transition_definitions DROP CONSTRAINT IF EXISTS transition_definitions_entity_type_check;
-ALTER TABLE transition_definitions ADD CONSTRAINT transition_definitions_entity_type_check
-  CHECK (entity_type IN ('SEU', 'Deliverable', 'Objective', 'Obligation', 'Evidence', 'Knowledge', 'Decision', 'KnowledgeScope', 'AttentionItem', 'ExternalInteraction', 'Pack', 'Participant', 'Review', 'Finding'));
+-- CR-059 build-time fix — superseded by migration 036 (CR-006, "the
+-- constraint stays dropped"); this transient re-add was breaking replay
+-- against real accumulated 'Template'/'Profile' rows. See 003's own note.
 
 -- Ch.26. A gate is scoped to one specific governed transition, same shape as
 -- transition_definitions. category stays free TEXT for the same "Pack-

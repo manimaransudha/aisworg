@@ -6,21 +6,23 @@
 -- replace the in-memory subscribers array with a DB-backed, inspectable
 -- catalogue, loaded into memory once at boot (never queried on the publish
 -- hot path).
+-- CR-059 build-time fix — IF NOT EXISTS/IF NOT EXISTS added throughout;
+-- none of these were replay-safe.
 ALTER TABLE events
-  ADD COLUMN seu_id UUID REFERENCES seus(id),
-  ADD COLUMN consumption_state JSONB NOT NULL DEFAULT '{}'::jsonb;
-CREATE INDEX idx_events_seu ON events (seu_id);
+  ADD COLUMN IF NOT EXISTS seu_id UUID REFERENCES seus(id),
+  ADD COLUMN IF NOT EXISTS consumption_state JSONB NOT NULL DEFAULT '{}'::jsonb;
+CREATE INDEX IF NOT EXISTS idx_events_seu ON events (seu_id);
 
 -- No historical seu_id backfill: some existing rows genuinely have no SEU
 -- (Pack/Template/Profile/DeliverableDefinition are platform catalog events,
 -- not SEU-scoped) — going forward is what matters for the reactive design.
 
-CREATE TABLE event_registry (
+CREATE TABLE IF NOT EXISTS event_registry (
   event_type   TEXT PRIMARY KEY,
   description  TEXT
 );
 
-CREATE TABLE event_subscriptions (
+CREATE TABLE IF NOT EXISTS event_subscriptions (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   event_type    TEXT NOT NULL REFERENCES event_registry(event_type),
   handler_name  TEXT NOT NULL,

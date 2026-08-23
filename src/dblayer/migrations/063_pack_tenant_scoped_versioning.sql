@@ -6,5 +6,6 @@
 -- row that isn't actually theirs. Same move as 062_template_tenant_ownership.sql
 -- made for Template, one dimension narrower (Pack doesn't need a new column,
 -- just the constraint widened).
-ALTER TABLE packs DROP CONSTRAINT packs_code_version_key;
+ALTER TABLE packs DROP CONSTRAINT IF EXISTS packs_code_version_key;
+ALTER TABLE packs DROP CONSTRAINT IF EXISTS packs_code_version_tenant_key;
 ALTER TABLE packs ADD CONSTRAINT packs_code_version_tenant_key UNIQUE (code, pack_version, tenant_id);

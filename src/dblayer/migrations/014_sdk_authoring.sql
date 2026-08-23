@@ -90,9 +90,14 @@ INSERT INTO capabilities (code, name, description, category) VALUES
   ('transition-definition-authoring', 'Transition Definition Authoring', 'Producing capability for the bootstrap Deliverable that authors a Transition Definition', 'Platform')
 ON CONFLICT (code) DO NOTHING;
 
+-- CR-059 build-time fix — ON CONFLICT target superseded by migration 063
+-- (CR-026 tenant-scoped versioning): (code, pack_version) widened to
+-- (code, pack_version, tenant_id). tenant_id itself has a real column
+-- DEFAULT (Platform tenant), so omitting it from the INSERT still resolves
+-- correctly — only the ON CONFLICT arbiter needed updating.
 INSERT INTO packs (code, name, category, pack_version, status, installation_classification, contributions, dependencies)
 VALUES ('sdk-authoring-scope', 'SDK Authoring Scope (badge-scope anchor, not a real Pack)', 'Platform', '1.0.0', 'Active', 'Optional', '{}', '[]')
-ON CONFLICT (code, pack_version) DO NOTHING;
+ON CONFLICT (code, pack_version, tenant_id) DO NOTHING;
 
 -- Bootstrap: the first schema version for Pack, seeded directly (design
 -- doc's "Bootstrap" paragraph — no UI path to create the very first schema

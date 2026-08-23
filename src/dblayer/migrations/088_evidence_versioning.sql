@@ -8,5 +8,6 @@
 -- SEUs. Deliberately no cascade anywhere in this migration or the code that
 -- uses this column — superseding is a fact recorded between two Evidence
 -- rows only, never a bulk operation over evidence_relationships.
+-- CR-059 build-time fix — missing IF NOT EXISTS broke a second replay.
 ALTER TABLE evidence
-  ADD COLUMN supersedes_evidence_id UUID REFERENCES evidence(id);
+  ADD COLUMN IF NOT EXISTS supersedes_evidence_id UUID REFERENCES evidence(id);

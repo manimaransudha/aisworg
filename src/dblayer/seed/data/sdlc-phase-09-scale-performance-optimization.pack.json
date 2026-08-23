@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Optimizing for scale and performance — aka Scale-Up, Resilience, Stress & Chaos Testing, FinOps Optimization.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Optimizing for scale and performance \u2014 aka Scale-Up, Resilience, Stress & Chaos Testing, FinOps Optimization.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -65,15 +65,6 @@
         "outputContract": "passed-failed-notes"
       }
     ],
-    "reviewGates": [
-      {
-        "code": "review-scale-performance-optimization",
-        "statement": "The Scale & Performance Optimization's deliverables have been reviewed and accepted as sufficient to proceed to Beta / Early Access.",
-        "classification": "human-attested",
-        "prompt": "Is the system's scaling, resilience, and cost posture sufficiently validated to justify moving into Beta / Early Access?",
-        "participant": "human",
-        "outputContract": "assessment-acceptance"
-      }
-    ]
+    "reviewGates": []
   }
 }

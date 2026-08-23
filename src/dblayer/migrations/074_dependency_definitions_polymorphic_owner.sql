@@ -11,19 +11,30 @@
 -- This means the old ON DELETE CASCADE off templates.id is gone; cleanup on
 -- Template/Profile/Pack deletion is now an explicit step (cleanSlate.ts),
 -- not automatic.
-ALTER TABLE dependency_definitions ADD COLUMN owning_entity_type TEXT;
-ALTER TABLE dependency_definitions ADD COLUMN owning_entity_id UUID;
+-- CR-059 build-time fix — wrapped in the same existence-check idiom
+-- migration 011 already established for this exact shape (a one-time
+-- backfill-then-drop-the-old-column transition): the UPDATE and DROP COLUMN
+-- below both reference template_id, which no longer exists after the first
+-- successful replay — a second replay failed outright, not just
+-- redundantly, since those statements can't even parse once the column is
+-- gone.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'dependency_definitions' AND column_name = 'template_id') THEN
+    ALTER TABLE dependency_definitions ADD COLUMN IF NOT EXISTS owning_entity_type TEXT;
+    ALTER TABLE dependency_definitions ADD COLUMN IF NOT EXISTS owning_entity_id UUID;
+    UPDATE dependency_definitions SET owning_entity_type = 'Template', owning_entity_id = template_id;
+    ALTER TABLE dependency_definitions ALTER COLUMN owning_entity_type SET NOT NULL;
+    ALTER TABLE dependency_definitions ALTER COLUMN owning_entity_id SET NOT NULL;
+    DROP INDEX IF EXISTS idx_dependency_definitions_target;
+    DROP INDEX IF EXISTS idx_dependency_definitions_source;
+    ALTER TABLE dependency_definitions DROP COLUMN template_id;
+  END IF;
+END $$;
 
-UPDATE dependency_definitions SET owning_entity_type = 'Template', owning_entity_id = template_id;
-
-ALTER TABLE dependency_definitions ALTER COLUMN owning_entity_type SET NOT NULL;
-ALTER TABLE dependency_definitions ALTER COLUMN owning_entity_id SET NOT NULL;
+ALTER TABLE dependency_definitions DROP CONSTRAINT IF EXISTS dependency_definitions_owning_entity_type_check;
 ALTER TABLE dependency_definitions ADD CONSTRAINT dependency_definitions_owning_entity_type_check
   CHECK (owning_entity_type IN ('Template', 'Pack', 'Profile'));
-
-DROP INDEX IF EXISTS idx_dependency_definitions_target;
-DROP INDEX IF EXISTS idx_dependency_definitions_source;
-ALTER TABLE dependency_definitions DROP COLUMN template_id;
 
 -- Narrower on the leading columns than the old template_id-first index: a
 -- gating/push query is always a (to_entity_type, to_name, to_state) or
