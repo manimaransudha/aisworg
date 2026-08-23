@@ -579,23 +579,27 @@ The lifecycle mechanism and Dependency-Engine integration are this chapter's str
 | FR-23.7 delegation without changing ownership | ❌ | Zero `delegat*` hits anywhere in `src/` for Obligation — same absence independently confirmed as Ch.22's Authority audit; no ownership/assignment field exists to delegate from in the first place (19.10). |
 | FR-23.8 Telemetry → auto-raised Organisational Learning Obligation | ✅ | Genuinely real — 3 real triggers in `telemetry.ts:179-337` (quality-gate blocking, policy waivers, capability shortages), deduplicated. The strongest-built claim in the chapter. |
 
-## 19.4 ⚠️ Obligation Categories — Ontology-backed, but not Pack-contributable and only half-seeded (§7)
+## 19.4 ✅ Obligation Categories — fully seeded and now reachable from a Pack's own Obligation Definition declaration (§7; CR-062)
 
-`category TEXT`, not DB-constrained but application-enforced via `assertCanonicalCategory("category:obligation", ...)` (`obligations.ts:29`) — real, not aspirational. Live `ontology_concepts WHERE concept_type='category:obligation'` has only 5 rows: `Compliance`, `Engineering`, `Organisational Learning`, `Review Finding`, `Security` — `contributed_by_pack` NULL on all 5. Of the chapter's 8 named categories, only 3 (Engineering/Compliance/Security) plus Organisational Learning are seeded; Risk/Audit/Operational/Customer are absent. `Review Finding` is an extra category the chapter doesn't name (imported from Ch.25's Finding model). "Additional categories introduced through Packs" is confirmed aspirational — zero Pack seed JSON references `category:obligation`.
+`category TEXT`, not DB-constrained but application-enforced via `assertCanonicalCategory("category:obligation", ...)` (`obligations.ts:29`) — real, not aspirational. Live `ontology_concepts WHERE concept_type='category:obligation'` now has all 9 rows: the chapter's 8 named categories (Engineering, Compliance, Security, Organisational Learning, plus Risk/Audit/Operational/Customer, added by CR-062's migration 110) plus one extra the chapter doesn't name (`Review Finding`, imported from Ch.25's Finding model).
 
-## 19.5 ❌ Obligation Structure — 7 of 16 fields real (§8)
+**CR-062, precisely what changed and what didn't.** `contributionObligationDefinitions[]` — the Pack-authoring declaration — gained a real `category` field for the first time (previously it had no category field at all, only an unrelated free-text `obligationType`); it's now a real, Ontology-backed dropdown, validated at `validatePackSeed` time exactly like Policy's own `category:policy`. **This is not the same as OM-005's own "Additional categories introduced through Packs"** — that would mean a Pack contributing *new* `category:obligation` vocabulary values, which stays exactly as unbuilt as before (`contributed_by_pack` still NULL on every row; the 4 new values were seeded directly by migration, not through a Pack, same mechanism the original 5 used). What CR-062 closes is narrower and different: a Pack's own declared Obligation Definition can now *select* a real category, where before the field to do so didn't exist on the form at all.
 
-| Chapter field | Real column? |
+## 19.5 ❌ Obligation Structure — 7 of 16 fields real on a live *instance*; Origin now real on the *Definition* declaration only (§8; CR-062)
+
+This table is about the real `obligations` row — a live instance, created at SEU-execution time. **CR-062 deliberately doesn't touch it.** Origin/Priority/Completion Criteria and the five Related-* fields were all settled as execution-side (an instance's own runtime values, not something a Pack-authored Definition can know in the abstract — see the chapter's own §10/CR-062's "Design, as settled"); Origin specifically also can't be predefined per-instance the way Category can, since which real source actually raised *this* Obligation is only known once it's raised. The one exception, and the reason Origin's row below now differs from Priority/Completion Criteria's: **`contributionObligationDefinitions[]` — the Definition, not the instance — gained a real `origin` field** (Ontology-backed, `category:obligation-origin`, a *categorical* declaration of which kind of source this type of Obligation is meant for, not a relational FK to a specific raising entity). No `obligations.origin` column was added; FR-23.5's "shall remain permanently recorded" is still not true of any live row.
+
+| Chapter field | Real column on `obligations`? |
 |---|---|
 | Identifier | ✅ `id` |
 | Title | ✅ `title` |
 | Category | ✅ `category` |
 | Description | ✅ `description` |
-| Origin | ❌ absent |
-| Priority | ❌ absent |
+| Origin | ❌ absent on the instance; ✅ real on the Definition declaration only (CR-062, `category:obligation-origin`) |
+| Priority | ❌ absent — settled execution-side, out of CR-062's scope |
 | Severity | ✅ `severity` |
 | Status | ✅ `status` |
-| Completion Criteria | ❌ absent |
+| Completion Criteria | ❌ absent — settled execution-side, out of CR-062's scope; can't be meaningfully predefined at Pack-authoring time regardless (owner: "there is no way you can predefine [this] unless you get to the point where it can be identified") |
 | Related Deliverables | ⚠️ collapsed into one polymorphic `related_object_type`/`related_object_id`, not plural or Deliverable-specific |
 | Related Decisions | ❌ resolvable only via reverse lookup, not stored on the Obligation |
 | Related Evidence | ❌ absent |
@@ -604,13 +608,15 @@ The lifecycle mechanism and Dependency-Engine integration are this chapter's str
 | Related Authority Rules | ❌ absent |
 | Traceability References | ❌ absent — only `events` reconstruction |
 
+All six Related-*/Traceability rows were confirmed out of scope for CR-062 too, same reasoning as Priority — an instance's own real relationships, not a Definition-level default.
+
 ## 19.6 ✅ Obligation Lifecycle — matches the chapter exactly, verification gate structurally enforced (§9)
 
 Live `transition_definitions WHERE entity_type='Obligation'` returns exactly the chapter's 8-state chain: `Identified→Analysed→Assigned→In Progress→Resolved→Verified→Closed→Archived`, no shortcut rows. "Closure shall require verification" is structurally enforced, not just conventionally observed — no `Resolved→Closed` or `In Progress→Closed` row exists, and `transitionEngine.evaluate()` fails closed for anything not in the table. Live data currently exercises only 3 of the 8 states, but the mechanism itself is fully real.
 
-## 19.7 ❌ Obligation Sources — 2 of 11 automated (§10)
+## 19.7 ❌ Obligation Sources — still 2 of 11 automated; the 11 are now a real Ontology vocabulary (§10; CR-062)
 
-`origin` doesn't exist as a captured field in any form (19.1) — "the origin shall remain permanently recorded" isn't implemented at all. Of the 11 named sources, real automated creation exists for exactly 2: Quality Gates (sustained-blocking detection) and Telemetry + Knowledge Model (FR-23.8). The remaining 9 — EBM, Policies, Authority evaluations, Reviews, Compliance Packs, Organisation Packs, Customer requests, Participants, External systems — are manual-only via the generic API.
+`origin` still doesn't exist as a captured field on any real `obligations` row (19.1/19.5) — "the origin shall remain permanently recorded" still isn't implemented for a live instance. Of the 11 named sources, real automated creation exists for exactly 2: Quality Gates (sustained-blocking detection) and Telemetry + Knowledge Model (FR-23.8). The remaining 9 — EBM, Policies, Authority evaluations, Reviews, Compliance Packs, Organisation Packs, Customer requests, Participants, External systems — are manual-only via the generic API. **CR-062 doesn't change any of this automation** — what it does is turn this section's own 11 named sources into a real seeded vocabulary (`category:obligation-origin`, migration 110), so a Pack's Obligation Definition can now *declare* which of these 11 kinds of source it's meant to be raised from, even though only 2 of the 11 can actually raise one automatically today.
 
 ## 19.8 ✅ Dependency Integration — the strongest-built section besides FR-23.8 (§11)
 
@@ -628,9 +634,9 @@ No `assigned_to`/`owner` column exists at all (11-column live schema, confirmed)
 
 The only real escalation logic in the codebase (`workItemHeartbeat.ts`, `telemetry.ts`) is not Obligation-scoped: `workItemHeartbeat.ts:43` explicitly excludes non-Deliverable entities, and `telemetry.ts:217-229`'s "Escalation"-category Attention Item is a side effect of *creating* an Organisational Learning Obligation, not a state-driven trigger off any of the chapter's 5 named conditions (severity, prolonged-unresolved, repeated-verification-failure, approaching milestone, dependency impact). No `ObligationEscalated` event exists (19.12).
 
-## 19.12 ⚠️ Events — 2 of 8 named events real (§15)
+## 19.12 ⚠️ Events — 2 of 8 named events real; fix split out as CR-063 (§15)
 
-Live query confirms exactly 2 distinct event types: `ObligationCreated` (281 rows) and generic `ObligationTransitioned` (577 rows, `fromState`/`toState` payload). `ObligationAssigned`/`Updated`/`Resolved`/`Verified`/`Closed`/`Escalated`/`Reopened` are all collapsed into the one generic transition event. `SustainedPatternDetected` (`telemetry.ts:209`) is a real extra event the chapter doesn't name.
+Live query confirms exactly 2 distinct event types: `ObligationCreated` (281 rows) and generic `ObligationTransitioned` (577 rows, `fromState`/`toState` payload). `ObligationAssigned`/`Updated`/`Resolved`/`Verified`/`Closed`/`Escalated`/`Reopened` are all collapsed into the one generic transition event. `SustainedPatternDetected` (`telemetry.ts:209`) is a real extra event the chapter doesn't name. **Not fixed by CR-062** — a raised Obligation instance's own event emission is runtime/lifecycle behaviour, not Pack-authoring, so it's out of that CR's definition-only scope by the same boundary applied throughout. Filed separately as **CR-063**, with a real implementation precedent to follow: Review's own per-transition named-event pattern (`reviews.ts`) plus the Ch.30 Event Bus redesign's own Event Registry/Event Subscriptions structure, which explicitly anticipated this as "chapter-by-chapter gap-closing work."
 
 ## 19.13 ⚠️ Non-Functional Requirements (§16)
 
@@ -669,10 +675,10 @@ Live query confirms exactly 2 distinct event types: `ObligationCreated` (281 row
 
 ## Summary — ranked
 
-1. **[Ontology / Pack-contribution — most relevant to the current redesign question]** Obligation Category is genuinely Ontology-backed — a real, working precedent for the redesign — but has zero Pack-contributed rows, and separately `obligations` itself has no `originating_pack_id` at all, unlike every comparable Pack-contributed entity on the platform (quality_gates/policies/capabilities/metric_registry/compliance_*). OM-005 has no mechanism whatsoever, not even a partial one (19.2, 19.4).
+1. **[Ontology / Pack-contribution — resolved by CR-062, narrowly]** Obligation Category is genuinely Ontology-backed and now fully seeded (9 values) and reachable from the Obligation Definition declaration itself — but this closes the *declaration* gap only, not OM-005 in full: `category:obligation` still has zero Pack-*contributed* rows (no Pack can introduce a new category value), and `obligations` itself still has no `originating_pack_id` at all, unlike every comparable Pack-contributed entity on the platform (quality_gates/policies/capabilities/metric_registry/compliance_*). CR-062 settled that no real, materialized Obligation Definition table is needed to close this — unlike Checklist/Policy, nothing else cross-references a specific Definition by id, so the declaration staying JSONB-only is a deliberate, permanent design choice, not a remaining gap (19.2, 19.4).
 2. **[Governance, real and strong]** Dependency Engine integration and the verification-gated closure lifecycle are both live-verified and match the chapter closely — the strongest-built area of this chapter besides FR-23.8 (19.6, 19.8).
 3. **[Code, genuinely surprising positive]** FR-23.8's Telemetry→Organisational-Learning-Obligation loop is fully real and automated, not aspirational at all — the strongest single claim verified in this audit (19.3, 19.7).
 4. **[Code]** The chapter's own closing loop — Obligation resolution feeding back into a revised Pack via the Composition Engine — is confirmed absent in code, and the chapter's own authorial note already flags it as acknowledged-aspirational rather than an oversight (19.9).
-5. **[Data model]** 9 of 16 §8 structure fields are entirely absent — Origin, Priority, Completion Criteria, and 5 of the 6 "Related *" fields don't exist as columns anywhere (19.5).
+5. **[Data model]** 9 of 16 §8 structure fields are still entirely absent on a real *instance* — Priority, Completion Criteria, and all 6 "Related *"/Traceability fields — all settled by CR-062 as deliberately execution-side, not a remaining Definition-side gap. Origin is the one exception: still absent on the instance, but now real on the Definition declaration (`category:obligation-origin`, CR-062) (19.5).
 6. **[Code]** Delegation (FR-23.7) and Ownership (§13) are both entirely unbuilt — there's no assignment field to delegate from in the first place, mirroring the same absence Ch.22 found for Authority (19.10).
 7. **[Code]** Escalation (§14) exists nowhere for Obligation specifically — the only real escalation logic in the codebase explicitly excludes non-Deliverable entities (19.11).

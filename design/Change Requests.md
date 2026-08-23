@@ -4,6 +4,11 @@ A running register of change requests raised against the platform — feature ad
 
 | CR | Title | Status |
 |----|-------|--------|
+| [CR-063](change-requests/CR-063-obligation-named-lifecycle-events.md) | Obligation: real named lifecycle events, 2 of 8 currently real (Chapter 23 §19.12) | 🟡 Proposed (not designed, not scheduled) |
+| [CR-062](change-requests/CR-062-obligation-definition-chapter-23.md) | Obligation Definitions: Ontology-backed Category (fully seeded) and new Origin field, no real Definition table needed (Chapter 23) | ✅ Built 2026-08-23 |
+| [CR-061](change-requests/CR-061-policy-model-chapter-24.md) | Policy: Ontology-backed Category, real transition-scoped picker, Pack-scoped identity (no version/lifecycle), Quality Gate's Required-Policies generalized to a list + threshold | ✅ Built 2026-08-23 |
+| [CR-060](change-requests/CR-060-checklist-model-chapter-47.md) | Checklist: real Pack-scoped entity (no version/lifecycle), nested Items, Review/Quality Gate `checklistIds`/`recommendedChecklistIds` | ✅ Built 2026-08-23 |
+| [CR-059](change-requests/CR-059-review-gate-alignment-chapter-25.md) | Review Gate: real persisted entity, deliverable-name-backed Category, direct FK from Quality Gate (replacing category/string matching) | ✅ Built 2026-08-22 |
 | [CR-058](change-requests/CR-058-quality-gate-full-structure.md) | Quality Gate: Ontology-backed Category, transition-scoped picker, Required-Policies criteria type, badge-gated Waivers, independent Versioning | ✅ Built 2026-08-22 |
 | [CR-057](change-requests/CR-057-transition-definition-full-structure.md) | Transition Definition: add required Reviews/Evidence/Obligations columns, catch up the schema registry, extend the authoring UI | 🟡 Proposed (design in progress) |
 | [CR-056](change-requests/CR-056-decision-category-pack-contribution.md) | Decision categories (and, more broadly, other `category:*` concept types) contributed through Packs | 🟡 Proposed (not designed) |

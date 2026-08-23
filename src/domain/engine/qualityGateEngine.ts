@@ -190,14 +190,26 @@ export const qualityGateEngine = {
     // a Quality Gate always blocks on non-satisfaction, regardless of its
     // own constraint_type — the gate IS the explicit override the chapter
     // describes.
+    // CR-061 — generalized from a single policyCode to policyIds (real,
+    // already-resolved ids — resolved at seedContributions time from the
+    // authored requiredPolicyCodes, core/packs.ts). All referenced Policies
+    // must be satisfied (owner: "Every quality gate is defined by category
+    // and that is an AND") — the "all" case is the only one built; a real
+    // percentage/threshold system is explicitly deferred execution-side
+    // work, not part of this CR ("each type may lead to some code change to
+    // the governance of the gates").
     if (criteriaType === "requires_active_policy") {
-      const policyCode = (gate.criteria as { policyCode?: string }).policyCode;
-      if (!policyCode) return this.blockOrWaive(gate, input, "requires_active_policy criteria has no policyCode configured", {});
-      const { data: policy } = await policiesDB.findByCode(policyCode);
-      if (!policy) return this.blockOrWaive(gate, input, `referenced Policy "${policyCode}" does not exist`, { policyCode });
-      const satisfied = evaluateCondition(policy.condition as PolicyCondition, input.context ?? {});
-      if (!satisfied) {
-        return this.blockOrWaive(gate, input, `Policy "${policyCode}" is not satisfied for this entity`, { policyCode });
+      const policyIds = (gate.criteria as { policyIds?: string[] }).policyIds ?? [];
+      if (policyIds.length === 0) return this.blockOrWaive(gate, input, "requires_active_policy criteria has no policyIds configured", {});
+      const { data: policies } = await policiesDB.findByIds(policyIds);
+      if (!policies || policies.length !== policyIds.length) {
+        return this.blockOrWaive(gate, input, "one or more referenced Policies do not exist", { policyIds });
+      }
+      for (const policy of policies) {
+        const satisfied = evaluateCondition(policy.condition as PolicyCondition, input.context ?? {});
+        if (!satisfied) {
+          return this.blockOrWaive(gate, input, `Policy "${policy.code}" is not satisfied for this entity`, { policyId: policy.id, policyCode: policy.code });
+        }
       }
       return this.recordAndPass(gate, input);
     }

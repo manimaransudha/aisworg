@@ -65,16 +65,6 @@ INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id) VAL
   ('category:deliverable', 'Architecture', 'Architecture', '11111111-1111-1111-1111-111111111111'),
   ('category:deliverable', 'Design', 'Design', '11111111-1111-1111-1111-111111111111'),
   ('category:deliverable', 'Requirements', 'Requirements', '11111111-1111-1111-1111-111111111111'),
-  ('category:policy', 'Coding Standard', 'Coding Standard', '11111111-1111-1111-1111-111111111111'),
-  ('category:policy', 'Documentation', 'Documentation', '11111111-1111-1111-1111-111111111111'),
-  ('category:policy', 'Domain Standard', 'Domain Standard', '11111111-1111-1111-1111-111111111111'),
-  ('category:policy', 'Domain', 'Domain', '11111111-1111-1111-1111-111111111111'),
-  ('category:policy', 'Engineering', 'Engineering', '11111111-1111-1111-1111-111111111111'),
-  ('category:policy', 'Exit', 'Exit', '11111111-1111-1111-1111-111111111111'),
-  ('category:policy', 'Implementation', 'Implementation', '11111111-1111-1111-1111-111111111111'),
-  ('category:policy', 'Platform', 'Platform', '11111111-1111-1111-1111-111111111111'),
-  ('category:policy', 'Quality', 'Quality', '11111111-1111-1111-1111-111111111111'),
-  ('category:policy', 'Technology', 'Technology', '11111111-1111-1111-1111-111111111111'),
   ('capability-name', 'requirements-analysis', 'Requirements Analysis', '11111111-1111-1111-1111-111111111111'),
   ('capability-name', 'development', 'Development', '11111111-1111-1111-1111-111111111111')
 ON CONFLICT (concept_type, code, tenant_id) DO NOTHING;

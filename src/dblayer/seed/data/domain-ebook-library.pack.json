@@ -42,10 +42,10 @@
       {
         "code": "policy-library-isbn-metadata-standard",
         "name": "ISBN Metadata Standard",
-        "category": "Domain Standard",
+        "category": "Documentation",
         "constraintType": "Standard",
-        "governedTransition": "deliverable.transition",
-        "condition": { "type": "always_true" },
+        "governedTransition": "Deliverable|Defined|In Progress",
+        "conditionType": "always_true",
         "severity": "Low"
       }
     ]

@@ -31,32 +31,98 @@
         "capabilityCode": "requirements-analysis",
         "name": "Approved Requirements Specification",
         "contractDescription": "A reviewed, approved statement of what the solution must do.",
-        "serviceLevel": { "qualityBar": "peer-reviewed", "turnaround_time": 86400 }
+        "serviceLevel": {
+          "qualityBar": "peer-reviewed",
+          "turnaround_time": 86400
+        }
       },
       {
         "code": "approved-architecture",
         "capabilityCode": "architecture",
         "name": "Approved Architecture",
         "contractDescription": "A reviewed, approved technical design satisfying the approved requirements.",
-        "serviceLevel": { "qualityBar": "peer-reviewed", "turnaround_time": 86400 }
+        "serviceLevel": {
+          "qualityBar": "peer-reviewed",
+          "turnaround_time": 86400
+        }
       }
     ],
     "authorityRules": [
-      { "code": "authority-commission-seu", "governedTransition": "seu.commission", "authorisedRole": "general" },
-      { "code": "authority-transition-deliverable", "governedTransition": "deliverable.transition", "authorisedRole": "general" },
-      { "code": "authority-transition-objective", "governedTransition": "objective.transition", "authorisedRole": "general" },
-      { "code": "authority-transition-obligation", "governedTransition": "obligation.transition", "authorisedRole": "general" },
-      { "code": "authority-transition-evidence", "governedTransition": "evidence.transition", "authorisedRole": "general" },
-      { "code": "authority-transition-knowledge", "governedTransition": "knowledge.transition", "authorisedRole": "general" },
-      { "code": "authority-transition-decision", "governedTransition": "decision.transition", "authorisedRole": "general" },
-      { "code": "authority-promote-knowledge-to-capability", "governedTransition": "knowledgescope.transition", "authorisedRole": "general" },
-      { "code": "authority-promote-knowledge-to-enterprise", "governedTransition": "knowledgescope.transition", "authorisedRole": "power" },
-      { "code": "authority-promote-knowledge-to-platform", "governedTransition": "knowledgescope.transition", "authorisedRole": "super" },
-      { "code": "authority-transition-attentionitem", "governedTransition": "attentionitem.transition", "authorisedRole": "general" },
-      { "code": "authority-transition-externalinteraction", "governedTransition": "externalinteraction.transition", "authorisedRole": "general" },
-      { "code": "authority-transition-pack", "governedTransition": "pack.transition", "authorisedRole": "general" },
-      { "code": "authority-transition-pack-elevated", "governedTransition": "pack.transition", "authorisedRole": "power" },
-      { "code": "authority-transition-participant", "governedTransition": "participant.transition", "authorisedRole": "general" }
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-obligation",
+        "governedTransition": "obligation.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-evidence",
+        "governedTransition": "evidence.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-knowledge",
+        "governedTransition": "knowledge.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-decision",
+        "governedTransition": "decision.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-promote-knowledge-to-capability",
+        "governedTransition": "knowledgescope.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-promote-knowledge-to-enterprise",
+        "governedTransition": "knowledgescope.transition",
+        "authorisedRole": "power"
+      },
+      {
+        "code": "authority-promote-knowledge-to-platform",
+        "governedTransition": "knowledgescope.transition",
+        "authorisedRole": "super"
+      },
+      {
+        "code": "authority-transition-attentionitem",
+        "governedTransition": "attentionitem.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-externalinteraction",
+        "governedTransition": "externalinteraction.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-pack",
+        "governedTransition": "pack.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-pack-elevated",
+        "governedTransition": "pack.transition",
+        "authorisedRole": "power"
+      },
+      {
+        "code": "authority-transition-participant",
+        "governedTransition": "participant.transition",
+        "authorisedRole": "general"
+      }
     ],
     "policies": [
       {
@@ -65,8 +131,8 @@
         "category": "Engineering",
         "constraintType": "Policy",
         "governedTransition": "seu.commission",
-        "condition": { "type": "always_true" },
-        "severity": "Medium"
+        "severity": "Medium",
+        "conditionType": "always_true"
       },
       {
         "code": "policy-deliverable-transition-baseline",
@@ -74,8 +140,8 @@
         "category": "Engineering",
         "constraintType": "Policy",
         "governedTransition": "deliverable.transition",
-        "condition": { "type": "always_true" },
-        "severity": "Low"
+        "severity": "Low",
+        "conditionType": "always_true"
       },
       {
         "code": "policy-objective-transition-baseline",
@@ -83,8 +149,8 @@
         "category": "Engineering",
         "constraintType": "Policy",
         "governedTransition": "objective.transition",
-        "condition": { "type": "always_true" },
-        "severity": "Low"
+        "severity": "Low",
+        "conditionType": "always_true"
       },
       {
         "code": "policy-obligation-transition-baseline",
@@ -92,8 +158,8 @@
         "category": "Engineering",
         "constraintType": "Policy",
         "governedTransition": "obligation.transition",
-        "condition": { "type": "always_true" },
-        "severity": "Low"
+        "severity": "Low",
+        "conditionType": "always_true"
       },
       {
         "code": "policy-evidence-transition-baseline",
@@ -101,8 +167,8 @@
         "category": "Engineering",
         "constraintType": "Policy",
         "governedTransition": "evidence.transition",
-        "condition": { "type": "always_true" },
-        "severity": "Low"
+        "severity": "Low",
+        "conditionType": "always_true"
       },
       {
         "code": "policy-knowledge-transition-baseline",
@@ -110,8 +176,8 @@
         "category": "Engineering",
         "constraintType": "Policy",
         "governedTransition": "knowledge.transition",
-        "condition": { "type": "always_true" },
-        "severity": "Low"
+        "severity": "Low",
+        "conditionType": "always_true"
       },
       {
         "code": "policy-decision-transition-baseline",
@@ -119,8 +185,8 @@
         "category": "Engineering",
         "constraintType": "Policy",
         "governedTransition": "decision.transition",
-        "condition": { "type": "always_true" },
-        "severity": "Low"
+        "severity": "Low",
+        "conditionType": "always_true"
       },
       {
         "code": "policy-knowledgescope-transition-baseline",
@@ -128,8 +194,8 @@
         "category": "Engineering",
         "constraintType": "Policy",
         "governedTransition": "knowledgescope.transition",
-        "condition": { "type": "always_true" },
-        "severity": "Medium"
+        "severity": "Medium",
+        "conditionType": "always_true"
       },
       {
         "code": "policy-attentionitem-transition-baseline",
@@ -137,8 +203,8 @@
         "category": "Engineering",
         "constraintType": "Policy",
         "governedTransition": "attentionitem.transition",
-        "condition": { "type": "always_true" },
-        "severity": "Low"
+        "severity": "Low",
+        "conditionType": "always_true"
       },
       {
         "code": "policy-externalinteraction-transition-baseline",
@@ -146,8 +212,8 @@
         "category": "Engineering",
         "constraintType": "Policy",
         "governedTransition": "externalinteraction.transition",
-        "condition": { "type": "always_true" },
-        "severity": "Low"
+        "severity": "Low",
+        "conditionType": "always_true"
       },
       {
         "code": "policy-pack-transition-baseline",
@@ -155,8 +221,8 @@
         "category": "Engineering",
         "constraintType": "Policy",
         "governedTransition": "pack.transition",
-        "condition": { "type": "always_true" },
-        "severity": "Low"
+        "severity": "Low",
+        "conditionType": "always_true"
       },
       {
         "code": "policy-participant-transition-baseline",
@@ -164,8 +230,8 @@
         "category": "Engineering",
         "constraintType": "Policy",
         "governedTransition": "participant.transition",
-        "condition": { "type": "always_true" },
-        "severity": "Low"
+        "severity": "Low",
+        "conditionType": "always_true"
       }
     ],
     "qualityGates": [

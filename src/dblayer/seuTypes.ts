@@ -91,13 +91,22 @@ export interface PackContributions {
   capabilities?: Array<{ code: string; name: string; description?: string; category?: string }>;
   services?: Array<{ code: string; capabilityCode: string; name: string; contractDescription: string; serviceLevel?: Record<string, unknown> }>;
   authorityRules?: Array<{ code: string; governedTransition: string; authorisedRole: string }>;
+  // CR-061 — real Ontology-backed category (category:policy), real
+  // transition-definition-backed governedTransition (definition-side only
+  // — not yet consulted by the evaluation engine, owner: "we are not
+  // addressing this here"). `condition`'s authored, flat, form-facing shape
+  // (conditionType/conditionField/conditionValues) is reassembled into
+  // condition's real nested JSONB shape at seedContributions time, the same
+  // pattern criteriaType/deliverableName already use for Quality Gate.
   policies?: Array<{
     code: string;
     name: string;
-    category?: string;
+    category: string;
     constraintType?: "Policy" | "Standard";
     governedTransition: string;
-    condition?: Record<string, unknown>;
+    conditionType?: "always_true" | "field_in";
+    conditionField?: string;
+    conditionValues?: string;
     severity?: string;
   }>;
   // Post-MVP Phase 4 (Ch.26 FR-26.2: "Quality Gates shall be contributed
@@ -139,7 +148,15 @@ export interface PackContributions {
     governedTransition: string;
     criteriaType: "no_unresolved_obligations" | "requires_accepted_evidence_or_approved_decision" | "requires_accepted_review" | "requires_active_policy";
     deliverableName?: string;
-    requiredPolicyCode?: string;
+    // CR-061 — generalized from a single requiredPolicyCode to an array
+    // (owner: "(1) is right" — Quality Gate's requires_active_policy takes
+    // several Policies, not one). Entries are this same Pack's own declared
+    // Policy `code` (raw seed JSON, resolved via policyIdByCode) or an
+    // already-real, code-scoped cross-Pack `policies.id` (form-submitted) —
+    // identical dual-shape resolution to checklistIds. Threshold/aggregation
+    // logic is execution-side, deferred (owner: "each type may lead to some
+    // code change to the governance of the gates").
+    requiredPolicyCodes?: string[];
     // CR-060 — real ids of Checklists (any Pack's, not just this one) this
     // gate requires. AND within the list (owner: "Every quality gate is
     // defined by category and that is an AND"); a Checklist referenced by
@@ -181,7 +198,12 @@ export interface PackContributions {
   // criteria structure). checklistIds/recommendedChecklistIds — see
   // qualityGates' own fields above, identical semantics.
   reviewGates?: Array<{ code: string; name: string; governedTransition: string; checklistIds?: string[]; recommendedChecklistIds?: string[] } & VerifiableItemFields>;
-  obligationDefinitions?: Array<{ code?: string; obligationType?: string } & VerifiableItemFields>;
+  // CR-062 — obligationType dropped (redundant with category, unclear
+  // purpose against Ch.23). category/origin real, Ontology-backed
+  // (category:obligation/category:obligation-origin). No real Obligation
+  // Definition table — nothing cross-references one by id, unlike
+  // Checklist/Policy — this stays a JSONB declaration only.
+  obligationDefinitions?: Array<{ code?: string; category?: string; origin?: string } & VerifiableItemFields>;
   // Compliance Model — Plan (Phase 15, Ch.27 FR-27.1): a Pack contributes
   // Compliance Frameworks and their declarative Requirements. Compliance
   // composes existing primitives (§8), so a requirement's criteria reuses the

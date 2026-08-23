@@ -102,7 +102,7 @@
                       must still fill in); meaningless once the page is just
                       showing what was already saved. %>
                   <label class="form-label small fw-semibold"><%= f.label %><% if (f.required && canEdit) { %> <span class="text-danger">*</span><% } %></label>
-                  <%- include('_referentialListGroup', { field: f, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions }) %>
+                  <%- include('_referentialListGroup', { field: f, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions }) %>
                   <% if (f.help) { %><div class="form-text small"><%= f.help %></div><% } %>
                 </div>
               <% } else { %>
@@ -214,15 +214,14 @@
         <% } else { %>
           <%# CR-058 form redesign (owner: "the help should be against each
               field instead of a write-up at the top... the form is very
-              very poorly designed") — Quality Gates and Review Gates
-              (CR-059, same redesign discipline) now carry real per-field
-              help (items.properties.someField's own x-help, rendered
-              inline by _referentialListGroup.ejs), so the once-per-section
-              write-up + field-name bullet list below is suppressed for
-              both specifically. Every other contribution section
-              (Checklists/Obligation Definitions/Dependencies) doesn't have
-              inline help yet, so keeps this fallback unchanged. %>
-          <% var SECTIONS_WITH_INLINE_HELP = ['contributionQualityGates', 'contributionReviewGates', 'contributionChecklists']; %>
+              very poorly designed") — Quality Gates, Review Gates (CR-059),
+              Policies (CR-061), and Obligation Definitions (CR-062) all now
+              carry real per-field help (items.properties.someField's own
+              x-help, rendered inline by _referentialListGroup.ejs), so the
+              once-per-section write-up + field-name bullet list below is
+              suppressed for each. Checklists/Dependencies don't have inline
+              help yet, so keep this fallback unchanged. %>
+          <% var SECTIONS_WITH_INLINE_HELP = ['contributionQualityGates', 'contributionReviewGates', 'contributionChecklists', 'contributionPolicies', 'contributionObligationDefinitions']; %>
           <% if (t.id === 'dependencies') { %>
             <p class="text-muted small mb-2">Other Packs this one requires, allows alongside, or is incompatible with. A "required" dependency must resolve to a real, Active Pack.</p>
           <% } else if (SECTIONS_WITH_INLINE_HELP.indexOf(t.id) === -1 && (locals.contributionHelp || {})[t.helpKey]) { %>
@@ -243,7 +242,7 @@
           <% } else if (t.type === 'json') { %>
             <textarea name="<%= t.field.name %>" class="form-control form-control-sm font-monospace" rows="6" <%- canEdit ? '' : 'disabled' %>><%= t.field.value %></textarea>
           <% } else { %>
-            <%- include('_referentialListGroup', { field: t.field, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions }) %>
+            <%- include('_referentialListGroup', { field: t.field, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions }) %>
           <% } %>
         <% } %>
 

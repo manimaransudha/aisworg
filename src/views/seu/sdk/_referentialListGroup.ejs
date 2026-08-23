@@ -257,23 +257,27 @@
                         </ul>
                       <% } %>
                     <% } else if (itemField.kind === 'referential-multi') { %>
-                      <%# CR-060 — checklistIds, view mode: resolve each
-                          stored reference back to its Checklist's name +
-                          originating Pack via checklistOptions, same display
-                          the edit-mode <select> already uses. A stored entry
-                          is either a real checklists.id (form-submitted) or
-                          this same Pack's own Checklist NAME, never resolved
-                          back into the Pack's own contributions JSON (a raw
-                          seed file authors it that way — core/packs.ts's
-                          validateChecklistIds accepts the identical two
-                          shapes) — match by id OR name, not id alone. %>
-                      <% var selectedChecklists = Array.isArray(value) ? value : []; %>
-                      <% if (!selectedChecklists.length) { %>
+                      <%# CR-060/CR-061 — checklistIds/requiredPolicyCodes,
+                          view mode: resolve each stored reference back to its
+                          real name + originating Pack, same display the
+                          edit-mode <select> already uses. A stored entry is
+                          either a real id (form-submitted) or this same
+                          Pack's own declared name/code, never resolved back
+                          into the Pack's own contributions JSON (a raw seed
+                          file authors it that way — core/packs.ts's
+                          validateChecklistIds/validatePolicyCodes accept the
+                          identical two shapes) — match by id OR name/code,
+                          not id alone. Options source dispatches on
+                          referentialSource (checklist vs policy), the same
+                          way pack-code fields dispatch on their own source. %>
+                      <% var _multiOptions = itemField.referentialSource === 'policy' ? (locals.policyOptions || []) : (locals.checklistOptions || []); %>
+                      <% var selectedRefs = Array.isArray(value) ? value : []; %>
+                      <% if (!selectedRefs.length) { %>
                         <span class="text-muted">None</span>
                       <% } else { %>
-                        <% selectedChecklists.forEach(function(clRef) { %>
-                          <% var matchedChecklist = (locals.checklistOptions || []).find(function(o) { return o.id === clRef || o.name === clRef; }); %>
-                          <span class="badge bg-light text-dark border me-1 mb-1"><%= matchedChecklist ? (matchedChecklist.name + ' — ' + matchedChecklist.packName) : ('⚠ ' + clRef + ' (not found)') %></span>
+                        <% selectedRefs.forEach(function(ref) { %>
+                          <% var matchedOpt = _multiOptions.find(function(o) { return o.id === ref || o.name === ref; }); %>
+                          <span class="badge bg-light text-dark border me-1 mb-1"><%= matchedOpt ? (matchedOpt.name + ' — ' + matchedOpt.packName) : ('⚠ ' + ref + ' (not found)') %></span>
                         <% }) %>
                       <% } %>
                     <% } else if (itemField.kind === 'boolean') { %>
@@ -447,21 +451,25 @@
                   <% } %>
                 </div>
               <% } else if (itemField.kind === 'referential-multi') { %>
-                <%# CR-060 — checklistIds: scoped to this Pack's own code, so
-                    it needs its own richer option source (checklistOptions —
-                    {id, name, packName}), the same reason pack-code fields
-                    above use packOptions instead of the generic flat
-                    referentialOptions map. A stored selection is either a
-                    real checklists.id (form-submitted, an earlier save) or
-                    this same Pack's own Checklist NAME (a raw seed file's
-                    same-Pack self-reference, never resolved back into the
-                    Pack's own contributions JSON) — match either way, same
-                    dual-shape handling core/packs.ts's validateChecklistIds
-                    already does server-side. %>
-                <% var _selectedChecklistRefs = Array.isArray(row[itemField.name]) ? row[itemField.name] : []; %>
+                <%# CR-060/CR-061 — checklistIds/requiredPolicyCodes: both
+                    scoped to this Pack's own code, so both need their own
+                    richer option source ({id, name, packName}), the same
+                    reason pack-code fields above use packOptions instead of
+                    the generic flat referentialOptions map. Dispatches on
+                    referentialSource — "checklist" or "policy" — same
+                    pattern the pack-code branch below dispatches on its own
+                    source. A stored selection is either a real id
+                    (form-submitted, an earlier save) or this same Pack's own
+                    declared name/code (a raw seed file's same-Pack self-
+                    reference, never resolved back into the Pack's own
+                    contributions JSON) — match either way, same dual-shape
+                    handling core/packs.ts's validateChecklistIds/
+                    validatePolicyCodes already do server-side. %>
+                <% var _multiOptions = itemField.referentialSource === 'policy' ? (locals.policyOptions || []) : (locals.checklistOptions || []); %>
+                <% var _selectedMultiRefs = Array.isArray(row[itemField.name]) ? row[itemField.name] : []; %>
                 <select name="<%= field.name %>[<%= i %>][<%= itemField.name %>][]" class="form-select form-select-sm" multiple size="5" <%- canEdit ? '' : 'disabled' %>>
-                  <% (locals.checklistOptions || []).forEach(function(opt) { %>
-                    <option value="<%= opt.id %>" <%= (_selectedChecklistRefs.indexOf(opt.id) !== -1 || _selectedChecklistRefs.indexOf(opt.name) !== -1) ? 'selected' : '' %>><%= opt.name %> — <%= opt.packName %></option>
+                  <% _multiOptions.forEach(function(opt) { %>
+                    <option value="<%= opt.id %>" <%= (_selectedMultiRefs.indexOf(opt.id) !== -1 || _selectedMultiRefs.indexOf(opt.name) !== -1) ? 'selected' : '' %>><%= opt.name %> — <%= opt.packName %></option>
                   <% }) %>
                 </select>
                 <div class="form-text small">Ctrl/Cmd-click to select more than one.</div>

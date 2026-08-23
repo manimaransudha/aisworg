@@ -413,7 +413,7 @@ router.get("/authority/transition-definitions/:id", requireAuthorityAdmin, attac
 const CANONICAL_EVIDENCE_CATEGORIES = new Set(["Analytical Evidence", "Validation Evidence", "Operational Evidence", "Review Evidence", "Decision Evidence", "External Evidence"]);
 
 async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: string | null }): Promise<Record<string, string[]>> {
-  const [{ data: packs }, { data: templates }, featureFlags, deliverableNames, deliverableCategories, evidenceCategories, { data: transitionDefinitions }, { data: policies }] = await Promise.all([
+  const [{ data: packs }, { data: templates }, featureFlags, deliverableNames, deliverableCategories, evidenceCategories, policyCategories, obligationCategories, obligationOrigins, { data: transitionDefinitions }] = await Promise.all([
     viewer.isRoot || !viewer.tenantId ? packsDB.findAll() : packsDB.findAllVisibleTo(viewer.tenantId),
     templatesDB.findAllActive(),
     listConceptsForType("feature-flag", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
@@ -426,8 +426,20 @@ async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: strin
     // category:evidence, reused directly rather than a separate
     // quality-gate-only vocabulary.
     listConceptsForType("category:evidence", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
+    // CR-061 — Policy's own category, a new concept type of its own (owner:
+    // "category should be ontology driven. The policy categories are in
+    // section 7. Seed these categories as category:policy"), not reused
+    // from category:evidence/category:pack — confirmed independent (owner:
+    // "It does not change the policy category. So I can have a customer
+    // sign off policy category across any gate category").
+    listConceptsForType("category:policy", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
+    // CR-062 — Obligation Definition's own category (category:obligation,
+    // already existed, real precedent per Ch.23 §19.4 — just never wired
+    // into the authoring form) and origin (category:obligation-origin, new
+    // concept type, Ch.23 §10's 11 named Obligation Sources).
+    listConceptsForType("category:obligation", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
+    listConceptsForType("category:obligation-origin", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
     transitionDefinitionsDB.listAll(),
-    policiesDB.findAll(),
   ]);
   const activePacks = (packs ?? []).filter((p) => p.status === "Active");
   return {
@@ -454,6 +466,9 @@ async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: strin
     "category:evidence": [...new Set(evidenceCategories.map((c) => c.code))]
       .filter((c) => CANONICAL_EVIDENCE_CATEGORIES.has(c))
       .sort(),
+    "category:policy": [...new Set(policyCategories.map((c) => c.code))].sort(),
+    "category:obligation": [...new Set(obligationCategories.map((c) => c.code))].sort(),
+    "category:obligation-origin": [...new Set(obligationOrigins.map((c) => c.code))].sort(),
     // CR-058 — a Quality Gate's Scope/Applicable Lifecycle Transition,
     // picked from real transition_definitions rows only (owner: "the pack
     // should not define something beyond what a transition definition
@@ -464,7 +479,6 @@ async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: strin
     // delimited value itself uses a readable separator rather than an
     // opaque id.
     "transition-definition": [...new Set((transitionDefinitions ?? []).filter((t) => t.is_active).map((t) => `${t.entity_type}|${t.from_state}|${t.to_state}`))].sort(),
-    "policy-code": [...new Set((policies ?? []).map((p) => p.code))].sort(),
   };
 }
 
@@ -596,18 +610,29 @@ async function loadActivePackDependencyOptions(viewer: { isRoot: boolean; tenant
 // Checklists belonging to a Pack sharing THIS Pack's own `code` (owner:
 // "any Pack's gate can point at any Pack's checklist - i thought we said
 // this is if the pack codes match. If checklists are global, then we would
-// have created a registry?"). Not the whole platform: Policy has genuinely
-// unconstrained reach *and* its own registry-like global code namespace;
-// Checklist has neither, deliberately no registry (Ch.47 §16/§20) — same
-// `code` (any version/tenant) is the real scope. Empty until the Pack's own
-// `code` is chosen — there's nothing to share a code with yet. `packName`
-// still disambiguates the option label (Checklist Name is only unique
-// within its own Pack row, and several rows can share this code).
+// have created a registry?"). Not the whole platform: Checklist has no real
+// registry (Ch.47 §16/§20) — matching `code` (any version/tenant) is the
+// real scope. Policy (CR-061, `loadPolicyOptions` below) has the identical
+// scope for the identical reason. Empty until the Pack's own `code` is
+// chosen — there's nothing to share a code with yet. `packName` still
+// disambiguates the option label (Checklist Name is only unique within its
+// own Pack row, and several rows can share this code).
 export interface ChecklistOption { id: string; name: string; packName: string }
 async function loadChecklistOptions(packCode: string): Promise<ChecklistOption[]> {
   if (!packCode.trim()) return [];
   const { data: checklists } = await checklistsDB.findByPackCode(packCode);
   return (checklists ?? []).map((c) => ({ id: c.id, name: c.name, packName: c.pack_name })).sort((a, b) => a.packName.localeCompare(b.packName) || a.name.localeCompare(b.name));
+}
+
+// CR-061 — requiredPolicyCodes' own picker source, identical shape and
+// scope to loadChecklistOptions above (owner: "Similar to checklist, if
+// the pack code matches, that policy has to be visible to all other
+// packs").
+export interface PolicyOption { id: string; name: string; packName: string }
+async function loadPolicyOptions(packCode: string): Promise<PolicyOption[]> {
+  if (!packCode.trim()) return [];
+  const { data: policies } = await policiesDB.findByPackCode(packCode);
+  return (policies ?? []).map((p) => ({ id: p.id, name: p.name, packName: p.pack_name })).sort((a, b) => a.packName.localeCompare(b.packName) || a.name.localeCompare(b.name));
 }
 
 // Same legibility fix, for Profile's baseTemplateCode picker — Template's own
@@ -743,6 +768,9 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   // returns nothing until it's set, same as "nothing shares a code with an
   // unset code").
   req.vm.opt.checklistOptions = kind === "Pack" ? await loadChecklistOptions(String((contentForForm as Record<string, unknown>).code ?? "")) : [];
+  // CR-061 — requiredPolicyCodes' picker (Quality Gate only), same scoping
+  // and empty-until-code-is-chosen behaviour as checklistOptions above.
+  req.vm.opt.policyOptions = kind === "Pack" ? await loadPolicyOptions(String((contentForForm as Record<string, unknown>).code ?? "")) : [];
   req.vm.opt.ontologyOptions = await loadOntologyOptions(schema, viewer);
   req.vm.opt.contributionHelp = CONTRIBUTION_SECTION_HELP;
   req.vm.opt.verifiableFieldHelp = VERIFIABLE_ITEM_FIELD_HELP;

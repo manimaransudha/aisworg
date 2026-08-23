@@ -84,6 +84,31 @@ async function validateChecklistIds(checklistIds: string[] | undefined, seed: Pa
   return errors;
 }
 
+// CR-061 — a Quality Gate's requiredPolicyCodes entry, identical dual-shape
+// resolution and code-scoping to validateChecklistIds above: either this
+// same Pack's own declared policies[].code (raw seed JSON, not yet
+// persisted), or an already-real, code-scoped cross-Pack policies.id
+// (form-submitted — owner: "Similar to checklist, if the pack code
+// matches, that policy has to be visible to all other packs").
+async function validatePolicyCodes(policyRefs: string[] | undefined, seed: PackSeedInput, context: string): Promise<string[]> {
+  const errors: string[] = [];
+  for (const ref of policyRefs ?? []) {
+    const samePackMatch = (seed.contributions.policies ?? []).some((p) => p.code === ref);
+    if (samePackMatch) continue;
+    const { data: existing } = await policiesDB.findByIds([ref]);
+    const policy = existing?.[0];
+    if (!policy) {
+      errors.push(`${context} references unknown Policy "${ref}" — must be either this Pack's own declared policy code, or a real, already-published Policy's id`);
+      continue;
+    }
+    const { data: owningPack } = await packsDB.findById(policy.originating_pack_id ?? "");
+    if (!owningPack || owningPack.code !== seed.code) {
+      errors.push(`${context} references Policy "${policy.name}" (id ${ref}) — its owning Pack's code does not match this Pack's own code "${seed.code}"; a Policy may only be referenced by Packs sharing the same code`);
+    }
+  }
+  return errors;
+}
+
 // CR-058 follow-up 2 — a Quality Gate contribution has no author-typed
 // `code` at all (owner: "the code isn't a UUID or a freeform Pack-specific
 // string — it's the category identifier itself"). qualityGatesDB.upsert now
@@ -249,11 +274,10 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
       }
     }
     if (gate.criteriaType === "requires_active_policy") {
-      if (!gate.requiredPolicyCode?.trim()) {
-        errors.push(`quality gate "${gate.name}" has criteriaType requires_active_policy but no requiredPolicyCode`);
+      if (!gate.requiredPolicyCodes?.length) {
+        errors.push(`quality gate "${gate.name}" has criteriaType requires_active_policy but no requiredPolicyCodes`);
       } else {
-        const { data: policy } = await policiesDB.findByCode(gate.requiredPolicyCode);
-        if (!policy) errors.push(`quality gate "${gate.name}" references unknown Policy code "${gate.requiredPolicyCode}"`);
+        for (const err of await validatePolicyCodes(gate.requiredPolicyCodes, seed, `quality gate "${gate.name}"`)) errors.push(err);
       }
     }
     // CR-059 — requires_accepted_review must reference a real Review Gate,
@@ -325,6 +349,68 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
       cl.items.forEach((item, i) => {
         if (!item.statement?.trim()) errors.push(`checklist "${cl.name}" item ${i + 1} is missing a statement`);
       });
+    }
+  }
+
+  // CR-061 — Policy contributions: Name/Category/Constraint Type/Governed
+  // Transition required. Category is Ontology-backed (category:policy,
+  // migration 107 — a new concept type, not reused from category:evidence/
+  // category:pack, owner: "It does not change the policy category").
+  // Governed Transition resolves to a real transition_definitions row, same
+  // discipline as Quality Gate/Review Gate's own scope check — definition-
+  // side only (owner: "we are not addressing this here" re: the evaluation
+  // engine actually consulting it). Condition's flat, authored shape
+  // (conditionType/conditionField/conditionValues) is structurally checked
+  // here; reassembled into condition's real nested JSONB shape at
+  // seedContributions time. code uniqueness matches policiesDB.upsert's own
+  // (originating_pack_id, code) key.
+  const seenPolicyCodes = new Set<string>();
+  for (const policy of seed.contributions.policies ?? []) {
+    if (!policy.code?.trim()) errors.push("policy is missing a code");
+    else if (seenPolicyCodes.has(policy.code)) errors.push(`duplicate policy code within Pack: "${policy.code}"`);
+    else seenPolicyCodes.add(policy.code);
+    if (!policy.name?.trim()) errors.push(`policy "${policy.code}" is missing a name`);
+    try {
+      await assertCanonicalCategory("category:policy", policy.category ?? "", ontologyViewer);
+    } catch (err) {
+      errors.push((err as Error).message);
+    }
+    const scope = parseGovernedTransition(policy.governedTransition);
+    if (!scope) {
+      errors.push(`policy "${policy.name}" has an invalid governedTransition — expected "EntityType|fromState|toState"`);
+    } else {
+      const { data: definition } = await transitionDefinitionsDB.find(scope.entityType, scope.fromState, scope.toState);
+      if (!definition) errors.push(`policy "${policy.name}" references a transition that doesn't exist: ${scope.entityType} ${scope.fromState} -> ${scope.toState}`);
+    }
+    if (policy.conditionType === "field_in") {
+      if (!policy.conditionField?.trim()) errors.push(`policy "${policy.name}" has conditionType field_in but no conditionField`);
+      if (!policy.conditionValues?.trim()) errors.push(`policy "${policy.name}" has conditionType field_in but no conditionValues`);
+    }
+  }
+
+  // CR-062 — Obligation Definition contributions: Code/Category required.
+  // Category is Ontology-backed (category:obligation — already existed as a
+  // real, working precedent, Ch.23 §19.4; 4 values added by migration 110).
+  // Origin, if given, is Ontology-backed too (category:obligation-origin,
+  // new concept type, migration 110). No real Obligation Definition table —
+  // nothing cross-references one by id (unlike Checklist/Policy), so this
+  // stays declaration-only validation, no seedContributions upsert.
+  const seenObligationCodes = new Set<string>();
+  for (const ob of seed.contributions.obligationDefinitions ?? []) {
+    if (!ob.code?.trim()) errors.push("obligation definition is missing a code");
+    else if (seenObligationCodes.has(ob.code)) errors.push(`duplicate obligation definition code within Pack: "${ob.code}"`);
+    else seenObligationCodes.add(ob.code);
+    try {
+      await assertCanonicalCategory("category:obligation", ob.category ?? "", ontologyViewer);
+    } catch (err) {
+      errors.push((err as Error).message);
+    }
+    if (ob.origin) {
+      try {
+        await assertCanonicalCategory("category:obligation-origin", ob.origin, ontologyViewer);
+      } catch (err) {
+        errors.push((err as Error).message);
+      }
     }
   }
 
@@ -522,19 +608,36 @@ async function seedContributions(pack: PackRow, seed: PackSeedInput): Promise<vo
     if (error) throw error;
   }
 
+  // CR-061 — processed before qualityGates: a requires_active_policy gate
+  // resolves its target Policies' real ids from this same map, mirroring
+  // exactly how checklistIdByName/reviewGateIdByCode already work.
+  // condition's flat, authored shape (conditionType/conditionField/
+  // conditionValues) is reassembled into its real nested JSONB shape here —
+  // the same criteriaType-flattening pattern Quality Gate's own criteria
+  // already uses. Policy's identity is (originating_pack_id, code), not
+  // global (owner: "it is not global so no versioning required similar to
+  // checklist") — policiesDB.upsert keeps a Policy's id stable across every
+  // republish of this Pack, same as checklistsDB.upsert.
+  const policyIdByCode = new Map<string, string>();
   for (const policy of seed.contributions.policies ?? []) {
-    const { error } = await policiesDB.upsert({
+    const condition: Record<string, unknown> =
+      policy.conditionType === "field_in"
+        ? { type: "field_in", field: policy.conditionField, values: (policy.conditionValues ?? "").split(",").map((v) => v.trim()).filter(Boolean) }
+        : { type: policy.conditionType ?? "always_true" };
+    const { data: created, error } = await policiesDB.upsert({
       code: policy.code,
       name: policy.name,
       category: policy.category,
       constraintType: policy.constraintType,
       governedTransition: policy.governedTransition,
-      condition: policy.condition,
+      condition,
       severity: policy.severity,
       originatingPackId: pack.id,
     });
-    if (error) throw error;
+    if (error || !created) throw error ?? new Error(`policy upsert failed: ${policy.code}`);
+    policyIdByCode.set(policy.code, created.id);
   }
+  const resolvePolicyCodes = (refs: string[] | undefined): string[] => (refs ?? []).map((ref) => policyIdByCode.get(ref) ?? ref);
 
   // CR-060 — processed before reviewGates/qualityGates: both may reference
   // a Checklist via checklistIds, resolved from this same map when the
@@ -594,9 +697,12 @@ async function seedContributions(pack: PackRow, seed: PackSeedInput): Promise<vo
     // `deliverableName` (a reviewGates[].code reference) to the real
     // Review Gate id created just above, once, here — not re-resolved at
     // evaluation time (owner: explicit reference, "save a db trip").
+    // CR-061 — requires_active_policy resolves its authored
+    // requiredPolicyCodes (same-Pack codes or already-real, code-scoped
+    // cross-Pack ids) to real Policy ids the same way, once, here.
     const criteria: Record<string, unknown> =
       gate.criteriaType === "requires_active_policy"
-        ? { type: gate.criteriaType, policyCode: gate.requiredPolicyCode }
+        ? { type: gate.criteriaType, policyIds: resolvePolicyCodes(gate.requiredPolicyCodes) }
         : gate.criteriaType === "requires_accepted_review"
           ? { type: gate.criteriaType, reviewGateId: gate.deliverableName ? reviewGateIdByCode.get(gate.deliverableName) : undefined }
           : { type: gate.criteriaType ?? "no_unresolved_obligations" };

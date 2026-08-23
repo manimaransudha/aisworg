@@ -23,10 +23,10 @@
       {
         "code": "policy-nodejs-lint-standard",
         "name": "Node.js Lint Standard",
-        "category": "Coding Standard",
+        "category": "Quality",
         "constraintType": "Standard",
-        "governedTransition": "deliverable.transition",
-        "condition": { "type": "always_true" },
+        "governedTransition": "Deliverable|Defined|In Progress",
+        "conditionType": "always_true",
         "severity": "Low"
       }
     ]

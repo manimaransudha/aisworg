@@ -398,7 +398,7 @@ export const CONTRIBUTION_SECTION_HELP: Record<string, string> = {
   contributionQualityGates: "Pass/fail criteria a specific transition (entity + from-state + to-state) must satisfy before it's allowed to proceed.",
   contributionChecklists: "Reusable Checklists (Ch.47) — a Name/Description plus its own ordered list of Items (just a Statement each). A Checklist carries no scope, participant, or required/advisory status of its own; Review Gates and Quality Gates reference it by id (checklistIds/recommendedChecklistIds) to say when it applies and whether it's required.",
   contributionReviewGates: "Verifiable review requirements — typically \"judgment\" or \"human-attested\" items that gate a review outcome.",
-  contributionObligationDefinitions: "Verifiable obligations this Pack can raise — a commitment that must be resolved, of the Obligation Type given.",
+  contributionObligationDefinitions: "Verifiable obligations this Pack can raise — a commitment that must be resolved, of the Category given.",
   contributionsCompliance: "Compliance Frameworks and their Requirements this Pack declares (raw JSON — deeply nested, not yet a structured widget).",
 };
 export const VERIFIABLE_ITEM_FIELD_HELP: Record<string, string> = {
