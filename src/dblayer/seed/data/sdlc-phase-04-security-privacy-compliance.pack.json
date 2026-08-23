@@ -4,8 +4,8 @@
   "category": "Compliance",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Establishing security and compliance frameworks \u2014 aka Trust & Safety, SecOps Hardening, Compliance Sprint, Risk & Assurance.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Establishing security and compliance frameworks — aka Trust & Safety, SecOps Hardening, Compliance Sprint, Risk & Assurance.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -57,12 +57,12 @@
     ],
     "checklists": [
       {
-        "code": "security-controls-mapped-to-threats",
-        "statement": "Every identified STRIDE threat has a corresponding documented security control or explicit accepted risk.",
-        "classification": "human-attested",
-        "prompt": "Does the security controls matrix address every threat identified in the STRIDE model, either with a control or an explicitly accepted risk?",
-        "participant": "human",
-        "outputContract": "passed-failed-notes"
+        "name": "Security, Privacy & Compliance (SDLC Phase 4) Checklist",
+        "items": [
+          {
+            "statement": "Every identified STRIDE threat has a corresponding documented security control or explicit accepted risk."
+          }
+        ]
       }
     ],
     "reviewGates": [
@@ -74,7 +74,10 @@
         "participant": "human",
         "outputContract": "assessment-acceptance",
         "name": "Security Assessment Review",
-        "governedTransition": "Deliverable|In Progress|Approved"
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "checklistIds": [
+          "Security, Privacy & Compliance (SDLC Phase 4) Checklist"
+        ]
       }
     ]
   }

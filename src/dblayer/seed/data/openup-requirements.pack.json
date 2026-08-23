@@ -39,28 +39,18 @@
     ],
     "checklists": [
       {
-        "code": "find-and-outline-requirements",
-        "statement": "Stakeholder needs and constraints have been elicited and outlined as candidate requirements.",
-        "classification": "human-attested",
-        "prompt": "Have stakeholder needs, constraints, and candidate requirements been captured and outlined?",
-        "participant": "human",
-        "outputContract": "passed-failed-notes"
-      },
-      {
-        "code": "detail-requirements",
-        "statement": "Candidate requirements have been elaborated to a level Development and Test can act on.",
-        "classification": "judgment",
-        "prompt": "Review the requirement detail: is it specific, testable, and unambiguous?",
-        "participant": "AI+human",
-        "outputContract": "passed-failed-notes"
-      },
-      {
-        "code": "manage-requirements-dependencies",
-        "statement": "Dependencies and traceability between requirements, and from requirements to downstream work, are recorded.",
-        "classification": "machine-verifiable",
-        "prompt": "Verify every requirement traces to at least one downstream Deliverable or is explicitly marked out of scope.",
-        "participant": "AI",
-        "outputContract": "passed-failed-notes"
+        "name": "Requirements (OpenUP Capability Pattern) Checklist",
+        "items": [
+          {
+            "statement": "Stakeholder needs and constraints have been elicited and outlined as candidate requirements."
+          },
+          {
+            "statement": "Candidate requirements have been elaborated to a level Development and Test can act on."
+          },
+          {
+            "statement": "Dependencies and traceability between requirements, and from requirements to downstream work, are recorded."
+          }
+        ]
       }
     ],
     "reviewGates": [
@@ -72,7 +62,10 @@
         "classification": "human-attested",
         "prompt": "Do the requirements reflect what the Stakeholder actually needs, and are they approved?",
         "participant": "human",
-        "outputContract": "assessment-acceptance"
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Requirements (OpenUP Capability Pattern) Checklist"
+        ]
       }
     ]
   }

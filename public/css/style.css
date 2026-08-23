@@ -296,6 +296,16 @@ body:has(.login-card, .auth-card, .verify-card, .card-center) { background: var(
   font-size: .78rem;
 }
 .referential-list-group .referential-list-row .form-text { color: var(--text-muted) !important; }
+
+/* CR-060 — nested-list-group (Checklist's own `items`, the first two-level
+   referential-list): a lighter visual nesting than the outer card, so a
+   Checklist's own Items read as clearly inside it, not a peer section. */
+.nested-list-group { border-left: 3px solid var(--border); padding-left: .9rem; margin-top: .25rem; }
+.nested-list-row {
+  border-radius: var(--radius-sm);
+  box-shadow: none !important;
+}
+.nested-list-row .form-label { font-size: .74rem; font-weight: 600; }
 .referential-list-group .badge.bg-light {
   background: transparent !important;
   border: none !important;

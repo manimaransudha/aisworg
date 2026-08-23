@@ -33,20 +33,15 @@
     ],
     "checklists": [
       {
-        "code": "request-change",
-        "statement": "A proposed change is recorded with its rationale and impact.",
-        "classification": "human-attested",
-        "prompt": "Is the proposed change recorded with a clear rationale and impact assessment?",
-        "participant": "human",
-        "outputContract": "passed-failed-notes"
-      },
-      {
-        "code": "set-up-project-configuration-management",
-        "statement": "Version control and baselining are established for the project's assets.",
-        "classification": "machine-verifiable",
-        "prompt": "Verify version control is configured and an initial baseline exists.",
-        "participant": "AI",
-        "outputContract": "passed-failed-notes"
+        "name": "Configuration & Change Management (OpenUP Capability Pattern) Checklist",
+        "items": [
+          {
+            "statement": "A proposed change is recorded with its rationale and impact."
+          },
+          {
+            "statement": "Version control and baselining are established for the project's assets."
+          }
+        ]
       }
     ],
     "reviewGates": []

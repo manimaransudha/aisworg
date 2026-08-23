@@ -39,28 +39,18 @@
     ],
     "checklists": [
       {
-        "code": "plan-project",
-        "statement": "A Project Plan exists covering scope, phases, and milestones.",
-        "classification": "human-attested",
-        "prompt": "Does a Project Plan exist covering scope, phases, and milestones?",
-        "participant": "human",
-        "outputContract": "passed-failed-notes"
-      },
-      {
-        "code": "plan-iteration",
-        "statement": "An Iteration Plan exists with committed scope the team has agreed to.",
-        "classification": "human-attested",
-        "prompt": "Does an Iteration Plan exist with scope the team has explicitly committed to?",
-        "participant": "human",
-        "outputContract": "passed-failed-notes"
-      },
-      {
-        "code": "manage-risks",
-        "statement": "Risks are identified, assessed, and have an owner and mitigation.",
-        "classification": "judgment",
-        "prompt": "Are the risks on the Risk List assessed, owned, and carrying a mitigation or contingency?",
-        "participant": "AI+human",
-        "outputContract": "passed-failed-notes"
+        "name": "Project Management (OpenUP Capability Pattern) Checklist",
+        "items": [
+          {
+            "statement": "A Project Plan exists covering scope, phases, and milestones."
+          },
+          {
+            "statement": "An Iteration Plan exists with committed scope the team has agreed to."
+          },
+          {
+            "statement": "Risks are identified, assessed, and have an owner and mitigation."
+          }
+        ]
       }
     ],
     "reviewGates": []

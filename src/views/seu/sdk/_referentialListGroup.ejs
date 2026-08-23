@@ -191,7 +191,13 @@
     <% var LONG_TEXT_THRESHOLD = 40; %>
     <% var longColumns = {}; %>
     <% field.itemFields.forEach(function(itemField) {
-         longColumns[itemField.name] = existingRows.some(function(row) { return (row[itemField.name] || '').length > LONG_TEXT_THRESHOLD; });
+         // CR-060 — nested-list/referential-multi hold arrays, not strings;
+         // both render their own block content (a compact item list, a
+         // badge cluster) that needs the same wrap/width treatment a long
+         // text column gets, regardless of the length heuristic below
+         // (which would otherwise count array-element count, not text length).
+         longColumns[itemField.name] = (itemField.kind === 'nested-list' || itemField.kind === 'referential-multi')
+           || existingRows.some(function(row) { return (row[itemField.name] || '').length > LONG_TEXT_THRESHOLD; });
        }); %>
     <%# Owner: "All pages should have a search, filter and sort columns" —
         same requirement as the site's registry list pages (coding_principles.md
@@ -229,7 +235,48 @@
                 <% field.itemFields.forEach(function(itemField) { %>
                   <% var value = row[itemField.name] || ''; %>
                   <td class="small <%= longColumns[itemField.name] ? '' : 'text-nowrap' %>" <%= longColumns[itemField.name] ? 'style="min-width: 22rem; white-space: normal;"' : '' %>>
-                    <% if (itemField.kind === 'boolean') { %>
+                    <% if (itemField.kind === 'nested-list') { %>
+                      <%# CR-060 — Checklist's own `items`, view mode. A few
+                          items nested inside one table cell reads better as a
+                          compact list than forcing the full flat-table/search/
+                          sort mechanism one level deeper — that machinery is
+                          for many TOP-LEVEL rows, not a handful of sub-rows
+                          already scoped inside one Checklist. %>
+                      <% var nestedViewRows = Array.isArray(value) ? value.slice(0, Math.max(value.length - 1, 0)) : []; %>
+                      <% if (!nestedViewRows.length) { %>
+                        <span class="text-muted">None</span>
+                      <% } else { %>
+                        <ul class="list-unstyled mb-0 ps-0">
+                          <% nestedViewRows.forEach(function(nestedRow) { %>
+                            <li class="mb-1">
+                              <span class="badge <%= nestedRow.mandatory === 'Mandatory' ? 'bg-danger-subtle text-danger' : 'bg-secondary-subtle text-secondary' %> small fw-normal me-1"><%= nestedRow.mandatory || '—' %></span>
+                              <%= nestedRow.statement || '—' %>
+                              <% if (nestedRow.participant) { %><span class="text-muted">(<%= nestedRow.participant %>)</span><% } %>
+                            </li>
+                          <% }) %>
+                        </ul>
+                      <% } %>
+                    <% } else if (itemField.kind === 'referential-multi') { %>
+                      <%# CR-060 — checklistIds, view mode: resolve each
+                          stored reference back to its Checklist's name +
+                          originating Pack via checklistOptions, same display
+                          the edit-mode <select> already uses. A stored entry
+                          is either a real checklists.id (form-submitted) or
+                          this same Pack's own Checklist NAME, never resolved
+                          back into the Pack's own contributions JSON (a raw
+                          seed file authors it that way — core/packs.ts's
+                          validateChecklistIds accepts the identical two
+                          shapes) — match by id OR name, not id alone. %>
+                      <% var selectedChecklists = Array.isArray(value) ? value : []; %>
+                      <% if (!selectedChecklists.length) { %>
+                        <span class="text-muted">None</span>
+                      <% } else { %>
+                        <% selectedChecklists.forEach(function(clRef) { %>
+                          <% var matchedChecklist = (locals.checklistOptions || []).find(function(o) { return o.id === clRef || o.name === clRef; }); %>
+                          <span class="badge bg-light text-dark border me-1 mb-1"><%= matchedChecklist ? (matchedChecklist.name + ' — ' + matchedChecklist.packName) : ('⚠ ' + clRef + ' (not found)') %></span>
+                        <% }) %>
+                      <% } %>
+                    <% } else if (itemField.kind === 'boolean') { %>
                       <% if (value === 'true') { %><i class="bi bi-check-circle-fill text-success"></i><% } else { %><span class="text-muted">—</span><% } %>
                     <% } else if (itemField.kind === 'referential' && itemField.referentialSource.indexOf('pack-code') === 0) { %>
                       <% var _fixedCategory = itemField.referentialSource.indexOf(':') !== -1 ? itemField.referentialSource.split(':')[1] : ''; %>
@@ -333,14 +380,92 @@
                 barely any width; a short fixed-vocabulary enum needs a bit
                 more; a referential/free-text field gets real room since its
                 content length isn't bounded the way an enum's is. %>
-            <% var colClass = full ? 'col-12'
+            <%# CR-060 — nested-list (Checklist's own `items`) and
+                referential-multi (checklistIds) both need real room, same
+                reasoning as `full` above. %>
+            <% var colClass = (full || itemField.kind === 'nested-list' || itemField.kind === 'referential-multi') ? 'col-12'
                  : itemField.kind === 'boolean' ? 'col-sm-6 col-lg-3'
                  : itemField.kind === 'enum' ? 'col-sm-6 col-lg-4'
                  : 'col-sm-6 col-lg-6'; %>
             <div class="<%= colClass %>">
               <label class="form-label small text-muted mb-1"><%= itemLabel %><% if (isRequiredField) { %> <span class="text-danger">*</span><% } %></label>
 
-              <% if (itemField.kind === 'referential' && itemField.referentialSource.indexOf('pack-code') === 0) { %>
+              <% if (itemField.kind === 'nested-list') { %>
+                <%# CR-060 — the first two-level referential-list in this
+                    codebase: Checklist's own `items` is itself a repeatable
+                    sub-list within one Checklist card. buildRow() (formGenerator.ts)
+                    always appends exactly one blank template row at the end of
+                    a nested-list value — the same BLANK_ROWS_TO_OFFER=1
+                    convention the top level uses — so the last element here is
+                    always the clone target for "+ Add item", never real content. %>
+                <% var nestedRows = row[itemField.name] || []; %>
+                <% var nestedExistingCount = Math.max(nestedRows.length - 1, 0); %>
+                <div class="nested-list-group" data-field-name="<%= itemField.name %>" data-next-index="<%= nestedRows.length %>">
+                  <% nestedRows.forEach(function(nestedRow, j) { %>
+                    <% var nestedIsExisting = j < nestedExistingCount; %>
+                    <div class="card card-body bg-white border mb-2 nested-list-row">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge <%= nestedIsExisting ? 'bg-secondary-subtle text-secondary' : 'bg-light text-muted border' %> small fw-normal"><%= nestedIsExisting ? ('Item ' + (j + 1)) : 'New item — fill in to add' %></span>
+                        <% if (canEdit) { %><button type="button" class="btn btn-sm btn-link text-danger p-0 remove-nested-row-btn">Remove</button><% } %>
+                      </div>
+                      <div class="row g-2">
+                        <% (itemField.nestedItemFields || []).forEach(function(nestedField) { %>
+                          <% var nestedFull = nestedField.name === 'statement' || nestedField.name === 'prompt'; %>
+                          <% var nestedColClass = nestedFull ? 'col-12' : nestedField.kind === 'boolean' ? 'col-sm-6 col-lg-3' : nestedField.kind === 'enum' ? 'col-sm-6 col-lg-4' : 'col-sm-6 col-lg-6'; %>
+                          <% var nestedInputName = field.name + '[' + i + '][' + itemField.name + '][' + j + '][' + nestedField.name + ']'; %>
+                          <% var nestedValue = nestedRow[nestedField.name] || ''; %>
+                          <% var nestedLabel = nestedField.label || ilabel(nestedField.name); %>
+                          <% var nestedRequired = canEdit && nestedField.required; %>
+                          <div class="<%= nestedColClass %>">
+                            <label class="form-label small text-muted mb-1"><%= nestedLabel %><% if (nestedRequired) { %> <span class="text-danger">*</span><% } %></label>
+                            <% if (nestedField.kind === 'enum') { %>
+                              <select name="<%= nestedInputName %>" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %> <%- nestedRequired ? 'required' : '' %>>
+                                <option value="">— <%= nestedLabel %> —</option>
+                                <% (nestedField.options || []).forEach(function(opt) { %>
+                                  <option value="<%= opt %>" <%= nestedValue === opt ? 'selected' : '' %>><%= opt %></option>
+                                <% }) %>
+                              </select>
+                            <% } else if (nestedField.kind === 'boolean') { %>
+                              <div class="form-check mt-1">
+                                <input type="checkbox" class="form-check-input" name="<%= nestedInputName %>" value="true" <%= nestedValue === 'true' ? 'checked' : '' %> <%- canEdit ? '' : 'disabled' %>>
+                              </div>
+                            <% } else if (nestedFull) { %>
+                              <textarea name="<%= nestedInputName %>" class="form-control form-control-sm" rows="2" <%- canEdit ? '' : 'disabled' %> <%- nestedRequired ? 'required' : '' %>><%= nestedValue %></textarea>
+                            <% } else { %>
+                              <input name="<%= nestedInputName %>" class="form-control form-control-sm" value="<%= nestedValue %>" <%- canEdit ? '' : 'disabled' %> <%- nestedRequired ? 'required' : '' %>>
+                            <% } %>
+                            <% if (nestedField.help) { %><div class="form-text small"><%= nestedField.help %></div><% } %>
+                          </div>
+                        <% }) %>
+                      </div>
+                    </div>
+                  <% }) %>
+                  <% if (canEdit) { %>
+                    <button type="button" class="btn btn-sm btn-outline-secondary add-nested-row-btn" data-field-name="<%= itemField.name %>">
+                      <i class="bi bi-plus-lg me-1"></i>Add item
+                    </button>
+                  <% } %>
+                </div>
+              <% } else if (itemField.kind === 'referential-multi') { %>
+                <%# CR-060 — checklistIds: scoped to this Pack's own code, so
+                    it needs its own richer option source (checklistOptions —
+                    {id, name, packName}), the same reason pack-code fields
+                    above use packOptions instead of the generic flat
+                    referentialOptions map. A stored selection is either a
+                    real checklists.id (form-submitted, an earlier save) or
+                    this same Pack's own Checklist NAME (a raw seed file's
+                    same-Pack self-reference, never resolved back into the
+                    Pack's own contributions JSON) — match either way, same
+                    dual-shape handling core/packs.ts's validateChecklistIds
+                    already does server-side. %>
+                <% var _selectedChecklistRefs = Array.isArray(row[itemField.name]) ? row[itemField.name] : []; %>
+                <select name="<%= field.name %>[<%= i %>][<%= itemField.name %>][]" class="form-select form-select-sm" multiple size="5" <%- canEdit ? '' : 'disabled' %>>
+                  <% (locals.checklistOptions || []).forEach(function(opt) { %>
+                    <option value="<%= opt.id %>" <%= (_selectedChecklistRefs.indexOf(opt.id) !== -1 || _selectedChecklistRefs.indexOf(opt.name) !== -1) ? 'selected' : '' %>><%= opt.name %> — <%= opt.packName %></option>
+                  <% }) %>
+                </select>
+                <div class="form-text small">Ctrl/Cmd-click to select more than one.</div>
+              <% } else if (itemField.kind === 'referential' && itemField.referentialSource.indexOf('pack-code') === 0) { %>
                 <%# Owner: "Why is code not auto generated?... Pack code
                     dropdown has to be platform + tenant ones." — code is a
                     system UUID (CR-015); packOptions (already Platform +

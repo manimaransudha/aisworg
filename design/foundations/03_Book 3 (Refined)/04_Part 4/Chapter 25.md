@@ -541,7 +541,9 @@ Finding is the standout of this chapter — a genuinely real, separate first-cla
 
 ## 19.4 ❌ Review Categories — the one categorized entity with no Ontology backing at all (§7)
 
-`reviews.category` is `TEXT NOT NULL`, genuinely free text — the migration's own comment says so directly ("Pack-extensible free text"). `core/reviews.ts` never calls `assertCanonicalCategory`, unlike every other categorized entity in the codebase (Deliverable, Obligation, Knowledge, Decision, Evidence all do). Live `ontology_concepts` has **no `category:review` concept type at all** — the only "review"-adjacent Ontology rows are unrelated labels on `category:evidence`/`category:obligation` that happen to mention "review." Of the chapter's 8 named categories, only 4 have any live usage (Security/Code/Architecture/Design — all as free-text values, not validated concepts); Requirements/Test/Deployment/Operational are entirely absent from the data. "Additional review categories may be introduced through Packs" is aspirational — no Pack writes a Review category anywhere.
+`reviews.category` is `TEXT NOT NULL`, genuinely free text — the migration's own comment says so directly ("Pack-extensible free text"). `core/reviews.ts` never calls `assertCanonicalCategory`, unlike every other categorized entity in the codebase (Deliverable, Obligation, Knowledge, Decision, Evidence all do) — still true, confirmed live: no such call exists in `core/reviews.ts` today. Live `ontology_concepts` has **no `category:review` concept type at all** — the only "review"-adjacent Ontology rows are unrelated labels on `category:evidence`/`category:obligation` that happen to mention "review." Of the chapter's 8 named categories, only 4 have any live usage (Security/Code/Architecture/Design — all as free-text values, not validated concepts); Requirements/Test/Deployment/Operational are entirely absent from the data. "Additional review categories may be introduced through Packs" is aspirational — no Pack writes a Review category anywhere. `src/views/seu/reviews/index.ejs`'s "Plan a Review" form still hardcodes the chapter's 8 category names in a plain `<select>`, no referential/Ontology wiring.
+
+**Settled as by-design, not an open gap (CR-059, 2026-08-22):** this was not fixed by giving `category` an Ontology type. The one place `category` needed disambiguating power — a Quality Gate's `requires_accepted_review` criteria narrowing down *which* review satisfies it — was rebuilt to key off `deliverableName` (Ontology-backed via the existing `deliverable-name` concept type, through `review_gates.code`) instead of `category` at all; see §19.10. `reviews.category` itself carries no `deliverable-name` values and was not migrated — it remains exactly the free-text field described above, now simply orthogonal to gate matching rather than a validation gap blocking it.
 
 ## 19.5 ❌ Review Structure — 5 of 13 fields fully absent (§8)
 
@@ -577,9 +579,11 @@ Live `transition_definitions WHERE entity_type='Review'` returns exactly the cha
 
 Dedicated table, dedicated `findingsDB.ts`/`core/findings.ts`, dedicated `FindingRow` type, own `TransitionEntityType` and lifecycle (`Open→Resolved`, `Open→Waived`, live-verified) driven through the same generic `transitionEngine.evaluate()`. Findings→Obligations is a real, human-triggered code path (`convertFindingToObligation`, `findings.ts:113-130`, idempotency-guarded) — matching the chapter's own explicit design note that conversion is not automatic. Findings→Attention Items is real and automatic for High/Critical severity. Findings→**Evidence requests, Decisions, follow-up Reviews** — the other 2 of the chapter's 4 named Finding outcomes — have no code path at all. The chapter's narrated richer lifecycle ("discussed, challenged, accepted, ... reopened") is considerably simpler in the real 2-transition state machine.
 
-## 19.10 ❌ Review Composition — shovel-ready but never wired (§13)
+## 19.10 ✅ Review Composition — built (CR-059, 2026-08-22) (§13)
 
-No multi-Pack composition mechanism exists for Review requirements — no `originating_pack_id` on `reviews`, and `seedContributions` never processes `reviewGates` despite it being fully defined and seeded (19.3 FR-25.7). "Composition shall be deterministic" is untestable because there is no composition happening at all yet. The fix pattern to copy is already live for `qualityGates`/`policies` in the same file (`core/packs.ts`), each upserted with `originatingPackId: pack.id`.
+`core/packs.ts`'s `seedContributions` now processes `seed.contributions.reviewGates` (previously the gap this section documented: "fully defined and seeded... never gets read"). Each Pack's declared `reviewGates[]` is upserted into a real `review_gates` table (`reviewGatesDB.ts`) with `originatingPackId: pack.id` — the same `originating_pack_id` pattern `qualityGates`/`policies` already use in the same function, confirmed live at `packs.ts`'s `reviewGateIdByCode` loop (runs immediately before the `qualityGates` loop, since a `requires_accepted_review` criteria resolves its target Review Gate id from this same map). `review_gates` carries its own `originating_pack_id UUID REFERENCES packs(id)` column (migration `097_review_gate_table.sql`) — so "no `originating_pack_id` on reviews" no longer describes the real gap: composition attribution lives on `review_gates`, not on `reviews` itself, mirroring where `quality_gates`/`policies` carry theirs rather than the entities they gate.
+
+Composition here means something narrower than a generic multi-Pack merge, though: a Review Gate's identity is `(entity_type, from_state, to_state, code)` where `code` is a `deliverable-name` value — two Packs declaring a Review Gate for the same deliverable type at the same transition collide on the same active-slot unique index `review_gates` shares with `quality_gates`' own scheme (last upsert wins, same "later-overrides-earlier" discipline Ch.5 §19.7/§19.8 already documents for Pack composition generally). There is still no *union* mechanism merging two Packs' Review Gates for the same slot into one — only the same override-on-collision behavior every other Pack-contributed, code-scoped row already has. "Composition shall be deterministic" (§13) now has something real to test against: `reviewGatesDB.upsert`'s deactivate-then-insert transaction.
 
 ## 19.11 ❌ Review Traceability — 4 of 8 fields real (§14)
 
@@ -593,6 +597,8 @@ No multi-Pack composition mechanism exists for Review requirements — no `origi
 | reviewing Participants | ❌ only free-text `reviewer` |
 | timestamp | ✅ `created_at`/`updated_at` |
 | Engineering Behavior Model version | ❌ no column |
+
+**Addition beyond the chapter's own 8 named fields (CR-059, 2026-08-22):** `reviews.review_gate_id` (nullable FK to `review_gates.id`, migration `097_review_gate_table.sql`) traces a Review back to the specific Review Gate declaration it was produced against — which Pack, which deliverable type, which governed transition. Confirmed live in `seuTypes.ts`'s `ReviewRow` and consumed by `qualityGateEngine.ts`'s `requires_accepted_review` branch as a strict join, not a string match. Not one of the chapter's originally named traceability fields, so not counted in the "4 of 8" above, but a real, additional provenance link the chapter didn't anticipate.
 
 ## 19.12 ✅ Events — all 8 named events exist in code, 7 of 8 live-exercised (§15)
 
@@ -616,7 +622,7 @@ Unusually complete for this session's audits: `ReviewPlanned`/`ReviewStarted`/`R
 | Review criteria are declarative | ⚠️ stored declaratively, not interpreted (19.7) |
 | Review outcomes are immutable | ✅ (19.3 FR-25.5) |
 | Findings are traceable | ⚠️ Finding has its own id/status/severity/timestamps, but no criteria/EBM-version/Participant trace |
-| Multiple Review Packs can be composed | ❌ (19.10) |
+| Multiple Review Packs can be composed | ✅ override-on-collision, same discipline as Quality Gate/Pack composition generally — no distinct union-merge (19.10) |
 | Review history remains permanently available | ✅ no delete path exists |
 
 ## 19.15 ⚠️ Deliverables — 4 of 7 real, 3 partial or missing (§18)
@@ -633,8 +639,8 @@ Unusually complete for this session's audits: `ReviewPlanned`/`ReviewStarted`/`R
 
 ## Summary — ranked
 
-1. **[Ontology / Pack-contribution — most relevant to the current redesign question]** Review Category is the one categorized entity anywhere in the codebase that is genuinely *not* Ontology-backed — `core/reviews.ts` never calls `assertCanonicalCategory`, and no `category:review` concept type exists at all (19.4).
-2. **[Code, cleanest shovel-ready gap found this session]** FR-25.7's Pack composition is fully scaffolded — the type field is defined, ~20 Pack JSON files seed real content into it, the SDK authoring tool parses it — and simply never gets read by `core/packs.ts`'s `seedContributions`, unlike its sibling fields processed in the very same function (19.3, 19.10).
+1. **[Ontology / Pack-contribution]** Review Category is the one categorized entity anywhere in the codebase that is genuinely *not* Ontology-backed — `core/reviews.ts` never calls `assertCanonicalCategory`, and no `category:review` concept type exists at all. **Settled as by-design, not a gap to close**: CR-059 (2026-08-22) rebuilt Quality Gate's `requires_accepted_review` matching to key off `deliverableName`/`review_gates.code` (Ontology-backed via the existing `deliverable-name` concept type) instead of `category` — the one place `category` needed disambiguating power no longer uses it, so it was left as free text deliberately, not overlooked (19.4).
+2. **[Code, closed CR-059, 2026-08-22]** FR-25.7's Pack composition — previously the cleanest shovel-ready gap found this session: the type field was defined, ~20 Pack JSON files seeded real content into it, the SDK authoring tool parsed it, but `core/packs.ts`'s `seedContributions` never read it. Now processed, materialising into a real `review_gates` table with `originating_pack_id` attribution (19.3, 19.10).
 3. **[Architecture]** Review isn't actually an evaluation as the chapter frames it — `outcome` is caller-supplied, not derived from `criteria`, and `criteria` itself is written once and never interpreted by anything (19.2 RM-006, 19.7).
 4. **[Code, genuine positive]** Finding is a real, separate, first-class entity with its own lifecycle and table, exactly matching the chapter's explicit architectural intent — one of the strongest single findings across this session's audits (19.9).
 5. **[Events, genuine positive]** All 8 named events exist in code and 7 of 8 are live-exercised — the most complete event-naming match found in any chapter audited this session (19.12).

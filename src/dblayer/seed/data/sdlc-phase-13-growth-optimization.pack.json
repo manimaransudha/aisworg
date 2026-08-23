@@ -4,8 +4,8 @@
   "category": "Organisation",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Driving product growth and optimization \u2014 aka Product-Led Growth, Growth Loops, Experimentation Framework, 1\u2192N Stage.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Driving product growth and optimization — aka Product-Led Growth, Growth Loops, Experimentation Framework, 1→N Stage.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -57,12 +57,12 @@
     ],
     "checklists": [
       {
-        "code": "experiments-have-measurable-hypotheses",
-        "statement": "Each entry in the growth experiments backlog states a clear hypothesis and a measurable success metric before it is run.",
-        "classification": "judgment",
-        "prompt": "Does each growth experiment define a testable hypothesis and a measurable success metric in advance?",
-        "participant": "AI+human",
-        "outputContract": "passed-failed-notes"
+        "name": "Growth & Optimization (SDLC Phase 13) Checklist",
+        "items": [
+          {
+            "statement": "Each entry in the growth experiments backlog states a clear hypothesis and a measurable success metric before it is run."
+          }
+        ]
       }
     ],
     "reviewGates": []

@@ -24,6 +24,7 @@ import { authorityRulesDB } from "../../../dblayer/authorityRulesDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { qualityGatesDB } from "../../../dblayer/qualityGatesDB.js";
 import { reviewGatesDB } from "../../../dblayer/reviewGatesDB.js";
+import { checklistsDB } from "../../../dblayer/checklistsDB.js";
 import { complianceDB } from "../../../dblayer/complianceDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
@@ -40,6 +41,47 @@ function parseGovernedTransition(value: string | undefined): { entityType: Trans
   if (parts.length !== 3 || parts.some((p) => !p.trim())) return null;
   const [entityType, fromState, toState] = parts;
   return { entityType: entityType as TransitionEntityType, fromState, toState };
+}
+
+// CR-060, corrected same day — a gate's checklistIds entry can arrive in
+// either of two shapes, because a raw Pack seed file and the live SDK
+// authoring form can't both express a cross-Pack reference the same way
+// (owner: "How does a raw Pack seed JSON file express a cross-Pack
+// checklistIds reference before real database ids exist? - It cannot."):
+//   1. A real, already-persisted checklists.id — how the form submits it.
+//      Scoped, not platform-wide (owner, catching the original build's
+//      over-broad reading: "any Pack's gate can point at any Pack's
+//      checklist - i thought we said this is if the pack codes match. If
+//      checklists are global, then we would have created a registry?"):
+//      Policy's reach is genuinely unconstrained AND has its own global,
+//      registry-like code namespace; Checklist has neither, deliberately
+//      no registry (Ch.47 §16/§20) — so a referenced Checklist's own
+//      originating Pack must share THIS Pack's `code` (any version/tenant,
+//      not the literal same Pack row).
+//   2. This SAME Pack's own declared checklists[].name, not yet persisted —
+//      how a raw seed file must express it (mirrors
+//      requires_accepted_review's deliverableName -> reviewGates[].code
+//      resolution, CR-059's own same-Pack self-reference pattern) — always
+//      within-scope trivially, since it's this exact Pack.
+// Tried in that order: a same-Pack name match wins over treating the value
+// as an id, since a raw seed file's checklist Name and a live UUID can
+// never collide in practice.
+async function validateChecklistIds(checklistIds: string[] | undefined, seed: PackSeedInput, context: string): Promise<string[]> {
+  const errors: string[] = [];
+  for (const ref of checklistIds ?? []) {
+    const samePackMatch = (seed.contributions.checklists ?? []).some((cl) => cl.name === ref);
+    if (samePackMatch) continue;
+    const { data: existing } = await checklistsDB.findById(ref);
+    if (!existing) {
+      errors.push(`${context} references unknown Checklist "${ref}" — must be either this Pack's own declared checklist name, or a real, already-published Checklist's id`);
+      continue;
+    }
+    const { data: owningPack } = await packsDB.findById(existing.originating_pack_id);
+    if (!owningPack || owningPack.code !== seed.code) {
+      errors.push(`${context} references Checklist "${existing.name}" (id ${ref}) — its owning Pack's code does not match this Pack's own code "${seed.code}"; a Checklist may only be referenced by Packs sharing the same code`);
+    }
+  }
+  return errors;
 }
 
 // CR-058 follow-up 2 — a Quality Gate contribution has no author-typed
@@ -227,6 +269,8 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
         errors.push(`quality gate "${gate.name}" references unknown Review Gate "${gate.deliverableName}" — the Review Gate must be declared in this same Pack's contributions`);
       }
     }
+    for (const err of await validateChecklistIds(gate.checklistIds, seed, `quality gate "${gate.name}"`)) errors.push(err);
+    for (const err of await validateChecklistIds(gate.recommendedChecklistIds, seed, `quality gate "${gate.name}"`)) errors.push(err);
   }
 
   // CR-059 — Review Gate contributions: `code` (the deliverable type it's
@@ -255,6 +299,33 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
     const slotKey = `${rg.governedTransition ?? ""}::${rg.code ?? ""}`;
     if (seenReviewGateSlots.has(slotKey)) errors.push(`duplicate review gate within Pack: "${rg.governedTransition}" [${rg.code}] is targeted by more than one contribution`);
     seenReviewGateSlots.add(slotKey);
+    for (const err of await validateChecklistIds(rg.checklistIds, seed, `review gate "${rg.name}"`)) errors.push(err);
+    for (const err of await validateChecklistIds(rg.recommendedChecklistIds, seed, `review gate "${rg.name}"`)) errors.push(err);
+  }
+
+  // CR-060 — Checklist contributions: Name required, at least one Item, each
+  // Item requires a Statement (Ch.47 §9). No Category/Capability/Applicable-Deliverable-Type/Applicable-
+  // Transition to validate — Checklist carries none of that; whichever
+  // Review/Quality Gate references it via checklistIds carries the scope
+  // instead. Name uniqueness within the Pack matches checklistsDB.upsert's
+  // own (originating_pack_id, name) key.
+  const seenChecklistNames = new Set<string>();
+  for (const cl of seed.contributions.checklists ?? []) {
+    if (!cl.name?.trim()) errors.push("checklist is missing a name");
+    else if (seenChecklistNames.has(cl.name)) errors.push(`duplicate checklist name within Pack: "${cl.name}"`);
+    else seenChecklistNames.add(cl.name);
+    if (!cl.items?.length) {
+      errors.push(`checklist "${cl.name}" has no items`);
+    } else {
+      // CR-060, revised same day — an item is just its statement now
+      // (owner: "you cannot determine a checklist item to be mandatory.
+      // Checklist is generic. Pack has the specifics." — Mandatory/
+      // Recommended moved to the referencing gate's own checklistIds/
+      // recommendedChecklistIds, see validateChecklistIds below).
+      cl.items.forEach((item, i) => {
+        if (!item.statement?.trim()) errors.push(`checklist "${cl.name}" item ${i + 1} is missing a statement`);
+      });
+    }
   }
 
   const capabilityCodes = new Set((seed.contributions.capabilities ?? []).map((c) => c.code));
@@ -465,6 +536,30 @@ async function seedContributions(pack: PackRow, seed: PackSeedInput): Promise<vo
     if (error) throw error;
   }
 
+  // CR-060 — processed before reviewGates/qualityGates: both may reference
+  // a Checklist via checklistIds, resolved from this same map when the
+  // reference is this same Pack's own checklist name (see
+  // resolveChecklistIds's own comment for the two-shape resolution this
+  // mirrors from requires_accepted_review's deliverableName). checklistsDB.
+  // upsert keeps a Checklist's id stable across every republish of this
+  // Pack (owner: "It stays"), keyed by (originating_pack_id, name).
+  const checklistIdByName = new Map<string, string>();
+  for (const cl of seed.contributions.checklists ?? []) {
+    const { data: checklist, error } = await checklistsDB.upsert({
+      name: cl.name,
+      description: cl.description,
+      items: cl.items,
+      originatingPackId: pack.id,
+    });
+    if (error || !checklist) throw error ?? new Error(`checklist upsert failed: ${cl.name}`);
+    checklistIdByName.set(cl.name, checklist.id);
+  }
+  // A checklistIds entry is either this same Pack's own checklist name
+  // (resolved via checklistIdByName above) or an already-real, cross-Pack
+  // checklists.id (validatePackSeed already confirmed it resolves one way
+  // or the other) — pass real ids straight through.
+  const resolveChecklistIds = (ids: string[] | undefined): string[] => (ids ?? []).map((ref) => checklistIdByName.get(ref) ?? ref);
+
   // CR-059 — processed before qualityGates: a requires_accepted_review gate
   // resolves its target Review Gate's real id from this same map, mirroring
   // exactly how capabilityIdByCode resolves a service's capabilityCode.
@@ -479,6 +574,8 @@ async function seedContributions(pack: PackRow, seed: PackSeedInput): Promise<vo
       fromState: scope.fromState,
       toState: scope.toState,
       originatingPackId: pack.id,
+      checklistIds: resolveChecklistIds(rg.checklistIds),
+      recommendedChecklistIds: resolveChecklistIds(rg.recommendedChecklistIds),
     });
     if (error || !reviewGate) throw error ?? new Error(`review gate upsert failed: ${rg.code}`);
     reviewGateIdByCode.set(rg.code, reviewGate.id);
@@ -511,6 +608,8 @@ async function seedContributions(pack: PackRow, seed: PackSeedInput): Promise<vo
       toState: scope.toState,
       criteria,
       originatingPackId: pack.id,
+      checklistIds: resolveChecklistIds(gate.checklistIds),
+      recommendedChecklistIds: resolveChecklistIds(gate.recommendedChecklistIds),
     });
     if (error) throw error;
   }

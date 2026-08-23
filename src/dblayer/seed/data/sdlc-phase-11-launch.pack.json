@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Executing the product launch \u2014 aka Go-Live, GA, Rollout, Ignite.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Executing the product launch — aka Go-Live, GA, Rollout, Ignite.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -51,12 +51,12 @@
     ],
     "checklists": [
       {
-        "code": "launch-readiness-confirmed",
-        "statement": "The launch checklist, rollout plan, and incident response plan are complete and all owners have confirmed readiness.",
-        "classification": "human-attested",
-        "prompt": "Have all owners confirmed readiness against the launch checklist, rollout plan, and incident response plan?",
-        "participant": "human",
-        "outputContract": "passed-failed-notes"
+        "name": "Launch (SDLC Phase 11) Checklist",
+        "items": [
+          {
+            "statement": "The launch checklist, rollout plan, and incident response plan are complete and all owners have confirmed readiness."
+          }
+        ]
       }
     ],
     "reviewGates": [
@@ -68,7 +68,10 @@
         "participant": "human",
         "outputContract": "assessment-acceptance",
         "name": "Launch Readiness Review",
-        "governedTransition": "Deliverable|In Progress|Approved"
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "checklistIds": [
+          "Launch (SDLC Phase 11) Checklist"
+        ]
       }
     ]
   }

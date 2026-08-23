@@ -33,21 +33,15 @@
     ],
     "checklists": [
       {
-        "code": "identify-and-refine-test-ideas",
-        "statement": "Test ideas covering the requirement's normal, boundary, and failure behaviour have been identified.",
-        "classification": "judgment",
-        "prompt": "Do the identified test ideas cover normal, boundary, and failure behaviour for this requirement?",
-        "participant": "AI+human",
-        "outputContract": "passed-failed-notes"
-      },
-      {
-        "code": "implement-test",
-        "statement": "Test cases have been implemented and are repeatable.",
-        "classification": "machine-verifiable",
-        "prompt": "Execute the implemented test cases and report pass/fail with notes.",
-        "participant": "AI",
-        "outputContract": "passed-failed-notes",
-        "externalEvidence": true
+        "name": "Test (OpenUP Capability Pattern) Checklist",
+        "items": [
+          {
+            "statement": "Test ideas covering the requirement's normal, boundary, and failure behaviour have been identified."
+          },
+          {
+            "statement": "Test cases have been implemented and are repeatable."
+          }
+        ]
       }
     ],
     "reviewGates": [
@@ -59,7 +53,10 @@
         "classification": "judgment",
         "prompt": "Given the test results, is the solution's quality acceptable, and is residual risk understood?",
         "participant": "AI+human",
-        "outputContract": "assessment-acceptance"
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Test (OpenUP Capability Pattern) Checklist"
+        ]
       }
     ]
   }

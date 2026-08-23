@@ -33,6 +33,12 @@ export interface JsonSchemaProperty {
   "x-widget"?: "json" | "referential-list" | "referential-select" | "textarea" | "version";
   "x-referential"?: string;
   "x-referential-source"?: string;
+  // CR-060 — Review/Quality Gate's own checklistIds: a referential-list
+  // ITEM field (x-referential set) that picks more than one value rather
+  // than exactly one. Every referential field before this picked a single
+  // value; x-multi is what tells generateFields to build a multi-select
+  // (kind: "referential-multi") instead of a single <select>.
+  "x-multi"?: boolean;
   // Owner (2026-08-19): "do not hard code in the schema. The schema has to
   // pick the values from the ontology" — when true, `x-referential-source`
   // is not an arbitrary registry key but the exact Ontology (Ch.18)
@@ -75,14 +81,22 @@ export interface JsonSchemaProperty {
 // CR-058 form redesign — required/help/label read from the item's own
 // x-help/x-label/items.required (never a per-field-name branch in code,
 // same discipline x-ontology already established for top-level fields).
+// CR-060 — two additions, both first needed by Checklist/checklistIds:
+// "referential-multi" (a referential field that picks several values, not
+// one — Review/Quality Gate's own checklistIds) and "nested-list" (an item
+// field that is itself its own repeatable sub-list — Checklist's own
+// `items`, the first two-level referential-list in this codebase).
+// nestedItemFields mirrors the parent's own itemFields shape recursively;
+// only meaningful when kind === "nested-list".
 export interface ReferentialListItemField {
   name: string;
-  kind: "string" | "enum" | "boolean" | "referential";
+  kind: "string" | "enum" | "boolean" | "referential" | "referential-multi" | "nested-list";
   referentialSource?: string;
   options?: string[];
   required?: boolean;
   help?: string;
   label?: string;
+  nestedItemFields?: ReferentialListItemField[];
 }
 
 export type GeneratedField =
@@ -104,7 +118,12 @@ export type GeneratedField =
   // behind an "+ Add another" control, instead of always showing 3 blank rows
   // (of up to 12 fields each) fully expanded regardless of whether the Pack
   // uses that contribution type at all.
-  | { kind: "referential-list"; name: string; label: string; required: boolean; rows: Array<Record<string, string>>; itemFields: ReferentialListItemField[]; existingCount: number };
+  // CR-060 — a row's value for a "referential-multi" item field is
+  // string[] (the selected ids); for a "nested-list" item field it's
+  // Array<Record<string, string>> (the sub-item rows, same shape one level
+  // down). Every pre-existing item field kind still only ever produces a
+  // plain string, so this is additive, not a breaking widen of every field.
+  | { kind: "referential-list"; name: string; label: string; required: boolean; rows: Array<Record<string, string | string[] | Array<Record<string, string>>>>; itemFields: ReferentialListItemField[]; existingCount: number };
 
 // Blank slots appended after however many the content already has, so the
 // form always offers a place to add one more without needing client-side JS
@@ -115,6 +134,63 @@ const BLANK_ROWS_TO_OFFER = 1;
 
 function labelize(name: string): string {
   return name.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase());
+}
+
+// CR-060 — extracted so a "nested-list" item field (Checklist's own `items`,
+// itself a repeatable sub-list) can recurse into its own sub-item schema the
+// exact same way the top-level referential-list field builds itemFields —
+// one function, not a second hand-copied item-field builder.
+function buildItemFields(itemProps: Record<string, JsonSchemaProperty>, itemRequired: Set<string>): ReferentialListItemField[] {
+  return Object.entries(itemProps).map(([fieldName, fieldDef]) => {
+    const common = { required: itemRequired.has(fieldName), help: fieldDef["x-help"], label: fieldDef["x-label"] ?? labelize(fieldName) };
+    if (fieldDef.type === "array" && fieldDef.items?.properties) {
+      const nestedRequired = new Set(fieldDef.items.required ?? []);
+      const nestedItemFields = buildItemFields(fieldDef.items.properties, nestedRequired);
+      const nestedOrder = fieldDef.items["x-property-order"];
+      if (nestedOrder?.length) {
+        const rank = new Map(nestedOrder.map((n, i) => [n, i]));
+        nestedItemFields.sort((a, b) => (rank.get(a.name) ?? nestedOrder.length) - (rank.get(b.name) ?? nestedOrder.length));
+      }
+      return { name: fieldName, kind: "nested-list" as const, nestedItemFields, ...common };
+    }
+    if (fieldDef["x-referential"] && fieldDef["x-multi"]) return { name: fieldName, kind: "referential-multi" as const, referentialSource: fieldDef["x-referential"], ...common };
+    if (fieldDef["x-referential"]) return { name: fieldName, kind: "referential" as const, referentialSource: fieldDef["x-referential"], ...common };
+    if (fieldDef.enum) return { name: fieldName, kind: "enum" as const, options: fieldDef.enum, ...common };
+    if (fieldDef.type === "boolean") return { name: fieldName, kind: "boolean" as const, ...common };
+    return { name: fieldName, kind: "string" as const, ...common };
+  });
+}
+
+// CR-060 — builds one referential-list row's value map from raw content,
+// dispatching per item-field kind: "nested-list" recurses (via buildRow
+// itself) into an array of sub-item rows with one blank template appended
+// at the end (same BLANK_ROWS_TO_OFFER=1 convention the top level already
+// uses — the view treats a nested-list array's LAST element as the clone
+// template, the rest as real content); "referential-multi" keeps its raw
+// array of selected ids as string[]; everything else stays a plain string,
+// unchanged from before this function was extracted.
+function buildRow(
+  row: Record<string, unknown>,
+  itemFields: ReferentialListItemField[],
+  itemProps?: Record<string, JsonSchemaProperty>
+): Record<string, string | string[] | Array<Record<string, string>>> {
+  const out: Record<string, string | string[] | Array<Record<string, string>>> = {};
+  for (const field of itemFields) {
+    const raw = row[field.name];
+    if (field.kind === "nested-list") {
+      const nestedFields = field.nestedItemFields ?? [];
+      const nestedRows = Array.isArray(raw)
+        ? (raw as Array<Record<string, unknown>>).map((r) => buildRow(r, nestedFields) as Record<string, string>)
+        : [];
+      nestedRows.push(buildRow({}, nestedFields) as Record<string, string>);
+      out[field.name] = nestedRows;
+    } else if (field.kind === "referential-multi") {
+      out[field.name] = Array.isArray(raw) ? raw.map(String) : [];
+    } else {
+      out[field.name] = raw !== undefined ? String(raw) : String(itemProps?.[field.name]?.default ?? "");
+    }
+  }
+  return out;
 }
 
 export function generateFields(schema: JsonSchemaDocument, content: Record<string, unknown>): GeneratedField[] {
@@ -140,29 +216,17 @@ export function generateFields(schema: JsonSchemaDocument, content: Record<strin
     if (def["x-widget"] === "referential-list") {
       const itemProps = def.items?.properties ?? {};
       const itemRequired = new Set(def.items?.required ?? []);
-      const itemFields: ReferentialListItemField[] = Object.entries(itemProps).map(([fieldName, fieldDef]) => {
-        const common = { required: itemRequired.has(fieldName), help: fieldDef["x-help"], label: fieldDef["x-label"] ?? labelize(fieldName) };
-        if (fieldDef["x-referential"]) return { name: fieldName, kind: "referential", referentialSource: fieldDef["x-referential"], ...common };
-        if (fieldDef.enum) return { name: fieldName, kind: "enum", options: fieldDef.enum, ...common };
-        if (fieldDef.type === "boolean") return { name: fieldName, kind: "boolean", ...common };
-        return { name: fieldName, kind: "string", ...common };
-      });
+      const itemFields = buildItemFields(itemProps, itemRequired);
       const propertyOrder = def.items?.["x-property-order"];
       if (propertyOrder?.length) {
         const rank = new Map(propertyOrder.map((n, i) => [n, i]));
         itemFields.sort((a, b) => (rank.get(a.name) ?? propertyOrder.length) - (rank.get(b.name) ?? propertyOrder.length));
       }
       const existingRows = Array.isArray(rawValue) ? (rawValue as Array<Record<string, unknown>>) : [];
-      const rows: Array<Record<string, string>> = existingRows.map((row) => {
-        const out: Record<string, string> = {};
-        for (const field of itemFields) out[field.name] = String(row[field.name] ?? "");
-        return out;
-      });
+      const rows = existingRows.map((row) => buildRow(row, itemFields, itemProps));
       const existingCount = rows.length;
       for (let i = 0; i < BLANK_ROWS_TO_OFFER; i++) {
-        const blank: Record<string, string> = {};
-        for (const field of itemFields) blank[field.name] = String(itemProps[field.name]?.default ?? "");
-        rows.push(blank);
+        rows.push(buildRow({}, itemFields, itemProps));
       }
       fields.push({ kind: "referential-list", name, label: labelize(name), required: isRequired, rows, itemFields, existingCount });
       continue;
@@ -314,7 +378,11 @@ export function groupFieldsForDisplay(fields: GeneratedField[]): FieldGroups {
 // (e.g. dependency `type` defaulting to "required") without counting as content.
 export function rowHasContent(row: Record<string, string>, itemFields: ReferentialListItemField[]): boolean {
   const referentialField = itemFields.find((f) => f.kind === "referential");
-  const identifyingNames = [referentialField?.name, "code", "checklist", "statement"].filter((n): n is string => !!n);
+  // CR-060 — "name" added for Checklist's own container row (name/description/
+  // items — no code/checklist/statement/referential field at all); harmless
+  // for every other referential-list kind, which either doesn't have a `name`
+  // field or already has a more specific identifying field checked first.
+  const identifyingNames = [referentialField?.name, "code", "checklist", "statement", "name"].filter((n): n is string => !!n);
   return identifyingNames.some((n) => (row[n] ?? "").trim() !== "");
 }
 
@@ -328,7 +396,7 @@ export const CONTRIBUTION_SECTION_HELP: Record<string, string> = {
   contributionAuthorityRules: "Legacy per-transition role authorisations (pre-noun×verb). New Packs should generally rely on the platform's noun×verb badges instead.",
   contributionPolicies: "Conditions checked on a governed transition — a blocking Policy or a non-blocking Standard (deviations are recorded, not blocked).",
   contributionQualityGates: "Pass/fail criteria a specific transition (entity + from-state + to-state) must satisfy before it's allowed to proceed.",
-  contributionChecklists: "Verifiable checklist items — each one a Statement to confirm, with a Classification of how it's confirmed (see below).",
+  contributionChecklists: "Reusable Checklists (Ch.47) — a Name/Description plus its own ordered list of Items (just a Statement each). A Checklist carries no scope, participant, or required/advisory status of its own; Review Gates and Quality Gates reference it by id (checklistIds/recommendedChecklistIds) to say when it applies and whether it's required.",
   contributionReviewGates: "Verifiable review requirements — typically \"judgment\" or \"human-attested\" items that gate a review outcome.",
   contributionObligationDefinitions: "Verifiable obligations this Pack can raise — a commitment that must be resolved, of the Obligation Type given.",
   contributionsCompliance: "Compliance Frameworks and their Requirements this Pack declares (raw JSON — deeply nested, not yet a structured widget).",
@@ -341,6 +409,13 @@ export const VERIFIABLE_ITEM_FIELD_HELP: Record<string, string> = {
   outputContract: "The shape of the result: passed-failed-notes (a check) or assessment-acceptance (a review outcome).",
   externalEvidence: "Check this if verification comes from an external system (e.g. a CI run) rather than analysing an artifact directly.",
   assurance: "Optional: a confidence threshold below which an AI result should escalate to a human (declared only — not yet enforced).",
+  // CR-060, revised same day — Review/Quality Gate's own reference to a
+  // Checklist. Mandatory/Recommended is NOT a Checklist Item field (owner:
+  // "you cannot determine a checklist item to be mandatory. Checklist is
+  // generic. Pack has the specifics.") — it lives here, on the gate's own
+  // two reference lists, instead.
+  checklistIds: "Which of this Pack's own Checklists (any version/tenant sharing this Pack's code) must complete for this gate. All listed Checklists are required (AND); a Checklist shared by more than one gate only runs once.",
+  recommendedChecklistIds: "Advisory Checklists (this Pack's own code only) — completing them does not block this gate, unlike Checklist Ids.",
 };
 
 // Structural (grammar) validation — required fields, types, enums, pattern —

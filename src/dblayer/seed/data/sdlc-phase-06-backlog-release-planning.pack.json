@@ -4,8 +4,8 @@
   "category": "Organisation",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Planning feature development and releases \u2014 aka Roadmapping, Program Increment Planning, Flight Plan, Delivery Strategy.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Planning feature development and releases — aka Roadmapping, Program Increment Planning, Flight Plan, Delivery Strategy.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -57,12 +57,12 @@
     ],
     "checklists": [
       {
-        "code": "backlog-items-have-acceptance-criteria",
-        "statement": "Every backlog item in the feature/epic backlog carries clear, testable acceptance criteria.",
-        "classification": "judgment",
-        "prompt": "Does each feature/epic in the backlog include acceptance criteria specific enough to verify completion?",
-        "participant": "AI+human",
-        "outputContract": "passed-failed-notes"
+        "name": "Backlog & Release Planning (SDLC Phase 6) Checklist",
+        "items": [
+          {
+            "statement": "Every backlog item in the feature/epic backlog carries clear, testable acceptance criteria."
+          }
+        ]
       }
     ],
     "reviewGates": []

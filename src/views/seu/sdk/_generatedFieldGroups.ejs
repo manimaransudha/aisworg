@@ -12,7 +12,8 @@
     category names it shares; Pack has neither).
     Locals: groups (FieldGroups), canEdit (bool), referentialOptions,
     contributionHelp (Record<string,string>), verifiableFieldHelp
-    (Record<string,string>), sections (string[], optional — which of
+    (Record<string,string>), checklistOptions (ChecklistOption[], CR-060 —
+    checklistIds' cross-Pack picker source), sections (string[], optional — which of
     metadata/packSelection/deliverables/compatibility/dependencies/contributions
     to include; omitted = all), idPrefix (string, optional — keeps tab/pane
     element ids unique when this partial is included more than once on the
@@ -101,7 +102,7 @@
                       must still fill in); meaningless once the page is just
                       showing what was already saved. %>
                   <label class="form-label small fw-semibold"><%= f.label %><% if (f.required && canEdit) { %> <span class="text-danger">*</span><% } %></label>
-                  <%- include('_referentialListGroup', { field: f, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions }) %>
+                  <%- include('_referentialListGroup', { field: f, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions }) %>
                   <% if (f.help) { %><div class="form-text small"><%= f.help %></div><% } %>
                 </div>
               <% } else { %>
@@ -221,7 +222,7 @@
               both specifically. Every other contribution section
               (Checklists/Obligation Definitions/Dependencies) doesn't have
               inline help yet, so keeps this fallback unchanged. %>
-          <% var SECTIONS_WITH_INLINE_HELP = ['contributionQualityGates', 'contributionReviewGates']; %>
+          <% var SECTIONS_WITH_INLINE_HELP = ['contributionQualityGates', 'contributionReviewGates', 'contributionChecklists']; %>
           <% if (t.id === 'dependencies') { %>
             <p class="text-muted small mb-2">Other Packs this one requires, allows alongside, or is incompatible with. A "required" dependency must resolve to a real, Active Pack.</p>
           <% } else if (SECTIONS_WITH_INLINE_HELP.indexOf(t.id) === -1 && (locals.contributionHelp || {})[t.helpKey]) { %>
@@ -242,7 +243,7 @@
           <% } else if (t.type === 'json') { %>
             <textarea name="<%= t.field.name %>" class="form-control form-control-sm font-monospace" rows="6" <%- canEdit ? '' : 'disabled' %>><%= t.field.value %></textarea>
           <% } else { %>
-            <%- include('_referentialListGroup', { field: t.field, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions }) %>
+            <%- include('_referentialListGroup', { field: t.field, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions }) %>
           <% } %>
         <% } %>
 

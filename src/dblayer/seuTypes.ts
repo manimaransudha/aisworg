@@ -69,6 +69,24 @@ export interface VerifiableItemFields {
   assurance?: string;
 }
 
+// CR-060, revised same day (owner: "you cannot determine a checklist item
+// to be mandatory. Checklist is generic. Pack has the specifics.") — a
+// Checklist Item carries NONE of VerifiableItemFields: no classification
+// (Participant already covered that distinction — moot now anyway),
+// no participant (a Review Gate's own single `participant` field covers
+// everything it does, including whichever Checklists it references — a
+// Quality Gate is engine-evaluated, never participant-driven, so needs
+// none either), no Mandatory/Recommended (a Checklist is generic/reusable;
+// whether completing it is required or advisory is specific to the Pack
+// referencing it, not the Checklist itself — see PackContributions.
+// qualityGates'/reviewGates' own checklistIds/recommendedChecklistIds).
+// Just the claim being verified. No item-level identifier (Ch.47 §9) —
+// items are addressed only by position within their Checklist's own
+// `items` array.
+export interface ChecklistItem {
+  statement: string;
+}
+
 export interface PackContributions {
   capabilities?: Array<{ code: string; name: string; description?: string; category?: string }>;
   services?: Array<{ code: string; capabilityCode: string; name: string; contractDescription: string; serviceLevel?: Record<string, unknown> }>;
@@ -122,13 +140,36 @@ export interface PackContributions {
     criteriaType: "no_unresolved_obligations" | "requires_accepted_evidence_or_approved_decision" | "requires_accepted_review" | "requires_active_policy";
     deliverableName?: string;
     requiredPolicyCode?: string;
+    // CR-060 — real ids of Checklists (any Pack's, not just this one) this
+    // gate requires. AND within the list (owner: "Every quality gate is
+    // defined by category and that is an AND"); a Checklist referenced by
+    // more than one gate is executed once, not once per referencing gate
+    // (owner: "If gates point to same checklist, it is taken once").
+    checklistIds?: string[];
+    // CR-060, revised same day — Mandatory/Recommended moved off Checklist
+    // Item entirely (owner: "you cannot determine a checklist item to be
+    // mandatory. Checklist is generic. Pack has the specifics.") onto the
+    // gate's own reference to a Checklist instead: `checklistIds` (above)
+    // is this gate's required (AND) Checklists; `recommendedChecklistIds`
+    // is the advisory set — completing them doesn't block this gate, same
+    // "doesn't by itself determine the outcome" role Ch.47's own Recommended
+    // designation always had, just relocated from item to reference.
+    recommendedChecklistIds?: string[];
   } & VerifiableItemFields>;
-  // CR-016 (Ch.5 §20) — verifiable contributions carry their own execution.
-  // Classification is per ITEM (a Checklist can hold a machine-verifiable item
-  // AND a judgment item — the owner's example), so these fields live on each row.
-  // Declaration-only: stored in packs.contributions (JSONB); executing them
-  // (dispatch prompt -> Evidence -> gate, etc.) is the §19.14 B-group follow-up.
-  checklists?: Array<{ checklist?: string; code?: string } & VerifiableItemFields>;
+  // CR-060 (Ch.47) — a Checklist is a real, persisted, cross-Pack-
+  // referenceable entity (checklists table) despite having no version or
+  // lifecycle of its own — it carries no scope (Category/Capability/
+  // Applicable-Deliverable-Type/Applicable-Transition) either; that's fully
+  // carried by whichever Review/Quality Gate(s) reference it via
+  // checklistIds (owner: "Checklist is just the mechanism for review and
+  // quality gate"). `items` is the ordered verification list — see
+  // ChecklistItem. Declaration-only here (this is the authored, form-facing
+  // shape persisted into packs.contributions verbatim); materialising into
+  // the real `checklists` table happens in seedContributions (core/packs.ts),
+  // same as reviewGates/qualityGates. Executing a Checklist (a Participant
+  // works through `items`, produces one Evidence record) is out of scope —
+  // SEU-commissioning-phase work, not Pack-side declaration.
+  checklists?: Array<{ name: string; description?: string; items: ChecklistItem[] }>;
   // CR-059 — a Review Gate is real and persisted now (review_gates table),
   // unlike the other declaration-only rows in this interface. `code` is the
   // deliverable type it's for (Ontology's deliverable-name vocabulary,
@@ -137,8 +178,9 @@ export interface PackContributions {
   // Quality Gate's own code=category collapse, `code` stays a real,
   // author-visible field (owner: "it should show up on the form"). `name`
   // is a separate, required label (Ch.25 §8's own Name-distinct-from-
-  // criteria structure).
-  reviewGates?: Array<{ code: string; name: string; governedTransition: string } & VerifiableItemFields>;
+  // criteria structure). checklistIds/recommendedChecklistIds — see
+  // qualityGates' own fields above, identical semantics.
+  reviewGates?: Array<{ code: string; name: string; governedTransition: string; checklistIds?: string[]; recommendedChecklistIds?: string[] } & VerifiableItemFields>;
   obligationDefinitions?: Array<{ code?: string; obligationType?: string } & VerifiableItemFields>;
   // Compliance Model — Plan (Phase 15, Ch.27 FR-27.1): a Pack contributes
   // Compliance Frameworks and their declarative Requirements. Compliance
@@ -836,6 +878,12 @@ export interface QualityGateRow {
   version: string;
   is_active: boolean;
   created_at: string;
+  // CR-060 — real ids of Checklists this gate requires (AND across the
+  // list). See PackContributions.qualityGates' own checklistIds comment.
+  checklist_ids: string[];
+  // CR-060, revised same day — advisory Checklists; see
+  // PackContributions.qualityGates' own recommendedChecklistIds comment.
+  recommended_checklist_ids: string[];
 }
 
 // CR-059 — Review Gate, real and persisted. No `category`/`criteria`: the
@@ -853,7 +901,31 @@ export interface ReviewGateRow {
   originating_pack_id: string | null;
   version: string;
   is_active: boolean;
+  // CR-060 — same as QualityGateRow's own checklist_ids.
+  checklist_ids: string[];
+  // CR-060, revised same day — same as QualityGateRow's own
+  // recommended_checklist_ids.
+  recommended_checklist_ids: string[];
   created_at: string;
+}
+
+// CR-060 — Checklist, real and persisted despite no version/lifecycle of
+// its own (Ch.47 §16, as edited: "nothing outside its own Pack ever holds a
+// stable reference to a specific Checklist" — model reach, not a ban on a
+// real table, owner: "Checklist can be in a table to get a fk"). `id` stays
+// stable across every republish of `originating_pack_id` (checklistsDB.upsert
+// keys on (originating_pack_id, name)). `originating_pack_id` is provenance
+// only, not a reference-scoping constraint — any Pack's gate may reference
+// any Pack's Checklist by id (owner: "any Pack's gate can point at any
+// Pack's checklist, same reach as Policy").
+export interface ChecklistRow {
+  id: string;
+  name: string;
+  description: string | null;
+  originating_pack_id: string;
+  items: ChecklistItem[];
+  created_at: string;
+  updated_at: string;
 }
 
 export interface QualityGateEvaluationRow {

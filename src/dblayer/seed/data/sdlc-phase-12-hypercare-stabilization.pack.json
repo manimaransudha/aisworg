@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Post-launch support and stabilization \u2014 aka Post-Launch Support, Warranty Period, Hot Stage.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Post-launch support and stabilization — aka Post-Launch Support, Warranty Period, Hot Stage.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -57,12 +57,12 @@
     ],
     "checklists": [
       {
-        "code": "hypercare-issues-triaged-promptly",
-        "statement": "Issues logged during hypercare are triaged and assigned an owner within the agreed response window.",
-        "classification": "judgment",
-        "prompt": "Are known issues from the hypercare period being triaged and assigned within the agreed response window?",
-        "participant": "AI+human",
-        "outputContract": "passed-failed-notes"
+        "name": "Hypercare & Stabilization (SDLC Phase 12) Checklist",
+        "items": [
+          {
+            "statement": "Issues logged during hypercare are triaged and assigned an owner within the agreed response window."
+          }
+        ]
       }
     ],
     "reviewGates": [
@@ -74,7 +74,10 @@
         "participant": "human",
         "outputContract": "assessment-acceptance",
         "name": "Hypercare Review",
-        "governedTransition": "Deliverable|In Progress|Approved"
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "checklistIds": [
+          "Hypercare & Stabilization (SDLC Phase 12) Checklist"
+        ]
       }
     ]
   }

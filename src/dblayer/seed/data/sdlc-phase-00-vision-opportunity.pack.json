@@ -4,8 +4,8 @@
   "category": "Organisation",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Establishing the foundational product vision and market opportunity before any solution work begins \u2014 aka North Star, Product Strategy, Problem Framing, Opportunity Mapping, Lean Inception, 0\u21921.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Establishing the foundational product vision and market opportunity before any solution work begins — aka North Star, Product Strategy, Problem Framing, Opportunity Mapping, Lean Inception, 0→1.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -63,12 +63,12 @@
     ],
     "checklists": [
       {
-        "code": "vision-grounded-in-evidence",
-        "statement": "The stated vision and opportunity sizing are grounded in real market/user evidence, not assertion alone.",
-        "classification": "judgment",
-        "prompt": "Does the vision one-pager cite market sizing and JTBD/competitive evidence rather than resting on unsupported claims?",
-        "participant": "AI+human",
-        "outputContract": "passed-failed-notes"
+        "name": "Vision & Opportunity (SDLC Phase 0) Checklist",
+        "items": [
+          {
+            "statement": "The stated vision and opportunity sizing are grounded in real market/user evidence, not assertion alone."
+          }
+        ]
       }
     ],
     "reviewGates": []

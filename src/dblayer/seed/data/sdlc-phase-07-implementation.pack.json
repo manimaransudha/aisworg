@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Building the product features and functionality \u2014 aka Build, Delivery, Engineering Execution, Construction, Maker Sprint.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Building the product features and functionality — aka Build, Delivery, Engineering Execution, Construction, Maker Sprint.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -69,12 +69,12 @@
     ],
     "checklists": [
       {
-        "code": "implementation-matches-api-contracts",
-        "statement": "The implemented code conforms to the documented API contracts and architecture decision records.",
-        "classification": "judgment",
-        "prompt": "Does the implementation match the API contracts and ADRs, without undocumented deviations?",
-        "participant": "AI+human",
-        "outputContract": "passed-failed-notes"
+        "name": "Implementation (SDLC Phase 7) Checklist",
+        "items": [
+          {
+            "statement": "The implemented code conforms to the documented API contracts and architecture decision records."
+          }
+        ]
       }
     ],
     "reviewGates": [
@@ -86,7 +86,10 @@
         "participant": "human",
         "outputContract": "assessment-acceptance",
         "name": "Implementation Review",
-        "governedTransition": "Deliverable|In Progress|Approved"
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "checklistIds": [
+          "Implementation (SDLC Phase 7) Checklist"
+        ]
       }
     ]
   }

@@ -27,20 +27,15 @@
     ],
     "checklists": [
       {
-        "code": "identify-design-elements",
-        "statement": "The solution has been decomposed into design elements consistent with the requirements and constraints.",
-        "classification": "judgment",
-        "prompt": "Do the identified design elements cover the requirements and respect the stated constraints?",
-        "participant": "AI+human",
-        "outputContract": "passed-failed-notes"
-      },
-      {
-        "code": "incorporate-architectural-feedback",
-        "statement": "Feedback from Development and Test on the architecture's feasibility has been incorporated.",
-        "classification": "human-attested",
-        "prompt": "Has feedback from downstream disciplines been reviewed and, where warranted, incorporated into the architecture?",
-        "participant": "human",
-        "outputContract": "passed-failed-notes"
+        "name": "Architecture (OpenUP Capability Pattern) Checklist",
+        "items": [
+          {
+            "statement": "The solution has been decomposed into design elements consistent with the requirements and constraints."
+          },
+          {
+            "statement": "Feedback from Development and Test on the architecture's feasibility has been incorporated."
+          }
+        ]
       }
     ],
     "reviewGates": [
@@ -52,7 +47,10 @@
         "classification": "human-attested",
         "prompt": "Is the architecture sufficiently detailed, consistent, and approved to guide implementation?",
         "participant": "human",
-        "outputContract": "assessment-acceptance"
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Architecture (OpenUP Capability Pattern) Checklist"
+        ]
       }
     ]
   }

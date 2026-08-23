@@ -4,8 +4,8 @@
   "category": "Organisation",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Managing beta program and early user feedback \u2014 aka Private Beta, Pilot, Dogfooding, Soft Launch.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Managing beta program and early user feedback — aka Private Beta, Pilot, Dogfooding, Soft Launch.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -57,12 +57,12 @@
     ],
     "checklists": [
       {
-        "code": "beta-feedback-loop-operating",
-        "statement": "Feedback from beta users is being captured, triaged, and reflected in the known issues log on an ongoing basis.",
-        "classification": "human-attested",
-        "prompt": "Is beta user feedback actively captured, triaged, and reflected in the known issues log rather than collected and ignored?",
-        "participant": "human",
-        "outputContract": "passed-failed-notes"
+        "name": "Beta / Early Access (SDLC Phase 10) Checklist",
+        "items": [
+          {
+            "statement": "Feedback from beta users is being captured, triaged, and reflected in the known issues log on an ongoing basis."
+          }
+        ]
       }
     ],
     "reviewGates": []

@@ -4,8 +4,8 @@
   "category": "Organisation",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Understanding user needs and defining product requirements \u2014 aka Discovery Sprint, Exploration Sprint, Problem/Solution Fit, Inception, Validation Sprint.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Understanding user needs and defining product requirements — aka Discovery Sprint, Exploration Sprint, Problem/Solution Fit, Inception, Validation Sprint.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -69,12 +69,12 @@
     ],
     "checklists": [
       {
-        "code": "discovery-findings-grounded-in-research",
-        "statement": "The persona, journey, and JTBD artifacts are grounded in actual user research rather than internal assumption.",
-        "classification": "judgment",
-        "prompt": "Do the personas, journey map, and JTBD statements cite specific research findings and interview evidence rather than resting on unvalidated assumptions?",
-        "participant": "AI+human",
-        "outputContract": "passed-failed-notes"
+        "name": "Product Discovery (SDLC Phase 1) Checklist",
+        "items": [
+          {
+            "statement": "The persona, journey, and JTBD artifacts are grounded in actual user research rather than internal assumption."
+          }
+        ]
       }
     ],
     "reviewGates": [
@@ -86,7 +86,10 @@
         "participant": "human",
         "outputContract": "assessment-acceptance",
         "name": "Product Requirements Review",
-        "governedTransition": "Deliverable|In Progress|Approved"
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "checklistIds": [
+          "Product Discovery (SDLC Phase 1) Checklist"
+        ]
       }
     ]
   }

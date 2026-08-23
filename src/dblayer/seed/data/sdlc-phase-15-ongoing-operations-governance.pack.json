@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Establishing long-term operational excellence \u2014 aka SRE & Ops, Continuous Improvement, Risk & Compliance Governance.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Establishing long-term operational excellence — aka SRE & Ops, Continuous Improvement, Risk & Compliance Governance.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -57,12 +57,12 @@
     ],
     "checklists": [
       {
-        "code": "tech-debt-register-actively-maintained",
-        "statement": "The tech debt register is reviewed and updated on a recurring cadence rather than left stale after creation.",
-        "classification": "human-attested",
-        "prompt": "Is the tech debt register actively reviewed and updated at each quarterly architecture review?",
-        "participant": "human",
-        "outputContract": "passed-failed-notes"
+        "name": "Ongoing Operations & Governance (SDLC Phase 15) Checklist",
+        "items": [
+          {
+            "statement": "The tech debt register is reviewed and updated on a recurring cadence rather than left stale after creation."
+          }
+        ]
       }
     ],
     "reviewGates": [
@@ -74,7 +74,10 @@
         "participant": "human",
         "outputContract": "assessment-acceptance",
         "name": "Operational Readiness Review",
-        "governedTransition": "Deliverable|In Progress|Approved"
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "checklistIds": [
+          "Ongoing Operations & Governance (SDLC Phase 15) Checklist"
+        ]
       }
     ]
   }

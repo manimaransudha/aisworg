@@ -33,28 +33,18 @@
     ],
     "checklists": [
       {
-        "code": "design-the-solution",
-        "statement": "The design for this increment is consistent with the Architecture Notebook.",
-        "classification": "judgment",
-        "prompt": "Does the increment's design follow the approved architecture and design elements?",
-        "participant": "AI+human",
-        "outputContract": "passed-failed-notes"
-      },
-      {
-        "code": "implement-solution",
-        "statement": "The implementation satisfies its design and passes unit-level checks.",
-        "classification": "machine-verifiable",
-        "prompt": "Run the unit-level checks for this increment and report pass/fail with notes.",
-        "participant": "AI",
-        "outputContract": "passed-failed-notes"
-      },
-      {
-        "code": "integrate-and-create-build",
-        "statement": "Implementation elements have been integrated into a build without regressions.",
-        "classification": "machine-verifiable",
-        "prompt": "Run the integration build and report pass/fail with notes.",
-        "participant": "AI",
-        "outputContract": "passed-failed-notes"
+        "name": "Development (OpenUP Capability Pattern) Checklist",
+        "items": [
+          {
+            "statement": "The design for this increment is consistent with the Architecture Notebook."
+          },
+          {
+            "statement": "The implementation satisfies its design and passes unit-level checks."
+          },
+          {
+            "statement": "Implementation elements have been integrated into a build without regressions."
+          }
+        ]
       }
     ],
     "reviewGates": []

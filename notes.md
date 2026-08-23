@@ -77,3 +77,4 @@ Capability Patterns (reusable process fragments)
 
 
 --------
+yes, seed files have to be wired up with checklist ids. 

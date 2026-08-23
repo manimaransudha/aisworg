@@ -29,6 +29,15 @@ export const qualityGatesDB = {
     toState: string;
     criteria?: Record<string, unknown>;
     originatingPackId: string;
+    // CR-060 — real ids of Checklists this gate requires (AND across the
+    // list). Not part of the change-detection identity below (a Checklist's
+    // own content can change in place without bumping the referencing
+    // gate's version — CR-060's own "it stays" decision), but real content
+    // still needs to be written whenever it differs.
+    checklistIds?: string[];
+    // CR-060, revised same day — advisory Checklists; see
+    // PackContributions.qualityGates' own recommendedChecklistIds comment.
+    recommendedChecklistIds?: string[];
   }): Promise<DbResult<QualityGateRow>> {
     const client = await pool.connect();
     try {
@@ -36,12 +45,19 @@ export const qualityGatesDB = {
       const category = input.category ?? "Exit";
       const code = category;
       const criteria = input.criteria ?? { type: "no_unresolved_obligations" };
+      const checklistIds = input.checklistIds ?? [];
+      const recommendedChecklistIds = input.recommendedChecklistIds ?? [];
       const { rows: currentRows } = await client.query<QualityGateRow>(
         "SELECT * FROM quality_gates WHERE entity_type = $1 AND from_state = $2 AND to_state = $3 AND category = $4 AND is_active = true",
         [input.entityType, input.fromState, input.toState, category]
       );
       const current = currentRows[0];
-      const unchanged = current && current.name === input.name && JSON.stringify(current.criteria) === JSON.stringify(criteria);
+      const unchanged =
+        current &&
+        current.name === input.name &&
+        JSON.stringify(current.criteria) === JSON.stringify(criteria) &&
+        JSON.stringify([...current.checklist_ids].sort()) === JSON.stringify([...checklistIds].sort()) &&
+        JSON.stringify([...current.recommended_checklist_ids].sort()) === JSON.stringify([...recommendedChecklistIds].sort());
       if (unchanged) {
         await client.query("COMMIT");
         return { data: current };
@@ -51,10 +67,10 @@ export const qualityGatesDB = {
         await client.query("UPDATE quality_gates SET is_active = false WHERE id = $1", [current.id]);
       }
       const { rows } = await client.query<QualityGateRow>(
-        `INSERT INTO quality_gates (code, name, category, entity_type, from_state, to_state, criteria, originating_pack_id, version, is_active)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true)
+        `INSERT INTO quality_gates (code, name, category, entity_type, from_state, to_state, criteria, originating_pack_id, version, is_active, checklist_ids, recommended_checklist_ids)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10, $11)
          RETURNING *`,
-        [code, input.name, category, input.entityType, input.fromState, input.toState, JSON.stringify(criteria), input.originatingPackId, nextVersion]
+        [code, input.name, category, input.entityType, input.fromState, input.toState, JSON.stringify(criteria), input.originatingPackId, nextVersion, checklistIds, recommendedChecklistIds]
       );
       await client.query("COMMIT");
       return { data: rows[0] };

@@ -202,7 +202,7 @@
         <input type="hidden" name="parentDeliverableDefinitionId" value="<%= inheritingFromDeliverableDefinitionId %>">
       <% } %>
 
-      <%- include('../_generatedFieldGroups', { groups: groups, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, templateOptions: locals.templateOptions, ontologyOptions: locals.ontologyOptions, contributionHelp: locals.contributionHelp, verifiableFieldHelp: locals.verifiableFieldHelp }) %>
+      <%- include('../_generatedFieldGroups', { groups: groups, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, templateOptions: locals.templateOptions, ontologyOptions: locals.ontologyOptions, contributionHelp: locals.contributionHelp, verifiableFieldHelp: locals.verifiableFieldHelp, checklistOptions: locals.checklistOptions }) %>
 
       <% if (canEdit || canPublish) { %>
         <div class="authoring-action-bar">

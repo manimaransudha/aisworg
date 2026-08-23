@@ -84,6 +84,46 @@
     }
   });
 
+  // CR-060 — the nested "+ Add item"/"Remove" wiring for any
+  // .nested-list-group (Checklist's own `items`, the first two-level
+  // referential-list in this codebase — _referentialListGroup.ejs's own
+  // "nested-list" item-field branch). Delegated on `document` rather than
+  // bound per-element at load time: a whole new .nested-list-group arrives
+  // whenever the TOP-LEVEL "+ Add another" button (above) clones a brand
+  // new Checklist row, and delegation means that clone's own buttons work
+  // immediately without any extra re-wiring step.
+  document.addEventListener('click', function (e) {
+    var addBtn = e.target.closest ? e.target.closest('.add-nested-row-btn') : null;
+    if (addBtn) {
+      var group = addBtn.closest('.nested-list-group');
+      if (!group) return;
+      var rows = group.querySelectorAll('.nested-list-row');
+      if (!rows.length) return;
+      var clone = rows[rows.length - 1].cloneNode(true);
+      var nextIndex = parseInt(group.getAttribute('data-next-index'), 10) || rows.length;
+      clone.querySelectorAll('input, select, textarea').forEach(function (el) {
+        // Only the LAST bracket index is this nested list's own — the ones
+        // before it (the owning Checklist row's own top-level index) must
+        // stay exactly as cloned.
+        if (el.name) el.name = el.name.replace(/\[(\d+)\](?!.*\[\d+\])/, '[' + nextIndex + ']');
+        if (el.tagName === 'SELECT') el.selectedIndex = 0;
+        else if (el.type === 'checkbox') el.checked = false;
+        else el.value = '';
+      });
+      var badge = clone.querySelector('.badge');
+      if (badge) { badge.className = 'badge bg-light text-muted border small fw-normal'; badge.textContent = 'New item — fill in to add'; }
+      group.setAttribute('data-next-index', String(nextIndex + 1));
+      addBtn.parentNode.insertBefore(clone, addBtn);
+      notifyDirty();
+      return;
+    }
+    var removeBtn = e.target.closest ? e.target.closest('.remove-nested-row-btn') : null;
+    if (removeBtn) {
+      var row = removeBtn.closest('.nested-list-row');
+      if (row) { row.remove(); notifyDirty(); }
+    }
+  });
+
   // View-mode referential-list tables (_referentialListGroup.ejs's
   // read-only branch) — owner: "All pages should have a search, filter and
   // sort columns", the same standing requirement (coding_principles.md

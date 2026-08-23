@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Defining technical architecture and system design \u2014 aka Solution Architecture, Systems Design, Tech Blueprint, Foundations Sprint.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Defining technical architecture and system design — aka Solution Architecture, Systems Design, Tech Blueprint, Foundations Sprint.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -75,12 +75,12 @@
     ],
     "checklists": [
       {
-        "code": "architecture-decisions-documented",
-        "statement": "Architecture decisions are documented with clear rationale and trade-offs rather than left implicit.",
-        "classification": "judgment",
-        "prompt": "Does the solution architecture document capture the rationale and trade-offs behind each major architecture decision rather than stating conclusions alone?",
-        "participant": "AI+human",
-        "outputContract": "passed-failed-notes"
+        "name": "Technical Discovery & Architecture (SDLC Phase 3) Checklist",
+        "items": [
+          {
+            "statement": "Architecture decisions are documented with clear rationale and trade-offs rather than left implicit."
+          }
+        ]
       }
     ],
     "reviewGates": [
@@ -92,7 +92,10 @@
         "participant": "human",
         "outputContract": "assessment-acceptance",
         "name": "Architecture Review",
-        "governedTransition": "Deliverable|In Progress|Approved"
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "checklistIds": [
+          "Technical Discovery & Architecture (SDLC Phase 3) Checklist"
+        ]
       }
     ]
   }

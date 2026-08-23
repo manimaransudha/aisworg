@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Ensuring product quality and reliability \u2014 aka QA, Verification & Validation, Test Fest, Quality Gate.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Ensuring product quality and reliability — aka QA, Verification & Validation, Test Fest, Quality Gate.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -63,12 +63,12 @@
     ],
     "checklists": [
       {
-        "code": "test-coverage-traces-to-requirements",
-        "statement": "The test cases and traceability matrix demonstrate coverage against every requirement in scope for this release.",
-        "classification": "judgment",
-        "prompt": "Does the traceability matrix show every in-scope requirement covered by at least one test case?",
-        "participant": "AI+human",
-        "outputContract": "passed-failed-notes"
+        "name": "Quality Engineering & Hardening (SDLC Phase 8) Checklist",
+        "items": [
+          {
+            "statement": "The test cases and traceability matrix demonstrate coverage against every requirement in scope for this release."
+          }
+        ]
       }
     ],
     "reviewGates": [
@@ -80,7 +80,10 @@
         "participant": "human",
         "outputContract": "assessment-acceptance",
         "name": "Quality Engineering Review",
-        "governedTransition": "Deliverable|In Progress|Approved"
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "checklistIds": [
+          "Quality Engineering & Hardening (SDLC Phase 8) Checklist"
+        ]
       }
     ]
   }

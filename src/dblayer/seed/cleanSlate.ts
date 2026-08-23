@@ -291,6 +291,20 @@ async function run(): Promise<void> {
       "DELETE FROM review_gates WHERE originating_pack_id IS NOT NULL AND originating_pack_id NOT IN (SELECT id FROM packs WHERE code = ANY($1::text[]))",
       [BASE_PACK_CODES]
     );
+    // CR-060 — checklists has a real FK into packs (NOT NULL, unlike
+    // review_gates' nullable one — every Checklist has a real originating
+    // Pack). Same plain pack-scoped filter as capabilities/services/
+    // review_gates: platform-core-engineering.pack.json declares zero
+    // checklists, so there's no real content on a base Pack to protect via
+    // an allowlist, same reasoning review_gates' own comment above gives.
+    // No FK constraint references checklists.id (quality_gates/review_gates'
+    // own checklist_ids is a plain UUID[], not a real foreign key — Postgres
+    // has no native array FK), so this can run in any order relative to the
+    // qg/rg deletes above.
+    const clDeleted = await client.query(
+      "DELETE FROM checklists WHERE originating_pack_id NOT IN (SELECT id FROM packs WHERE code = ANY($1::text[]))",
+      [BASE_PACK_CODES]
+    );
     const policiesDeleted = await client.query(
       `DELETE FROM policies
        WHERE originating_pack_id IS NOT NULL
@@ -325,7 +339,7 @@ async function run(): Promise<void> {
     const complianceReqDeleted = await client.query("DELETE FROM compliance_requirements");
     const complianceFwDeleted = await client.query("DELETE FROM compliance_frameworks");
     logger.info(
-      `[db:clean-slate] step 2b — deleted ${qgDeleted.rowCount} junk quality_gates, ${rgDeleted.rowCount} junk review_gates, ${policiesDeleted.rowCount} policies, ${authorityRulesDeleted.rowCount} authority_rules, ${servicesDeleted.rowCount} services, ${capabilitiesDeleted.rowCount} capabilities, ${metricsDeleted.rowCount} metric_definitions, ${complianceReqDeleted.rowCount} compliance_requirements, ${complianceFwDeleted.rowCount} compliance_frameworks.`
+      `[db:clean-slate] step 2b — deleted ${qgDeleted.rowCount} junk quality_gates, ${rgDeleted.rowCount} junk review_gates, ${clDeleted.rowCount} junk checklists, ${policiesDeleted.rowCount} policies, ${authorityRulesDeleted.rowCount} authority_rules, ${servicesDeleted.rowCount} services, ${capabilitiesDeleted.rowCount} capabilities, ${metricsDeleted.rowCount} metric_definitions, ${complianceReqDeleted.rowCount} compliance_requirements, ${complianceFwDeleted.rowCount} compliance_frameworks.`
     );
 
     // Step 2c — non-base Packs. Safe now: every table with a NO ACTION FK

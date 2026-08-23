@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Designing the user experience and interface \u2014 aka UX/UI Design, Experience Architecture, Experience Blueprinting, Design Sprint.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Designing the user experience and interface — aka UX/UI Design, Experience Architecture, Experience Blueprinting, Design Sprint.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -69,12 +69,12 @@
     ],
     "checklists": [
       {
-        "code": "design-decisions-traceable-to-research",
-        "statement": "Design decisions in the wireframes and prototypes are traceable back to discovery research and usability findings.",
-        "classification": "judgment",
-        "prompt": "Can the key layout and interaction decisions in the wireframes and prototypes be traced back to discovery research or usability test findings?",
-        "participant": "AI+human",
-        "outputContract": "passed-failed-notes"
+        "name": "Experience Design (SDLC Phase 2) Checklist",
+        "items": [
+          {
+            "statement": "Design decisions in the wireframes and prototypes are traceable back to discovery research and usability findings."
+          }
+        ]
       }
     ],
     "reviewGates": [
@@ -86,7 +86,10 @@
         "participant": "human",
         "outputContract": "assessment-acceptance",
         "name": "Experience Design Review",
-        "governedTransition": "Deliverable|In Progress|Approved"
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "checklistIds": [
+          "Experience Design (SDLC Phase 2) Checklist"
+        ]
       }
     ]
   }

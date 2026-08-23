@@ -37,6 +37,7 @@ import {
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
+import { checklistsDB } from "../../../dblayer/checklistsDB.js";
 import { transitionPack } from "../core/packs.js";
 import { transitionTemplate, PACK_SELECTION_SLOTS, deriveCapabilityCodesFromPackCodes, deriveCapabilityProducingPacksFromPackCodes } from "../core/templates.js";
 import { transitionProfile } from "../core/profiles.js";
@@ -591,6 +592,24 @@ async function loadActivePackDependencyOptions(viewer: { isRoot: boolean; tenant
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+// CR-060, corrected same day — checklistIds' own picker source, scoped to
+// Checklists belonging to a Pack sharing THIS Pack's own `code` (owner:
+// "any Pack's gate can point at any Pack's checklist - i thought we said
+// this is if the pack codes match. If checklists are global, then we would
+// have created a registry?"). Not the whole platform: Policy has genuinely
+// unconstrained reach *and* its own registry-like global code namespace;
+// Checklist has neither, deliberately no registry (Ch.47 §16/§20) — same
+// `code` (any version/tenant) is the real scope. Empty until the Pack's own
+// `code` is chosen — there's nothing to share a code with yet. `packName`
+// still disambiguates the option label (Checklist Name is only unique
+// within its own Pack row, and several rows can share this code).
+export interface ChecklistOption { id: string; name: string; packName: string }
+async function loadChecklistOptions(packCode: string): Promise<ChecklistOption[]> {
+  if (!packCode.trim()) return [];
+  const { data: checklists } = await checklistsDB.findByPackCode(packCode);
+  return (checklists ?? []).map((c) => ({ id: c.id, name: c.name, packName: c.pack_name })).sort((a, b) => a.packName.localeCompare(b.packName) || a.name.localeCompare(b.name));
+}
+
 // Same legibility fix, for Profile's baseTemplateCode picker — Template's own
 // `code` is now also a system UUID (migration 045, owner: "Why is code not
 // auto generated?"), so the picker needs `name` too. Active Templates only,
@@ -718,6 +737,12 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   // tab, so this is no longer conditional on kind === "Pack".
   req.vm.opt.packDependencyOptions = await loadActivePackDependencyOptions(viewer);
   req.vm.opt.templateOptions = kind === "Profile" ? await loadActiveTemplateOptions() : [];
+  // CR-060, corrected same day — checklistIds' picker (Review Gate/Quality
+  // Gate), only relevant to Pack authoring, scoped to this Pack's own
+  // `code` (empty/unchosen yet on a brand new Draft — loadChecklistOptions
+  // returns nothing until it's set, same as "nothing shares a code with an
+  // unset code").
+  req.vm.opt.checklistOptions = kind === "Pack" ? await loadChecklistOptions(String((contentForForm as Record<string, unknown>).code ?? "")) : [];
   req.vm.opt.ontologyOptions = await loadOntologyOptions(schema, viewer);
   req.vm.opt.contributionHelp = CONTRIBUTION_SECTION_HELP;
   req.vm.opt.verifiableFieldHelp = VERIFIABLE_ITEM_FIELD_HELP;

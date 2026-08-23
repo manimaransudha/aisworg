@@ -30,16 +30,27 @@ export const reviewGatesDB = {
     fromState: string;
     toState: string;
     originatingPackId: string;
+    // CR-060 — see qualityGatesDB.upsert's own checklistIds comment.
+    checklistIds?: string[];
+    // CR-060, revised same day — see qualityGatesDB.upsert's own
+    // recommendedChecklistIds comment.
+    recommendedChecklistIds?: string[];
   }): Promise<DbResult<ReviewGateRow>> {
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
+      const checklistIds = input.checklistIds ?? [];
+      const recommendedChecklistIds = input.recommendedChecklistIds ?? [];
       const { rows: currentRows } = await client.query<ReviewGateRow>(
         "SELECT * FROM review_gates WHERE entity_type = $1 AND from_state = $2 AND to_state = $3 AND code = $4 AND is_active = true",
         [input.entityType, input.fromState, input.toState, input.code]
       );
       const current = currentRows[0];
-      const unchanged = current && current.name === input.name;
+      const unchanged =
+        current &&
+        current.name === input.name &&
+        JSON.stringify([...current.checklist_ids].sort()) === JSON.stringify([...checklistIds].sort()) &&
+        JSON.stringify([...current.recommended_checklist_ids].sort()) === JSON.stringify([...recommendedChecklistIds].sort());
       if (unchanged) {
         await client.query("COMMIT");
         return { data: current };
@@ -49,10 +60,10 @@ export const reviewGatesDB = {
         await client.query("UPDATE review_gates SET is_active = false WHERE id = $1", [current.id]);
       }
       const { rows } = await client.query<ReviewGateRow>(
-        `INSERT INTO review_gates (code, name, entity_type, from_state, to_state, originating_pack_id, version, is_active)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+        `INSERT INTO review_gates (code, name, entity_type, from_state, to_state, originating_pack_id, version, is_active, checklist_ids, recommended_checklist_ids)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8, $9)
          RETURNING *`,
-        [input.code, input.name, input.entityType, input.fromState, input.toState, input.originatingPackId, nextVersion]
+        [input.code, input.name, input.entityType, input.fromState, input.toState, input.originatingPackId, nextVersion, checklistIds, recommendedChecklistIds]
       );
       await client.query("COMMIT");
       return { data: rows[0] };
