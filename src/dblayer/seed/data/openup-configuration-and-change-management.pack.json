@@ -13,8 +13,7 @@
       {
         "code": "configuration-management",
         "name": "Configuration & Change Management",
-        "description": "Controls change and maintains the integrity of engineering assets under baseline.",
-        "category": "Governance"
+        "description": "Controls change and maintains the integrity of engineering assets under baseline."
       }
     ],
     "services": [

@@ -215,13 +215,15 @@
           <%# CR-058 form redesign (owner: "the help should be against each
               field instead of a write-up at the top... the form is very
               very poorly designed") — Quality Gates, Review Gates (CR-059),
-              Policies (CR-061), and Obligation Definitions (CR-062) all now
-              carry real per-field help (items.properties.someField's own
-              x-help, rendered inline by _referentialListGroup.ejs), so the
-              once-per-section write-up + field-name bullet list below is
-              suppressed for each. Checklists/Dependencies don't have inline
-              help yet, so keep this fallback unchanged. %>
-          <% var SECTIONS_WITH_INLINE_HELP = ['contributionQualityGates', 'contributionReviewGates', 'contributionChecklists', 'contributionPolicies', 'contributionObligationDefinitions']; %>
+              Checklists (CR-060), Policies (CR-061), Obligation Definitions
+              (CR-062), and Services (CR-064) all now carry real per-field
+              help (items.properties.someField's own x-help, rendered inline
+              by _referentialListGroup.ejs — including nested-list items,
+              e.g. Checklist's own items[]/Service's own serviceLevel[]), so
+              the once-per-section write-up + field-name bullet list below is
+              suppressed for each. Dependencies doesn't have inline help
+              yet, so keep this fallback unchanged for it. %>
+          <% var SECTIONS_WITH_INLINE_HELP = ['contributionQualityGates', 'contributionReviewGates', 'contributionChecklists', 'contributionPolicies', 'contributionObligationDefinitions', 'contributionServices']; %>
           <% if (t.id === 'dependencies') { %>
             <p class="text-muted small mb-2">Other Packs this one requires, allows alongside, or is incompatible with. A "required" dependency must resolve to a real, Active Pack.</p>
           <% } else if (SECTIONS_WITH_INLINE_HELP.indexOf(t.id) === -1 && (locals.contributionHelp || {})[t.helpKey]) { %>

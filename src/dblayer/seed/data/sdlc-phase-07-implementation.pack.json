@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Building the product features and functionality — aka Build, Delivery, Engineering Execution, Construction, Maker Sprint.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Building the product features and functionality \u2014 aka Build, Delivery, Engineering Execution, Construction, Maker Sprint.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -13,8 +13,7 @@
       {
         "code": "implementation-engineering",
         "name": "Implementation",
-        "description": "Delivers the working software, technical specifications, and engineering decisions that turn the backlog into a functioning product.",
-        "category": "Engineering"
+        "description": "Delivers the working software, technical specifications, and engineering decisions that turn the backlog into a functioning product."
       }
     ],
     "services": [

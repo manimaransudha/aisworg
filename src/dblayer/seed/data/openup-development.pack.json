@@ -13,8 +13,7 @@
       {
         "code": "solution-development",
         "name": "Solution Development",
-        "description": "Designs and implements solution increments against the approved architecture, on behalf of the Developer role.",
-        "category": "Engineering"
+        "description": "Designs and implements solution increments against the approved architecture, on behalf of the Developer role."
       }
     ],
     "services": [

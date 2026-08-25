@@ -414,11 +414,26 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
     }
   }
 
+  // CR-064 — Service contributions: code is real, Ontology-backed
+  // (service-name, migration 113 — freely-extensible, same capability-name/
+  // feature-flag pattern, deliberately shared across Packs so two different
+  // Packs can each declare their own row under the same canonical code).
+  // capabilityCode stays same-Pack-only, unchanged. serviceLevel items each
+  // need both label and target.
   const capabilityCodes = new Set((seed.contributions.capabilities ?? []).map((c) => c.code));
   for (const svc of seed.contributions.services ?? []) {
     if (!capabilityCodes.has(svc.capabilityCode)) {
       errors.push(`service "${svc.code}" references unknown capability "${svc.capabilityCode}" — the capability must be declared in this same Pack's contributions`);
     }
+    try {
+      await assertCanonicalCategory("service-name", svc.code ?? "", ontologyViewer);
+    } catch (err) {
+      errors.push((err as Error).message);
+    }
+    (svc.serviceLevel ?? []).forEach((sl, i) => {
+      if (!sl.label?.trim()) errors.push(`service "${svc.code}" service level ${i + 1} is missing a label`);
+      if (!sl.target?.trim()) errors.push(`service "${svc.code}" service level ${i + 1} is missing a target`);
+    });
   }
 
   for (const dep of seed.dependencies ?? []) {
@@ -577,7 +592,7 @@ async function seedContributions(pack: PackRow, seed: PackSeedInput): Promise<vo
       code: cap.code,
       name: cap.name,
       description: cap.description ?? null,
-      category: cap.category ?? null,
+      version: pack.pack_version,
       originatingPackId: pack.id,
     });
     if (error || !capability) throw error ?? new Error(`capability upsert failed: ${cap.code}`);

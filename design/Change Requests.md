@@ -4,6 +4,10 @@ A running register of change requests raised against the platform — feature ad
 
 | CR | Title | Status |
 |----|-------|--------|
+| [CR-067](change-requests/CR-067-composition-strategy-generic-engine.md) | Composition Strategy: a real, generic engine — Specialization/Override/Merge/Union/Intersection/Supplement defined, unifying Pack composition and Template/Profile inheritance (Chapter 4) | 🟡 Proposed (design mostly settled) |
+| [CR-066](change-requests/CR-066-pack-dependency-semantics-circular-detection.md) | Pack dependency types: real semantics for conditional/incompatible, circular-dependency detection | 🟡 Proposed (parked — blocked on CR-067's own design) |
+| [CR-065](change-requests/CR-065-capability-model-chapter-10.md) | Capability: Pack-scoped code identity, version copied from the owning Pack, Structure settles at Identifier/Name/Description only (7 of 10 fields dropped by design) (Chapter 10) | ✅ Built 2026-08-24 |
+| [CR-064](change-requests/CR-064-service-model-chapter-11.md) | Service: Pack-scoped Ontology-backed identity, real definition-side versioning, real declared Service Level (Chapter 11) | ✅ Built 2026-08-24 |
 | [CR-063](change-requests/CR-063-obligation-named-lifecycle-events.md) | Obligation: real named lifecycle events, 2 of 8 currently real (Chapter 23 §19.12) | 🟡 Proposed (not designed, not scheduled) |
 | [CR-062](change-requests/CR-062-obligation-definition-chapter-23.md) | Obligation Definitions: Ontology-backed Category (fully seeded) and new Origin field, no real Definition table needed (Chapter 23) | ✅ Built 2026-08-23 |
 | [CR-061](change-requests/CR-061-policy-model-chapter-24.md) | Policy: Ontology-backed Category, real transition-scoped picker, Pack-scoped identity (no version/lifecycle), Quality Gate's Required-Policies generalized to a list + threshold | ✅ Built 2026-08-23 |

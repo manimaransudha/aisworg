@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Designing the user experience and interface — aka UX/UI Design, Experience Architecture, Experience Blueprinting, Design Sprint.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Designing the user experience and interface \u2014 aka UX/UI Design, Experience Architecture, Experience Blueprinting, Design Sprint.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -13,8 +13,7 @@
       {
         "code": "experience-design",
         "name": "Experience Design",
-        "description": "Translates validated user needs into concrete interface designs, prototypes, and a coherent design system ready for engineering handoff.",
-        "category": "Engineering"
+        "description": "Translates validated user needs into concrete interface designs, prototypes, and a coherent design system ready for engineering handoff."
       }
     ],
     "services": [

@@ -5,11 +5,19 @@
   "packVersion": "1.0.0",
   "installationClassification": "Optional",
   "dependencies": [
-    { "packCode": "platform-core-engineering", "version": "1.0.0", "type": "required" }
+    {
+      "packCode": "platform-core-engineering",
+      "version": "1.0.0",
+      "type": "required"
+    }
   ],
   "contributions": {
     "capabilities": [
-      { "code": "code-review", "name": "Code Review", "description": "Peer review of Source Code changes before merge.", "category": "Quality" }
+      {
+        "code": "code-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
     ],
     "services": [
       {

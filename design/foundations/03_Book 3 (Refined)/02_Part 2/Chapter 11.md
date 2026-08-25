@@ -350,3 +350,127 @@ Implementation of this chapter shall produce:
 - Service composition service.
 - Service APIs.
 - Service events.
+
+---
+
+# 18. Implementation Status & Gaps
+
+Code-verified audit (2026-08-24), not from memory — every claim below carries a file:line citation, cross-checked against a live query against the running Postgres instance (`aisworg` DB). Core files: `src/dblayer/servicesDB.ts`, `ServiceRow` (`src/dblayer/seuTypes.ts`), `src/domain/engine/dependencyDefinitionEngine.ts`, `src/domain/engine/materialiseDependencyGraph.ts`, `src/domain/engine/dispatchEngine.ts`, `src/routes/seu/core/packs.ts`. Live `services` schema at audit time — 10 columns: `id, providing_capability_id, name, contract_description, service_level, status, version, originating_pack_id, created_at, code`. **CR-064, raised the same day, closed the Pack-contribution side of this audit** — Service Level, real versioning, and Pack-scoped identity are now built (18.2/18.4/18.5/18.9 updated below); the chapter's own 6-state `status` lifecycle, Composition Engine involvement, Telemetry integration, and the 9 named Events remain exactly as this audit found them.
+
+The single strongest finding: **the Dependency Engine's "Capability" dependency type is, internally, already Service-keyed** — `resolveNamedNode`'s `Capability` branch (`dependencyDefinitionEngine.ts:73-83`) matches its `name` against `services.code`, not a Capability's own code, and `dependency_definitions` rows for a Capability-type dependency are created one-per-Service by `materialiseDependencyGraph.ts`. The chapter's own central sharpening principle (§9 — "not 'the Architecture Capability' in the abstract... the Approved Solution Architecture Service") is functionally real under the hood, just not surfaced under the name the chapter gives it (see 18.6) — **CR-064 deliberately left this exactly as found**, owner: "I do not understand CR042's relevance" — this stays Dependency Graph authoring territory (Ch.9), not a `contributionServices[]` question.
+
+## 18.1 Definition (§4)
+
+Matches the live schema closely for what exists: a Service is declared/versioned (`version` column, though never incremented — 18.9), specifies what a Capability delivers (`contract_description`), and doesn't select Participants (no Participant FK anywhere on `services`). `providing_capability_id` is `NOT NULL` — a Service cannot exist without exactly one providing Capability, matching FR-11.2 exactly.
+
+## 18.2 Architectural Principles (SVC-001–006) (§5)
+
+| # | Claim | Verdict | Evidence |
+|---|---|---|---|
+| SVC-001 | Declared by Capability Packs, not Participants | ✅ | Only write path is `servicesDB.upsertFromPack` (`packs.ts:590`), called from Pack publish only. |
+| SVC-002 | Exposes what, never how | ✅ (trivially) | `contract_description` is a free-text description field; no implementation/interface columns exist to leak. |
+| SVC-003 | Coequal channel with Evidence/Knowledge/Decision, not subsuming them | ✅ | No Service code path touches Evidence/Knowledge/Decision tables at all — fully independent. |
+| SVC-004 | Every Service shall declare a Service Level | ✅ built via CR-064 | `contributionServices[]` now has a real, nested `serviceLevel[]` sub-list (`{label, target}` pairs, migration 114) — a Pack author can genuinely declare one. Not retroactively populated for any of the 124 real, live-declared Services (none had any before either). |
+| SVC-005 | Versioned and immutable once published | ✅ built via CR-064 | `version` is now `TEXT` (`"1.0"`-style, bump-on-real-change, migration 112) and `servicesDB.upsertFromPack` is a real content-diffed, versioned upsert (deactivate-old + insert-new-row on change) — same shape as Quality Gate's own SVC-equivalent mechanism, not an in-place overwrite. |
+| SVC-006 | Observed performance derived by Telemetry, never written back | ⚠️ (vacuously true) | Nothing writes performance back to `services` — but only because `telemetry.ts` has zero references to Service at all (18.8), not because a real boundary is being respected. |
+
+## 18.3 Functional Requirements (FR-11.1–7) (§6)
+
+| FR | Verdict | Note |
+|---|---|---|
+| FR-11.1 unique id and version | ✅ built via CR-064 | `id` real; `version` now real and live (18.9, SVC-005). |
+| FR-11.2 declared by exactly one Capability, through a Pack | ✅ | `providing_capability_id NOT NULL`; `packs.ts:587-597` resolves `capabilityCode` only against this same Pack's own declared `contributionCapabilities[]` — cross-Pack Capability references rejected. |
+| FR-11.3 declare a Service Level | ✅ built via CR-064 | Same as SVC-004. |
+| FR-11.4 Dependency Engine references specific Services, not Capabilities in the abstract | ⚠️ real underneath, not author-facing | See 18.6 — internally Service-code-keyed, but a Template author only ever picks a Capability; the system silently expands to *every* Service that Capability exposes, not the one specific Service the chapter's own example names. **Deliberately not touched by CR-064** (owner: "I do not understand CR042's relevance" — Dependency Graph authoring territory, Ch.9, not this chapter's Pack-contribution question). |
+| FR-11.5 publish lifecycle/delivery events | ❌ | Zero of the 9 named events (§14) published anywhere — confirmed, no `"Service` event-type string exists in `src/`. Not in CR-064's scope (execution-side, same split CR-063 made for Obligation's own events). |
+| FR-11.6 support concurrent consumption by multiple Capabilities/external interactions | ⚠️ | Structurally unconstrained (no FK limiting consumers) — "Consuming Capabilities" (§7) confirmed dropped by CR-064, not a gap: owner, "we can get this information by querying" `dependency_definitions` directly rather than storing it redundantly (18.4). |
+| FR-11.7 independent of Participant implementation | ✅ | No Participant coupling anywhere on `services`. |
+
+## 18.4 Service Structure — all 8 chapter fields now real; Consuming Capabilities deliberately dropped (§7; CR-064)
+
+| Chapter field | Real column? |
+|---|---|
+| Identifier | ✅ `id` |
+| Name | ✅ `name` |
+| Providing Capability | ✅ `providing_capability_id` |
+| Contract Description | ✅ `contract_description` |
+| Declared Service Level | ✅ built via CR-064 — real, nested `serviceLevel[]` (18.5) |
+| Consuming Capabilities (where known) | 🚫 deliberately dropped by CR-064 — owner: "we can get this information by querying" `dependency_definitions`, not worth storing redundantly |
+| Version | ✅ built via CR-064 — real, system-computed (18.9) |
+| Originating Pack | ✅ `originating_pack_id` |
+
+`code` (migration `004_service_code.sql`) is a real, additional identity field the chapter doesn't name. **CR-064 fixed its identity scope** — was globally unique (`services_code_key UNIQUE (code)`), the same class of latent collision Checklist/Policy each had before their own CRs; now `(originating_pack_id, code, version)` (migration 112), matching Checklist/Policy's own corrected treatment. **`code` also became Ontology-backed** (new concept type `service-name`, migration 113, freely-extensible — the `capability-name`/`feature-flag` pattern) — owner: "They have to come from the ontology layer... This service code turn-around-time-high can be declared in development pack and deployment pack with different service levels." Two different Packs deliberately sharing the same canonical code, each with their own content, is now the *intended* shape, not a collision risk.
+
+## 18.5 Service Level — built via CR-064, real declaration and a real, already-existing consumer (§8)
+
+`dispatchEngine.ts`'s `resolveTurnaroundSeconds` (`dispatchEngine.ts:31-38`) genuinely reads Service Level to set a Work Item's default target-completion deadline when no explicit override is given (`dispatchEngine.ts:105-110`) — a real, working consumer, not aspirational, that predates this CR. Before CR-064, the write side was never built to match: `contributionServices[]`'s authoring schema had no `serviceLevel` field at all, so every Pack-declared Service published with an empty Service Level regardless of intent, and `resolveTurnaroundSeconds` always returned `null` in practice — the exact same shape gap CR-058/061 each found and fixed for Quality Gate's/Policy's own real-but-starved fields. **Now real**: `contributionServices[]` carries a nested `serviceLevel[]` sub-list (`{label, target}` generic pairs, Checklist's own `"nested-list"` mechanism, CR-060) — owner's own worked example (`{offshore: 3 days}`, `{onsite: 1 day}`) used varying per-item keys a fixed-schema item can't hold directly, so `label`/`target` generalizes it, matching this section's own open "may specify" framing rather than four hardcoded fields. `resolveTurnaroundSeconds` was updated to match (searches for a `label` matching `/turnaround/i`) — still only recognises a bare number of seconds in `target`, not a human duration string like "3 days," so it stays `null` in practice for content shaped like the owner's own example until/unless a duration parser is added, a deliberately minimal starting point (same discipline Policy's own `condition` field used).
+
+## 18.6 Service and the Dependency Engine — internally real, not author-facing (§9)
+
+The chapter's own worked example (§9 — a Deliverable depends on "the Approved Solution Architecture Service," not "the Architecture Capability" in the abstract) is **functionally true under the hood**: `dependency_definitions` rows for a Capability-type dependency are keyed by `to_name`/`from_name` matching a real `services.code` (`dependencyDefinitionEngine.ts:73-83`'s `resolveNamedNode`, `Capability` branch — despite the type literally being named `"Capability"`, not `"Service"`, in `DependencyDefinitionEntityType`, `seuTypes.ts:481`). `materialiseDependencyGraph.ts:49-56` confirms this is deliberate, documented behaviour (CR-042): one authored `fromCapabilityCode` row expands into **one `dependency_definitions` row per Service that Capability currently exposes** — every one of that Capability's Services becomes a separate, individually-required prerequisite.
+
+**What this means against the chapter's own example, precisely**: a Template/Pack author can only ever pick a *Capability* when authoring this kind of dependency (`fromCapabilityCode`, `templates.ts:259-260` validates it against the Pack's own declared Capabilities, never against a Service code directly) — there is no way to author "depends on *this one specific* Service" the way the chapter's example describes. The system silently turns "depends on the Architecture Capability" into an implicit AND across *every* Service Architecture exposes, not the single Approved Solution Architecture Service the chapter names. Real, and considerably better than a true Capability-in-the-abstract check — but not what §9 literally describes either.
+
+## 18.7 Service and Fulfilment (§10)
+
+Real and working as described: Capability Fulfilment/Dispatch (`dispatchEngine.ts`) select the Participant, never Service; Service stays the stable reference throughout (`servicesDB.findByCapabilityId`, read-only from Dispatch's side). Starved only by 18.5's Service Level gap, not by anything wrong in this section's own mechanism.
+
+## 18.8 Service and Engineering Telemetry (§11)
+
+❌ Entirely unbuilt — `src/routes/seu/core/telemetry.ts` has zero references to Service, `services`, or any of the §14 event names. Nothing compares observed delivery against a declared Service Level (moot regardless, since no Service Level is ever populated — 18.5) and no Flow/Governance/Collaboration/Quality telemetry derives from Service events, contrary to §11's own claim that these are "fundamentally a measurement of Service delivery."
+
+## 18.9 Service Lifecycle (§13) — still schema-only; Versioning (SVC-005) — built via CR-064, on Quality Gate's own precedent, not the §13 state machine
+
+Two genuinely different mechanisms, worth keeping apart. **Versioning is now real** (owner: "Versioning is definition side") — `servicesDB.upsertFromPack` (migration 112) is a real content-diffed, versioned upsert: `version` (`TEXT`, `"1.0"`-style) bumps on real content change, deactivating the prior row rather than overwriting it, a new immutable row per version, `(originating_pack_id, code, version)` the real identity. Same mechanism as Quality Gate's own versioning (`qualityGatesDB.upsert`'s `bumpVersion`) — not the chapter's own governed `transition_definitions` state machine, since Quality Gate/Review Gate don't use that mechanism for their own versioning either.
+
+**The chapter's own 6-state `status` lifecycle (Defined→Published→Active→Deprecated→Retired→Archived) stays exactly as this audit originally found it — untouched, deliberately.** `services.status` still carries the same `CHECK` constraint (`002_seu_platform.sql:80-81`), zero `transition_definitions` rows exist for `entity_type='Service'`, and `"Service"` still isn't a member of `TransitionEntityType` (`seuTypes.ts:533-552`) — every live row still sits at `status='Active'`, never transitioned by anything. CR-064 confirmed this split explicitly: real definition-side versioning, yes; the governed lifecycle/event-emission machinery, not this CR's job (same "definition vs execution" split CR-063 made for Obligation's own events).
+
+## 18.10 Service Composition (§12)
+
+❌ Not built at all — `compositionEngine.ts` has zero references to Service. Unlike Policy/Quality Gate (same-code collision at least produces an "Override" warning, `compositionEngine.ts`'s `detectGovernanceConflicts`), a same-`code` Service collision across two different Packs produces no warning whatsoever — just a silent `ON CONFLICT (code) DO UPDATE` overwrite (18.4). §12's "Composition shall be deterministic... resolved through the same composition rules the Composition Engine applies elsewhere" doesn't hold — there's no composition-time involvement of any kind.
+
+## 18.11 Events — 0 of 9 named events real (§14)
+
+Confirmed via direct search: no `"ServiceDefined"`, `"ServicePublished"`, `"ServiceActivated"`, `"ServiceRequested"`, `"ServiceDelivered"`, `"ServiceLevelMet"`, `"ServiceLevelBreached"`, `"ServiceDeprecated"`, or `"ServiceRetired"` event-type string exists anywhere in `src/`. Consistent with 18.9 (no lifecycle mechanism to emit lifecycle events from) and 18.8 (nothing for Telemetry to consume even if they existed).
+
+## 18.12 Non-Functional Requirements (§15)
+
+| NFR | Verdict | Basis |
+|---|---|---|
+| support composition from multiple Packs | ❌ | 18.10 — no composition-time handling at all, plus a latent same-code global-collision risk |
+| preserve complete traceability from Service to Capability and Pack | ✅ | `providing_capability_id`/`originating_pack_id` both real FKs; `traceability.ts:169-171` resolves and displays this chain |
+| support deterministic resolution of conflicting declarations | ❌ | 18.10 |
+| remain independent of Participant implementations | ✅ | 18.2 SVC-002/FR-11.7 |
+| publish events sufficient for Telemetry without duplicate instrumentation | ❌ | 18.8/18.11 — zero events, zero Telemetry consumption |
+
+## 18.13 Acceptance Criteria (§16)
+
+| Criterion | Verdict |
+|---|---|
+| Every Service declared by exactly one Capability, through a Pack | ✅ (18.2/18.3) |
+| Every Service declares a Service Level | ✅ built via CR-064 (18.5) |
+| Capability Dependency evaluation references specific Services, not Capabilities in the abstract | ⚠️ real internally, not author-facing — deliberately untouched by CR-064 (18.6) |
+| Service definitions remain independent of Participant implementation | ✅ |
+| Observed Service performance derived by Telemetry, never stored on the Service definition | ⚠️ vacuously true (18.2/18.8) |
+| Multiple Packs can contribute Services for the same Capability deterministically | ❌ still (18.10) — CR-064 fixed identity/versioning, not Composition Engine involvement |
+
+## 18.14 Deliverables (§17)
+
+| Named Deliverable | Real artifact | Verdict |
+|---|---|---|
+| Service domain model | `ServiceRow` (`seuTypes.ts`), `services` table | ✅ |
+| Service registry | `servicesDB.ts` | ✅ (minimal — no search/filter beyond by-capability/by-id/all) |
+| Service contract validation service | `packs.ts`'s Service loop (`capabilityCode` resolution only) | ⚠️ resolves the providing Capability; validates nothing else (no required-field checks, no Service Level structural validation) |
+| Service Level declaration framework | `service_level` JSONB column, `contributionServices[].serviceLevel[]` | ✅ built via CR-064 (18.5) |
+| Service composition service | — | ❌ (18.10) |
+| Service APIs | `src/routes/seu/api/*` (findAll/findByCapabilityId reachable) | ⚠️ read-only; no lifecycle-transition or Service Level API |
+| Service events | — | ❌ (18.11) |
+
+## Summary — ranked
+
+1. **[Dependency Engine — the chapter's own central claim, more nuanced than pass/fail — deliberately untouched]** §9's "reference the specific Service, not the Capability in the abstract" is genuinely real at the data-model level (`dependency_definitions` rows are Service-code-keyed) but not at the authoring surface (a Template/Pack author can only pick a Capability, which silently expands to *every* Service that Capability exposes) — a real, working, but different mechanism than the chapter's own literal example. Raised as an open question in CR-064's own gap write-up; owner didn't see its relevance to `contributionServices[]`'s own redesign ("I do not understand CR042's relevance"), so it stays exactly as found — Ch.9/Dependency Graph authoring territory, not this CR's job (18.6).
+2. **[Data model — resolved by CR-064, split into two different mechanisms]** `services` already carried real `status`/`version` columns matching the chapter's exact 6-state lifecycle and SVC-005's versioning requirement, with zero governance wired to either. CR-064 built real *versioning* (Quality Gate's own bump-on-change precedent) but deliberately left the 6-state `status` lifecycle alone — the two turned out to be separable, and only one was actually asked for (18.9).
+3. **[Code — closed by CR-064]** Service Level (SVC-004/FR-11.3) had a genuinely real, working *consumer* (`dispatchEngine.ts`'s SLA-driven Work Item deadline) permanently starved by a missing field on the *authoring* schema — the same shape CR-058/061 each found and fixed for Quality Gate/Policy. Now real: a nested `serviceLevel[]` sub-list, `{label, target}` pairs (18.5).
+4. **[Code — still open]** Zero Telemetry integration (§11) and zero of the 9 named events (§14) — both entirely unbuilt, and mutually reinforcing (no events to derive Telemetry from either way). Not CR-064's scope — execution-side, same split CR-063 made for Obligation's own events (18.8, 18.11).
+5. **[Code — still open]** Zero Composition Engine involvement (§12) — worse than Policy/Quality Gate's own same-code collision handling (an Override warning); CR-064 fixed the *identity* half of this (Pack-scoped, no more silent cross-Pack overwrite), but real composition/conflict-detection logic itself stays unbuilt, same "revisit alongside the Composition Engine" deferral CR-061 gave Policy (18.10, 18.4).
+6. **[Data model — resolved by CR-064, dropped rather than built]** "Consuming Capabilities" (§7) isn't tracked in any form — no column, no join table. Confirmed a deliberate non-gap, not a remaining one: owner, "we can get this information by querying" `dependency_definitions` directly (18.4).

@@ -413,7 +413,7 @@ router.get("/authority/transition-definitions/:id", requireAuthorityAdmin, attac
 const CANONICAL_EVIDENCE_CATEGORIES = new Set(["Analytical Evidence", "Validation Evidence", "Operational Evidence", "Review Evidence", "Decision Evidence", "External Evidence"]);
 
 async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: string | null }): Promise<Record<string, string[]>> {
-  const [{ data: packs }, { data: templates }, featureFlags, deliverableNames, deliverableCategories, evidenceCategories, policyCategories, obligationCategories, obligationOrigins, { data: transitionDefinitions }] = await Promise.all([
+  const [{ data: packs }, { data: templates }, featureFlags, deliverableNames, deliverableCategories, evidenceCategories, policyCategories, obligationCategories, obligationOrigins, serviceNames, { data: transitionDefinitions }] = await Promise.all([
     viewer.isRoot || !viewer.tenantId ? packsDB.findAll() : packsDB.findAllVisibleTo(viewer.tenantId),
     templatesDB.findAllActive(),
     listConceptsForType("feature-flag", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
@@ -439,6 +439,11 @@ async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: strin
     // concept type, Ch.23 §10's 11 named Obligation Sources).
     listConceptsForType("category:obligation", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
     listConceptsForType("category:obligation-origin", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
+    // CR-064 — a Service's own canonical code (service-name, freely-
+    // extensible, deliberately shared across Packs so e.g. a Development
+    // and a Deployment Pack can each declare their own row under the same
+    // code with different Service Level content).
+    listConceptsForType("service-name", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
     transitionDefinitionsDB.listAll(),
   ]);
   const activePacks = (packs ?? []).filter((p) => p.status === "Active");
@@ -469,6 +474,7 @@ async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: strin
     "category:policy": [...new Set(policyCategories.map((c) => c.code))].sort(),
     "category:obligation": [...new Set(obligationCategories.map((c) => c.code))].sort(),
     "category:obligation-origin": [...new Set(obligationOrigins.map((c) => c.code))].sort(),
+    "service-name": [...new Set(serviceNames.map((c) => c.code))].sort(),
     // CR-058 — a Quality Gate's Scope/Applicable Lifecycle Transition,
     // picked from real transition_definitions rows only (owner: "the pack
     // should not define something beyond what a transition definition

@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Setting up development and deployment infrastructure — aka DevOps Foundations, Paved Road, Golden Path, Platform Engineering.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Setting up development and deployment infrastructure \u2014 aka DevOps Foundations, Paved Road, Golden Path, Platform Engineering.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -13,8 +13,7 @@
       {
         "code": "platform-developer-experience",
         "name": "Platform & Developer Experience",
-        "description": "Establishes the paved-road infrastructure, CI/CD automation, and observability foundation developers rely on to ship safely.",
-        "category": "Engineering"
+        "description": "Establishes the paved-road infrastructure, CI/CD automation, and observability foundation developers rely on to ship safely."
       }
     ],
     "services": [

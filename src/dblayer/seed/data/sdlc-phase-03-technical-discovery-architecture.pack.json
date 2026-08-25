@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Defining technical architecture and system design — aka Solution Architecture, Systems Design, Tech Blueprint, Foundations Sprint.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Defining technical architecture and system design \u2014 aka Solution Architecture, Systems Design, Tech Blueprint, Foundations Sprint.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -13,8 +13,7 @@
       {
         "code": "technical-architecture-discovery",
         "name": "Technical Discovery & Architecture",
-        "description": "Defines the technical architecture, data model, and integration strategy needed to build the product reliably at scale.",
-        "category": "Engineering"
+        "description": "Defines the technical architecture, data model, and integration strategy needed to build the product reliably at scale."
       }
     ],
     "services": [

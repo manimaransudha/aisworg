@@ -13,8 +13,7 @@
       {
         "code": "requirements-management",
         "name": "Requirements Management",
-        "description": "Elicits, details, and maintains traceable requirements on behalf of Stakeholders (OpenUP Analyst/Stakeholder roles).",
-        "category": "Engineering"
+        "description": "Elicits, details, and maintains traceable requirements on behalf of Stakeholders (OpenUP Analyst/Stakeholder roles)."
       }
     ],
     "services": [
@@ -28,7 +27,7 @@
         "code": "requirements-specification",
         "capabilityCode": "requirements-management",
         "name": "Requirements Specification",
-        "contractDescription": "Detailed, reviewable statements of what the solution must do — specific enough for Development and Test to act on."
+        "contractDescription": "Detailed, reviewable statements of what the solution must do \u2014 specific enough for Development and Test to act on."
       },
       {
         "code": "glossary",

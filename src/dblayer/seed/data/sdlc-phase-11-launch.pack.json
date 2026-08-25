@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Executing the product launch — aka Go-Live, GA, Rollout, Ignite.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Executing the product launch \u2014 aka Go-Live, GA, Rollout, Ignite.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -13,8 +13,7 @@
       {
         "code": "launch-management",
         "name": "Launch Management",
-        "description": "Executes the coordinated go-live of the product, including rollout sequencing, monitoring, and incident readiness.",
-        "category": "Engineering"
+        "description": "Executes the coordinated go-live of the product, including rollout sequencing, monitoring, and incident readiness."
       }
     ],
     "services": [

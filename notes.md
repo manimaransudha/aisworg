@@ -77,3 +77,12 @@ Capability Patterns (reusable process fragments)
 
 
 --------
+Update design/Change Requests.md. That is the master list. 
+
+Build CR066. 
+Update clean-slate seeds. 
+Do not execute the test suite. 
+Update the CR066, Chapter 10 implementation section and 
+section 19.4 of chapter 5
+ 
+https://www.facebook.com/reel/1884143292977556

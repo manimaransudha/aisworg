@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Post-launch support and stabilization — aka Post-Launch Support, Warranty Period, Hot Stage.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Post-launch support and stabilization \u2014 aka Post-Launch Support, Warranty Period, Hot Stage.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -13,8 +13,7 @@
       {
         "code": "hypercare-stabilization",
         "name": "Hypercare & Stabilization",
-        "description": "Stabilizes the product after launch through active monitoring, rapid issue resolution, and structured retrospective learning.",
-        "category": "Engineering"
+        "description": "Stabilizes the product after launch through active monitoring, rapid issue resolution, and structured retrospective learning."
       }
     ],
     "services": [

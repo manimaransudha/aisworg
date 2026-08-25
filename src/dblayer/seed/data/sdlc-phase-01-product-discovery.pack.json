@@ -4,8 +4,8 @@
   "category": "Organisation",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Understanding user needs and defining product requirements — aka Discovery Sprint, Exploration Sprint, Problem/Solution Fit, Inception, Validation Sprint.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Understanding user needs and defining product requirements \u2014 aka Discovery Sprint, Exploration Sprint, Problem/Solution Fit, Inception, Validation Sprint.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -13,8 +13,7 @@
       {
         "code": "product-discovery",
         "name": "Product Discovery",
-        "description": "Establishes a validated understanding of user needs, problems, and product requirements through structured research and hypothesis testing.",
-        "category": "Organisation"
+        "description": "Establishes a validated understanding of user needs, problems, and product requirements through structured research and hypothesis testing."
       }
     ],
     "services": [

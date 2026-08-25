@@ -9,20 +9,17 @@
       {
         "code": "requirements-analysis",
         "name": "Requirements Analysis",
-        "description": "Elicits and specifies engineering requirements.",
-        "category": "Engineering"
+        "description": "Elicits and specifies engineering requirements."
       },
       {
         "code": "architecture",
         "name": "Architecture",
-        "description": "Designs the technical solution structure.",
-        "category": "Engineering"
+        "description": "Designs the technical solution structure."
       },
       {
         "code": "development",
         "name": "Development",
-        "description": "Implements the solution against the approved architecture.",
-        "category": "Engineering"
+        "description": "Implements the solution against the approved architecture."
       }
     ],
     "services": [

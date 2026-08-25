@@ -13,8 +13,7 @@
       {
         "code": "project-management",
         "name": "Project Management",
-        "description": "Plans, coordinates, and monitors the engineering effort, on behalf of the Project Manager role.",
-        "category": "Management"
+        "description": "Plans, coordinates, and monitors the engineering effort, on behalf of the Project Manager role."
       }
     ],
     "services": [

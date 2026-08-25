@@ -13,8 +13,7 @@
       {
         "code": "testing",
         "name": "Testing",
-        "description": "Verifies the solution against requirements and quality expectations, on behalf of the Tester role.",
-        "category": "Engineering"
+        "description": "Verifies the solution against requirements and quality expectations, on behalf of the Tester role."
       }
     ],
     "services": [

@@ -4,8 +4,8 @@
   "category": "Organisation",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Driving product growth and optimization — aka Product-Led Growth, Growth Loops, Experimentation Framework, 1→N Stage.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Driving product growth and optimization \u2014 aka Product-Led Growth, Growth Loops, Experimentation Framework, 1\u2192N Stage.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -13,8 +13,7 @@
       {
         "code": "growth-optimization",
         "name": "Growth & Optimization",
-        "description": "Drives measurable product growth through analytics, structured experimentation, and retention optimization.",
-        "category": "Organisation"
+        "description": "Drives measurable product growth through analytics, structured experimentation, and retention optimization."
       }
     ],
     "services": [

@@ -4,8 +4,8 @@
   "category": "Compliance",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Establishing security and compliance frameworks — aka Trust & Safety, SecOps Hardening, Compliance Sprint, Risk & Assurance.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Establishing security and compliance frameworks \u2014 aka Trust & Safety, SecOps Hardening, Compliance Sprint, Risk & Assurance.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -13,8 +13,7 @@
       {
         "code": "security-privacy-compliance",
         "name": "Security, Privacy & Compliance",
-        "description": "Establishes the security controls, privacy safeguards, and compliance posture required before further platform investment.",
-        "category": "Compliance"
+        "description": "Establishes the security controls, privacy safeguards, and compliance posture required before further platform investment."
       }
     ],
     "services": [

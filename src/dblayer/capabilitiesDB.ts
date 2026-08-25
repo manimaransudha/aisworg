@@ -3,21 +3,28 @@ import { logger } from "../utils/logger.js";
 import type { CapabilityRow, DbResult } from "./seuTypes.js";
 
 export const capabilitiesDB = {
+  // CR-065 — (originating_pack_id, code) is the real identity now, not a
+  // bare global-unique code (owner: "This is already implemented in pack
+  // model" — same mechanical fix Checklist/Policy/Service already got; no
+  // FK references `code` directly, so this touches nothing else). `version`
+  // is a copy of the owning Pack's own pack_version, not independently
+  // incremented (owner: "capabilities.version just copies over the pack's
+  // version") — the caller passes it through from the real PackRow.
   async upsertFromPack(input: {
     code: string;
     name: string;
     description?: string | null;
-    category?: string | null;
+    version: string;
     originatingPackId: string;
   }): Promise<DbResult<CapabilityRow>> {
     try {
       const { rows } = await query<CapabilityRow>(
-        `INSERT INTO capabilities (code, name, description, category, originating_pack_id)
+        `INSERT INTO capabilities (code, name, description, version, originating_pack_id)
          VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (code) DO UPDATE
-           SET name = EXCLUDED.name, description = EXCLUDED.description, category = EXCLUDED.category
+         ON CONFLICT (originating_pack_id, code) DO UPDATE
+           SET name = EXCLUDED.name, description = EXCLUDED.description, version = EXCLUDED.version
          RETURNING *`,
-        [input.code, input.name, input.description ?? null, input.category ?? null, input.originatingPackId]
+        [input.code, input.name, input.description ?? null, input.version, input.originatingPackId]
       );
       return { data: rows[0] };
     } catch (err) {

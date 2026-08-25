@@ -4,8 +4,8 @@
   "category": "Organisation",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Planning feature development and releases — aka Roadmapping, Program Increment Planning, Flight Plan, Delivery Strategy.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Planning feature development and releases \u2014 aka Roadmapping, Program Increment Planning, Flight Plan, Delivery Strategy.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -13,8 +13,7 @@
       {
         "code": "backlog-release-planning",
         "name": "Backlog & Release Planning",
-        "description": "Translates the product roadmap into a sequenced, dependency-aware backlog and release plan ready for execution.",
-        "category": "Organisation"
+        "description": "Translates the product roadmap into a sequenced, dependency-aware backlog and release plan ready for execution."
       }
     ],
     "services": [

@@ -4,8 +4,8 @@
   "category": "Organisation",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Managing beta program and early user feedback — aka Private Beta, Pilot, Dogfooding, Soft Launch.",
-  "owner": "SDLC Templates — NoteShare Pro Reference Library",
+  "description": "Managing beta program and early user feedback \u2014 aka Private Beta, Pilot, Dogfooding, Soft Launch.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -13,8 +13,7 @@
       {
         "code": "beta-early-access-management",
         "name": "Beta / Early Access Management",
-        "description": "Runs a controlled early-access program that captures real user feedback and validates readiness before general availability.",
-        "category": "Organisation"
+        "description": "Runs a controlled early-access program that captures real user feedback and validates readiness before general availability."
       }
     ],
     "services": [

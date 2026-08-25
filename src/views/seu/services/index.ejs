@@ -51,12 +51,12 @@
             </div>
             <p class="small text-muted mb-2">"<%= s.contractDescription %>"</p>
             <div>
-              <% var slKeys = Object.keys(s.serviceLevel || {}); %>
-              <% if (slKeys.length === 0) { %>
+              <% var slItems = s.serviceLevel || []; %>
+              <% if (slItems.length === 0) { %>
                 <span class="text-muted small">No Service Level declared.</span>
               <% } else { %>
-                <% slKeys.forEach(function(k) { %>
-                  <span class="sl-badge"><%= k %>: <%= s.serviceLevel[k] %></span>
+                <% slItems.forEach(function(item) { %>
+                  <span class="sl-badge"><%= item.label %>: <%= item.target %></span>
                 <% }) %>
               <% } %>
             </div>

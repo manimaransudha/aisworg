@@ -25,14 +25,22 @@ import { eventBus } from "./eventBus.js";
 import type { ServiceRow, WorkItemRow } from "../../dblayer/seuTypes.js";
 
 // The stall SLA is declared per Capability on its Service's Service Level
-// (`turnaround_time`, seconds — Ch.11 §8, Resolution 9). NOT hardcoded: a
-// Capability whose Service declares none has no target, so its Work Items never
-// stall-escalate.
+// (Ch.11 §8, Resolution 9). NOT hardcoded: a Capability whose Service
+// declares none has no target, so its Work Items never stall-escalate.
+// CR-064 — service_level is now the nested {label, target} list a Pack
+// author declares (e.g. label "Onsite turnaround," target "1 day"), not a
+// flat object — matches on any item whose label mentions "turnaround".
+// `target` is only recognised here if it's a bare number of seconds; a
+// human duration string ("3 days") doesn't parse (same as before this CR,
+// when service_level was never populated at all — not a regression, just
+// not yet built, same "starting minimal" discipline Policy's own condition
+// field used).
 function resolveTurnaroundSeconds(services: ServiceRow[]): number | null {
   for (const service of services) {
-    const t = (service.service_level ?? {}).turnaround_time;
-    if (typeof t === "number" && t > 0) return t;
-    if (typeof t === "string" && t.trim() !== "" && Number.isFinite(Number(t)) && Number(t) > 0) return Number(t);
+    const item = (service.service_level ?? []).find((i) => /turnaround/i.test(i.label));
+    if (!item) continue;
+    const t = item.target;
+    if (Number.isFinite(Number(t)) && Number(t) > 0) return Number(t);
   }
   return null;
 }

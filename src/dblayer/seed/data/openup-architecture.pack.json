@@ -13,8 +13,7 @@
       {
         "code": "architecture-design",
         "name": "Architecture Design",
-        "description": "Designs the technical solution structure and key design decisions on behalf of the Architect role.",
-        "category": "Engineering"
+        "description": "Designs the technical solution structure and key design decisions on behalf of the Architect role."
       }
     ],
     "services": [
@@ -22,7 +21,7 @@
         "code": "architecture-notebook",
         "capabilityCode": "architecture-design",
         "name": "Architecture Notebook",
-        "contractDescription": "The candidate architecture, key design decisions, and rationale — sufficient to guide implementation."
+        "contractDescription": "The candidate architecture, key design decisions, and rationale \u2014 sufficient to guide implementation."
       }
     ],
     "checklists": [

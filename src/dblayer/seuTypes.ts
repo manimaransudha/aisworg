@@ -19,30 +19,51 @@ export interface ObjectiveRow {
   updated_at: string;
 }
 
+// CR-065 — category dropped (owner: "code already carries the required
+// intelligence"). version is no longer independent — it's a copy of the
+// owning Pack's own pack_version (owner: "capabilities.version just copies
+// over the pack's version"), TEXT to match, not incremented separately.
 export interface CapabilityRow {
   id: string;
   code: string;
   name: string;
   description: string | null;
-  category: string | null;
   originating_pack_id: string | null;
-  version: number;
+  version: string;
   created_at: string;
 }
 
 export type ServiceStatus = "Defined" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
 
+// CR-064 — version is real, definition-side versioning (a new immutable row
+// per real content change, same "major.minor" bump-on-change mechanism as
+// Quality Gate/Review Gate, not an author-typed field) — TEXT starting
+// "1.0", not the old inert INTEGER default. is_active marks the current
+// version within its (originating_pack_id, code) slot; historical versions
+// stay is_active=false, never deleted (Ch.11 §13's own "historical Service
+// versions remain available").
 export interface ServiceRow {
   id: string;
   code: string;
   providing_capability_id: string;
   name: string;
   contract_description: string;
-  service_level: Record<string, unknown>;
+  service_level: ServiceLevelItem[];
   status: ServiceStatus;
-  version: number;
+  version: string;
+  is_active: boolean;
   originating_pack_id: string | null;
   created_at: string;
+}
+
+// CR-064 — a Service Level entry, generic label/target pair (Ch.11 §8's own
+// open "may specify: target turnaround time; quality bar or acceptance
+// criteria; availability expectation; applicable exceptions or waivers" —
+// not four fixed fields, since not every Service needs all four and some
+// need more than one of the same kind, e.g. offshore vs onsite turnaround).
+export interface ServiceLevelItem {
+  label: string;
+  target: string;
 }
 
 // CR-020: category is Ontology-governed (concept_type category:pack) — a data
@@ -88,8 +109,14 @@ export interface ChecklistItem {
 }
 
 export interface PackContributions {
-  capabilities?: Array<{ code: string; name: string; description?: string; category?: string }>;
-  services?: Array<{ code: string; capabilityCode: string; name: string; contractDescription: string; serviceLevel?: Record<string, unknown> }>;
+  // CR-065 — category dropped entirely, not fixed.
+  capabilities?: Array<{ code: string; name: string; description?: string }>;
+  // CR-064 — code is now Ontology-backed (service-name, freely-extensible —
+  // deliberately reusable across Packs, e.g. the same "turn-around-time-high"
+  // code declared independently by both a Development and a Deployment Pack,
+  // each with its own serviceLevel content) and Pack-scoped, not globally
+  // unique. serviceLevel is the nested, repeatable declared Service Level.
+  services?: Array<{ code: string; capabilityCode: string; name: string; contractDescription: string; serviceLevel?: ServiceLevelItem[] }>;
   authorityRules?: Array<{ code: string; governedTransition: string; authorisedRole: string }>;
   // CR-061 — real Ontology-backed category (category:policy), real
   // transition-definition-backed governedTransition (definition-side only
