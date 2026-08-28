@@ -8,16 +8,23 @@
 //
 // Atomic wipe+reseed in ONE transaction — transition_definitions is app-
 // critical (an empty graph blocks every transition), so it is never left
-// empty between a wipe and the reseed. Authority rules + policies referenced
-// here are NOT reseeded (they survive clean-slate, base-pack-attributed or
-// migration-seeded); a genuinely unresolvable code fails loudly, matching
-// seedSeu's own seedTransitionDefinitions. The verb column is back-filled
-// afterwards by seedAuthorityVocabulary (run next in clean-slate).
+// empty between a wipe and the reseed.
+//
+// 2026-08-25 (owner) — dev/test seed data, not production: an unresolvable
+// requiredAuthorityRuleCode/requiredPolicyCodes entry no longer fails the
+// whole seed. The only Pack that ever created most of these codes
+// (core-engineering.pack.json) predates 69 CRs of real design work and
+// isn't the source of truth anymore. Left null/[] instead, and self-heals:
+// core/packs.ts's seedContributions calls backfillAuthorityRuleCode/
+// backfillPolicyCode right after upserting each real Authority Rule/Policy
+// during any Pack publish — if that Pack's own code happens to be one this
+// file wanted, the transition_definitions row gets wired up then, whichever
+// Pack it comes from.
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import pool from "../../utils/db.js";
+import pool, { query } from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -30,9 +37,41 @@ interface TransitionDefinitionSeed {
   requiredPolicyCodes?: string[];
 }
 
+let cachedSeeds: TransitionDefinitionSeed[] | null = null;
 function loadSeeds(): TransitionDefinitionSeed[] {
-  const raw = readFileSync(path.join(__dirname, "data", "transitionDefinitions.json"), "utf8");
-  return JSON.parse(raw) as TransitionDefinitionSeed[];
+  if (!cachedSeeds) {
+    const raw = readFileSync(path.join(__dirname, "data", "transitionDefinitions.json"), "utf8");
+    cachedSeeds = JSON.parse(raw) as TransitionDefinitionSeed[];
+  }
+  return cachedSeeds;
+}
+
+// Self-healing backfill — called from core/packs.ts's seedContributions
+// right after a real Authority Rule/Policy is upserted during any Pack
+// publish. Wires the newly-real id onto whichever transition_definitions
+// row(s) transitionDefinitions.json originally wanted that code for, no
+// matter which Pack ends up being the one that actually declares it.
+export async function backfillAuthorityRuleCode(code: string, authorityRuleId: string): Promise<void> {
+  const wanting = loadSeeds().filter((s) => s.requiredAuthorityRuleCode === code);
+  for (const seed of wanting) {
+    await query(
+      `UPDATE transition_definitions SET required_authority_rule_id = $4
+       WHERE entity_type = $1 AND from_state = $2 AND to_state = $3`,
+      [seed.entityType, seed.fromState, seed.toState, authorityRuleId]
+    );
+  }
+}
+
+export async function backfillPolicyCode(code: string, policyId: string): Promise<void> {
+  const wanting = loadSeeds().filter((s) => (s.requiredPolicyCodes ?? []).includes(code));
+  for (const seed of wanting) {
+    await query(
+      `UPDATE transition_definitions
+          SET required_policy_ids = CASE WHEN $4::uuid = ANY(required_policy_ids) THEN required_policy_ids ELSE array_append(required_policy_ids, $4::uuid) END
+        WHERE entity_type = $1 AND from_state = $2 AND to_state = $3`,
+      [seed.entityType, seed.fromState, seed.toState, policyId]
+    );
+  }
 }
 
 export async function seedTransitionDefinitions(): Promise<void> {
@@ -47,15 +86,13 @@ export async function seedTransitionDefinitions(): Promise<void> {
       let ruleId: string | null = null;
       if (seed.requiredAuthorityRuleCode) {
         const { rows } = await client.query("SELECT id FROM authority_rules WHERE code = $1", [seed.requiredAuthorityRuleCode]);
-        if (!rows[0]) throw new Error(`transition definition references unknown authority rule "${seed.requiredAuthorityRuleCode}"`);
-        ruleId = rows[0].id as string;
+        if (rows[0]) ruleId = rows[0].id as string;
       }
 
       const policyIds: string[] = [];
       for (const code of seed.requiredPolicyCodes ?? []) {
         const { rows } = await client.query("SELECT id FROM policies WHERE code = $1", [code]);
-        if (!rows[0]) throw new Error(`transition definition references unknown policy "${code}"`);
-        policyIds.push(rows[0].id as string);
+        if (rows[0]) policyIds.push(rows[0].id as string);
       }
 
       await client.query(

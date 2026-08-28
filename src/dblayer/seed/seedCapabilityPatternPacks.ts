@@ -10,14 +10,22 @@
 //   - Work Product     -> Service (contractDescription = what the work product is)
 //   - Task (execution)  -> Checklist item (§20 verifiable-item fields)
 //   - Task (review/verification) -> Review Gate item
-// Each pattern declares its OWN capability code (requirements-management,
-// architecture-design, solution-development, testing, project-management,
-// configuration-management) rather than reusing platform-core-engineering's
-// requirements-analysis/architecture/development — validatePackSeed requires
-// a Service's capabilityCode to be declared in the SAME Pack's own
-// contributions (no cross-Pack capability references), and redeclaring an
-// existing code would silently reassign its originating_pack_id away from
-// core-engineering (breaking PM-005 traceability). No dependency on any other
+// Each pattern declares its OWN capability code. Requirements/Architecture/
+// Development were originally given distinct codes (requirements-management,
+// architecture-design, solution-development) specifically to avoid
+// colliding with platform-core-engineering's own requirements-analysis/
+// architecture/development — capabilities.code was globally unique at the
+// time, so redeclaring an existing code would have silently reassigned its
+// originating_pack_id away from core-engineering (breaking PM-005
+// traceability). 2026-08-25 — renamed back to requirements-analysis/
+// architecture/development: CR-065 made capabilities.code Pack-scoped
+// (originating_pack_id, code), not globally unique, and
+// core-engineering.pack.json is now confirmed permanently unpublishable (no
+// working bootstrap path, superseded by 69 CRs of real design work) — so
+// the collision this avoided can no longer happen, and 28+ test files plus
+// every real Template's own dependencyGraph (fromCapabilityCode) already
+// hardcoded these exact codes rather than the ones this file used to
+// generate. No dependency on any other
 // Pack: self-contained, so this seed has no ordering requirement.
 //
 // Content recalled from EPF/OpenUP's published process content (Eclipse

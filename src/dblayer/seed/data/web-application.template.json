@@ -1,8 +1,10 @@
 {
-  "code": "enterprise-web-application",
+  "code": "test-enterprise-web-application",
   "name": "Web Application",
   "mandatoryPackCodes": [
-    "platform-core-engineering"
+    "requirements-analysis",
+    "architecture-solution-design",
+    "development"
   ],
   "deliverableCatalogue": [
     {

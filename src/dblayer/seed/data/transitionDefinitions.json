@@ -3,10 +3,8 @@
     "entityType": "SEU",
     "fromState": "Pending",
     "toState": "Commissioned",
-    "requiredAuthorityRuleCode": "authority-commission-seu",
-    "requiredPolicyCodes": [
-      "policy-commission-baseline"
-    ]
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
   },
   {
     "entityType": "SEU",
@@ -275,145 +273,113 @@
     "entityType": "Knowledge",
     "fromState": "Observed",
     "toState": "Proposed",
-    "requiredAuthorityRuleCode": "authority-transition-knowledge",
-    "requiredPolicyCodes": [
-      "policy-knowledge-transition-baseline"
-    ]
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
   },
   {
     "entityType": "Knowledge",
     "fromState": "Proposed",
     "toState": "Validated",
-    "requiredAuthorityRuleCode": "authority-transition-knowledge",
-    "requiredPolicyCodes": [
-      "policy-knowledge-transition-baseline"
-    ]
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
   },
   {
     "entityType": "Knowledge",
     "fromState": "Validated",
     "toState": "Accepted",
-    "requiredAuthorityRuleCode": "authority-transition-knowledge",
-    "requiredPolicyCodes": [
-      "policy-knowledge-transition-baseline"
-    ]
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
   },
   {
     "entityType": "Knowledge",
     "fromState": "Accepted",
     "toState": "Published",
-    "requiredAuthorityRuleCode": "authority-transition-knowledge",
-    "requiredPolicyCodes": [
-      "policy-knowledge-transition-baseline"
-    ]
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
   },
   {
     "entityType": "Knowledge",
     "fromState": "Published",
     "toState": "Deprecated",
-    "requiredAuthorityRuleCode": "authority-transition-knowledge",
-    "requiredPolicyCodes": [
-      "policy-knowledge-transition-baseline"
-    ]
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
   },
   {
     "entityType": "Knowledge",
     "fromState": "Deprecated",
     "toState": "Archived",
-    "requiredAuthorityRuleCode": "authority-transition-knowledge",
-    "requiredPolicyCodes": [
-      "policy-knowledge-transition-baseline"
-    ]
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
   },
   {
     "entityType": "Decision",
     "fromState": "Identified",
     "toState": "Analysed",
-    "requiredAuthorityRuleCode": "authority-transition-decision",
-    "requiredPolicyCodes": [
-      "policy-decision-transition-baseline"
-    ]
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
   },
   {
     "entityType": "Decision",
     "fromState": "Analysed",
     "toState": "Proposed",
-    "requiredAuthorityRuleCode": "authority-transition-decision",
-    "requiredPolicyCodes": [
-      "policy-decision-transition-baseline"
-    ]
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
   },
   {
     "entityType": "Decision",
     "fromState": "Proposed",
     "toState": "Reviewed",
-    "requiredAuthorityRuleCode": "authority-transition-decision",
-    "requiredPolicyCodes": [
-      "policy-decision-transition-baseline"
-    ]
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
   },
   {
     "entityType": "Decision",
     "fromState": "Reviewed",
     "toState": "Approved",
-    "requiredAuthorityRuleCode": "authority-transition-decision",
-    "requiredPolicyCodes": [
-      "policy-decision-transition-baseline"
-    ]
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
   },
   {
     "entityType": "Decision",
     "fromState": "Approved",
     "toState": "Applied",
-    "requiredAuthorityRuleCode": "authority-transition-decision",
-    "requiredPolicyCodes": [
-      "policy-decision-transition-baseline"
-    ]
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
   },
   {
     "entityType": "Decision",
     "fromState": "Applied",
     "toState": "Superseded",
-    "requiredAuthorityRuleCode": "authority-transition-decision",
-    "requiredPolicyCodes": [
-      "policy-decision-transition-baseline"
-    ]
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
   },
   {
     "entityType": "Decision",
     "fromState": "Superseded",
     "toState": "Archived",
-    "requiredAuthorityRuleCode": "authority-transition-decision",
-    "requiredPolicyCodes": [
-      "policy-decision-transition-baseline"
-    ]
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
   },
   {
     "entityType": "KnowledgeScope",
     "fromState": "SEU",
     "toState": "Capability",
-    "requiredAuthorityRuleCode": "authority-promote-knowledge-to-capability",
-    "requiredPolicyCodes": [
-      "policy-knowledgescope-transition-baseline"
-    ]
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
   },
   {
     "entityType": "KnowledgeScope",
     "fromState": "Capability",
     "toState": "Enterprise",
-    "requiredAuthorityRuleCode": "authority-promote-knowledge-to-enterprise",
-    "requiredPolicyCodes": [
-      "policy-knowledgescope-transition-baseline"
-    ]
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
   },
   {
     "entityType": "KnowledgeScope",
     "fromState": "Enterprise",
     "toState": "Platform",
-    "requiredAuthorityRuleCode": "authority-promote-knowledge-to-platform",
-    "requiredPolicyCodes": [
-      "policy-knowledgescope-transition-baseline"
-    ]
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
   },
   {
     "entityType": "AttentionItem",

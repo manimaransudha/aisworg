@@ -54,7 +54,7 @@ test("FR-21.1: an SEU exposes one effective Governance Model derived from its EB
   const model = await getEffectiveGovernanceModel(result.seu.id);
   assert.ok(model, "expected an effective governance model");
   assert.equal(model!.ebm.version, 1);
-  assert.ok(model!.ebm.composedPacks.some((p) => p.packCode === "platform-core-engineering"), "the EBM's composed packs are listed");
+  assert.ok(model!.ebm.composedPacks.some((p) => p.packCode === "development"), "the EBM's composed packs are listed");
   assert.ok(model!.authorityRules.some((r) => r.governedTransition === "deliverable.transition"), "authority rules derived from composed packs");
   assert.ok(model!.qualityGates.length >= 1, "quality gates derived from composed packs");
   assert.ok(model!.authorityRules.every((r) => typeof r.fromPack === "string"), "each rule records the contributing pack (traceable)");
@@ -98,7 +98,7 @@ test("FR-3.6/3.7: a composition conflict hard-blocks commissioning; the SEU neve
 
 test("§4.3 / Open Q#3: a Quality Gate can gate a Pack transition with a null SEU; the CHECK rejects mis-scoped evaluations", async () => {
   const run = randomUUID().slice(0, 8);
-  const { data: corePack } = await packsDB.findByCode("platform-core-engineering");
+  const { data: corePack } = await packsDB.findByCode("development");
   assert.ok(corePack);
 
   // A gate on a Pack transition (platform-level entity, no SEU). CR-058 —

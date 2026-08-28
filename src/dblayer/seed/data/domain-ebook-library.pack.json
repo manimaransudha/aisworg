@@ -6,7 +6,7 @@
   "installationClassification": "Mandatory",
   "dependencies": [
     {
-      "packCode": "platform-core-engineering",
+      "packCode": "development",
       "version": "1.0.0",
       "type": "required"
     }
@@ -30,18 +30,18 @@
         "capabilityCode": "catalog-management",
         "name": "Approved Catalog Metadata Design",
         "contractDescription": "A reviewed, approved data model and rule set for catalog titles and their metadata.",
-        "serviceLevel": {
-          "qualityBar": "peer-reviewed"
-        }
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" }
+        ]
       },
       {
         "code": "approved-circulation-rules",
         "capabilityCode": "circulation-management",
         "name": "Approved Circulation Rules",
         "contractDescription": "A reviewed, approved specification of borrowing, return, and hold/waitlist rules.",
-        "serviceLevel": {
-          "qualityBar": "peer-reviewed"
-        }
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" }
+        ]
       }
     ],
     "policies": [

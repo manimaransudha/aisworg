@@ -28,6 +28,19 @@
   var simpleFields = (locals.groups.other || []).concat(locals.groups.metadata || []);
   var VERIFIABLE_FIELD_NAMES = ['statement','classification','prompt','participant','outputContract','assurance','externalEvidence'];
 
+  // CR-067 x-show-when — "when a composition strategy is chosen, the UI
+  // widget should appear." Generic: any field may declare showWhen naming
+  // another field on this same form; that field starts hidden until the
+  // controller has a value. Controller lookup only needs a value, not a
+  // full field object — a flat name->value map built once, across every
+  // "simple"-tab field (referential-list fields carry no scalar .value, so
+  // they're never valid controllers, only targets).
+  var fieldValueByName = {};
+  simpleFields.concat(locals.groups.packSelection || [], locals.groups.deliverables || [], locals.groups.compatibility || []).forEach(function (f) {
+    if (f.kind !== 'referential-list') fieldValueByName[f.name] = f.value;
+  });
+  var isShowWhenHidden = function (f) { return !!f.showWhen && !fieldValueByName[f.showWhen]; };
+
   // One entry per TAB — 'simple' (a plain field grid: Identity & Metadata,
   // Compatibility), 'referential-list' (Dependencies + most Contribution
   // types), or 'json' (Contributions still using a raw-JSON widget, e.g.
@@ -96,7 +109,7 @@
                     Full width (col-12, not col-md-6 — a repeatable-row widget
                     needs the room), same partial Pack's own Dependencies tab
                     uses. %>
-                <div class="col-12">
+                <div class="col-12" <% if (f.showWhen) { %>data-show-when="<%= f.showWhen %>" style="<%= isShowWhenHidden(f) ? 'display:none' : '' %>"<% } %>>
                   <%# Owner: "In a view page why will a mandatory * indicator
                       show up?" — required is an editing affordance (what you
                       must still fill in); meaningless once the page is just
@@ -106,7 +119,7 @@
                   <% if (f.help) { %><div class="form-text small"><%= f.help %></div><% } %>
                 </div>
               <% } else { %>
-              <div class="col-md-6">
+              <div class="col-md-6" <% if (f.showWhen) { %>data-show-when="<%= f.showWhen %>" style="<%= isShowWhenHidden(f) ? 'display:none' : '' %>"<% } %>>
                 <label class="form-label small fw-semibold"><%= f.label %><% if (f.required && canEdit) { %> <span class="text-danger">*</span><% } %></label>
                 <% if (!canEdit) { %>
                   <%# View mode — plain text, not a disabled control (owner:

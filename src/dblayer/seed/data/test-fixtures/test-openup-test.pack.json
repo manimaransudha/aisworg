@@ -1,0 +1,34 @@
+{
+  "code": "test-testing-qa",
+  "name": "Test (OpenUP Capability Pattern)",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "EPF/OpenUP's Test capability pattern, modelled as a Pack: the Tester role, test work products, and the tasks for identifying, implementing, and evaluating tests against requirements.",
+  "owner": "EPF/OpenUP Practice Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "testing",
+        "name": "Testing",
+        "description": "Verifies the solution against requirements and quality expectations, on behalf of the Tester role."
+      }
+    ],
+    "services": [
+      {
+        "code": "test-case",
+        "capabilityCode": "testing",
+        "name": "Test Case",
+        "contractDescription": "A specific, repeatable check of solution behaviour against a requirement."
+      },
+      {
+        "code": "test-evaluation-summary",
+        "capabilityCode": "testing",
+        "name": "Test Evaluation Summary",
+        "contractDescription": "A summary assessment of test results and residual risk/quality for this increment."
+      }
+    ]
+  }
+}

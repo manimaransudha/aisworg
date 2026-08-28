@@ -1,0 +1,199 @@
+{
+  "code": "technology-cpp",
+  "name": "C++ Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "cpp-development",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "cpp-code-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "C++ Programming Practices",
+        "description": "Best practices for C++ programming language",
+        "asset": "link to the organisation asset .editorconfig",
+        "items": [
+          {
+            "statement": "Use .editorconfig to setup your editor",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Use 2 spaces for indenting your code",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Use UNIX-style newlines (\n), and a newline character as the last character of a file. Windows-style newlines (\r\n) are forbidden inside any repository.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Clean up any trailing whitespace in your JS files before committing.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Use single quotes, unless you are writing JSON.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Opening braces go on the same line as the statement.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Use lowerCamelCase for variables, properties and function names.",
+            "group": "Naming conventions"
+          },
+          {
+            "statement": "Use UPPERCASE for Constants.",
+            "group": "Naming conventions"
+          },
+          {
+            "statement": "Is there multiple inheritance? Note: This can cause ambiguities and maintenance problems.",
+            "group": "Inheritance"
+          },
+          {
+            "statement": "If overloading an operator, is the usage normal or clever? Note: Obscure overloading can reduce readability and induce errors. Using + to add two structures is normal. Using + with structures to perform a square of each element is not natural.",
+            "group": "Inheritance"
+          },
+          {
+            "statement": "Are class operators (assignment, etc.) explicitly defined? (Declare them private if they are not to be used.)",
+            "group": "Inheritance"
+          },
+          {
+            "statement": "Are constructor, copy constructor, destructor, operator= defined for all classes?",
+            "group": "Inheritance"
+          },
+          {
+            "statement": "Is the destructor declared virtual? This avoids problems if the class is inherited.",
+            "group": "Inheritance"
+          },
+          {
+            "statement": "Have assumptions been made about the sizes of dependent types, such as int? The size is often platform and compiler dependent.",
+            "group": "Inheritance"
+          },
+          {
+            "statement": "Over estimation of predefined type\u2019s size (In C++, there is no guarantee that a particular type has a particular number of bits.)",
+            "group": "Variables"
+          },
+          {
+            "statement": "Check all variables for inadequate floating-point precision or accuracy.",
+            "group": "Variables"
+          },
+          {
+            "statement": "Have assumptions been made about the sizes of dependent types, such as int? The size is often platform and compiler dependent.",
+            "group": "Variables"
+          },
+          {
+            "statement": "Have reserved words or library function names been used as variable names? This could lead to serious errors. Also, avoid using names that are close to standard names, to improve the readability of the source code.",
+            "group": "Variables"
+          },
+          {
+            "statement": "If \u201cIf \u2026else if\u2026.else if\u201d goes beyond two levels, use a switch\u2026.case instead. This increases readability.",
+            "group": "Conditionals"
+          },
+          {
+            "statement": "When using a switch\u2026.case, always explicitly define default. Do not omit the break statement.",
+            "group": "Conditionals"
+          },
+          {
+            "statement": "Do not compare different data types such as comparing a floating point number to an integer.",
+            "group": "Conditionals"
+          },
+          {
+            "statement": "Avoid the use of the ?: operator. The operator makes the code more difficult to read. Add comments explaining it, if it is used.",
+            "group": "Conditionals"
+          },
+          {
+            "statement": "Have the numbers and sizes of parameters passed to routines been limited? Large structures or arrays, if passed by value, can overflow the stack, causing unpredictable results. Always pass large elements via pointers.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Are recursive functions used carefully? Verify that there is a finite recursion.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Have const variables and functions been used whenever possible? When something should not change, or a function should not change anything outside of itself, use const.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Do not use the gets function or related functions. These do not have adequate limit checks. Writing your own routine allows better error handling to be included.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Is memove used instead of memcp? Memcpy has problems if the memory overlaps.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Are wrappers created for built-in functions to include error handling?",
+            "group": "Functions"
+          },
+          {
+            "statement": "Only use setjmp and longjmp for exception handling. These commands jump outside function boundaries and deviate from normal control flow.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Avoid pointers to functions. These pointers cannot be initialized and may point to non-executable code. If they must be used, justify their use.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Have functions and procedures been prototyped? This allows the compiler to catch errors, rather than having to debug them at run time. Also, when possible, use a tool or other method to verify that the prototype matches the function.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Are interface ambiguities (e.g. use of an expression as parameters to subroutines, or changing the order of arguments between similar functions) minimized? Justify any use of functions with an indefinite number of arguments. These functions cannot be checked by the compiler and are difficult to verify.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Do not use ++ or \u2013 operators on parameters being passed to subroutines or macros. These can cause unexpected side results.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Are standard library functions used in a multitasking environment? Library functions may be re-entrant and could lead to unspecified results.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Do not call functions within interrupt service routines. If it is necessary to do so, make sure the functions are small and re-entrant.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Place #include directives at the beginning of a file. This makes it easier to know what files are actually included. When tracing dependencies, this information is needed.",
+            "group": "Directives"
+          },
+          {
+            "statement": "Use #define instead of numeric literals. This allows the reader or maintainer to know what the number actually represents. It also allows the number to be changed in one place, if a change is needed.",
+            "group": "Directives"
+          },
+          {
+            "statement": "Use bit masks instead of bit fields, which are implementation independent.",
+            "group": "Others"
+          },
+          {
+            "statement": "Do not extend built-in prototypes.",
+            "group": "Others"
+          },
+          {
+            "statement": "Have the complier warnings been enabled and read? If it is an option, have the complier issue the warnings and errors. Warnings indicate that the deviation may be fine but may also indicate a subtle error.",
+            "group": "Others"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

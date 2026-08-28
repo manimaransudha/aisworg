@@ -1,0 +1,76 @@
+{
+  "code": "test-technical-architecture-discovery",
+  "name": "Technical Discovery & Architecture (SDLC Phase 3)",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Defining technical architecture and system design \u2014 aka Solution Architecture, Systems Design, Tech Blueprint, Foundations Sprint.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "technical-architecture-discovery",
+        "name": "Technical Discovery & Architecture",
+        "description": "Defines the technical architecture, data model, and integration strategy needed to build the product reliably at scale."
+      }
+    ],
+    "services": [
+      {
+        "code": "solution-architecture-document",
+        "capabilityCode": "technical-architecture-discovery",
+        "name": "Solution Architecture Document",
+        "contractDescription": "High-level system architecture."
+      },
+      {
+        "code": "c4-diagrams",
+        "capabilityCode": "technical-architecture-discovery",
+        "name": "C4 Diagrams",
+        "contractDescription": "System architecture visualization."
+      },
+      {
+        "code": "api-design-spec",
+        "capabilityCode": "technical-architecture-discovery",
+        "name": "API Design Specification",
+        "contractDescription": "API contracts and endpoints."
+      },
+      {
+        "code": "data-model-erd",
+        "capabilityCode": "technical-architecture-discovery",
+        "name": "Data Model & ERD",
+        "contractDescription": "Database design and relationships."
+      },
+      {
+        "code": "non-functional-requirements-spec",
+        "capabilityCode": "technical-architecture-discovery",
+        "name": "Non-Functional Requirements Spec",
+        "contractDescription": "Performance and quality requirements."
+      },
+      {
+        "code": "tenancy-model",
+        "capabilityCode": "technical-architecture-discovery",
+        "name": "Tenancy Model",
+        "contractDescription": "Multi-tenant architecture design."
+      },
+      {
+        "code": "data-residency-privacy-plan",
+        "capabilityCode": "technical-architecture-discovery",
+        "name": "Data Residency & Privacy Plan",
+        "contractDescription": "Data governance strategy."
+      },
+      {
+        "code": "tech-stack-evaluation-matrix",
+        "capabilityCode": "technical-architecture-discovery",
+        "name": "Tech Stack Evaluation Matrix",
+        "contractDescription": "Technology selection criteria."
+      },
+      {
+        "code": "integration-architecture-overview",
+        "capabilityCode": "technical-architecture-discovery",
+        "name": "Integration Architecture Overview",
+        "contractDescription": "Third-party integrations."
+      }
+    ]
+  }
+}

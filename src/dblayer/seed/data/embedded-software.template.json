@@ -2,7 +2,9 @@
   "code": "embedded-software",
   "name": "Embedded Software",
   "mandatoryPackCodes": [
-    "platform-core-engineering",
+    "development",
+    "requirements-analysis",
+    "architecture-solution-design",
     "technical-architecture-discovery",
     "security-privacy-compliance",
     "platform-developer-experience",

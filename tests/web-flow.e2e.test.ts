@@ -415,7 +415,10 @@ test("Phase 5 — a Deliverable transition requiring accepted Evidence is blocke
   assert.equal(blocked.status, 302, "a blocked transition is still a graceful redirect, not a 500");
   const afterBlocked = await getPage(request, `/seu/seus/${seuId}`);
   assert.match(afterBlocked.html, /alert-danger/);
-  assert.match(afterBlocked.html, /Quality Gate &#34;Requires Accepted Evidence or Approved Decision&#34; blocked: no accepted Evidence or approved Decision found/);
+  assert.match(
+    afterBlocked.html,
+    /Quality Gate &#34;Requires Accepted Evidence or Approved Decision&#34; blocked: no accepted Evidence of category &#34;Validation Evidence&#34; or approved Decision found for this entity/
+  );
   assert.match(afterBlocked.html, /Requirements Specification<br[\s\S]*?state-badge state-Approved">Approved/, "the Deliverable must not have moved while the Quality Gate blocked it");
 
   const created = await postForm(request, `/seu/seus/${seuId}/evidence`, csrf, {
@@ -718,5 +721,14 @@ test("Participant Lifecycle Governance, Build order step 5 — replacing a fulfi
   assert.match(afterReplace.html, /alert-success/);
   assert.match(afterReplace.html, /Participant replaced/);
   assert.match(afterReplace.html, /WebFlow Replacement Analyst/);
-  assert.doesNotMatch(afterReplace.html, /requirements-analysis<\/code><\/td>[\s\S]*?WebFlow Original Analyst/, "the old Participant must no longer be shown as this Capability's fulfilling Participant");
+  // Scoped to the Capabilities table row itself (stops at the row's own
+  // </tr>, via the negative lookahead) — the page legitimately still lists
+  // "WebFlow Original Analyst" further down, in the Evidence-provenance
+  // participant <select> (detail.ejs), which correctly shows every
+  // Participant ever attached to the SEU, replaced ones included.
+  assert.doesNotMatch(
+    afterReplace.html,
+    /requirements-analysis<\/code><\/td>(?:(?!<\/tr>)[\s\S])*?WebFlow Original Analyst/,
+    "the old Participant must no longer be shown as this Capability's fulfilling Participant"
+  );
 });

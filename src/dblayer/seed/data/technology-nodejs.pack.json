@@ -6,7 +6,7 @@
   "installationClassification": "Optional",
   "dependencies": [
     {
-      "packCode": "platform-core-engineering",
+      "packCode": "development",
       "version": "1.0.0",
       "type": "required"
     }
@@ -14,29 +14,102 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "code-review",
+        "code": "nodejs-development",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "nodejs-code-review",
         "name": "Code Review",
         "description": "Peer review of Source Code changes before merge."
       }
     ],
-    "services": [
+    "services": [],
+    "checklists": [
       {
-        "code": "code-review",
-        "capabilityCode": "code-review",
-        "name": "Code Review Service",
-        "contractDescription": "Peer review of Source Code changes before merge, per Node.js Engineering Practices."
+        "name": "Node.js Lint Standard",
+        "description": "Linter for Node js code",
+        "asset": "link to the organisation asset .editorconfig",
+        "items": [
+          {
+            "statement": "Use .editorconfig to setup your editor",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Use 2 spaces for indenting your code",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Use UNIX-style newlines (\n), and a newline character as the last character of a file. Windows-style newlines (\r\n) are forbidden inside any repository.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Clean up any trailing whitespace in your JS files before committing.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Use semicolons; linebreaks don't terminate statements in javascript",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Use single quotes, unless you are writing JSON.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Opening braces go on the same line as the statement.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Use lowerCamelCase for variables, properties and function names.",
+            "group": "Naming conventions"
+          },
+          {
+            "statement": "Use UpperCamelCase for class names.",
+            "group": "Naming conventions"
+          },
+          {
+            "statement": "Use UPPERCASE for Constants.",
+            "group": "Naming conventions"
+          },
+          {
+            "statement": "Use the === operator for conditionals.",
+            "group": "Conditionals"
+          },
+          {
+            "statement": "The ternary operator should not be used on a single line. Split it up into multiple lines instead.",
+            "group": "Conditionals"
+          },
+          {
+            "statement": "Any non-trivial conditions should be assigned to a descriptively named variable or function.",
+            "group": "Conditionals"
+          },
+          {
+            "statement": "To avoid deep nesting of if-statements, always return a function's value as early as possible.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Name your closures. Use closures, but don't nest them.",
+            "group": "Functions"
+          },
+          {
+            "statement": "One method per line should be used if you want to chain methods. You should also indent these methods so it's easier to tell they are part of the same chain.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Use slashes for both single line and multi line comments. Try to write comments that explain higher level mechanisms or clarify difficult segments of your code. Don't use comments to restate trivial things.",
+            "group": "Comments"
+          },
+          {
+            "statement": "Always put requires at top of file to clearly illustrate a file's dependencies.",
+            "group": "Others"
+          },
+          {
+            "statement": "Do not extend built-in prototypes.",
+            "group": "Others"
+          }
+        ]
       }
     ],
-    "policies": [
-      {
-        "code": "policy-nodejs-lint-standard",
-        "name": "Node.js Lint Standard",
-        "category": "Quality",
-        "constraintType": "Standard",
-        "governedTransition": "Deliverable|Defined|In Progress",
-        "conditionType": "always_true",
-        "severity": "Low"
-      }
-    ]
+    "policies": []
   }
 }

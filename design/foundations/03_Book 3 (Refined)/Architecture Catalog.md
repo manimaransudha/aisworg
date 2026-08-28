@@ -1,10 +1,8 @@
 # Architecture Catalogue
 
 **Version 1.0 (Baseline)**
-
----
-
-# 1. Purpose
+ 
+## 1. Purpose
 
 The Architecture Catalogue defines the stable architectural concepts, principles and constraints governing the AI Software Organisation Platform.
 
@@ -13,24 +11,23 @@ It serves as the constitutional document for the platform.
 All implementation decisions, runtime components, Pack definitions and Software Engineering Units (SEUs) shall conform to the architecture defined herein.
 
 Changes to this catalogue shall occur only through approved Architecture Decision Records (ADRs).
+ 
 
----
-
-# 2. Scope
+## 2. Scope
 
 The catalogue defines:
 
-- Architectural Principles
-- Runtime Architecture
-- Stable Architectural Concepts
-- Composition Model
-- Extension Model
-- Pack Taxonomy
-- Execution Model
-- Knowledge Model
-- Governance Model
-- Dependency Model
-- Architectural Constraints
+- Architectural principles
+- Runtime architecture
+- Stable architectural concepts
+- Composition model
+- Extension model
+- Pack taxonomy
+- Execution model
+- Knowledge model
+- Governance model
+- Dependency model
+- Architectural constraints
 
 The catalogue intentionally excludes:
 
@@ -40,56 +37,40 @@ The catalogue intentionally excludes:
 - Infrastructure choices
 - UI design
 - Deployment topology
-
-These belong to Book 3.
-
----
-
-# 3. Architectural Vision
+  
+## 3. Architectural Vision
 
 The platform is an execution environment for commissioning and operating autonomous **Software Engineering Units (SEUs)**.
 
 Unlike traditional project management systems or AI orchestration frameworks, the platform does not manage people, schedules or tasks as primary concepts.
 
 Instead, it commissions SEUs by composing engineering knowledge, governance and practices into an executable engineering model and executes software delivery through dependency-driven orchestration while preserving knowledge, governance and traceability.
-
----
-
-# 4. First Principles
+ 
+## 4. First Principles
 
 The architecture is founded upon the following principles.
 
----
+### AP-001
 
-## AP-001
+> **The Runtime Kernel shall remain domain independent.**
 
-**The Runtime Kernel shall remain domain independent.**
+### AP-002
 
----
+> **Engineering behaviour shall be composed rather than hard-coded.**
 
-## AP-002
+### AP-003
 
-**Engineering behaviour shall be composed rather than hard-coded.**
+> **Everything that evolves over time shall be represented as a Pack wherever practical.**
 
----
+### AP-004
 
-## AP-003
-
-**Everything that evolves over time shall be represented as a Pack wherever practical.**
-
----
-
-## AP-004
-
-**Dependencies govern execution.**
+> **Dependencies govern execution.**
 
 Time influences execution but does not determine it.
 
----
+### AP-005
 
-## AP-005
-
-**Knowledge is the permanent organisational asset.**
+> **Knowledge is the permanent organisational asset.**
 
 Participants are temporary.
 
@@ -97,29 +78,25 @@ SEUs are temporary.
 
 Knowledge persists.
 
----
+### AP-006
 
-## AP-006
-
-**Governance is explicit.**
+> **Governance is explicit.**
 
 All significant decisions shall be traceable.
 
----
 
-## AP-007
+### AP-007
 
-**Every architectural concept shall possess a single responsibility.**
+> **Every architectural concept shall possess a single responsibility.**
 
----
 
-## AP-008
+### AP-008
 
-**The Platform Core shall never require modification to introduce engineering behaviour.**
+> **The Platform Core shall never require modification to introduce engineering behaviour.**
 
-## AP-009
+### AP-009
 
-**Deliverables are primary.**
+> **Deliverables are primary.**
 
 The purpose of every SEU is to produce engineering deliverables.
 
@@ -127,6 +104,7 @@ All runtime activities shall ultimately contribute towards one or more deliverab
 
 Work Items exist solely to create, modify or validate deliverables.
 
+## 5. Architecture Decision Records (ADRs)
 
 > **ADR – Packs are Declarative**
 
@@ -137,11 +115,10 @@ Work Items exist solely to create, modify or validate deliverables.
 > **ADR – Capability-First Commissioning**
 
 Decision:  During commissioning, the platform shall determine the capabilities required by the Template and fulfil those capabilities through appropriate Participants. Participants are an implementation of capability fulfilment, not the primary objective.
----
 
 > **ADR – Trust Pipeline**
 
-**Decision:** Significant engineering state transitions shall be justified through a trust pipeline of Information → Evidence → Knowledge → Decision → Deliverable State Transition.
+**Decision:** Significant engineering state transitions shall be justified through a trust pipeline of Information → Evidence→ Deliverable State Transition. Information could be deliverable, knowledge, obligation or whatever is defined in the pack.
 
 >**ADR – Engineering Knowledge Graph**
 
@@ -157,7 +134,7 @@ This ADR reinforces one of the platform's most important architectural principle
 
 > **ADR – Microkernel Runtime Architecture**
 
-**Decision:** The platform shall adopt a microkernel architecture in which the Runtime Kernel provides only generic runtime services. Engineering behaviour, governance, knowledge, domain logic and organisation-specific functionality shall be implemented through declarative models and Packs rather than within the kernel.
+**Decision:** The platform shall adopt a microkernel architecture in which the Runtime Kernel provides only generic runtime services. Engineering behaviour, governance, knowledge, domain logic and organisation-specific functionality shall be implemented through declarative models rather than within the kernel.
 
 **Rationale:** This keeps the kernel stable, simplifies testing, enables independent evolution of runtime services and ensures that new engineering methodologies, domains and governance models can be introduced without modifying the platform core.
 
@@ -169,7 +146,7 @@ This ADR reinforces one of the platform's most important architectural principle
 
 > **ADR – Command-Driven Execution**
 
-**Decision:** The Execution Engine shall generate Commands rather than Work Items. Commands express _what_ engineering action is required. Transient execution plans (Work Items) are derived later by participant-specific execution services.
+**Decision:** The Execution Engine shall generate Commands rather than Work Items. Commands express *what* engineering action is required. Transient execution plans (Work Items) are derived later by participant-specific execution services.
 
 **Rationale:** This cleanly separates engineering intent from execution strategy, keeps the Execution Engine implementation-independent, and allows heterogeneous Participants to fulfil the same engineering Command using different execution mechanisms. It also reinforces the platform's declarative, state-driven architecture.
 
@@ -247,8 +224,7 @@ The following concepts constitute the architectural vocabulary of the platform.
 - Extension Framework
 - Composition Engine
 - Event Bus
-
----
+ 
 
 ## Execution
 
@@ -259,8 +235,7 @@ The following concepts constitute the architectural vocabulary of the platform.
 - Participant
 - Service
 - Work Item
-
----
+ 
 
 ## Knowledge
 
@@ -271,9 +246,7 @@ The following concepts constitute the architectural vocabulary of the platform.
 - Observation
 - Decision
 - Ontology
-
----
-
+ 
 ## Governance
 
 - Policy
@@ -281,8 +254,7 @@ The following concepts constitute the architectural vocabulary of the platform.
 - RACI
 - Quality Gates
 - Review Gates
-
----
+ 
 
 ## Flow
 
@@ -290,25 +262,21 @@ The following concepts constitute the architectural vocabulary of the platform.
 - Deliverable
 - Execution Stage
 - Readiness
-
----
-
+ 
 ## Assurance
 
 - Obligation
 - Audit Finding
 - Risk
 - Compliance Requirement
-
----
-
+ 
 ## Composition
 
 - Pack
 - Template
 - Engineering Behavior Model
 
----
+
 
 # 6. Runtime Architecture
 
@@ -342,7 +310,7 @@ Runtime Kernel
 
 Each layer depends only upon lower layers.
 
----
+
 
 # 7. Runtime Kernel
 
@@ -362,7 +330,7 @@ Responsibilities include:
 
 The Runtime Kernel contains no Software Engineering knowledge.
 
----
+
 
 # 8. Extension Framework
 
@@ -379,7 +347,7 @@ Responsibilities include:
 
 The Extension Framework shall remain independent of engineering domains.
 
----
+
 
 # 9. Composition Engine
 
@@ -395,7 +363,7 @@ Responsibilities include:
 
 The Composition Engine shall be deterministic and fully traceable.
 
----
+
 
 # 10. Pack Taxonomy
 
@@ -413,9 +381,9 @@ Examples:
 - Knowledge Management
 - Traceability
 
----
 
-## Organisation Packs
+
+## Engineering Packs
 
 Engineering practices contributed by participating organisations.
 
@@ -425,7 +393,7 @@ Examples:
 - IBM Engineering Practices
 - Cigna Engineering Practices
 
----
+
 
 ## Domain Packs
 
@@ -438,7 +406,7 @@ Examples:
 - Insurance
 - Manufacturing
 
----
+
 
 ## Compliance Packs
 
@@ -452,7 +420,7 @@ Examples:
 - SOX
 - ISO 27001
 
----
+
 
 ## Technology Packs
 
@@ -465,7 +433,7 @@ Examples:
 - Kubernetes
 - PostgreSQL
 
----
+
 
 ## Integration Packs
 
@@ -478,7 +446,7 @@ Examples:
 - Jira
 - Azure DevOps
 
----
+
 
 # 11. Pack Composition
 
@@ -509,7 +477,7 @@ Composition strategies include:
 - Alias
 - Conflict Detection
 
----
+
 
 # 12. Engineering Behavior Model (EBM)
 
@@ -519,7 +487,7 @@ Every commissioned SEU executes against exactly one EBM.
 
 The EBM is immutable unless changed through governed composition.
 
----
+
 
 # 13. Execution Model
 
@@ -531,7 +499,7 @@ Work begins when dependencies are satisfied.
 
 Scheduling is subordinate to dependency resolution.
 
----
+
 
 # 14. Flow Model
 
@@ -545,7 +513,7 @@ The platform continuously evaluates:
 
 Flow optimisation is achieved by reducing dependency constraints.
 
----
+
 
 # 15. Knowledge Model
 
@@ -555,7 +523,7 @@ Every accepted Knowledge Item shall possess supporting Evidence.
 
 Knowledge shall remain reusable across SEUs.
 
----
+
 
 # 16. Governance Model
 
@@ -572,7 +540,7 @@ Governance consists of:
 
 Governance behaviour is contributed primarily through Packs.
 
----
+
 
 # 17. Obligation Model
 
@@ -601,7 +569,7 @@ Every Obligation possesses:
 
 Obligations participate in dependency resolution.
 
----
+
 
 # 18. Architectural Constraints
 
@@ -615,7 +583,7 @@ The following constraints shall govern the platform.
 - Engineering behaviour shall be introduced through Packs wherever practical.
 - Every SEU shall execute against a complete Engineering Behavior Model.
 
----
+
 
 # 19. Architecture Decision Records
 
@@ -633,7 +601,7 @@ Each ADR shall contain:
 
 The Architecture Catalogue shall be updated only through accepted ADRs.
 
----
+
 
 # 20. Success Criteria
 
@@ -646,4 +614,4 @@ The architecture shall be considered successful when it enables:
 - Governance, traceability and obligations as first-class architectural concepts.
 - Extension of the platform through Packs without architectural redesign.
 
----
+

@@ -4,5 +4,5 @@
   "baseTemplateCode": "api-platform",
   "environment": "development",
   "configParameters": {},
-  "optionalPackCodes": ["technology-nodejs"]
+  "optionalPackCodes": ["testing-qa"]
 }

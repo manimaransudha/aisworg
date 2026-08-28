@@ -1,0 +1,64 @@
+{
+  "code": "test-platform-developer-experience",
+  "name": "Platform & Developer Experience (SDLC Phase 5)",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Setting up development and deployment infrastructure \u2014 aka DevOps Foundations, Paved Road, Golden Path, Platform Engineering.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "platform-developer-experience",
+        "name": "Platform & Developer Experience",
+        "description": "Establishes the paved-road infrastructure, CI/CD automation, and observability foundation developers rely on to ship safely."
+      }
+    ],
+    "services": [
+      {
+        "code": "ci-cd-pipeline-specification",
+        "capabilityCode": "platform-developer-experience",
+        "name": "CI/CD Pipeline Specification",
+        "contractDescription": "Deployment automation."
+      },
+      {
+        "code": "infrastructure-as-code-plan",
+        "capabilityCode": "platform-developer-experience",
+        "name": "Infrastructure as Code Plan",
+        "contractDescription": "Infrastructure automation."
+      },
+      {
+        "code": "environments-matrix",
+        "capabilityCode": "platform-developer-experience",
+        "name": "Environments Matrix",
+        "contractDescription": "Environment configuration."
+      },
+      {
+        "code": "secrets-management-access-control-plan",
+        "capabilityCode": "platform-developer-experience",
+        "name": "Secrets Management & Access Control Plan",
+        "contractDescription": "Security infrastructure."
+      },
+      {
+        "code": "observability-strategy",
+        "capabilityCode": "platform-developer-experience",
+        "name": "Observability Strategy",
+        "contractDescription": "Monitoring and logging."
+      },
+      {
+        "code": "slo-sla-sli-definitions",
+        "capabilityCode": "platform-developer-experience",
+        "name": "SLO/SLA/SLI Definitions",
+        "contractDescription": "Service level objectives."
+      },
+      {
+        "code": "runbooks-playbooks",
+        "capabilityCode": "platform-developer-experience",
+        "name": "Runbooks & Playbooks",
+        "contractDescription": "Operational procedures."
+      }
+    ]
+  }
+}

@@ -12,7 +12,7 @@
 //   4. Structural/referential validation blocks Publish, leaving the Draft a Draft.
 //   5. Template and Profile go through the exact same entity-direct pipeline.
 import "dotenv/config";
-import { test, after } from "node:test";
+import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
@@ -30,7 +30,7 @@ import {
   listInheritableProfiles, inheritedProfileContent,
 } from "../src/routes/seu/core/sdkAuthoring.js";
 import { listInheritableDeliverableDefinitions } from "../src/routes/seu/core/deliverableDefinitions.js";
-import { ensureWebAppTemplateFixture } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, registerTestOntologyCode, deleteTestOntologyCodes } from "./testFixtures.js";
 
 // Bug fix (owner, 2026-08-17): "the pollution is coming from your tests. They
 // do not clear the test data after the tests are complete." Real — every test
@@ -69,6 +69,26 @@ const createdPackIds: string[] = [];
 // never-reset dev database doesn't collide or leave junk behind.
 const createdDeliverableDefinitionIds: string[] = [];
 const createdOntologyConceptCodes: string[] = [];
+// CR-046 + 2026-08-25 (real, observed race): REAL_PACK_CODE used to be the
+// literal "development", then "test-development" — both are stable, shared
+// identities other test fixtures depend on for real capability derivation /
+// FK anchoring (ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates).
+// This file's own after() unconditionally deletes every Pack row it creates
+// under REAL_PACK_CODE by id — safe for a code nothing else references, but
+// a real crash when a concurrently-running test file's fixture setup had
+// already created a quality_gates row pointing at one of THIS file's
+// `test-development` rows in between ("update or delete on table packs
+// violates foreign key constraint quality_gates_originating_pack_id_fkey").
+// Fixed by giving this file its OWN randomized, per-run capability-name
+// concept (same discipline pack-sdk.test.ts's own freshPackSeed already
+// uses) — nothing else can ever hold a stable reference to it.
+const createdPackOntologyCodes: Array<{ conceptType: string; code: string }> = [];
+let REAL_PACK_CODE: string;
+
+before(async () => {
+  REAL_PACK_CODE = await registerTestOntologyCode("capability-name", "test-sdk-pack");
+  createdPackOntologyCodes.push({ conceptType: "capability-name", code: REAL_PACK_CODE });
+});
 
 after(async () => {
   if (createdGrantIds.length) await pool.query("DELETE FROM badge_grants WHERE id = ANY($1::uuid[])", [createdGrantIds]);
@@ -85,6 +105,7 @@ after(async () => {
     await pool.query("DELETE FROM events WHERE originating_object_type = 'Pack' AND originating_object_id = ANY($1::uuid[])", [createdPackIds]);
     await pool.query("DELETE FROM packs WHERE id = ANY($1::uuid[])", [createdPackIds]);
   }
+  await deleteTestOntologyCodes(createdPackOntologyCodes);
   if (createdProfileIds.length) {
     // Profiles reference Templates via base_template_id — must be deleted
     // before createdTemplateIds' own cleanup below runs. Clear
@@ -156,7 +177,9 @@ async function advanceToActive(kind: "Pack" | "Template" | "Profile" | "Delivera
 function uniqueVersion(): string {
   return `0.0.${Date.now()}${Math.floor(Math.random() * 1000)}`;
 }
-const REAL_PACK_CODE = "development"; // real, seeded capability-name concept
+// REAL_PACK_CODE itself is set in before() above — a freshly registered,
+// randomized-per-run capability-name concept (registerTestOntologyCode),
+// not a fixed string.
 const REAL_TEMPLATE_CODE = "mobile-application"; // real, seeded template-categories concept
 
 function validPackContent(code: string, packVersion: string): Record<string, unknown> {
@@ -301,8 +324,8 @@ test("Pack authoring: Publish is blocked by referential validation (unresolvable
 });
 
 // CR-038 — requiredCapabilityCodes/mandatoryPackCodes replaced by
-// engineeringPackCodes: platform-core-engineering (a real, base, Active Pack
-// — category Engineering) contributes requirements-analysis among its
+// engineeringPackCodes: requirements-analysis (a real, base, Active Pack —
+// category Engineering) contributes requirements-analysis among its
 // capabilities, so requiredCapabilityCodes is derived from this selection,
 // not hand-typed.
 function validTemplateContent(code: string, templateVersion: string): Record<string, unknown> {
@@ -310,7 +333,7 @@ function validTemplateContent(code: string, templateVersion: string): Record<str
     code,
     templateVersion,
     name: "SDK Test Template",
-    engineeringPackCodes: [{ packCode: "platform-core-engineering" }],
+    engineeringPackCodes: [{ packCode: "requirements-analysis" }],
     deliverableCatalogue: [
       { code: "requirements-spec", name: "Requirements Specification", category: "Documentation", producingCapabilityCode: "requirements-analysis" },
     ],
@@ -344,7 +367,7 @@ test("Template authoring (entity-direct): the same pipeline as Pack produces a r
 test("Profile authoring (entity-direct): produces a real Active Profile row referencing a real Template by code", async () => {
   await ensureWebAppTemplateFixture();
   const code = `sdk-test-profile-${randomUUID()}`;
-  const content: Record<string, unknown> = { code, name: "SDK Test Profile", baseTemplateCode: "enterprise-web-application", environment: "development", category: "startup", configParameters: {}, optionalPackCodes: [] };
+  const content: Record<string, unknown> = { code, name: "SDK Test Profile", baseTemplateCode: "test-enterprise-web-application", environment: "development", category: "startup", configParameters: {}, optionalPackCodes: [] };
 
   const created = await createAuthoringDraft({ kind: "Profile", actorId: ROOT_ACTOR_ID, content });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
@@ -359,7 +382,7 @@ test("Profile authoring (entity-direct): produces a real Active Profile row refe
   const { data: profile } = await profilesDB.findByCode(code);
   assert.ok(profile, "expected the authored Profile to be registered");
   assert.equal(profile!.status, "Active");
-  const { data: baseTemplate } = await templatesDB.findByCode("enterprise-web-application");
+  const { data: baseTemplate } = await templatesDB.findByCode("test-enterprise-web-application");
   assert.equal(profile!.base_template_id, baseTemplate!.id);
 });
 
@@ -379,9 +402,9 @@ test("Template authoring: referential validation rejects a mandatoryPackCode tha
 // CR-026 — Template Inheritance (Ch.6 §9). Option A, per explicit owner
 // agreement: a Derived Template keeps its parent's own `code`, disambiguated
 // by the child's own `tenant_id` (templates_code_version_tenant_key, migration
-// 062) — not a new identity per generation. `enterprise-web-application`
+// 062) — not a new identity per generation. `test-enterprise-web-application`
 // (ensureWebAppTemplateFixture) is a real, Active, Platform-owned Template
-// with a real mandatory Pack (`platform-core-engineering`), used as the
+// with a real mandatory Pack (`development`), used as the
 // parent throughout.
 test("CR-026: a tenant author inheriting an Active Platform Template gets a Draft locked to the parent's code, owned by their own tenant, with parent_template_id recorded", async () => {
   const { template: parent } = await ensureWebAppTemplateFixture();
@@ -438,9 +461,9 @@ test("CR-026: publishing a Derived Template is rejected if it drops one of its p
   // templateVersion must round-trip on Save, the same way the real form's
   // readonly field always does (CR-024) — inheritedTemplateContent doesn't
   // carry it (it isn't part of a Template's authored content).
-  // CR-038 — platform-core-engineering (the fixture's own real mandatory
-  // Pack, per the comment above) is category Engineering, so dropping it
-  // means blanking engineeringPackCodes specifically now, not a flat list.
+  // CR-038 — test-development (the fixture's own mandatory Pack, per the
+  // comment above) is category Engineering, so dropping it means blanking
+  // engineeringPackCodes specifically now, not a flat list.
   const strippedContent = { ...inherited.content, templateVersion: "1.0.0", engineeringPackCodes: [] };
   const savedStripped = await saveAuthoringDraft({ kind: "Template", id: created.draftId, content: strippedContent });
   assert.equal(savedStripped.ok, true, "WIP is allowed to be incomplete — Save itself must not block this");
@@ -462,7 +485,7 @@ test("CR-026: publishing a Derived Template is rejected if it drops one of its p
 
 // Owner, 2026-08-19: "19.2 and 19.3 has to be fixed similar to pack and
 // template" — Profile Inheritance (Ch.7 §9), mirroring the Template
-// Inheritance tests above exactly. `enterprise-web-application`
+// Inheritance tests above exactly. `test-enterprise-web-application`
 // (ensureWebAppTemplateFixture) is a real, Active, Platform-owned Template —
 // used as the base Template for a fresh, real, Active Platform Profile,
 // which is then the parent for the inheritance assertions.
@@ -473,7 +496,7 @@ test("Profile Inheritance: a tenant author inheriting an Active Platform Profile
     kind: "Profile",
     actorId: ROOT_ACTOR_ID,
     tenantId: PLATFORM_TENANT_ID,
-    content: { code, name: "SDK Test Parent Profile", baseTemplateCode: "enterprise-web-application", environment: "development", category: "startup", optionalPackCodes: [] },
+    content: { code, name: "SDK Test Parent Profile", baseTemplateCode: "test-enterprise-web-application", environment: "development", category: "startup", optionalPackCodes: [] },
   });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
   if (!created.ok) return;

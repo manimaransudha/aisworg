@@ -104,8 +104,13 @@ export interface VerifiableItemFields {
 // Just the claim being verified. No item-level identifier (Ch.47 §9) —
 // items are addressed only by position within their Checklist's own
 // `items` array.
+// 2026-08-25 — `group` added back: a pure organisational label (e.g.
+// "Formatting", "Naming conventions"), not a gate-specific concern like the
+// fields migration 104 deliberately dropped, so it doesn't reopen that
+// simplification (migration 120).
 export interface ChecklistItem {
   statement: string;
+  group?: string;
 }
 
 export interface PackContributions {
@@ -213,7 +218,7 @@ export interface PackContributions {
   // same as reviewGates/qualityGates. Executing a Checklist (a Participant
   // works through `items`, produces one Evidence record) is out of scope —
   // SEU-commissioning-phase work, not Pack-side declaration.
-  checklists?: Array<{ name: string; description?: string; items: ChecklistItem[] }>;
+  checklists?: Array<{ name: string; description?: string; asset?: string; items: ChecklistItem[] }>;
   // CR-059 — a Review Gate is real and persisted now (review_gates table),
   // unlike the other declaration-only rows in this interface. `code` is the
   // deliverable type it's for (Ontology's deliverable-name vocabulary,
@@ -257,6 +262,10 @@ export interface PackRow {
   installation_classification: PackClassification;
   contributions: PackContributions;
   dependencies: Array<{ packCode: string; version: string; type: "required" | "optional" | "conditional" | "incompatible" }>;
+  // CR-067 — the Pack(s) this Pack's own compositionStrategy (metadata,
+  // below) combines from. Same shape/resolution discipline as `dependencies`:
+  // resolved live by code via findActiveByCode, never a pinned row id.
+  composition_sources: Array<{ packCode: string }>;
   // CR-018 — recorded-but-unenforced §8/§13 metadata.
   metadata: Record<string, unknown>;
   // Entity-direct authoring (bug fix correcting CR-014): the real user authoring
@@ -971,6 +980,7 @@ export interface ChecklistRow {
   id: string;
   name: string;
   description: string | null;
+  asset: string | null;
   originating_pack_id: string;
   items: ChecklistItem[];
   created_at: string;

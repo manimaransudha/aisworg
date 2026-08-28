@@ -1,0 +1,40 @@
+{
+  "code": "test-project-management",
+  "name": "Project Management (OpenUP Capability Pattern)",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "EPF/OpenUP's Project Management capability pattern, modelled as a Pack: the Project Manager role, planning/risk work products, and the tasks for planning, coordinating, and monitoring the engineering effort.",
+  "owner": "EPF/OpenUP Practice Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "project-management",
+        "name": "Project Management",
+        "description": "Plans, coordinates, and monitors the engineering effort, on behalf of the Project Manager role."
+      }
+    ],
+    "services": [
+      {
+        "code": "project-plan",
+        "capabilityCode": "project-management",
+        "name": "Project Plan",
+        "contractDescription": "The overall approach, phases, and milestones for the engineering effort."
+      },
+      {
+        "code": "iteration-plan",
+        "capabilityCode": "project-management",
+        "name": "Iteration Plan",
+        "contractDescription": "The scope and objectives committed to for the current iteration."
+      },
+      {
+        "code": "risk-list",
+        "capabilityCode": "project-management",
+        "name": "Risk List",
+        "contractDescription": "Identified risks, their exposure, and their mitigation or contingency."
+      }
+    ]
+  }
+}

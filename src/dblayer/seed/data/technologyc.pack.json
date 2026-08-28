@@ -1,0 +1,187 @@
+{
+  "code": "technology-c",
+  "name": "C Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "c-development",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "c-code-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "C Programming Practices",
+        "description": "Best practices for C programming language",
+        "asset": "link to the organisation asset .editorconfig",
+        "items": [
+          {
+            "statement": "Use .editorconfig to setup your editor",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Use 2 spaces for indenting your code",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Use UNIX-style newlines (\n), and a newline character as the last character of a file. Windows-style newlines (\r\n) are forbidden inside any repository.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Clean up any trailing whitespace in your JS files before committing.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Use single quotes, unless you are writing JSON.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Opening braces go on the same line as the statement.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Use lowerCamelCase for variables, properties and function names.",
+            "group": "Naming conventions"
+          },
+          {
+            "statement": "Use UPPERCASE for Constants.",
+            "group": "Naming conventions"
+          },
+          {
+            "statement": "Have all local (automatic) variables been initialized before first use? They contain garbage before first use. Pay special attention to pointers, since they can have the most dangerous effects.",
+            "group": "Variables"
+          },
+          {
+            "statement": "Are global variables initialized in a separate routine? This ensures that variables are properly set at warm reboot.",
+            "group": "Variables"
+          },
+          {
+            "statement": "Have pointers been checked to be sure they don\u2019t reference variables outside of scope? Once a variable goes out of scope, what it contains is undefined.",
+            "group": "Variables"
+          },
+          {
+            "statement": "Always explicitly cast variables. This enforces stronger typing. Casting pointers from one type to another should be justified and documented.",
+            "group": "Variables"
+          },
+          {
+            "statement": "Avoid mixing signed and unsigned variables. Use explicit casts when necessary.",
+            "group": "Variables"
+          },
+          {
+            "statement": "Have assumptions been made about the sizes of dependent types, such as int? The size is often platform and compiler dependent.",
+            "group": "Variables"
+          },
+          {
+            "statement": "Have reserved words or library function names been used as variable names? This could lead to serious errors. Also, avoid using names that are close to standard names, to improve the readability of the source code.",
+            "group": "Variables"
+          },
+          {
+            "statement": "If \u201cIf \u2026else if\u2026.else if\u201d goes beyond two levels, use a switch\u2026.case instead. This increases readability.",
+            "group": "Conditionals"
+          },
+          {
+            "statement": "When using a switch\u2026.case, always explicitly define default. Do not omit the break statement.",
+            "group": "Conditionals"
+          },
+          {
+            "statement": "Do not compare different data types such as comparing a floating point number to an integer.",
+            "group": "Conditionals"
+          },
+          {
+            "statement": "Avoid the use of the ?: operator. The operator makes the code more difficult to read. Add comments explaining it, if it is used.",
+            "group": "Conditionals"
+          },
+          {
+            "statement": "Have the numbers and sizes of parameters passed to routines been limited? Large structures or arrays, if passed by value, can overflow the stack, causing unpredictable results. Always pass large elements via pointers.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Are recursive functions used carefully? Verify that there is a finite recursion.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Are functions being used for boundary checking? Since C does not do this automatically, create functions that perform the function. Accessing arrays or strings out-of-bounds is a common problem with unpredictable results.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Do not use the gets function or related functions. These do not have adequate limit checks. Writing your own routine allows better error handling to be included.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Is memove used instead of memcp? Memcpy has problems if the memory overlaps.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Are wrappers created for built-in functions to include error handling?",
+            "group": "Functions"
+          },
+          {
+            "statement": "Only use setjmp and longjmp for exception handling. These commands jump outside function boundaries and deviate from normal control flow.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Avoid pointers to functions. These pointers cannot be initialized and may point to non-executable code. If they must be used, justify their use.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Have functions and procedures been prototyped? This allows the compiler to catch errors, rather than having to debug them at run time. Also, when possible, use a tool or other method to verify that the prototype matches the function.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Are interface ambiguities (e.g. use of an expression as parameters to subroutines, or changing the order of arguments between similar functions) minimized? Justify any use of functions with an indefinite number of arguments. These functions cannot be checked by the compiler and are difficult to verify.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Do not use ++ or \u2013 operators on parameters being passed to subroutines or macros. These can cause unexpected side results.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Are standard library functions used in a multitasking environment? Library functions may be re-entrant and could lead to unspecified results.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Do not call functions within interrupt service routines. If it is necessary to do so, make sure the functions are small and re-entrant.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Place #include directives at the beginning of a file. This makes it easier to know what files are actually included. When tracing dependencies, this information is needed.",
+            "group": "Directives"
+          },
+          {
+            "statement": "Use #define instead of numeric literals. This allows the reader or maintainer to know what the number actually represents. It also allows the number to be changed in one place, if a change is needed.",
+            "group": "Directives"
+          },
+          {
+            "statement": "Use bit masks instead of bit fields, which are implementation independent.",
+            "group": "Others"
+          },
+          {
+            "statement": "Do not extend built-in prototypes.",
+            "group": "Others"
+          },
+          {
+            "statement": "Have the complier warnings been enabled and read? If it is an option, have the complier issue the warnings and errors. Warnings indicate that the deviation may be fine but may also indicate a subtle error.",
+            "group": "Others"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

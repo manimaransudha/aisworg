@@ -38,7 +38,7 @@ after(async () => {
 // tests/pack-sdk.test.ts for the override-conflict path, forced with two
 // Packs that genuinely collide, and for the "non-Active Packs are excluded"
 // path). Deliberately built on fresh, isolated Pack/Template/Profile
-// fixtures rather than the seeded platform-core-engineering/technology-nodejs
+// fixtures rather than the seeded development/technology-nodejs
 // — those are now real, governed Packs a person can walk through their own
 // lifecycle by hand via the Pack Registry page (exactly how the
 // Archived-Packs-compose-silently bug below was found), so this test can no

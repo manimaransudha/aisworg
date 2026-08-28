@@ -1,0 +1,58 @@
+{
+  "code": "test-scale-performance-optimization",
+  "name": "Scale & Performance Optimization (SDLC Phase 9)",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Optimizing for scale and performance \u2014 aka Scale-Up, Resilience, Stress & Chaos Testing, FinOps Optimization.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "scale-performance-optimization",
+        "name": "Scale & Performance Optimization",
+        "description": "Validates and improves the system's ability to scale, remain resilient, and operate cost-efficiently under real-world load."
+      }
+    ],
+    "services": [
+      {
+        "code": "capacity-scaling-model",
+        "capabilityCode": "scale-performance-optimization",
+        "name": "Capacity & Scaling Model",
+        "contractDescription": "Scaling strategy and projections."
+      },
+      {
+        "code": "autoscaling-caching-strategy",
+        "capabilityCode": "scale-performance-optimization",
+        "name": "Autoscaling & Caching Strategy",
+        "contractDescription": "Performance optimization."
+      },
+      {
+        "code": "cdn-edge-strategy",
+        "capabilityCode": "scale-performance-optimization",
+        "name": "CDN & Edge Strategy",
+        "contractDescription": "Content delivery optimization."
+      },
+      {
+        "code": "multi-region-disaster-recovery-plan",
+        "capabilityCode": "scale-performance-optimization",
+        "name": "Multi-Region & Disaster Recovery Plan",
+        "contractDescription": "Business continuity."
+      },
+      {
+        "code": "chaos-engineering-report",
+        "capabilityCode": "scale-performance-optimization",
+        "name": "Chaos Engineering Report",
+        "contractDescription": "System resilience testing."
+      },
+      {
+        "code": "cost-optimization-finops-plan",
+        "capabilityCode": "scale-performance-optimization",
+        "name": "Cost Optimization & FinOps Plan",
+        "contractDescription": "Financial optimization."
+      }
+    ]
+  }
+}

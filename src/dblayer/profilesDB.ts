@@ -324,8 +324,16 @@ export const profilesDB = {
   async setPackSelection(profileId: string, listKind: string, packCodes: string[]): Promise<DbResult<void>> {
     try {
       await query("DELETE FROM profile_packs WHERE profile_id = $1 AND list_kind = $2", [profileId, listKind]);
+      // ON CONFLICT DO NOTHING — same concurrent-writer race as
+      // templatesDB.setPackSelection/setRequiredCapabilities (see their own
+      // comments): this DELETE+loop-INSERT isn't atomic, and testFixtures.ts's
+      // shared fixture can be reached by many concurrent `node --test`
+      // processes racing to write the exact same target rows the first time.
       for (const packCode of packCodes) {
-        await query("INSERT INTO profile_packs (profile_id, pack_code, list_kind) VALUES ($1, $2, $3)", [profileId, packCode, listKind]);
+        await query(
+          "INSERT INTO profile_packs (profile_id, pack_code, list_kind) VALUES ($1, $2, $3) ON CONFLICT (profile_id, pack_code, list_kind) DO NOTHING",
+          [profileId, packCode, listKind]
+        );
       }
       return { data: undefined };
     } catch (err) {

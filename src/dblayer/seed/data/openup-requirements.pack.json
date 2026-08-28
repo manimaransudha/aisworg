@@ -11,7 +11,7 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "requirements-management",
+        "code": "requirements-analysis",
         "name": "Requirements Management",
         "description": "Elicits, details, and maintains traceable requirements on behalf of Stakeholders (OpenUP Analyst/Stakeholder roles)."
       }
@@ -19,19 +19,19 @@
     "services": [
       {
         "code": "vision",
-        "capabilityCode": "requirements-management",
+        "capabilityCode": "requirements-analysis",
         "name": "Vision",
         "contractDescription": "A shared statement of the problem, stakeholders, and high-level scope of the solution."
       },
       {
         "code": "requirements-specification",
-        "capabilityCode": "requirements-management",
+        "capabilityCode": "requirements-analysis",
         "name": "Requirements Specification",
         "contractDescription": "Detailed, reviewable statements of what the solution must do \u2014 specific enough for Development and Test to act on."
       },
       {
         "code": "glossary",
-        "capabilityCode": "requirements-management",
+        "capabilityCode": "requirements-analysis",
         "name": "Glossary",
         "contractDescription": "Shared definitions of domain terms used consistently across requirements, design, and test."
       }

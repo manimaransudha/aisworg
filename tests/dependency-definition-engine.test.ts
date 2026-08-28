@@ -1,5 +1,5 @@
 // CR-039 — proves dependencyDefinitionEngine against the real
-// enterprise-web-application Template's own authored dependencyGraph,
+// test-enterprise-web-application Template's own authored dependencyGraph,
 // materialised into real dependency_definitions rows
 // (materialiseDependencyGraph, CR-041). Mirrors what used to be
 // engine.test.ts's own dependencyEngine tests (same fixture, same
@@ -29,11 +29,11 @@ after(async () => {
 
 test("dependencyDefinitionEngine: a target with no incoming rows is ready trivially", async () => {
   await ensureWebAppTemplateFixture();
-  const { data: template } = await templatesDB.findByCode("enterprise-web-application");
+  const { data: template } = await templatesDB.findByCode("test-enterprise-web-application");
   assert.ok(template);
 
   const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic" });
-  const { data: profile } = await profilesDB.findByCode("profile-default-development");
+  const { data: profile } = await profilesDB.findByCode("test-profile-default-development");
   const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id });
   assert.ok(seu);
 
@@ -47,11 +47,11 @@ test("dependencyDefinitionEngine: a target with no incoming rows is ready trivia
 
 test("dependencyDefinitionEngine: a Deliverable-type AND a Capability-type row on the same target both gate it, and reach-or-passed holds once satisfied", async () => {
   await ensureWebAppTemplateFixture();
-  const { data: template } = await templatesDB.findByCode("enterprise-web-application");
+  const { data: template } = await templatesDB.findByCode("test-enterprise-web-application");
   assert.ok(template);
 
   const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic" });
-  const { data: profile } = await profilesDB.findByCode("profile-default-development");
+  const { data: profile } = await profilesDB.findByCode("test-profile-default-development");
   const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id });
   assert.ok(seu);
 
@@ -61,16 +61,19 @@ test("dependencyDefinitionEngine: a Deliverable-type AND a Capability-type row o
   const seuCapability = seuCapabilities?.[0];
   assert.ok(seuCapability);
 
-  // "Architecture Document" is gated by two rows (derived from the real
-  // catalogue): Requirements Specification reaching Approved (Deliverable),
-  // and the requirements-analysis Capability being Fulfilled (Capability) —
-  // both must hold.
+  // "Architecture Document" is gated by 4 rows (derived from the real
+  // catalogue and materialiseDependencyGraph's "one row per Service a
+  // Capability provides" rule): Requirements Specification reaching Approved
+  // (Deliverable-type, 1 row), and the requirements-analysis Capability being
+  // Fulfilled (Capability-type — 1 row per Service it provides:
+  // vision/requirements-specification/glossary, openup-requirements.pack.json
+  // — 3 rows) — all 4 must hold.
   const { data: upstream } = await deliverablesDB.create({ seuId: seu!.id, name: "Requirements Specification", category: "Documentation" });
   assert.ok(upstream);
 
   const before = await dependencyDefinitionEngine.isTargetReady(seu!.id, "Deliverable", "Architecture Document", "In Progress");
   assert.equal(before.ready, false);
-  assert.equal(before.rows.length, 2);
+  assert.equal(before.rows.length, 4);
 
   await deliverablesDB.updateLifecycleState(upstream!.id, "Approved");
   const deliverableOnly = await dependencyDefinitionEngine.isTargetReady(seu!.id, "Deliverable", "Architecture Document", "In Progress");
@@ -90,11 +93,11 @@ test("dependencyDefinitionEngine: a Deliverable-type AND a Capability-type row o
 
 test("dependencyDefinitionEngine.evaluateAndPublishFromTransition publishes DeliverableReady only once a target's rows all hold, not before", async () => {
   await ensureWebAppTemplateFixture();
-  const { data: template } = await templatesDB.findByCode("enterprise-web-application");
+  const { data: template } = await templatesDB.findByCode("test-enterprise-web-application");
   assert.ok(template);
 
   const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic" });
-  const { data: profile } = await profilesDB.findByCode("profile-default-development");
+  const { data: profile } = await profilesDB.findByCode("test-profile-default-development");
   const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id });
   assert.ok(seu);
 

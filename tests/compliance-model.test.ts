@@ -3,7 +3,7 @@
 // (§9), is deterministic (FR-27.3), applies per-SEU by composed Packs (FR-27.2),
 // snapshots immutable history (FR-27.6), supports Waivers ("Compliant with
 // Exceptions") and minimal conflict detection (FR-27.7). Frameworks/requirements
-// here are attributed to platform-core-engineering (which every commissioned SEU
+// here are attributed to development (which every commissioned SEU
 // composes) so they apply. Run against the real dev database.
 import "dotenv/config";
 import { test, after } from "node:test";
@@ -48,7 +48,7 @@ function assertStatusConsistentWithCounts(status: string, counts: { total: numbe
 }
 
 test("compliance is evaluated per-SEU from engineering state: a required obligation drives its requirement satisfied/unsatisfied, deterministically and read-only", async () => {
-  const { data: corePack } = await packsDB.findByCode("platform-core-engineering");
+  const { data: corePack } = await packsDB.findByCode("development");
   assert.ok(corePack);
   const run = randomUUID().slice(0, 8);
   const fwCode = `sec-fw-${run}`;
@@ -58,7 +58,7 @@ test("compliance is evaluated per-SEU from engineering state: a required obligat
 
   const { seuId, deliverableId } = await commissionSeu("compliance-eval");
 
-  // Applies to this SEU (it composed platform-core-engineering); nothing outstanding -> this requirement is satisfied.
+  // Applies to this SEU (it composed development); nothing outstanding -> this requirement is satisfied.
   const first = await evaluateCompliance(seuId);
   assert.ok(first.frameworks.includes(fwCode), `expected ${fwCode} applicable (frameworks: ${first.frameworks.join(", ")})`);
   assert.equal(first.results.find((r) => r.requirementCode === reqCode)?.state, "satisfied");
@@ -88,7 +88,7 @@ test("compliance is evaluated per-SEU from engineering state: a required obligat
 });
 
 test("a Waiver moves an unsatisfied requirement to Compliant with Exceptions", async () => {
-  const { data: corePack } = await packsDB.findByCode("platform-core-engineering");
+  const { data: corePack } = await packsDB.findByCode("development");
   const run = randomUUID().slice(0, 8);
   const fwCode = `waiver-fw-${run}`;
   const reqCode = `waiver-req-${run}`;
@@ -109,7 +109,7 @@ test("a Waiver moves an unsatisfied requirement to Compliant with Exceptions", a
 });
 
 test("minimal conflict detection (FR-27.7): two applicable requirements declaring each other are reported", async () => {
-  const { data: corePack } = await packsDB.findByCode("platform-core-engineering");
+  const { data: corePack } = await packsDB.findByCode("development");
   const run = randomUUID().slice(0, 8);
   const fwCode = `conflict-fw-${run}`;
   const a = `req-a-${run}`;
@@ -124,7 +124,7 @@ test("minimal conflict detection (FR-27.7): two applicable requirements declarin
 });
 
 test("the compliance report is a projection of engineering state (Ch.27 §12)", async () => {
-  const { data: corePack } = await packsDB.findByCode("platform-core-engineering");
+  const { data: corePack } = await packsDB.findByCode("development");
   const run = randomUUID().slice(0, 8);
   const fwCode = `report-fw-${run}`;
   await complianceDB.upsertFramework({ code: fwCode, name: "Report Framework", originatingPackId: corePack.id });

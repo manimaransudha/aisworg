@@ -1,7 +1,7 @@
 // Shared test-only fixture — NOT part of any production seed pipeline
 // (cleanSlate.ts). Several tests were written against
-// enterprise-web-application/profile-default-development, which used to be
-// seeded ambiently by seedSeu.ts; that script is retired entirely now (owner,
+// test-enterprise-web-application/test-profile-default-development, which
+// used to be seeded ambiently by seedSeu.ts; that script is retired entirely now (owner,
 // 2026-08-20: it left platform-core-engineering/technology-nodejs un-reset by
 // every later db:clean-slate — "That is polluting the db") and
 // db:clean-slate deliberately no longer recreates these two either way (the
@@ -19,6 +19,52 @@
 // call from many test files/processes concurrently (upsert, not create) and
 // safe to leave in place after a real db:clean-slate run — it recreates
 // itself the next time tests run.
+//
+// 2026-08-25 (owner: "alter the test suites to use the seeded packs, not
+// the legacy ones") — web-application.template.json's own mandatoryPackCodes
+// no longer names platform-core-engineering/technology-nodejs (both
+// confirmed permanently unpublishable — no working bootstrap path, and 69
+// CRs of real design work since either was the source of truth). It named 3
+// real, always-seeded OpenUP capability-pattern Packs instead — briefly.
+//
+// 2026-08-25, later same day — briefly moved onto test-only twins
+// (test-requirements-analysis/test-architecture-solution-design/
+// test-development, seedTestFixturePacks.ts / migration 119) after a live
+// collision was found: tests/sdk-authoring.test.ts reused the literal code
+// "development" for its own throwaway authored-Pack tests, and since only
+// one Pack version per code can be Active, every run of that file deprecated
+// this fixture's real dependency out from under every other test file.
+//
+// 2026-08-25, reverted back to the real Pack codes same day — the twins
+// introduced a worse, systemic problem: capabilities.code is Pack-scoped
+// (CR-065), not globally unique, so having BOTH the real Pack and its twin
+// simultaneously Active meant every capability code this fixture derives
+// (requirements-analysis/architecture/development) now had TWO rows.
+// capabilitiesDB.findByCodes (used by createObjective wherever
+// requiredCapabilityCodes is passed — ~30 test files) has no Pack scoping at
+// all, so it silently returned double the expected capabilities platform-
+// wide the moment both Packs were Active together. Fixed properly instead:
+// sdk-authoring.test.ts now mints its own randomized, per-run
+// capability-name concept (registerTestOntologyCode) rather than reusing any
+// shared identity, so this fixture no longer needs to avoid the real Packs
+// at all — the original collision is solved at its actual source.
+//
+// 2026-08-27 — the fixture's OWN identity renamed: `enterprise-web-application`
+// (web-application.template.json) collided with a REAL production Template,
+// `enterprise-web-application-parent.template.json` (one of the 9 standard
+// Templates, seedSdlcStandardTemplates.ts) — same code, different
+// templateVersion, so templatesDB.upsert's own (code, template_version,
+// tenant_id) ON CONFLICT never merged them; both rows coexisted, and
+// templatesDB.findByCode's "most recent wins" resolution non-deterministically
+// picked whichever was seeded last, silently handing several tests the real
+// 9-deliverable Template instead of this fixture's own 3-deliverable one.
+// Same collision class as the Pack-code/capability-code ones above, one layer
+// up. Renamed to `test-enterprise-web-application` /
+// `test-profile-default-development` — never touches templatesDB.upsert's
+// Ontology validation (that only applies to the real authoring pipeline,
+// createAuthoringDraft/publishAuthoringDraft — this fixture calls
+// templatesDB.upsert directly), so no new Ontology concept was needed, unlike
+// the Pack-code rename earlier.
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -35,7 +81,25 @@ import { transitionDeliverable, type TransitionDeliverableResult } from "../src/
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
+import { seedAllTestFixturePacks } from "../src/dblayer/seed/seedTestFixturePacks.js";
 import type { DeliverableRow, ProfileRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../src/dblayer/seuTypes.js";
+
+// Test-only Pack twins (migration 119 / seedTestFixturePacks.ts) — every real
+// seed Pack mirrored under a `test-` prefixed code. NOT used by
+// ensureWebAppTemplateFixture/ensureCoreEngineeringQualityGates below any
+// more (see this file's own header — reverted onto the real Packs, since
+// duplicating their capability codes broke every non-Pack-scoped capability
+// lookup platform-wide). Still real infrastructure for consumers that need
+// "a real, resolvable Pack" without caring about specific capability content
+// — e.g. pack-sdk.test.ts's dependency-resolution test,
+// dependency-graph-relationship-kind.test.ts's engineeringPackCodes. Same
+// memoized, idempotent, self-healing idiom as ensureWebAppTemplateFixture.
+let testFixturePacksCached: Promise<void> | null = null;
+
+export function ensureTestFixturePacks(): Promise<void> {
+  if (!testFixturePacksCached) testFixturePacksCached = seedAllTestFixturePacks();
+  return testFixturePacksCached;
+}
 
 // CR-046 (owner: "why are test scripts adding code that is not in the
 // ontology??? I thought we fixed this" / "the test script should use a code
@@ -179,9 +243,20 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
 
   // CR-038 — requiredCapabilityCodes is derived from the real mandatory-Pack
   // selection now, same as the live authoring form and the SDLC seed script
-  // both do, not read from the seed's own (now removed) hand-typed field —
-  // verified to reproduce platform-core-engineering's exact 3-capability set
-  // for this fixture before this change was made.
+  // both do, not read from the seed's own (now removed) hand-typed field.
+  // 2026-08-25 — mandatoryPackCodes repointed from the dead
+  // platform-core-engineering to 3 real, always-seeded OpenUP packs
+  // (requirements-analysis/architecture-solution-design/development) —
+  // briefly detoured onto their test-only twins the same day, then back (see
+  // this file's own header: the twins duplicated these exact 3 capability
+  // codes platform-wide, breaking capabilitiesDB.findByCodes wherever
+  // requiredCapabilityCodes is used, well beyond this fixture). Resolves the
+  // same 3 capability codes (and 28 other test files) already hardcoded —
+  // requirements-analysis/architecture/development — rather than updating
+  // every test file individually (owner's own call: fix the seed data, not
+  // the tests, since Capability.code is free text with no Ontology
+  // constraint blocking the rename). Reproduces the exact same 3 capability
+  // codes core-engineering used to, just sourced from real Packs now.
   const derivedCapabilityCodes = await deriveCapabilityCodesFromPackCodes(templateSeed.mandatoryPackCodes);
   const { data: capabilities } = await capabilitiesDB.findByCodes(derivedCapabilityCodes);
   const requiredCapabilityIds = (capabilities ?? []).map((c) => c.id);
@@ -227,17 +302,23 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
 // CR-058 follow-up — same class of gap as the Template/Profile fixture
 // above, discovered the same way: platform-core-engineering's own 2 real
 // Quality Gates (core-engineering.pack.json's qualityGates[]) were never
-// actually recreated by any working seed path (the old bootstrap script
-// that used to publish this Pack, seedSeu.ts, is the same one this file's
-// own header describes as retired; separately, validatePackSeed's
-// capability-name check — added after that retirement — means this Pack's
-// own `code` can never pass republish validation either way). Several tests
-// implicitly assumed these 2 gates already existed. Owner: "that just
-// simply means the test scripts have to be aligned to the changes we make
-// every time" — idempotent, memoized per process, same discipline as
-// ensureWebAppTemplateFixture above; mirrors exactly what
-// core-engineering.pack.json declares via the same qualityGatesDB.upsert
-// path seedContributions would use.
+// actually recreated by any working seed path, and that Pack itself has no
+// working bootstrap path at all (its own seed script was retired;
+// validatePackSeed's capability-name check permanently rejects its code
+// being republished). Several tests implicitly assumed these 2 gates
+// already existed. Owner: "that just simply means the test scripts have to
+// be aligned to the changes we make every time" — idempotent, memoized per
+// process, same discipline as ensureWebAppTemplateFixture above.
+// 2026-08-25 — repointed off platform-core-engineering entirely (69 CRs of
+// real design work later, it's not the source of truth — owner) onto
+// `development` (openup-development.pack.json), a real, always-seeded Pack —
+// briefly detoured onto `test-development` (the test-only twin) the same
+// day, then back onto the real `development` again (see this file's own
+// header — the twin caused a worse, systemic capability-code duplication
+// bug; test-development is deliberately never published at all now). These
+// 2 Quality Gates are directly created here, not published through the
+// Pack's own seed JSON (development doesn't declare them) — this function
+// only needs a real Pack id to attribute them to, same as before.
 let coreGatesCached: Promise<void> | null = null;
 
 export function ensureCoreEngineeringQualityGates(): Promise<void> {
@@ -246,8 +327,8 @@ export function ensureCoreEngineeringQualityGates(): Promise<void> {
 }
 
 async function seedCoreGates(): Promise<void> {
-  const { data: corePack } = await packsDB.findByCode("platform-core-engineering");
-  if (!corePack) throw new Error("platform-core-engineering not found — seed baseline is missing entirely, not just its Quality Gates");
+  const { data: corePack } = await packsDB.findByCode("development");
+  if (!corePack) throw new Error("development pack not found — seed baseline is missing entirely, not just its Quality Gates");
 
   await qualityGatesDB.upsert({
     name: "No Unresolved Obligations",

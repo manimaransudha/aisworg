@@ -1,0 +1,70 @@
+{
+  "code": "test-product-discovery",
+  "name": "Product Discovery (SDLC Phase 1)",
+  "category": "Organisation",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Understanding user needs and defining product requirements \u2014 aka Discovery Sprint, Exploration Sprint, Problem/Solution Fit, Inception, Validation Sprint.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "product-discovery",
+        "name": "Product Discovery",
+        "description": "Establishes a validated understanding of user needs, problems, and product requirements through structured research and hypothesis testing."
+      }
+    ],
+    "services": [
+      {
+        "code": "product-requirements-document",
+        "capabilityCode": "product-discovery",
+        "name": "Product Requirements Document",
+        "contractDescription": "Comprehensive product requirements."
+      },
+      {
+        "code": "user-personas",
+        "capabilityCode": "product-discovery",
+        "name": "User Personas",
+        "contractDescription": "Target user profiles and characteristics."
+      },
+      {
+        "code": "customer-journey-map",
+        "capabilityCode": "product-discovery",
+        "name": "Customer Journey Map",
+        "contractDescription": "End-to-end user experience mapping."
+      },
+      {
+        "code": "jobs-to-be-done-statements",
+        "capabilityCode": "product-discovery",
+        "name": "Jobs-to-be-Done Statements",
+        "contractDescription": "Detailed JTBD analysis."
+      },
+      {
+        "code": "research-plan-interview-guide",
+        "capabilityCode": "product-discovery",
+        "name": "Research Plan & Interview Guide",
+        "contractDescription": "User research methodology."
+      },
+      {
+        "code": "research-findings-report",
+        "capabilityCode": "product-discovery",
+        "name": "Research Findings Report",
+        "contractDescription": "User research results and insights."
+      },
+      {
+        "code": "service-blueprint",
+        "capabilityCode": "product-discovery",
+        "name": "Service Blueprint",
+        "contractDescription": "Service design and touchpoint mapping."
+      },
+      {
+        "code": "hypothesis-validation-tracker",
+        "capabilityCode": "product-discovery",
+        "name": "Hypothesis Validation Tracker",
+        "contractDescription": "Assumption testing framework."
+      }
+    ]
+  }
+}

@@ -3,7 +3,9 @@
   "templateVersion": "1.2.0",
   "name": "Enterprise Web Application (Standard)",
   "mandatoryPackCodes": [
-    "platform-core-engineering",
+    "development",
+    "requirements-analysis",
+    "architecture-solution-design",
     "technical-architecture-discovery",
     "security-privacy-compliance",
     "platform-developer-experience",

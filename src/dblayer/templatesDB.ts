@@ -300,9 +300,17 @@ export const templatesDB = {
   async setRequiredCapabilities(templateId: string, capabilityIds: string[]): Promise<DbResult<void>> {
     try {
       await query("DELETE FROM template_capabilities WHERE template_id = $1", [templateId]);
+      // ON CONFLICT DO NOTHING — real, observed race: this DELETE+loop-INSERT
+      // isn't atomic, and testFixtures.ts's shared fixture can be reached by
+      // many concurrent `node --test` processes racing to write the exact
+      // same target rows the very first time (its own "check existing first"
+      // guard only closes the window for calls AFTER one process has already
+      // succeeded). Since every concurrent writer computes the identical
+      // target set from the same seed data, a duplicate-key insert here means
+      // another process already wrote this exact row — safe to skip.
       for (const capabilityId of capabilityIds) {
         await query(
-          "INSERT INTO template_capabilities (template_id, capability_id) VALUES ($1, $2)",
+          "INSERT INTO template_capabilities (template_id, capability_id) VALUES ($1, $2) ON CONFLICT (template_id, capability_id) DO NOTHING",
           [templateId, capabilityId]
         );
       }
@@ -368,8 +376,13 @@ export const templatesDB = {
   async setPackSelection(templateId: string, listKind: string, packCodes: string[]): Promise<DbResult<void>> {
     try {
       await query("DELETE FROM template_packs WHERE template_id = $1 AND list_kind = $2", [templateId, listKind]);
+      // ON CONFLICT DO NOTHING — same concurrent-writer race as
+      // setRequiredCapabilities above (see its own comment).
       for (const packCode of packCodes) {
-        await query("INSERT INTO template_packs (template_id, pack_code, list_kind) VALUES ($1, $2, $3)", [templateId, packCode, listKind]);
+        await query(
+          "INSERT INTO template_packs (template_id, pack_code, list_kind) VALUES ($1, $2, $3) ON CONFLICT (template_id, pack_code, list_kind) DO NOTHING",
+          [templateId, packCode, listKind]
+        );
       }
       return { data: undefined };
     } catch (err) {

@@ -1,0 +1,899 @@
+
+> aisworg@1.0.0 test /Volumes/Chennai/gitrepo/aisworg
+> NODE_ENV=test node --import tsx --test tests/**/*.test.js tests/**/*.test.ts
+
+[2026-08-28T04:32:49.615Z] [INFO] [Auth] Google OAuth strategy registered.
+[2026-08-28T04:32:50.883Z] [DEBUG] [AppConfig] Loaded 3 config keys from DB.
+[2026-08-28T04:32:50.905Z] [DEBUG] Incoming path: /aisworg/api/seu/objectives /aisworg/api/seu/objectives
+[2026-08-28T04:32:51.025Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/objectives | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:32:51.294Z] [INFO] POST /objectives 201 268ms
+[2026-08-28T04:32:51.305Z] [DEBUG] Incoming path: /aisworg/api/seu/objectives /aisworg/api/seu/objectives
+[2026-08-28T04:32:51.461Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/objectives | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:32:52.205Z] [INFO] POST /objectives 201 744ms
+[2026-08-28T04:32:52.209Z] [DEBUG] Incoming path: /aisworg/api/seu/templates /aisworg/api/seu/templates?capabilityCodes=requirements-analysis,architecture,development
+[2026-08-28T04:32:52.366Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/templates | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:32:53.043Z] [INFO] GET /templates 200 677ms
+[2026-08-28T04:32:53.048Z] [DEBUG] Incoming path: /aisworg/api/seu/profiles /aisworg/api/seu/profiles
+[2026-08-28T04:32:53.124Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/profiles | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:32:53.236Z] [INFO] POST /profiles 201 112ms
+[2026-08-28T04:32:53.241Z] [DEBUG] Incoming path: /aisworg/api/seu/commission /aisworg/api/seu/commission
+[2026-08-28T04:32:53.319Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/commission | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:32:55.517Z] [INFO] POST /commission 201 2198ms
+[2026-08-28T04:32:55.521Z] [DEBUG] Incoming path: /aisworg/api/seu/seus/0a8b9c2f-f908-45fd-b142-1566b3c8139a /aisworg/api/seu/seus/0a8b9c2f-f908-45fd-b142-1566b3c8139a
+[2026-08-28T04:32:55.808Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/seus/0a8b9c2f-f908-45fd-b142-1566b3c8139a | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:32:55.947Z] [INFO] GET /seus/0a8b9c2f-f908-45fd-b142-1566b3c8139a 200 139ms
+[2026-08-28T04:32:55.951Z] [DEBUG] Incoming path: /aisworg/api/seu/seus/0a8b9c2f-f908-45fd-b142-1566b3c8139a/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil /aisworg/api/seu/seus/0a8b9c2f-f908-45fd-b142-1566b3c8139a/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil
+[2026-08-28T04:32:56.036Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/seus/0a8b9c2f-f908-45fd-b142-1566b3c8139a/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:32:58.962Z] [INFO] POST /seus/0a8b9c2f-f908-45fd-b142-1566b3c8139a/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil 200 2926ms
+[2026-08-28T04:32:58.966Z] [DEBUG] Incoming path: /aisworg/api/seu/deliverables/cd7a4b3c-b66d-49b0-a80f-a830f42997e8/transition /aisworg/api/seu/deliverables/cd7a4b3c-b66d-49b0-a80f-a830f42997e8/transition
+[2026-08-28T04:32:59.129Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/deliverables/cd7a4b3c-b66d-49b0-a80f-a830f42997e8/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:33:00.324Z] [INFO] POST /deliverables/cd7a4b3c-b66d-49b0-a80f-a830f42997e8/transition 202 1195ms
+[2026-08-28T04:33:00.326Z] [DEBUG] Incoming path: /aisworg/api/seu/work-items/87dc9685-882e-4eb6-9f9e-6f09bfb1185c/result /aisworg/api/seu/work-items/87dc9685-882e-4eb6-9f9e-6f09bfb1185c/result
+[2026-08-28T04:33:00.426Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/work-items/87dc9685-882e-4eb6-9f9e-6f09bfb1185c/result | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:33:00.721Z] [INFO] [humanOnUiAdapter] Work Item 87dc9685-882e-4eb6-9f9e-6f09bfb1185c for Deliverable "Requirements Specification" is available on the human-on-UI surface (Defined -> In Progress).
+[2026-08-28T04:33:01.111Z] [INFO] POST /work-items/87dc9685-882e-4eb6-9f9e-6f09bfb1185c/result 200 685ms
+[2026-08-28T04:33:01.116Z] [DEBUG] Incoming path: /aisworg/api/seu/work-items/87dc9685-882e-4eb6-9f9e-6f09bfb1185c/result /aisworg/api/seu/work-items/87dc9685-882e-4eb6-9f9e-6f09bfb1185c/result
+[2026-08-28T04:33:01.216Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/work-items/87dc9685-882e-4eb6-9f9e-6f09bfb1185c/result | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:33:01.255Z] [INFO] POST /work-items/87dc9685-882e-4eb6-9f9e-6f09bfb1185c/result 409 39ms
+[2026-08-28T04:33:01.259Z] [DEBUG] Incoming path: /aisworg/api/seu/work-items/00000000-0000-0000-0000-000000000000/result /aisworg/api/seu/work-items/00000000-0000-0000-0000-000000000000/result
+[2026-08-28T04:33:01.352Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/work-items/00000000-0000-0000-0000-000000000000/result | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:33:01.393Z] [INFO] POST /work-items/00000000-0000-0000-0000-000000000000/result 404 41ms
+[2026-08-28T04:33:01.397Z] [DEBUG] Incoming path: /aisworg/api/seu/work-items/87dc9685-882e-4eb6-9f9e-6f09bfb1185c/result /aisworg/api/seu/work-items/87dc9685-882e-4eb6-9f9e-6f09bfb1185c/result
+[2026-08-28T04:33:01.506Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/work-items/87dc9685-882e-4eb6-9f9e-6f09bfb1185c/result | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:33:01.509Z] [INFO] POST /work-items/87dc9685-882e-4eb6-9f9e-6f09bfb1185c/result 400 2ms
+[2026-08-28T04:33:01.512Z] [DEBUG] Incoming path: /aisworg/api/seu/deliverables/8a96d82c-0351-4c2a-8976-37de032dfa08/transition /aisworg/api/seu/deliverables/8a96d82c-0351-4c2a-8976-37de032dfa08/transition
+[2026-08-28T04:33:01.660Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/deliverables/8a96d82c-0351-4c2a-8976-37de032dfa08/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:33:02.009Z] [INFO] POST /deliverables/8a96d82c-0351-4c2a-8976-37de032dfa08/transition 409 349ms
+[2026-08-28T04:33:02.011Z] [DEBUG] Incoming path: /aisworg/api/seu/seus/0a8b9c2f-f908-45fd-b142-1566b3c8139a /aisworg/api/seu/seus/0a8b9c2f-f908-45fd-b142-1566b3c8139a
+[2026-08-28T04:33:02.110Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/seus/0a8b9c2f-f908-45fd-b142-1566b3c8139a | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:33:02.274Z] [INFO] GET /seus/0a8b9c2f-f908-45fd-b142-1566b3c8139a 200 163ms
+[2026-08-28T04:33:02.278Z] [DEBUG] Incoming path: /aisworg/api/seu/seus/0a8b9c2f-f908-45fd-b142-1566b3c8139a/events /aisworg/api/seu/seus/0a8b9c2f-f908-45fd-b142-1566b3c8139a/events
+[2026-08-28T04:33:02.400Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/seus/0a8b9c2f-f908-45fd-b142-1566b3c8139a/events | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:33:02.508Z] [INFO] GET /seus/0a8b9c2f-f908-45fd-b142-1566b3c8139a/events 200 108ms
+✔ MVP acceptance: commission an SEU via the API, reach Operational, fulfil a Capability, progress a Deliverable (12884.130375ms)
+✔ a Quality Gate block raises exactly one 'Action Required' Attention Item, deduplicated across repeated attempts (AM-002) (14340.621792ms)
+✔ a sustained pattern of Quality Gate blocking raises a High-priority 'Escalation' Attention Item alongside the Organisational Learning Obligation (10853.6855ms)
+✔ an Attention Item can be created directly and walked through its Ch.34 §9 lifecycle (7151.209ms)
+✔ an External Interaction can be recorded against a Deliverable and walked through its Ch.36 §9 lifecycle (7788.484791ms)
+✔ transitioning an External Interaction to Failed automatically raises an Exception-category Attention Item (Ch.36 §13) (6636.84375ms)
+✔ rejects an External Interaction created against a Deliverable that does not belong to the given SEU (11320.46125ms)
+✔ a reference is recorded at every completion, but an attestation is minted only at acceptance transitions (14061.925917ms)
+✔ empty-centre: an approval cannot be dispatched unless a real reference was produced (7769.167667ms)
+✔ empty-centre clears once a real reference is produced: the same Deliverable can then be approved (9305.41ms)
+✔ badgeGrantsDB single writer function enforces the scope_id/scope_kind invariant (605.722833ms)
+[2026-08-28T04:32:55.537Z] [ERROR] [badgeGrantsDB] create error error: new row for relation "badge_grants" violates check constraint "badge_grants_capability_narrowing"
+    at /Volumes/Chennai/gitrepo/aisworg/node_modules/.pnpm/pg-pool@3.14.0_pg@8.22.0/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.create (/Volumes/Chennai/gitrepo/aisworg/src/dblayer/badgeGrantsDB.ts:152:24)
+    at async TestContext.<anonymous> (/Volumes/Chennai/gitrepo/aisworg/tests/badge-model.test.ts:131:29)
+    at async Test.run (node:internal/test_runner/test:1116:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:786:7) {
+  length: 436,
+  severity: 'ERROR',
+  code: '23514',
+  detail: 'Failing row contains (a68e8338-56e7-42d1-ac81-fc42103f3f5e, User, 2303, test-parent-capability-narrowing-66e7bba5, Deliverable, null, null, 0fcc3fec-2205-4b02-a1e9-d7325d36b612, Active, 2026-08-28 04:32:55.460282+00).',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'public',
+  table: 'badge_grants',
+  column: undefined,
+  dataType: undefined,
+  constraint: 'badge_grants_capability_narrowing',
+  file: 'execMain.c',
+  line: '2076',
+  routine: 'ExecConstraints'
+}
+✔ badge_grants DB-level CHECK enforces mandatory Capability-narrowing for Deliverable grants (6279.805083ms)
+✔ badgeTypesDB single writer function enforces §8.1's Tenant-customization boundaries (605.720458ms)
+✔ transitionDeliverable authorises on noun_verb: denied without the badge, deliverable_create allows create, deliverable_approve required to approve (distinct authority), root bypasses (18417.444667ms)
+✔ transitionDeliverable defers the transition when nobody fulfils the producing Capability yet, then dispatches once a Participant does (14446.463667ms)
+✔ a dispatched transition leaves a traceable Command and a Completed/Disposed Work Item assigned to the fulfilling Participant (9208.562375ms)
+✔ executionEngine defers dispatch when no Participant fulfils the producing Capability, and reports the reason (4178.602042ms)
+✔ executionEngine dispatches immediately when the entity has no producing Capability declared at all (3546.312417ms)
+✔ a Participant reporting 'blocked' fails the Work Item without applying the transition, and raises an Attention Item (8201.64225ms)
+✔ completeWorkItem is idempotent-safe: a second result on an already-completed Work Item is rejected, not re-applied (7290.810333ms)
+✔ Objective-first commissioning offers a real Profile choice when more than one exists, and honours it (10944.55625ms)
+✔ compliance is evaluated per-SEU from engineering state: a required obligation drives its requirement satisfied/unsatisfied, deterministically and read-only (12066.235291ms)
+✔ a Waiver moves an unsatisfied requirement to Compliant with Exceptions (5281.226667ms)
+✔ minimal conflict detection (FR-27.7): two applicable requirements declaring each other are reported (4281.217584ms)
+✔ the compliance report is a projection of engineering state (Ch.27 §12) (5005.792833ms)
+✔ strategyRequirements — the owner's own examples (Specialization needs 1, Merge needs 2+) (0.721625ms)
+✔ strategyRequirements — unknown strategy and conflict-detection both fall back to Override (owner's fallback rule) (0.062625ms)
+✔ specialize — exact copy of the parent, code included, free to override any field (0.093375ms)
+✔ merge — requires at least two sources (0.092625ms)
+✔ merge — requires every source to share the same code (0.113625ms)
+✔ merge — combines unambiguous fields, flags a genuine disagreement (0.231542ms)
+✔ merge — a field present in only one source combines unambiguously (no conflict) (0.070291ms)
+✔ merge — Conflict Detection walks into nested contribution structure, not just the top field (0.202208ms)
+✔ union — no same-code requirement, same combine-with-flag algorithm as merge (0.104625ms)
+✔ intersection — keeps only unanimous fields, drops disagreement silently (never flags) (0.161042ms)
+✔ supplement — purely additive: base fields untouched, colliding supplement keys rejected not applied (0.131209ms)
+✔ supplement — requires at least one supplementing source (0.049458ms)
+✔ dependencyDefinitionEngine: a target with no incoming rows is ready trivially (940.845208ms)
+✔ dependencyDefinitionEngine: a Deliverable-type AND a Capability-type row on the same target both gate it, and reach-or-passed holds once satisfied (1639.289666ms)
+✔ dependencyDefinitionEngine.evaluateAndPublishFromTransition publishes DeliverableReady only once a target's rows all hold, not before (1700.428666ms)
+[2026-08-28T04:33:30.695Z] [INFO] [seed:test-fixture-packs] 0 published, 21 already present — 21 test-fixture Packs total.
+✔ CR-049 Phase 2: a plain 'dependency' edge is unrestricted on Template Inheritance — unchanged behaviour (32763.493792ms)
+✔ CR-049 Phase 2: a Decomposition edge is locked — dropping it on a derived Template blocks publish (2828.116583ms)
+✔ CR-049 Phase 2: a Decomposition edge may be renamed to the tenant's own Deliverable Definition, provided its lineage traces back to the parent's name (12050.609458ms)
+✔ CR-049 Phase 2: renaming a locked edge to an UNRELATED Deliverable Definition (no lineage) still blocks publish (4607.48575ms)
+✔ CR-049 Phase 2: a Derivation edge is freely editable on Template Inheritance — no lock at all (4431.917666ms)
+✔ compositionEngine.compose resolves a Template's mandatory Pack plus a Profile's optional Pack, deterministically (3190.343958ms)
+✔ transitionEngine.evaluate allows an authorised, policy-satisfied SEU transition (99.725334ms)
+✔ transitionEngine.evaluate denies an under-privileged actor (81.10925ms)
+✔ transitionEngine.evaluate rejects a transition with no Transition Definition (46.075125ms)
+✔ transitionEngine.evaluate handles the Objective entity type (Post-MVP Phase 1 — Ch.1 lifecycle) (292.276292ms)
+✔ eventBus.publish persists the event with the correct seu_id and an empty consumption_state when nobody subscribes (86.496917ms)
+[2026-08-28T04:33:08.802Z] [ERROR] [eventBus] handler 'engineTestThrows' failed for event f50bce0e-8eca-46e3-912d-ffe16180fb66 (EngineTestDispatch) Error: engine-test deliberate failure
+    at handler (/Volumes/Chennai/gitrepo/aisworg/tests/engine.test.ts:186:62)
+    at dispatch (/Volumes/Chennai/gitrepo/aisworg/src/domain/engine/eventBus.ts:56:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async TestContext.<anonymous> (/Volumes/Chennai/gitrepo/aisworg/tests/engine.test.ts:184:3)
+    at async Test.run (node:internal/test_runner/test:1116:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:786:7)
+✔ dispatch invokes each handler and records its own consumption_state entry, independently of other handlers (171.684916ms)
+✔ eventBus.publish returns well before a slow registered handler resolves (874.502875ms)
+✔ promoting a Published Knowledge Item's scope raises a visible Organisational Learning Obligation (6777.978625ms)
+✔ Acquisition Scope promotion requires the Knowledge Item to be Published first (3987.428333ms)
+✔ Acquisition Scope promotion is one tier at a time and never demotes (6382.424208ms)
+✔ Engineering Capital lists Capability/Enterprise/Platform-scoped Knowledge and excludes SEU-scoped Knowledge (5069.156125ms)
+✔ Quality Gate blocks a Deliverable transition while an Obligation is unresolved, and allows it once Verified — independently of the Dependency Engine (14312.85825ms)
+✔ Obligation lifecycle runs through the generic transitionEngine (Ch.23 §9) and rejects an undefined transition (6478.153458ms)
+✔ Constraint Type (Ch.24): a Standard-type Policy violation doesn't block a transition, a Policy-type violation does (458.848208ms)
+✔ FR-3.3: a commissioned SEU's Engineering Behavior Model is versioned (version 1 for the first) (4111.645709ms)
+✔ FR-21.1: an SEU exposes one effective Governance Model derived from its EBM (authority rules, policies, quality gates) (2935.778834ms)
+✔ FR-3.6/3.7: a composition conflict hard-blocks commissioning; the SEU never reaches Operational (4750.765208ms)
+[2026-08-28T04:33:28.326Z] [ERROR] [qualityGateEvaluationsDB] create error error: new row for relation "quality_gate_evaluations" violates check constraint "quality_gate_evaluations_scope_check"
+    at /Volumes/Chennai/gitrepo/aisworg/node_modules/.pnpm/pg-pool@3.14.0_pg@8.22.0/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.create (/Volumes/Chennai/gitrepo/aisworg/src/dblayer/qualityGateEvaluationsDB.ts:15:24)
+    at async TestContext.<anonymous> (/Volumes/Chennai/gitrepo/aisworg/tests/governance-ebm-sharpening.test.ts:121:26)
+    at async Test.run (node:internal/test_runner/test:1116:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:786:7) {
+  length: 447,
+  severity: 'ERROR',
+  code: '23514',
+  detail: 'Failing row contains (9d83714a-6bd5-439a-9075-72d4b3ea942b, a6cdca27-8192-4d49-91f3-9a8033c23684, null, Deliverable, 23ee0cda-0b25-4299-9cd2-15ab62ceb682, Passed, {}, 2026-08-28 04:33:28.318959+00).',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'public',
+  table: 'quality_gate_evaluations',
+  column: undefined,
+  dataType: undefined,
+  constraint: 'quality_gate_evaluations_scope_check',
+  file: 'execMain.c',
+  line: '2076',
+  routine: 'ExecConstraints'
+}
+[2026-08-28T04:33:28.537Z] [ERROR] [qualityGateEvaluationsDB] create error error: new row for relation "quality_gate_evaluations" violates check constraint "quality_gate_evaluations_scope_check"
+    at /Volumes/Chennai/gitrepo/aisworg/node_modules/.pnpm/pg-pool@3.14.0_pg@8.22.0/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.create (/Volumes/Chennai/gitrepo/aisworg/src/dblayer/qualityGateEvaluationsDB.ts:15:24)
+    at async TestContext.<anonymous> (/Volumes/Chennai/gitrepo/aisworg/tests/governance-ebm-sharpening.test.ts:124:19)
+    at async Test.run (node:internal/test_runner/test:1116:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:786:7) {
+  length: 471,
+  severity: 'ERROR',
+  code: '23514',
+  detail: 'Failing row contains (1c5148d6-201e-4557-8387-2aa8c89a8bf0, a6cdca27-8192-4d49-91f3-9a8033c23684, 23ee0cda-0b25-4299-9cd2-15ab62ceb682, Pack, 23ee0cda-0b25-4299-9cd2-15ab62ceb682, Passed, {}, 2026-08-28 04:33:28.53448+00).',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'public',
+  table: 'quality_gate_evaluations',
+  column: undefined,
+  dataType: undefined,
+  constraint: 'quality_gate_evaluations_scope_check',
+  file: 'execMain.c',
+  line: '2076',
+  routine: 'ExecConstraints'
+}
+✔ §4.3 / Open Q#3: a Quality Gate can gate a Pack transition with a null SEU; the CHECK rejects mis-scoped evaluations (720.832958ms)
+✔ Knowledge Telemetry: growth and Evidence generation are real counts, broken down by Acquisition Scope, scoped correctly per SEU (9708.869459ms)
+✔ metricRegistryEngine.compute resolves a real metric_definitions row to its calculation_method and publishes MetricCalculated (352.077875ms)
+✔ metricRegistryEngine.compute fails closed for an unknown identifier (41.591459ms)
+✔ metricRegistryEngine.compute fails closed for a metric_definitions row naming an unrecognised calculation_method (115.921375ms)
+✔ createObjective rejects a child whose tier is more strategic than its parent's (459.148041ms)
+✔ createObjective accepts a valid child, and getObjectiveDetail shows both sides of the decomposition tree (1521.202708ms)
+✔ updateObjective increments version and applies the edit (333.074125ms)
+✔ transitionObjective follows the Ch.1 lifecycle and rejects an undefined transition (652.902542ms)
+✔ commissionSeu requires the Objective to be Active — blocks Proposed, succeeds once Activated (3666.445834ms)
+✔ commissionFromExistingObjective reuses the Objective's own declared Capabilities, no re-picking (3392.486584ms)
+✔ suggestCapabilityCodes matches on word overlap with a Capability's name/description (45.415125ms)
+✔ findCandidateTemplates picks the tightest-fitting satisfying Template, not whichever sorts first alphabetically (749.1685ms)
+✔ write-path enforcement: an off-canonical category is rejected; a canonical one is accepted and stored verbatim (5195.924292ms)
+✔ tenant rename: two tenants see different labels for the SAME canonical code, but storage stays canonical (cross-tenant joinable) (4815.923584ms)
+✔ clearing an alias reverts to the platform default (387.274333ms)
+✔ aliasing an unknown concept is refused (tenants rename, never mint) (77.204333ms)
+✔ validatePackSeed rejects a Composition Strategy with too few sources (456.764292ms)
+✔ validatePackSeed rejects Merge sources that don't share the same code (426.198667ms)
+✔ validatePackSeed rejects Conflict Detection as a directly-chosen Composition Strategy (509.461541ms)
+✔ composeAuthoringDraft — specialization pre-fills a new Draft from an Active parent Pack, code included (1967.883667ms)
+✔ composeAuthoringDraft — union combines two distinct Active Packs' fields, flags a genuine disagreement, unions non-conflicting array items (3516.614792ms)
+✔ composeAuthoringDraft — merge with a code entered twice self-merges cleanly (real wiring, no conflicts, since a Pack agrees with itself) (2072.98375ms)
+✔ composeAuthoringDraft — intersection keeps only unanimous fields, drops a disagreeing one silently (no conflicts reported) (3699.3515ms)
+✔ composeAuthoringDraft — supplement adds only what the base lacks, rejects (never applies) a field the base already declares (3211.869084ms)
+✔ composeAuthoringDraft — override points the author at the existing version-bump flow instead of computing anything (1594.695334ms)
+✔ composeAuthoringDraft — rejects composing a Pack that hasn't reached (or has left) Draft (1752.389541ms)
+✔ validatePackSeed rejects a non-semver packVersion, duplicate contribution codes, an unresolved service->capability reference, and an unresolved dependency (529.386667ms)
+[2026-08-28T04:34:04.092Z] [INFO] [seed:test-fixture-packs] 0 published, 21 already present — 21 test-fixture Packs total.
+✔ validatePackSeed accepts a well-formed Pack and resolves a real dependency (27565.734667ms)
+✔ publishPack without activate: true walks the Pack to Published but not Active (1227.73625ms)
+✔ publishPack with activate: true and a 'power' actor reaches Active (1462.51825ms)
+✔ republishing the exact same (code, packVersion) is idempotent — a no-op that returns the existing immutable row (VM-002) (1606.07375ms)
+✔ publishing a new version of an existing Pack code creates a new immutable row and, when activated, supersedes the previously-Active version (3049.709334ms)
+✔ transitionPack rejects an undefined transition (Draft -> Active, skipping Validated/Published) (269.867375ms)
+✔ Pack Registry (listPacksWithNextStates) reports the correct possibleNextStates per lifecycle state (1586.241667ms)
+✔ compositionEngine.compose resolves the same code referenced by both a Template and a Profile to one Version, and still warns about the duplicate reference (2975.959ms)
+✔ compositionEngine.compose excludes a Pack code with no Active Version and warns about it by name (3879.585041ms)
+✔ a Template automatically composes a newer Active Version of its mandatory Pack's code, with no edit to the Template itself (4079.100167ms)
+✔ transitionPack from Deprecated to Active publishes a new Version rather than resurrecting the old row (3141.25725ms)
+✔ transitionPack from Retired to Active publishes a new Version rather than resurrecting the old row (3447.334291ms)
+✔ transitionPack from Archived to Active publishes a new Version rather than resurrecting the old row (3806.746625ms)
+✔ reactivating a Pack supersedes whatever else is currently Active for the same code (4942.91025ms)
+✔ CR-026: two tenants publishing the exact same (code, packVersion) no longer collide, and each tenant's Active row is independent (2851.9855ms)
+✔ CR-026: reactivating a Pack supersedes only its OWN tenant's Active row, never a different tenant's row at the same code (4544.052875ms)
+✔ reactivating a Pack requires 'power' — a 'general' actor is denied (1687.647834ms)
+✔ both adapters implement the one contract; the registry resolves by mode; a third adapter needs no core edit (390.760834ms)
+[2026-08-28T04:33:45.632Z] [INFO] [externalOrchestratorAdapter] delivered Work Item d824e9fb-d7c6-4af3-bcc1-c37223d710d5 to http://127.0.0.1:50361/orchestrator
+✔ external-orchestrator: dispatching delivers the assignment to the tenant endpoint over the adapter (8291.137625ms)
+✔ human-on-UI (default, no execution target): dispatching makes no external call (6925.902042ms)
+[2026-08-28T04:33:52.845Z] [INFO] [humanOnUiAdapter] Work Item 32b2c11b-ce7d-4bd6-a647-c6e4eecc6465 for Deliverable "Requirements Specification" is available on the human-on-UI surface (Defined -> In Progress).
+[2026-08-28T04:33:59.317Z] [INFO] [externalOrchestratorAdapter] delivered Work Item 77b7dc7d-d720-47d5-8112-7a9e58f62a5b to http://127.0.0.1:50361/orchestrator
+✔ the platform-side flow is identical either way: the Deliverable is dispatched-and-outstanding regardless of adapter (13355.817083ms)
+[2026-08-28T04:34:06.059Z] [ERROR] [tenantsDB] findById error Error: Cannot use a pool after calling end on the pool
+    at /Volumes/Chennai/gitrepo/aisworg/node_modules/.pnpm/pg-pool@3.14.0_pg@8.22.0/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.findById (/Volumes/Chennai/gitrepo/aisworg/src/dblayer/tenantsDB.ts:24:24)
+    at async deliverAssignmentForWorkItem (/Volumes/Chennai/gitrepo/aisworg/src/adapters/assignmentDelivery.ts:91:42)
+    at async assignmentDeliveryHandler (/Volumes/Chennai/gitrepo/aisworg/src/adapters/assignmentDelivery.ts:118:3)
+    at async dispatch (/Volumes/Chennai/gitrepo/aisworg/src/domain/engine/eventBus.ts:56:7)
+[2026-08-28T04:34:06.063Z] [ERROR] [tenantContractsDB] findByTenantId error Error: Cannot use a pool after calling end on the pool
+    at /Volumes/Chennai/gitrepo/aisworg/node_modules/.pnpm/pg-pool@3.14.0_pg@8.22.0/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.findByTenantId (/Volumes/Chennai/gitrepo/aisworg/src/dblayer/tenantContractsDB.ts:37:24)
+    at async deliverAssignmentForWorkItem (/Volumes/Chennai/gitrepo/aisworg/src/adapters/assignmentDelivery.ts:92:41)
+    at async assignmentDeliveryHandler (/Volumes/Chennai/gitrepo/aisworg/src/adapters/assignmentDelivery.ts:118:3)
+    at async dispatch (/Volumes/Chennai/gitrepo/aisworg/src/domain/engine/eventBus.ts:56:7)
+[2026-08-28T04:34:06.064Z] [ERROR] [executionTargetsDB] findByTenantAndCapability error Error: Cannot use a pool after calling end on the pool
+    at /Volumes/Chennai/gitrepo/aisworg/node_modules/.pnpm/pg-pool@3.14.0_pg@8.22.0/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.findByTenantAndCapability (/Volumes/Chennai/gitrepo/aisworg/src/dblayer/executionTargetsDB.ts:47:24)
+    at async resolveExecutionTarget (/Volumes/Chennai/gitrepo/aisworg/src/adapters/executionTargetResolver.ts:21:25)
+    at async deliverAssignmentForWorkItem (/Volumes/Chennai/gitrepo/aisworg/src/adapters/assignmentDelivery.ts:94:18)
+    at async assignmentDeliveryHandler (/Volumes/Chennai/gitrepo/aisworg/src/adapters/assignmentDelivery.ts:118:3)
+    at async dispatch (/Volumes/Chennai/gitrepo/aisworg/src/domain/engine/eventBus.ts:56:7)
+[2026-08-28T04:34:06.065Z] [ERROR] [ebmsDB] findById error Error: Cannot use a pool after calling end on the pool
+    at /Volumes/Chennai/gitrepo/aisworg/node_modules/.pnpm/pg-pool@3.14.0_pg@8.22.0/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.findById (/Volumes/Chennai/gitrepo/aisworg/src/dblayer/ebmsDB.ts:31:24)
+    at async resolveOwningScope (/Volumes/Chennai/gitrepo/aisworg/src/adapters/assignmentDelivery.ts:28:45)
+    at async deliverAssignmentForWorkItem (/Volumes/Chennai/gitrepo/aisworg/src/adapters/assignmentDelivery.ts:96:17)
+    at async assignmentDeliveryHandler (/Volumes/Chennai/gitrepo/aisworg/src/adapters/assignmentDelivery.ts:118:3)
+    at async dispatch (/Volumes/Chennai/gitrepo/aisworg/src/domain/engine/eventBus.ts:56:7)
+[2026-08-28T04:34:06.065Z] [ERROR] [dependencyDefinitionsDB] findByTargetName error Error: Cannot use a pool after calling end on the pool
+    at /Volumes/Chennai/gitrepo/aisworg/node_modules/.pnpm/pg-pool@3.14.0_pg@8.22.0/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.findByTargetName (/Volumes/Chennai/gitrepo/aisworg/src/dblayer/dependencyDefinitionsDB.ts:129:24)
+    at async resolveInputReferences (/Volumes/Chennai/gitrepo/aisworg/src/adapters/assignmentDelivery.ts:37:26)
+    at async assembleAssignment (/Volumes/Chennai/gitrepo/aisworg/src/adapters/assignmentDelivery.ts:73:22)
+    at async deliverAssignmentForWorkItem (/Volumes/Chennai/gitrepo/aisworg/src/adapters/assignmentDelivery.ts:97:22)
+    at async assignmentDeliveryHandler (/Volumes/Chennai/gitrepo/aisworg/src/adapters/assignmentDelivery.ts:118:3)
+    at async dispatch (/Volumes/Chennai/gitrepo/aisworg/src/domain/engine/eventBus.ts:56:7)
+[2026-08-28T04:34:06.066Z] [ERROR] [deliverablesDB] findBySeuId error Error: Cannot use a pool after calling end on the pool
+    at /Volumes/Chennai/gitrepo/aisworg/node_modules/.pnpm/pg-pool@3.14.0_pg@8.22.0/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.findBySeuId (/Volumes/Chennai/gitrepo/aisworg/src/dblayer/deliverablesDB.ts:39:24)
+    at async resolveInputReferences (/Volumes/Chennai/gitrepo/aisworg/src/adapters/assignmentDelivery.ts:38:30)
+    at async assembleAssignment (/Volumes/Chennai/gitrepo/aisworg/src/adapters/assignmentDelivery.ts:73:22)
+    at async deliverAssignmentForWorkItem (/Volumes/Chennai/gitrepo/aisworg/src/adapters/assignmentDelivery.ts:97:22)
+    at async assignmentDeliveryHandler (/Volumes/Chennai/gitrepo/aisworg/src/adapters/assignmentDelivery.ts:118:3)
+    at async dispatch (/Volumes/Chennai/gitrepo/aisworg/src/domain/engine/eventBus.ts:56:7)
+[2026-08-28T04:34:06.067Z] [INFO] [humanOnUiAdapter] Work Item 4c59a09f-9c88-4162-9d07-9069b34e4e09 for Deliverable "Requirements Specification" is available on the human-on-UI surface (Defined -> In Progress).
+[2026-08-28T04:34:06.067Z] [ERROR] [eventsDB] updateConsumptionState error Error: Cannot use a pool after calling end on the pool
+    at /Volumes/Chennai/gitrepo/aisworg/node_modules/.pnpm/pg-pool@3.14.0_pg@8.22.0/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.updateConsumptionState (/Volumes/Chennai/gitrepo/aisworg/src/dblayer/eventsDB.ts:59:7)
+    at async dispatch (/Volumes/Chennai/gitrepo/aisworg/src/domain/engine/eventBus.ts:57:7)
+✔ Participant is created at Available (Ch.13 §10), not the old hardcoded Assigned, and ParticipantCreated fires (6811.067917ms)
+✔ Participant transition graph: the full Ch.13 §9 lifecycle is seeded and enforced, including the Assigned/Executing/Idle repeat cycle (13613.229833ms)
+✔ Build order step 3: dispatchEngine moves the fulfilling Participant's own state as a real Deliverable transition dispatches, ending at Idle not Available (8532.650834ms)
+✔ Build order step 4: replaceParticipant hands a Capability Fulfilment from Available straight to a new Participant (6407.014916ms)
+✔ Build order step 4: replaceParticipant works from Executing, not just Idle — Ch.13 §13 'any Participant' (7383.7215ms)
+✔ qualityGateEngine.evaluate resolves Obligations attached to a non-Deliverable entity (AttentionItem) (7014.228125ms)
+✔ transitionAttentionItem is genuinely wired to qualityGateEngine — a real transition is blocked by an unresolved Obligation attached to the same AttentionItem, and unblocks once resolved (6512.534833ms)
+✔ Quality Telemetry: rework rate distinguishes a first-try pass from a genuinely blocked-then-passed Deliverable (24910.653083ms)
+✔ Quality Telemetry: Deliverable acceptance rate reflects the real lifecycle_state distribution, scoped correctly per SEU (13757.871417ms)
+✔ a Review runs its full lifecycle without modifying the reviewed object; its outcome is set at Completion and is immutable (6840.053083ms)
+✔ requires_accepted_review Quality Gate blocks a transition until an Accepted, passing Review against the required Review Gate exists (CR-059) (10020.315834ms)
+✔ Findings: a High-severity Finding auto-surfaces an Attention Item; a Finding resolves and can be converted to an Obligation (5210.704834ms)
+✔ Traceability (Ch.25 §14): a Deliverable's explanation lists the Reviews that evaluated it and the Findings they produced (5691.208041ms)
+✔ Runtime Telemetry: a real dispatched transition produces a non-negative dispatch latency and Work Item duration, scoped correctly per SEU (17049.227416ms)
+✔ Schema Registry: a new version is additive — the previous version stays untouched and resolvable (682.827042ms)
+✔ Schema Registry: rejects invalid JSON and an unknown entity kind, without writing a row (1.036459ms)
+✔ Pack authoring (entity-direct): root creates a Draft, authors, and publishes — a real Active Pack comes out, with the real actor + noun_verb badge on the event (1933.304458ms)
+✔ Pack authoring authority is noun × verb: a non-root holder of the Pack lifecycle badges can publish; a holder without them is denied (2520.810291ms)
+✔ Pack authoring, separation of duties: FOUR different single-verb actors each perform exactly their own hop — no one actor needs (or gets) more than their own badge (2738.300375ms)
+✔ Pack authoring: Publish is blocked by referential validation (unresolvable dependency), leaving the Draft a Draft (454.902708ms)
+✔ Template authoring (entity-direct): the same pipeline as Pack produces a real Active Template row (2060.147041ms)
+✔ Profile authoring (entity-direct): produces a real Active Profile row referencing a real Template by code (2343.092292ms)
+✔ Template authoring: referential validation rejects a mandatoryPackCode that doesn't resolve to a real Pack (blocks publish) (522.391375ms)
+✔ CR-026: a tenant author inheriting an Active Platform Template gets a Draft locked to the parent's code, owned by their own tenant, with parent_template_id recorded (705.72075ms)
+✔ CR-026: publishing a Derived Template is rejected if it drops one of its parent's mandatory Packs, and succeeds once the full set is restored (3750.362291ms)
+✔ Profile Inheritance: a tenant author inheriting an Active Platform Profile gets a Draft locked to the parent's code, owned by their own tenant, with parent_profile_id recorded (2077.628ms)
+✔ Deliverable Definition authoring (entity-direct): produces a real Active row, and syncs the deliverable-name Ontology concept ONLY once Active — never earlier (2104.056083ms)
+✔ Deliverable Definition authoring: validation rejects an empty code, a non-semver version, and a duplicate code+version+tenant (168.972166ms)
+✔ CR-049: inheriting from an Active Platform Deliverable Definition offers an editable starting point — code is NOT locked, unlike Template (1409.076917ms)
+✔ Deliverable Definition: a second Version of the same code superseding the first leaves the Ontology row reflecting the NEW content, not retired (2689.349875ms)
+✔ commissioning wires a named Capability-type edge alongside the Deliverable-type edge, and seeds the Source Code deliverable (4874.651125ms)
+✔ a Capability-type edge resolves Satisfied once the real SEU fulfils the upstream Capability (6056.372042ms)
+✔ listServices exposes each Service's declared Service Level and providing Capability (Ch.11 §7-§8) (61.09ms)
+✔ Policy waiver: transitionEngine.evaluate records the deviation, and checkSustainedPolicyWaivers raises (and deduplicates) an Obligation once the SEU crosses the threshold (5040.352167ms)
+✔ Capability shortage: findUnfulfilledByCapability surfaces real SEUs missing a Participant, and checkSustainedCapabilityShortages runs without error (10970.674834ms)
+✔ Capability shortage: dedup survives the representative SEU actually shifting between checks (the real bug) (13182.416292ms)
+✔ Flow Telemetry scoped to one SEU returns strictly that SEU's own Deliverables, distinct from platform-wide pooling (16792.781542ms)
+✔ Governance Telemetry scoped to one SEU excludes another SEU's Quality Gate evaluations (20187.471958ms)
+✔ Flow Telemetry: Deliverable cycle time is a real, non-negative number derived from real transitions (9464.974166ms)
+✔ Governance Telemetry: Quality Gate latency is zero on a first-try pass and positive after being blocked first (23065.476708ms)
+✔ a sustained pattern of Quality Gate blocking raises exactly one Organisational Learning Obligation, not one per attempt (FR-35.8) (10073.955417ms)
+✔ qualityGateEngine publishes QualityGateBlocked and QualityGatePassed on the event bus (Ch.26 §15) (11914.248792ms)
+[2026-08-28T04:34:32.366Z] [INFO] [externalOrchestratorAdapter] delivered Work Item 240c0ffd-4383-4153-92a5-b8a0643aed30 to http://127.0.0.1:50439/a
+[2026-08-28T04:34:38.502Z] [INFO] [externalOrchestratorAdapter] delivered Work Item f9b8844a-3ca2-4ed8-b808-b88e74ff75e3 to http://127.0.0.1:50439/b
+✔ two tenants sharing no edge choice run on the same core; each Work Item routes to its own tenant's edge (14753.184375ms)
+✔ a SEU commissioned without a named tenant belongs to the seeded default tenant (3754.017625ms)
+✔ backward navigation + provenance (FR-20.4/20.6/20.7): a Deliverable can be navigated to the commit and Participant that produced each state (11425.873416ms)
+✔ forward navigation + impact analysis (FR-20.3/20.5): a Deliverable surfaces every downstream Deliverable it impacts (6328.643542ms)
+✔ traceability reads only platform-held records and 404s an unknown Deliverable (92.287333ms)
+✔ transitionEngine.evaluate itself enforces an authored Transition Definition's required_quality_gate_ids, for a real entity instance (6993.98175ms)
+✔ Transition Definition authoring: a Quality Gate code scoped to a different transition is rejected (326.619333ms)
+✔ Quality Gate blocks 'Approved' -> 'Baselined' until Evidence is Accepted, then allows it (16110.89525ms)
+✔ Quality Gate also accepts an Approved Decision as satisfying the same precondition (the 'or' in Evidence-or-Decision) (13675.330375ms)
+✔ Evidence, Knowledge and Decision each run their own governed lifecycle and reject an undefined transition (10644.999583ms)
+✔ Evidence can be Rejected from either Collected or Validated, and Rejected is terminal (10910.906125ms)
+✔ Knowledge Item inherits Acquisition Scope from its producing Deliverable by default (10162.62825ms)
+✔ Evidence can be linked to more than one object, findByRelatedObject finds it via each, and cross-SEU linking works (20379.259917ms)
+✔ Evidence preserves its full provenance — originating Deliverable, Participant, Capability, Decision and activity (6524.212459ms)
+✔ Superseding an Evidence Item does not cascade — the predecessor's own relationships and status are untouched (20833.184333ms)
+✔ Evidence transitions publish the correct named event for each landed state (11707.496125ms)
+[2026-08-28T04:34:41.979Z] [INFO] [Auth] Google OAuth strategy registered.
+[2026-08-28T04:34:42.041Z] [DEBUG] [AppConfig] Loaded 3 config keys from DB.
+[2026-08-28T04:34:42.597Z] [DEBUG] Incoming path: /aisworg/seu/seus/new /aisworg/seu/seus/new
+[2026-08-28T04:34:42.685Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/new | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:34:42.735Z] [DEBUG] [ViewModel] Render seu/seus/new took 10ms
+[2026-08-28T04:34:42.736Z] [INFO] GET /seus/new 200 50ms
+[2026-08-28T04:34:42.746Z] [DEBUG] Incoming path: /aisworg/seu/seus /aisworg/seu/seus
+[2026-08-28T04:34:42.828Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:34:46.050Z] [INFO] POST /seus 302 3221ms
+[2026-08-28T04:34:46.055Z] [DEBUG] Incoming path: /aisworg/seu/seus/d2e0964a-50d8-4b50-bf68-8a4e29a3d681 /aisworg/seu/seus/d2e0964a-50d8-4b50-bf68-8a4e29a3d681
+[2026-08-28T04:34:46.137Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/d2e0964a-50d8-4b50-bf68-8a4e29a3d681 | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:34:46.987Z] [DEBUG] [ViewModel] Render seu/seus/detail took 60ms
+[2026-08-28T04:34:46.988Z] [INFO] GET /seus/d2e0964a-50d8-4b50-bf68-8a4e29a3d681 200 850ms
+✔ Flow 1 — commission an SEU end to end: redirects to its detail page, reaches Operational, SEUOperational event present (4997.537958ms)
+[2026-08-28T04:34:46.992Z] [DEBUG] Incoming path: /aisworg/seu/seus/new /aisworg/seu/seus/new
+[2026-08-28T04:34:47.076Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/new | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:34:47.135Z] [DEBUG] [ViewModel] Render seu/seus/new took 5ms
+[2026-08-28T04:34:47.137Z] [INFO] GET /seus/new 200 61ms
+[2026-08-28T04:34:47.140Z] [DEBUG] Incoming path: /aisworg/seu/seus /aisworg/seu/seus
+[2026-08-28T04:34:47.216Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:34:50.170Z] [INFO] POST /seus 302 2954ms
+[2026-08-28T04:34:50.174Z] [DEBUG] Incoming path: /aisworg/seu/seus/0dacf4bc-eeb8-45ce-895e-d28bb2d838df /aisworg/seu/seus/0dacf4bc-eeb8-45ce-895e-d28bb2d838df
+[2026-08-28T04:34:50.268Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/0dacf4bc-eeb8-45ce-895e-d28bb2d838df | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:34:50.975Z] [DEBUG] [ViewModel] Render seu/seus/detail took 14ms
+[2026-08-28T04:34:50.976Z] [INFO] GET /seus/0dacf4bc-eeb8-45ce-895e-d28bb2d838df 200 708ms
+[2026-08-28T04:34:50.979Z] [DEBUG] Incoming path: /aisworg/seu/seus/0dacf4bc-eeb8-45ce-895e-d28bb2d838df/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil /aisworg/seu/seus/0dacf4bc-eeb8-45ce-895e-d28bb2d838df/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil
+[2026-08-28T04:34:51.125Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/0dacf4bc-eeb8-45ce-895e-d28bb2d838df/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:34:52.823Z] [INFO] POST /seus/0dacf4bc-eeb8-45ce-895e-d28bb2d838df/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil 302 1698ms
+[2026-08-28T04:34:52.827Z] [DEBUG] Incoming path: /aisworg/seu/seus/0dacf4bc-eeb8-45ce-895e-d28bb2d838df /aisworg/seu/seus/0dacf4bc-eeb8-45ce-895e-d28bb2d838df
+[2026-08-28T04:34:52.975Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/0dacf4bc-eeb8-45ce-895e-d28bb2d838df | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:34:53.611Z] [DEBUG] [ViewModel] Render seu/seus/detail took 13ms
+[2026-08-28T04:34:53.612Z] [INFO] GET /seus/0dacf4bc-eeb8-45ce-895e-d28bb2d838df 200 637ms
+✔ Flow 2 — Capability Fulfilment: fulfilling a Capability flips its status to Fulfilled (6623.214667ms)
+[2026-08-28T04:34:53.615Z] [DEBUG] Incoming path: /aisworg/seu/seus/new /aisworg/seu/seus/new
+[2026-08-28T04:34:53.706Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/new | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:34:53.762Z] [DEBUG] [ViewModel] Render seu/seus/new took 7ms
+[2026-08-28T04:34:53.764Z] [INFO] GET /seus/new 200 58ms
+[2026-08-28T04:34:53.767Z] [DEBUG] Incoming path: /aisworg/seu/seus /aisworg/seu/seus
+[2026-08-28T04:34:53.854Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:34:57.208Z] [INFO] POST /seus 302 3354ms
+[2026-08-28T04:34:57.212Z] [DEBUG] Incoming path: /aisworg/seu/seus/7fae0b7d-7493-4d43-a510-7e31c1b6471f /aisworg/seu/seus/7fae0b7d-7493-4d43-a510-7e31c1b6471f
+[2026-08-28T04:34:57.290Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/7fae0b7d-7493-4d43-a510-7e31c1b6471f | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:34:57.846Z] [DEBUG] [ViewModel] Render seu/seus/detail took 14ms
+[2026-08-28T04:34:57.847Z] [INFO] GET /seus/7fae0b7d-7493-4d43-a510-7e31c1b6471f 200 557ms
+[2026-08-28T04:34:57.850Z] [DEBUG] Incoming path: /aisworg/seu/seus/7fae0b7d-7493-4d43-a510-7e31c1b6471f/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil /aisworg/seu/seus/7fae0b7d-7493-4d43-a510-7e31c1b6471f/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil
+[2026-08-28T04:34:57.926Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/7fae0b7d-7493-4d43-a510-7e31c1b6471f/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:34:59.508Z] [INFO] POST /seus/7fae0b7d-7493-4d43-a510-7e31c1b6471f/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil 302 1582ms
+[2026-08-28T04:34:59.512Z] [DEBUG] Incoming path: /aisworg/seu/seus/7fae0b7d-7493-4d43-a510-7e31c1b6471f/deliverables/49c07be9-0288-4c46-bfdc-9f49cf5e185f/transition /aisworg/seu/seus/7fae0b7d-7493-4d43-a510-7e31c1b6471f/deliverables/49c07be9-0288-4c46-bfdc-9f49cf5e185f/transition
+[2026-08-28T04:34:59.587Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/7fae0b7d-7493-4d43-a510-7e31c1b6471f/deliverables/49c07be9-0288-4c46-bfdc-9f49cf5e185f/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:00.600Z] [INFO] POST /seus/7fae0b7d-7493-4d43-a510-7e31c1b6471f/deliverables/49c07be9-0288-4c46-bfdc-9f49cf5e185f/transition 302 1013ms
+[2026-08-28T04:35:00.602Z] [DEBUG] Incoming path: /aisworg/seu/seus/7fae0b7d-7493-4d43-a510-7e31c1b6471f /aisworg/seu/seus/7fae0b7d-7493-4d43-a510-7e31c1b6471f
+[2026-08-28T04:35:00.688Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/7fae0b7d-7493-4d43-a510-7e31c1b6471f | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:01.159Z] [INFO] [humanOnUiAdapter] Work Item 45950c63-76e1-4af9-87ca-e944a6a688b6 for Deliverable "Requirements Specification" is available on the human-on-UI surface (Defined -> In Progress).
+[2026-08-28T04:35:02.046Z] [DEBUG] [ViewModel] Render seu/seus/detail took 15ms
+[2026-08-28T04:35:02.047Z] [INFO] GET /seus/7fae0b7d-7493-4d43-a510-7e31c1b6471f 200 1358ms
+[2026-08-28T04:35:02.127Z] [DEBUG] Incoming path: /aisworg/api/seu/work-items/45950c63-76e1-4af9-87ca-e944a6a688b6/result /aisworg/api/seu/work-items/45950c63-76e1-4af9-87ca-e944a6a688b6/result
+[2026-08-28T04:35:02.212Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/work-items/45950c63-76e1-4af9-87ca-e944a6a688b6/result | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:02.939Z] [INFO] POST /work-items/45950c63-76e1-4af9-87ca-e944a6a688b6/result 200 727ms
+[2026-08-28T04:35:02.942Z] [DEBUG] Incoming path: /aisworg/seu/seus/7fae0b7d-7493-4d43-a510-7e31c1b6471f /aisworg/seu/seus/7fae0b7d-7493-4d43-a510-7e31c1b6471f
+[2026-08-28T04:35:03.019Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/7fae0b7d-7493-4d43-a510-7e31c1b6471f | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:03.729Z] [DEBUG] [ViewModel] Render seu/seus/detail took 12ms
+[2026-08-28T04:35:03.730Z] [INFO] GET /seus/7fae0b7d-7493-4d43-a510-7e31c1b6471f 200 711ms
+✔ Flow 3 — Deliverable transition, valid: a Participant-fulfilled Deliverable moves to the next declared state (10118.296625ms)
+[2026-08-28T04:35:03.733Z] [DEBUG] Incoming path: /aisworg/seu/seus/new /aisworg/seu/seus/new
+[2026-08-28T04:35:03.808Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/new | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:03.859Z] [DEBUG] [ViewModel] Render seu/seus/new took 6ms
+[2026-08-28T04:35:03.861Z] [INFO] GET /seus/new 200 53ms
+[2026-08-28T04:35:03.863Z] [DEBUG] Incoming path: /aisworg/seu/seus /aisworg/seu/seus
+[2026-08-28T04:35:03.951Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:06.729Z] [INFO] POST /seus 302 2778ms
+[2026-08-28T04:35:06.732Z] [DEBUG] Incoming path: /aisworg/seu/seus/00821157-f24b-4fc6-a5e6-26f93dfbeecc /aisworg/seu/seus/00821157-f24b-4fc6-a5e6-26f93dfbeecc
+[2026-08-28T04:35:06.809Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/00821157-f24b-4fc6-a5e6-26f93dfbeecc | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:07.350Z] [DEBUG] [ViewModel] Render seu/seus/detail took 11ms
+[2026-08-28T04:35:07.351Z] [INFO] GET /seus/00821157-f24b-4fc6-a5e6-26f93dfbeecc 200 542ms
+[2026-08-28T04:35:07.354Z] [DEBUG] Incoming path: /aisworg/seu/seus/00821157-f24b-4fc6-a5e6-26f93dfbeecc/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil /aisworg/seu/seus/00821157-f24b-4fc6-a5e6-26f93dfbeecc/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil
+[2026-08-28T04:35:07.447Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/00821157-f24b-4fc6-a5e6-26f93dfbeecc/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:09.114Z] [INFO] POST /seus/00821157-f24b-4fc6-a5e6-26f93dfbeecc/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil 302 1667ms
+[2026-08-28T04:35:09.117Z] [DEBUG] Incoming path: /aisworg/seu/seus/00821157-f24b-4fc6-a5e6-26f93dfbeecc/deliverables/ba1238ca-36cc-4351-a6af-e373d9039497/transition /aisworg/seu/seus/00821157-f24b-4fc6-a5e6-26f93dfbeecc/deliverables/ba1238ca-36cc-4351-a6af-e373d9039497/transition
+[2026-08-28T04:35:09.235Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/00821157-f24b-4fc6-a5e6-26f93dfbeecc/deliverables/ba1238ca-36cc-4351-a6af-e373d9039497/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:10.333Z] [INFO] POST /seus/00821157-f24b-4fc6-a5e6-26f93dfbeecc/deliverables/ba1238ca-36cc-4351-a6af-e373d9039497/transition 302 1098ms
+[2026-08-28T04:35:10.446Z] [DEBUG] Incoming path: /aisworg/api/seu/work-items/2dff57ac-056d-4d1d-aab6-e30f84b8782e/result /aisworg/api/seu/work-items/2dff57ac-056d-4d1d-aab6-e30f84b8782e/result
+[2026-08-28T04:35:10.528Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/work-items/2dff57ac-056d-4d1d-aab6-e30f84b8782e/result | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:10.721Z] [INFO] [humanOnUiAdapter] Work Item 2dff57ac-056d-4d1d-aab6-e30f84b8782e for Deliverable "Requirements Specification" is available on the human-on-UI surface (Defined -> In Progress).
+[2026-08-28T04:35:11.557Z] [INFO] POST /work-items/2dff57ac-056d-4d1d-aab6-e30f84b8782e/result 200 1028ms
+[2026-08-28T04:35:11.561Z] [DEBUG] Incoming path: /aisworg/seu/seus/00821157-f24b-4fc6-a5e6-26f93dfbeecc/deliverables/ba1238ca-36cc-4351-a6af-e373d9039497/transition /aisworg/seu/seus/00821157-f24b-4fc6-a5e6-26f93dfbeecc/deliverables/ba1238ca-36cc-4351-a6af-e373d9039497/transition
+[2026-08-28T04:35:11.713Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/00821157-f24b-4fc6-a5e6-26f93dfbeecc/deliverables/ba1238ca-36cc-4351-a6af-e373d9039497/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:12.047Z] [INFO] POST /seus/00821157-f24b-4fc6-a5e6-26f93dfbeecc/deliverables/ba1238ca-36cc-4351-a6af-e373d9039497/transition 302 333ms
+[2026-08-28T04:35:12.049Z] [DEBUG] Incoming path: /aisworg/seu/seus/00821157-f24b-4fc6-a5e6-26f93dfbeecc /aisworg/seu/seus/00821157-f24b-4fc6-a5e6-26f93dfbeecc
+[2026-08-28T04:35:12.167Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/00821157-f24b-4fc6-a5e6-26f93dfbeecc | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:12.934Z] [DEBUG] [ViewModel] Render seu/seus/detail took 12ms
+[2026-08-28T04:35:12.935Z] [INFO] GET /seus/00821157-f24b-4fc6-a5e6-26f93dfbeecc 200 768ms
+✔ Flow 4 — Deliverable transition, invalid: rejected with an explicit error, not silently accepted and not a 500 (9204.387792ms)
+[2026-08-28T04:35:12.937Z] [DEBUG] Incoming path: /aisworg/seu/seus/new /aisworg/seu/seus/new
+[2026-08-28T04:35:13.019Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/new | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:13.092Z] [DEBUG] [ViewModel] Render seu/seus/new took 20ms
+[2026-08-28T04:35:13.094Z] [INFO] GET /seus/new 200 75ms
+[2026-08-28T04:35:13.096Z] [DEBUG] Incoming path: /aisworg/seu/seus /aisworg/seu/seus
+[2026-08-28T04:35:13.182Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:15.932Z] [INFO] POST /seus 302 2750ms
+[2026-08-28T04:35:15.937Z] [DEBUG] Incoming path: /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d
+[2026-08-28T04:35:16.012Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:16.564Z] [DEBUG] [ViewModel] Render seu/seus/detail took 17ms
+[2026-08-28T04:35:16.566Z] [INFO] GET /seus/3e4859d4-be66-4630-a8fe-d484d7af016d 200 554ms
+[2026-08-28T04:35:16.569Z] [DEBUG] Incoming path: /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil
+[2026-08-28T04:35:16.653Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:18.055Z] [INFO] POST /seus/3e4859d4-be66-4630-a8fe-d484d7af016d/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil 302 1402ms
+[2026-08-28T04:35:18.058Z] [DEBUG] Incoming path: /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d/capabilities/c022806f-7173-46d9-9954-1135fa69574d/fulfil /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d/capabilities/c022806f-7173-46d9-9954-1135fa69574d/fulfil
+[2026-08-28T04:35:18.144Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d/capabilities/c022806f-7173-46d9-9954-1135fa69574d/fulfil | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:18.810Z] [INFO] POST /seus/3e4859d4-be66-4630-a8fe-d484d7af016d/capabilities/c022806f-7173-46d9-9954-1135fa69574d/fulfil 302 666ms
+[2026-08-28T04:35:18.813Z] [DEBUG] Incoming path: /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d/deliverables/5361e74f-7cbf-47c4-a450-e6b7f8cc9e02/transition /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d/deliverables/5361e74f-7cbf-47c4-a450-e6b7f8cc9e02/transition
+[2026-08-28T04:35:18.901Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d/deliverables/5361e74f-7cbf-47c4-a450-e6b7f8cc9e02/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:19.257Z] [INFO] POST /seus/3e4859d4-be66-4630-a8fe-d484d7af016d/deliverables/5361e74f-7cbf-47c4-a450-e6b7f8cc9e02/transition 302 356ms
+[2026-08-28T04:35:19.259Z] [DEBUG] Incoming path: /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d
+[2026-08-28T04:35:19.341Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:20.055Z] [DEBUG] [ViewModel] Render seu/seus/detail took 13ms
+[2026-08-28T04:35:20.057Z] [INFO] GET /seus/3e4859d4-be66-4630-a8fe-d484d7af016d 200 716ms
+[2026-08-28T04:35:20.061Z] [DEBUG] Incoming path: /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d/deliverables/90137391-441d-4da7-8599-100d366916c2/transition /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d/deliverables/90137391-441d-4da7-8599-100d366916c2/transition
+[2026-08-28T04:35:20.138Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d/deliverables/90137391-441d-4da7-8599-100d366916c2/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:21.303Z] [INFO] POST /seus/3e4859d4-be66-4630-a8fe-d484d7af016d/deliverables/90137391-441d-4da7-8599-100d366916c2/transition 302 1165ms
+[2026-08-28T04:35:21.403Z] [DEBUG] Incoming path: /aisworg/api/seu/work-items/58df9ac4-e29d-412b-8ffc-6a981bb4ee77/result /aisworg/api/seu/work-items/58df9ac4-e29d-412b-8ffc-6a981bb4ee77/result
+[2026-08-28T04:35:21.522Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/work-items/58df9ac4-e29d-412b-8ffc-6a981bb4ee77/result | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:21.760Z] [INFO] [humanOnUiAdapter] Work Item 58df9ac4-e29d-412b-8ffc-6a981bb4ee77 for Deliverable "Requirements Specification" is available on the human-on-UI surface (Defined -> In Progress).
+[2026-08-28T04:35:22.358Z] [INFO] POST /work-items/58df9ac4-e29d-412b-8ffc-6a981bb4ee77/result 200 835ms
+[2026-08-28T04:35:22.361Z] [DEBUG] Incoming path: /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d/deliverables/90137391-441d-4da7-8599-100d366916c2/transition /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d/deliverables/90137391-441d-4da7-8599-100d366916c2/transition
+[2026-08-28T04:35:22.461Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d/deliverables/90137391-441d-4da7-8599-100d366916c2/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:23.696Z] [INFO] POST /seus/3e4859d4-be66-4630-a8fe-d484d7af016d/deliverables/90137391-441d-4da7-8599-100d366916c2/transition 302 1235ms
+[2026-08-28T04:35:23.779Z] [DEBUG] Incoming path: /aisworg/api/seu/work-items/6c673c7e-5e86-415a-9deb-b0d9a2cee09a/result /aisworg/api/seu/work-items/6c673c7e-5e86-415a-9deb-b0d9a2cee09a/result
+[2026-08-28T04:35:23.856Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/work-items/6c673c7e-5e86-415a-9deb-b0d9a2cee09a/result | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:24.032Z] [INFO] [humanOnUiAdapter] Work Item 6c673c7e-5e86-415a-9deb-b0d9a2cee09a for Deliverable "Requirements Specification" is available on the human-on-UI surface (In Progress -> Approved).
+[2026-08-28T04:35:24.935Z] [INFO] POST /work-items/6c673c7e-5e86-415a-9deb-b0d9a2cee09a/result 200 1078ms
+[2026-08-28T04:35:24.941Z] [DEBUG] Incoming path: /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d/deliverables/5361e74f-7cbf-47c4-a450-e6b7f8cc9e02/transition /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d/deliverables/5361e74f-7cbf-47c4-a450-e6b7f8cc9e02/transition
+[2026-08-28T04:35:25.022Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d/deliverables/5361e74f-7cbf-47c4-a450-e6b7f8cc9e02/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:26.349Z] [INFO] POST /seus/3e4859d4-be66-4630-a8fe-d484d7af016d/deliverables/5361e74f-7cbf-47c4-a450-e6b7f8cc9e02/transition 302 1327ms
+[2026-08-28T04:35:26.453Z] [DEBUG] Incoming path: /aisworg/api/seu/work-items/e9609de3-8418-4612-a588-903548a39976/result /aisworg/api/seu/work-items/e9609de3-8418-4612-a588-903548a39976/result
+[2026-08-28T04:35:26.530Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/work-items/e9609de3-8418-4612-a588-903548a39976/result | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:26.763Z] [INFO] [humanOnUiAdapter] Work Item e9609de3-8418-4612-a588-903548a39976 for Deliverable "Architecture Document" is available on the human-on-UI surface (Defined -> In Progress).
+[2026-08-28T04:35:27.220Z] [INFO] POST /work-items/e9609de3-8418-4612-a588-903548a39976/result 200 690ms
+[2026-08-28T04:35:27.223Z] [DEBUG] Incoming path: /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d
+[2026-08-28T04:35:27.305Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/3e4859d4-be66-4630-a8fe-d484d7af016d | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:28.191Z] [DEBUG] [ViewModel] Render seu/seus/detail took 10ms
+[2026-08-28T04:35:28.192Z] [INFO] GET /seus/3e4859d4-be66-4630-a8fe-d484d7af016d 200 886ms
+✔ Flow 5 — Deliverable transition, dependency gating (regression: must never go green by accident) (15264.118ms)
+[2026-08-28T04:35:28.202Z] [DEBUG] Incoming path: /aisworg/seu/seus/new /aisworg/seu/seus/new
+[2026-08-28T04:35:28.281Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/new | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:28.336Z] [DEBUG] [ViewModel] Render seu/seus/new took 10ms
+[2026-08-28T04:35:28.338Z] [INFO] GET /seus/new 200 57ms
+[2026-08-28T04:35:28.342Z] [DEBUG] Incoming path: /aisworg/seu/seus /aisworg/seu/seus
+[2026-08-28T04:35:28.420Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:31.378Z] [INFO] POST /seus 302 2958ms
+[2026-08-28T04:35:31.382Z] [DEBUG] Incoming path: /aisworg/seu/seus/778affa6-f30a-4e0d-bf0d-e8c4c332bb6f /aisworg/seu/seus/778affa6-f30a-4e0d-bf0d-e8c4c332bb6f
+[2026-08-28T04:35:31.523Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/778affa6-f30a-4e0d-bf0d-e8c4c332bb6f | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:32.172Z] [DEBUG] [ViewModel] Render seu/seus/detail took 9ms
+[2026-08-28T04:35:32.173Z] [INFO] GET /seus/778affa6-f30a-4e0d-bf0d-e8c4c332bb6f 200 650ms
+[2026-08-28T04:35:32.177Z] [DEBUG] Incoming path: /aisworg/seu/seus/778affa6-f30a-4e0d-bf0d-e8c4c332bb6f/deliverables/d3fbd30f-d10b-410a-86d1-884f4fd4ae11/transition /aisworg/seu/seus/778affa6-f30a-4e0d-bf0d-e8c4c332bb6f/deliverables/d3fbd30f-d10b-410a-86d1-884f4fd4ae11/transition
+[2026-08-28T04:35:32.254Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/778affa6-f30a-4e0d-bf0d-e8c4c332bb6f/deliverables/d3fbd30f-d10b-410a-86d1-884f4fd4ae11/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:32.949Z] [INFO] POST /seus/778affa6-f30a-4e0d-bf0d-e8c4c332bb6f/deliverables/d3fbd30f-d10b-410a-86d1-884f4fd4ae11/transition 302 694ms
+[2026-08-28T04:35:32.951Z] [DEBUG] Incoming path: /aisworg/seu/seus/778affa6-f30a-4e0d-bf0d-e8c4c332bb6f /aisworg/seu/seus/778affa6-f30a-4e0d-bf0d-e8c4c332bb6f
+[2026-08-28T04:35:33.028Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/778affa6-f30a-4e0d-bf0d-e8c4c332bb6f | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:33.659Z] [DEBUG] [ViewModel] Render seu/seus/detail took 12ms
+[2026-08-28T04:35:33.660Z] [INFO] GET /seus/778affa6-f30a-4e0d-bf0d-e8c4c332bb6f 200 632ms
+[2026-08-28T04:35:33.713Z] [DEBUG] Incoming path: /aisworg/seu/seus/778affa6-f30a-4e0d-bf0d-e8c4c332bb6f/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil /aisworg/seu/seus/778affa6-f30a-4e0d-bf0d-e8c4c332bb6f/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil
+[2026-08-28T04:35:33.818Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/778affa6-f30a-4e0d-bf0d-e8c4c332bb6f/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:35.346Z] [INFO] POST /seus/778affa6-f30a-4e0d-bf0d-e8c4c332bb6f/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil 302 1528ms
+[2026-08-28T04:35:35.349Z] [DEBUG] Incoming path: /aisworg/seu/seus/778affa6-f30a-4e0d-bf0d-e8c4c332bb6f/deliverables/d3fbd30f-d10b-410a-86d1-884f4fd4ae11/transition /aisworg/seu/seus/778affa6-f30a-4e0d-bf0d-e8c4c332bb6f/deliverables/d3fbd30f-d10b-410a-86d1-884f4fd4ae11/transition
+[2026-08-28T04:35:35.424Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/778affa6-f30a-4e0d-bf0d-e8c4c332bb6f/deliverables/d3fbd30f-d10b-410a-86d1-884f4fd4ae11/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:36.415Z] [INFO] POST /seus/778affa6-f30a-4e0d-bf0d-e8c4c332bb6f/deliverables/d3fbd30f-d10b-410a-86d1-884f4fd4ae11/transition 302 991ms
+[2026-08-28T04:35:36.496Z] [DEBUG] Incoming path: /aisworg/api/seu/work-items/ed36d52d-0c02-4b39-80e6-1201d6499274/result /aisworg/api/seu/work-items/ed36d52d-0c02-4b39-80e6-1201d6499274/result
+[2026-08-28T04:35:36.588Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/work-items/ed36d52d-0c02-4b39-80e6-1201d6499274/result | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:36.770Z] [INFO] [humanOnUiAdapter] Work Item ed36d52d-0c02-4b39-80e6-1201d6499274 for Deliverable "Requirements Specification" is available on the human-on-UI surface (Defined -> In Progress).
+[2026-08-28T04:35:37.264Z] [INFO] POST /work-items/ed36d52d-0c02-4b39-80e6-1201d6499274/result 200 676ms
+✔ Phase 3 — a dispatched web transition leaves a real Command and Work Item, and dispatch is genuinely deferred without a fulfilled Capability (9148.446083ms)
+[2026-08-28T04:35:37.351Z] [DEBUG] Incoming path: /aisworg/seu/seus/new /aisworg/seu/seus/new
+[2026-08-28T04:35:37.432Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/new | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:37.482Z] [DEBUG] [ViewModel] Render seu/seus/new took 6ms
+[2026-08-28T04:35:37.484Z] [INFO] GET /seus/new 200 52ms
+[2026-08-28T04:35:37.486Z] [DEBUG] Incoming path: /aisworg/seu/seus /aisworg/seu/seus
+[2026-08-28T04:35:37.571Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:40.249Z] [INFO] POST /seus 302 2678ms
+[2026-08-28T04:35:40.252Z] [DEBUG] Incoming path: /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f
+[2026-08-28T04:35:40.328Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:41.062Z] [DEBUG] [ViewModel] Render seu/seus/detail took 14ms
+[2026-08-28T04:35:41.063Z] [INFO] GET /seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f 200 735ms
+[2026-08-28T04:35:41.065Z] [DEBUG] Incoming path: /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil
+[2026-08-28T04:35:41.232Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:43.298Z] [INFO] POST /seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil 302 2066ms
+[2026-08-28T04:35:43.301Z] [DEBUG] Incoming path: /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/deliverables/5c775fcc-06e0-4bc0-92b0-18ac651632d8/transition /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/deliverables/5c775fcc-06e0-4bc0-92b0-18ac651632d8/transition
+[2026-08-28T04:35:43.382Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/deliverables/5c775fcc-06e0-4bc0-92b0-18ac651632d8/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:44.402Z] [INFO] POST /seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/deliverables/5c775fcc-06e0-4bc0-92b0-18ac651632d8/transition 302 1020ms
+[2026-08-28T04:35:44.484Z] [DEBUG] Incoming path: /aisworg/api/seu/work-items/d9bd1fb2-dba3-4e06-a615-8335c533badd/result /aisworg/api/seu/work-items/d9bd1fb2-dba3-4e06-a615-8335c533badd/result
+[2026-08-28T04:35:44.584Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/work-items/d9bd1fb2-dba3-4e06-a615-8335c533badd/result | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:44.812Z] [INFO] [humanOnUiAdapter] Work Item d9bd1fb2-dba3-4e06-a615-8335c533badd for Deliverable "Requirements Specification" is available on the human-on-UI surface (Defined -> In Progress).
+[2026-08-28T04:35:45.344Z] [INFO] POST /work-items/d9bd1fb2-dba3-4e06-a615-8335c533badd/result 200 760ms
+[2026-08-28T04:35:45.348Z] [DEBUG] Incoming path: /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations
+[2026-08-28T04:35:45.438Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:45.624Z] [INFO] POST /seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations 302 185ms
+[2026-08-28T04:35:45.625Z] [DEBUG] Incoming path: /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f
+[2026-08-28T04:35:45.702Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:46.544Z] [DEBUG] [ViewModel] Render seu/seus/detail took 15ms
+[2026-08-28T04:35:46.546Z] [INFO] GET /seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f 200 844ms
+[2026-08-28T04:35:46.550Z] [DEBUG] Incoming path: /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/deliverables/5c775fcc-06e0-4bc0-92b0-18ac651632d8/transition /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/deliverables/5c775fcc-06e0-4bc0-92b0-18ac651632d8/transition
+[2026-08-28T04:35:46.629Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/deliverables/5c775fcc-06e0-4bc0-92b0-18ac651632d8/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:47.217Z] [INFO] POST /seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/deliverables/5c775fcc-06e0-4bc0-92b0-18ac651632d8/transition 302 588ms
+[2026-08-28T04:35:47.218Z] [DEBUG] Incoming path: /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f
+[2026-08-28T04:35:47.300Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:48.094Z] [DEBUG] [ViewModel] Render seu/seus/detail took 12ms
+[2026-08-28T04:35:48.095Z] [INFO] GET /seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f 200 794ms
+[2026-08-28T04:35:48.097Z] [DEBUG] Incoming path: /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations/e3e9767d-a99d-44bb-bdd1-3f3b707eb4d7/transition /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations/e3e9767d-a99d-44bb-bdd1-3f3b707eb4d7/transition
+[2026-08-28T04:35:48.170Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations/e3e9767d-a99d-44bb-bdd1-3f3b707eb4d7/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:48.449Z] [INFO] POST /seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations/e3e9767d-a99d-44bb-bdd1-3f3b707eb4d7/transition 302 279ms
+[2026-08-28T04:35:48.452Z] [DEBUG] Incoming path: /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations/e3e9767d-a99d-44bb-bdd1-3f3b707eb4d7/transition /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations/e3e9767d-a99d-44bb-bdd1-3f3b707eb4d7/transition
+[2026-08-28T04:35:48.534Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations/e3e9767d-a99d-44bb-bdd1-3f3b707eb4d7/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:48.841Z] [INFO] POST /seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations/e3e9767d-a99d-44bb-bdd1-3f3b707eb4d7/transition 302 307ms
+[2026-08-28T04:35:48.844Z] [DEBUG] Incoming path: /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations/e3e9767d-a99d-44bb-bdd1-3f3b707eb4d7/transition /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations/e3e9767d-a99d-44bb-bdd1-3f3b707eb4d7/transition
+[2026-08-28T04:35:48.921Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations/e3e9767d-a99d-44bb-bdd1-3f3b707eb4d7/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:49.248Z] [INFO] POST /seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations/e3e9767d-a99d-44bb-bdd1-3f3b707eb4d7/transition 302 327ms
+[2026-08-28T04:35:49.251Z] [DEBUG] Incoming path: /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations/e3e9767d-a99d-44bb-bdd1-3f3b707eb4d7/transition /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations/e3e9767d-a99d-44bb-bdd1-3f3b707eb4d7/transition
+[2026-08-28T04:35:49.337Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations/e3e9767d-a99d-44bb-bdd1-3f3b707eb4d7/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:49.677Z] [INFO] POST /seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations/e3e9767d-a99d-44bb-bdd1-3f3b707eb4d7/transition 302 340ms
+[2026-08-28T04:35:49.681Z] [DEBUG] Incoming path: /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations/e3e9767d-a99d-44bb-bdd1-3f3b707eb4d7/transition /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations/e3e9767d-a99d-44bb-bdd1-3f3b707eb4d7/transition
+[2026-08-28T04:35:49.758Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations/e3e9767d-a99d-44bb-bdd1-3f3b707eb4d7/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:50.148Z] [INFO] POST /seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/obligations/e3e9767d-a99d-44bb-bdd1-3f3b707eb4d7/transition 302 389ms
+[2026-08-28T04:35:50.151Z] [DEBUG] Incoming path: /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f
+[2026-08-28T04:35:50.238Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:51.395Z] [DEBUG] [ViewModel] Render seu/seus/detail took 11ms
+[2026-08-28T04:35:51.397Z] [INFO] GET /seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f 200 1159ms
+[2026-08-28T04:35:51.402Z] [DEBUG] Incoming path: /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/deliverables/5c775fcc-06e0-4bc0-92b0-18ac651632d8/transition /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/deliverables/5c775fcc-06e0-4bc0-92b0-18ac651632d8/transition
+[2026-08-28T04:35:51.485Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/deliverables/5c775fcc-06e0-4bc0-92b0-18ac651632d8/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:53.106Z] [INFO] POST /seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f/deliverables/5c775fcc-06e0-4bc0-92b0-18ac651632d8/transition 302 1621ms
+[2026-08-28T04:35:53.184Z] [DEBUG] Incoming path: /aisworg/api/seu/work-items/8815d2fc-e8d5-4a5a-a8a4-bd2a246f6aa5/result /aisworg/api/seu/work-items/8815d2fc-e8d5-4a5a-a8a4-bd2a246f6aa5/result
+[2026-08-28T04:35:53.268Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/work-items/8815d2fc-e8d5-4a5a-a8a4-bd2a246f6aa5/result | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:53.463Z] [INFO] [humanOnUiAdapter] Work Item 8815d2fc-e8d5-4a5a-a8a4-bd2a246f6aa5 for Deliverable "Requirements Specification" is available on the human-on-UI surface (In Progress -> Approved).
+[2026-08-28T04:35:54.327Z] [INFO] POST /work-items/8815d2fc-e8d5-4a5a-a8a4-bd2a246f6aa5/result 200 1059ms
+[2026-08-28T04:35:54.328Z] [DEBUG] Incoming path: /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f
+[2026-08-28T04:35:54.405Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:55.136Z] [DEBUG] [ViewModel] Render seu/seus/detail took 14ms
+[2026-08-28T04:35:55.138Z] [INFO] GET /seus/486a57a5-ee9e-4f66-93d6-c953d45eaa1f 200 733ms
+✔ Phase 4 — a Quality Gate blocks a Deliverable transition while an Obligation is unresolved, and allows it once Verified (17792.613959ms)
+[2026-08-28T04:35:55.143Z] [DEBUG] Incoming path: /aisworg/seu/seus/new /aisworg/seu/seus/new
+[2026-08-28T04:35:55.225Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/new | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:55.283Z] [DEBUG] [ViewModel] Render seu/seus/new took 11ms
+[2026-08-28T04:35:55.285Z] [INFO] GET /seus/new 200 60ms
+[2026-08-28T04:35:55.289Z] [DEBUG] Incoming path: /aisworg/seu/seus /aisworg/seu/seus
+[2026-08-28T04:35:55.367Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:57.980Z] [INFO] POST /seus 302 2613ms
+[2026-08-28T04:35:57.983Z] [DEBUG] Incoming path: /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a
+[2026-08-28T04:35:58.060Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:35:58.614Z] [DEBUG] [ViewModel] Render seu/seus/detail took 11ms
+[2026-08-28T04:35:58.615Z] [INFO] GET /seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a 200 555ms
+[2026-08-28T04:35:58.621Z] [DEBUG] Incoming path: /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil
+[2026-08-28T04:35:58.705Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:00.081Z] [INFO] POST /seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil 302 1376ms
+[2026-08-28T04:36:00.085Z] [DEBUG] Incoming path: /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/deliverables/1faa630d-d685-4ad0-9611-a4f08f16f393/transition /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/deliverables/1faa630d-d685-4ad0-9611-a4f08f16f393/transition
+[2026-08-28T04:36:00.183Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/deliverables/1faa630d-d685-4ad0-9611-a4f08f16f393/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:01.595Z] [INFO] POST /seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/deliverables/1faa630d-d685-4ad0-9611-a4f08f16f393/transition 302 1412ms
+[2026-08-28T04:36:01.713Z] [DEBUG] Incoming path: /aisworg/api/seu/work-items/45bd2c0d-3ffa-4ac3-923f-f7fad3a6dcc7/result /aisworg/api/seu/work-items/45bd2c0d-3ffa-4ac3-923f-f7fad3a6dcc7/result
+[2026-08-28T04:36:01.798Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/work-items/45bd2c0d-3ffa-4ac3-923f-f7fad3a6dcc7/result | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:01.989Z] [INFO] [humanOnUiAdapter] Work Item 45bd2c0d-3ffa-4ac3-923f-f7fad3a6dcc7 for Deliverable "Requirements Specification" is available on the human-on-UI surface (Defined -> In Progress).
+[2026-08-28T04:36:02.555Z] [INFO] POST /work-items/45bd2c0d-3ffa-4ac3-923f-f7fad3a6dcc7/result 200 757ms
+[2026-08-28T04:36:02.558Z] [DEBUG] Incoming path: /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/deliverables/1faa630d-d685-4ad0-9611-a4f08f16f393/transition /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/deliverables/1faa630d-d685-4ad0-9611-a4f08f16f393/transition
+[2026-08-28T04:36:02.632Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/deliverables/1faa630d-d685-4ad0-9611-a4f08f16f393/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:03.756Z] [INFO] POST /seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/deliverables/1faa630d-d685-4ad0-9611-a4f08f16f393/transition 302 1124ms
+[2026-08-28T04:36:03.834Z] [DEBUG] Incoming path: /aisworg/api/seu/work-items/5fd84ba9-3694-495d-b7bb-a170cfa12a82/result /aisworg/api/seu/work-items/5fd84ba9-3694-495d-b7bb-a170cfa12a82/result
+[2026-08-28T04:36:03.916Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/work-items/5fd84ba9-3694-495d-b7bb-a170cfa12a82/result | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:04.111Z] [INFO] [humanOnUiAdapter] Work Item 5fd84ba9-3694-495d-b7bb-a170cfa12a82 for Deliverable "Requirements Specification" is available on the human-on-UI surface (In Progress -> Approved).
+[2026-08-28T04:36:04.990Z] [INFO] POST /work-items/5fd84ba9-3694-495d-b7bb-a170cfa12a82/result 200 1073ms
+[2026-08-28T04:36:04.994Z] [DEBUG] Incoming path: /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/deliverables/1faa630d-d685-4ad0-9611-a4f08f16f393/transition /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/deliverables/1faa630d-d685-4ad0-9611-a4f08f16f393/transition
+[2026-08-28T04:36:05.074Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/deliverables/1faa630d-d685-4ad0-9611-a4f08f16f393/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:05.600Z] [INFO] POST /seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/deliverables/1faa630d-d685-4ad0-9611-a4f08f16f393/transition 302 525ms
+[2026-08-28T04:36:05.602Z] [DEBUG] Incoming path: /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a
+[2026-08-28T04:36:05.675Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:06.522Z] [DEBUG] [ViewModel] Render seu/seus/detail took 9ms
+[2026-08-28T04:36:06.523Z] [INFO] GET /seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a 200 848ms
+[2026-08-28T04:36:06.526Z] [DEBUG] Incoming path: /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/evidence /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/evidence
+[2026-08-28T04:36:06.598Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/evidence | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:06.917Z] [INFO] POST /seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/evidence 302 319ms
+[2026-08-28T04:36:06.919Z] [DEBUG] Incoming path: /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a
+[2026-08-28T04:36:07.001Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:07.882Z] [DEBUG] [ViewModel] Render seu/seus/detail took 16ms
+[2026-08-28T04:36:07.884Z] [INFO] GET /seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a 200 883ms
+[2026-08-28T04:36:07.887Z] [DEBUG] Incoming path: /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/evidence/162b861e-7f17-4859-b47c-a202ec594425/transition /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/evidence/162b861e-7f17-4859-b47c-a202ec594425/transition
+[2026-08-28T04:36:07.967Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/evidence/162b861e-7f17-4859-b47c-a202ec594425/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:08.501Z] [INFO] POST /seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/evidence/162b861e-7f17-4859-b47c-a202ec594425/transition 302 534ms
+[2026-08-28T04:36:08.503Z] [DEBUG] Incoming path: /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/evidence/162b861e-7f17-4859-b47c-a202ec594425/transition /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/evidence/162b861e-7f17-4859-b47c-a202ec594425/transition
+[2026-08-28T04:36:08.576Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/evidence/162b861e-7f17-4859-b47c-a202ec594425/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:08.858Z] [INFO] POST /seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/evidence/162b861e-7f17-4859-b47c-a202ec594425/transition 302 282ms
+[2026-08-28T04:36:08.860Z] [DEBUG] Incoming path: /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/deliverables/1faa630d-d685-4ad0-9611-a4f08f16f393/transition /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/deliverables/1faa630d-d685-4ad0-9611-a4f08f16f393/transition
+[2026-08-28T04:36:08.934Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/deliverables/1faa630d-d685-4ad0-9611-a4f08f16f393/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:09.990Z] [INFO] POST /seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a/deliverables/1faa630d-d685-4ad0-9611-a4f08f16f393/transition 302 1056ms
+[2026-08-28T04:36:10.074Z] [DEBUG] Incoming path: /aisworg/api/seu/work-items/2eda4588-7615-4fce-867f-990ba721a3ef/result /aisworg/api/seu/work-items/2eda4588-7615-4fce-867f-990ba721a3ef/result
+[2026-08-28T04:36:10.152Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/work-items/2eda4588-7615-4fce-867f-990ba721a3ef/result | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:10.332Z] [INFO] [humanOnUiAdapter] Work Item 2eda4588-7615-4fce-867f-990ba721a3ef for Deliverable "Requirements Specification" is available on the human-on-UI surface (Approved -> Baselined).
+[2026-08-28T04:36:10.893Z] [INFO] POST /work-items/2eda4588-7615-4fce-867f-990ba721a3ef/result 200 741ms
+[2026-08-28T04:36:10.894Z] [DEBUG] Incoming path: /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a
+[2026-08-28T04:36:10.972Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:11.764Z] [DEBUG] [ViewModel] Render seu/seus/detail took 10ms
+[2026-08-28T04:36:11.766Z] [INFO] GET /seus/43d8f5eb-dabb-4ae2-bae5-75d1f3f7057a 200 794ms
+✔ Phase 5 — a Deliverable transition requiring accepted Evidence is blocked without it and allowed with it (16627.103958ms)
+[2026-08-28T04:36:11.769Z] [DEBUG] Incoming path: /aisworg/seu/seus/new /aisworg/seu/seus/new
+[2026-08-28T04:36:11.860Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/new | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:11.921Z] [DEBUG] [ViewModel] Render seu/seus/new took 8ms
+[2026-08-28T04:36:11.923Z] [INFO] GET /seus/new 200 63ms
+[2026-08-28T04:36:11.927Z] [DEBUG] Incoming path: /aisworg/seu/seus /aisworg/seu/seus
+[2026-08-28T04:36:12.121Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:15.335Z] [INFO] POST /seus 302 3214ms
+[2026-08-28T04:36:15.336Z] [DEBUG] Incoming path: /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2 /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2
+[2026-08-28T04:36:15.416Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2 | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:15.987Z] [DEBUG] [ViewModel] Render seu/seus/detail took 10ms
+[2026-08-28T04:36:15.989Z] [INFO] GET /seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2 200 573ms
+[2026-08-28T04:36:15.991Z] [DEBUG] Incoming path: /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge
+[2026-08-28T04:36:16.073Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:16.225Z] [INFO] POST /seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge 302 152ms
+[2026-08-28T04:36:16.226Z] [DEBUG] Incoming path: /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2 /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2
+[2026-08-28T04:36:16.318Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2 | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:16.887Z] [DEBUG] [ViewModel] Render seu/seus/detail took 8ms
+[2026-08-28T04:36:16.889Z] [INFO] GET /seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2 200 569ms
+[2026-08-28T04:36:16.891Z] [DEBUG] Incoming path: /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/promote-scope /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/promote-scope
+[2026-08-28T04:36:16.969Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/promote-scope | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:17.007Z] [INFO] POST /seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/promote-scope 302 38ms
+[2026-08-28T04:36:17.008Z] [DEBUG] Incoming path: /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2 /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2
+[2026-08-28T04:36:17.083Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2 | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:17.705Z] [DEBUG] [ViewModel] Render seu/seus/detail took 15ms
+[2026-08-28T04:36:17.707Z] [INFO] GET /seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2 200 624ms
+[2026-08-28T04:36:17.714Z] [DEBUG] Incoming path: /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/transition /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/transition
+[2026-08-28T04:36:17.792Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:18.323Z] [INFO] POST /seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/transition 302 530ms
+[2026-08-28T04:36:18.325Z] [DEBUG] Incoming path: /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/transition /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/transition
+[2026-08-28T04:36:18.406Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:18.643Z] [INFO] POST /seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/transition 302 236ms
+[2026-08-28T04:36:18.644Z] [DEBUG] Incoming path: /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/transition /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/transition
+[2026-08-28T04:36:18.724Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:18.960Z] [INFO] POST /seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/transition 302 236ms
+[2026-08-28T04:36:18.962Z] [DEBUG] Incoming path: /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/transition /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/transition
+[2026-08-28T04:36:19.040Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:19.278Z] [INFO] POST /seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/transition 302 238ms
+[2026-08-28T04:36:19.280Z] [DEBUG] Incoming path: /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/promote-scope /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/promote-scope
+[2026-08-28T04:36:19.362Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/promote-scope | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:19.746Z] [INFO] POST /seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2/knowledge/580bf03e-b479-4843-853a-596f08ced3a5/promote-scope 302 384ms
+[2026-08-28T04:36:19.750Z] [DEBUG] Incoming path: /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2 /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2
+[2026-08-28T04:36:19.826Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2 | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:20.469Z] [DEBUG] [ViewModel] Render seu/seus/detail took 9ms
+[2026-08-28T04:36:20.470Z] [INFO] GET /seus/f64d71b3-c0ef-419d-8aea-c74427d9fba2 200 644ms
+[2026-08-28T04:36:20.471Z] [DEBUG] Incoming path: /aisworg/seu/knowledge/capital /aisworg/seu/knowledge/capital
+[2026-08-28T04:36:20.554Z] [DEBUG] [Gatekeeper] /aisworg/seu/knowledge/capital | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:20.610Z] [DEBUG] [ViewModel] Render seu/knowledge/capital took 9ms
+[2026-08-28T04:36:20.611Z] [INFO] GET /knowledge/capital 200 57ms
+✔ Phase 6 — promoting a Published Knowledge Item's scope raises a visible Organisational Learning Obligation and appears on the Engineering Capital screen (8845.370209ms)
+[2026-08-28T04:36:20.614Z] [DEBUG] Incoming path: /aisworg/seu/seus/new /aisworg/seu/seus/new
+[2026-08-28T04:36:20.690Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/new | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:20.736Z] [DEBUG] [ViewModel] Render seu/seus/new took 5ms
+[2026-08-28T04:36:20.737Z] [INFO] GET /seus/new 200 47ms
+[2026-08-28T04:36:20.739Z] [DEBUG] Incoming path: /aisworg/seu/seus /aisworg/seu/seus
+[2026-08-28T04:36:20.813Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:24.533Z] [INFO] POST /seus 302 3720ms
+[2026-08-28T04:36:24.536Z] [DEBUG] Incoming path: /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2 /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2
+[2026-08-28T04:36:24.613Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2 | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:25.136Z] [DEBUG] [ViewModel] Render seu/seus/detail took 11ms
+[2026-08-28T04:36:25.137Z] [INFO] GET /seus/9aec631d-243d-4919-9cb2-39c309a680c2 200 524ms
+[2026-08-28T04:36:25.143Z] [DEBUG] Incoming path: /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil
+[2026-08-28T04:36:25.219Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:26.732Z] [INFO] POST /seus/9aec631d-243d-4919-9cb2-39c309a680c2/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil 302 1513ms
+[2026-08-28T04:36:26.734Z] [DEBUG] Incoming path: /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2/deliverables/b1f54946-f673-46fc-9c02-37ed57b6172e/transition /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2/deliverables/b1f54946-f673-46fc-9c02-37ed57b6172e/transition
+[2026-08-28T04:36:26.811Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2/deliverables/b1f54946-f673-46fc-9c02-37ed57b6172e/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:27.788Z] [INFO] POST /seus/9aec631d-243d-4919-9cb2-39c309a680c2/deliverables/b1f54946-f673-46fc-9c02-37ed57b6172e/transition 302 977ms
+[2026-08-28T04:36:27.862Z] [DEBUG] Incoming path: /aisworg/api/seu/work-items/79d1e850-80f4-480b-ae81-f14e5ace258c/result /aisworg/api/seu/work-items/79d1e850-80f4-480b-ae81-f14e5ace258c/result
+[2026-08-28T04:36:27.943Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/work-items/79d1e850-80f4-480b-ae81-f14e5ace258c/result | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:28.139Z] [INFO] [humanOnUiAdapter] Work Item 79d1e850-80f4-480b-ae81-f14e5ace258c for Deliverable "Requirements Specification" is available on the human-on-UI surface (Defined -> In Progress).
+[2026-08-28T04:36:28.751Z] [INFO] POST /work-items/79d1e850-80f4-480b-ae81-f14e5ace258c/result 200 808ms
+[2026-08-28T04:36:28.753Z] [DEBUG] Incoming path: /aisworg/seu/telemetry /aisworg/seu/telemetry
+[2026-08-28T04:36:28.866Z] [DEBUG] [Gatekeeper] /aisworg/seu/telemetry | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:29.590Z] [DEBUG] [ViewModel] Render seu/telemetry/index took 12ms
+[2026-08-28T04:36:29.591Z] [INFO] GET /telemetry 200 725ms
+[2026-08-28T04:36:29.594Z] [DEBUG] Incoming path: /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2/obligations /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2/obligations
+[2026-08-28T04:36:29.667Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2/obligations | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:29.852Z] [INFO] POST /seus/9aec631d-243d-4919-9cb2-39c309a680c2/obligations 302 185ms
+[2026-08-28T04:36:29.854Z] [DEBUG] Incoming path: /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2/deliverables/b1f54946-f673-46fc-9c02-37ed57b6172e/transition /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2/deliverables/b1f54946-f673-46fc-9c02-37ed57b6172e/transition
+[2026-08-28T04:36:29.938Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2/deliverables/b1f54946-f673-46fc-9c02-37ed57b6172e/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:30.462Z] [INFO] POST /seus/9aec631d-243d-4919-9cb2-39c309a680c2/deliverables/b1f54946-f673-46fc-9c02-37ed57b6172e/transition 302 524ms
+[2026-08-28T04:36:30.464Z] [DEBUG] Incoming path: /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2/deliverables/b1f54946-f673-46fc-9c02-37ed57b6172e/transition /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2/deliverables/b1f54946-f673-46fc-9c02-37ed57b6172e/transition
+[2026-08-28T04:36:30.542Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2/deliverables/b1f54946-f673-46fc-9c02-37ed57b6172e/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:30.963Z] [INFO] POST /seus/9aec631d-243d-4919-9cb2-39c309a680c2/deliverables/b1f54946-f673-46fc-9c02-37ed57b6172e/transition 302 421ms
+[2026-08-28T04:36:30.964Z] [DEBUG] Incoming path: /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2/deliverables/b1f54946-f673-46fc-9c02-37ed57b6172e/transition /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2/deliverables/b1f54946-f673-46fc-9c02-37ed57b6172e/transition
+[2026-08-28T04:36:31.043Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2/deliverables/b1f54946-f673-46fc-9c02-37ed57b6172e/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:31.832Z] [INFO] POST /seus/9aec631d-243d-4919-9cb2-39c309a680c2/deliverables/b1f54946-f673-46fc-9c02-37ed57b6172e/transition 302 789ms
+[2026-08-28T04:36:31.834Z] [DEBUG] Incoming path: /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2 /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2
+[2026-08-28T04:36:31.916Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2 | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:32.869Z] [DEBUG] [ViewModel] Render seu/seus/detail took 8ms
+[2026-08-28T04:36:32.870Z] [INFO] GET /seus/9aec631d-243d-4919-9cb2-39c309a680c2 200 954ms
+[2026-08-28T04:36:32.872Z] [DEBUG] Incoming path: /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2/deliverables/b1f54946-f673-46fc-9c02-37ed57b6172e/transition /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2/deliverables/b1f54946-f673-46fc-9c02-37ed57b6172e/transition
+[2026-08-28T04:36:32.944Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2/deliverables/b1f54946-f673-46fc-9c02-37ed57b6172e/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:33.420Z] [INFO] POST /seus/9aec631d-243d-4919-9cb2-39c309a680c2/deliverables/b1f54946-f673-46fc-9c02-37ed57b6172e/transition 302 476ms
+[2026-08-28T04:36:33.422Z] [DEBUG] Incoming path: /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2 /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2
+[2026-08-28T04:36:33.501Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2 | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:34.632Z] [DEBUG] [ViewModel] Render seu/seus/detail took 7ms
+[2026-08-28T04:36:34.633Z] [INFO] GET /seus/9aec631d-243d-4919-9cb2-39c309a680c2 200 1132ms
+[2026-08-28T04:36:34.635Z] [DEBUG] Incoming path: /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2 /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2
+[2026-08-28T04:36:34.713Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/9aec631d-243d-4919-9cb2-39c309a680c2 | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:35.483Z] [DEBUG] [ViewModel] Render seu/seus/detail took 13ms
+[2026-08-28T04:36:35.485Z] [INFO] GET /seus/9aec631d-243d-4919-9cb2-39c309a680c2 200 772ms
+[2026-08-28T04:36:35.487Z] [DEBUG] Incoming path: /aisworg/seu/telemetry /aisworg/seu/telemetry
+[2026-08-28T04:36:35.571Z] [DEBUG] [Gatekeeper] /aisworg/seu/telemetry | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:35.885Z] [DEBUG] [ViewModel] Render seu/telemetry/index took 8ms
+[2026-08-28T04:36:35.886Z] [INFO] GET /telemetry 200 315ms
+✔ Phase 7 — Flow and Governance Telemetry are real, and a sustained pattern of Quality Gate blocking raises exactly one Organisational Learning Obligation (15275.821875ms)
+[2026-08-28T04:36:35.890Z] [DEBUG] Incoming path: /aisworg/seu/seus/new /aisworg/seu/seus/new
+[2026-08-28T04:36:35.969Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/new | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:36.021Z] [DEBUG] [ViewModel] Render seu/seus/new took 6ms
+[2026-08-28T04:36:36.023Z] [INFO] GET /seus/new 200 54ms
+[2026-08-28T04:36:36.025Z] [DEBUG] Incoming path: /aisworg/seu/seus /aisworg/seu/seus
+[2026-08-28T04:36:36.108Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:39.026Z] [INFO] POST /seus 302 2918ms
+[2026-08-28T04:36:39.030Z] [DEBUG] Incoming path: /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e
+[2026-08-28T04:36:39.114Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:39.700Z] [DEBUG] [ViewModel] Render seu/seus/detail took 14ms
+[2026-08-28T04:36:39.702Z] [INFO] GET /seus/51d90971-ba5c-4373-815e-6f1e886c7d4e 200 588ms
+[2026-08-28T04:36:39.705Z] [DEBUG] Incoming path: /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil
+[2026-08-28T04:36:39.782Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:41.551Z] [INFO] POST /seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil 302 1769ms
+[2026-08-28T04:36:41.553Z] [DEBUG] Incoming path: /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/deliverables/f440044c-b839-4f34-b724-fbe0fc492007/transition /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/deliverables/f440044c-b839-4f34-b724-fbe0fc492007/transition
+[2026-08-28T04:36:41.653Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/deliverables/f440044c-b839-4f34-b724-fbe0fc492007/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:42.626Z] [INFO] POST /seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/deliverables/f440044c-b839-4f34-b724-fbe0fc492007/transition 302 973ms
+[2026-08-28T04:36:42.705Z] [DEBUG] Incoming path: /aisworg/api/seu/work-items/160caa1a-70e1-4414-a1ec-952adbf62259/result /aisworg/api/seu/work-items/160caa1a-70e1-4414-a1ec-952adbf62259/result
+[2026-08-28T04:36:42.781Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/work-items/160caa1a-70e1-4414-a1ec-952adbf62259/result | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:43.009Z] [INFO] [humanOnUiAdapter] Work Item 160caa1a-70e1-4414-a1ec-952adbf62259 for Deliverable "Requirements Specification" is available on the human-on-UI surface (Defined -> In Progress).
+[2026-08-28T04:36:43.774Z] [INFO] POST /work-items/160caa1a-70e1-4414-a1ec-952adbf62259/result 200 993ms
+[2026-08-28T04:36:43.778Z] [DEBUG] Incoming path: /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/obligations /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/obligations
+[2026-08-28T04:36:43.970Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/obligations | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:44.403Z] [INFO] POST /seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/obligations 302 433ms
+[2026-08-28T04:36:44.407Z] [DEBUG] Incoming path: /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/deliverables/f440044c-b839-4f34-b724-fbe0fc492007/transition /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/deliverables/f440044c-b839-4f34-b724-fbe0fc492007/transition
+[2026-08-28T04:36:44.485Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/deliverables/f440044c-b839-4f34-b724-fbe0fc492007/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:45.090Z] [INFO] POST /seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/deliverables/f440044c-b839-4f34-b724-fbe0fc492007/transition 302 605ms
+[2026-08-28T04:36:45.092Z] [DEBUG] Incoming path: /aisworg/seu/attention /aisworg/seu/attention?pageSize=500
+[2026-08-28T04:36:45.175Z] [DEBUG] [Gatekeeper] /aisworg/seu/attention | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:45.621Z] [DEBUG] [ViewModel] Render seu/attention/index took 9ms
+[2026-08-28T04:36:45.623Z] [INFO] GET /attention 200 448ms
+[2026-08-28T04:36:45.625Z] [DEBUG] Incoming path: /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/deliverables/f440044c-b839-4f34-b724-fbe0fc492007/transition /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/deliverables/f440044c-b839-4f34-b724-fbe0fc492007/transition
+[2026-08-28T04:36:45.708Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/deliverables/f440044c-b839-4f34-b724-fbe0fc492007/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:46.150Z] [INFO] POST /seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/deliverables/f440044c-b839-4f34-b724-fbe0fc492007/transition 302 442ms
+[2026-08-28T04:36:46.152Z] [DEBUG] Incoming path: /aisworg/api/seu/attention-items /aisworg/api/seu/attention-items?seuId=51d90971-ba5c-4373-815e-6f1e886c7d4e
+[2026-08-28T04:36:46.230Z] [DEBUG] [Gatekeeper] /aisworg/api/seu/attention-items | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:46.269Z] [INFO] GET /attention-items 200 39ms
+[2026-08-28T04:36:46.273Z] [DEBUG] Incoming path: /aisworg/seu/attention /aisworg/seu/attention?pageSize=500
+[2026-08-28T04:36:46.364Z] [DEBUG] [Gatekeeper] /aisworg/seu/attention | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:46.537Z] [DEBUG] [ViewModel] Render seu/attention/index took 8ms
+[2026-08-28T04:36:46.539Z] [INFO] GET /attention 200 175ms
+[2026-08-28T04:36:46.541Z] [DEBUG] Incoming path: /aisworg/seu/attention/90b79220-4ecd-43f9-9b2f-1e7e71411817/transition /aisworg/seu/attention/90b79220-4ecd-43f9-9b2f-1e7e71411817/transition
+[2026-08-28T04:36:46.630Z] [DEBUG] [Gatekeeper] /aisworg/seu/attention/90b79220-4ecd-43f9-9b2f-1e7e71411817/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:46.895Z] [INFO] POST /attention/90b79220-4ecd-43f9-9b2f-1e7e71411817/transition 302 265ms
+[2026-08-28T04:36:46.897Z] [DEBUG] Incoming path: /aisworg/seu/attention /aisworg/seu/attention?pageSize=500
+[2026-08-28T04:36:46.980Z] [DEBUG] [Gatekeeper] /aisworg/seu/attention | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:47.218Z] [DEBUG] [ViewModel] Render seu/attention/index took 6ms
+[2026-08-28T04:36:47.220Z] [INFO] GET /attention 200 240ms
+[2026-08-28T04:36:47.222Z] [DEBUG] Incoming path: /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/external-interactions /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/external-interactions
+[2026-08-28T04:36:47.305Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/external-interactions | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:47.429Z] [INFO] POST /seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/external-interactions 302 124ms
+[2026-08-28T04:36:47.431Z] [DEBUG] Incoming path: /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e
+[2026-08-28T04:36:47.525Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:48.279Z] [DEBUG] [ViewModel] Render seu/seus/detail took 8ms
+[2026-08-28T04:36:48.281Z] [INFO] GET /seus/51d90971-ba5c-4373-815e-6f1e886c7d4e 200 756ms
+[2026-08-28T04:36:48.289Z] [DEBUG] Incoming path: /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/external-interactions/5c0f843f-9b52-4dce-8bbc-633be71d6b08/transition /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/external-interactions/5c0f843f-9b52-4dce-8bbc-633be71d6b08/transition
+[2026-08-28T04:36:48.361Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/external-interactions/5c0f843f-9b52-4dce-8bbc-633be71d6b08/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:48.721Z] [INFO] POST /seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/external-interactions/5c0f843f-9b52-4dce-8bbc-633be71d6b08/transition 302 360ms
+[2026-08-28T04:36:48.723Z] [DEBUG] Incoming path: /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/external-interactions/5c0f843f-9b52-4dce-8bbc-633be71d6b08/transition /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/external-interactions/5c0f843f-9b52-4dce-8bbc-633be71d6b08/transition
+[2026-08-28T04:36:48.813Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/external-interactions/5c0f843f-9b52-4dce-8bbc-633be71d6b08/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:49.095Z] [INFO] POST /seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/external-interactions/5c0f843f-9b52-4dce-8bbc-633be71d6b08/transition 302 282ms
+[2026-08-28T04:36:49.097Z] [DEBUG] Incoming path: /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/external-interactions/5c0f843f-9b52-4dce-8bbc-633be71d6b08/transition /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/external-interactions/5c0f843f-9b52-4dce-8bbc-633be71d6b08/transition
+[2026-08-28T04:36:49.179Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/external-interactions/5c0f843f-9b52-4dce-8bbc-633be71d6b08/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:49.574Z] [INFO] POST /seus/51d90971-ba5c-4373-815e-6f1e886c7d4e/external-interactions/5c0f843f-9b52-4dce-8bbc-633be71d6b08/transition 302 394ms
+[2026-08-28T04:36:49.576Z] [DEBUG] Incoming path: /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e
+[2026-08-28T04:36:49.652Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/51d90971-ba5c-4373-815e-6f1e886c7d4e | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:50.422Z] [DEBUG] [ViewModel] Render seu/seus/detail took 15ms
+[2026-08-28T04:36:50.424Z] [INFO] GET /seus/51d90971-ba5c-4373-815e-6f1e886c7d4e 200 772ms
+[2026-08-28T04:36:50.427Z] [DEBUG] Incoming path: /aisworg/seu/attention /aisworg/seu/attention?pageSize=500
+[2026-08-28T04:36:50.510Z] [DEBUG] [Gatekeeper] /aisworg/seu/attention | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:50.724Z] [DEBUG] [ViewModel] Render seu/attention/index took 9ms
+[2026-08-28T04:36:50.727Z] [INFO] GET /attention 200 217ms
+✔ Phase 8 — a blocked Quality Gate and a failed External Interaction both surface real Attention Items on the platform-wide inbox (14842.056417ms)
+[2026-08-28T04:36:51.804Z] [DEBUG] Incoming path: /aisworg/seu/packs /aisworg/seu/packs?q=webflow-phase9-pack-80245f3e-e6f8-4704-b4b6-0fd859fdb457
+[2026-08-28T04:36:51.893Z] [DEBUG] [Gatekeeper] /aisworg/seu/packs | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:52.423Z] [DEBUG] [ViewModel] Render seu/packs/index took 15ms
+[2026-08-28T04:36:52.425Z] [INFO] GET /packs 200 532ms
+[2026-08-28T04:36:52.427Z] [DEBUG] Incoming path: /aisworg/seu/sdk/pack-authoring/e2415086-0f6f-4d6f-8595-e9ba1c48a955 /aisworg/seu/sdk/pack-authoring/e2415086-0f6f-4d6f-8595-e9ba1c48a955
+[2026-08-28T04:36:52.511Z] [DEBUG] [Gatekeeper] /aisworg/seu/sdk/pack-authoring/e2415086-0f6f-4d6f-8595-e9ba1c48a955 | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:53.074Z] [DEBUG] [ViewModel] Render seu/sdk/authoring/edit took 50ms
+[2026-08-28T04:36:53.075Z] [INFO] GET /sdk/pack-authoring/e2415086-0f6f-4d6f-8595-e9ba1c48a955 200 564ms
+[2026-08-28T04:36:53.077Z] [DEBUG] Incoming path: /aisworg/seu/sdk/pack-authoring/e2415086-0f6f-4d6f-8595-e9ba1c48a955/transition /aisworg/seu/sdk/pack-authoring/e2415086-0f6f-4d6f-8595-e9ba1c48a955/transition
+[2026-08-28T04:36:53.158Z] [DEBUG] [Gatekeeper] /aisworg/seu/sdk/pack-authoring/e2415086-0f6f-4d6f-8595-e9ba1c48a955/transition | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:53.437Z] [INFO] POST /sdk/pack-authoring/e2415086-0f6f-4d6f-8595-e9ba1c48a955/transition 302 279ms
+[2026-08-28T04:36:53.439Z] [DEBUG] Incoming path: /aisworg/seu/sdk/pack-authoring/e2415086-0f6f-4d6f-8595-e9ba1c48a955 /aisworg/seu/sdk/pack-authoring/e2415086-0f6f-4d6f-8595-e9ba1c48a955
+[2026-08-28T04:36:53.521Z] [DEBUG] [Gatekeeper] /aisworg/seu/sdk/pack-authoring/e2415086-0f6f-4d6f-8595-e9ba1c48a955 | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:54.109Z] [DEBUG] [ViewModel] Render seu/sdk/authoring/edit took 33ms
+[2026-08-28T04:36:54.109Z] [INFO] GET /sdk/pack-authoring/e2415086-0f6f-4d6f-8595-e9ba1c48a955 200 588ms
+[2026-08-28T04:36:54.110Z] [DEBUG] Incoming path: /aisworg/seu/packs /aisworg/seu/packs?q=webflow-phase9-pack-80245f3e-e6f8-4704-b4b6-0fd859fdb457
+[2026-08-28T04:36:54.215Z] [DEBUG] [Gatekeeper] /aisworg/seu/packs | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:54.943Z] [DEBUG] [ViewModel] Render seu/packs/index took 12ms
+[2026-08-28T04:36:54.944Z] [INFO] GET /packs 200 729ms
+✔ Phase 9 — a Pack published through the SDK is visible on the platform-wide Registry, and its lifecycle transitions over real HTTP (4216.847125ms)
+[2026-08-28T04:36:54.948Z] [DEBUG] Incoming path: /aisworg/seu/seus/new /aisworg/seu/seus/new
+[2026-08-28T04:36:55.052Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/new | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:55.107Z] [DEBUG] [ViewModel] Render seu/seus/new took 8ms
+[2026-08-28T04:36:55.109Z] [INFO] GET /seus/new 200 57ms
+[2026-08-28T04:36:55.113Z] [DEBUG] Incoming path: /aisworg/seu/seus /aisworg/seu/seus
+[2026-08-28T04:36:55.231Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:58.628Z] [INFO] POST /seus 302 3397ms
+[2026-08-28T04:36:58.632Z] [DEBUG] Incoming path: /aisworg/seu/seus/f40d1b60-f6f8-4dbc-b220-a22ebddf0476 /aisworg/seu/seus/f40d1b60-f6f8-4dbc-b220-a22ebddf0476
+[2026-08-28T04:36:58.712Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/f40d1b60-f6f8-4dbc-b220-a22ebddf0476 | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:36:59.340Z] [DEBUG] [ViewModel] Render seu/seus/detail took 12ms
+[2026-08-28T04:36:59.341Z] [INFO] GET /seus/f40d1b60-f6f8-4dbc-b220-a22ebddf0476 200 629ms
+[2026-08-28T04:36:59.344Z] [DEBUG] Incoming path: /aisworg/seu/seus/f40d1b60-f6f8-4dbc-b220-a22ebddf0476/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil /aisworg/seu/seus/f40d1b60-f6f8-4dbc-b220-a22ebddf0476/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil
+[2026-08-28T04:36:59.429Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/f40d1b60-f6f8-4dbc-b220-a22ebddf0476/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:37:00.928Z] [INFO] POST /seus/f40d1b60-f6f8-4dbc-b220-a22ebddf0476/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/fulfil 302 1498ms
+[2026-08-28T04:37:00.930Z] [DEBUG] Incoming path: /aisworg/seu/seus/f40d1b60-f6f8-4dbc-b220-a22ebddf0476 /aisworg/seu/seus/f40d1b60-f6f8-4dbc-b220-a22ebddf0476
+[2026-08-28T04:37:01.010Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/f40d1b60-f6f8-4dbc-b220-a22ebddf0476 | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:37:01.675Z] [DEBUG] [ViewModel] Render seu/seus/detail took 14ms
+[2026-08-28T04:37:01.677Z] [INFO] GET /seus/f40d1b60-f6f8-4dbc-b220-a22ebddf0476 200 667ms
+[2026-08-28T04:37:01.680Z] [DEBUG] Incoming path: /aisworg/seu/seus/f40d1b60-f6f8-4dbc-b220-a22ebddf0476/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/participant/229034a0-4a6b-418a-800a-9d8c3444c59e/replace /aisworg/seu/seus/f40d1b60-f6f8-4dbc-b220-a22ebddf0476/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/participant/229034a0-4a6b-418a-800a-9d8c3444c59e/replace
+[2026-08-28T04:37:01.774Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/f40d1b60-f6f8-4dbc-b220-a22ebddf0476/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/participant/229034a0-4a6b-418a-800a-9d8c3444c59e/replace | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:37:02.506Z] [INFO] POST /seus/f40d1b60-f6f8-4dbc-b220-a22ebddf0476/capabilities/5a523001-0c40-418f-9e1a-3b48d7b20454/participant/229034a0-4a6b-418a-800a-9d8c3444c59e/replace 302 732ms
+[2026-08-28T04:37:02.507Z] [DEBUG] Incoming path: /aisworg/seu/seus/f40d1b60-f6f8-4dbc-b220-a22ebddf0476 /aisworg/seu/seus/f40d1b60-f6f8-4dbc-b220-a22ebddf0476
+[2026-08-28T04:37:02.593Z] [DEBUG] [Gatekeeper] /aisworg/seu/seus/f40d1b60-f6f8-4dbc-b220-a22ebddf0476 | user: manimaransudha@gmail.com (super)
+[2026-08-28T04:37:03.228Z] [DEBUG] [ViewModel] Render seu/seus/detail took 9ms
+[2026-08-28T04:37:03.229Z] [INFO] GET /seus/f40d1b60-f6f8-4dbc-b220-a22ebddf0476 200 636ms
+✔ Participant Lifecycle Governance, Build order step 5 — replacing a fulfilled Capability's Participant over real HTTP (8284.463625ms)
+✔ an outstanding Work Item within its SLA is not escalated; past its SLA it raises exactly one Escalation Attention Item, unattended (8637.338834ms)
+✔ a completed Work Item is no longer outstanding, so the stall sweep never escalates it (8044.171875ms)
+✔ the assigner's explicit target overrides the SLA-derived default (6738.416834ms)
+✔ a Participant that responds before the target is processed normally (the deadline never blocks an early result) (7639.877875ms)
+ℹ tests 187
+ℹ suites 0
+ℹ pass 187
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 254575.303625

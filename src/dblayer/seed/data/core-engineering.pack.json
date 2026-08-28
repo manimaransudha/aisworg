@@ -1,5 +1,5 @@
 {
-  "code": "platform-core-engineering",
+  "code": "development",
   "name": "Core Engineering Practices",
   "category": "Engineering",
   "packVersion": "1.0.0",
@@ -28,20 +28,20 @@
         "capabilityCode": "requirements-analysis",
         "name": "Approved Requirements Specification",
         "contractDescription": "A reviewed, approved statement of what the solution must do.",
-        "serviceLevel": {
-          "qualityBar": "peer-reviewed",
-          "turnaround_time": 86400
-        }
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "approved-architecture",
         "capabilityCode": "architecture",
         "name": "Approved Architecture",
         "contractDescription": "A reviewed, approved technical design satisfying the approved requirements.",
-        "serviceLevel": {
-          "qualityBar": "peer-reviewed",
-          "turnaround_time": 86400
-        }
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       }
     ],
     "authorityRules": [
@@ -127,7 +127,7 @@
         "name": "Commissioning baseline check",
         "category": "Engineering",
         "constraintType": "Policy",
-        "governedTransition": "seu.commission",
+        "governedTransition": "SEU|Pending|Commissioned",
         "severity": "Medium",
         "conditionType": "always_true"
       },
@@ -136,7 +136,7 @@
         "name": "Deliverable transition baseline check",
         "category": "Engineering",
         "constraintType": "Policy",
-        "governedTransition": "deliverable.transition",
+        "governedTransition": "Deliverable|Defined|In Progress",
         "severity": "Low",
         "conditionType": "always_true"
       },
@@ -145,7 +145,7 @@
         "name": "Objective transition baseline check",
         "category": "Engineering",
         "constraintType": "Policy",
-        "governedTransition": "objective.transition",
+        "governedTransition": "Objective|Proposed|Active",
         "severity": "Low",
         "conditionType": "always_true"
       },
@@ -154,7 +154,7 @@
         "name": "Obligation transition baseline check",
         "category": "Engineering",
         "constraintType": "Policy",
-        "governedTransition": "obligation.transition",
+        "governedTransition": "Obligation|Identified|Analysed",
         "severity": "Low",
         "conditionType": "always_true"
       },
@@ -163,7 +163,7 @@
         "name": "Evidence transition baseline check",
         "category": "Engineering",
         "constraintType": "Policy",
-        "governedTransition": "evidence.transition",
+        "governedTransition": "Evidence|Collected|Validated",
         "severity": "Low",
         "conditionType": "always_true"
       },
@@ -172,7 +172,7 @@
         "name": "Knowledge transition baseline check",
         "category": "Engineering",
         "constraintType": "Policy",
-        "governedTransition": "knowledge.transition",
+        "governedTransition": "Knowledge|Observed|Proposed",
         "severity": "Low",
         "conditionType": "always_true"
       },
@@ -181,7 +181,7 @@
         "name": "Decision transition baseline check",
         "category": "Engineering",
         "constraintType": "Policy",
-        "governedTransition": "decision.transition",
+        "governedTransition": "Decision|Identified|Analysed",
         "severity": "Low",
         "conditionType": "always_true"
       },
@@ -190,7 +190,7 @@
         "name": "Acquisition Scope promotion baseline check",
         "category": "Engineering",
         "constraintType": "Policy",
-        "governedTransition": "knowledgescope.transition",
+        "governedTransition": "KnowledgeScope|SEU|Capability",
         "severity": "Medium",
         "conditionType": "always_true"
       },
@@ -199,7 +199,7 @@
         "name": "Attention Item transition baseline check",
         "category": "Engineering",
         "constraintType": "Policy",
-        "governedTransition": "attentionitem.transition",
+        "governedTransition": "AttentionItem|Created|Delivered",
         "severity": "Low",
         "conditionType": "always_true"
       },
@@ -208,7 +208,7 @@
         "name": "External Interaction transition baseline check",
         "category": "Engineering",
         "constraintType": "Policy",
-        "governedTransition": "externalinteraction.transition",
+        "governedTransition": "ExternalInteraction|Created|Validated",
         "severity": "Low",
         "conditionType": "always_true"
       },
@@ -217,7 +217,7 @@
         "name": "Pack transition baseline check",
         "category": "Engineering",
         "constraintType": "Policy",
-        "governedTransition": "pack.transition",
+        "governedTransition": "Pack|Draft|Validated",
         "severity": "Low",
         "conditionType": "always_true"
       },
@@ -226,7 +226,7 @@
         "name": "Participant transition baseline check",
         "category": "Engineering",
         "constraintType": "Policy",
-        "governedTransition": "participant.transition",
+        "governedTransition": "Participant|Created|Available",
         "severity": "Low",
         "conditionType": "always_true"
       }

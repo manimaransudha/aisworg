@@ -4,5 +4,5 @@
   "baseTemplateCode": "package-implementation",
   "environment": "development",
   "configParameters": {},
-  "optionalPackCodes": ["technology-nodejs"]
+  "optionalPackCodes": ["testing-qa"]
 }

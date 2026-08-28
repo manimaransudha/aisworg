@@ -1,0 +1,54 @@
+{
+  "code": "test-development",
+  "name": "Development (OpenUP Capability Pattern)",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "EPF/OpenUP's Development (Design & Implementation) capability pattern, modelled as a Pack: the Developer role, its implementation/build work products, and the tasks for designing, implementing, and integrating a solution increment.",
+  "owner": "EPF/OpenUP Practice Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "development",
+        "name": "Solution Development",
+        "description": "Designs and implements solution increments against the approved architecture, on behalf of the Developer role."
+      }
+    ],
+    "services": [
+      {
+        "code": "implementation-elements",
+        "capabilityCode": "development",
+        "name": "Implementation Elements",
+        "contractDescription": "Working code implementing the design for this increment, ready for integration."
+      },
+      {
+        "code": "integrated-build",
+        "capabilityCode": "development",
+        "name": "Integrated Build",
+        "contractDescription": "A build integrating this increment's implementation elements, ready for test."
+      }
+    ],
+    "policies": [
+      {
+        "code": "policy-no-hardcoded-secrets",
+        "name": "No Hardcoded Secrets",
+        "category": "Security",
+        "constraintType": "Policy",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "conditionType": "always_true",
+        "severity": "High"
+      },
+      {
+        "code": "standard-small-single-purpose-commits",
+        "name": "Small, Single-Purpose Commits",
+        "category": "Quality",
+        "constraintType": "Standard",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "conditionType": "always_true",
+        "severity": "Low"
+      }
+    ]
+  }
+}

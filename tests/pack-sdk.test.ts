@@ -21,7 +21,7 @@ import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { compositionEngine } from "../src/domain/engine/compositionEngine.js";
 import { validatePackSeed, publishPack, transitionPack, createPackDraft, listPacksWithNextStates, type PackSeedInput } from "../src/routes/seu/core/packs.js";
-import { registerTestOntologyCode, deleteTestOntologyCodes } from "./testFixtures.js";
+import { registerTestOntologyCode, deleteTestOntologyCodes, ensureTestFixturePacks } from "./testFixtures.js";
 
 // CR-046 — every real capability-name concept freshPackSeed registers
 // (see freshPackSeed's own comment), cleaned up here same as the other
@@ -83,8 +83,9 @@ test("validatePackSeed rejects a non-semver packVersion, duplicate contribution 
 });
 
 test("validatePackSeed accepts a well-formed Pack and resolves a real dependency", async () => {
+  await ensureTestFixturePacks();
   const seed = await freshPackSeed({
-    dependencies: [{ packCode: "platform-core-engineering", version: "1.0.0", type: "required" }],
+    dependencies: [{ packCode: "test-testing-qa", version: "1.0.0", type: "required" }],
   });
   const result = await validatePackSeed(seed);
   assert.equal(result.ok, true, !result.ok ? JSON.stringify(result.errors) : undefined);

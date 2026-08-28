@@ -47,8 +47,8 @@ after(async () => {
 // originating_pack_id is a plain traceability FK — any real Pack id satisfies
 // it; which one doesn't matter for what this file is testing.
 async function anyRealPackId(): Promise<string> {
-  const { data: pack } = await packsDB.findByCode("platform-core-engineering");
-  if (!pack) throw new Error("expected platform-core-engineering to be seeded");
+  const { data: pack } = await packsDB.findByCode("development");
+  if (!pack) throw new Error("expected development pack to be seeded");
   return pack.id;
 }
 

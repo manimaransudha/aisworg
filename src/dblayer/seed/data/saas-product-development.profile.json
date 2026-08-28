@@ -4,5 +4,5 @@
   "baseTemplateCode": "saas-product",
   "environment": "development",
   "configParameters": {},
-  "optionalPackCodes": ["technology-nodejs"]
+  "optionalPackCodes": ["testing-qa"]
 }

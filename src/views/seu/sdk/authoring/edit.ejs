@@ -233,6 +233,29 @@
       <% } %>
     </form>
 
+    <%
+      // CR-067 — "Compose" is offered whenever this entity's OWN schema
+      // declares compositionSources, not hardcoded to Pack — the same
+      // schema-presence check every other generic widget on this page uses
+      // (e.g. groups.dependencies being non-null decides whether the
+      // Dependencies tab exists at all).
+      var allGeneratedFields = (groups.other || []).concat(groups.metadata || [], groups.compatibility || [], groups.packSelection || [], groups.deliverables || []);
+      (groups.contributions || []).forEach(function (c) { allGeneratedFields.push(c.field); });
+      var hasComposition = allGeneratedFields.some(function (f) { return f.name === 'compositionSources'; });
+    %>
+    <% if (!isNew && canEdit && hasComposition) { %>
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+          <h6 class="text-uppercase text-muted small fw-bold mb-2">Compose</h6>
+          <p class="text-muted small mb-2">Save your chosen Composition Strategy and its source Pack(s) above first, then Compose to pre-fill this Draft's content from them. Review the result — it's a starting point, not a lock; save any further edits normally.</p>
+          <form method="POST" action="/aisworg/seu/sdk/<%= slug %>/<%= draft.id %>/compose">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-magic me-1"></i>Compose from sources</button>
+          </form>
+        </div>
+      </div>
+    <% } %>
+
     <% if (!isNew && (locals.possibleNextStates || []).length > 0) { %>
       <%
         // Registry governance, relocated here (owner, 2026-08-19: "Add it
@@ -372,6 +395,25 @@
         showOntologyGuidance(select);
         select.addEventListener('change', function () { showOntologyGuidance(select); });
       });
+
+      // CR-067 x-show-when (owner: "when a composition strategy is chosen,
+      // the UI widget should appear") — generic over every [data-show-when]
+      // element on the page, keyed by field NAME (not "compositionStrategy"
+      // specifically), so pointing Template's own schema at the same two
+      // markers later needs no JS change here. Runs on load (a saved value
+      // should already show its target) and on every field change/input
+      // (delegated off the same form markDirty already listens on).
+      function updateShowWhen() {
+        document.querySelectorAll('[data-show-when]').forEach(function (el) {
+          var controller = form && form.elements[el.getAttribute('data-show-when')];
+          el.style.display = (controller && controller.value) ? '' : 'none';
+        });
+      }
+      updateShowWhen();
+      if (form) {
+        form.addEventListener('input', updateShowWhen);
+        form.addEventListener('change', updateShowWhen);
+      }
     })();
   </script>
   <script src="<%= baseUrl %>/js/referentialListGroup.js"></script>

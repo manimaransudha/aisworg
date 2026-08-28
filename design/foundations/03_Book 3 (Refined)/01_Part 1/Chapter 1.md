@@ -16,7 +16,7 @@
 ]
  
 
-# 1. Purpose
+## 1. Purpose
 
 An **Objective** is a persistent, versioned statement of engineering intent that justifies the commissioning of a Software Engineering Unit (SEU) and declares or allows derivation of the Capabilities required to achieve it.
 
@@ -24,7 +24,7 @@ Objective is the root of the engineering layer. Every Capability requirement, Te
 
 An Objective does not specify how it will be achieved. It specifies why the SEU exists and what ability its achievement requires.
 
-# 2. Scope
+## 2. Scope
 
 This chapter defines:
 
@@ -44,7 +44,7 @@ This chapter does not define:
 - commissioning workflow (Chapter 8).
  
 
-# 3. Architectural Position
+## 3. Architectural Position
 
 ```
 Objective
@@ -73,7 +73,7 @@ Software Engineering Unit
 Objective determines what capability an SEU requires. It does not determine how that capability is composed or fulfilled.
  
 
-# 4. Definition
+## 4. Definition
 
 An Objective is a persistent engineering-intent object that:
 
@@ -89,36 +89,36 @@ An Objective is not a Strategy. A Strategy is the approach chosen to pursue the 
 
 An Objective does not specify implementation. Implementation is determined by Template selection, Pack composition and Participant fulfilment, all downstream of it.
  
-# 5. Architectural Principles
+## 5. Architectural Principles
 
-## OBJ-001
+### OBJ-001
 
 Every SEU shall be commissioned in service of at least one Objective.
 
 
-## OBJ-002
+### OBJ-002
 
 Objectives are persistent and independently traceable.
 
 
-## OBJ-003
+### OBJ-003
 
 Every Objective shall declare, or allow derivation of, the Capabilities required to achieve it.
 
 
-## OBJ-004
+### OBJ-004
 
 Objectives are hierarchical: Strategic Objectives decompose into Operational Objectives, which decompose into Engineering Objectives.
 
-## OBJ-005
+### OBJ-005
 
 Objectives remain independent of Template, Pack and Participant selection.
 
-## OBJ-006
+### OBJ-006
 
 Objectives may be reviewed, reaffirmed or superseded without invalidating the historical Deliverables, Decisions or Capabilities that trace back to them.
 
-# 6. Functional Requirements
+## 6. Functional Requirements
 
 ### FR-1.1
 
@@ -150,23 +150,23 @@ Objective state changes shall be governed and fully traceable.
 An Objective referenced by an active Deliverable shall remain immutable except through governed supersession.
 
 
-# 7. Objective Tiers
+## 7. Objective Tiers
 
 Every Objective shall belong to one of the following tiers.
 
-## Strategic Objective
+### Strategic Objective
 
 Organisational-level intent, typically spanning multiple SEUs or an extended time horizon.
 
 Example: "Establish a claims-processing capability compliant with regional insurance regulation."
  
-## Operational Objective
+### Operational Objective
 
 Intent scoped to a specific programme or initiative, typically realised by one SEU.
 
 Example: "Deliver an automated claims-adjudication service for the retail claims line of business."
  
-## Engineering Objective
+### Engineering Objective
 
 Intent scoped to a specific, boundable engineering outcome within an SEU.
 
@@ -175,7 +175,7 @@ Example: "Provide a fraud-detection capability integrated into the claims-adjudi
 A Strategic Objective may decompose into several Operational Objectives; an Operational Objective may decompose into several Engineering Objectives. An SEU is typically commissioned against one Operational Objective and executes against its decomposed Engineering Objectives.
 *[Remarks: We have refined this to commission SEU against any leaf]*
  
-# 8. Objective Structure
+## 8. Objective Structure
 
 Every Objective shall define:
 
@@ -191,7 +191,7 @@ Every Objective shall define:
 
 The internal representation of the Objective statement is implementation-defined.
 
-# 9. Objective Decomposition
+## 9. Objective Decomposition
 
 A Strategic Objective may decompose into one or more Operational Objectives.
 
@@ -201,7 +201,7 @@ Decomposition shall preserve traceability to the parent Objective.
 
 Decomposition does not create new intent. It refines existing intent into a more specific, boundable form.
 
-# 10. Deriving Required Capabilities
+## 10. Deriving Required Capabilities
 
 Before an SEU may be commissioned against it, every Objective shall carry a set of required Capabilities.
 
@@ -217,7 +217,7 @@ The Composition Engine (Chapter 4) shall not compose Packs until required Capabi
 Required Capabilities are the sole input Objective contributes to commissioning.
 
 
-# 11. Objective and Template Selection
+## 11. Objective and Template Selection
 
 Template Model (Chapter 6) shall validate or select a Template against an Objective's required Capabilities.
 
@@ -227,7 +227,7 @@ Where no existing Template supports an Objective's required Capabilities, commis
 
 Objective does not evaluate Template suitability itself. It supplies the required-Capability list that Template Model evaluates against.
 
-# 12. Objective Lifecycle
+## 12. Objective Lifecycle
 
 Every Objective shall progress through the following lifecycle.
 
@@ -249,7 +249,7 @@ Archived
 
 An Active Objective may instead transition to **Superseded** (replaced by a revised Objective) or **Retired** (abandoned without replacement), both of which preserve full historical traceability.
 
-# 13. Objective Traceability
+## 13. Objective Traceability
 
 Every Objective shall preserve:
 
@@ -262,9 +262,7 @@ Every Objective shall preserve:
 
 Every Deliverable, Decision and Capability requirement shall be traceable to at least one Objective. This is the root of the Engineering Knowledge Graph (Architecture Catalogue ADR – Engineering Knowledge Graph): every other persistent object's traceability chain terminates at an Objective.
 
-*[Remarks: Create a CR - Show the Engineering Knowledge Graph visually from an Objective]*
-
-# 14. Events
+## 14. Events
 
 The Objective subsystem shall publish:
 
@@ -277,9 +275,9 @@ The Objective subsystem shall publish:
 - ObjectiveRetired
 - ObjectiveArchived
 
-*[Remarks: An event should align with the life cycle. The ones removes are all part of Proposed stage in the life cycle]*
+*[Remarks: An event should align with the life cycle. The ones removed are all part of Proposed stage in the life cycle]*
 
-# 15. Non-Functional Requirements
+## 15. Non-Functional Requirements
 
 The Objective Model shall:
 
@@ -290,7 +288,7 @@ The Objective Model shall:
 - remain reproducible: given the same Objective and Pack set, the same required Capabilities shall always be derived.
  
 
-# 16. Acceptance Criteria
+## 16. Acceptance Criteria
 
 The implementation shall satisfy the following criteria.
 
@@ -307,25 +305,25 @@ The implementation shall satisfy the following criteria.
 ✓ Objective supersession preserves historical traceability without invalidating past Deliverables.
  
 
-# 17. Deliverables
+## 17. Deliverables
 
 Implementation of this chapter shall produce:
 
 - Objective domain model.
-- Objective registry. *[Remarks: the registry is not named as such, but objectives are listed and can be navigated through]*
+- Objective registry. 
 - Objective decomposition service.
-- Objective-to-Capability derivation service. *[Remarks: This has to be implemented]*
+- Objective-to-Capability derivation service. 
 - Objective traceability service.
 - Objective APIs.
 - Objective events.
 
 ---
 
-# 18. Implementation Specifics
+## 18. Implementation Specifics
 
 *Recorded 2026-08-12. This section documents implementation decisions for the Objective model. It does not change the requirements above (OBJ-001–006, FR-1.1–1.7); it records how they are realised. It follows the platform convention of keeping the normative specification stable and capturing realisation decisions separately.*
 
-## 18.1 SEU ↔ Objective cardinality: one-to-one
+### 18.1 SEU ↔ Objective cardinality: one-to-one
 
 An SEU serves **exactly one** Objective, and an Objective is served by **at most one** SEU (none before it is commissioned, exactly one after). This is the tidiest reading of OBJ-001 / FR-1.5 ("at least one Objective") and §7 ("an SEU executes against its decomposed Engineering Objectives"), taken at the finest grain: one SEU per *commissionable leaf* Objective. Every SEU has a single, unambiguous purpose, and every Objective a single accountable SEU.
 
@@ -333,30 +331,30 @@ An SEU serves **exactly one** Objective, and an Objective is served by **at most
 
 The deciding reason is scope change. Under a one-to-many mapping, removing one Objective from a multi-Objective SEU is surgery: orphaned Deliverables, an EBM composed from a union of Capabilities that must be recomposed, and attestations still referencing the removed Objective. Under one-to-one, changing scope is a whole-unit operation — decommission the SEU — rather than in-place surgery. (What decommissioning should *mean* across the SEU lifecycle is itself **open**; see §18.9.) A programme's several Engineering Objectives therefore become several SEUs, grouped under their shared Operational Objective (§18.6).
 
-## 18.2 ✅ Where the relationship lives, and what the schema enforces — enforced (CR-002)
+### 18.2 ✅ Where the relationship lives, and what the schema enforces — enforced (CR-002)
 
 The relationship is a single foreign key `seus.objective_id` (`NOT NULL`), which enforces "exactly one Objective per SEU" directly. Two further invariants are now **enforced** (CR-002, built 2026-08-12):
 
 - **At most one SEU per Objective.** A `UNIQUE` index on `seus.objective_id` (migration `034`) — an Objective cannot be commissioned twice, enforced by the database, not an application check (which would race). This is the same invariant the commissioning flow surfaces as "this Objective is already assigned" (§18.8).
 - **~~Engineering-tier only.~~ Superseded by CR-009 → non-Strategic *leaf*.** CR-002 originally restricted commissioning to Engineering-tier Objectives. **CR-009 (2026-08-13) replaces that rule:** `commissionSeu` now rejects a Strategic Objective, and rejects any Objective that has children (not a leaf), accepting **any non-Strategic leaf** (Operational or Engineering with no children, Active, un-commissioned). The `UNIQUE(seus.objective_id)` invariant above is unchanged. See §18.12.
 
-## 18.3 Objectives are created independently
+### 18.3 Objectives are created independently
 
 Consistent with OBJ-002, an Objective exists before, and possibly without, any SEU. It is un-commissioned until an SEU references it, and with the `UNIQUE` constraint above, at most one SEU ever does. An un-commissioned Objective having no SEU is its honest state, not a defect. It is also why an Objective's own governed transitions cannot be SEU-scoped: before commissioning there is no SEU to scope them to.
 
-## 18.4 Deliverables and Objective attribution
+### 18.4 🚩 Deliverables and Objective attribution
 
 ***Status: open — under review, not finalised. In particular: whether §13 traceability must surface the Objective node in the Deliverable's traceability payload, or whether "the SEU shows its Objective" suffices.***
 
 A Deliverable belongs to its SEU (`deliverables.seu_id`). It is **not** given a direct Objective foreign key, and does not need one: under one-to-one, a Deliverable's Objective is simply its SEU's single Objective, reached in one hop (Deliverable → SEU → Objective). This keeps traceability derived from existing structural edges (§13; Architecture Catalogue ADR – Engineering Knowledge Graph) rather than denormalised into a redundant column.
 
-## 18.5 Objective achievement
+### 18.5 🚩 Objective achievement
 
 ***Status: open — under review, not finalised. Note the current build sets the Objective's `Achieved` state via a manual governed transition; nothing yet derives achievement from SEU completion. Whether derived achievement is in scope for this chapter (vs. a later one) is to be decided.***
 
 Because an SEU serves exactly one Objective, achievement tracks SEU completion: the Objective is achievable when the SEU's Deliverables have reached their accepted state. No per-Objective partitioning of the SEU's work is needed.
 
-## 18.6 Multi-phase efforts: an integration Objective with its own SEU
+### 18.6 🚩 Multi-phase efforts: an integration Objective with its own SEU
 
 ***Status: open — under review, not finalised (the cross-SEU sequencing question below, and whether programme-level grouping of SEUs under a shared Operational Objective is a required view, are both undecided).***
 
@@ -364,23 +362,23 @@ A single effort broken into phases is modelled as one Engineering Objective per 
 
 Implication to confirm when this is built: the integration SEU depends on the phase SEUs' outputs, which cross SEU boundaries. Under the Participant Integration model this is naturally satisfied at the artifact level, since the integration SEU's participants pull the phase SEUs' Baselined outputs from version control as inputs. If the platform must also *gate* the integration SEU on the phase SEUs reaching Baselined, rather than only making the artifacts available, that is cross-SEU sequencing, which the current within-SEU dependency engine does not yet do. Decide per case whether artifact availability suffices or platform-level cross-SEU gating is wanted.
 
-## 18.7 Relationship to the current build
+### 18.7 Relationship to the current build
 
 One-to-one was already the built state (`seus.objective_id NOT NULL`), needing no cardinality migration. The §18.2 enforcement (`UNIQUE` on `seus.objective_id` + the Engineering-tier check, **CR-002**) and the §18.8 commissioning entry point (**CR-003**) are now **built** (2026-08-12). §18.4–18.6 (and §18.9) describe how the built model is to be read and remain **open** pending deeper review (marked in each).
 
-## 18.8 Commissioning entry point — ✅ built (CR-003), reshaped by CR-009
+### 18.8 ✅ Commissioning entry point —  built (CR-003), reshaped by CR-009
 
 Commissioning is initiated **from the Objectives screen**, not from a global navbar action (built 2026-08-12); the standalone "Commission new SEU" navbar entry is removed. Under one-to-one, exactly one Objective is selected per commissioning, and attempting to commission an Objective that already has an SEU is refused with a **correctable** error — the same at-most-one-SEU-per-Objective invariant §18.2's `UNIQUE` constraint enforces at the database.
 
 > **Reshaped by CR-009 (2026-08-13):** the Objectives screen is now a **tree** (§18.12), not a flat list. The per-row **Commission SEU** action appears on any **non-Strategic leaf** that is **Active** and **un-commissioned** (already-commissioned ones show a *Commissioned* badge); the action is offered both in the tree browse rows and on the Objective detail page. This replaces CR-003's "Engineering, Active, un-commissioned" predicate with "non-Strategic leaf, Active, un-commissioned."
 
-## 18.9 Open: SEU decommissioning semantics
+### 18.9 🚩 Open: SEU decommissioning semantics
 
 ***Status: open — to be detailed separately before it is relied upon.***
 
 §18.1's scope-change argument leans on "changing scope = decommission the SEU." What decommissioning should *mean* across the SEU lifecycle is undecided: how far into an SEU's life a decommission remains meaningful, at what point it becomes moot, and — since work simply has to stop — how that stop is reflected, both in the SEU's own state and in the fate of in-flight vs. already-Baselined Deliverables, minted Attestations, and any Engineering Capital already promoted out of the SEU. Deferred for a dedicated review.
 
-## 18.10 Objective authority — badge-based (noun × verb); tenant is reach, not authority
+### 18.10 Objective authority — badge-based (noun × verb); tenant is reach, not authority
 
 *Recorded 2026-08-13; updated to the built model when CR-006 landed as noun × verb (2026-08-13).*
 
@@ -399,7 +397,7 @@ Commissioning is initiated **from the Objectives screen**, not from a global nav
 
 **Broader principle (now largely realised for transitions):** *authority belongs on badges, not on `requireRole`.* CR-006 moved every governed transition onto `noun × verb`; what remains outside it is admin routes (still `requireRole`, a separate larger track) and entity *creation* — the latter not on `requireRole` at all but simply un-gated pending the uniform `define` birth transition described above.
 
-## 18.11 Tenant scope is rooted at the Objective and inherited — not re-checked per entity
+### 18.11 Tenant scope is rooted at the Objective and inherited — not re-checked per entity
 
 *Recorded 2026-08-13.*
 
@@ -413,7 +411,7 @@ Implications:
 - **Commissioning inherits the Tenant.** An SEU's Tenant is set from its Objective's Tenant, not chosen separately or defaulted. (`seus.tenant_id` already exists — migration `026` — and is set at commissioning; when `objectives.tenant_id` lands, commissioning derives `seus.tenant_id` from the Objective rather than the default tenant.)
 - **Isolation is applied once at the root.** For the tenant *reach* axis (data isolation), a filter at the Objective/SEU root covers the whole subtree; per-entity tenant re-checks are redundant. This is exactly the **reach gate** §18.10 refers to — a layer *separate* from authorisation (which CR-006 made pure `noun × verb`, scope-free): downstream entities resolve their Tenant by inheritance, not by carrying their own copy or being re-checked.
 
-## 18.12 ✅ Objective hierarchy: mandatory parent, tree, re-parenting, tier integrity — built (CR-009)
+### 18.12 ✅ Objective hierarchy: mandatory parent, tree, re-parenting, tier integrity — built (CR-009)
 
 *Recorded 2026-08-13. Realises OBJ-004 / FR-1.2 / FR-1.4 / §7 / §9 more strictly than the original build, which allowed orphan non-Strategic Objectives.*
 
@@ -425,7 +423,7 @@ Implications:
 - **Tier edit under integrity.** `updateObjective` may change tier only while every invariant still holds — the node keeps a valid parent (or is a Strategic root), its parent is not more strategic than the new tier, and no child becomes more strategic than the new tier.
 - **One-shot commissioning keeps working via an auto-parent (owner decision).** The "commission from a bare statement" paths (`commissionFromForm` behind the `/seus/new` form; `startAuthoring` for SDK authoring) have no natural parent, so they hang their Engineering Objective under a single **reused Strategic container root** (`ensureOneShotContainer`, sentinel statement *"Uncategorised — directly-commissioned SEUs"*) rather than minting a root per SEU.
 
-## 18.13 Known gaps against the normative spec (tracked, not yet built)
+### 18.13 Known gaps against the normative spec (tracked, not yet built)
 
 *Recorded 2026-08-13. Recorded here so the delta between §1–17 and the build is explicit; none are regressions.*
 

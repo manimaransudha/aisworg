@@ -1,0 +1,52 @@
+{
+  "code": "test-internationalization-localization",
+  "name": "Internationalization & Localization (SDLC Phase 14)",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Expanding to global markets \u2014 aka i18n/L10n, Globalization, Regionalization.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "internationalization-localization",
+        "name": "Internationalization & Localization",
+        "description": "Adapts the product's language, formatting, and cultural presentation to operate correctly in new regional markets."
+      }
+    ],
+    "services": [
+      {
+        "code": "locale-language-strategy",
+        "capabilityCode": "internationalization-localization",
+        "name": "Locale & Language Strategy",
+        "contractDescription": "Global expansion strategy."
+      },
+      {
+        "code": "translation-glossary-style-guide",
+        "capabilityCode": "internationalization-localization",
+        "name": "Translation Glossary & Style Guide",
+        "contractDescription": "Localization standards."
+      },
+      {
+        "code": "pseudolocalization-report",
+        "capabilityCode": "internationalization-localization",
+        "name": "Pseudolocalization Report",
+        "contractDescription": "Localization testing."
+      },
+      {
+        "code": "rtl-cultural-adaptation-review",
+        "capabilityCode": "internationalization-localization",
+        "name": "RTL & Cultural Adaptation Review",
+        "contractDescription": "Cultural customization."
+      },
+      {
+        "code": "regional-compliance-addenda",
+        "capabilityCode": "internationalization-localization",
+        "name": "Regional Compliance Addenda",
+        "contractDescription": "Local regulatory compliance."
+      }
+    ]
+  }
+}

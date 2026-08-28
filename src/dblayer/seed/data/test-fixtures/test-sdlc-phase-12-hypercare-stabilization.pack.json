@@ -1,0 +1,58 @@
+{
+  "code": "test-hypercare-stabilization",
+  "name": "Hypercare & Stabilization (SDLC Phase 12)",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Post-launch support and stabilization \u2014 aka Post-Launch Support, Warranty Period, Hot Stage.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "hypercare-stabilization",
+        "name": "Hypercare & Stabilization",
+        "description": "Stabilizes the product after launch through active monitoring, rapid issue resolution, and structured retrospective learning."
+      }
+    ],
+    "services": [
+      {
+        "code": "hypercare-runbook",
+        "capabilityCode": "hypercare-stabilization",
+        "name": "Hypercare Runbook",
+        "contractDescription": "Post-launch support procedures."
+      },
+      {
+        "code": "known-issues-bug-tracker",
+        "capabilityCode": "hypercare-stabilization",
+        "name": "Known Issues & Bug Tracker",
+        "contractDescription": "Issue management."
+      },
+      {
+        "code": "post-mortem-lessons-learned",
+        "capabilityCode": "hypercare-stabilization",
+        "name": "Post-Mortem & Lessons Learned",
+        "contractDescription": "Launch retrospective."
+      },
+      {
+        "code": "operational-kpis-report",
+        "capabilityCode": "hypercare-stabilization",
+        "name": "Operational KPIs Report",
+        "contractDescription": "Performance metrics."
+      },
+      {
+        "code": "customer-feedback-summary",
+        "capabilityCode": "hypercare-stabilization",
+        "name": "Customer Feedback Summary",
+        "contractDescription": "User feedback analysis."
+      },
+      {
+        "code": "hotfix-plan-ownership-matrix",
+        "capabilityCode": "hypercare-stabilization",
+        "name": "Hotfix Plan & Ownership Matrix",
+        "contractDescription": "Rapid response procedures."
+      }
+    ]
+  }
+}

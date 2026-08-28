@@ -95,7 +95,7 @@ test("requires_accepted_review Quality Gate blocks a transition until an Accepte
   // does) can block this test on a completely unrelated gate's own criteria.
   // Real, observed failure — a category-only fix (CR-058's own precedent)
   // was not enough here.
-  const { data: corePack } = await packsDB.findByCode("platform-core-engineering");
+  const { data: corePack } = await packsDB.findByCode("development");
   assert.ok(corePack, "core pack must be seeded");
   const run = randomUUID();
   const fromState = `test-from-${run}`;

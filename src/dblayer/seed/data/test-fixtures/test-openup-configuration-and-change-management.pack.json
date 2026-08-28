@@ -1,0 +1,34 @@
+{
+  "code": "test-configuration-management",
+  "name": "Configuration & Change Management (OpenUP Capability Pattern)",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "EPF/OpenUP's Configuration and Change Management capability pattern, modelled as a Pack: change-control work products and the tasks for requesting, dispositioning, and baselining changes to engineering assets.",
+  "owner": "EPF/OpenUP Practice Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "configuration-management",
+        "name": "Configuration & Change Management",
+        "description": "Controls change and maintains the integrity of engineering assets under baseline."
+      }
+    ],
+    "services": [
+      {
+        "code": "change-request",
+        "capabilityCode": "configuration-management",
+        "name": "Change Request",
+        "contractDescription": "A recorded, dispositioned request to change a baselined asset."
+      },
+      {
+        "code": "configuration-management-plan",
+        "capabilityCode": "configuration-management",
+        "name": "Configuration Management Plan",
+        "contractDescription": "The approach for identifying, controlling, and auditing engineering assets under change."
+      }
+    ]
+  }
+}

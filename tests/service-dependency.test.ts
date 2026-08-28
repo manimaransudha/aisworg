@@ -52,7 +52,7 @@ test("commissioning wires a named Capability-type edge alongside the Deliverable
 
   const sourceCode = detail.deliverables.find((d) => d.name === "Source Code");
   assert.ok(sourceCode, "expected Source Code, produced by development, per the extended Template catalogue");
-  assert.ok(sourceCode?.dependencyEdges.some((e) => e.dependencyType === "Capability" && e.targetLabel.includes("Approved Architecture")));
+  assert.ok(sourceCode?.dependencyEdges.some((e) => e.dependencyType === "Capability" && e.targetLabel.includes("Architecture Notebook")));
 });
 
 test("a Capability-type edge resolves Satisfied once the real SEU fulfils the upstream Capability", async () => {
@@ -80,9 +80,13 @@ test("a Capability-type edge resolves Satisfied once the real SEU fulfils the up
 
 test("listServices exposes each Service's declared Service Level and providing Capability (Ch.11 §7-§8)", async () => {
   const services = await listServices();
-  const reqService = services.find((s) => s.name === "Approved Requirements Specification");
-  assert.ok(reqService);
-  assert.equal(reqService.providingCapabilityCode, "requirements-analysis");
-  assert.ok(reqService.serviceLevel && typeof reqService.serviceLevel === "object");
-  assert.ok("qualityBar" in reqService.serviceLevel, `expected a qualityBar key in Service Level, got: ${JSON.stringify(reqService.serviceLevel)}`);
+  const catalogService = services.find((s) => s.name === "Approved Catalog Metadata Design");
+  assert.ok(catalogService);
+  assert.equal(catalogService.providingCapabilityCode, "catalog-management");
+  // CR-064 — service_level is a {label, target}[] list, not a flat object.
+  assert.ok(Array.isArray(catalogService.serviceLevel) && catalogService.serviceLevel.length > 0);
+  assert.ok(
+    catalogService.serviceLevel.some((item) => item.label === "Quality Bar"),
+    `expected a "Quality Bar" entry in Service Level, got: ${JSON.stringify(catalogService.serviceLevel)}`
+  );
 });

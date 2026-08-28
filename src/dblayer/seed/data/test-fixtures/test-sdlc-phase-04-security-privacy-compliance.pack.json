@@ -1,0 +1,58 @@
+{
+  "code": "test-security-privacy-compliance",
+  "name": "Security, Privacy & Compliance (SDLC Phase 4)",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Establishing security and compliance frameworks \u2014 aka Trust & Safety, SecOps Hardening, Compliance Sprint, Risk & Assurance.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "security-privacy-compliance",
+        "name": "Security, Privacy & Compliance",
+        "description": "Establishes the security controls, privacy safeguards, and compliance posture required before further platform investment."
+      }
+    ],
+    "services": [
+      {
+        "code": "threat-model-stride",
+        "capabilityCode": "security-privacy-compliance",
+        "name": "Threat Model (STRIDE)",
+        "contractDescription": "Security threat analysis."
+      },
+      {
+        "code": "security-controls-matrix",
+        "capabilityCode": "security-privacy-compliance",
+        "name": "Security Controls Matrix",
+        "contractDescription": "Security control implementation."
+      },
+      {
+        "code": "privacy-impact-assessment",
+        "capabilityCode": "security-privacy-compliance",
+        "name": "Privacy Impact Assessment",
+        "contractDescription": "Privacy risk evaluation."
+      },
+      {
+        "code": "data-protection-addendum-vendor-list",
+        "capabilityCode": "security-privacy-compliance",
+        "name": "Data Protection Addendum & Vendor List",
+        "contractDescription": "Vendor compliance."
+      },
+      {
+        "code": "compliance-readiness-checklist",
+        "capabilityCode": "security-privacy-compliance",
+        "name": "Compliance Readiness Checklist",
+        "contractDescription": "Regulatory compliance tracking."
+      },
+      {
+        "code": "secure-sdlc-guidelines",
+        "capabilityCode": "security-privacy-compliance",
+        "name": "Secure SDLC Guidelines",
+        "contractDescription": "Secure development practices."
+      }
+    ]
+  }
+}

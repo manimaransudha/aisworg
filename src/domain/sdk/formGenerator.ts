@@ -48,6 +48,13 @@ export interface JsonSchemaProperty {
   // schema fact, never a per-field-name branch in code.
   "x-ontology"?: boolean;
   "x-help"?: string;
+  // CR-067 — "when a composition strategy is chosen, the UI widget should
+  // appear." Generic conditional-reveal: names another field on this SAME
+  // schema; this field stays hidden in the authoring form until that other
+  // field has a value. Entity-agnostic (keys off a field NAME, not
+  // "compositionStrategy" specifically) — pointing Template's own schema at
+  // the same two markers later needs no new route/view/JS code.
+  "x-show-when"?: string;
   // Owner (CR-058 form redesign): "the form is very very poorly designed" —
   // per-item-field help/required/label were previously only meaningful at
   // the top level of a field (e.g. contributionQualityGates' own x-help,
@@ -100,17 +107,17 @@ export interface ReferentialListItemField {
 }
 
 export type GeneratedField =
-  | { kind: "string"; name: string; label: string; required: boolean; value: string; help?: string }
+  | { kind: "string"; name: string; label: string; required: boolean; value: string; help?: string; showWhen?: string }
   // Same free-text field as "string" — multi-line box instead of a
   // single-line input (owner: Template's `purpose`, a few sentences of
   // author-written guidance, not a slug).
-  | { kind: "textarea"; name: string; label: string; required: boolean; value: string; help?: string }
+  | { kind: "textarea"; name: string; label: string; required: boolean; value: string; help?: string; showWhen?: string }
   // Readonly, semver, advanced only by its own "Next version" button — never
   // hand-typed (owner: "Editable text is not the correct approach").
-  | { kind: "version"; name: string; label: string; required: boolean; value: string; help?: string }
-  | { kind: "select"; name: string; label: string; required: boolean; value: string; options: string[]; help?: string }
-  | { kind: "referential-select"; name: string; label: string; required: boolean; value: string; referentialSource: string; ontology: boolean; help?: string }
-  | { kind: "json"; name: string; label: string; required: boolean; value: string; help?: string }
+  | { kind: "version"; name: string; label: string; required: boolean; value: string; help?: string; showWhen?: string }
+  | { kind: "select"; name: string; label: string; required: boolean; value: string; options: string[]; help?: string; showWhen?: string }
+  | { kind: "referential-select"; name: string; label: string; required: boolean; value: string; referentialSource: string; ontology: boolean; help?: string; showWhen?: string }
+  | { kind: "json"; name: string; label: string; required: boolean; value: string; help?: string; showWhen?: string }
   // Bug fix (UI redesign, owner: "extremely unfriendly"): `existingCount` marks
   // how many of `rows` are the content's OWN rows vs. blank ones offered so an
   // author has somewhere to add a new one — the view uses this to render
@@ -123,7 +130,7 @@ export type GeneratedField =
   // Array<Record<string, string>> (the sub-item rows, same shape one level
   // down). Every pre-existing item field kind still only ever produces a
   // plain string, so this is additive, not a breaking widen of every field.
-  | { kind: "referential-list"; name: string; label: string; required: boolean; rows: Array<Record<string, string | string[] | Array<Record<string, string>>>>; itemFields: ReferentialListItemField[]; existingCount: number };
+  | { kind: "referential-list"; name: string; label: string; required: boolean; rows: Array<Record<string, string | string[] | Array<Record<string, string>>>>; itemFields: ReferentialListItemField[]; existingCount: number; showWhen?: string };
 
 // Blank slots appended after however many the content already has, so the
 // form always offers a place to add one more without needing client-side JS
@@ -209,7 +216,7 @@ export function generateFields(schema: JsonSchemaDocument, content: Record<strin
       // which downstream code that iterates the parsed value (`for...of`)
       // then threw on ("object is not iterable").
       const emptyDefault = def.type === "array" ? "[]" : "{}";
-      fields.push({ kind: "json", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? JSON.stringify(rawValue, null, 2) : emptyDefault, help: def["x-help"] });
+      fields.push({ kind: "json", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? JSON.stringify(rawValue, null, 2) : emptyDefault, help: def["x-help"], showWhen: def["x-show-when"] });
       continue;
     }
 
@@ -228,7 +235,7 @@ export function generateFields(schema: JsonSchemaDocument, content: Record<strin
       for (let i = 0; i < BLANK_ROWS_TO_OFFER; i++) {
         rows.push(buildRow({}, itemFields, itemProps));
       }
-      fields.push({ kind: "referential-list", name, label: labelize(name), required: isRequired, rows, itemFields, existingCount });
+      fields.push({ kind: "referential-list", name, label: labelize(name), required: isRequired, rows, itemFields, existingCount, showWhen: def["x-show-when"] });
       continue;
     }
 
@@ -239,26 +246,27 @@ export function generateFields(schema: JsonSchemaDocument, content: Record<strin
         referentialSource: def["x-referential-source"] ?? "",
         ontology: def["x-ontology"] === true,
         help: def["x-help"],
+        showWhen: def["x-show-when"],
       });
       continue;
     }
 
     if (def["x-widget"] === "textarea") {
-      fields.push({ kind: "textarea", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? String(rawValue) : "", help: def["x-help"] });
+      fields.push({ kind: "textarea", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? String(rawValue) : "", help: def["x-help"], showWhen: def["x-show-when"] });
       continue;
     }
 
     if (def["x-widget"] === "version") {
-      fields.push({ kind: "version", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? String(rawValue) : "", help: def["x-help"] });
+      fields.push({ kind: "version", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? String(rawValue) : "", help: def["x-help"], showWhen: def["x-show-when"] });
       continue;
     }
 
     if (def.enum) {
-      fields.push({ kind: "select", name, label: labelize(name), required: isRequired, value: String(rawValue ?? ""), options: def.enum, help: def["x-help"] });
+      fields.push({ kind: "select", name, label: labelize(name), required: isRequired, value: String(rawValue ?? ""), options: def.enum, help: def["x-help"], showWhen: def["x-show-when"] });
       continue;
     }
 
-    fields.push({ kind: "string", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? String(rawValue) : "", help: def["x-help"] });
+    fields.push({ kind: "string", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? String(rawValue) : "", help: def["x-help"], showWhen: def["x-show-when"] });
   }
 
   return fields;
@@ -312,7 +320,7 @@ export interface FieldGroups {
 }
 
 const METADATA_FIELD_NAMES = new Set([
-  "name", "owner", "category", "publisher", "description", "packVersion", "templateVersion", "installationClassification", "compositionStrategy", "purpose",
+  "name", "owner", "category", "publisher", "description", "packVersion", "templateVersion", "installationClassification", "compositionStrategy", "compositionSources", "purpose",
   "code", "environment", "baseTemplateCode", "requiredCapabilityCodes", "mandatoryPackCodes", "optionalPackCodes", "configParameters",
   "profileVersion", "featureFlagCodes", "compositionOptions",
 ]);
@@ -334,7 +342,7 @@ const DELIVERABLES_FIELD_NAMES = new Set(["deliverableCatalogue", "dependencyGra
 const FIELD_DISPLAY_ORDER = [
   "code", "name", "purpose", "templateVersion", "profileVersion", "packVersion",
   "owner", "publisher", "category", "description", "environment", "baseTemplateCode",
-  "installationClassification", "compositionStrategy",
+  "installationClassification", "compositionStrategy", "compositionSources",
   "compliancePackCodes", "domainPackCodes", "engineeringPackCodes", "integrationPackCodes", "organisationPackCodes", "technologyPackCodes",
   "deliverableCatalogue", "dependencyGraph",
 ];
@@ -391,7 +399,7 @@ export function rowHasContent(row: Record<string, string>, itemFields: Referenti
 // the same handful of §20 verifiable-item fields reused across four
 // contribution types (Checklists/Review Gates/Quality Gates/Obligations).
 export const CONTRIBUTION_SECTION_HELP: Record<string, string> = {
-  contributionCapabilities: "Abilities this Pack introduces (e.g. \"testing\", \"architecture-design\") — what a Participant needs to fulfil in order to do this kind of work.",
+  contributionCapabilities: "Abilities this Pack introduces (e.g. \"testing\", \"architecture\") — what a Participant needs to fulfil in order to do this kind of work.",
   contributionServices: "Work products this Pack's Capabilities produce, each tied to the Capability that provides it (must be declared in this same Pack, above).",
   contributionAuthorityRules: "Legacy per-transition role authorisations (pre-noun×verb). New Packs should generally rely on the platform's noun×verb badges instead.",
   contributionPolicies: "Conditions checked on a governed transition — a blocking Policy or a non-blocking Standard (deviations are recorded, not blocked).",

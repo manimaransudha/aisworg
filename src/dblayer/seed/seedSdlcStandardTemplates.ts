@@ -3,17 +3,18 @@
 // template with the appropriate packs." One Template per real
 // `template-categories` Ontology concept (migration 053), each drawing its
 // `mandatoryPackCodes` from the 16 SDLC-phase Packs (seedSdlcPhasePacks.ts)
-// appropriate to that category, plus `platform-core-engineering`. Publishing
-// through the real Pack/Template flow's own upsert — Platform-owned, so any
-// tenant (including "demo") can commission an SEU from these once seeded;
-// nothing here creates an SEU itself (owner: "just make it commissionable").
+// appropriate to that category, plus `development` (the real OpenUP
+// capability-pattern Pack, seedCapabilityPatternPacks.ts). Publishing
+// through the real, validated publishTemplate/publishProfile entry points
+// (templates.ts/profiles.ts — the same ones the interactive SDK authoring
+// flow uses, previously dead code with no real caller) rather than a raw
+// upsert — Platform-owned, so any tenant (including "demo") can commission an
+// SEU from these once seeded; nothing here creates an SEU itself (owner:
+// "just make it commissionable").
 //
-// Depends on seedSdlcPhasePacks.ts having already published the 16 phase
-// Packs, and platform-core-engineering already existing (owner, 2026-08-20:
-// seedSeu.ts itself is retired — "That is polluting the db" — so this is no
-// longer a scripted prerequisite; platform-core-engineering/technology-nodejs
-// are expected to already exist on a working database) — run standalone only
-// after:
+// Depends on seedSdlcPhasePacks.ts/seedCapabilityPatternPacks.ts having
+// already published their real Packs — run standalone only after:
+//   npx tsx src/dblayer/seed/seedCapabilityPatternPacks.ts
 //   npx tsx src/dblayer/seed/seedSdlcPhasePacks.ts
 //   npx tsx src/dblayer/seed/seedSdlcStandardTemplates.ts
 import "dotenv/config";
@@ -22,12 +23,9 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
-import { templatesDB } from "../templatesDB.js";
-import { profilesDB } from "../profilesDB.js";
-import { capabilitiesDB } from "../capabilitiesDB.js";
 import { packsDB } from "../packsDB.js";
-import { materialiseDependencyGraph } from "../../domain/engine/materialiseDependencyGraph.js";
-import { deriveCapabilityCodesFromPackCodes } from "../../routes/seu/core/templates.js";
+import { publishTemplate, PACK_SELECTION_SLOTS } from "../../routes/seu/core/templates.js";
+import { publishProfile } from "../../routes/seu/core/profiles.js";
 import type { TemplateDeliverableSeed, TemplateDependencyGraphEntry } from "../seuTypes.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -72,60 +70,54 @@ async function seedOne(templateFile: string, profileFile: string): Promise<void>
   const templateSeed = loadJson<TemplateSeed>(templateFile);
   const profileSeed = loadJson<ProfileSeed>(profileFile);
 
-  const { data: template, error } = await templatesDB.upsert({
-    code: templateSeed.code,
-    templateVersion: templateSeed.templateVersion,
-    name: templateSeed.name,
-    deliverableCatalogue: templateSeed.deliverableCatalogue,
-  });
-  if (error || !template) throw error ?? new Error(`template upsert failed: ${templateSeed.code}`);
-
-  // CR-039/CR-041 — the Template's canonical dependency graph is materialised
-  // here, at authoring/seed time, not per-SEU at commissioning
-  // (dependency_definitions is Template-scoped; it must already fully exist
-  // independent of whether anything has been commissioned from this Template
-  // yet). dependencyGraph is now the real authored source (no more deriving
-  // it from embedded per-entry codes).
-  await materialiseDependencyGraph({
-    owningEntityType: "Template",
-    owningEntityId: template.id,
-    deliverableCatalogue: templateSeed.deliverableCatalogue,
-    dependencyGraph: templateSeed.dependencyGraph ?? [],
-  });
-
+  // publishTemplate's own TemplateSeedInput (CR-038) buckets mandatory Packs
+  // into six category-scoped fields, not one flat list — bucket the JSON
+  // file's own unchanged mandatoryPackCodes by each Pack's real category. A
+  // pure derivation at seed time, not a change to the authored file shape.
+  type PackSelectionField = "compliancePackCodes" | "domainPackCodes" | "engineeringPackCodes" | "integrationPackCodes" | "organisationPackCodes" | "technologyPackCodes";
+  const packSelections: Partial<Record<PackSelectionField, string[]>> = {};
   for (const code of templateSeed.mandatoryPackCodes) {
     const { data: pack } = await packsDB.findByCode(code);
-    if (!pack) throw new Error(`template ${templateSeed.code} requires unknown pack ${code} — did seedSdlcPhasePacks run first, and does platform-core-engineering already exist?`);
+    if (!pack) throw new Error(`template ${templateSeed.code} requires unknown pack ${code} — did seedSdlcPhasePacks/seedCapabilityPatternPacks run first?`);
+    const slot = PACK_SELECTION_SLOTS.find((s) => s.packCategory === pack.category);
+    if (!slot) throw new Error(`template ${templateSeed.code}'s mandatory pack "${code}" has category "${pack.category}", which has no matching Template pack-selection slot`);
+    const field = slot.field as PackSelectionField;
+    (packSelections[field] ??= []).push(code);
   }
-  await templatesDB.setMandatoryPacks(template.id, templateSeed.mandatoryPackCodes);
 
-  // CR-038 — requiredCapabilityCodes is derived from the real mandatory-Pack
-  // selection now, same as the live authoring form does, not read from the
-  // seed's own (now removed) hand-typed field — "no bridge" applies here too:
-  // this is the same derivation, not a second, possibly-stale source of truth.
-  const derivedCapabilityCodes = await deriveCapabilityCodesFromPackCodes(templateSeed.mandatoryPackCodes);
-  const { data: capabilities } = await capabilitiesDB.findByCodes(derivedCapabilityCodes);
-  await templatesDB.setRequiredCapabilities(template.id, (capabilities ?? []).map((c) => c.id));
+  // publishTemplate (templates.ts) — the same validated, event-firing entry
+  // point the interactive SDK authoring flow uses (validateTemplateSeed,
+  // materialisePackSelectionsAndCapabilities, materialiseDependencyGraph) —
+  // replaces the old raw templatesDB.upsert + manual setMandatoryPacks/
+  // setRequiredCapabilities/materialiseDependencyGraph calls. None of the 9
+  // *.template.json files set templateVersion today — first version for all.
+  const templateResult = await publishTemplate({
+    code: templateSeed.code,
+    name: templateSeed.name,
+    templateVersion: templateSeed.templateVersion ?? "1.0.0",
+    deliverableCatalogue: templateSeed.deliverableCatalogue,
+    dependencyGraph: templateSeed.dependencyGraph,
+    ...packSelections,
+  });
+  if (!templateResult.ok) throw new Error(`[seed:sdlc-standard-templates] failed to publish template "${templateSeed.code}": ${templateResult.errors.join("; ")}`);
+  logger.info(`[seed:sdlc-standard-templates] template ${templateSeed.code} -> ${templateResult.templateId}`);
 
-  logger.info(`[seed:sdlc-standard-templates] template ${template.code}@${template.template_version} -> ${template.id}`);
-
-  const { data: profile, error: profileErr } = await profilesDB.upsert({
+  // publishProfile (profiles.ts) — same treatment. category is Ontology-backed
+  // (profile-categories, migration 065); none of the 9 *.profile.json files
+  // set it today — "startup" ("Minimal governance, rapid delivery, default
+  // Platform Packs") fits a generic default-development Profile best.
+  const profileResult = await publishProfile({
     code: profileSeed.code,
     name: profileSeed.name,
-    baseTemplateId: template.id,
+    baseTemplateCode: profileSeed.baseTemplateCode,
     environment: profileSeed.environment,
     configParameters: profileSeed.configParameters,
+    optionalPackCodes: profileSeed.optionalPackCodes ?? [],
+    profileVersion: "1.0.0",
+    category: "startup",
   });
-  if (profileErr || !profile) throw profileErr ?? new Error(`profile upsert failed: ${profileSeed.code}`);
-
-  const optionalPackCodes = profileSeed.optionalPackCodes ?? [];
-  for (const code of optionalPackCodes) {
-    const { data: pack } = await packsDB.findByCode(code);
-    if (!pack) throw new Error(`profile ${profileSeed.code} requires unknown optional pack ${code}`);
-  }
-  await profilesDB.setOptionalPacks(profile.id, optionalPackCodes);
-
-  logger.info(`[seed:sdlc-standard-templates] profile ${profile.code} -> ${profile.id} (${optionalPackCodes.length} optional Pack(s))`);
+  if (!profileResult.ok) throw new Error(`[seed:sdlc-standard-templates] failed to publish profile "${profileSeed.code}": ${profileResult.errors.join("; ")}`);
+  logger.info(`[seed:sdlc-standard-templates] profile ${profileSeed.code} -> ${profileResult.profileId}`);
 }
 
 export async function seedSdlcStandardTemplates(): Promise<void> {

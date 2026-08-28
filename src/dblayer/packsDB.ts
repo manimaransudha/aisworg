@@ -27,14 +27,15 @@ export const packsDB = {
     installationClassification?: PackClassification;
     contributions: PackContributions;
     dependencies?: Array<{ packCode: string; version: string; type: "required" | "optional" | "conditional" | "incompatible" }>;
+    compositionSources?: Array<{ packCode: string }>;
     metadata?: Record<string, unknown>;
     authoredBy?: number | null;
     tenantId?: string;
   }): Promise<DbResult<PackRow>> {
     try {
       const { rows } = await query<PackRow>(
-        `INSERT INTO packs (code, name, category, pack_version, status, installation_classification, contributions, dependencies, metadata, authored_by, tenant_id)
-         VALUES ($1, $2, $3, $4, 'Draft', $5, $6, $7, $8, $9, $10)
+        `INSERT INTO packs (code, name, category, pack_version, status, installation_classification, contributions, dependencies, composition_sources, metadata, authored_by, tenant_id)
+         VALUES ($1, $2, $3, $4, 'Draft', $5, $6, $7, $8, $9, $10, $11)
          RETURNING *`,
         [
           input.code,
@@ -44,6 +45,7 @@ export const packsDB = {
           input.installationClassification ?? "Mandatory",
           JSON.stringify(input.contributions),
           JSON.stringify(input.dependencies ?? []),
+          JSON.stringify(input.compositionSources ?? []),
           JSON.stringify(input.metadata ?? {}),
           input.authoredBy ?? null,
           input.tenantId ?? PLATFORM_TENANT_ID,
@@ -65,18 +67,27 @@ export const packsDB = {
   // discarded the edit (the row kept whatever packVersion createAuthoringDraft
   // first minted), so a validation error naming the OLD version could resurface
   // even after the user had "fixed" it on the form.
+  // Bug fix (CR-067): `code` was accepted and collision-checked by
+  // saveAuthoringDraft's own assertPackCodeVersionFree call (core/sdkAuthoring.ts)
+  // but never actually written here — a code change (e.g. Specialization's own
+  // "code and/or name may be changed" composing onto an existing Draft) silently
+  // discarded itself the same way packVersion used to. Template already allows
+  // code to change on Save while still Draft (locked only when parent-derived);
+  // Pack gets the same "editable while Draft" treatment now, nothing more.
   async updateDraftContent(id: string, input: {
+    code: string;
     name: string;
     category: PackCategory;
     packVersion: string;
     installationClassification?: PackClassification;
     contributions: PackContributions;
     dependencies?: Array<{ packCode: string; version: string; type: "required" | "optional" | "conditional" | "incompatible" }>;
+    compositionSources?: Array<{ packCode: string }>;
     metadata?: Record<string, unknown>;
   }): Promise<DbResult<PackRow>> {
     try {
       const { rows } = await query<PackRow>(
-        `UPDATE packs SET name = $2, category = $3, pack_version = $4, installation_classification = $5, contributions = $6, dependencies = $7, metadata = $8
+        `UPDATE packs SET code = $10, name = $2, category = $3, pack_version = $4, installation_classification = $5, contributions = $6, dependencies = $7, composition_sources = $8, metadata = $9
          WHERE id = $1 AND status = 'Draft'
          RETURNING *`,
         [
@@ -87,7 +98,9 @@ export const packsDB = {
           input.installationClassification ?? "Mandatory",
           JSON.stringify(input.contributions),
           JSON.stringify(input.dependencies ?? []),
+          JSON.stringify(input.compositionSources ?? []),
           JSON.stringify(input.metadata ?? {}),
+          input.code,
         ]
       );
       return { data: rows[0] };

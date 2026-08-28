@@ -30,7 +30,7 @@ import {
 } from "../../../domain/sdk/formGenerator.js";
 import { listConceptsForType } from "../core/ontology.js";
 import {
-  listAuthoringQueue, listMyAuthoredRows, getAuthoringDraft, createAuthoringDraft, saveAuthoringDraft, publishAuthoringDraft,
+  listAuthoringQueue, listMyAuthoredRows, getAuthoringDraft, createAuthoringDraft, saveAuthoringDraft, publishAuthoringDraft, composeAuthoringDraft,
   listInheritableTemplates, inheritedTemplateContent, listInheritableProfiles, inheritedProfileContent,
   type AuthoringDraftSummary,
 } from "../core/sdkAuthoring.js";
@@ -897,6 +897,31 @@ router.post("/sdk/:slug/:draftId/save", requireAuthoring("define"), async (req: 
     return flashSuccess(req, res, backTo(slug, draftId), msg);
   } catch (err) {
     logger.error("[web/seu/sdkAuthoring] POST .../save error", err as Error);
+    return flashError(req, res, backTo(slug, draftId), (err as Error).message);
+  }
+});
+
+/** POST /aisworg/seu/sdk/:slug/:draftId/compose — CR-067: pre-fill the Draft's
+ * content from its own already-saved compositionStrategy/compositionSources.
+ * Explicit action (not a side effect of Save) — see composeAuthoringDraft's
+ * own comment for why. Only reachable for kinds whose schema actually
+ * declares both fields (Pack today); composeAuthoringDraft itself returns a
+ * clean "not yet available" error for every other kind, so no extra gating
+ * is needed here. */
+router.post("/sdk/:slug/:draftId/compose", requireAuthoring("define"), async (req: Request, res: Response, next: NextFunction) => {
+  const slug = String(req.params.slug);
+  const kind = resolveKind(slug);
+  if (!kind) return next();
+  const draftId = String(req.params.draftId);
+  try {
+    const result = await composeAuthoringDraft({ kind, id: draftId });
+    if (!result.ok) return flashError(req, res, backTo(slug, draftId), result.errors.join("; "));
+    if (result.note) return flashSuccess(req, res, backTo(slug, draftId), result.note);
+    const from = result.composedFrom.join(", ");
+    const conflictNote = result.conflicts.length ? ` — ${result.conflicts.length} field(s) could not be automatically combined: ${result.conflicts.join(" ")}` : "";
+    return flashSuccess(req, res, backTo(slug, draftId), `Composed from ${from}.${conflictNote}`);
+  } catch (err) {
+    logger.error("[web/seu/sdkAuthoring] POST .../compose error", err as Error);
     return flashError(req, res, backTo(slug, draftId), (err as Error).message);
   }
 });

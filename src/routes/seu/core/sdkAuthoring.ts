@@ -23,7 +23,7 @@ import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { profilesDB } from "../../../dblayer/profilesDB.js";
 import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
 import {
-  advancePackOneStep, validatePackSeed, packMetadataFromSeed,
+  advancePackOneStep, validatePackSeed, packMetadataFromSeed, findActiveCompositionSource,
   type PackSeedInput,
 } from "./packs.js";
 import { advanceTemplateOneStep, materialiseTemplateDraft, validateTemplateSeed, getPackSelectionsByCategory, getDependencyGraphContent, PACK_SELECTION_SLOTS, type TemplateSeedInput, type PackSelectionsByCategory } from "./templates.js";
@@ -34,6 +34,7 @@ import {
   type DeliverableDefinitionSeedInput,
 } from "./deliverableDefinitions.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
+import { compositionEngine, type CompositionSource } from "../../../domain/engine/compositionEngine.js";
 import type { PackContributions, PackRow, ProfileRow, SchemaDefinitionEntityKind, TemplateRow } from "../../../dblayer/seuTypes.js";
 import { randomUUID } from "node:crypto";
 
@@ -205,8 +206,55 @@ function packRowToContent(pack: PackRow): Record<string, unknown> {
       complianceRequirements: (c as Record<string, unknown[]>).complianceRequirements ?? [],
     },
     dependencies: pack.dependencies ?? [],
+    // CR-067 — the referential-list widget shape ({packCode}), same as
+    // dependencies above.
+    compositionSources: pack.composition_sources ?? [],
     ...(pack.metadata ?? {}),
   };
+}
+
+// CR-067 — the field snapshot a composition source Pack contributes to
+// Specialization/Merge/Union/Intersection/Supplement: packRowToContent's own
+// form-shaped fields, minus whatever must never be blindly copied/combined.
+// `compositionStrategy`/`compositionSources` are this DRAFT's own choices,
+// never the parent's. `packVersion`/`tenantId` are NEVER carried — every
+// strategy "starts at version 1.0.0" (owned by whoever authors the new
+// Draft, not inherited). `code` is the one strategy-dependent field:
+// Specialization's own "creation is an exact copy of the parent" explicitly
+// includes it (changeable afterward); Merge/Union/Intersection/Supplement
+// never touch it — the resulting Draft keeps its own code regardless of what
+// its sources are named.
+const NEVER_COMPOSABLE_FIELDS = new Set(["compositionStrategy", "compositionSources", "packVersion", "tenantId"]);
+
+// packRowToContent's own flat shape always emits the SAME key set for every
+// Pack (contributionCapabilities, dependencies, etc. default to [], unset
+// metadata strings default to "") — "key present" is therefore never a
+// meaningful "this Pack actually declares it" signal on its own; every real
+// Pack would otherwise collide on ~a dozen structurally-shared-but-empty
+// keys. Bug fix, caught by a real test (a Supplement flagging 13 "rejected"
+// fields instead of the one genuine collision): omit empty values entirely
+// before handing fields to the generic engine, so "present in only one
+// source" (Merge/Union's own "combines unambiguously" case) and "the base
+// doesn't already have this" (Supplement's own additive rule) both mean what
+// they're supposed to — a field this Pack actually set, not just a key its
+// shape happens to always carry.
+function isEmptyFieldValue(v: unknown): boolean {
+  if (v === undefined || v === null || v === "") return true;
+  if (Array.isArray(v)) return v.length === 0;
+  if (typeof v === "object") return Object.keys(v as object).length === 0;
+  return false;
+}
+
+export function composableFieldsFromPack(pack: PackRow, opts: { includeIdentity: boolean }): Record<string, unknown> {
+  const content = packRowToContent(pack);
+  const fields: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(content)) {
+    if (NEVER_COMPOSABLE_FIELDS.has(key)) continue;
+    if (key === "code" && !opts.includeIdentity) continue;
+    if (isEmptyFieldValue(value)) continue;
+    fields[key] = value;
+  }
+  return fields;
 }
 
 export interface AuthoringDraftSummary {
@@ -571,6 +619,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       installationClassification: seed.installationClassification,
       contributions: seed.contributions,
       dependencies: seed.dependencies,
+      compositionSources: seed.compositionSources,
       metadata: packMetadataFromSeed(seed),
       authoredBy,
       tenantId: input.tenantId,
@@ -687,12 +736,14 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     const collision = await assertPackCodeVersionFree(seed.code, seed.packVersion, existingPack.tenant_id, input.id);
     if (collision) return { ok: false, errors: [collision] };
     const { data, error } = await packsDB.updateDraftContent(input.id, {
+      code: seed.code,
       name: (seed.name as string) || "(untitled Pack)",
       category: seed.category,
       packVersion: seed.packVersion,
       installationClassification: seed.installationClassification,
       contributions: seed.contributions,
       dependencies: seed.dependencies,
+      compositionSources: seed.compositionSources,
       metadata: packMetadataFromSeed(seed),
     });
     if (error) return { ok: false, errors: [error.message] };
@@ -849,4 +900,107 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
     return { ok: true, status: advanced.deliverableDefinition.status };
   }
   return { ok: false, errors: [`kind "${input.kind}" is not authorable`] };
+}
+
+// --- CR-067 Compose: pre-fill a Draft's content from its own already-saved
+// compositionStrategy/compositionSources -------------------------------------
+export type ComposeAuthoringDraftResult =
+  | { ok: true; composedFrom: string[]; conflicts: string[]; note?: string }
+  | { ok: false; errors: string[] };
+
+// Pack authoring's own "Compose" action — the explicit, author-triggered
+// counterpart to the compositionStrategy/compositionSources fields Save
+// already persists like any other schema field. Reads what's already on the
+// Draft, resolves each named source Pack, runs the matching compositionEngine
+// strategy, and writes the computed fields onto this SAME draft (via
+// saveAuthoringDraft — no separate persistence path). Deliberately NOT run as
+// a side effect of Save: that would silently overwrite hand-edited content
+// every time the author clicks Save, contradicting Specialization's own
+// "free to diverge in any direction once created."
+//
+// Only Pack today — Template/Profile's own schemas don't declare
+// compositionStrategy/compositionSources yet (Phase 2, deferred); this
+// dispatches on `kind` the same way createAuthoringDraft/saveAuthoringDraft
+// do, so adding Template later needs no change to this function's own shape.
+export async function composeAuthoringDraft(input: { kind: SchemaDefinitionEntityKind; id: string }): Promise<ComposeAuthoringDraftResult> {
+  if (input.kind !== "Pack") return { ok: false, errors: [`composition is not yet available for "${input.kind}"`] };
+
+  const { data: draftPack } = await packsDB.findById(input.id);
+  if (!draftPack) return { ok: false, errors: ["draft not found"] };
+  if (draftPack.status !== "Draft") return { ok: false, errors: ["only a Draft can be composed"] };
+
+  const strategy = typeof draftPack.metadata?.compositionStrategy === "string" ? (draftPack.metadata.compositionStrategy as string) : "";
+  if (!strategy.trim()) return { ok: false, errors: ["choose a Composition Strategy before composing"] };
+  if (strategy === "conflict-detection") {
+    return { ok: false, errors: [`"Conflict Detection" is not an independent Composition Strategy — it activates automatically inside Merge/Union.`] };
+  }
+
+  // Deliberately NOT deduplicated — mirrors validatePackSeed's identical
+  // arity check exactly, so a Draft that passed validation at Save time
+  // passes the same count here at Compose time.
+  const sourceCodes = (draftPack.composition_sources ?? []).map((s) => s.packCode).filter((c) => c?.trim());
+  const req = compositionEngine.strategyRequirements(strategy);
+  if (sourceCodes.length < req.minSources || (req.maxSources != null && sourceCodes.length > req.maxSources)) {
+    const arity = req.maxSources == null ? `at least ${req.minSources}` : req.minSources === req.maxSources ? `exactly ${req.minSources}` : `${req.minSources}-${req.maxSources}`;
+    return { ok: false, errors: [`Composition Strategy "${strategy}" requires ${arity} composition source(s), got ${sourceCodes.length}.`] };
+  }
+  if (req.sameCodeRequired && new Set(sourceCodes).size > 1) {
+    return { ok: false, errors: [`Composition Strategy "${strategy}" requires every composition source to share the same code — got: ${sourceCodes.join(", ")}.`] };
+  }
+
+  if (strategy === "override") {
+    return {
+      ok: true,
+      composedFrom: [],
+      conflicts: [],
+      note: `Override reuses this Pack's own normal version-bump flow — use "Next version" to publish a new Version of this same code; the prior Active Version is superseded automatically.`,
+    };
+  }
+
+  const resolved: PackRow[] = [];
+  for (const code of sourceCodes) {
+    const sourcePack = await findActiveCompositionSource(code, draftPack.tenant_id);
+    if (!sourcePack) return { ok: false, errors: [`composition source Pack "${code}" has no Active Version.`] };
+    resolved.push(sourcePack);
+  }
+
+  let composedFields: Record<string, unknown>;
+  let conflicts: string[] = [];
+  if (strategy === "specialization") {
+    const parent = resolved[0];
+    const result = compositionEngine.specialize({ id: parent.id, code: parent.code, fields: composableFieldsFromPack(parent, { includeIdentity: true }) });
+    composedFields = result.fields;
+  } else {
+    const sources: CompositionSource[] = resolved.map((p) => ({ id: p.id, code: p.code, fields: composableFieldsFromPack(p, { includeIdentity: false }) }));
+    if (strategy === "merge") {
+      const result = compositionEngine.merge(sources);
+      if (!result.ok) return { ok: false, errors: [result.error] };
+      composedFields = result.fields;
+      conflicts = result.conflicts;
+    } else if (strategy === "union") {
+      const result = compositionEngine.union(sources);
+      if (!result.ok) return { ok: false, errors: [result.error] };
+      composedFields = result.fields;
+      conflicts = result.conflicts;
+    } else if (strategy === "intersection") {
+      const result = compositionEngine.intersection(sources);
+      if (!result.ok) return { ok: false, errors: [result.error] };
+      composedFields = result.fields;
+    } else if (strategy === "supplement") {
+      const [base, ...supplements] = sources;
+      const result = compositionEngine.supplement(base, supplements);
+      if (!result.ok) return { ok: false, errors: [result.error] };
+      composedFields = result.fields;
+      if (result.rejected.length) {
+        conflicts = result.rejected.map((k) => `"${k}" already exists on the base Pack — a Supplement can only add, never override or remove; this field was not applied.`);
+      }
+    } else {
+      return { ok: false, errors: [`unknown Composition Strategy "${strategy}"`] };
+    }
+  }
+
+  const newContent = { ...packRowToContent(draftPack), ...composedFields };
+  const saved = await saveAuthoringDraft({ kind: "Pack", id: input.id, content: newContent });
+  if (!saved.ok) return { ok: false, errors: saved.errors };
+  return { ok: true, composedFrom: sourceCodes, conflicts };
 }

@@ -44,9 +44,25 @@ async function commissionDispatchAndDeclareSla(prefix: string, opts?: { slaSecon
   // Declare the SLA on the producing Capability's Service Level (net-new
   // turnaround_time, Resolution 9). Set explicitly so the test does not depend
   // on whether the shared dev DB was re-seeded since the pack gained the field.
+  // CR-064 — Service Level is no longer an ad-hoc runtime PATCH; it's a real,
+  // versioned republish via upsertFromPack (same path every Pack publish
+  // uses), matching dispatchEngine.ts's own resolveTurnaroundSeconds reader
+  // (matches any service_level item whose label contains "turnaround",
+  // target parsed as a bare number of seconds).
   const { data: services } = await servicesDB.findByCapabilityId(capability.capabilityId);
   assert.ok(services && services.length > 0, "the producing Capability should provide a Service carrying the SLA");
-  await servicesDB.setServiceLevel(services[0].id, { ...services[0].service_level, turnaround_time: opts?.slaSeconds ?? SLA_SECONDS });
+  const svc = services[0];
+  await servicesDB.upsertFromPack({
+    code: svc.code,
+    providingCapabilityId: svc.providing_capability_id,
+    name: svc.name,
+    contractDescription: svc.contract_description,
+    serviceLevel: [
+      ...svc.service_level.filter((item) => !/turnaround/i.test(item.label)),
+      { label: "Turnaround Time", target: String(opts?.slaSeconds ?? SLA_SECONDS) },
+    ],
+    originatingPackId: svc.originating_pack_id!,
+  });
 
   await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantType: "AI", displayName: `${prefix} Analyst` });
 

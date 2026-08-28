@@ -4,5 +4,5 @@
   "baseTemplateCode": "enterprise-web-application",
   "environment": "development",
   "configParameters": {},
-  "optionalPackCodes": ["technology-nodejs"]
+  "optionalPackCodes": ["testing-qa"]
 }

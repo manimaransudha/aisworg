@@ -1,8 +1,8 @@
 {
-  "code": "profile-default-development",
+  "code": "test-profile-default-development",
   "name": "Default Development Profile",
-  "baseTemplateCode": "enterprise-web-application",
+  "baseTemplateCode": "test-enterprise-web-application",
   "environment": "development",
   "configParameters": {},
-  "optionalPackCodes": ["technology-nodejs"]
+  "optionalPackCodes": ["testing-qa"]
 }

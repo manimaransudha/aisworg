@@ -1,0 +1,58 @@
+{
+  "code": "test-backlog-release-planning",
+  "name": "Backlog & Release Planning (SDLC Phase 6)",
+  "category": "Organisation",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Planning feature development and releases \u2014 aka Roadmapping, Program Increment Planning, Flight Plan, Delivery Strategy.",
+  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "backlog-release-planning",
+        "name": "Backlog & Release Planning",
+        "description": "Translates the product roadmap into a sequenced, dependency-aware backlog and release plan ready for execution."
+      }
+    ],
+    "services": [
+      {
+        "code": "outcome-based-product-roadmap",
+        "capabilityCode": "backlog-release-planning",
+        "name": "Outcome-Based Product Roadmap",
+        "contractDescription": "Strategic product roadmap."
+      },
+      {
+        "code": "feature-epic-backlog-acceptance-criteria",
+        "capabilityCode": "backlog-release-planning",
+        "name": "Feature/Epic Backlog & Acceptance Criteria",
+        "contractDescription": "Development backlog."
+      },
+      {
+        "code": "release-plan",
+        "capabilityCode": "backlog-release-planning",
+        "name": "Release Plan",
+        "contractDescription": "Release strategy and timeline."
+      },
+      {
+        "code": "feature-flag-rollout-strategy",
+        "capabilityCode": "backlog-release-planning",
+        "name": "Feature Flag & Rollout Strategy",
+        "contractDescription": "Progressive feature deployment."
+      },
+      {
+        "code": "dependency-map",
+        "capabilityCode": "backlog-release-planning",
+        "name": "Dependency Map",
+        "contractDescription": "Feature and system dependencies."
+      },
+      {
+        "code": "governance-raci-chart",
+        "capabilityCode": "backlog-release-planning",
+        "name": "Governance & RACI Chart",
+        "contractDescription": "Decision-making framework."
+      }
+    ]
+  }
+}

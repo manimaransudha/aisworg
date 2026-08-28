@@ -11,7 +11,7 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "solution-development",
+        "code": "development",
         "name": "Solution Development",
         "description": "Designs and implements solution increments against the approved architecture, on behalf of the Developer role."
       }
@@ -19,13 +19,13 @@
     "services": [
       {
         "code": "implementation-elements",
-        "capabilityCode": "solution-development",
+        "capabilityCode": "development",
         "name": "Implementation Elements",
         "contractDescription": "Working code implementing the design for this increment, ready for integration."
       },
       {
         "code": "integrated-build",
-        "capabilityCode": "solution-development",
+        "capabilityCode": "development",
         "name": "Integrated Build",
         "contractDescription": "A build integrating this increment's implementation elements, ready for test."
       }
@@ -47,6 +47,97 @@
       }
     ],
     "reviewGates": [],
+    "qualityGates": [
+      {
+        "name": "No Unresolved Obligations",
+        "category": "Review Evidence",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "criteriaType": "no_unresolved_obligations"
+      },
+      {
+        "name": "Requires Accepted Evidence or Approved Decision",
+        "category": "Validation Evidence",
+        "governedTransition": "Deliverable|Approved|Baselined",
+        "criteriaType": "requires_accepted_evidence_or_approved_decision"
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-obligation",
+        "governedTransition": "obligation.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-evidence",
+        "governedTransition": "evidence.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-knowledge",
+        "governedTransition": "knowledge.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-decision",
+        "governedTransition": "decision.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-promote-knowledge-to-capability",
+        "governedTransition": "knowledgescope.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-promote-knowledge-to-enterprise",
+        "governedTransition": "knowledgescope.transition",
+        "authorisedRole": "power"
+      },
+      {
+        "code": "authority-promote-knowledge-to-platform",
+        "governedTransition": "knowledgescope.transition",
+        "authorisedRole": "super"
+      },
+      {
+        "code": "authority-transition-attentionitem",
+        "governedTransition": "attentionitem.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-externalinteraction",
+        "governedTransition": "externalinteraction.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-pack",
+        "governedTransition": "pack.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-pack-elevated",
+        "governedTransition": "pack.transition",
+        "authorisedRole": "power"
+      },
+      {
+        "code": "authority-transition-participant",
+        "governedTransition": "participant.transition",
+        "authorisedRole": "general"
+      }
+    ],
     "policies": [
       {
         "code": "policy-no-hardcoded-secrets",
@@ -65,6 +156,114 @@
         "governedTransition": "Deliverable|In Progress|Approved",
         "conditionType": "always_true",
         "severity": "Low"
+      },
+      {
+        "code": "policy-commission-baseline",
+        "name": "Commissioning baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "SEU|Pending|Commissioned",
+        "severity": "Medium",
+        "conditionType": "always_true"
+      },
+      {
+        "code": "policy-deliverable-transition-baseline",
+        "name": "Deliverable transition baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "Deliverable|Defined|In Progress",
+        "severity": "Low",
+        "conditionType": "always_true"
+      },
+      {
+        "code": "policy-objective-transition-baseline",
+        "name": "Objective transition baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "Objective|Proposed|Active",
+        "severity": "Low",
+        "conditionType": "always_true"
+      },
+      {
+        "code": "policy-obligation-transition-baseline",
+        "name": "Obligation transition baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "Obligation|Identified|Analysed",
+        "severity": "Low",
+        "conditionType": "always_true"
+      },
+      {
+        "code": "policy-evidence-transition-baseline",
+        "name": "Evidence transition baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "Evidence|Collected|Validated",
+        "severity": "Low",
+        "conditionType": "always_true"
+      },
+      {
+        "code": "policy-knowledge-transition-baseline",
+        "name": "Knowledge transition baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "Knowledge|Observed|Proposed",
+        "severity": "Low",
+        "conditionType": "always_true"
+      },
+      {
+        "code": "policy-decision-transition-baseline",
+        "name": "Decision transition baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "Decision|Identified|Analysed",
+        "severity": "Low",
+        "conditionType": "always_true"
+      },
+      {
+        "code": "policy-knowledgescope-transition-baseline",
+        "name": "Acquisition Scope promotion baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "KnowledgeScope|SEU|Capability",
+        "severity": "Medium",
+        "conditionType": "always_true"
+      },
+      {
+        "code": "policy-attentionitem-transition-baseline",
+        "name": "Attention Item transition baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "AttentionItem|Created|Delivered",
+        "severity": "Low",
+        "conditionType": "always_true"
+      },
+      {
+        "code": "policy-externalinteraction-transition-baseline",
+        "name": "External Interaction transition baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "ExternalInteraction|Created|Validated",
+        "severity": "Low",
+        "conditionType": "always_true"
+      },
+      {
+        "code": "policy-pack-transition-baseline",
+        "name": "Pack transition baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "Pack|Draft|Validated",
+        "severity": "Low",
+        "conditionType": "always_true"
+      },
+      {
+        "code": "policy-participant-transition-baseline",
+        "name": "Participant transition baseline check",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "Participant|Created|Available",
+        "severity": "Low",
+        "conditionType": "always_true"
       }
     ]
   }

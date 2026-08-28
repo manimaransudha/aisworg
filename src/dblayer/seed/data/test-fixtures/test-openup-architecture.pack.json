@@ -1,0 +1,28 @@
+{
+  "code": "test-architecture-solution-design",
+  "name": "Architecture (OpenUP Capability Pattern)",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "EPF/OpenUP's Architecture capability pattern, modelled as a Pack: the Architect role, the Architecture Notebook work product, and the tasks for designing and validating the solution structure.",
+  "owner": "EPF/OpenUP Practice Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "architecture",
+        "name": "Architecture Design",
+        "description": "Designs the technical solution structure and key design decisions on behalf of the Architect role."
+      }
+    ],
+    "services": [
+      {
+        "code": "architecture-notebook",
+        "capabilityCode": "architecture",
+        "name": "Architecture Notebook",
+        "contractDescription": "The candidate architecture, key design decisions, and rationale \u2014 sufficient to guide implementation."
+      }
+    ]
+  }
+}

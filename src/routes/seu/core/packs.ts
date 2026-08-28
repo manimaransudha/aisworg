@@ -22,6 +22,7 @@ import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
 import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { authorityRulesDB } from "../../../dblayer/authorityRulesDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
+import { backfillAuthorityRuleCode, backfillPolicyCode } from "../../../dblayer/seed/seedTransitionDefinitions.js";
 import { qualityGatesDB } from "../../../dblayer/qualityGatesDB.js";
 import { reviewGatesDB } from "../../../dblayer/reviewGatesDB.js";
 import { checklistsDB } from "../../../dblayer/checklistsDB.js";
@@ -29,6 +30,7 @@ import { complianceDB } from "../../../dblayer/complianceDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
+import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
 import type { PackCategory, PackClassification, PackContributions, PackRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 
 // CR-058 — governedTransition is authored as a single delimited value
@@ -126,6 +128,8 @@ export interface PackSeedInput {
   installationClassification: PackClassification;
   contributions: PackContributions;
   dependencies?: Array<{ packCode: string; version: string; type: PackDependencyType }>;
+  // CR-067 — the Pack(s) this Pack's compositionStrategy combines from.
+  compositionSources?: Array<{ packCode: string }>;
   // Pack ownership (owner: "Packs will have ownership... platform or the
   // tenant"). Optional: seed scripts/the CLI publishing with no human author
   // don't set it and get the Platform tenant (packsDB.create's own default);
@@ -159,6 +163,22 @@ export function packMetadataFromSeed(seed: PackSeedInput): Record<string, string
     if (typeof v === "string" && v.trim()) meta[key] = v.trim();
   }
   return meta;
+}
+
+// CR-067 — a composition source's visibility mirrors every other Pack-code
+// picker in this codebase (owner: "Platform packs will be available to all
+// users of the platform. Tenant packs are visible only to the tenant
+// users."): this tenant's own Active row for the code, falling back to
+// Platform's. Real for Merge specifically — Pack's own identity is one
+// Active row per (code, tenant); two DIFFERENT Active rows sharing a code
+// only exist across Platform + a tenant (the "tenant-overrides-a-Domain-Pack"
+// case CR-030's own Override definition names), never within one tenant.
+export async function findActiveCompositionSource(code: string, tenantId: string): Promise<PackRow | null> {
+  const { data: ownTenant } = await packsDB.findActiveByCode(code, tenantId);
+  if (ownTenant) return ownTenant;
+  if (tenantId === PLATFORM_TENANT_ID) return null;
+  const { data: platform } = await packsDB.findActiveByCode(code, PLATFORM_TENANT_ID);
+  return platform ?? null;
 }
 
 const PACK_DEPENDENCY_TYPES: PackDependencyType[] = ["required", "optional", "conditional", "incompatible"];
@@ -222,6 +242,25 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
       await assertCanonicalCategory("composition-strategy", seed.compositionStrategy, ontologyViewer);
     } catch (err) {
       errors.push((err as Error).message);
+    }
+    // CR-067 — Conflict Detection is the escalation path inside Merge/Union,
+    // not an independent, author-selectable strategy.
+    if (seed.compositionStrategy === "conflict-detection") {
+      errors.push(`"Conflict Detection" is not an independent Composition Strategy — it activates automatically inside Merge/Union. Choose one of the other strategies.`);
+    } else {
+      const req = compositionEngine.strategyRequirements(seed.compositionStrategy);
+      const sourceCodes = (seed.compositionSources ?? []).map((s) => s.packCode).filter((c) => c?.trim());
+      if (sourceCodes.length < req.minSources || (req.maxSources != null && sourceCodes.length > req.maxSources)) {
+        const arity = req.maxSources == null ? `at least ${req.minSources}` : req.minSources === req.maxSources ? `exactly ${req.minSources}` : `${req.minSources}-${req.maxSources}`;
+        errors.push(`Composition Strategy "${seed.compositionStrategy}" requires ${arity} composition source(s), got ${sourceCodes.length}.`);
+      }
+      if (req.sameCodeRequired && new Set(sourceCodes).size > 1) {
+        errors.push(`Composition Strategy "${seed.compositionStrategy}" requires every composition source to share the same code — got: ${[...new Set(sourceCodes)].join(", ")}.`);
+      }
+      for (const code of sourceCodes) {
+        const sourcePack = await findActiveCompositionSource(code, seed.tenantId ?? PLATFORM_TENANT_ID);
+        if (!sourcePack) errors.push(`composition source Pack "${code}" has no Active Version visible to this tenant.`);
+      }
     }
   }
 
@@ -614,13 +653,18 @@ async function seedContributions(pack: PackRow, seed: PackSeedInput): Promise<vo
   }
 
   for (const rule of seed.contributions.authorityRules ?? []) {
-    const { error } = await authorityRulesDB.upsert({
+    const { data: createdRule, error } = await authorityRulesDB.upsert({
       code: rule.code,
       governedTransition: rule.governedTransition,
       authorisedRole: rule.authorisedRole,
       originatingPackId: pack.id,
     });
-    if (error) throw error;
+    if (error || !createdRule) throw error ?? new Error(`authority rule upsert failed: ${rule.code}`);
+    // 2026-08-25 — self-heals any transition_definitions row that wanted
+    // this exact authority rule code but couldn't resolve it at seed time
+    // (dev/test seed data; transitionDefinitions.json's own codes aren't
+    // guaranteed to exist yet when it's seeded, see seedTransitionDefinitions.ts).
+    await backfillAuthorityRuleCode(rule.code, createdRule.id);
   }
 
   // CR-061 — processed before qualityGates: a requires_active_policy gate
@@ -651,6 +695,8 @@ async function seedContributions(pack: PackRow, seed: PackSeedInput): Promise<vo
     });
     if (error || !created) throw error ?? new Error(`policy upsert failed: ${policy.code}`);
     policyIdByCode.set(policy.code, created.id);
+    // 2026-08-25 — same self-heal as authority rules, above.
+    await backfillPolicyCode(policy.code, created.id);
   }
   const resolvePolicyCodes = (refs: string[] | undefined): string[] => (refs ?? []).map((ref) => policyIdByCode.get(ref) ?? ref);
 
@@ -666,6 +712,7 @@ async function seedContributions(pack: PackRow, seed: PackSeedInput): Promise<vo
     const { data: checklist, error } = await checklistsDB.upsert({
       name: cl.name,
       description: cl.description,
+      asset: cl.asset,
       items: cl.items,
       originatingPackId: pack.id,
     });
@@ -858,6 +905,7 @@ async function reactivateAsNewVersion(pack: PackRow, actorRole: string, actorId:
     installationClassification: pack.installation_classification,
     contributions: pack.contributions,
     dependencies: pack.dependencies,
+    compositionSources: pack.composition_sources,
     // Reactivation is versioning, not a change of ownership — the new
     // Version stays owned by whichever tenant (or Platform) the ORIGINAL
     // Pack belonged to, regardless of who holds the badge that triggers it.
@@ -903,6 +951,7 @@ export async function copyPackAsNewDraft(packId: string, actorId: string): Promi
     installationClassification: source.installation_classification,
     contributions: source.contributions,
     dependencies: source.dependencies,
+    compositionSources: source.composition_sources,
     metadata: source.metadata,
     authoredBy: Number(actorId),
     tenantId: source.tenant_id,

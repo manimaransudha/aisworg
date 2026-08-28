@@ -130,7 +130,7 @@ test("Constraint Type (Ch.24): a Standard-type Policy violation doesn't block a 
   const standardTransition = `test.standard.${unique}`;
   const policyTransition = `test.policy.${unique}`;
 
-  const { data: pack } = await packsDB.findByCode("platform-core-engineering");
+  const { data: pack } = await packsDB.findByCode("development");
   assert.ok(pack);
 
   // Both policies have a condition that can never be satisfied (context never

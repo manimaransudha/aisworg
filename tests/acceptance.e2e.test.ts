@@ -93,7 +93,7 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
   const commissioning = await commissionRes.json();
   assert.equal(commissionRes.status, 201, JSON.stringify(commissioning));
   assert.equal(commissioning.lifecycleState, "Operational");
-  assert.ok(commissioning.commissioningReport.composition.packsUsed.includes("platform-core-engineering"));
+  assert.ok(commissioning.commissioningReport.composition.packsUsed.includes("development"));
 
   const seuId = commissioning.seuId;
 

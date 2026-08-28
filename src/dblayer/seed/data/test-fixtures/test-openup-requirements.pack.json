@@ -1,0 +1,40 @@
+{
+  "code": "test-requirements-analysis",
+  "name": "Requirements (OpenUP Capability Pattern)",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "EPF/OpenUP's Requirements capability pattern, modelled as a Pack: the Stakeholder/Analyst roles, work products, and tasks for eliciting, detailing, and reviewing requirements.",
+  "owner": "EPF/OpenUP Practice Library",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "requirements-analysis",
+        "name": "Requirements Management",
+        "description": "Elicits, details, and maintains traceable requirements on behalf of Stakeholders (OpenUP Analyst/Stakeholder roles)."
+      }
+    ],
+    "services": [
+      {
+        "code": "vision",
+        "capabilityCode": "requirements-analysis",
+        "name": "Vision",
+        "contractDescription": "A shared statement of the problem, stakeholders, and high-level scope of the solution."
+      },
+      {
+        "code": "requirements-specification",
+        "capabilityCode": "requirements-analysis",
+        "name": "Requirements Specification",
+        "contractDescription": "Detailed, reviewable statements of what the solution must do \u2014 specific enough for Development and Test to act on."
+      },
+      {
+        "code": "glossary",
+        "capabilityCode": "requirements-analysis",
+        "name": "Glossary",
+        "contractDescription": "Shared definitions of domain terms used consistently across requirements, design, and test."
+      }
+    ]
+  }
+}

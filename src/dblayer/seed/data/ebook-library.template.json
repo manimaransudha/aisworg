@@ -11,8 +11,8 @@
     "code-review"
   ],
   "mandatoryPackCodes": [
-    "platform-core-engineering",
-    "domain-ebook-library"
+    "development",
+    "testing-qa"
   ],
   "deliverableCatalogue": [
     {

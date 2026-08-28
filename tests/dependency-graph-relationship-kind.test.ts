@@ -11,7 +11,7 @@
 //   4. Renaming to an unrelated name (no lineage) still blocks publish.
 //   5. Derivation-kind edges are freely editable — no lock at all.
 import "dotenv/config";
-import { test, after } from "node:test";
+import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
@@ -20,10 +20,15 @@ import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { deliverableDefinitionsDB } from "../src/dblayer/deliverableDefinitionsDB.js";
 import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
 import { createAuthoringDraft, saveAuthoringDraft, publishAuthoringDraft } from "../src/routes/seu/core/sdkAuthoring.js";
+import { ensureTestFixturePacks } from "./testFixtures.js";
 
 const createdTemplateIds: string[] = [];
 const createdDeliverableDefinitionIds: string[] = [];
 const createdOntologyConceptCodes: string[] = [];
+
+before(async () => {
+  await ensureTestFixturePacks();
+});
 
 after(async () => {
   if (createdOntologyConceptCodes.length) {
@@ -83,7 +88,7 @@ function templateContent(code: string, version: string, catalogue: Array<{ name:
     code,
     templateVersion: version,
     name: "Dependency Graph Relationship Kind Test Template",
-    engineeringPackCodes: [{ packCode: "platform-core-engineering" }], // real, seeded mandatory Pack (ensureWebAppTemplateFixture's own)
+    engineeringPackCodes: [{ packCode: "test-testing-qa" }], // real (migration 119), test-only twin — never the real production Pack (see testFixtures.ts's header). NOT test-development: that twin (and test-requirements-analysis/test-architecture-solution-design) are deliberately never published — see seedTestFixturePacks.ts's own header.
     deliverableCatalogue: catalogue,
     dependencyGraph,
   };
