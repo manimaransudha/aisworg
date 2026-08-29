@@ -42,11 +42,11 @@ import { transitionPack } from "../core/packs.js";
 import { transitionTemplate, PACK_SELECTION_SLOTS, deriveCapabilityCodesFromPackCodes, deriveCapabilityProducingPacksFromPackCodes } from "../core/templates.js";
 import { transitionProfile } from "../core/profiles.js";
 import { transitionDeliverableDefinition, listInheritableDeliverableDefinitions, inheritedDeliverableDefinitionContent } from "../core/deliverableDefinitions.js";
-import { listCurrentTransitionDefinitions, getTransitionDefinitionDetail, addTransitionDefinition, retireTransitionDefinition } from "../core/transitionDefinitions.js";
+import { listCurrentTransitionDefinitions, getTransitionDefinitionDetail, addTransitionDefinition, retireTransitionDefinition, updateTransitionDefinition } from "../core/transitionDefinitions.js";
 import {
   listAuthorityNouns, listAuthorityVerbs, listAuthorityMapping,
   listActiveNouns, listActiveVerbs, activeMappingByNoun,
-  addNoun, addVerb, addMapping, retireNoun, retireVerb, retireMapping,
+  addNoun, addVerb, addMapping, retireNoun, retireVerb, retireMapping, updateMappingTrigger,
 } from "../core/authorityVocabulary.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import type { SchemaDefinitionEntityKind } from "../../../dblayer/seuTypes.js";
@@ -355,12 +355,17 @@ router.post("/authority/verbs/retire", requireAuthorityAdmin, async (req: Reques
 });
 
 router.post("/authority/mapping/add", requireAuthorityAdmin, async (req: Request, res: Response) => {
-  const { nounCode, verbCode } = req.body ?? {};
-  wrote(req, res, AUTH_MAPPING, await addMapping(String(nounCode ?? ""), String(verbCode ?? "")), `Mapping ${nounCode} → ${verbCode} added.`);
+  const { nounCode, verbCode, trigger } = req.body ?? {};
+  wrote(req, res, AUTH_MAPPING, await addMapping(String(nounCode ?? ""), String(verbCode ?? ""), trigger ? String(trigger) : undefined), `Mapping ${nounCode} → ${verbCode} added.`);
 });
 router.post("/authority/mapping/retire", requireAuthorityAdmin, async (req: Request, res: Response) => {
   const { nounCode, verbCode } = req.body ?? {};
   wrote(req, res, AUTH_MAPPING, await retireMapping(String(nounCode ?? ""), String(verbCode ?? "")), `Mapping ${nounCode} → ${verbCode} retired.`);
+});
+/** CR-072 — the only field this edits is trigger, on every transition_definitions row sharing this (noun, verb). */
+router.post("/authority/mapping/edit-trigger", requireAuthorityAdmin, async (req: Request, res: Response) => {
+  const { nounCode, verbCode, trigger } = req.body ?? {};
+  wrote(req, res, AUTH_MAPPING, await updateMappingTrigger(String(nounCode ?? ""), String(verbCode ?? ""), String(trigger ?? "")), `${nounCode} + ${verbCode} trigger set to "${trigger}".`);
 });
 
 router.post("/authority/transition-definitions/add", requireAuthorityAdmin, async (req: Request, res: Response) => {
@@ -379,12 +384,48 @@ router.get("/authority/transition-definitions/:id", requireAuthorityAdmin, attac
     if (!detail) return next();
     req.vm.req.title = `Transition — ${detail.entityType} ${detail.fromState} → ${detail.toState}`;
     req.vm.req.detail = detail;
+    // requireAuthorityAdmin already gated reaching this page on the same
+    // predicate, so this is always true here — set explicitly (matching the
+    // list route's own use of this same helper) rather than leaving the
+    // view's Edit-link check against an unset local.
+    req.vm.opt.canWriteAuthority = await canWriteAuthority(req);
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/sdk/authority/detail", req.vm);
   } catch (err) {
     logger.error("[web/seu/sdkAuthoring] GET /authority/transition-definitions/:id error", err as Error);
     next(err);
   }
+});
+
+/**
+ * GET /aisworg/seu/authority/transition-definitions/:id/edit (owner: "View,
+ * Retire and Add are there. Edit is missing"). entityType/fromState/toState/
+ * verb are shown read-only for context — same "never delete/rename" identity
+ * as Retire/Add — only creates_obligation/category are editable here.
+ */
+router.get("/authority/transition-definitions/:id/edit", requireAuthorityAdmin, attachVM("seu/sdk/authority/edit"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const detail = await getTransitionDefinitionDetail(String(req.params.id));
+    if (!detail) return next();
+    req.vm.req.title = `Edit — ${detail.entityType} ${detail.fromState} → ${detail.toState}`;
+    req.vm.req.detail = detail;
+    req.vm.opt.flash = getFlash(req);
+    return renderView(req, res, "seu/sdk/authority/edit", req.vm);
+  } catch (err) {
+    logger.error("[web/seu/sdkAuthoring] GET /authority/transition-definitions/:id/edit error", err as Error);
+    next(err);
+  }
+});
+router.post("/authority/transition-definitions/:id/update", requireAuthorityAdmin, async (req: Request, res: Response) => {
+  const id = String(req.params.id);
+  const { createsObligation, category } = req.body ?? {};
+  wrote(
+    req,
+    res,
+    `/aisworg/seu/authority/transition-definitions/${id}`,
+    await updateTransitionDefinition(id, { createsObligation: createsObligation != null ? String(createsObligation) : null, category: category != null ? String(category) : null }),
+    "Transition definition updated."
+  );
 });
 
 // Registry-backed options for referential-select/referential-list fields,

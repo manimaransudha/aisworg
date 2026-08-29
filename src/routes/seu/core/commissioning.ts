@@ -83,9 +83,17 @@ export async function commissionSeu(input: {
   // Ch.2 §7 / Build Plan §5 item 8: 'Pending' is the pre-Commissioned working
   // state this plan adds so the pipeline has a row to attach the EBM and
   // report to before Ch.37's own lifecycle formally begins at 'Commissioned'.
-  // Resolve the owning tenant (default unless one was named), so the SEU's Work
-  // Items dispatch against that tenant's edge configuration.
-  let tenantId = input.tenantId ?? null;
+  // Resolve the owning tenant, so the SEU's Work Items dispatch against that
+  // tenant's edge configuration. §18.11: "An SEU's Tenant is set from its
+  // Objective's Tenant, not chosen separately or defaulted" — an explicit
+  // input.tenantId still wins when a caller passes one (commissionFromForm's
+  // one-shot path does, deliberately: its Objective is a child of the shared
+  // cross-tenant container, ensureOneShotContainer, whose own
+  // sponsoring_authority reflects whichever tenant created it first, not this
+  // request's actual tenant); everyone else (commissionFromExistingObjective
+  // never passed one — the confirmed gap) now derives it from the Objective
+  // itself instead of silently falling straight to the default tenant.
+  let tenantId = input.tenantId ?? objective.sponsoring_authority?.tenant ?? null;
   if (!tenantId) {
     const { data: defaultTenant } = await tenantsDB.findDefault();
     tenantId = defaultTenant?.id ?? null;
@@ -272,6 +280,11 @@ export async function commissionFromForm(input: {
     requiredCapabilityCodes: input.requiredCapabilityCodes,
     parentObjectiveId: container.id,
     requestedBy: input.requestedBy,
+    // The shared container is reused across every tenant, permanently
+    // Active, by design (its own comment above) — it can never pass the
+    // normal parent-tenant reach check, nor the "parent must be Proposed"
+    // edit-scope check (CR-075).
+    skipParentValidation: true,
   });
 
   const candidates = await findCandidateTemplates(input.requiredCapabilityCodes, input.tenantId);
@@ -286,6 +299,19 @@ export async function commissionFromForm(input: {
 
   const profile = await findOrCreateDefaultProfile(template.id);
 
+  // Resolved explicitly here, not left to commissionSeu's own fallback: that
+  // fallback now derives from the Objective's sponsoring_authority (§18.11)
+  // when no tenantId is given, but THIS Objective's sponsoring_authority is
+  // inherited from the shared cross-tenant container (ensureOneShotContainer,
+  // above) — whichever tenant created it first, not this request's tenant.
+  // So an unnamed tenant here must still mean "the seeded default", exactly
+  // as before, never the container's borrowed one.
+  let tenantId = input.tenantId ?? null;
+  if (!tenantId) {
+    const { data: defaultTenant } = await tenantsDB.findDefault();
+    tenantId = defaultTenant?.id ?? null;
+  }
+
   return commissionSeu({
     objectiveId: objective.id,
     templateId: template.id,
@@ -293,7 +319,7 @@ export async function commissionFromForm(input: {
     actorRole: input.actorRole,
     actorId: input.actorId,
     requestedBy: input.requestedBy,
-    tenantId: input.tenantId,
+    tenantId,
   });
 }
 
@@ -317,8 +343,15 @@ export async function commissionFromExistingObjective(input: {
   // this doesn't re-validate it belongs to the matched Template.
   profileId?: string;
   // Scopes findCandidateTemplates to Platform + this tenant (see its own
-  // header comment) — the acting user's tenant, not derived from the
-  // Objective itself (Objectives are not tenant-owned in this model).
+  // header comment) — the acting user's tenant, kept separate from Template
+  // candidate search on purpose (this stays as the caller's own tenant, not
+  // the Objective's). The SEU's own tenant is a different question: since
+  // CR-071 Objectives ARE tenant-owned (sponsoring_authority), and this
+  // function deliberately does NOT forward tenantId into its commissionSeu
+  // call below — commissionSeu derives the SEU's tenant from the Objective
+  // itself (§18.11), which is correct here (unlike commissionFromForm's
+  // one-shot path, this Objective's sponsoring_authority is real, not
+  // inherited from a shared cross-tenant container).
   tenantId?: string | null;
 }): Promise<CommissionFromObjectiveResult> {
   const { data: requiredCapabilities } = await objectivesDB.getRequiredCapabilities(input.objectiveId);

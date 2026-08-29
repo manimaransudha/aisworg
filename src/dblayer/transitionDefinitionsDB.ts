@@ -132,6 +132,29 @@ export const transitionDefinitionsDB = {
     }
   },
 
+  // CR-071 — findPossibleNextStates only names the target state, not the verb
+  // that gates it, so a caller that needs to check "does the viewer hold the
+  // noun_verb badge for this specific option" (transitionEngine's own
+  // `${entityType}_${verb}` convention) can't derive it from that alone. A new,
+  // additive function — findPossibleNextStates itself is used by 16+ callers
+  // across most entity types; widening its return type there risks all of
+  // them for a need only Objective's own detail page has today.
+  // CR-072 — also returns trigger/submitVerb: a manual transition with a
+  // defined submit_verb needs its own from_state submitted (triggerEngine)
+  // before it's a real option, not just the viewer's own badge.
+  async findPossibleNextTransitions(entityType: TransitionEntityType, fromState: string): Promise<DbResult<Array<{ toState: string; verb: string | null; trigger: "manual" | "governed"; submitVerb: string | null }>>> {
+    try {
+      const { rows } = await query<{ to_state: string; verb: string | null; trigger: "manual" | "governed"; submit_verb: string | null }>(
+        "SELECT to_state, verb, trigger, submit_verb FROM transition_definitions WHERE entity_type = $1 AND from_state = $2 ORDER BY to_state",
+        [entityType, fromState]
+      );
+      return { data: rows.map((r) => ({ toState: r.to_state, verb: r.verb, trigger: r.trigger, submitVerb: r.submit_verb })) };
+    } catch (err) {
+      logger.error("[transitionDefinitionsDB] findPossibleNextTransitions error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   // CR-007 Step 2 — full detail of one transition definition (resolved policy
   // & quality-gate codes, authority rule code, verb), for the view-detail page.
   async findDetailById(id: string): Promise<DbResult<TransitionDefinitionDetailRow | null>> {
@@ -155,23 +178,28 @@ export const transitionDefinitionsDB = {
   },
 
   // CR-007 Step 2 — add a transition definition (a new noun/from/to edge with a
-  // verb). Re-adding a retired triple reactivates it and updates its verb.
+  // verb). Re-adding a retired triple reactivates it and updates its verb —
+  // trigger is deliberately NOT in that DO UPDATE SET list, so reactivating
+  // an existing row never overwrites whatever trigger it already carries;
+  // `trigger` here only ever seeds a genuinely NEW row (the mapping's own
+  // default_trigger, resolved by the caller).
   async insertDefinition(input: {
     entityType: string;
     fromState: string;
     toState: string;
     verb: string;
+    trigger?: "manual" | "governed";
     requiredAuthorityRuleId?: string | null;
     requiredPolicyIds?: string[];
   }): Promise<DbResult<{ id: string }>> {
     try {
       const { rows } = await query<{ id: string }>(
-        `INSERT INTO transition_definitions (entity_type, from_state, to_state, verb, required_authority_rule_id, required_policy_ids, is_active)
-         VALUES ($1, $2, $3, $4, $5, $6::uuid[], TRUE)
+        `INSERT INTO transition_definitions (entity_type, from_state, to_state, verb, trigger, required_authority_rule_id, required_policy_ids, is_active)
+         VALUES ($1, $2, $3, $4, $5, $6, $7::uuid[], TRUE)
          ON CONFLICT (entity_type, from_state, to_state) DO UPDATE
            SET verb = EXCLUDED.verb, is_active = TRUE, retired_at = NULL
          RETURNING id`,
-        [input.entityType, input.fromState, input.toState, input.verb, input.requiredAuthorityRuleId ?? null, input.requiredPolicyIds ?? []]
+        [input.entityType, input.fromState, input.toState, input.verb, input.trigger ?? "manual", input.requiredAuthorityRuleId ?? null, input.requiredPolicyIds ?? []]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -193,6 +221,29 @@ export const transitionDefinitionsDB = {
       return { data: rows[0] ?? null };
     } catch (err) {
       logger.error("[transitionDefinitionsDB] retireById error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // Edit action (list had View/Retire/Add but no way to change an existing
+  // row) — deliberately narrow: entity_type/from_state/to_state are this
+  // row's identity (never renamed, same "never delete/rename" convention as
+  // Add/Retire) and verb is governed by the Mapping tab, not this. Touches
+  // only the two fields that are still live, freely-editable metadata —
+  // creates_obligation and category — leaving required_authority_rule_id/
+  // required_policy_ids/required_quality_gate_ids (the retiring CR-006
+  // mechanism, display-only per detail.ejs's own "(legacy)" label) untouched
+  // rather than risk clearing them via a lossy round trip through upsert()'s
+  // resolved-code-to-id path.
+  async updateMetadata(id: string, input: { createsObligation: string | null; category: string | null }): Promise<DbResult<{ id: string } | null>> {
+    try {
+      const { rows } = await query<{ id: string }>(
+        "UPDATE transition_definitions SET creates_obligation = $2, category = $3 WHERE id = $1 RETURNING id",
+        [id, input.createsObligation, input.category]
+      );
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[transitionDefinitionsDB] updateMetadata error", err as Error);
       return { error: err as Error };
     }
   },

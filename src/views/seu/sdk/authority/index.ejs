@@ -51,18 +51,25 @@
           <% } else { %>
             <form method="POST" action="/aisworg/seu/authority/mapping/add" class="row g-2 align-items-end">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-              <div class="col-sm-5">
+              <div class="col-sm-4">
                 <label class="form-label small mb-1">Noun</label>
                 <select name="nounCode" class="form-select form-select-sm" required>
                   <option value="">Choose noun…</option>
                   <% (locals.activeNouns || []).forEach(function(n) { %><option value="<%= n.code %>"><%= n.code %></option><% }) %>
                 </select>
               </div>
-              <div class="col-sm-5">
+              <div class="col-sm-4">
                 <label class="form-label small mb-1">Allow verb</label>
                 <select name="verbCode" class="form-select form-select-sm" required>
                   <option value="">Choose verb…</option>
                   <% (locals.activeVerbs || []).forEach(function(v) { %><option value="<%= v.code %>"><%= v.code %></option><% }) %>
+                </select>
+              </div>
+              <div class="col-sm-2">
+                <label class="form-label small mb-1">Trigger</label>
+                <select name="trigger" class="form-select form-select-sm">
+                  <option value="manual">Manual</option>
+                  <option value="governed">Governed</option>
                 </select>
               </div>
               <div class="col-sm-2 d-grid"><button class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Allow</button></div>
@@ -132,19 +139,50 @@
               <tr>
                 <th><%- sortLink('Noun', 'nounCode', list, listBasePath) %></th>
                 <th><%- sortLink('Verb', 'verbCode', list, listBasePath) %></th>
+                <th>Trigger</th>
                 <th><%- sortLink('Status', 'active', list, listBasePath) %></th>
                 <% if (canWrite) { %><th></th><% } %>
               </tr>
             </thead>
             <tbody>
-              <% if (list.total === 0) { %><tr><td colspan="4" class="text-muted small text-center py-3"><%= list.q ? 'No mappings match your search.' : 'No mappings.' %></td></tr><% } %>
+              <% if (list.total === 0) { %><tr><td colspan="5" class="text-muted small text-center py-3"><%= list.q ? 'No mappings match your search.' : 'No mappings.' %></td></tr><% } %>
               <% list.items.forEach(function(m) { %>
                 <tr class="<%= m.isActive ? '' : 'text-muted' %>">
                   <td><span class="badge bg-light text-dark border"><%= m.nounCode %></span></td>
                   <td><code><%= m.verbCode %></code></td>
+                  <td>
+                    <%# trigger falls back to defaultTrigger (the value chosen on
+                         Allow) when no transition is wired yet; null only when
+                         wired rows genuinely disagree ("mixed"). %>
+                    <% if (m.trigger === 'manual') { %><span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">Manual</span>
+                    <% } else if (m.trigger === 'governed') { %><span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">Governed</span>
+                    <% } else { %><span class="text-muted small">&mdash;</span><% } %>
+                    <% if (!m.hasWiredTransitions) { %><span class="text-muted small">(default)</span><% } %>
+                  </td>
                   <td><% if (m.isActive) { %><span class="badge bg-success-subtle text-success border border-success-subtle">Active</span><% } else { %><span class="badge bg-secondary-subtle text-secondary border">Retired</span><% } %></td>
                   <% if (canWrite) { %><td class="text-end">
-                    <% if (m.isActive) { %><form method="POST" action="/aisworg/seu/authority/mapping/retire" onsubmit="return confirm('Retire mapping <%= m.nounCode %> → <%= m.verbCode %>?');"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="nounCode" value="<%= m.nounCode %>"><input type="hidden" name="verbCode" value="<%= m.verbCode %>"><button class="btn btn-sm btn-outline-secondary">Retire</button></form><% } %>
+                    <div class="d-inline-flex gap-1 align-items-center">
+                      <%# The per-row Edit control only ever changes REAL wired
+                           transitions (updateMappingTrigger requires at least
+                           one) — with none yet, re-submitting Allow above is
+                           how you change the default instead. %>
+                      <% if (m.hasWiredTransitions) { %>
+                        <details class="d-inline-block">
+                          <summary class="btn btn-sm btn-outline-secondary" style="cursor:pointer; list-style:none;">Edit</summary>
+                          <form method="POST" action="/aisworg/seu/authority/mapping/edit-trigger" class="d-flex gap-1 align-items-center mt-1">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <input type="hidden" name="nounCode" value="<%= m.nounCode %>">
+                            <input type="hidden" name="verbCode" value="<%= m.verbCode %>">
+                            <select name="trigger" class="form-select form-select-sm">
+                              <option value="manual" <%= m.trigger === 'manual' ? 'selected' : '' %>>Manual</option>
+                              <option value="governed" <%= m.trigger === 'governed' ? 'selected' : '' %>>Governed</option>
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                          </form>
+                        </details>
+                      <% } %>
+                      <% if (m.isActive) { %><form method="POST" action="/aisworg/seu/authority/mapping/retire" onsubmit="return confirm('Retire mapping <%= m.nounCode %> → <%= m.verbCode %>?');"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="nounCode" value="<%= m.nounCode %>"><input type="hidden" name="verbCode" value="<%= m.verbCode %>"><button class="btn btn-sm btn-outline-secondary">Retire</button></form><% } %>
+                    </div>
                   </td><% } %>
                 </tr>
               <% }) %>

@@ -93,6 +93,23 @@ export const eventsDB = {
     }
   },
 
+  // CR-072 — batched analog of findByOriginatingObject, for a list/tree view
+  // checking many entities' own trigger-submission state in one query instead
+  // of one round trip per row.
+  async findByOriginatingObjects(objectType: string, objectIds: string[]): Promise<DbResult<EventRow[]>> {
+    try {
+      if (objectIds.length === 0) return { data: [] };
+      const { rows } = await query<EventRow>(
+        "SELECT * FROM events WHERE originating_object_type = $1 AND originating_object_id = ANY($2::uuid[]) ORDER BY sequence",
+        [objectType, objectIds]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[eventsDB] findByOriginatingObjects error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findByCorrelationId(correlationId: string): Promise<DbResult<EventRow[]>> {
     try {
       const { rows } = await query<EventRow>("SELECT * FROM events WHERE correlation_id = $1 ORDER BY sequence", [correlationId]);
@@ -109,6 +126,49 @@ export const eventsDB = {
       return { data: rows };
     } catch (err) {
       logger.error("[eventsDB] findRecent error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // CR-074 — the EventBus browser (owner: "Create a UI to show the EventBus
+  // (events table)"): a general, filterable, paginated view of the raw
+  // table, not scoped to any one entity like findByOriginatingObject or
+  // enriched like core/events.ts's own getSeuEvents. seuId filters the real
+  // column directly (set on every event a Deliverable/SEU transition
+  // publishes — confirmed against deliverables.ts's own eventBus.publish
+  // calls), not a cross-object join.
+  async findPage(opts: {
+    limit: number;
+    offset: number;
+    seuId?: string;
+    eventType?: string;
+    entityType?: string;
+  }): Promise<DbResult<{ items: EventRow[]; total: number }>> {
+    try {
+      const conditions: string[] = [];
+      const params: unknown[] = [];
+      if (opts.seuId) {
+        params.push(opts.seuId);
+        conditions.push(`seu_id = $${params.length}`);
+      }
+      if (opts.eventType) {
+        params.push(opts.eventType);
+        conditions.push(`event_type = $${params.length}`);
+      }
+      if (opts.entityType) {
+        params.push(opts.entityType);
+        conditions.push(`originating_object_type = $${params.length}`);
+      }
+      const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+      const countRes = await query<{ n: number }>(`SELECT count(*)::int AS n FROM events ${where}`, params);
+      const { rows } = await query<EventRow>(
+        `SELECT * FROM events ${where} ORDER BY sequence DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, opts.limit, opts.offset]
+      );
+      return { data: { items: rows, total: countRes.rows[0]?.n ?? 0 } };
+    } catch (err) {
+      logger.error("[eventsDB] findPage error", err as Error);
       return { error: err as Error };
     }
   },

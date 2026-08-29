@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../../partials/head') %>
+</head>
+<body>
+  <%- include('../../../partials/helpers') %>
+  <header><%- include('../../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <a href="/aisworg/seu/authority/transition-definitions/<%= detail.id %>" class="text-decoration-none small text-muted"><i class="bi bi-arrow-left me-1"></i>Back</a>
+
+    <div class="d-flex align-items-center gap-2 mt-2 mb-4">
+      <h2 class="h4 mb-0 text-dark fw-bold">Edit — <%= detail.entityType %>: <%= detail.fromState %> → <%= detail.toState %></h2>
+      <% if (detail.isActive) { %><span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+      <% } else { %><span class="badge bg-secondary-subtle text-secondary border">Retired</span><% } %>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <%# entityType/fromState/toState/verb are this row's identity (never
+             renamed here — same "never delete/rename" convention Add/Retire
+             already use) and verb is governed by the Mapping tab, not this
+             form — shown read-only for context. %>
+        <dl class="row mb-4 small">
+          <dt class="col-sm-4 text-muted">Noun (Work outcome)</dt><dd class="col-sm-8"><span class="badge bg-light text-dark border"><%= detail.entityType %></span></dd>
+          <dt class="col-sm-4 text-muted">From → To</dt><dd class="col-sm-8"><%= detail.fromState %> → <%= detail.toState %></dd>
+          <dt class="col-sm-4 text-muted">Verb (Work process)</dt><dd class="col-sm-8"><% if (detail.verb) { %><code><%= detail.verb %></code><% } else { %>—<% } %> <span class="text-muted">(change on the Mapping tab)</span></dd>
+        </dl>
+
+        <form method="POST" action="/aisworg/seu/authority/transition-definitions/<%= detail.id %>/update">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <div class="mb-3">
+            <label for="createsObligation" class="form-label fw-semibold">Creates obligation</label>
+            <input type="text" id="createsObligation" name="createsObligation" class="form-control" value="<%= detail.createsObligation || '' %>" placeholder="An Obligation category to raise on success, or leave blank for none">
+          </div>
+          <div class="mb-3">
+            <label for="category" class="form-label fw-semibold">Category</label>
+            <input type="text" id="category" name="category" class="form-control" value="<%= detail.category || '' %>" placeholder="Leave blank for none">
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Save</button>
+            <a href="/aisworg/seu/authority/transition-definitions/<%= detail.id %>" class="btn btn-link text-muted">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <%- include('../../../partials/footer') %>
+</body>
+</html>

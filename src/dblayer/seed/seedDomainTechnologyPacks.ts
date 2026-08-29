@@ -45,17 +45,29 @@ function loadJson<T>(fileName: string): T {
 const DOMAIN_TECHNOLOGY_PACK_FILES = ["domain-ebook-library.pack.json", "technology-nodejs.pack.json", "technologyc.pack.json", "technologycpp.pack.json"];
 
 export async function seedDomainTechnologyPacks(): Promise<void> {
-  let publishedCount = 0;
-  let alreadyCount = 0;
-  for (const file of DOMAIN_TECHNOLOGY_PACK_FILES) {
-    const seed = loadJson<PackSeedInput>(file);
-    const result = await publishPack({ seed, actorRole: "super", actorId: "1", activate: true });
-    if (!result.ok) {
-      throw new Error(`[seed:domain-technology-packs] failed to publish "${seed.code}": ${(result.errors ?? []).join("; ")}`);
-    }
-    if (result.alreadyPublished) alreadyCount++;
-    else publishedCount++;
+  // Published concurrently — all 4 depend only on `development` (already
+  // Active by the time this step runs, see the file header), never on each
+  // other, and their own capability codes were already de-collided (2026-08-28
+  // fix, above) precisely so they can coexist. No shared mutable state between
+  // them, only network round-trip time to overlap.
+  const results = await Promise.allSettled(
+    DOMAIN_TECHNOLOGY_PACK_FILES.map(async (file) => {
+      const seed = loadJson<PackSeedInput>(file);
+      const result = await publishPack({ seed, actorRole: "super", actorId: "1", activate: true });
+      if (!result.ok) {
+        throw new Error(`failed to publish "${seed.code}": ${(result.errors ?? []).join("; ")}`);
+      }
+      return result.alreadyPublished;
+    })
+  );
+
+  const failures = results.filter((r): r is PromiseRejectedResult => r.status === "rejected").map((r) => (r.reason as Error).message);
+  if (failures.length > 0) {
+    throw new Error(`[seed:domain-technology-packs] ${failures.length} of ${DOMAIN_TECHNOLOGY_PACK_FILES.length} Packs failed: ${failures.join(" | ")}`);
   }
+
+  const alreadyCount = results.filter((r) => r.status === "fulfilled" && r.value).length;
+  const publishedCount = results.length - alreadyCount;
   logger.info(`[seed:domain-technology-packs] ${publishedCount} published, ${alreadyCount} already present — ${DOMAIN_TECHNOLOGY_PACK_FILES.length} Domain/Technology Packs total.`);
 }
 

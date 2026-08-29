@@ -33,3 +33,19 @@ export async function getSeuEvents(seuId: string): Promise<EventRow[]> {
   const deduped = [...new Map(all.map((e) => [e.id, e])).values()];
   return deduped.sort((a, b) => Number(a.sequence) - Number(b.sequence));
 }
+
+// CR-074 — the EventBus browser (owner: "Create a UI to show the EventBus
+// (events table)"). Deliberately NOT getSeuEvents: this is a general, raw
+// table browser (every event, any entity, any SEU), not one SEU's enriched
+// execution history — seuId is one optional filter among several, using the
+// real events.seu_id column directly.
+export async function getEventsPage(opts: {
+  limit: number;
+  offset: number;
+  seuId?: string;
+  eventType?: string;
+  entityType?: string;
+}): Promise<{ items: EventRow[]; total: number }> {
+  const { data } = await eventsDB.findPage(opts);
+  return { items: data?.items ?? [], total: data?.total ?? 0 };
+}

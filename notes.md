@@ -69,6 +69,8 @@ https://zenfy.ac/get-started/
 
 obj-propose@babylon.com
 obj-propose@athens.com
+obj-activate@athens.com
+
 pack-define@athens.com
 pack_all@platform.com
 template-define@athens.com

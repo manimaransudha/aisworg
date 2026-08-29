@@ -4,6 +4,12 @@ A running register of change requests raised against the platform — feature ad
 
 | CR | Title | Status |
 |----|-------|--------|
+| [CR-076](change-requests/CR-076-generic-requireBadge-route-gate.md) | `requireBadge` + `requireTenantScope`: mandatory, generic authorization/scope-gate middleware on every route, replacing hand-rolled per-file copies | ✅ Built 2026-08-29 — mechanism + both `objectives.ts` routers (web + api); rest of `web/`/`api/` tracked follow-up |
+| [CR-072](change-requests/CR-072-transition-trigger-manual-vs-governed.md) | Transition Trigger: manual vs. governed — a new axis on Transition Definitions | 🟡 Open by design (ongoing; sub-item 1 Built 2026-08-28, rest open) |
+| [CR-071](change-requests/CR-071-objective-sponsoring-authority-tenant-scoping.md) | Objective: Sponsoring Authority (JSONB tenant scoping) for the Objectives list, badge-gated lifecycle buttons | ✅ Built 2026-08-28 |
+| [CR-070](change-requests/CR-070-admin-reassign-participants.md) | Admin screens: reassign Deliverables and other entities to new Participants | 🔵 Deferred (not designed) |
+| [CR-069](change-requests/CR-069-objective-display-id-renumber-on-move.md) | Objective display id: renumber on re-parent (split out of CR-068; CR-068 ships freeze-on-move only) | 🔵 Deferred (not designed) |
+| [CR-068](change-requests/CR-068-objective-hierarchical-display-id.md) | Objective hierarchical display identifier (1, 1.1, 1.1.1 — system-assigned, never editable), replacing the UUID as a pill wherever a statement is shown | ✅ Built 2026-08-28 |
 | [CR-067](change-requests/CR-067-composition-strategy-generic-engine.md) | Composition Strategy: a real, generic engine — Specialization/Override/Merge/Union/Intersection/Supplement defined, unifying Pack composition and Template/Profile inheritance (Chapter 4) | 🟡 Proposed (design mostly settled) |
 | [CR-066](change-requests/CR-066-pack-dependency-semantics-circular-detection.md) | Pack dependency types: real semantics for conditional/incompatible, circular-dependency detection | 🟡 Proposed (parked — blocked on CR-067's own design) |
 | [CR-065](change-requests/CR-065-capability-model-chapter-10.md) | Capability: Pack-scoped code identity, version copied from the owning Pack, Structure settles at Identifier/Name/Description only (7 of 10 fields dropped by design) (Chapter 10) | ✅ Built 2026-08-24 |

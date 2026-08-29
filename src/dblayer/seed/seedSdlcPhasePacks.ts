@@ -55,22 +55,33 @@ const SDLC_PHASE_PACK_FILES = [
 ];
 
 export async function seedSdlcPhasePacks(): Promise<void> {
-  let publishedCount = 0;
-  let alreadyCount = 0;
-  for (const file of SDLC_PHASE_PACK_FILES) {
-    const seed = loadJson<PackSeedInput>(file);
-    // System context (seed script): runs as root holder "1", same convention
-    // seedSeu.ts/seedCapabilityPatternPacks.ts use — no human author for a
-    // platform-seeded phase Pack. publishPack/createPackDraft are rerun-safe:
-    // publishing the exact same (code, packVersion) again is a no-op
-    // returning the existing immutable row (VM-002).
-    const result = await publishPack({ seed, actorRole: "super", actorId: "1", activate: true });
-    if (!result.ok) {
-      throw new Error(`[seed:sdlc-phase-packs] failed to publish "${seed.code}": ${(result.errors ?? []).join("; ")}`);
-    }
-    if (result.alreadyPublished) alreadyCount++;
-    else publishedCount++;
+  // Published concurrently — none of the 16 phase Packs declare a dependency
+  // on another (confirmed against every file's own `dependencies`), each
+  // publishes through its own row-scoped transitionPack/eventBus calls, and
+  // publishPack/createPackDraft are rerun-safe, so there's no shared mutable
+  // state or ordering constraint between them, only network round-trip time
+  // to overlap.
+  const results = await Promise.allSettled(
+    SDLC_PHASE_PACK_FILES.map(async (file) => {
+      const seed = loadJson<PackSeedInput>(file);
+      // System context (seed script): runs as root holder "1", same convention
+      // seedSeu.ts/seedCapabilityPatternPacks.ts use — no human author for a
+      // platform-seeded phase Pack.
+      const result = await publishPack({ seed, actorRole: "super", actorId: "1", activate: true });
+      if (!result.ok) {
+        throw new Error(`failed to publish "${seed.code}": ${(result.errors ?? []).join("; ")}`);
+      }
+      return result.alreadyPublished;
+    })
+  );
+
+  const failures = results.filter((r): r is PromiseRejectedResult => r.status === "rejected").map((r) => (r.reason as Error).message);
+  if (failures.length > 0) {
+    throw new Error(`[seed:sdlc-phase-packs] ${failures.length} of ${SDLC_PHASE_PACK_FILES.length} Packs failed: ${failures.join(" | ")}`);
   }
+
+  const alreadyCount = results.filter((r) => r.status === "fulfilled" && r.value).length;
+  const publishedCount = results.length - alreadyCount;
   logger.info(`[seed:sdlc-phase-packs] ${publishedCount} published, ${alreadyCount} already present — ${SDLC_PHASE_PACK_FILES.length} SDLC-phase Packs total.`);
 }
 

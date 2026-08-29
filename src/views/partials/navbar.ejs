@@ -177,7 +177,7 @@
 
           <!-- Settings / user menu -->
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle <%= ['settings','stocks','stockListManager','user-management','seu-identity'].includes(currentPage) ? 'active' : '' %>"
+            <a class="nav-link dropdown-toggle <%= ['settings','stocks','stockListManager','user-management','seu-identity','seu-events'].includes(currentPage) ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Settings">
               <% if (_u?.avatar_url) { %>
                 <img src="<%= _u.avatar_url %>" width="24" height="24"
@@ -199,6 +199,9 @@
               </a></li>
               <li><a class="dropdown-item <%= currentPage === 'user-management' ? 'active' : '' %>"href="/aisworg/auth/users">
                 <i class="bi bi-people me-2"></i>Users
+              </a></li>
+              <li><a class="dropdown-item <%= currentPage === 'seu-events' ? 'active' : '' %>" href="/aisworg/seu/events">
+                <i class="bi bi-broadcast me-2"></i>Event Bus
               </a></li>
               <% } %>
               <li><hr class="dropdown-divider"></li>

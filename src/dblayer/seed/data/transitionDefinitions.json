@@ -96,12 +96,23 @@
     "requiredAuthorityRuleCode": "authority-transition-objective",
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
-    ]
+    ],
+    "submitVerb": "propose"
   },
   {
     "entityType": "Objective",
     "fromState": "Active",
     "toState": "Achieved",
+    "requiredAuthorityRuleCode": "authority-transition-objective",
+    "requiredPolicyCodes": [
+      "policy-objective-transition-baseline"
+    ],
+    "trigger": "governed"
+  },
+  {
+    "entityType": "Objective",
+    "fromState": "Active",
+    "toState": "Reject",
     "requiredAuthorityRuleCode": "authority-transition-objective",
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"

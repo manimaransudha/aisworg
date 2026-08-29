@@ -22,6 +22,18 @@ let server: ReturnType<typeof app.listen>;
 let baseUrl: string;
 let request: ReturnType<typeof fetchCookie>;
 
+// (owner: "root was used in legacy test suite as we did not build the
+// demarcation between tenants etc.") — this file used the NODE_ENV=test
+// auto-login shim's implicit root fallback (no x-test-user-id header sent),
+// same as web-flow.e2e.test.ts did before that fix. root bypasses every
+// badge/tenant check by design (CR-076's own requireBadge/requireTenantScope
+// included), so a suite that only ever runs as root can't actually exercise
+// those gates. TESTER_ALL_ID (1001, seedIdentityBaseline.ts) is a real,
+// non-root, tenant-scoped seeded user who holds every objective_*/deliverable_*/
+// seu_*/... badge (every noun_verb this journey needs), so this journey now
+// runs as a real, authorised identity instead of an implicit bypass.
+const TESTER_ALL_ID = 1001;
+
 before(async () => {
   await ensureWebAppTemplateFixture();
   await appConfig.init();
@@ -30,7 +42,9 @@ before(async () => {
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("failed to determine the ephemeral port the app bound to");
   baseUrl = `http://127.0.0.1:${address.port}/aisworg/api/seu`;
-  request = fetchCookie(fetch, new CookieJar());
+  const jarFetch = fetchCookie(fetch, new CookieJar());
+  request = (async (input: any, init?: any) =>
+    jarFetch(input, { ...init, headers: { ...(init?.headers ?? {}), "x-test-user-id": String(TESTER_ALL_ID) } })) as unknown as typeof jarFetch;
 });
 
 after(async () => {
@@ -40,7 +54,9 @@ after(async () => {
 
 test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a Capability, progress a Deliverable", async () => {
   // 0 — CR-009: an Engineering Objective needs a Strategic parent (only
-  // Strategic may be a root). Create the root first.
+  // Strategic may be a root). Create the root first. CR-075 — adding a child
+  // is only allowed while the parent is Proposed (createObjective's own
+  // default status, with none given, is Active — this root needs it explicit).
   const rootRes = await request(`${baseUrl}/objectives`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -48,6 +64,7 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
       statement: "Acceptance test: customer portal programme",
       requiredCapabilityCodes: ["requirements-analysis"],
       tier: "Strategic",
+      status: "Proposed",
     }),
   });
   const root = await rootRes.json();

@@ -21,6 +21,9 @@
       <h2 class="h4 mb-0 text-dark fw-bold"><%= detail.entityType %>: <%= detail.fromState %> → <%= detail.toState %></h2>
       <% if (detail.isActive) { %><span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
       <% } else { %><span class="badge bg-secondary-subtle text-secondary border">Retired<% if (detail.retiredAt) { %> · <%= new Date(detail.retiredAt).toLocaleString() %><% } %></span><% } %>
+      <% if (locals.canWriteAuthority) { %>
+        <a href="/aisworg/seu/authority/transition-definitions/<%= detail.id %>/edit" class="btn btn-sm btn-outline-secondary ms-auto"><i class="bi bi-pencil me-1"></i>Edit</a>
+      <% } %>
     </div>
 
     <div class="card border-0 shadow-sm">

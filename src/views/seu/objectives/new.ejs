@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
   <%- include('../../partials/head') %>
+  <style>
+    .display-id-pill { display: inline-block; font-family: var(--bs-font-monospace, monospace); font-size: 0.72rem; font-weight: 700; padding: 0.18rem 0.55rem; border-radius: 999px; background: #e2e8f0; color: #334155; }
+  </style>
 </head>
 <body>
   <header><%- include('../../partials/navbar') %></header>
@@ -17,7 +20,7 @@
     <h2 class="h3 mb-1 text-dark fw-bold">New <%= tier %> Objective</h2>
     <% if (locals.parent) { %>
       <p class="text-muted small mb-4">
-        Decomposed under <strong><%= parent.tier %></strong>: <a href="/aisworg/seu/objectives/<%= parent.id %>"><%= parent.statement %></a>.
+        Decomposed under <strong><%= parent.tier %></strong>: <a href="/aisworg/seu/objectives/<%= parent.id %>"><% if (parent.display_id) { %><span class="display-id-pill me-1"><%= parent.display_id %></span><% } %><%= parent.statement %></a>.
         Created as <strong>Proposed</strong> — activate it before commissioning an SEU against it.
       </p>
     <% } else { %>

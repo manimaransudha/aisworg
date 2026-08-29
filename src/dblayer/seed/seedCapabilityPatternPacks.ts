@@ -65,23 +65,35 @@ const CAPABILITY_PATTERN_PACK_FILES = [
 ];
 
 export async function seedCapabilityPatternPacks(): Promise<void> {
-  let publishedCount = 0;
-  let alreadyCount = 0;
-  for (const file of CAPABILITY_PATTERN_PACK_FILES) {
-    const seed = loadJson<PackSeedInput>(file);
-    // System context (seed script): runs as root holder "1", same convention
-    // seedSeu.ts uses for the bootstrap Pack (CR-006 — root bypasses noun×verb
-    // authority; there is no human author for a platform-seeded capability
-    // pattern). publishPack/createPackDraft are rerun-safe: publishing the
-    // exact same (code, packVersion) again is a no-op returning the existing
-    // immutable row (VM-002), so this is safe to run on every clean-slate.
-    const result = await publishPack({ seed, actorRole: "super", actorId: "1", activate: true });
-    if (!result.ok) {
-      throw new Error(`[seed:capability-pattern-packs] failed to publish "${seed.code}": ${(result.errors ?? []).join("; ")}`);
-    }
-    if (result.alreadyPublished) alreadyCount++;
-    else publishedCount++;
+  // Published concurrently, not one at a time: none of these 6 Packs
+  // reference each other (this file's own header comment already established
+  // "no dependency on any other Pack: self-contained, no ordering
+  // requirement"), each publishes through its own row-scoped
+  // transitionPack/eventBus calls, and publishPack/createPackDraft are
+  // rerun-safe — so there's no shared mutable state or ordering constraint
+  // between them, only network round-trip time to overlap.
+  const results = await Promise.allSettled(
+    CAPABILITY_PATTERN_PACK_FILES.map(async (file) => {
+      const seed = loadJson<PackSeedInput>(file);
+      // System context (seed script): runs as root holder "1", same convention
+      // seedSeu.ts uses for the bootstrap Pack (CR-006 — root bypasses noun×verb
+      // authority; there is no human author for a platform-seeded capability
+      // pattern).
+      const result = await publishPack({ seed, actorRole: "super", actorId: "1", activate: true });
+      if (!result.ok) {
+        throw new Error(`failed to publish "${seed.code}": ${(result.errors ?? []).join("; ")}`);
+      }
+      return result.alreadyPublished;
+    })
+  );
+
+  const failures = results.filter((r): r is PromiseRejectedResult => r.status === "rejected").map((r) => (r.reason as Error).message);
+  if (failures.length > 0) {
+    throw new Error(`[seed:capability-pattern-packs] ${failures.length} of ${CAPABILITY_PATTERN_PACK_FILES.length} Packs failed: ${failures.join(" | ")}`);
   }
+
+  const alreadyCount = results.filter((r) => r.status === "fulfilled" && r.value).length;
+  const publishedCount = results.length - alreadyCount;
   logger.info(`[seed:capability-pattern-packs] ${publishedCount} published, ${alreadyCount} already present — ${CAPABILITY_PATTERN_PACK_FILES.length} EPF/OpenUP capability-pattern Packs total.`);
 }
 

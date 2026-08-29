@@ -15,6 +15,7 @@ import { transitionDefinitionsDB } from "../../dblayer/transitionDefinitionsDB.j
 import { badgeAuthorityEngine } from "./badgeAuthorityEngine.js";
 import { qualityGateEngine } from "./qualityGateEngine.js";
 import { eventBus } from "./eventBus.js";
+import { triggerEngine } from "./triggerEngine.js";
 import { evaluateCondition, type PolicyCondition } from "./policyCondition.js";
 import type { TransitionEntityType } from "../../dblayer/seuTypes.js";
 
@@ -35,6 +36,11 @@ export type TransitionOutcome =
   // (authorityRuleCode) and the reason (badgeDenialReason, e.g. missing_badge).
   | { allowed: false; reason: "authority_denied"; authorityRuleCode: string; badgeDenialReason?: string }
   | { allowed: false; reason: "policy_blocked"; policyCode: string }
+  // CR-072 — a manual transition whose row declares submit_verb is not
+  // attemptable at all until its own from_state has actually been submitted
+  // (triggerEngine) — a real gate here, not just a UI hint filtering the
+  // dropdown (owner: "it should check for the event").
+  | { allowed: false; reason: "not_submitted"; submitBadge: string }
   // SDK UI Layer Plan, Transition Definition section — generic Quality Gate
   // check, opt-in per row via required_quality_gate_ids (empty for every
   // pre-existing row, so this reason is unreachable for the 9 entity types
@@ -77,6 +83,20 @@ export const transitionEngine = {
         return { allowed: false, reason: "authority_denied", authorityRuleCode: requiredBadge, badgeDenialReason: auth.reason };
       }
       authorityBadge = requiredBadge;
+    }
+
+    // CR-072 — a real gate, not a UI-only filter: a transition whose row
+    // declares submit_verb cannot be attempted until its own from_state has
+    // actually been submitted (triggerEngine), regardless of whether the
+    // acting actor holds this transition's own badge. entityId is required
+    // to check this — a row with submit_verb set but no entityId given fails
+    // closed rather than silently skipping the check.
+    if (definition.submit_verb) {
+      const submitBadge = `${input.entityType.toLowerCase()}_${definition.submit_verb}`;
+      const hasBeenSubmitted = input.entityId ? await triggerEngine.hasBeenSubmitted(input.entityType, input.entityId, input.fromState) : false;
+      if (!hasBeenSubmitted) {
+        return { allowed: false, reason: "not_submitted", submitBadge };
+      }
     }
 
     if (definition.required_policy_ids.length > 0) {

@@ -8,9 +8,11 @@
     .state-Proposed { background: #fef9c3; color: #854d0e; }
     .state-Achieved { background: #dbeafe; color: #1e40af; }
     .state-Superseded, .state-Retired, .state-Archived { background: #f1f5f9; color: #64748b; }
+    .state-Reject { background: #fee2e2; color: #991b1b; }
     .tier-badge { font-size: 0.68rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 6px; background: #ede9fe; color: #5b21b6; }
     .tree-node:hover { background: #f8fafc; }
     .breadcrumb-path { font-size: 0.72rem; color: #94a3b8; }
+    .display-id-pill { display: inline-block; font-family: var(--bs-font-monospace, monospace); font-size: 0.72rem; font-weight: 700; padding: 0.18rem 0.55rem; border-radius: 999px; background: #e2e8f0; color: #334155; }
   </style>
 </head>
 <body>
@@ -25,25 +27,70 @@
       </div>
     <% } %>
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
       <div>
         <h2 class="h3 mb-1 text-dark fw-bold">Objectives</h2>
         <p class="text-muted small mb-0">Ch.1 — the Strategic → Operational → Engineering decomposition. Every SEU serves the finest-grained (leaf) Objective.</p>
       </div>
-      <a href="/aisworg/seu/objectives/new" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>New Strategic Objective</a>
+      <%# (owner: "Only Objective_propose badges are shown these buttons and
+           allowed to add them") — same badge/gate as every other Add button. %>
+      <% if (locals.canProposeObjective) { %>
+        <a href="/aisworg/seu/objectives/new" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>New Strategic Objective</a>
+      <% } %>
     </div>
 
-    <% const _base = locals.listBasePath || '/aisworg/seu/objectives'; %>
-    <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search all Objectives by statement' }) %>
+    <%# CR-073 — the proposer's "was rejected" filter (owner: "not a
+         standalone page") — a tab on this same page, not a new one. %>
+    <ul class="nav nav-tabs mb-4">
+      <li class="nav-item"><a class="nav-link <%= mode !== 'rejected' ? 'active' : '' %>" href="/aisworg/seu/objectives">All Objectives</a></li>
+      <li class="nav-item"><a class="nav-link <%= mode === 'rejected' ? 'active' : '' %>" href="/aisworg/seu/objectives?view=rejected"><i class="bi bi-arrow-counterclockwise me-1"></i>Rejected</a></li>
+    </ul>
+
+    <% const _base = mode === 'rejected' ? '/aisworg/seu/objectives?view=rejected' : (locals.listBasePath || '/aisworg/seu/objectives'); %>
+    <% if (mode !== 'rejected') { %>
+      <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search all Objectives by statement' }) %>
+    <% } %>
 
     <% if (list.total === 0) { %>
       <div class="alert alert-light border text-center py-5">
         <% if (mode === 'search') { %>
           <p class="mb-0 text-muted">No Objectives match your search.</p>
+        <% } else if (mode === 'rejected') { %>
+          <p class="mb-0 text-muted">No rejected Objectives — nothing here needs a look.</p>
         <% } else { %>
           <p class="mb-3 text-muted">No Objectives yet. The tree starts with a Strategic Objective.</p>
-          <a href="/aisworg/seu/objectives/new" class="btn btn-primary btn-sm">Create the first Strategic Objective</a>
+          <% if (locals.canProposeObjective) { %>
+            <a href="/aisworg/seu/objectives/new" class="btn btn-primary btn-sm">Create the first Strategic Objective</a>
+          <% } %>
         <% } %>
+      </div>
+    <% } else if (mode === 'rejected') { %>
+      <!-- Rejected mode: Objectives whose status is Reject (CR-073), each with
+           its most recent comment as the reason. -->
+      <div class="card border-0 shadow-sm">
+        <div class="list-group list-group-flush">
+          <% list.items.forEach(function(o) { %>
+            <div class="list-group-item">
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="tier-badge"><%= o.tier %></span>
+                <a href="/aisworg/seu/objectives/<%= o.id %>" class="small text-dark text-decoration-none fw-semibold flex-grow-1"><% if (o.displayId) { %><span class="display-id-pill me-1"><%= o.displayId %></span><% } %><%= o.statement %></a>
+                <span class="state-badge state-<%= o.status %>"><%= o.status %></span>
+                <%# CR-075 — this tab exists specifically for the proposer to
+                     find and edit rejected Objectives, so Edit belongs here
+                     more than anywhere else. %>
+                <% if (locals.canProposeObjective && !o.editLocked) { %>
+                  <a href="/aisworg/seu/objectives/<%= o.id %>/edit" class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-pencil"></i> Edit</a>
+                <% } %>
+                <a href="/aisworg/seu/objectives/<%= o.id %>" class="btn btn-sm btn-outline-primary py-0">View</a>
+              </div>
+              <% if (o.lastComment) { %>
+                <div class="small text-muted ps-1 border-start border-2 border-warning-subtle">
+                  <i class="bi bi-chat-left-text me-1"></i><%= o.lastComment.comment_text %>
+                </div>
+              <% } %>
+            </div>
+          <% }) %>
+        </div>
       </div>
     <% } else if (mode === 'search') { %>
       <!-- Search mode: flat hits, each with its breadcrumb to root. -->
@@ -53,12 +100,12 @@
             <div class="list-group-item">
               <% if (o.path && o.path.length) { %>
                 <div class="breadcrumb-path mb-1">
-                  <% o.path.forEach(function(p, i) { %><%= i ? ' › ' : '' %><a href="/aisworg/seu/objectives/<%= p.id %>" class="text-muted text-decoration-none"><%= p.statement %></a><% }) %>
+                  <% o.path.forEach(function(p, i) { %><%= i ? ' › ' : '' %><a href="/aisworg/seu/objectives/<%= p.id %>" class="text-muted text-decoration-none"><%= p.displayId ? (p.displayId + ' ') : '' %><%= p.statement %></a><% }) %>
                 </div>
               <% } %>
               <div class="d-flex align-items-center gap-2">
                 <span class="tier-badge"><%= o.tier %></span>
-                <a href="/aisworg/seu/objectives/<%= o.id %>" class="small text-dark text-decoration-none fw-semibold flex-grow-1"><%= o.statement %></a>
+                <a href="/aisworg/seu/objectives/<%= o.id %>" class="small text-dark text-decoration-none fw-semibold flex-grow-1"><% if (o.displayId) { %><span class="display-id-pill me-1"><%= o.displayId %></span><% } %><%= o.statement %></a>
                 <span class="state-badge state-<%= o.status %>"><%= o.status %></span>
                 <% if (o.commissioned) { %>
                   <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle">Commissioned</span>
@@ -67,6 +114,10 @@
                     <input type="hidden" name="_csrf" value="<%= locals.csrfToken %>">
                     <button type="submit" class="btn btn-sm btn-primary py-0"><i class="bi bi-diagram-3 me-1"></i>Commission SEU</button>
                   </form>
+                <% } %>
+                <%# CR-075 — Edit reachable directly from search results too. %>
+                <% if (locals.canProposeObjective && !o.editLocked) { %>
+                  <a href="/aisworg/seu/objectives/<%= o.id %>/edit" class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-pencil"></i> Edit</a>
                 <% } %>
                 <a href="/aisworg/seu/objectives/<%= o.id %>" class="btn btn-sm btn-outline-primary py-0">View</a>
               </div>
@@ -77,7 +128,7 @@
     <% } else { %>
       <!-- Browse mode: paginated Strategic roots; expand to lazy-load children. -->
       <div class="card border-0 shadow-sm" id="objective-tree">
-        <%- include('_nodes', { nodes: roots, depth: 0, csrfToken: locals.csrfToken, childTiers: childTiers }) %>
+        <%- include('_nodes', { nodes: roots, depth: 0, csrfToken: locals.csrfToken, childTiers: childTiers, canRetireObjective: locals.canRetireObjective, canProposeObjective: locals.canProposeObjective, hasObjectiveBadge: locals.hasObjectiveBadge }) %>
       </div>
     <% } %>
   </main>

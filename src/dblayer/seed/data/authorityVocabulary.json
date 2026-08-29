@@ -336,6 +336,12 @@
     {
       "entityType": "Objective",
       "fromState": "Active",
+      "toState": "Reject",
+      "verb": "reject"
+    },
+    {
+      "entityType": "Objective",
+      "fromState": "Active",
       "toState": "Achieved",
       "verb": "achieve"
     },

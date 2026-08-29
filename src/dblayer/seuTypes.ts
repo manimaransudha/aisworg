@@ -5,7 +5,18 @@
 export type DbResult<T> = { data: T; error?: undefined } | { data?: undefined; error: Error };
 
 export type ObjectiveTier = "Strategic" | "Operational" | "Engineering";
-export type ObjectiveStatus = "Proposed" | "Active" | "Achieved" | "Superseded" | "Retired" | "Archived";
+// CR-073 — "Reject" (not "Rejected", not a reuse of "Proposed" — owner: "It
+// is Active to Reject") is a real, distinct status reached only via
+// Active -> Reject (migration 126).
+export type ObjectiveStatus = "Proposed" | "Active" | "Achieved" | "Superseded" | "Retired" | "Archived" | "Reject";
+
+// CR-071 — deliberately open-ended (Phase 12 multi-tenancy will add more than
+// `tenant` without a schema change), but `tenant` itself is typed since every
+// caller today reads it.
+export interface SponsoringAuthority {
+  tenant: string | null;
+  [key: string]: unknown;
+}
 
 export interface ObjectiveRow {
   id: string;
@@ -13,10 +24,37 @@ export interface ObjectiveRow {
   tier: ObjectiveTier;
   parent_objective_id: string | null;
   status: ObjectiveStatus;
-  version: number;
-  requested_by: number | null;
+  // "n.n.n" (owner: "Version is in the format n.n.n") — every edit that used
+  // to bump a bare integer now bumps the patch segment only; see
+  // objectivesDB.update/updateParent.
+  version: string;
+  // NOT NULL (migration 127) — CR-068 deferred this to app-level enforcement
+  // only (createObjective already guaranteed it); promoted to a real DB
+  // constraint once every caller's real behavior confirmed it always holds.
+  requested_by: number;
+  // CR-068 — user-friendly hierarchical id ("1", "1.2", "1.2.3"), system-
+  // assigned once at creation, frozen on re-parent. next_child_seq is this
+  // Objective's own counter for its children's segments; null on a legacy row
+  // predating this CR (a full db:clean-slate wipes and reseeds those).
+  display_id: string | null;
+  next_child_seq: number;
+  // CR-071 — every Objective's own tenant attribution, a child copying its
+  // parent's value at creation (never independently re-derived), a Strategic
+  // root deriving it fresh from its creator's own tenant. Null on a legacy
+  // row predating this CR.
+  sponsoring_authority: SponsoringAuthority | null;
   created_at: string;
   updated_at: string;
+}
+
+// CR-073 — general-purpose, append-only comment thread on an Objective.
+// Never updated/deleted at the application layer.
+export interface ObjectiveCommentRow {
+  id: string;
+  objective_id: string;
+  comment_text: string;
+  actor_id: number | null;
+  created_at: string;
 }
 
 // CR-065 — category dropped (owner: "code already carries the required
@@ -609,6 +647,18 @@ export interface TransitionDefinitionRow {
   verb: string | null;
   is_active: boolean;
   retired_at: string | null;
+  // CR-072 — what causes this transition to be attempted at all (independent
+  // of required_authority_rule_id/policies/quality-gates, which only govern
+  // whether an attempt succeeds, not what initiates one). "manual": an actor
+  // has to explicitly decide to attempt it. "governed": the event bus itself
+  // drives it once conditions are met (not yet built — deferred until a real
+  // case exists). submit_verb is null unless a Submit step has actually been
+  // defined for this row (badge = `entity_type + '_' + submit_verb`) — a row
+  // can be trigger='manual' with submit_verb still null, meaning its own
+  // Submit behavior isn't modeled yet and it keeps behaving exactly as
+  // before (a plain badge-gated action button, no queue step).
+  trigger: "manual" | "governed";
+  submit_verb: string | null;
 }
 
 export type CommandStatus = "Generated" | "Dispatched" | "Completed" | "Deferred" | "Cancelled" | "Failed";

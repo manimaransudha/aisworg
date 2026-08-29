@@ -12,6 +12,7 @@ import {seu_deliverable_definitions_indexVM} from "./seu_deliverable_definitions
 import {seu_objectives_indexVM} from "./seu_objectives_index.js";
 import {seu_objectives_detailVM} from "./seu_objectives_detail.js";
 import {seu_objectives_newVM} from "./seu_objectives_new.js";
+import {seu_objectives_editVM} from "./seu_objectives_edit.js";
 import {seu_services_indexVM} from "./seu_services_index.js";
 import {seu_knowledge_capitalVM} from "./seu_knowledge_capital.js";
 import {seu_telemetry_indexVM} from "./seu_telemetry_index.js";
@@ -23,6 +24,7 @@ import {seu_identity_usersVM} from "./seu_identity_users.js";
 import {seu_sdk_authoring_indexVM} from "./seu_sdk_authoring_index.js";
 import {seu_sdk_authority_indexVM} from "./seu_sdk_authority_index.js";
 import {seu_sdk_authority_detailVM} from "./seu_sdk_authority_detail.js";
+import {seu_sdk_authority_editVM} from "./seu_sdk_authority_edit.js";
 import {seu_sdk_authoring_editVM} from "./seu_sdk_authoring_edit.js";
 import {seu_sdk_schema_registry_indexVM} from "./seu_sdk_schema_registry_index.js";
 import {seu_sdk_schema_registry_detailVM} from "./seu_sdk_schema_registry_detail.js";
@@ -31,6 +33,7 @@ import {seu_sdk_ontology_indexVM} from "./seu_sdk_ontology_index.js";
 import {seu_workqueue_indexVM} from "./seu_workqueue_index.js";
 import {seu_reviews_indexVM} from "./seu_reviews_index.js";
 import {seu_compliance_indexVM} from "./seu_compliance_index.js";
+import {seu_events_indexVM} from "./seu_events_index.js";
 
 // export const viewModels = {
 //   "auth/login": auth_loginVM,
@@ -52,6 +55,7 @@ export const viewModels = {
   "seu/objectives/index": seu_objectives_indexVM,
   "seu/objectives/detail": seu_objectives_detailVM,
   "seu/objectives/new": seu_objectives_newVM,
+  "seu/objectives/edit": seu_objectives_editVM,
   "seu/services/index": seu_services_indexVM,
   "seu/knowledge/capital": seu_knowledge_capitalVM,
   "seu/telemetry/index": seu_telemetry_indexVM,
@@ -63,6 +67,7 @@ export const viewModels = {
   "seu/sdk/authoring/index": seu_sdk_authoring_indexVM,
   "seu/sdk/authority/index": seu_sdk_authority_indexVM,
   "seu/sdk/authority/detail": seu_sdk_authority_detailVM,
+  "seu/sdk/authority/edit": seu_sdk_authority_editVM,
   "seu/sdk/authoring/edit": seu_sdk_authoring_editVM,
   "seu/sdk/schema-registry/index": seu_sdk_schema_registry_indexVM,
   "seu/sdk/schema-registry/detail": seu_sdk_schema_registry_detailVM,
@@ -70,5 +75,6 @@ export const viewModels = {
   "seu/sdk/ontology/index": seu_sdk_ontology_indexVM,
   "seu/workqueue/index": seu_workqueue_indexVM,
   "seu/reviews/index": seu_reviews_indexVM,
-  "seu/compliance/index": seu_compliance_indexVM
+  "seu/compliance/index": seu_compliance_indexVM,
+  "seu/events/index": seu_events_indexVM
 };

@@ -66,17 +66,17 @@ function loadJson<T>(fileName: string): T {
   return JSON.parse(readFileSync(path.join(dataDir, fileName), "utf8")) as T;
 }
 
-// 21 of the 24 real seed Packs (test-openup-development/-requirements/
-// -architecture excluded — see the header comment above). test-domain-
-// ebook-library and test-technology-nodejs both declare a real dependency on
-// test-testing-qa (see their own dependencies[]) — publishPack requires a
+// 19 of the 21 test-fixture twins have no dependency on any other Pack in
+// this file, so they publish concurrently. test-domain-ebook-library and
+// test-technology-nodejs are the real exception — both declare a dependency
+// on test-testing-qa (see their own dependencies[]) — publishPack requires a
 // declared dependency to already be Active in the Registry, not just
 // published later in the same batch, so test-openup-test.pack.json (which
-// provides test-testing-qa) must run before either. Listed last, same
-// ordering discipline the real domain-ebook-library/technology-nodejs
-// pipeline (seedDomainTechnologyPacks.ts) already follows for its own
-// dependency.
-const TEST_FIXTURE_PACK_FILES = [
+// provides test-testing-qa, published concurrently in the first batch) must
+// fully commit before either of these two starts. Same ordering discipline
+// the real domain-ebook-library/technology-nodejs pipeline
+// (seedDomainTechnologyPacks.ts) already follows for its own dependency.
+const INDEPENDENT_TEST_FIXTURE_PACK_FILES = [
   "test-openup-configuration-and-change-management.pack.json",
   "test-openup-project-management.pack.json",
   "test-openup-test.pack.json",
@@ -96,25 +96,45 @@ const TEST_FIXTURE_PACK_FILES = [
   "test-sdlc-phase-13-growth-optimization.pack.json",
   "test-sdlc-phase-14-internationalization-localization.pack.json",
   "test-sdlc-phase-15-ongoing-operations-governance.pack.json",
-  "test-domain-ebook-library.pack.json",
-  "test-technology-nodejs.pack.json",
 ];
+const DEPENDENT_TEST_FIXTURE_PACK_FILES = ["test-domain-ebook-library.pack.json", "test-technology-nodejs.pack.json"];
+const TEST_FIXTURE_PACK_FILES = [...INDEPENDENT_TEST_FIXTURE_PACK_FILES, ...DEPENDENT_TEST_FIXTURE_PACK_FILES];
+
+async function publishBatch(files: string[]): Promise<PromiseSettledResult<boolean | undefined>[]> {
+  return Promise.allSettled(
+    files.map(async (file) => {
+      const seed = loadJson<PackSeedInput>(file);
+      // Same convention every other seed script uses (root holder "1" bypasses
+      // noun×verb authority — CR-006) — publishPack/createPackDraft are
+      // rerun-safe (VM-002), so this is safe on every test process start.
+      const result = await publishPack({ seed, actorRole: "super", actorId: "1", activate: true });
+      if (!result.ok) {
+        throw new Error(`failed to publish "${seed.code}": ${(result.errors ?? []).join("; ")}`);
+      }
+      return result.alreadyPublished;
+    })
+  );
+}
 
 export async function seedAllTestFixturePacks(): Promise<void> {
-  let publishedCount = 0;
-  let alreadyCount = 0;
-  for (const file of TEST_FIXTURE_PACK_FILES) {
-    const seed = loadJson<PackSeedInput>(file);
-    // Same convention every other seed script uses (root holder "1" bypasses
-    // noun×verb authority — CR-006) — publishPack/createPackDraft are
-    // rerun-safe (VM-002), so this is safe on every test process start.
-    const result = await publishPack({ seed, actorRole: "super", actorId: "1", activate: true });
-    if (!result.ok) {
-      throw new Error(`[seed:test-fixture-packs] failed to publish "${seed.code}": ${(result.errors ?? []).join("; ")}`);
-    }
-    if (result.alreadyPublished) alreadyCount++;
-    else publishedCount++;
+  const independentResults = await publishBatch(INDEPENDENT_TEST_FIXTURE_PACK_FILES);
+  const independentFailures = independentResults.filter((r): r is PromiseRejectedResult => r.status === "rejected").map((r) => (r.reason as Error).message);
+  if (independentFailures.length > 0) {
+    throw new Error(`[seed:test-fixture-packs] ${independentFailures.length} of ${TEST_FIXTURE_PACK_FILES.length} Packs failed: ${independentFailures.join(" | ")}`);
   }
+
+  // Only started once every independent Pack (including test-openup-test,
+  // which provides test-testing-qa) has fully committed — these 2 depend on
+  // it being Active already, not just published earlier in this call.
+  const dependentResults = await publishBatch(DEPENDENT_TEST_FIXTURE_PACK_FILES);
+  const dependentFailures = dependentResults.filter((r): r is PromiseRejectedResult => r.status === "rejected").map((r) => (r.reason as Error).message);
+  if (dependentFailures.length > 0) {
+    throw new Error(`[seed:test-fixture-packs] ${dependentFailures.length} of ${TEST_FIXTURE_PACK_FILES.length} Packs failed: ${dependentFailures.join(" | ")}`);
+  }
+
+  const allResults = [...independentResults, ...dependentResults];
+  const alreadyCount = allResults.filter((r) => r.status === "fulfilled" && r.value).length;
+  const publishedCount = allResults.length - alreadyCount;
   logger.info(`[seed:test-fixture-packs] ${publishedCount} published, ${alreadyCount} already present — ${TEST_FIXTURE_PACK_FILES.length} test-fixture Packs total.`);
 }
 

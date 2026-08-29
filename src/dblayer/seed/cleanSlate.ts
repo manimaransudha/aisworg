@@ -148,6 +148,7 @@ const USAGE_DATA_TABLES = [
   "ebms",
   "objective_capabilities",
   "objectives",
+  "objective_root_sequences",
   "seus",
 ];
 

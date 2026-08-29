@@ -112,6 +112,20 @@ function nounVerbBadges(filter?: (verb: string) => boolean): string[] {
   return [...set].sort();
 }
 
+// Owner: "whenever a badge *_activate is given, *_reject also should be
+// given" — whoever's trusted to Activate a noun's own pending state is also
+// trusted to Reject it once Active. Written generically against whichever
+// noun's own verb set is passed in (only Objective has both today, since
+// Objective is the only noun with a real "reject" transition) rather than
+// hardcoded to "objective", same discipline objectiveVerbs()/packVerbs()/
+// entityLifecycleVerbs() below already use. One-directional: the *_reject
+// single-verb user does NOT also get *_activate.
+function badgesForVerb(noun: string, verb: string, allVerbsForNoun: string[]): string[] {
+  const badges = [`${noun}_${verb}`];
+  if (verb === "activate" && allVerbsForNoun.includes("reject")) badges.push(`${noun}_reject`);
+  return badges;
+}
+
 // The distinct Objective verbs (activate/achieve/supersede/retire/archive),
 // derived from the vocabulary so this stays correct if the graph changes.
 function objectiveVerbs(): string[] {
@@ -214,7 +228,7 @@ export async function seedIdentityBaseline(): Promise<void> {
     const objectiveUsers: Array<{ id: number; email: string; name: string; tenantId: string; badges: string[] }> = [];
     for (const t of OBJECTIVE_USER_TENANTS) {
       objVerbs.forEach((verb, i) => {
-        objectiveUsers.push({ id: t.baseId + i, email: `obj-${verb}@${t.domain}`, name: `${t.label} — objective_${verb}`, tenantId: t.tenantId, badges: [`objective_${verb}`] });
+        objectiveUsers.push({ id: t.baseId + i, email: `obj-${verb}@${t.domain}`, name: `${t.label} — objective_${verb}`, tenantId: t.tenantId, badges: badgesForVerb("objective", verb, objVerbs) });
       });
       objectiveUsers.push({ id: t.baseId + objVerbs.length, email: `obj-all@${t.domain}`, name: `${t.label} — objective_all`, tenantId: t.tenantId, badges: objVerbs.map((v) => `objective_${v}`) });
     }
@@ -234,7 +248,7 @@ export async function seedIdentityBaseline(): Promise<void> {
     const packUsers: Array<{ id: number; email: string; name: string; tenantId: string; badges: string[] }> = [];
     for (const t of PACK_USER_TENANTS) {
       pkVerbs.forEach((verb, i) => {
-        packUsers.push({ id: t.baseId + i, email: `pack-${verb}@${t.domain}`, name: `${t.label} — pack_${verb}`, tenantId: t.tenantId, badges: [`pack_${verb}`] });
+        packUsers.push({ id: t.baseId + i, email: `pack-${verb}@${t.domain}`, name: `${t.label} — pack_${verb}`, tenantId: t.tenantId, badges: badgesForVerb("pack", verb, pkVerbs) });
       });
       packUsers.push({ id: t.baseId + pkVerbs.length, email: `pack-all@${t.domain}`, name: `${t.label} — pack_all`, tenantId: t.tenantId, badges: pkVerbs.map((v) => `pack_${v}`) });
     }
@@ -271,7 +285,7 @@ export async function seedIdentityBaseline(): Promise<void> {
     const authoringUsers: Array<{ id: number; email: string; name: string; tenantId: string; badges: string[] }> = [];
     for (const n of AUTHORING_NOUNS) {
       n.verbs.forEach((verb, i) => {
-        authoringUsers.push({ id: n.baseId + i, email: `${n.slug}-${verb}@athens.com`, name: `Athens — ${n.noun}_${verb}`, tenantId: ATHENS_TENANT_ID, badges: [`${n.noun}_${verb}`] });
+        authoringUsers.push({ id: n.baseId + i, email: `${n.slug}-${verb}@athens.com`, name: `Athens — ${n.noun}_${verb}`, tenantId: ATHENS_TENANT_ID, badges: badgesForVerb(n.noun, verb, n.verbs) });
       });
       authoringUsers.push({ id: n.baseId + n.verbs.length, email: `${n.slug}-all@athens.com`, name: `Athens — ${n.noun}_all`, tenantId: ATHENS_TENANT_ID, badges: n.verbs.map((v) => `${n.noun}_${v}`) });
     }
@@ -309,7 +323,13 @@ export async function seedIdentityBaseline(): Promise<void> {
     // (retired). Idempotent: clear these holders' grants, then re-insert (clean-slate
     // truncates users but not badge_grants).
     const fixtureGrants: Array<{ holderId: number; badges: string[] }> = [
-      { holderId: TESTER_ALL_ID, badges: nounVerbBadges() },
+      // CR-072 — objective_propose governs Objective creation/Submit, not a
+      // transition_definitions row (Objective's own genesis state, Proposed,
+      // has no incoming transition to derive a verb from) — nounVerbBadges()
+      // can't see it, since it only reads the transitions graph. Added
+      // explicitly so "holds every active noun_verb" stays true for this
+      // real, actively-checked badge too.
+      { holderId: TESTER_ALL_ID, badges: [...nounVerbBadges(), "objective_propose"].sort() },
       { holderId: TESTER_CREATOR_ID, badges: nounVerbBadges((v) => v === "create") },
       { holderId: TESTER_APPROVER_ID, badges: nounVerbBadges((v) => v === "approve") },
       ...authorityUsers.map((u) => ({ holderId: u.id, badges: u.badges })),

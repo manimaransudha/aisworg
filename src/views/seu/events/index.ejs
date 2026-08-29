@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+  <style>
+    .section-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); background: #fff; overflow: hidden; }
+    .event-type-badge { font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 6px; background: #ede9fe; color: #5b21b6; }
+    .mono { font-family: var(--bs-font-monospace, monospace); font-size: 0.78rem; }
+    pre.payload { font-size: 0.75rem; background: #f8fafc; border-radius: 6px; padding: 0.5rem; margin: 0; max-height: 12rem; overflow: auto; }
+  </style>
+</head>
+<body>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h2 class="h3 mb-1 text-dark fw-bold">Event Bus</h2>
+        <p class="text-muted small mb-0">The raw <code>events</code> table — every event published, any entity, any SEU.</p>
+      </div>
+    </div>
+
+    <!-- CR-074 — a small, purpose-built filter form (not partials/listControls,
+         which only carries q/sort/dir/page/category/status through its own
+         pager — these three filters need their own pager that keeps them). -->
+    <form method="GET" action="/aisworg/seu/events" class="card border-0 shadow-sm p-3 mb-4 d-flex flex-row flex-wrap gap-2 align-items-end">
+      <div>
+        <label class="form-label small mb-1">SEU id</label>
+        <input type="text" name="seuId" class="form-control form-control-sm mono" style="width: 18rem;" value="<%= filters.seuId %>" placeholder="uuid">
+      </div>
+      <div>
+        <label class="form-label small mb-1">Event type</label>
+        <input type="text" name="eventType" class="form-control form-control-sm" style="width: 14rem;" value="<%= filters.eventType %>" placeholder="e.g. ObjectiveRejected">
+      </div>
+      <div>
+        <label class="form-label small mb-1">Entity type</label>
+        <input type="text" name="entityType" class="form-control form-control-sm" style="width: 12rem;" value="<%= filters.entityType %>" placeholder="e.g. Objective">
+      </div>
+      <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+      <% if (filters.seuId || filters.eventType || filters.entityType) { %>
+        <a href="/aisworg/seu/events" class="btn btn-sm btn-link text-muted">Clear</a>
+      <% } %>
+    </form>
+
+    <div class="d-flex justify-content-between align-items-center mb-2 small text-muted">
+      <span><%= list.total === 0 ? 0 : ((list.page - 1) * list.pageSize) + 1 %>&ndash;<%= Math.min(list.page * list.pageSize, list.total) %> of <%= list.total %></span>
+      <%
+        function _pageHref(p) {
+          const qs = new URLSearchParams();
+          if (filters.seuId) qs.set('seuId', filters.seuId);
+          if (filters.eventType) qs.set('eventType', filters.eventType);
+          if (filters.entityType) qs.set('entityType', filters.entityType);
+          qs.set('page', String(p));
+          return '/aisworg/seu/events?' + qs.toString();
+        }
+      %>
+      <div class="btn-group btn-group-sm" role="group">
+        <a class="btn btn-outline-secondary <%= list.page <= 1 ? 'disabled' : '' %>" href="<%= list.page > 1 ? _pageHref(list.page - 1) : '#' %>"><i class="bi bi-chevron-left"></i></a>
+        <span class="btn btn-outline-secondary disabled">Page <%= list.page %> / <%= list.totalPages %></span>
+        <a class="btn btn-outline-secondary <%= list.page >= list.totalPages ? 'disabled' : '' %>" href="<%= list.page < list.totalPages ? _pageHref(list.page + 1) : '#' %>"><i class="bi bi-chevron-right"></i></a>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Seq</th>
+              <th>Event</th>
+              <th>Entity</th>
+              <th>SEU</th>
+              <th>Actor</th>
+              <th>Occurred</th>
+              <th>Payload</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (list.items.length === 0) { %>
+              <tr><td colspan="7" class="text-center text-muted py-4">No events match these filters.</td></tr>
+            <% } %>
+            <% list.items.forEach(function(e, i) { %>
+              <tr>
+                <td class="mono text-muted"><%= e.sequence %></td>
+                <td><span class="event-type-badge"><%= e.event_type %></span></td>
+                <td class="mono small"><%= e.originating_object_type %><br><span class="text-muted"><%= e.originating_object_id %></span></td>
+                <td class="mono small">
+                  <% if (e.seu_id) { %><a href="/aisworg/seu/seus/<%= e.seu_id %>"><%= e.seu_id %></a><% } else { %><span class="text-muted">&mdash;</span><% } %>
+                </td>
+                <td class="small"><%= e.actor_id || '—' %><% if (e.authority_badge) { %><br><span class="text-muted"><%= e.authority_badge %></span><% } %></td>
+                <td class="small text-muted"><%= new Date(e.occurred_at).toLocaleString() %></td>
+                <td>
+                  <button type="button" class="btn btn-sm btn-link py-0" data-bs-toggle="collapse" data-bs-target="#payload-<%= i %>">view</button>
+                  <div class="collapse" id="payload-<%= i %>"><pre class="payload"><%= JSON.stringify(e.payload, null, 2) %></pre></div>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

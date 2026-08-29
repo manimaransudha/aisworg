@@ -15,6 +15,7 @@ Multiple messages ; so always wait till I say DONE.
 10. I use ESM modules
 11. I use Node 24. So imports have to be so they dont break
 12. Every view that renders a list/table MUST support pagination, search, and sortable columns — done server-side through the core/dbLayer. See "List UI Requirements" below. This is not optional and applies to new pages too.
+13. Every route MUST declare its own authorization explicitly — a badge requirement via `requireBadge`, and a tenant-scope check via `requireTenantScope`/`requireTenant` wherever the route touches a tenant-owned entity. There is no "no badge needed" by omission — a route that is genuinely open still writes `requireBadge(['None'])` so that's a visible decision, not a gap nobody noticed. See "Authorization Middleware" below.
 
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
@@ -91,6 +92,17 @@ if (!req.session?.admin) {
 router.get('/', requireRole(['super', 'author']), attachVM("admin/subjects"), 
 ```
 
+- Controllers gating a specific action (not a coarse role) use `requireBadge` (noun × verb badges) and, if the route touches a tenant-owned entity, `requireTenantScope`/`requireTenant` alongside it. Every route writes one of these — see "Authorization Middleware" below for the full contract.
+
+```code
+router.get(
+  "/objectives/:id/edit",
+  requireBadge(["objective_propose"], { redirectTo: (req) => `/aisworg/seu/objectives/${req.params.id}` }),
+  attachVM("seu/objectives/edit"),
+  async (req, res, next) => { ... }
+);
+```
+
 
 ## List UI Requirements (pagination, search, sortable columns)
 
@@ -113,9 +125,131 @@ router.get('/', requireRole(['super', 'author']), attachVM("admin/subjects"),
 Renders a bounded page of rows; a search box filters them server-side; every meaningful column header sorts asc/desc; navigating pages/sort/search preserves the other selections; the ViewModel exposes the pagination/search/sort state; nothing pulls the full table into memory.
 
 
-## Content of middleware/redirects.js
+## Authorization Middleware (requireBadge, requireTenantScope, requireTenant)
 
-import {flashError, flashSuccess} from "../../utils/flash.js";
+### Purpose
+Badge checks and tenant-scope checks used to get hand-rolled per file (every route file re-querying held badges from scratch, every tenant check written inline). That's how a route ends up shipping with **no check at all** — nobody was forced to ask "what's the authority scope here?" These three middlewares make that question mandatory and give it one shared, correct implementation instead of N slightly-different copies.
+
+**The button being shown/hidden is never the real gate.** The route-level middleware is the actual safety net — a badge-less viewer must be refused server-side even if a UI bug shows them the button. Button visibility stays its own separate, hand-written, per-page concern (`hasXBadge(verb)`-style closures) — it is not part of this contract and is not a substitute for it.
+
+### requireBadge — "can this actor perform this action at all?"
+
+```code
+import { requireBadge } from "../../../middleware/requireBadge.js";
+
+// A route with no badge requirement still declares it — 'None' is a real,
+// reviewable decision, not the absence of one.
+router.get("/objectives", requireBadge(["None"]), attachVM("seu/objectives/index"), handler);
+
+// A route gated on one noun_verb badge (entity_verb, e.g. objective_propose).
+// redirectTo is REQUIRED whenever a real badge is listed — either a literal
+// path, or a function of req for a page whose target depends on :id.
+router.post(
+  "/objectives/:id/delete",
+  requireBadge(["objective_propose"], { redirectTo: (req) => `/aisworg/seu/objectives/${req.params.id}` }),
+  handler
+);
+
+// A JSON API router never redirects, even on GET — mode: "api" always
+// responds with a JSON status instead.
+router.post("/objectives/:id/update", requireBadge(["objective_propose"], { mode: "api" }), handler);
+```
+
+- **List every badge the action needs; the actor must hold ALL of them (AND, never OR).** If a route would need a *different* badge depending on the request body (e.g. one `/transition` endpoint that could Achieve, Retire, or Reject), that is a design smell — split it into one route per badge, each with its own fixed target and its own single `requireBadge`. Do not build a resolver/dispatch shape into the middleware to work around this.
+- `redirectTo` (web mode) is a config error if omitted when a real badge is listed — never fall back to a Referer-based "go back" guess; a mandatory gate needs a predictable destination.
+- `denyMessage` is optional — set it when the route has its own bespoke wording; otherwise a sensible generic message is used.
+- The underlying primitive is `resolveHeldBadges(req)` (`domain/identity/heldBadges.js`) — root bypasses everything; everyone else is checked against a live query, not the session's cached `platformBadges` (which can only ever hold the three flat Platform-layer badges — root/tenant_admin/viewer — never a noun_verb badge).
+
+### requireTenantScope — "does this actor reach this specific row?"
+
+Two shapes, both fail closed (a legacy row with no tenant recorded, or a viewer with no resolved tenant, never matches) and both respond "not found" — never a distinguishable 403, so a denial never confirms another tenant's row even exists.
+
+```code
+import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
+
+// .forParam — the entity IS the route's own :id.
+router.param(
+  "id",
+  requireTenantScope.forParam("id", objectivesDB.findById, {
+    notFoundRedirect: "/aisworg/seu/objectives",
+    notFoundMessage: "Objective not found.",
+  })
+);
+
+// .forField — the entity is REFERENCED by a query/body field, not the route's
+// own :id (e.g. a parentObjectiveId in the create form). A no-op when the
+// field is absent — most such fields are optional.
+router.post(
+  "/objectives",
+  requireBadge(["objective_propose"], { redirectTo: "/aisworg/seu/objectives" }),
+  requireTenantScope.forField("body", "parentObjectiveId", objectivesDB.findById, {
+    notFoundRedirect: "/aisworg/seu/objectives",
+    notFoundMessage: "Parent Objective not found.",
+  }),
+  handler
+);
+```
+
+- Pass `{ mode: "api" }` on a JSON router the same way `requireBadge` does — always a JSON 404, never a redirect.
+- DB-level tenant filtering inside a list query (`WHERE sponsoring_authority->>'tenant' = $1`) is fine on its own and doesn't need this middleware — `requireTenantScope` is for gating access to one already-identified row, not for filtering a result set.
+
+### requireTenant — "what's this actor's own tenant scope?" (for list/search routes)
+
+Not a gate — a **resolver**. A list route has no single row to check against; it needs its own tenant scope attached so its own query can filter with it.
+
+```code
+import { requireTenant } from "../../../middleware/requireTenant.js";
+
+router.get("/objectives", requireBadge(["None"]), requireTenant(), async (req, res) => {
+  const { isRoot, tenantId } = req.tenantScope;
+  res.json({ objectives: await listObjectives(isRoot ? undefined : tenantId) });
+});
+```
+
+- Always calls `next()` — never denies. The actual filtering is the route's own DB call (`tenantId === undefined` means "no filter, root sees everything"; a real value filters; `null` fails closed to zero rows).
+
+
+## Flash Messages
+
+### Purpose
+One-time, session-carried messages that survive a redirect — the standard way a controller (or `requireBadge`'s own denial) reports the outcome of an action to the page the user lands on next.
+
+### The functions (`utils/flash.js`)
+
+```code
+import { flashError, flashSuccess, getFlash, stashFormInput, takeFormInput } from "../../utils/flash.js";
+
+// Set a message on the session and redirect in one call — always the LAST
+// thing a controller/middleware does on that path, nothing runs after it.
+flashError(req, res, "/aisworg/seu/objectives", "You don't hold the badge required to add Objectives.");
+flashSuccess(req, res, "/aisworg/seu/objectives", "Objective created.");
+
+// Read-once, on the page the redirect landed on: pops the message and clears
+// it from the session, so a later reload of the same page shows nothing.
+req.vm.opt.flash = getFlash(req);
+
+// A validation failure that bounces back to a form: stash what the user
+// typed so the re-rendered form can pre-fill it, instead of making them
+// retype everything. Read once (takeFormInput), same pop-and-clear pattern.
+stashFormInput(req, { statement, requiredCapabilityCodes });
+return flashError(req, res, backToForm, "Statement is required.");
+```
+
+### The view side
+Every page that can be a redirect target renders it unconditionally, near the top:
+
+```code
+<% if (locals.flash) { %>
+  <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> ...">
+    <%= flash.message %>
+  </div>
+<% } %>
+```
+
+- `flash` reaches the template through the ViewModel, same as any other field: the controller sets `req.vm.opt.flash = getFlash(req)`, and `attachVM`'s render step flattens `req.vm.opt`/`req.vm.req` onto `locals`.
+- **Write flash message text without assuming a literal apostrophe survives rendering.** `<%= %>` HTML-escapes its output — `don't` renders as `don&#39;t`. This only bites when something downstream (a test's regex, a log scrape) matches against the *rendered HTML* rather than the source string. When asserting on rendered flash text in a test, match a substring that doesn't straddle an apostrophe (or any other char EJS escapes), rather than the exact source sentence.
+
+
 
 export const redirects = {
     admin: {

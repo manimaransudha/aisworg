@@ -128,8 +128,9 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   if (!nodejsPublished.ok || !plainPublished.ok) return;
 
   // CR-009: Engineering Objectives need a Strategic parent (only Strategic may be a root).
-  const { objective: pcRoot } = await createObjective({ statement: `verify-profile-choice-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic" });
-  const { objective } = await createObjective({ statement: `verify-profile-choice-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture"], tier: "Engineering", parentObjectiveId: pcRoot.id });
+  // CR-075 — createObjective now requires the parent to be Proposed when adding a child under it.
+  const { objective: pcRoot } = await createObjective({ statement: `verify-profile-choice-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed",});
+  const { objective } = await createObjective({ statement: `verify-profile-choice-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture"], tier: "Engineering", parentObjectiveId: pcRoot.id, requestedBy: 1001,});
   assert.equal(objective.status, "Active");
 
   // 1. getObjectiveDetail surfaces both real Profiles as real candidates.
@@ -149,7 +150,7 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   // 3. Omitting profileId still works via the existing auto-pick fallback
   // (development-environment preference, else first real match) — doesn't
   // throw, still produces a real SEU.
-  const { objective: objective2 } = await createObjective({ statement: `verify-profile-choice-fallback-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture"], tier: "Engineering", parentObjectiveId: pcRoot.id });
+  const { objective: objective2 } = await createObjective({ statement: `verify-profile-choice-fallback-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture"], tier: "Engineering", parentObjectiveId: pcRoot.id, requestedBy: 1001,});
   const autoPicked = await commissionFromExistingObjective({ objectiveId: objective2.id, actorRole: "super", actorId: "1001" });
   assert.equal(autoPicked.ok, true, !autoPicked.ok ? JSON.stringify(autoPicked) : undefined);
 });

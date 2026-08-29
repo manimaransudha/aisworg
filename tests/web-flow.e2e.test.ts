@@ -31,6 +31,8 @@ import { appConfig } from "../src/config/appconfig.js";
 import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
+import { createObjective } from "../src/routes/seu/core/objectives.js";
+import { objectivesDB } from "../src/dblayer/objectivesDB.js";
 import { ensureWebAppTemplateFixture, registerTestOntologyCode, deleteTestOntologyCodes } from "./testFixtures.js";
 
 // CR-046 (owner: "the test script should use a code present in the
@@ -62,19 +64,59 @@ after(async () => {
 // Each test gets its own cookie jar (own session, own dev-mode auto-login
 // identity) so fixtures never bleed across tests, mirroring separate browser
 // sessions rather than one shared login.
-function newSession(): Session {
-  return fetchCookie(fetch, new CookieJar());
+//
+// (owner: "root was used in legacy test suite as we did not build the
+// demarcation between tenants etc.") — root bypasses every tenant/badge
+// check (badgeAuthorityEngine's own root bypass + the "isRoot" branch in
+// every tenant-reach gate this session built), so a test that only ever logs
+// in as root can never actually notice a broken scoping check. Passing a
+// real seeded user id here (app.js's NODE_ENV=test shim, extended this
+// session to read an `x-test-user-id` header) logs the session in as that
+// real row for real — real tenant_id, real badge_grants, via the same
+// buildSessionUser/ensureBadgeBootstrap/getPlatformBadges path a genuine
+// Google-OAuth login uses. Omit it for flows this file exercises that have
+// nothing to do with tenant/badge demarcation (Deliverable/SEU/Pack
+// lifecycle mechanics) — those still run as root, unchanged.
+function newSession(testUserId?: number): Session {
+  if (testUserId === undefined) return fetchCookie(fetch, new CookieJar());
+  const jarFetch = fetchCookie(fetch, new CookieJar());
+  return (async (input: any, init?: any) =>
+    jarFetch(input, { ...init, headers: { ...(init?.headers ?? {}), "x-test-user-id": String(testUserId) } })) as unknown as Session;
 }
 
+// A hidden form field is the primary source (matches what a real form submit
+// actually sends), but every form this file has relied on so far happens to
+// be badge-gated — a badge-less viewer (CR-076's own ATHENS_NO_PROPOSE tests)
+// can land on a real page with none of them rendered at all. partials/head.ejs's
+// own <meta name="csrf-token"> is unconditional on every page regardless of
+// badges, so it's the fallback, not the primary (keeps every other, already-
+// passing test's real-form-token behavior unchanged).
 function extractCsrf(html: string): string {
-  const match = html.match(/name="_csrf" value="([^"]+)"/);
-  if (!match) throw new Error("no _csrf token found on the page — page markup may have changed since this test was written");
-  return match[1];
+  const field = html.match(/name="_csrf" value="([^"]+)"/);
+  if (field) return field[1];
+  const meta = html.match(/name="csrf-token" content="([^"]+)"/);
+  if (meta) return meta[1];
+  throw new Error("no _csrf token found on the page — page markup may have changed since this test was written");
 }
 
 async function getPage(request: Session, path: string): Promise<{ status: number; html: string }> {
   const res = await request(`${baseUrl}${path}`);
   return { status: res.status, html: await res.text() };
+}
+
+// redirect: 'manual' GET counterpart to postForm, for the same reason: a
+// denied GET (requireBadge's own redirect) followed by getPage's own
+// default auto-follow lands on the right page but — a real, observed gap in
+// this fetch-cookie/undici combination specifically for a GET-to-GET
+// redirect chain, not exercised by any other test in this file (every other
+// flash check here is POST-then-separate-GET) — loses the session cookie
+// somewhere in the auto-followed hop, so the flash set right before the
+// redirect never shows up on the followed page. Every flash check reuses the
+// same safe two-step shape postForm's own tests already rely on: capture the
+// Location header manually, then re-fetch it as its own separate request.
+async function getRedirect(request: Session, path: string): Promise<{ status: number; location: string | null }> {
+  const res = await request(`${baseUrl}${path}`, { redirect: "manual" });
+  return { status: res.status, location: res.headers.get("location") };
 }
 
 // redirect: 'manual' so we can assert on the 302 + Location header directly,
@@ -731,4 +773,292 @@ test("Participant Lifecycle Governance, Build order step 5 — replacing a fulfi
     /requirements-analysis<\/code><\/td>(?:(?!<\/tr>)[\s\S])*?WebFlow Original Analyst/,
     "the old Participant must no longer be shown as this Capability's fulfilling Participant"
   );
+});
+
+// Finds a list row's Objective id by its (unique, randomUUID-suffixed)
+// statement text — needed because CR-075 made Create redirect to the list
+// rather than the new Objective's own detail page, so the id can no longer
+// be read off the create redirect's Location header.
+function findObjectiveIdByStatement(html: string, statement: string): string {
+  const escaped = statement.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = html.match(new RegExp(`href="/aisworg/seu/objectives/([a-f0-9-]+)"[^>]*>(?:(?!</a>)[\\s\\S])*?${escaped}`));
+  if (!match) throw new Error(`could not find an Objective list row for statement: ${statement}`);
+  return match[1];
+}
+
+// CR-075 (owner: "The Save should take me to the list page. On the list
+// there should be view and edit button" / "The create strategic objective
+// is not taking me to the list page") — this is web-route/rendered-HTML
+// behavior (a redirect Location header, an <a href> on a list row); neither
+// is observable through objective-lifecycle.test.ts's direct core-function
+// calls, so it needs its own coverage at this layer, same as every other
+// flow in this file.
+// TEST_USER_ALL_BADGES (1001) — real seeded row, tenant
+// 17db886a-3c7a-4b17-8863-5783dc40e1ea, holds every objective_* badge
+// (objective-lifecycle.test.ts's own cross-tenant fixture set) — a real,
+// scoped identity, not root, so this flow actually exercises the
+// objective_propose gate and the tenant-reach checks rather than bypassing
+// them.
+const TEST_USER_ALL_BADGES = 1001;
+
+test("Objectives — Create and the Edit page's Save both redirect to the list, which offers both View and Edit on each row", async () => {
+  const request = newSession(TEST_USER_ALL_BADGES);
+
+  const newForm = await getPage(request, "/seu/objectives/new");
+  assert.equal(newForm.status, 200);
+  const newCsrf = extractCsrf(newForm.html);
+
+  const originalStatement = `webflow-edit-flow-${randomUUID()}`;
+  const created = await postForm(request, "/seu/objectives", newCsrf, {
+    statement: originalStatement,
+    tier: "Strategic",
+    requiredCapabilityCodes: ["architecture"],
+  });
+  assert.equal(created.status, 302);
+  assert.equal(created.location, "/aisworg/seu/objectives", `expected Create to redirect to the list page, got: ${created.location}`);
+
+  // Browse mode sorts newest-first, so the fresh root is guaranteed to be on
+  // page 1 regardless of how many other Objectives already exist.
+  const listBefore = await getPage(request, "/seu/objectives");
+  assert.equal(listBefore.status, 200);
+  assert.match(listBefore.html, new RegExp(originalStatement));
+  const objectiveId = findObjectiveIdByStatement(listBefore.html, originalStatement);
+  assert.match(
+    listBefore.html,
+    new RegExp(`href="/aisworg/seu/objectives/${objectiveId}/edit"`),
+    "expected an Edit link on the list row, not just View"
+  );
+
+  const editPage = await getPage(request, `/seu/objectives/${objectiveId}/edit`);
+  assert.equal(editPage.status, 200);
+  const editCsrf = extractCsrf(editPage.html);
+
+  const updatedStatement = `webflow-edit-flow-updated-${randomUUID()}`;
+  const saved = await postForm(request, `/seu/objectives/${objectiveId}/update`, editCsrf, {
+    action: "save",
+    statement: updatedStatement,
+    requiredCapabilityCodes: ["architecture"],
+  });
+  assert.equal(saved.status, 302);
+  assert.equal(saved.location, "/aisworg/seu/objectives", `expected Save to redirect to the list page, got: ${saved.location}`);
+
+  const listAfter = await getPage(request, "/seu/objectives");
+  assert.match(listAfter.html, new RegExp(updatedStatement), "the list must reflect the saved edit");
+  assert.doesNotMatch(listAfter.html, new RegExp(originalStatement), "the pre-edit statement text must no longer appear");
+});
+
+// CR-075 — the list is the one real UI gate for a locked (submitted-for-
+// activation) Objective: its Edit link simply doesn't appear (owner: "just
+// disable the button on the list so edit is blocked"). The Edit page itself
+// has no separate locked display — Comments (a different rule, postable any
+// time regardless of status) works normally there either way, while the
+// actual mutation (updateObjective) still refuses for real if reached
+// directly, same as objective-lifecycle.test.ts already covers at the core
+// level — this just confirms the web-layer wiring end to end.
+test("Objectives — the list hides Edit once locked; Comments still works; a direct Save attempt is still refused for real", async () => {
+  const request = newSession(TEST_USER_ALL_BADGES);
+
+  const newForm = await getPage(request, "/seu/objectives/new");
+  const newCsrf = extractCsrf(newForm.html);
+  const originalStatement = `webflow-locked-edit-${randomUUID()}`;
+  const created = await postForm(request, "/seu/objectives", newCsrf, {
+    statement: originalStatement,
+    tier: "Strategic",
+    requiredCapabilityCodes: ["architecture"],
+  });
+  assert.equal(created.status, 302);
+  assert.equal(created.location, "/aisworg/seu/objectives");
+
+  const list = await getPage(request, "/seu/objectives");
+  const objectiveId = findObjectiveIdByStatement(list.html, originalStatement);
+
+  // Queue it (submit for activation) from the detail/view page's own form —
+  // unaffected by this change, still the right place for a lifecycle action.
+  const detailPage = await getPage(request, `/seu/objectives/${objectiveId}`);
+  assert.equal(detailPage.status, 200);
+  const submitCsrf = extractCsrf(detailPage.html);
+  const submitted = await postForm(request, `/seu/objectives/${objectiveId}/submit`, submitCsrf, {});
+  assert.equal(submitted.status, 302);
+
+  const listAfterSubmit = await getPage(request, "/seu/objectives");
+  assert.doesNotMatch(
+    listAfterSubmit.html,
+    new RegExp(`href="/aisworg/seu/objectives/${objectiveId}/edit"`),
+    "the list must not offer Edit once this Objective is locked"
+  );
+
+  // Comments must still work — a separate rule from the lock above.
+  const lockedEdit = await getPage(request, `/seu/objectives/${objectiveId}/edit`);
+  assert.equal(lockedEdit.status, 200);
+  const commentCsrf = extractCsrf(lockedEdit.html);
+  const commentText = `webflow-locked-comment-${randomUUID()}`;
+  const posted = await postForm(request, `/seu/objectives/${objectiveId}/comments`, commentCsrf, { comment: commentText });
+  assert.equal(posted.status, 302);
+  const afterComment = await getPage(request, `/seu/objectives/${objectiveId}/edit`);
+  assert.match(afterComment.html, new RegExp(commentText), "the posted comment must appear");
+
+  // A direct Save attempt (bypassing the now-hidden list link) must still be
+  // refused for real, not just hidden.
+  const saveAttempt = await postForm(request, `/seu/objectives/${objectiveId}/update`, commentCsrf, {
+    action: "save",
+    statement: "should-not-apply",
+    requiredCapabilityCodes: ["architecture"],
+  });
+  assert.equal(saveAttempt.status, 302);
+  assert.equal(saveAttempt.location, `/aisworg/seu/objectives/${objectiveId}/edit`);
+  const afterSaveAttempt = await getPage(request, `/seu/objectives/${objectiveId}`);
+  assert.doesNotMatch(afterSaveAttempt.html, /should-not-apply/, "the blocked Save must not have applied");
+});
+
+// ATHENS_NO_PROPOSE (2001) — real seeded row, tenant
+// adfbc3d0-d00e-440b-a115-6b7988ca2865, holds objective_achieve only, NOT
+// objective_propose. Deliberately used here instead of root/1001 so this
+// test proves the real denial (owner: "Only Objective_propose badges are...
+// allowed to add them"), not just the button being hidden.
+const ATHENS_NO_PROPOSE = 2001;
+
+test("Objectives — GET /new, a direct POST create, and GET /:id/edit all real-refuse a viewer without objective_propose", async () => {
+  const request = newSession(ATHENS_NO_PROPOSE);
+
+  // The list itself is still viewable — this gate is about adding/editing,
+  // not viewing — and it must not offer the buttons this viewer can't use.
+  const list = await getPage(request, "/seu/objectives");
+  assert.equal(list.status, 200);
+  assert.doesNotMatch(list.html, /New Strategic Objective/, "the create button must not render for a non-holder");
+
+  // GET /new redirects away with the real error, not a 200 with the form.
+  const newFormRedirect = await getRedirect(request, "/seu/objectives/new");
+  assert.equal(newFormRedirect.status, 302);
+  assert.equal(newFormRedirect.location, "/aisworg/seu/objectives");
+  const newForm = await getPage(request, "/seu/objectives");
+  // EJS's default <%= %> escaping renders the apostrophe as &#39;, not a
+  // literal ' — match a substring either side of it, not across it.
+  assert.match(newForm.html, /hold the badge required to add Objectives/);
+
+  // A direct POST (bypassing the hidden button entirely) is refused too —
+  // the CSRF token comes from the list page's own navbar form, since this
+  // viewer never reaches a real create form to get one from.
+  const csrf = extractCsrf(list.html);
+  const blockedStatement = `webflow-badge-denied-${randomUUID()}`;
+  const blockedCreate = await postForm(request, "/seu/objectives", csrf, {
+    statement: blockedStatement,
+    tier: "Strategic",
+    requiredCapabilityCodes: ["architecture"],
+  });
+  assert.equal(blockedCreate.status, 302);
+  assert.equal(blockedCreate.location, "/aisworg/seu/objectives");
+  const listAfter = await getPage(request, "/seu/objectives");
+  assert.doesNotMatch(listAfter.html, new RegExp(blockedStatement), "the blocked create must not have applied");
+
+  // GET /:id/edit — the pre-existing sibling gate — refuses the same way,
+  // even for an Objective in this viewer's OWN tenant (fixture created
+  // directly through the core function, same as objective-lifecycle.test.ts's
+  // own fixtures, to isolate this from the create-gate just proven above).
+  const { objective: ownTenantObjective } = await createObjective({
+    statement: `webflow-badge-denied-edit-${randomUUID()}`,
+    requiredCapabilityCodes: [],
+    tier: "Strategic",
+    status: "Proposed",
+    requestedBy: ATHENS_NO_PROPOSE,
+  });
+  const editRedirect = await getRedirect(request, `/seu/objectives/${ownTenantObjective.id}/edit`);
+  assert.equal(editRedirect.status, 302);
+  assert.equal(editRedirect.location, `/aisworg/seu/objectives/${ownTenantObjective.id}`);
+  const editAttempt = await getPage(request, `/seu/objectives/${ownTenantObjective.id}`);
+  assert.match(editAttempt.html, /hold the badge required to edit Objectives/);
+});
+
+// BABYLON_TENANT_OBJECTIVE fixture (below) belongs to obj-achieve@babylon.com's
+// tenant (28ced917-2d8a-446b-9bf2-531ab157e1fc) — genuinely distinct from
+// TEST_USER_ALL_BADGES's own tenant (17db886a-3c7a-4b17-8863-5783dc40e1ea),
+// same cross-tenant fixture set objective-lifecycle.test.ts's own
+// reParentObjective/listReParentCandidates coverage uses. TEST_USER_ALL_BADGES
+// holds every objective_* badge, isolating this test to the tenant-reach gate
+// alone (a badge-less viewer would be blocked earlier, for the wrong reason).
+const BABYLON_ACTOR = 2011;
+
+test("Objectives — the web layer's own tenant-reach gate blocks a real badge holder from another tenant's Objective, not just root-bypassed access", async () => {
+  const { objective: babylonObjective } = await createObjective({
+    statement: `webflow-tenant-reach-babylon-${randomUUID()}`,
+    requiredCapabilityCodes: [],
+    tier: "Strategic",
+    status: "Proposed",
+    requestedBy: BABYLON_ACTOR,
+  });
+
+  // Positive control — the owning tenant can see it fine.
+  const ownTenantView = await getPage(newSession(BABYLON_ACTOR), `/seu/objectives/${babylonObjective.id}`);
+  assert.equal(ownTenantView.status, 200);
+  assert.match(ownTenantView.html, new RegExp(babylonObjective.statement));
+
+  // router.param("id") — a real, badge-holding, different-tenant viewer gets
+  // "Objective not found," never the content, never a distinguishable 403.
+  const outsider = newSession(TEST_USER_ALL_BADGES);
+  const detailRedirect = await getRedirect(outsider, `/seu/objectives/${babylonObjective.id}`);
+  assert.equal(detailRedirect.status, 302);
+  assert.equal(detailRedirect.location, "/aisworg/seu/objectives");
+  const detailAttempt = await getPage(outsider, "/seu/objectives");
+  assert.match(detailAttempt.html, /Objective not found/);
+  assert.doesNotMatch(detailAttempt.html, new RegExp(babylonObjective.statement), "the other tenant's statement text must never leak");
+
+  // GET /new?parent= — same gate, the query-string parent path.
+  const newChildRedirect = await getRedirect(outsider, `/seu/objectives/new?parent=${babylonObjective.id}&tier=Engineering`);
+  assert.equal(newChildRedirect.status, 302);
+  assert.equal(newChildRedirect.location, "/aisworg/seu/objectives");
+  const newChildAttempt = await getPage(outsider, "/seu/objectives");
+  assert.match(newChildAttempt.html, /Parent Objective not found/);
+
+  // A direct POST naming the other tenant's Objective as parent is refused
+  // too, not just the GET form — by requireTenantScope.forField's own route
+  // gate now (added after this test was first written), which runs before
+  // createObjective's own tenant-reach check ever gets a chance to fire.
+  const list = await getPage(outsider, "/seu/objectives");
+  const csrf = extractCsrf(list.html);
+  const blockedChild = await postForm(outsider, "/seu/objectives", csrf, {
+    statement: `webflow-tenant-reach-blocked-child-${randomUUID()}`,
+    tier: "Engineering",
+    parentObjectiveId: babylonObjective.id,
+    requiredCapabilityCodes: ["architecture"],
+  });
+  assert.equal(blockedChild.status, 302);
+  assert.equal(blockedChild.location, "/aisworg/seu/objectives", "refused back to the list, not created");
+});
+
+// CR-076 (owner: "every route has to be gated with a requireBadge... The
+// safety net will be when the router is hit and that checks for the badge
+// access again") — before this, POST /update, /move, /submit, and /delete had
+// NO server-side badge check at all; only the list hiding the Edit/Delete
+// link stood between a badge-less viewer and a direct POST. Proves each one
+// now genuinely refuses, for real, in ATHENS_NO_PROPOSE's own tenant (so
+// tenant-reach can't be the reason it's blocked — isolates the badge gate).
+test("Objectives — update/move/submit/delete all real-refuse a viewer without objective_propose (previously had no route-level check at all)", async () => {
+  const request = newSession(ATHENS_NO_PROPOSE);
+  const originalStatement = `webflow-no-propose-mutate-${randomUUID()}`;
+  const { objective } = await createObjective({
+    statement: originalStatement,
+    requiredCapabilityCodes: [],
+    tier: "Strategic",
+    status: "Proposed",
+    requestedBy: ATHENS_NO_PROPOSE,
+  });
+
+  const list = await getPage(request, "/seu/objectives");
+  const csrf = extractCsrf(list.html);
+
+  const update = await postForm(request, `/seu/objectives/${objective.id}/update`, csrf, { statement: "should-not-apply", requiredCapabilityCodes: [] });
+  assert.equal(update.status, 302);
+
+  const move = await postForm(request, `/seu/objectives/${objective.id}/move`, csrf, { newParentId: "" });
+  assert.equal(move.status, 302);
+
+  const submit = await postForm(request, `/seu/objectives/${objective.id}/submit`, csrf, {});
+  assert.equal(submit.status, 302);
+
+  const del = await postForm(request, `/seu/objectives/${objective.id}/delete`, csrf, {});
+  assert.equal(del.status, 302);
+
+  const { data: unchanged } = await objectivesDB.findById(objective.id);
+  assert.ok(unchanged, "the blocked delete must not have applied — the row still exists");
+  assert.equal(unchanged?.statement, originalStatement, "the blocked update must not have applied");
+  assert.equal(unchanged?.status, "Proposed", "the blocked submit must not have queued anything");
 });

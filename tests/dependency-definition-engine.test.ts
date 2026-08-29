@@ -32,7 +32,7 @@ test("dependencyDefinitionEngine: a target with no incoming rows is ready trivia
   const { data: template } = await templatesDB.findByCode("test-enterprise-web-application");
   assert.ok(template);
 
-  const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic" });
+  const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic", requestedBy: 1001 });
   const { data: profile } = await profilesDB.findByCode("test-profile-default-development");
   const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id });
   assert.ok(seu);
@@ -50,7 +50,7 @@ test("dependencyDefinitionEngine: a Deliverable-type AND a Capability-type row o
   const { data: template } = await templatesDB.findByCode("test-enterprise-web-application");
   assert.ok(template);
 
-  const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic" });
+  const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic", requestedBy: 1001 });
   const { data: profile } = await profilesDB.findByCode("test-profile-default-development");
   const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id });
   assert.ok(seu);
@@ -96,7 +96,7 @@ test("dependencyDefinitionEngine.evaluateAndPublishFromTransition publishes Deli
   const { data: template } = await templatesDB.findByCode("test-enterprise-web-application");
   assert.ok(template);
 
-  const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic" });
+  const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic", requestedBy: 1001 });
   const { data: profile } = await profilesDB.findByCode("test-profile-default-development");
   const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id });
   assert.ok(seu);

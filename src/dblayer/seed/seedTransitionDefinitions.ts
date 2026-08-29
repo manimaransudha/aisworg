@@ -35,6 +35,12 @@ interface TransitionDefinitionSeed {
   toState: string;
   requiredAuthorityRuleCode: string | null;
   requiredPolicyCodes?: string[];
+  // CR-072 — trigger defaults to "manual" (the DB column's own default,
+  // accurate for every row unless stated otherwise here); submitVerb stays
+  // undefined/null except on the one row that actually has a real Submit
+  // step defined (badge = entityType + '_' + submitVerb).
+  trigger?: "manual" | "governed";
+  submitVerb?: string;
 }
 
 let cachedSeeds: TransitionDefinitionSeed[] | null = null;
@@ -96,12 +102,14 @@ export async function seedTransitionDefinitions(): Promise<void> {
       }
 
       await client.query(
-        `INSERT INTO transition_definitions (entity_type, from_state, to_state, required_authority_rule_id, required_policy_ids)
-         VALUES ($1, $2, $3, $4, $5::uuid[])
+        `INSERT INTO transition_definitions (entity_type, from_state, to_state, required_authority_rule_id, required_policy_ids, trigger, submit_verb)
+         VALUES ($1, $2, $3, $4, $5::uuid[], $6, $7)
          ON CONFLICT (entity_type, from_state, to_state)
          DO UPDATE SET required_authority_rule_id = EXCLUDED.required_authority_rule_id,
-                       required_policy_ids = EXCLUDED.required_policy_ids`,
-        [seed.entityType, seed.fromState, seed.toState, ruleId, policyIds]
+                       required_policy_ids = EXCLUDED.required_policy_ids,
+                       trigger = EXCLUDED.trigger,
+                       submit_verb = EXCLUDED.submit_verb`,
+        [seed.entityType, seed.fromState, seed.toState, ruleId, policyIds, seed.trigger ?? "manual", seed.submitVerb ?? null]
       );
     }
 

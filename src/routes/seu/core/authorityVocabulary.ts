@@ -23,6 +23,10 @@ export interface AuthorityMappingListItem {
   verbCode: string;
   verbLabel: string;
   isActive: boolean;
+  // CR-072 — read-through from transition_definitions (see AuthorityMappingRow).
+  trigger: "manual" | "governed" | null;
+  defaultTrigger: "manual" | "governed";
+  hasWiredTransitions: boolean;
 }
 export interface CodeLabelItem {
   code: string;
@@ -67,7 +71,26 @@ export async function listAuthorityMapping(): Promise<AuthorityMappingListItem[]
     verbCode: r.verb_code,
     verbLabel: r.verb_label,
     isActive: r.is_active,
+    trigger: r.trigger,
+    defaultTrigger: r.default_trigger,
+    hasWiredTransitions: r.has_wired_transitions,
   }));
+}
+
+// CR-072 — the only field this page edits on a mapping row: which of every
+// transition_definitions row sharing this (noun, verb) is manual vs governed.
+// Everything else about a mapping pair (add/retire) is unrelated to this.
+export async function updateMappingTrigger(nounCode: string, verbCode: string, trigger: string): Promise<WriteResult> {
+  if (trigger !== "manual" && trigger !== "governed") return { ok: false, error: `trigger must be "manual" or "governed", got "${trigger}"` };
+  const { data: updatedCount, error } = await authorityVocabularyDB.updateTriggerForVerb(nounCode, verbCode, trigger);
+  if (error) return { ok: false, error: error.message };
+  if (!updatedCount) return { ok: false, error: `no transition uses ${nounCode} + ${verbCode} yet — nothing to update` };
+  // Keeps the mapping's own default_trigger in step with an explicit correction
+  // here, so the next NEW transition added under this pair starts consistent
+  // with the ones just edited, rather than silently reverting to whatever was
+  // chosen back when the pair was first Allowed.
+  await authorityVocabularyDB.setDefaultTrigger(nounCode, verbCode, trigger);
+  return { ok: true };
 }
 
 export async function listActiveNouns(): Promise<CodeLabelItem[]> {
@@ -103,13 +126,21 @@ export async function addVerb(code: string, label: string, description: string |
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
-export async function addMapping(nounCode: string, verbCode: string): Promise<WriteResult> {
+export async function addMapping(nounCode: string, verbCode: string, trigger?: string): Promise<WriteResult> {
   if (!nounCode || !verbCode) return { ok: false, error: "Both a noun and a verb are required." };
+  if (trigger !== undefined && trigger !== "manual" && trigger !== "governed") {
+    return { ok: false, error: `trigger must be "manual" or "governed", got "${trigger}"` };
+  }
   const nouns = new Set((await listActiveNouns()).map((n) => n.code));
   const verbs = new Set((await listActiveVerbs()).map((v) => v.code));
   if (!nouns.has(nounCode)) return { ok: false, error: `"${nounCode}" is not an active noun.` };
   if (!verbs.has(verbCode)) return { ok: false, error: `"${verbCode}" is not an active verb.` };
-  const { error } = await authorityVocabularyDB.addMapping(nounCode, verbCode);
+  // Stored on the mapping itself, never applied retroactively to a
+  // transition that already exists — re-submitting Allow for a pair that
+  // already has real, wired transitions must never silently change their
+  // trigger (the mapping upsert below is idempotent; only its OWN default
+  // moves, nothing downstream of it).
+  const { error } = await authorityVocabularyDB.addMapping(nounCode, verbCode, (trigger as "manual" | "governed" | undefined) ?? "manual");
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 

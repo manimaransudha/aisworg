@@ -11,6 +11,7 @@ import { randomUUID } from "node:crypto";
 import pool, { query } from "../src/utils/db.js";
 import { compositionEngine } from "../src/domain/engine/compositionEngine.js";
 import { transitionEngine } from "../src/domain/engine/transitionEngine.js";
+import { triggerEngine } from "../src/domain/engine/triggerEngine.js";
 import { eventBus, dispatch } from "../src/domain/engine/eventBus.js";
 import { HANDLER_REGISTRY } from "../src/domain/engine/eventHandlerRegistry.js";
 
@@ -116,6 +117,14 @@ test("transitionEngine.evaluate rejects a transition with no Transition Definiti
 });
 
 test("transitionEngine.evaluate handles the Objective entity type (Post-MVP Phase 1 — Ch.1 lifecycle)", async () => {
+  // CR-072 — Proposed -> Active is a manual transition with a real Submit
+  // step (submit_verb "propose"): transitionEngine now denies it outright
+  // (not_submitted) until that queue event exists for this exact entityId,
+  // real enforcement, not just a UI filter. A synthetic id is enough — the
+  // events table has no FK to a real objectives row.
+  const submittedObjectiveId = randomUUID();
+  await triggerEngine.submit({ entityType: "Objective", entityId: submittedObjectiveId, fromState: "Proposed", actorId: "1001" });
+
   const allowed = await transitionEngine.evaluate({
     entityType: "Objective",
     fromState: "Proposed",
@@ -123,8 +132,21 @@ test("transitionEngine.evaluate handles the Objective entity type (Post-MVP Phas
     actorRole: "general",
     actorId: "1001",
     context: {},
+    entityId: submittedObjectiveId,
   });
-  assert.equal(allowed.allowed, true);
+  assert.equal(allowed.allowed, true, JSON.stringify(allowed));
+
+  const notSubmitted = await transitionEngine.evaluate({
+    entityType: "Objective",
+    fromState: "Proposed",
+    toState: "Active",
+    actorRole: "general",
+    actorId: "1001",
+    context: {},
+    entityId: randomUUID(), // a different, never-submitted id
+  });
+  assert.equal(notSubmitted.allowed, false);
+  if (!notSubmitted.allowed) assert.equal(notSubmitted.reason, "not_submitted");
 
   const denied = await transitionEngine.evaluate({
     entityType: "Objective",

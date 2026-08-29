@@ -14,7 +14,7 @@ import { logger } from "./utils/logger.js";
 import { requestLogger } from "./middleware/requestLogger.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { gatekeeper } from "./middleware/gatekeeper.js";
-import { requireRole } from "./middleware/auth.js";
+import { requireRole, buildSessionUser } from "./middleware/auth.js";
 import { appConfig } from "./config/appconfig.js";
 // import { attachVM } from "./middleware/attachVM.js";
 // import { renderView } from "./utils/viewModel.js";
@@ -28,6 +28,8 @@ import { router as seuApiRouter } from "./routes/seu/api/index.js";
 import { router as seuWebRouter } from "./routes/seu/web/index.js";
 import { eventBus } from "./domain/engine/eventBus.js";
 import { devActAsAvailable, currentActAs, listTenants, listBadgeTypes } from "./dev/actAs.js";
+import { userDB } from "./dblayer/userDB.js";
+import { ensureBadgeBootstrap, getPlatformBadges } from "./domain/identity/badgeBootstrap.js";
 
 // Ch.30 Event Bus redesign — loads event_subscriptions into the in-memory
 // routing map once at module load (same unconditional placement the old
@@ -107,29 +109,50 @@ if (process.env.NODE_ENV === 'test') {
             path.startsWith('/aisworg/login') ||
             path.startsWith('/aisworg/logout');
 
-        if (!isPublic && req.session && !req.session.user) {
-            req.session.user = {
-                id: 1,
-                email: 'manimaransudha@gmail.com',
-                name: 'Sudha Manimaran',
-                role: 'super',
-                is_active: true,
-                // Phase 10 (badge model): this shim bypasses the real login
-                // flow entirely, so ensureBadgeBootstrap/getPlatformBadges
-                // (routes/web/auth.js) never run for it. Hardcoded here to
-                // match the root badge_grants row 012_badge_model.sql seeds
-                // for this same fixed dev identity (holder_id '1') — without
-                // this, requirePlatformBadge('root') denies every request
-                // from this identity silently (no flash message, redirects
-                // back to referer), which looks like "nothing happens" on
-                // click rather than an actual permission error.
-                platformBadges: ['root'],
-                // CR-004: the shim identity is the platform (root) user.
-                type: 'Platform',
-                tenant_id: null
+        if (isPublic || !req.session || req.session.user) return next();
 
-            };
+        // (owner: "root was used in legacy test suite as we did not build
+        // the demarcation between tenants etc.") — root bypasses every
+        // tenant/badge check by design, so a suite that only ever logs in as
+        // root cannot exercise the real denial paths those checks exist for.
+        // An e2e test that needs a genuine, scoped, non-root identity sends
+        // this header (its own cookie jar/session, set once before its first
+        // request) naming a real seeded user row; everyone else keeps
+        // getting the original hardcoded root shim below, unchanged.
+        const testUserId = req.headers['x-test-user-id'];
+        if (testUserId) {
+            (async () => {
+                const user = await userDB.findById(Number(testUserId));
+                if (!user) return next(new Error(`x-test-user-id ${testUserId}: no such user`));
+                req.session.user = buildSessionUser(user);
+                await ensureBadgeBootstrap(user);
+                req.session.user.platformBadges = await getPlatformBadges(String(user.id));
+                next();
+            })().catch(next);
+            return;
         }
+
+        req.session.user = {
+            id: 1,
+            email: 'manimaransudha@gmail.com',
+            name: 'Sudha Manimaran',
+            role: 'super',
+            is_active: true,
+            // Phase 10 (badge model): this shim bypasses the real login
+            // flow entirely, so ensureBadgeBootstrap/getPlatformBadges
+            // (routes/web/auth.js) never run for it. Hardcoded here to
+            // match the root badge_grants row 012_badge_model.sql seeds
+            // for this same fixed dev identity (holder_id '1') — without
+            // this, requirePlatformBadge('root') denies every request
+            // from this identity silently (no flash message, redirects
+            // back to referer), which looks like "nothing happens" on
+            // click rather than an actual permission error.
+            platformBadges: ['root'],
+            // CR-004: the shim identity is the platform (root) user.
+            type: 'Platform',
+            tenant_id: null
+
+        };
         next();
     });
 }

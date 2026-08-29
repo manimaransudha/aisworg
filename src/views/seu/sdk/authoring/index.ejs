@@ -148,6 +148,9 @@
                   <td><% if (d.isActive) { %><span class="badge bg-success-subtle text-success border border-success-subtle">Active</span><% } else { %><span class="badge bg-secondary-subtle text-secondary border">Retired</span><% } %></td>
                   <td class="text-end text-nowrap">
                     <a class="btn btn-sm btn-outline-secondary" href="/aisworg/seu/authority/transition-definitions/<%= d.id %>">View</a>
+                    <% if (locals.canWriteAuthority) { %>
+                      <a class="btn btn-sm btn-outline-secondary" href="/aisworg/seu/authority/transition-definitions/<%= d.id %>/edit">Edit</a>
+                    <% } %>
                     <% if (locals.canWriteAuthority && d.isActive) { %>
                       <form method="POST" action="/aisworg/seu/authority/transition-definitions/retire" class="d-inline" onsubmit="return confirm('Retire this transition edge (<%= d.entityType %> <%= d.fromState %> → <%= d.toState %>)?');">
                         <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="id" value="<%= d.id %>">

@@ -249,6 +249,8 @@ Archived
 
 An Active Objective may instead transition to **Superseded** (replaced by a revised Objective) or **Retired** (abandoned without replacement), both of which preserve full historical traceability.
 
+An Objective can be returned to the Proposed state before entering the Active state for rework. 
+
 ## 13. Objective Traceability
 
 Every Objective shall preserve:
@@ -268,6 +270,7 @@ The Objective subsystem shall publish:
 
 - ObjectiveProposed
 - ObjectiveActivated
+- ObjectiveRejected
 ~~- ObjectiveDecomposed~~
 ~~- ObjectiveCapabilitiesResolved~~
 - ObjectiveAchieved
@@ -323,7 +326,7 @@ Implementation of this chapter shall produce:
 
 *Recorded 2026-08-12. This section documents implementation decisions for the Objective model. It does not change the requirements above (OBJ-001–006, FR-1.1–1.7); it records how they are realised. It follows the platform convention of keeping the normative specification stable and capturing realisation decisions separately.*
 
-### 18.1 SEU ↔ Objective cardinality: one-to-one
+### 18.1 ✅ SEU ↔ Objective cardinality: one-to-one — enforced (CR-002), refined by CR-009
 
 An SEU serves **exactly one** Objective, and an Objective is served by **at most one** SEU (none before it is commissioned, exactly one after). This is the tidiest reading of OBJ-001 / FR-1.5 ("at least one Objective") and §7 ("an SEU executes against its decomposed Engineering Objectives"), taken at the finest grain: one SEU per *commissionable leaf* Objective. Every SEU has a single, unambiguous purpose, and every Objective a single accountable SEU.
 
@@ -338,7 +341,7 @@ The relationship is a single foreign key `seus.objective_id` (`NOT NULL`), which
 - **At most one SEU per Objective.** A `UNIQUE` index on `seus.objective_id` (migration `034`) — an Objective cannot be commissioned twice, enforced by the database, not an application check (which would race). This is the same invariant the commissioning flow surfaces as "this Objective is already assigned" (§18.8).
 - **~~Engineering-tier only.~~ Superseded by CR-009 → non-Strategic *leaf*.** CR-002 originally restricted commissioning to Engineering-tier Objectives. **CR-009 (2026-08-13) replaces that rule:** `commissionSeu` now rejects a Strategic Objective, and rejects any Objective that has children (not a leaf), accepting **any non-Strategic leaf** (Operational or Engineering with no children, Active, un-commissioned). The `UNIQUE(seus.objective_id)` invariant above is unchanged. See §18.12.
 
-### 18.3 Objectives are created independently
+### 18.3 ✅ Objectives are created independently — enforced (CR-002)
 
 Consistent with OBJ-002, an Objective exists before, and possibly without, any SEU. It is un-commissioned until an SEU references it, and with the `UNIQUE` constraint above, at most one SEU ever does. An un-commissioned Objective having no SEU is its honest state, not a defect. It is also why an Objective's own governed transitions cannot be SEU-scoped: before commissioning there is no SEU to scope them to.
 
@@ -362,7 +365,7 @@ A single effort broken into phases is modelled as one Engineering Objective per 
 
 Implication to confirm when this is built: the integration SEU depends on the phase SEUs' outputs, which cross SEU boundaries. Under the Participant Integration model this is naturally satisfied at the artifact level, since the integration SEU's participants pull the phase SEUs' Baselined outputs from version control as inputs. If the platform must also *gate* the integration SEU on the phase SEUs reaching Baselined, rather than only making the artifacts available, that is cross-SEU sequencing, which the current within-SEU dependency engine does not yet do. Decide per case whether artifact availability suffices or platform-level cross-SEU gating is wanted.
 
-### 18.7 Relationship to the current build
+### 18.7  🚩 Relationship to the current build
 
 One-to-one was already the built state (`seus.objective_id NOT NULL`), needing no cardinality migration. The §18.2 enforcement (`UNIQUE` on `seus.objective_id` + the Engineering-tier check, **CR-002**) and the §18.8 commissioning entry point (**CR-003**) are now **built** (2026-08-12). §18.4–18.6 (and §18.9) describe how the built model is to be read and remain **open** pending deeper review (marked in each).
 
@@ -378,38 +381,37 @@ Commissioning is initiated **from the Objectives screen**, not from a global nav
 
 §18.1's scope-change argument leans on "changing scope = decommission the SEU." What decommissioning should *mean* across the SEU lifecycle is undecided: how far into an SEU's life a decommission remains meaningful, at what point it becomes moot, and — since work simply has to stop — how that stop is reflected, both in the SEU's own state and in the fate of in-flight vs. already-Baselined Deliverables, minted Attestations, and any Engineering Capital already promoted out of the SEU. Deferred for a dedicated review.
 
-### 18.10 Objective authority — badge-based (noun × verb); tenant is reach, not authority
+### 18.10 ✅ Objective authority — badge-based (noun × verb); tenant is reach, not authority — built (CR-006, CR-071)
 
-*Recorded 2026-08-13; updated to the built model when CR-006 landed as noun × verb (2026-08-13).*
+*Recorded 2026-08-13; updated to the built model when CR-006 landed as noun × verb (2026-08-13); reach gate closed by CR-071 (2026-08-28).*
 
 **Decided, and for transitions now built (CR-006):**
 
 - **Objective authority is badge-based, never role-based.** Who may drive an Objective's lifecycle is decided by **badges**, not the `role` axis (`general`/`power`/`super`, `requireRole`). Role gates at most basic authenticated/home access; the badge gates authority. CR-006 realises this for every governed entity uniformly.
 - **Authority is `noun × verb`.** A governed transition requires the actor to hold the `noun_verb` badge the transition names — for Objectives: `objective_activate` (Proposed→Active), `objective_achieve`, `objective_supersede`, `objective_retire`, `objective_archive`. `transitionEngine` derives the required badge from the transition's noun (entity type) + verb and asks `badgeAuthorityEngine.authorise`: does the actor hold that badge (Active), or `root` (bypass)? Nothing else — **no acting-badge declaration, no role, no scope**. So an Objective transition is authorised **exactly like a Deliverable**, with no Objective-specific code. The original gap ("Objectives sit under `requireRole('general')` with no badge") is therefore closed at the transition level.
-- **Tenant is a *separate reach gate*, not part of the authority check.** This section originally proposed matching a grant's `scope_id` against the Objective's `tenant_id`. CR-006 deliberately **split the two axes**: authorisation is pure `noun × verb`, and **scope/reach — which tenant's Objectives an actor may touch — is an independent, earlier gate** (§18.11), never folded into the badge. That reach gate is not yet built.
+- **Tenant is a *separate reach gate*, not part of the authority check.** This section originally proposed matching a grant's `scope_id` against the Objective's `tenant_id`. CR-006 deliberately **split the two axes**: authorisation is pure `noun × verb`, and **scope/reach — which tenant's Objectives an actor may touch — is an independent, earlier gate** (§18.11), never folded into the badge. **That reach gate is now built (CR-071)**, covering every practical path: the list/search routes filter by tenant; a `router.param("id", ...)` gate on both the web and JSON API Objective routers rejects (as a plain "not found," never a 403) any non-root request naming another tenant's Objective id directly; and `createObjective` refuses to decompose a new child under a parent in a different tenant. All three fail closed on a legacy row with no tenant attribution yet, same rule throughout.
 
 **Still open (residual Objective-authority gaps — for later):**
 
 - **Objective *creation* authority — the uniform `define` birth transition, deferred (not a gap).** Creating an Objective routes through `createObjective`, not `transitionEngine`, so it carries no badge check today (gatekeeper-authenticated only; the `requireRole('general')` that once fronted `/seu` was removed — role is landing-only, not authority). This is **not** an Objective-specific deficiency: the CR-006 vocabulary already models creation as a **birth transition** — a `define`-verb edge fanning into the entity's initial state ("create-as-transition") — but **no birth rows are wired for any entity yet** (the vocabulary's own note: *"`define` … added when creation-as-transition is wired (a later stage) — no birth rows here yet"*). When that lands, `transitionEngine` derives `objective_define` and gates creation through the same `badgeAuthorityEngine` as every other hop, with no Objective-specific code — **uniformly for every entity**. So creation is un-gated today by **deferral, not omission**. (The birth verb is `define`, distinct from `create` = "begin work — move out of the initial state," e.g. Deliverable `Defined → In Progress`.) CR-009 adds *structural* create rules — mandatory parent, valid tier relationship — but those are integrity, not authority.
-- **`objectives.tenant_id`** — not built; needed before the tenant reach gate can root there (§18.11).
-- **The tenant reach gate / data isolation** — unbuilt (a separate track from CR-006).
+- **`objectives.tenant_id` — built, but as `sponsoring_authority` JSONB (migration 122, CR-071), not a literal `tenant_id` column.** Deliberately open-ended (`{ tenant: tenant_id, ... }`) so a later multi-tenancy phase can add more without a schema change — see §18.11.
 - **Granting the `objective_*` badges** — a separate **grant CR** (who is granted which). Settle there whether Objectives want a per-verb split (distinct `objective_activate` vs `objective_achieve` …) or a single manager badge; the old provisional `product-manager` name is moot.
 
 **Broader principle (now largely realised for transitions):** *authority belongs on badges, not on `requireRole`.* CR-006 moved every governed transition onto `noun × verb`; what remains outside it is admin routes (still `requireRole`, a separate larger track) and entity *creation* — the latter not on `requireRole` at all but simply un-gated pending the uniform `define` birth transition described above.
 
-### 18.11 Tenant scope is rooted at the Objective and inherited — not re-checked per entity
+### 18.11 ✅ Tenant scope is rooted at the Objective and inherited — not re-checked per entity — built (CR-071)
 
-*Recorded 2026-08-13.*
+*Recorded 2026-08-13; closed 2026-08-28 (CR-071) — including a real bug found and fixed along the way: commissioning was not actually deriving the SEU's Tenant from its Objective.*
 
-Once an Objective carries a `tenant_id` (§18.10), the Tenant becomes a **single source of truth at the root of the engineering graph**, inherited transitively — not stamped or checked independently on every downstream entity:
+An Objective carries a `tenant_id` via `sponsoring_authority` (§18.10), making the Tenant a **single source of truth at the root of the engineering graph**, inherited transitively — not stamped or checked independently on every downstream entity:
 
 - Because an SEU is commissioned against **exactly one** Objective (1:1, §18.1), the SEU belongs to **that Objective's Tenant**. Everything the SEU owns — Deliverables, Events, Attestations, Work Items, Dependency Edges, Evidence/Decisions/Knowledge, etc. — belongs to the SEU, hence transitively to the **same** Tenant.
 - So a Deliverable's (or Event's, or Attestation's) Tenant is *derived* by walking to its owning Objective (`Deliverable → SEU → Objective`); none of them needs an independent authoritative `tenant_id` or a separate tenant check.
 
 Implications:
 
-- **Commissioning inherits the Tenant.** An SEU's Tenant is set from its Objective's Tenant, not chosen separately or defaulted. (`seus.tenant_id` already exists — migration `026` — and is set at commissioning; when `objectives.tenant_id` lands, commissioning derives `seus.tenant_id` from the Objective rather than the default tenant.)
-- **Isolation is applied once at the root.** For the tenant *reach* axis (data isolation), a filter at the Objective/SEU root covers the whole subtree; per-entity tenant re-checks are redundant. This is exactly the **reach gate** §18.10 refers to — a layer *separate* from authorisation (which CR-006 made pure `noun × verb`, scope-free): downstream entities resolve their Tenant by inheritance, not by carrying their own copy or being re-checked.
+- **Commissioning inherits the Tenant.** An SEU's Tenant is set from its Objective's Tenant, not chosen separately or defaulted — `commissionSeu` (`seus.tenant_id`, migration `026`) now derives it from the Objective's own `sponsoring_authority.tenant` whenever a caller doesn't explicitly supply one. This closed a real, confirmed bug: `commissionFromExistingObjective` (the "Commission SEU" action on an existing Objective) never forwarded a tenant at all, so every SEU commissioned that way silently landed in the seeded default tenant regardless of which tenant actually owned the Objective. One deliberate exception: `commissionFromForm`'s one-shot path (Objective created inline, hung under the shared cross-tenant container `ensureOneShotContainer`) always resolves and passes its own tenant explicitly, because that container's `sponsoring_authority` reflects whichever tenant happened to create it first, not the current request's tenant — deriving from it would misattribute every one-shot SEU to that first tenant.
+- **Isolation is applied once at the root.** For the tenant *reach* axis (data isolation), a filter at the Objective/SEU root covers the whole subtree; per-entity tenant re-checks are redundant. This is exactly the **reach gate** §18.10 refers to, now built — a layer *separate* from authorisation (which CR-006 made pure `noun × verb`, scope-free): downstream entities resolve their Tenant by inheritance, not by carrying their own copy or being re-checked.
 
 ### 18.12 ✅ Objective hierarchy: mandatory parent, tree, re-parenting, tier integrity — built (CR-009)
 
@@ -427,8 +429,8 @@ Implications:
 
 *Recorded 2026-08-13. Recorded here so the delta between §1–17 and the build is explicit; none are regressions.*
 
-- **§14 events — partial (CR-010).** Only `ObjectiveTransitioned` is published. The eight named lifecycle/decomposition events (`ObjectiveProposed`, `ObjectiveActivated`, `ObjectiveDecomposed`, `ObjectiveCapabilitiesResolved`, `ObjectiveAchieved`, `ObjectiveSuperseded`, `ObjectiveRetired`, `ObjectiveArchived`) are not emitted. Downstream traceability today relies on structural edges (§13), not on these events. Tracked as **CR-010** (proposed, not scheduled).
+- **~~§14 events — partial (CR-010).~~ Built (CR-072).** §14's final list is 6 events (`ObjectiveDecomposed`/`ObjectiveCapabilitiesResolved` were struck from it — Proposed-stage events, removed, not gaps). All 6 are now emitted: `ObjectiveProposed` via the manual-trigger queue step (`triggerEngine.submit`, CR-072), and `ObjectiveActivated`/`ObjectiveAchieved`/`ObjectiveSuperseded`/`ObjectiveRetired`/`ObjectiveArchived` via `transitionObjective`'s own per-state event map. The generic `ObjectiveTransitioned` this bullet originally described survives only as an unreachable fallback (`OBJECTIVE_TRANSITION_EVENT[...] ?? "ObjectiveTransitioned"`) for a target state no real transition ever names.
 - **§10 Pack-based Capability derivation — not built (CR-011).** Required Capabilities are either explicitly declared or **suggested** by a transparent word-overlap heuristic (`suggestCapabilityCodes`); automated derivation from Objective content via Capability Packs (Chapter 5) is not implemented. (This mirrors the "Capability Pack" derivation gap noted in the Build Plan — Chapter 5's own taxonomy never defines the mechanism.) Tracked as **CR-011** (proposed, not scheduled).
-- **§8 structure — Sponsoring Authority / tenant.** There is no distinct *Sponsoring Authority* field; `requested_by` (the creating user) stands in for it. `objectives.tenant_id` is not built — a prerequisite for the tenant reach gate (§18.10/§18.11).
+- **§8 structure — Sponsoring Authority / tenant — built (CR-071).** A distinct `sponsoring_authority` JSONB field now exists (migration 122; §18.10/§18.11), independent of `requested_by`. A child copies its parent's value at creation; a Strategic root derives it fresh from its creator's own tenant.
 - **§18.5 derived achievement — open.** `Achieved` remains a manual governed transition; nothing derives it from SEU completion.
 - **Creation authority — ungoverned.** See §18.10 (creation carries no role or badge check).

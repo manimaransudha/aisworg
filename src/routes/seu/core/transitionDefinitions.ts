@@ -3,6 +3,7 @@
 // Definitions. Structural + referential check, same reasoning as
 // validatePackSeed/validateTemplateSeed/validateProfileSeed.
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
+import { authorityVocabularyDB } from "../../../dblayer/authorityVocabularyDB.js";
 import { authorityRulesDB } from "../../../dblayer/authorityRulesDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { qualityGatesDB } from "../../../dblayer/qualityGatesDB.js";
@@ -146,8 +147,24 @@ export async function addTransitionDefinition(input: {
     return { ok: false, error: `Verb "${verb}" is not allowed on ${entityType}. Add it on the Mapping tab first.` };
   }
 
-  const { error } = await transitionDefinitionsDB.insertDefinition({ entityType, fromState, toState, verb });
+  // A new edge starts at the mapping's own default_trigger (owner: "add a
+  // dropdown to choose trigger and pass it in the allow function") — set
+  // once, on the Mapping tab, when the noun+verb pair was allowed.
+  const { data: defaultTrigger } = await authorityVocabularyDB.findDefaultTrigger(entityType, verb);
+  const { error } = await transitionDefinitionsDB.insertDefinition({ entityType, fromState, toState, verb, trigger: defaultTrigger });
   return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+// Edit action for the authoring list (owner: "View, Retire and Add are
+// there. Edit is missing") — only creates_obligation/category, same scope
+// transitionDefinitionsDB.updateMetadata deliberately keeps to.
+export async function updateTransitionDefinition(id: string, input: { createsObligation?: string | null; category?: string | null }): Promise<WriteResult> {
+  const { data, error } = await transitionDefinitionsDB.updateMetadata(id, {
+    createsObligation: input.createsObligation?.trim() ? input.createsObligation.trim() : null,
+    category: input.category?.trim() ? input.category.trim() : null,
+  });
+  if (error) return { ok: false, error: error.message };
+  return data ? { ok: true } : { ok: false, error: "No such transition definition." };
 }
 
 export async function retireTransitionDefinition(id: string): Promise<WriteResult> {
