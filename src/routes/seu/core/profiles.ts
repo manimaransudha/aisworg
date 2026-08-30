@@ -395,8 +395,10 @@ async function reactivateAsNewVersion(profile: ProfileRow, actorRole: string, ac
 // for users that have *_define badge. It should create a copy and bump up
 // the version"). Same content reconstruction as reactivateAsNewVersion above,
 // but stops at Draft instead of driving straight through to Active, and
-// works from any status (not just terminal) — mirrors
-// copyTemplateAsNewDraft/copyPackAsNewDraft exactly.
+// works from any status (not just terminal) — mirrors copyTemplateAsNewDraft
+// exactly. (Pack's own copyPackAsNewDraft was removed under CR-081, once its
+// job became reachable through Pack's "New" form's own branch picker
+// instead — Profile/Template haven't been given that same treatment.)
 export async function copyProfileAsNewDraft(profileId: string, actorId: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await profilesDB.findById(profileId);
   if (!source) return { ok: false, errors: ["Profile not found"] };

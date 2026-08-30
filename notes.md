@@ -75,6 +75,11 @@ pack-define@athens.com
 pack_all@platform.com
 template-define@athens.com
 
+
+Validation can happen by both the badges define and validate.  otherwise pack will necer move out of draft. 
+Similarly, reject can be done by validate badge also  and validate can be done by reject badge also
+
+
 Capability Patterns (reusable process fragments)
 
 

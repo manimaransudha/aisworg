@@ -109,9 +109,28 @@ export interface ServiceLevelItem {
 // literal union (that would have to be hand-kept in sync with the Ontology
 // Management admin page, defeating the point).
 export type PackCategory = string;
+// CR-080 — Pack's own lifecycle simplified to 6 states (Deprecated dropped,
+// no functional difference from Retired ever existed at runtime). Left as a
+// superset union rather than narrowed, since Template/Profile/
+// DeliverableDefinition genuinely still have Deprecated in their own real
+// lifecycles and share this same type — narrowing it here would misrepresent
+// theirs, not just Pack's. Pack's own `packs_status_check` CHECK constraint
+// (migration 137) is what actually enforces 'Deprecated' can never be
+// written for a Pack row again.
 export type PackStatus = "Draft" | "Validated" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
 // CR-020: same Ontology-governed treatment (concept_type installation-classification).
 export type PackClassification = string;
+
+// CR-080 — Pack's own comment thread (Validated -> Draft reject requires
+// feedback every time), mirrors ObjectiveCommentRow/objective_comments
+// (CR-073) exactly — no generic/shared comment table exists to reuse.
+export interface PackCommentRow {
+  id: string;
+  pack_id: string;
+  comment_text: string;
+  actor_id: number | null;
+  created_at: string;
+}
 
 // CR-016 (Ch.5 §20) — the per-item executable-verification metadata. `statement`
 // is the human-readable standard; `classification` is who/what determines pass/

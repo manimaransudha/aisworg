@@ -28,48 +28,67 @@
       <% } %>
     </div>
 
-    <%# CR-027 — one vertical-tab sidebar for the whole page: the per-verb
-        Draft tabs for Pack/Template/Profile, or (Transition Definition only,
-        `definitions` set) the CR-006 Stage 1b authority tabs — everything
-        else on the page (the tab content, and for Transition Definition the
-        Current Transition Definitions section below) sits in the content
-        column beside it. %>
+    <%# CR-027 — one vertical-tab sidebar for the whole page: (Transition
+        Definition only, `definitions` set) the CR-006 Stage 1b authority
+        tabs — everything else on the page sits in the content column beside
+        it. Owner: "I want to change the packs list Pack authoring-All packs
+        similar to Objectives. List ... as a list with action buttons
+        corresponding to the badge" — the old per-verb Draft tabs (one "I
+        defined" tab + a cross-author "Queue" tab per verb) are gone; every
+        grammar-authored kind (Pack/Template/Profile/Deliverable) now gets
+        one flat list of the viewer's own authored rows, each row carrying
+        whatever governed-transition buttons the viewer currently holds the
+        badge for (rows[].actions, computeRowActions — core/sdkAuthoring.ts),
+        mirroring Objectives' own inline per-row action buttons instead of
+        requiring a click into the row's own edit page first. %>
     <div class="d-flex flex-column flex-md-row gap-4 align-items-start">
     <% if (locals.definitions) { %>
       <%- include('../../../partials/authorityTabs', { active: 'definitions' }) %>
-    <% } else { %>
-      <%- include('../../../partials/verticalTabs', { tabs: (locals.tabs || []).map(function (t) { return { key: t.key, label: t.label, sub: '<code>' + t.verb + '</code>' }; }), paneMode: true }) %>
     <% } %>
     <div class="flex-grow-1" style="min-width: 0;">
 
     <% if (typeof showDrafts === 'undefined' || showDrafts) { %>
-      <% const _tabs = locals.tabs || []; %>
-      <div class="tab-content">
-        <% _tabs.forEach(function(t, i) { %>
-          <div class="tab-pane fade <%= i === 0 ? 'show active' : '' %>" id="tab-<%= t.key %>" role="tabpanel">
-            <div class="card border-0 shadow-sm">
-              <div class="card-body">
-                <table class="table table-sm align-middle mb-0">
-                  <thead><tr><th>Code</th><th>Name</th><th>Status</th><th>Created</th><th></th></tr></thead>
-                  <tbody>
-                    <% t.rows.forEach(function(r) { %>
-                      <tr>
-                        <td class="small text-muted"><%= r.code %></td>
-                        <td class="small"><%= r.name %></td>
-                        <td><span class="state-badge state-<%= r.status.replace(/\s+/g,'') %>"><%= r.status %></span></td>
-                        <td class="text-muted small"><%= new Date(r.createdAt).toLocaleString() %></td>
-                        <td><a class="btn btn-sm btn-outline-primary" href="/aisworg/seu/sdk/<%= slug %>/<%= r.id %>"><%= t.key === 'define' ? 'Open' : 'View' %></a></td>
-                      </tr>
+      <% const _rows = locals.rows || []; %>
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>Code</th><th>Name</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+            <tbody>
+              <% _rows.forEach(function(r) { %>
+                <tr>
+                  <td class="small text-muted"><%= r.code %></td>
+                  <td class="small"><%= r.name %></td>
+                  <td><span class="state-badge state-<%= r.status.replace(/\s+/g,'') %>"><%= r.status %></span></td>
+                  <td class="text-muted small"><%= new Date(r.createdAt).toLocaleString() %></td>
+                  <td class="text-nowrap">
+                    <a class="btn btn-sm btn-outline-primary" href="/aisworg/seu/sdk/<%= slug %>/<%= r.id %>">Open</a>
+                    <% (r.actions || []).forEach(function(a) { %>
+                      <% var _verbLabel = a.verb.charAt(0).toUpperCase() + a.verb.slice(1); %>
+                      <% if (a.endpoint === 'publish') { %>
+                        <form method="POST" action="/aisworg/seu/sdk/<%= slug %>/<%= r.id %>/publish" class="d-inline">
+                          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                          <button type="submit" class="btn btn-sm btn-primary"><%= _verbLabel %></button>
+                        </form>
+                      <% } else { %>
+                        <form method="POST" action="/aisworg/seu/sdk/<%= slug %>/<%= r.id %>/transition" class="d-inline-flex align-items-center gap-1">
+                          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                          <input type="hidden" name="targetState" value="<%= a.toState %>">
+                          <% if (a.requiresComment) { %>
+                            <input type="text" name="comment" class="form-control form-control-sm" style="width: 12rem;" placeholder="Comment (required)" required>
+                          <% } %>
+                          <button type="submit" class="btn btn-sm btn-outline-secondary"><%= _verbLabel %></button>
+                        </form>
+                      <% } %>
                     <% }) %>
-                    <% if (t.rows.length === 0) { %>
-                      <tr><td colspan="5" class="text-muted small text-center py-3">Nothing in “<%= t.label %>” yet<%= t.key === 'define' ? ' — start one with “New '+kindLabel+'”.' : '.' %></td></tr>
-                    <% } %>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        <% }) %>
+                  </td>
+                </tr>
+              <% }) %>
+              <% if (_rows.length === 0) { %>
+                <tr><td colspan="5" class="text-muted small text-center py-3">Nothing yet — start one with “New <%= kindLabel %>”.</td></tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
       </div>
     <% } else { %>
       <p class="text-muted small mb-2"><i class="bi bi-info-circle me-1"></i>Transition definitions are authored directly in the form below (noun × verb), not as grammar drafts.</p>

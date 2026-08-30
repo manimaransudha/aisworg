@@ -2,6 +2,19 @@ import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, EventConsumptionEntry, EventRow, EventSubscriptionRow } from "./seuTypes.js";
 
+// Owner: "In the eventbus UI, the columns should be sortable." Whitelisted
+// sort keys -> trusted SQL column expressions — the web route's own `sort`
+// query param is checked against these keys (never interpolated directly),
+// same discipline every other sortable list page in this app already uses.
+const SORT_COLUMNS: Record<string, string> = {
+  sequence: "sequence",
+  eventType: "event_type",
+  entityType: "originating_object_type",
+  seuId: "seu_id",
+  actor: "actor_id",
+  occurredAt: "occurred_at",
+};
+
 export const eventsDB = {
   // seuId is required (not optional): forces every caller to consciously
   // decide it, verified by typecheck — null is a deliberate, correct answer
@@ -137,12 +150,21 @@ export const eventsDB = {
   // column directly (set on every event a Deliverable/SEU transition
   // publishes — confirmed against deliverables.ts's own eventBus.publish
   // calls), not a cross-object join.
+  // Owner: "In the eventbus UI, the columns should be sortable." sort/dir are
+  // whitelisted against SORT_COLUMNS below (never interpolated raw) — same
+  // discipline as runPaginatedQuery's own sortMap (listQuery.ts), which this
+  // hand-rolled query predates and doesn't reuse (findPage's own WHERE
+  // building has its own optional-condition shape runPaginatedQuery's single
+  // baseWhere string doesn't fit as directly).
   async findPage(opts: {
     limit: number;
     offset: number;
     seuId?: string;
     eventType?: string;
     entityType?: string;
+    name?: string;
+    sort?: string;
+    dir?: "asc" | "desc";
   }): Promise<DbResult<{ items: EventRow[]; total: number }>> {
     try {
       const conditions: string[] = [];
@@ -159,11 +181,22 @@ export const eventsDB = {
         params.push(opts.entityType);
         conditions.push(`originating_object_type = $${params.length}`);
       }
+      // Owner: "Include a search by the name" — there's no dedicated name
+      // column on events; every publisher puts the entity's own `code` (its
+      // real human identifier) on the payload, and a few use `name` instead
+      // (same convention the view's own _entityLabel display reads), so this
+      // searches both payload keys rather than a real column.
+      if (opts.name) {
+        params.push(`%${opts.name}%`);
+        conditions.push(`(payload->>'code' ILIKE $${params.length} OR payload->>'name' ILIKE $${params.length})`);
+      }
       const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+      const orderColumn = SORT_COLUMNS[opts.sort ?? ""] ?? "sequence";
+      const orderDir = opts.dir === "asc" ? "ASC" : "DESC";
 
       const countRes = await query<{ n: number }>(`SELECT count(*)::int AS n FROM events ${where}`, params);
       const { rows } = await query<EventRow>(
-        `SELECT * FROM events ${where} ORDER BY sequence DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        `SELECT * FROM events ${where} ORDER BY ${orderColumn} ${orderDir} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
         [...params, opts.limit, opts.offset]
       );
       return { data: { items: rows, total: countRes.rows[0]?.n ?? 0 } };

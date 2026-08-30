@@ -202,13 +202,34 @@
         <input type="hidden" name="parentDeliverableDefinitionId" value="<%= inheritingFromDeliverableDefinitionId %>">
       <% } %>
 
-      <%- include('../_generatedFieldGroups', { groups: groups, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, templateOptions: locals.templateOptions, ontologyOptions: locals.ontologyOptions, contributionHelp: locals.contributionHelp, verifiableFieldHelp: locals.verifiableFieldHelp, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions }) %>
+      <%- include('../_generatedFieldGroups', { groups: groups, canEdit: canEdit, isNew: isNew, kindLabel: kindLabel, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, templateOptions: locals.templateOptions, ontologyOptions: locals.ontologyOptions, packCodeVersions: locals.packCodeVersions, contributionHelp: locals.contributionHelp, verifiableFieldHelp: locals.verifiableFieldHelp, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions, renderMarkdown: locals.renderMarkdown }) %>
 
       <% if (canEdit || canPublish) { %>
         <div class="authoring-action-bar">
           <div class="container d-flex gap-2 align-items-center">
             <% if (canEdit) { %>
-              <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-save me-1"></i><%= isNew ? 'Create draft' : 'Save draft' %></button>
+              <%# Bug fix (owner: "Clicking on create draft seems to do
+                  nothing") — every Contribution-type tab always renders one
+                  blank "New item" row (the clone template for "+ Add
+                  another"), `required` attributes and all, regardless of
+                  whether the author intends to use that contribution type at
+                  all. On a fresh Pack only ONE tab is visible at a time
+                  (CR-027); every OTHER tab's blank row sits inside a
+                  `display:none` pane. A plain submit triggers the browser's
+                  native constraint validation first, which finds those
+                  empty required fields, can't show a validation message on
+                  an element it can't scroll to/focus (hidden), and silently
+                  aborts the whole submission — no error, no redirect,
+                  nothing. formGenerator.ts's own parseFormBody already
+                  drops a genuinely blank row (by its identifying field, not
+                  by "every field empty" — CR-024's own fix for the opposite
+                  phantom-row bug) before it ever reaches validation
+                  server-side, so this client-side block was never actually
+                  protecting anything real. #advance-btn below already works
+                  around the identical problem with formnovalidate; this is
+                  the same fix for the OTHER, far more commonly used submit
+                  button on this same form. %>
+              <button type="submit" formnovalidate class="btn btn-sm btn-primary"><i class="bi bi-save me-1"></i><%= isNew ? 'Create draft' : 'Save draft' %></button>
               <a href="/aisworg/seu/sdk/<%= slug %>" class="btn btn-sm btn-outline-secondary">Cancel</a>
             <% } %>
             <% if (canPublish) { %>
@@ -267,15 +288,39 @@
       <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
           <h6 class="text-uppercase text-muted small fw-bold mb-2">Lifecycle</h6>
-          <form method="POST" action="/aisworg/seu/sdk/<%= slug %>/<%= draft.id %>/transition" class="d-flex align-items-center gap-2">
+          <form method="POST" action="/aisworg/seu/sdk/<%= slug %>/<%= draft.id %>/transition" class="d-flex align-items-start gap-2 flex-wrap">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <select name="targetState" class="form-select form-select-sm" style="width: auto;">
               <% locals.possibleNextStates.forEach(function(s) { %>
                 <option value="<%= s %>"><%= s %></option>
               <% }) %>
             </select>
+            <%# CR-080 — Pack's own Validated -> Draft (Reject) requires a
+                genuinely new comment every time (enforced in transitionPack
+                itself, not here) — one shared, always-optional field on this
+                same generic form rather than a separate Reject-only form,
+                since every other target state simply ignores it. %>
+            <% if (kindLabel === 'Pack') { %>
+              <input type="text" name="comment" class="form-control form-control-sm" style="width: auto; min-width: 260px;" placeholder="Comment (required when rejecting back to Draft)">
+            <% } %>
             <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
           </form>
+        </div>
+      </div>
+    <% } %>
+
+    <% if (kindLabel === 'Pack' && !isNew && (locals.packComments || []).length > 0) { %>
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+          <h6 class="text-uppercase text-muted small fw-bold mb-2">Comments</h6>
+          <ul class="list-unstyled small mb-0">
+            <% locals.packComments.forEach(function(c) { %>
+              <li class="mb-2 pb-2 border-bottom">
+                <div><%= c.comment_text %></div>
+                <div class="text-muted" style="font-size: .75rem;"><%= new Date(c.created_at).toLocaleString() %></div>
+              </li>
+            <% }) %>
+          </ul>
         </div>
       </div>
     <% } %>
@@ -417,6 +462,8 @@
     })();
   </script>
   <script src="<%= baseUrl %>/js/referentialListGroup.js"></script>
+  <script src="<%= baseUrl %>/js/markdownEditor.js"></script>
+  <script src="<%= baseUrl %>/js/dynamicOntologyField.js"></script>
 
   <%- include('../../../partials/footer') %>
 </body>

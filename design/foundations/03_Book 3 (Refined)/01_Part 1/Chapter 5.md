@@ -388,33 +388,9 @@ The Composition Engine shall resolve all required dependencies before commission
 
 Every Pack shall transition through the following lifecycle.
 
-```
-Draft
+~~Draft → Validated → Published → Active → Deprecated → Retired → Archived~~
 
-↓
-
-Validated
-
-↓
-
-Published
-
-↓
-
-Active
-
-↓
-
-Deprecated
-
-↓
-
-Retired
-
-↓
-
-Archived
-```
+[Remarks: 2026-08-29, owner ("Let us just use retired") — Deprecated dropped entirely (never actually distinguished from Retired at runtime; confirmed by reading every call site). Current lifecycle: **Draft → Validated → Published → Active → Retired → Archived**, plus a **Validated → Draft (Reject)** hop requiring a mandatory, always-new comment (owner: "There has to be a comment field and a similar implementation," mirroring Objective's CR-073 discipline — not its target state, since Pack's own schema validation makes "send it back to Draft to fix" meaningful in a way Objective's own distinct Reject status never was: "Validation validates against packs' schema. Objective has no schema"). Reactivation from a terminal state (Retired/Archived → Active) is also removed entirely (owner: "Remove: Retired -> Active (reactivation) / Remove: Archived -> Active (reactivation)") — once Retired or Archived, a Pack Version is permanently done; the only way to carry its content forward is Copy (§19's `copyPackAsNewDraft`), which lands in Draft, not Active. See CR-080, §15, §19.3, §19.11.]
 
 Historical Pack versions shall remain available for reproducing historical Engineering Behavior Models.
 
@@ -465,10 +441,13 @@ The Pack subsystem shall publish events including:
 - PackValidated
 - PackPublished
 - PackActivated
-- PackDeprecated
+- ~~PackDeprecated~~
 - PackRetired
 - PackDependencyResolved
 - PackDependencyFailed
+- PackRejected
+
+[Remarks: 2026-08-29, CR-080 — `PackDeprecated` no longer fires; Deprecated dropped from the lifecycle entirely (§11). `PackRejected` added for the new `Validated → Draft` hop.]
 
 
 
@@ -531,9 +510,13 @@ A Pack is a single `packs` row (migration `002`). Its behaviour lives entirely i
 
 Pack identity is `(code, pack_version)` (`UNIQUE`, migration `010`), not `code` alone. Each published version is its own immutable row; republishing under a new version creates a new row and transitions the previously-Active version of the same code to `Deprecated` (`publishPack`). Every EBM records the exact `packCode` + `packVersion` it composed (`compositionEngine` → `composedPacks`), so a historical EBM is reproducible (§12, §11 "historical versions remain available"). **Caveat (Ch.41 scope note):** immutability is enforced at the **Pack-row** level only — the individual contributed sub-objects (capabilities, policies, authority rules, quality gates) still upsert by their own `code`, so a re-published Pack version can mutate a shared contributed object in place. Generalising immutability to every contributed object is a known residual gap, not solved here.
 
+**Update 2026-08-29 (CR-080):** the previously-Active version is now superseded to `Retired`, not `Deprecated` — Deprecated dropped from Pack's lifecycle entirely (§11). Same mechanism, renamed target state.
+
 ## 19.3 ✅ Lifecycle is governed by the same engine as every entity (§11)
 
 `packs.status` carries all seven states (`Draft → Validated → Published → Active → Deprecated → Retired → Archived`, CHECK in `002`), and Pack is a first-class `TransitionEntityType` — its lifecycle runs through the same generic `transitionEngine` as Deliverables/Objectives/etc., with authority + policy declared as ordinary `transition_definitions` rows (no Pack-specific evaluation code). `createPackDraft`/`advancePackLifecycle`/`publishPack`/`transitionPack` drive the hops. Reactivation from a terminal state does **not** resurrect the old row — it mints a new version (`reactivateAsNewVersion`), preserving §12 immutability.
+
+**Update 2026-08-29 (CR-080, owner: "Let us just use retired... Remove: Retired -> Active (reactivation) / Remove: Archived -> Active (reactivation)"):** the paragraph above no longer holds. `packs.status` now carries **six** states (`Draft → Validated → Published → Active → Retired → Archived`, migration `137`) — Deprecated dropped, confirmed by reading every call site (`findActiveByCode`, `TERMINAL_REACTIVATABLE_STATES`) that it was never actually distinguished from Retired at runtime. Reactivation from a terminal state (`reactivateAsNewVersion`) is **removed entirely**, not preserved — once Retired or Archived, a Pack Version is permanently done; `copyPackAsNewDraft` (Registry "Copy") is the only way to carry its content forward, and it lands in Draft, not Active. New: `Validated → Draft` (Reject), requiring a mandatory, always-new comment (`pack_comments`, migration `137`) — mirrors Objective's CR-073 discipline, not its target state (owner: "Validation validates against packs' schema. Objective has no schema" — Pack's own schema validation is what makes "send it back to Draft to fix" a meaningful destination, unlike Objective's own distinct `Reject` status). See §11, §15, §19.11's authority table below (also updated).
 
 ## 19.4 ✅ Contributions — structured & schema-defined; every kind's design now closed against its governing chapter (§9; CR-016; CR-058; CR-059; CR-060; CR-061; CR-062; CR-064; CR-065)
 
@@ -615,15 +598,15 @@ Pack authorisation rides the CR-006 `noun × verb` badge model with **zero Pack-
 - **Batch (seed / CLI / direct publish).** `publishPack → advancePackLifecycle` chains every hop from `Draft` through to `Active` in one call — the caller must hold every verb the chain needs (root, or a seed/CLI actor granted the full set).
 - **Interactive authoring** (`/aisworg/seu/sdk/pack-authoring`). `publishAuthoringDraft → advancePackOneStep` runs **exactly the next hop** off the Draft's current status per call, gated on only that hop's badge. This is what makes real separation of duties possible: a `pack_validate`-only holder can move a Draft to `Validated` and stop there; a *different* actor holding `pack_publish` takes it from there, and so on — no single actor needs the union of every verb just to touch a Draft. **Bug fix correcting CR-014 (2026-08-17):** the authoring UI used to chain the *whole* remaining pipeline in one action, so only an all-verbs holder (e.g. a `pack_all` fixture) could ever move anything past `Draft` — the per-verb badge table below was true of `publishPack` but silently false of what a real single-verb author could do through the UI. The authoring surface's per-verb tabs (`buildAuthoringTabs`) are the direct UI expression of this table — one tab per verb the actor holds ("Active Packs", "User defined Packs", "User reviewed Packs", …, however many verbs the noun has), each showing what's currently sitting at that verb's stage, scoped to what *this actor themself* did (via the events accountability record, [[every-transition-real-actor-and-badge]]) — except the live Active catalog, which shows the whole registry.
 
-Per-hop badges:
+Per-hop badges (updated 2026-08-29, CR-080 — `pack_deprecate` retired along with `Deprecated` itself; terminal → Active reactivation removed, not just renamed; `pack_reject` added for the new `Validated → Draft` hop, migration `137`):
 
 | Transition | Badge |
 |||
 | Draft → Validated | `pack_validate` |
 | Validated → Published | `pack_publish` |
-| Published → Active (and terminal → Active reactivation) | `pack_activate` |
-| Active → Deprecated | `pack_deprecate` |
-| Deprecated → Retired | `pack_retire` |
+| Validated → Draft (Reject) | `pack_reject` |
+| Published → Active | `pack_activate` |
+| Active → Retired | `pack_retire` |
 | Retired → Archived | `pack_archive` |
 
 **Pack *creation* follows the same uniform model as every entity (Ch.1 §18.10), and is not a Pack-specific gap.** `createPackDraft` (the birth into `Draft`) is not badge-gated today only because the platform-wide **`define` birth transition ("create-as-transition") is not yet wired for any entity** — a deferred, already-modelled step, not an omission. When it lands, `transitionEngine` derives `pack_define` and gates creation through the same engine, with no Pack-specific code. (`define` = birth into the initial state, distinct from `create` = "begin work — move out of the initial state.")

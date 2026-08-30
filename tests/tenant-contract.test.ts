@@ -71,7 +71,7 @@ async function commissionAndDispatch(prefix: string, tenantId: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromForm({
     statement: `${prefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,
     tenantId,
   });
@@ -158,7 +158,7 @@ test("a SEU commissioned without a named tenant belongs to the seeded default te
   assert.ok(def, "a default tenant is seeded");
   const result = await commissionFromForm({
     statement: `tenant-default-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,
   });
   assert.equal(result.ok, true);

@@ -32,10 +32,11 @@
             <th><%- sortLink('Legacy role', 'role', list, _base) %></th>
             <th>Active</th>
             <th>Badges</th>
+            <th>Actions</th>
           </tr></thead>
           <tbody>
             <% if (list.total === 0) { %>
-              <tr><td colspan="5" class="text-muted small text-center py-3"><%= list.q ? 'No users match your search.' : 'No users.' %></td></tr>
+              <tr><td colspan="6" class="text-muted small text-center py-3"><%= list.q ? 'No users match your search.' : 'No users.' %></td></tr>
             <% } %>
             <% list.items.forEach(function(u) { %>
               <tr>
@@ -47,6 +48,30 @@
                   <% u.platformBadges.forEach(function(b) { %>
                     <span class="badge bg-secondary-subtle text-dark-emphasis me-1"><%= b %></span>
                   <% }) %>
+                </td>
+                <td class="text-nowrap">
+                  <%# Owner: "add an action button to edit the users" — role +
+                      Active, the same two columns the legacy /auth/users page
+                      already edits (updatePlatformUser, core/identity.ts).
+                      Self-edit guard mirrors that same legacy page: an admin
+                      can't demote or deactivate their own only account from
+                      here — enforced server-side too, not just hidden here. %>
+                  <% if (u.email === currentUserEmail) { %>
+                    <span class="text-muted small">(you)</span>
+                  <% } else { %>
+                    <form method="POST" action="/aisworg/seu/identity/users/<%= u.id %>/update" class="d-flex align-items-center gap-2">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <select name="role" class="form-select form-select-sm" style="width: auto;">
+                        <option value="general" <%= u.role === 'general' ? 'selected' : '' %>>general</option>
+                        <option value="power" <%= u.role === 'power' ? 'selected' : '' %>>power</option>
+                        <option value="super" <%= u.role === 'super' ? 'selected' : '' %>>super</option>
+                      </select>
+                      <div class="form-check form-switch mb-0" title="Active">
+                        <input class="form-check-input" type="checkbox" name="isActive" value="true" <%= u.is_active ? 'checked' : '' %>>
+                      </div>
+                      <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                    </form>
+                  <% } %>
                 </td>
               </tr>
             <% }) %>

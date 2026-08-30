@@ -10,12 +10,24 @@
     name/code/version/category of every Active Pack visible to this viewer;
     used by Dependencies AND any other referential-list whose item field
     sources "pack-code" — Template's mandatoryPackCodes, Profile's
-    optionalPackCodes). %>
+    optionalPackCodes), renderMarkdown (CR-077 — (raw: string) => string,
+    only called in read mode for an itemField/nestedItemField flagged
+    markdown:true). %>
 <%
   function ilabel(n) { return n.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, function(c){ return c.toUpperCase(); }); }
   var isDependencies = field.name === 'dependencies';
   var packOptions = locals.packDependencyOptions || [];
-  var categoryOptions = (locals.referentialOptions || {})['pack-category'] || [];
+  // Bug fix (owner: "In dependencies, there is a category tab. It is not
+  // populated... It should be one of the ontology pack categories") — this
+  // read from referentialOptions['pack-category'], a key loadReferentialOptions
+  // (web/sdkAuthoring.ts) never actually populates; Pack's own category field
+  // has been Ontology-driven (x-referential-source "category:pack",
+  // ontologyOptions, not referentialOptions) since CR-079, and this filter
+  // was never updated to match. Same source, same 6 values (Domain,
+  // Engineering, ...) Pack's own Category field itself offers; code and
+  // label are identical for this concept type, so plain codes are enough for
+  // a value-and-display-text filter option.
+  var categoryOptions = ((locals.ontologyOptions || {})['category:pack'] || []).map(function(opt) { return opt.code; });
   var typeItemField = isDependencies ? field.itemFields.find(function(f) { return f.name === 'type'; }) : null;
 %>
 <% if (!canEdit) { %>
@@ -243,6 +255,10 @@
                           for many TOP-LEVEL rows, not a handful of sub-rows
                           already scoped inside one Checklist. %>
                       <% var nestedViewRows = Array.isArray(value) ? value.slice(0, Math.max(value.length - 1, 0)) : []; %>
+                      <%# CR-077 — Checklist item's own statement carries
+                          x-format:"markdown"; render it the same way the
+                          main table cell branch below does. %>
+                      <% var nestedStatementMarkdown = (itemField.nestedItemFields || []).some(function(nf) { return nf.name === 'statement' && nf.markdown; }); %>
                       <% if (!nestedViewRows.length) { %>
                         <span class="text-muted">None</span>
                       <% } else { %>
@@ -250,7 +266,7 @@
                           <% nestedViewRows.forEach(function(nestedRow) { %>
                             <li class="mb-1">
                               <span class="badge <%= nestedRow.mandatory === 'Mandatory' ? 'bg-danger-subtle text-danger' : 'bg-secondary-subtle text-secondary' %> small fw-normal me-1"><%= nestedRow.mandatory || '—' %></span>
-                              <%= nestedRow.statement || '—' %>
+                              <% if (nestedStatementMarkdown && nestedRow.statement) { %><%- renderMarkdown(nestedRow.statement) %><% } else { %><%= nestedRow.statement || '—' %><% } %>
                               <% if (nestedRow.participant) { %><span class="text-muted">(<%= nestedRow.participant %>)</span><% } %>
                             </li>
                           <% }) %>
@@ -290,6 +306,8 @@
                       <% } else { %>
                         <%= value ? ('⚠ ' + value + ' (not currently Active' + (_fixedCategory ? ' / not ' + _fixedCategory : '') + ')') : '—' %>
                       <% } %>
+                    <% } else if (itemField.markdown && value) { %>
+                      <%- renderMarkdown(value) %>
                     <% } else { %>
                       <%= value || '—' %>
                     <% } %>
@@ -433,6 +451,8 @@
                               <div class="form-check mt-1">
                                 <input type="checkbox" class="form-check-input" name="<%= nestedInputName %>" value="true" <%= nestedValue === 'true' ? 'checked' : '' %> <%- canEdit ? '' : 'disabled' %>>
                               </div>
+                            <% } else if (nestedField.markdown) { %>
+                              <%- include('_markdownEditorField', { name: nestedInputName, value: nestedValue, required: nestedRequired }) %>
                             <% } else if (nestedFull) { %>
                               <textarea name="<%= nestedInputName %>" class="form-control form-control-sm" rows="2" <%- canEdit ? '' : 'disabled' %> <%- nestedRequired ? 'required' : '' %>><%= nestedValue %></textarea>
                             <% } else { %>
@@ -543,6 +563,8 @@
                 <div class="form-check mt-1">
                   <input type="checkbox" class="form-check-input" name="<%= inputName %>" value="true" <%= value === 'true' ? 'checked' : '' %> <%- canEdit ? '' : 'disabled' %>>
                 </div>
+              <% } else if (itemField.markdown) { %>
+                <%- include('_markdownEditorField', { name: inputName, value: value, required: isRequiredField }) %>
               <% } else if (full) { %>
                 <textarea name="<%= inputName %>" class="form-control form-control-sm" rows="2" <%- canEdit ? '' : 'disabled' %> <%- isRequiredField ? 'required' : '' %>><%= value %></textarea>
               <% } else { %>

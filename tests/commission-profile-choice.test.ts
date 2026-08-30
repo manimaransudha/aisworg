@@ -114,7 +114,7 @@ test("Objective-first commissioning offers a real Profile choice when more than 
     deliverableCatalogue: [{ code: "requirements-spec", name: "Requirements Specification", category: "Documentation", producingCapabilityCode: "requirements-analysis" }],
   });
   assert.equal(templateErr, undefined);
-  const { data: capabilities } = await capabilitiesDB.findByCodes(["requirements-analysis", "architecture"]);
+  const { data: capabilities } = await capabilitiesDB.findByCodes(["requirements-analysis", "architecture-solution-design"]);
   await templatesDB.setRequiredCapabilities(template!.id, (capabilities ?? []).map((c) => c.id));
 
   // Two real Profiles for the same Template — one plain, one declaring
@@ -130,7 +130,7 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   // CR-009: Engineering Objectives need a Strategic parent (only Strategic may be a root).
   // CR-075 — createObjective now requires the parent to be Proposed when adding a child under it.
   const { objective: pcRoot } = await createObjective({ statement: `verify-profile-choice-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed",});
-  const { objective } = await createObjective({ statement: `verify-profile-choice-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture"], tier: "Engineering", parentObjectiveId: pcRoot.id, requestedBy: 1001,});
+  const { objective } = await createObjective({ statement: `verify-profile-choice-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design"], tier: "Engineering", parentObjectiveId: pcRoot.id, requestedBy: 1001,});
   assert.equal(objective.status, "Active");
 
   // 1. getObjectiveDetail surfaces both real Profiles as real candidates.
@@ -150,7 +150,7 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   // 3. Omitting profileId still works via the existing auto-pick fallback
   // (development-environment preference, else first real match) — doesn't
   // throw, still produces a real SEU.
-  const { objective: objective2 } = await createObjective({ statement: `verify-profile-choice-fallback-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture"], tier: "Engineering", parentObjectiveId: pcRoot.id, requestedBy: 1001,});
+  const { objective: objective2 } = await createObjective({ statement: `verify-profile-choice-fallback-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design"], tier: "Engineering", parentObjectiveId: pcRoot.id, requestedBy: 1001,});
   const autoPicked = await commissionFromExistingObjective({ objectiveId: objective2.id, actorRole: "super", actorId: "1001" });
   assert.equal(autoPicked.ok, true, !autoPicked.ok ? JSON.stringify(autoPicked) : undefined);
 });

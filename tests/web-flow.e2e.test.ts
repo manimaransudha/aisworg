@@ -33,13 +33,7 @@ import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
 import { objectivesDB } from "../src/dblayer/objectivesDB.js";
-import { ensureWebAppTemplateFixture, registerTestOntologyCode, deleteTestOntologyCodes } from "./testFixtures.js";
-
-// CR-046 (owner: "the test script should use a code present in the
-// ontology") — Pack.code is Ontology-validated (capability-name) at publish
-// time now; the one real concept this file registers is tracked and cleaned
-// up here, same discipline as pack-sdk.test.ts's own.
-const createdOntologyCodes: Array<{ conceptType: string; code: string }> = [];
+import { ensureWebAppTemplateFixture, uniqueTestPackVersion } from "./testFixtures.js";
 
 type Session = ReturnType<typeof fetchCookie>;
 
@@ -56,7 +50,6 @@ before(async () => {
 });
 
 after(async () => {
-  await deleteTestOntologyCodes(createdOntologyCodes);
   await new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())));
   await pool.end();
 });
@@ -150,7 +143,7 @@ async function commissionSeu(request: Session, statementPrefix: string): Promise
 
   const result = await postForm(request, "/seu/seus", csrf, {
     statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
   });
   assert.equal(result.status, 302, "expected a redirect to the new SEU's detail page");
   assert.ok(result.location?.startsWith("/aisworg/seu/seus/"), `expected a redirect to the SEU detail page, got: ${result.location}`);
@@ -309,7 +302,7 @@ test("Flow 5 — Deliverable transition, dependency gating (regression: must nev
   const { seuId, csrf } = await commissionSeu(request, "webflow-dependency-gating");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const reqCapabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
-  const archCapabilityId = findUnfulfilledCapabilityId(before1.html, "architecture");
+  const archCapabilityId = findUnfulfilledCapabilityId(before1.html, "architecture-solution-design");
   const requirementsSpecId = findDeliverableId(before1.html, "Requirements Specification");
   const architectureDocId = findDeliverableId(before1.html, "Architecture Document");
 
@@ -687,13 +680,23 @@ test("Phase 8 — a blocked Quality Gate and a failed External Interaction both 
 // Registry listing and the lifecycle-transition form.
 test("Phase 9 — a Pack published through the SDK is visible on the platform-wide Registry, and its lifecycle transitions over real HTTP", async () => {
   const request = newSession();
-  const packCode = await registerTestOntologyCode("capability-name", "webflow-phase9-pack");
-  createdOntologyCodes.push({ conceptType: "capability-name", code: packCode });
+  // CR-079 bug fix — `code` used to be a freshly-registered, random-UUID-
+  // suffixed capability-name concept per run. Owner: "the ontology was
+  // updated with what test fixture needs. This should be removed. The
+  // source of truth is what we fed through the migration files." Now a
+  // stable, migration-seeded engineering-name concept (migration 134);
+  // per-run uniqueness moves to packVersion instead, which also means this
+  // code's own Registry history now accumulates across runs — every
+  // assertion below that scopes to "this run's own card" matches on the
+  // specific version too, not the code alone.
+  const packCode = "webflow-phase9-pack";
+  const packVersion = uniqueTestPackVersion();
+  const escapedVersion = packVersion.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const seed = {
     code: packCode,
     name: "WebFlow Phase9 Test Pack",
     category: "Engineering" as const,
-    packVersion: "1.0.0",
+    packVersion,
     installationClassification: "Optional" as const,
     contributions: {},
   };
@@ -707,7 +710,7 @@ test("Phase 9 — a Pack published through the SDK is visible on the platform-wi
   const registryPage = await getPage(request, `/seu/packs?q=${seed.code}`);
   assert.equal(registryPage.status, 200);
   assert.match(registryPage.html, new RegExp(seed.code));
-  assert.match(registryPage.html, /v1\.0\.0/);
+  assert.match(registryPage.html, new RegExp(`v${escapedVersion}`));
 
   // Registry governance relocated to the Authoring page (owner, 2026-08-19:
   // Registry is view-only now — filters + a badge-gated Copy button, no
@@ -717,18 +720,23 @@ test("Phase 9 — a Pack published through the SDK is visible on the platform-wi
   assert.equal(authoringPage.status, 200);
   const csrf = extractCsrf(authoringPage.html);
 
-  const transition = await postForm(request, `/seu/sdk/pack-authoring/${published.pack!.id}/transition`, csrf, { targetState: "Deprecated" });
+  // CR-080 — Deprecated dropped from Pack's lifecycle (Active -> Retired
+  // directly now); Retired is what this transition exercises instead.
+  const transition = await postForm(request, `/seu/sdk/pack-authoring/${published.pack!.id}/transition`, csrf, { targetState: "Retired" });
   assert.equal(transition.status, 302);
 
   const afterTransition = await getPage(request, `/seu/sdk/pack-authoring/${published.pack!.id}`);
   assert.match(afterTransition.html, /alert-success/);
-  assert.match(afterTransition.html, /state-badge state-Deprecated/);
+  assert.match(afterTransition.html, /state-badge state-Retired/);
 
-  // The Registry (view-only) reflects the new state too.
+  // The Registry (view-only) reflects the new state too. `code` is now
+  // stable/reused across runs (see above), so its own card history
+  // accumulates — match on the specific version too, not the code alone, so
+  // this only ever finds THIS run's own card, not an older run's leftover.
   const registryAfter = await getPage(request, `/seu/packs?q=${seed.code}`);
-  const packCardMatches = [...registryAfter.html.matchAll(new RegExp(`${seed.code}[\\s\\S]{0,400}?state-badge state-(\\w+)`, "g"))];
+  const packCardMatches = [...registryAfter.html.matchAll(new RegExp(`${seed.code}[\\s\\S]{0,100}?v${escapedVersion}[\\s\\S]{0,400}?state-badge state-(\\w+)`, "g"))];
   assert.ok(packCardMatches.length > 0, "expected to find the fixture Pack's card on the Registry page");
-  assert.equal(packCardMatches[packCardMatches.length - 1]![1], "Deprecated");
+  assert.equal(packCardMatches[packCardMatches.length - 1]![1], "Retired");
 });
 
 function findReplaceParticipantId(html: string, capabilityCode: string): string {
@@ -812,7 +820,7 @@ test("Objectives — Create and the Edit page's Save both redirect to the list, 
   const created = await postForm(request, "/seu/objectives", newCsrf, {
     statement: originalStatement,
     tier: "Strategic",
-    requiredCapabilityCodes: ["architecture"],
+    requiredCapabilityCodes: ["architecture-solution-design"],
   });
   assert.equal(created.status, 302);
   assert.equal(created.location, "/aisworg/seu/objectives", `expected Create to redirect to the list page, got: ${created.location}`);
@@ -837,7 +845,7 @@ test("Objectives — Create and the Edit page's Save both redirect to the list, 
   const saved = await postForm(request, `/seu/objectives/${objectiveId}/update`, editCsrf, {
     action: "save",
     statement: updatedStatement,
-    requiredCapabilityCodes: ["architecture"],
+    requiredCapabilityCodes: ["architecture-solution-design"],
   });
   assert.equal(saved.status, 302);
   assert.equal(saved.location, "/aisworg/seu/objectives", `expected Save to redirect to the list page, got: ${saved.location}`);
@@ -864,7 +872,7 @@ test("Objectives — the list hides Edit once locked; Comments still works; a di
   const created = await postForm(request, "/seu/objectives", newCsrf, {
     statement: originalStatement,
     tier: "Strategic",
-    requiredCapabilityCodes: ["architecture"],
+    requiredCapabilityCodes: ["architecture-solution-design"],
   });
   assert.equal(created.status, 302);
   assert.equal(created.location, "/aisworg/seu/objectives");
@@ -902,7 +910,7 @@ test("Objectives — the list hides Edit once locked; Comments still works; a di
   const saveAttempt = await postForm(request, `/seu/objectives/${objectiveId}/update`, commentCsrf, {
     action: "save",
     statement: "should-not-apply",
-    requiredCapabilityCodes: ["architecture"],
+    requiredCapabilityCodes: ["architecture-solution-design"],
   });
   assert.equal(saveAttempt.status, 302);
   assert.equal(saveAttempt.location, `/aisworg/seu/objectives/${objectiveId}/edit`);
@@ -943,7 +951,7 @@ test("Objectives — GET /new, a direct POST create, and GET /:id/edit all real-
   const blockedCreate = await postForm(request, "/seu/objectives", csrf, {
     statement: blockedStatement,
     tier: "Strategic",
-    requiredCapabilityCodes: ["architecture"],
+    requiredCapabilityCodes: ["architecture-solution-design"],
   });
   assert.equal(blockedCreate.status, 302);
   assert.equal(blockedCreate.location, "/aisworg/seu/objectives");
@@ -1018,7 +1026,7 @@ test("Objectives — the web layer's own tenant-reach gate blocks a real badge h
     statement: `webflow-tenant-reach-blocked-child-${randomUUID()}`,
     tier: "Engineering",
     parentObjectiveId: babylonObjective.id,
-    requiredCapabilityCodes: ["architecture"],
+    requiredCapabilityCodes: ["architecture-solution-design"],
   });
   assert.equal(blockedChild.status, 302);
   assert.equal(blockedChild.location, "/aisworg/seu/objectives", "refused back to the list, not created");

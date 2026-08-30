@@ -36,8 +36,12 @@
         <label class="form-label small mb-1">Entity type</label>
         <input type="text" name="entityType" class="form-control form-control-sm" style="width: 12rem;" value="<%= filters.entityType %>" placeholder="e.g. Objective">
       </div>
+      <div>
+        <label class="form-label small mb-1">Name</label>
+        <input type="text" name="name" class="form-control form-control-sm" style="width: 14rem;" value="<%= filters.name %>" placeholder="e.g. domain-ebook-library">
+      </div>
       <button type="submit" class="btn btn-sm btn-primary">Filter</button>
-      <% if (filters.seuId || filters.eventType || filters.entityType) { %>
+      <% if (filters.seuId || filters.eventType || filters.entityType || filters.name) { %>
         <a href="/aisworg/seu/events" class="btn btn-sm btn-link text-muted">Clear</a>
       <% } %>
     </form>
@@ -45,13 +49,55 @@
     <div class="d-flex justify-content-between align-items-center mb-2 small text-muted">
       <span><%= list.total === 0 ? 0 : ((list.page - 1) * list.pageSize) + 1 %>&ndash;<%= Math.min(list.page * list.pageSize, list.total) %> of <%= list.total %></span>
       <%
-        function _pageHref(p) {
+        // Owner: "In the eventbus UI, the columns should be sortable." A
+        // local querystring builder, not partials/helpers.ejs's shared
+        // listQueryString/sortLink — those only know the generic q/sort/dir/
+        // page state, not this page's own seuId/eventType/entityType/name
+        // filter form (same reason this page built its own filter form to
+        // begin with, rather than partials/listControls). Both the pager and
+        // the column headers below route through this one function so
+        // sort/dir and all 4 filters are always preserved together.
+        function _qs(overrides) {
           const qs = new URLSearchParams();
-          if (filters.seuId) qs.set('seuId', filters.seuId);
-          if (filters.eventType) qs.set('eventType', filters.eventType);
-          if (filters.entityType) qs.set('entityType', filters.entityType);
-          qs.set('page', String(p));
+          const seuId = overrides.seuId !== undefined ? overrides.seuId : filters.seuId;
+          const eventType = overrides.eventType !== undefined ? overrides.eventType : filters.eventType;
+          const entityType = overrides.entityType !== undefined ? overrides.entityType : filters.entityType;
+          const name = overrides.name !== undefined ? overrides.name : filters.name;
+          const sort = overrides.sort !== undefined ? overrides.sort : list.sort;
+          const dir = overrides.dir !== undefined ? overrides.dir : list.dir;
+          const page = overrides.page !== undefined ? overrides.page : list.page;
+          if (seuId) qs.set('seuId', seuId);
+          if (eventType) qs.set('eventType', eventType);
+          if (entityType) qs.set('entityType', entityType);
+          if (name) qs.set('name', name);
+          if (sort) qs.set('sort', sort);
+          if (dir) qs.set('dir', dir);
+          if (page && Number(page) > 1) qs.set('page', String(page));
           return '/aisworg/seu/events?' + qs.toString();
+        }
+        function _pageHref(p) { return _qs({ page: p }); }
+        function _sortLink(label, key) {
+          const active = list.sort === key;
+          const nextDir = active && list.dir === 'asc' ? 'desc' : 'asc';
+          const arrow = active ? (list.dir === 'asc' ? ' ▲' : ' ▼') : '';
+          return '<a href="' + _qs({ sort: key, dir: nextDir, page: 1 }) + '" class="text-decoration-none text-reset">' + label + arrow + '</a>';
+        }
+        // Owner: "Instead of showing the UUID, show the Name" / "and also the
+        // version number if present" — every publisher in this codebase puts
+        // the entity's own `code` (its real human identifier — Pack/Template/
+        // Profile/Deliverable Definition don't carry a separate display name
+        // in their event payloads) on the payload of every lifecycle event;
+        // several also carry a version field, one of several names depending
+        // on kind (packVersion/templateVersion/profileVersion/
+        // definitionVersion). Falls back to the raw id only when a payload
+        // genuinely has neither (e.g. an event type this convention predates)
+        // — the id is still the only way to look the row up in that case.
+        function _entityLabel(e) {
+          const p = e.payload || {};
+          const label = p.code || p.name || null;
+          if (!label) return null;
+          const version = p.packVersion || p.templateVersion || p.profileVersion || p.definitionVersion || p.version || null;
+          return label + (version ? (' v' + version) : '');
         }
       %>
       <div class="btn-group btn-group-sm" role="group">
@@ -66,12 +112,12 @@
         <table class="table table-sm mb-0 align-middle">
           <thead class="table-light">
             <tr>
-              <th>Seq</th>
-              <th>Event</th>
-              <th>Entity</th>
-              <th>SEU</th>
-              <th>Actor</th>
-              <th>Occurred</th>
+              <th><%- _sortLink('Seq', 'sequence') %></th>
+              <th><%- _sortLink('Event', 'eventType') %></th>
+              <th><%- _sortLink('Entity', 'entityType') %></th>
+              <th><%- _sortLink('SEU', 'seuId') %></th>
+              <th><%- _sortLink('Actor', 'actor') %></th>
+              <th><%- _sortLink('Occurred', 'occurredAt') %></th>
               <th>Payload</th>
             </tr>
           </thead>
@@ -83,7 +129,11 @@
               <tr>
                 <td class="mono text-muted"><%= e.sequence %></td>
                 <td><span class="event-type-badge"><%= e.event_type %></span></td>
-                <td class="mono small"><%= e.originating_object_type %><br><span class="text-muted"><%= e.originating_object_id %></span></td>
+                <td class="mono small">
+                  <%= e.originating_object_type %><br>
+                  <% var _label = _entityLabel(e); %>
+                  <span class="text-muted"><%= _label || e.originating_object_id %></span>
+                </td>
                 <td class="mono small">
                   <% if (e.seu_id) { %><a href="/aisworg/seu/seus/<%= e.seu_id %>"><%= e.seu_id %></a><% } else { %><span class="text-muted">&mdash;</span><% } %>
                 </td>

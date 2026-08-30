@@ -12,7 +12,7 @@
 //   4. Structural/referential validation blocks Publish, leaving the Draft a Draft.
 //   5. Template and Profile go through the exact same entity-direct pipeline.
 import "dotenv/config";
-import { test, before, after } from "node:test";
+import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
@@ -28,9 +28,11 @@ import {
   createAuthoringDraft, saveAuthoringDraft, publishAuthoringDraft,
   listInheritableTemplates, inheritedTemplateContent,
   listInheritableProfiles, inheritedProfileContent,
+  inheritedPackVersionContent,
 } from "../src/routes/seu/core/sdkAuthoring.js";
 import { listInheritableDeliverableDefinitions } from "../src/routes/seu/core/deliverableDefinitions.js";
-import { ensureWebAppTemplateFixture, registerTestOntologyCode, deleteTestOntologyCodes } from "./testFixtures.js";
+import { packCodeVersionSummaries } from "../src/routes/seu/core/packs.js";
+import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 
 // Bug fix (owner, 2026-08-17): "the pollution is coming from your tests. They
 // do not clear the test data after the tests are complete." Real — every test
@@ -57,38 +59,27 @@ const createdTemplateIds: string[] = [];
 // code is FORCED to match its parent's, so leftover rows from a prior run
 // would collide the same way Template's own leftovers would.
 const createdProfileIds: string[] = [];
-// CR-046 (owner: "why are test scripts adding code that is not in the
-// ontology??? ... Make sure the pack and profile view pages are also
-// cleaned up and test data population does not corrupt the database") —
-// Pack rows this file publishes were never tracked for cleanup at all before
-// this fix, unlike Template/Profile above; every run left an Active Pack
-// behind permanently.
-const createdPackIds: string[] = [];
 // CR-049 — same discipline: track every deliverable_definitions row (and the
 // ontology_concepts row(s) they materialise/sync) so a rerun against this
 // never-reset dev database doesn't collide or leave junk behind.
 const createdDeliverableDefinitionIds: string[] = [];
 const createdOntologyConceptCodes: string[] = [];
-// CR-046 + 2026-08-25 (real, observed race): REAL_PACK_CODE used to be the
-// literal "development", then "test-development" — both are stable, shared
-// identities other test fixtures depend on for real capability derivation /
-// FK anchoring (ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates).
-// This file's own after() unconditionally deletes every Pack row it creates
-// under REAL_PACK_CODE by id — safe for a code nothing else references, but
-// a real crash when a concurrently-running test file's fixture setup had
-// already created a quality_gates row pointing at one of THIS file's
-// `test-development` rows in between ("update or delete on table packs
-// violates foreign key constraint quality_gates_originating_pack_id_fkey").
-// Fixed by giving this file its OWN randomized, per-run capability-name
-// concept (same discipline pack-sdk.test.ts's own freshPackSeed already
-// uses) — nothing else can ever hold a stable reference to it.
-const createdPackOntologyCodes: Array<{ conceptType: string; code: string }> = [];
-let REAL_PACK_CODE: string;
-
-before(async () => {
-  REAL_PACK_CODE = await registerTestOntologyCode("capability-name", "test-sdk-pack");
-  createdPackOntologyCodes.push({ conceptType: "capability-name", code: REAL_PACK_CODE });
-});
+// CR-079 bug fix — REAL_PACK_CODE used to be a freshly-registered, random-
+// UUID-suffixed capability-name concept per run (registerTestOntologyCode),
+// specifically to dodge a real, observed crash: this file's own after() used
+// to hard-DELETE every Pack row it created, and a concurrently-running test
+// file's own fixture setup (ensureWebAppTemplateFixture/
+// ensureCoreEngineeringQualityGates) had, in between, created a quality_gates
+// row with originating_pack_id pointing at one of THIS file's stable-coded
+// rows — "update or delete on table packs violates foreign key constraint
+// quality_gates_originating_pack_id_fkey". Owner: "sdk-authoring.test.ts
+// also should behave like other files" — fixed at the actual root instead:
+// this file no longer deletes its own Pack rows at all (see after(), below),
+// the same "leave it, never delete" discipline pack-sdk.test.ts/
+// pack-composition.test.ts/etc. already use, which is what makes a stable,
+// migration-seeded code (134) safe for them. With nothing ever deleting a
+// Pack row, the FK race this dynamic registration was dodging can't happen.
+const REAL_PACK_CODE = "test-sdk-pack";
 
 after(async () => {
   if (createdGrantIds.length) await pool.query("DELETE FROM badge_grants WHERE id = ANY($1::uuid[])", [createdGrantIds]);
@@ -101,11 +92,10 @@ after(async () => {
     await pool.query("DELETE FROM events WHERE originating_object_type = 'DeliverableDefinition' AND originating_object_id = ANY($1::uuid[])", [createdDeliverableDefinitionIds]);
     await pool.query("DELETE FROM deliverable_definitions WHERE id = ANY($1::uuid[])", [createdDeliverableDefinitionIds]);
   }
-  if (createdPackIds.length) {
-    await pool.query("DELETE FROM events WHERE originating_object_type = 'Pack' AND originating_object_id = ANY($1::uuid[])", [createdPackIds]);
-    await pool.query("DELETE FROM packs WHERE id = ANY($1::uuid[])", [createdPackIds]);
-  }
-  await deleteTestOntologyCodes(createdPackOntologyCodes);
+  // CR-079 bug fix — Pack rows this file creates are no longer deleted here
+  // (see REAL_PACK_CODE's own comment above) — they accumulate under the
+  // stable "test-sdk-pack" code exactly like every other test file's own
+  // Pack rows now do.
   if (createdProfileIds.length) {
     // Profiles reference Templates via base_template_id — must be deleted
     // before createdTemplateIds' own cleanup below runs. Clear
@@ -177,9 +167,6 @@ async function advanceToActive(kind: "Pack" | "Template" | "Profile" | "Delivera
 function uniqueVersion(): string {
   return `0.0.${Date.now()}${Math.floor(Math.random() * 1000)}`;
 }
-// REAL_PACK_CODE itself is set in before() above — a freshly registered,
-// randomized-per-run capability-name concept (registerTestOntologyCode),
-// not a fixed string.
 const REAL_TEMPLATE_CODE = "mobile-application"; // real, seeded template-categories concept
 
 function validPackContent(code: string, packVersion: string): Record<string, unknown> {
@@ -193,7 +180,6 @@ test("Pack authoring (entity-direct): root creates a Draft, authors, and publish
   const created = await createAuthoringDraft({ kind: "Pack", actorId: ROOT_ACTOR_ID, content: validPackContent(code, packVersion) });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
   if (!created.ok) return;
-  createdPackIds.push(created.draftId);
 
   // The Draft is a real Pack row, in Draft, authored_by the real actor — no
   // bootstrap SEU / Deliverable anywhere.
@@ -233,7 +219,6 @@ test("Pack authoring authority is noun × verb: a non-root holder of the Pack li
   const okDraft = await createAuthoringDraft({ kind: "Pack", actorId: publisherId, content: validPackContent(REAL_PACK_CODE, okVersion) });
   assert.equal(okDraft.ok, true, !okDraft.ok ? okDraft.errors.join("; ") : undefined);
   if (!okDraft.ok) return;
-  createdPackIds.push(okDraft.draftId);
   const okPublish = await advanceToActive("Pack", okDraft.draftId, publisherId, "general");
   assert.equal(okPublish.ok, true, !okPublish.ok ? okPublish.errors.join("; ") : undefined);
   const { data: activeOk } = await packsDB.findByCodeAndVersion(REAL_PACK_CODE, okVersion);
@@ -244,7 +229,6 @@ test("Pack authoring authority is noun × verb: a non-root holder of the Pack li
   const denyDraft = await createAuthoringDraft({ kind: "Pack", actorId: outsiderId, content: validPackContent(REAL_PACK_CODE, uniqueVersion()) });
   assert.equal(denyDraft.ok, true);
   if (!denyDraft.ok) return;
-  createdPackIds.push(denyDraft.draftId);
   const denyPublish = await publishAuthoringDraft({ kind: "Pack", id: denyDraft.draftId, actorId: outsiderId, actorRole: "general" });
   assert.equal(denyPublish.ok, false, "a holder without Pack authority must NOT be able to publish");
   const { data: stillDraft } = await packsDB.findById(denyDraft.draftId);
@@ -264,7 +248,6 @@ test("Pack authoring, separation of duties: FOUR different single-verb actors ea
   const created = await createAuthoringDraft({ kind: "Pack", actorId: author, content: validPackContent(REAL_PACK_CODE, packVersion) });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
   if (!created.ok) return;
-  createdPackIds.push(created.draftId);
   const { data: draftPack } = await packsDB.findById(created.draftId);
   assert.equal(draftPack!.authored_by, Number(author), "authored_by is the real defining actor");
 
@@ -310,7 +293,6 @@ test("Pack authoring: Publish is blocked by referential validation (unresolvable
   const created = await createAuthoringDraft({ kind: "Pack", actorId: ROOT_ACTOR_ID, content: validPackContent(REAL_PACK_CODE, packVersion) });
   assert.equal(created.ok, true);
   if (!created.ok) return;
-  createdPackIds.push(created.draftId);
 
   // A dependency on a Pack that doesn't exist — fails validatePackSeed at publish.
   await saveAuthoringDraft({ kind: "Pack", id: created.draftId, content: { ...validPackContent(REAL_PACK_CODE, packVersion), dependencies: [{ packCode: "this-pack-does-not-exist", version: "1.0.0", type: "required" }] } });
@@ -321,6 +303,111 @@ test("Pack authoring: Publish is blocked by referential validation (unresolvable
 
   const { data: stillDraft } = await packsDB.findById(created.draftId);
   assert.equal(stillDraft!.status, "Draft");
+});
+
+// CR-081 — the "New Pack" form's own two scenarios once Category/Code are
+// chosen (owner: "Is there a test case that creates a new pack 1) from an
+// existing code and 2) typing a new code?"): picking an existing code offers
+// a branch-picker (inheritedPackVersionContent, mirroring Template/Profile's
+// own inheritedTemplateContent/inheritedProfileContent above exactly), or
+// typing one that resolves to no existing Pack starts a brand-new sequence.
+// Neither had a test before this — packCodeVersionSummaries' own test
+// (pack-sdk.test.ts) covers the pure computation, not the actual Draft this
+// produces end to end.
+test("CR-081: creating a new Pack from an EXISTING code inherits its content (including Contributions, not just code/name/version) and gets the NEXT version in that code's own sequence — never the source's own version", async () => {
+  const sourceVersion = uniqueVersion();
+  // A real Capability contribution, not just the bare minimum
+  // validPackContent gives every other test in this file — the bug this
+  // specific test caught (owner: "There is one dependency and that shows up.
+  // There are no other values for the other tabs") was invisible to a
+  // content-free source: `dependencies` happened to survive because its flat
+  // schema field name matches its own DB column name; every Contribution
+  // type's schema field name (contributionCapabilities, ...) does NOT match
+  // its DB column name (contributions.capabilities, nested) — so a check that
+  // only re-asserted code/name/packVersion, like this test used to, could
+  // never have noticed contributions being dropped.
+  const sourceContent = { ...validPackContent(REAL_PACK_CODE, sourceVersion), contributionCapabilities: [{ code: "code-review", name: "Code Review", description: "Ensures code changes are reviewed." }] };
+  const sourceCreated = await createAuthoringDraft({ kind: "Pack", actorId: ROOT_ACTOR_ID, content: sourceContent });
+  assert.equal(sourceCreated.ok, true, !sourceCreated.ok ? sourceCreated.errors.join("; ") : undefined);
+  if (!sourceCreated.ok) return;
+  const publishedSource = await advanceToActive("Pack", sourceCreated.draftId, ROOT_ACTOR_ID, "general");
+  assert.equal(publishedSource.ok, true, !publishedSource.ok ? publishedSource.errors.join("; ") : undefined);
+
+  // The computed next version is whatever the code's own sequence says right
+  // now — asserted against the same function the branch-picker itself calls,
+  // not a hardcoded guess, since REAL_PACK_CODE accumulates more Versions
+  // every time this file runs against its own never-reset dev database.
+  const summariesBeforeBranch = await packCodeVersionSummaries(PLATFORM_TENANT_ID);
+  const expectedNextVersion = summariesBeforeBranch[REAL_PACK_CODE]?.nextVersion;
+  assert.ok(expectedNextVersion, "the just-Activated source must already appear in its own code's version summary");
+
+  const inherited = await inheritedPackVersionContent(sourceCreated.draftId, PLATFORM_TENANT_ID);
+  assert.equal(inherited.ok, true, !inherited.ok ? inherited.error : undefined);
+  if (!inherited.ok) return;
+  assert.equal(inherited.content.code, REAL_PACK_CODE, "the pre-filled content's code matches the source's");
+  assert.equal(inherited.content.name, "SDK Test Pack", "content (not just code/version) carries over from the source");
+  assert.equal(inherited.content.packVersion, expectedNextVersion, "the computed version is the NEXT in the code's own sequence");
+  assert.notEqual(inherited.content.packVersion, sourceVersion, "branching never reuses the source's own version number");
+  // The bug fix itself: content.contributions (the DB's own nested shape)
+  // must come back FLATTENED into the schema's own field names — the same
+  // names generateFields (formGenerator.ts) reads directly off this object
+  // when rendering the New Pack form's own pre-filled fields.
+  const inheritedCapabilities = inherited.content.contributionCapabilities as Array<{ code: string; name: string }>;
+  assert.equal(inheritedCapabilities?.length, 1, "Capabilities tab content must survive branching, flattened to contributionCapabilities");
+  assert.equal(inheritedCapabilities?.[0]?.code, "code-review");
+
+  const created = await createAuthoringDraft({ kind: "Pack", actorId: ROOT_ACTOR_ID, content: inherited.content });
+  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
+  if (!created.ok) return;
+  assert.notEqual(created.draftId, sourceCreated.draftId, "a genuinely new row, not the source Pack itself");
+
+  const { data: newDraft } = await packsDB.findById(created.draftId);
+  assert.equal(newDraft?.status, "Draft", "branching lands in Draft, same as any other new Pack — never Active");
+  assert.equal(newDraft?.code, REAL_PACK_CODE);
+  assert.equal(newDraft?.pack_version, expectedNextVersion);
+  // Full round trip: flattened back OUT to the form, then back IN through
+  // createAuthoringDraft's own toPackSeedInput — the saved Draft's real DB
+  // column must still carry the same Capability, not have lost it a second
+  // time on the way back to the nested shape.
+  assert.deepEqual(newDraft?.contributions?.capabilities, [{ code: "code-review", name: "Code Review", description: "Ensures code changes are reviewed." }]);
+
+  // The source itself is completely untouched by being branched from.
+  const { data: sourceStillActive } = await packsDB.findById(sourceCreated.draftId);
+  assert.equal(sourceStillActive?.status, "Active");
+  assert.equal(sourceStillActive?.pack_version, sourceVersion);
+});
+
+test("CR-081: creating a new Pack by TYPING A NEW CODE (never published before) starts that code's own version sequence at 1.0.0, independent of every other code", async () => {
+  // A genuinely fresh code every run — unlike REAL_PACK_CODE, this test's own
+  // point is "the FIRST Pack ever created under this code", which can only be
+  // true once per code, ever; a stable code would only be true on this
+  // file's very first run against a given database (see this file's own
+  // "never delete Pack rows" discipline, above) and false on every rerun.
+  // The code itself never becomes a real Ontology concept either way
+  // (createAuthoringDraft's Pack path — unlike createPackDraft's seed-file
+  // path — defers that check entirely to Publish, CR-079's "WIP is allowed
+  // to be incomplete"), so this carries none of the dynamic-concept-
+  // registration risk registerTestOntologyCode used to (see REAL_PACK_CODE's
+  // own comment, above) — it's just a plain string on packs.code, same as
+  // every other test in this file growing packs.code_pack_version_tenant_key
+  // rows it never deletes.
+  const newCode = `test-pack-typed-new-${randomUUID()}`;
+  const created = await createAuthoringDraft({ kind: "Pack", actorId: ROOT_ACTOR_ID, content: validPackContent(newCode, "1.0.0") });
+  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
+  if (!created.ok) return;
+
+  const { data: draft } = await packsDB.findById(created.draftId);
+  assert.equal(draft?.status, "Draft");
+  assert.equal(draft?.code, newCode);
+  assert.equal(draft?.pack_version, "1.0.0", "the very first Pack ever created under a brand-new code starts its sequence at 1.0.0");
+
+  // The branch picker must treat this new code correctly from the moment
+  // this Draft exists: nothing to branch from yet (a Draft is never offered
+  // — Published-through-Archived only), and the next value computes off
+  // THIS Draft, not "1.0.0" again.
+  const summaries = await packCodeVersionSummaries(PLATFORM_TENANT_ID);
+  assert.equal(summaries[newCode]?.versions.length, 0, "a Draft never appears in the branchable existing-versions list");
+  assert.equal(summaries[newCode]?.nextVersion, "1.0.1", "computed off the Draft that now exists, even though it isn't Active");
 });
 
 // CR-038 — requiredCapabilityCodes/mandatoryPackCodes replaced by

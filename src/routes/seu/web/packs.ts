@@ -6,13 +6,15 @@ const router = express.Router();
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
-import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
+import { getFlash } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
-import { listPacksWithNextStates, copyPackAsNewDraft } from "../core/packs.js";
+import { listPacksWithNextStates } from "../core/packs.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
-import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
+import { requireBadge } from "../../../middleware/requireBadge.js";
 
-const PACK_STATES = ["Draft", "Validated", "Published", "Active", "Deprecated", "Retired", "Archived"];
+// CR-080 — Deprecated dropped from Pack's own lifecycle (never actually
+// distinguished from Retired at runtime; migration 137).
+const PACK_STATES = ["Draft", "Validated", "Published", "Active", "Retired", "Archived"];
 
 /** GET /aisworg/seu/packs — Ch.38 §10 Pack Registry: every published Version of every Pack. */
 // Pack ownership visibility (owner: "Platform packs will be available to all
@@ -23,7 +25,7 @@ const PACK_STATES = ["Draft", "Validated", "Published", "Active", "Deprecated", 
 // change to be a tabbed one") — every category actually present among the
 // Packs this viewer can see, plus an "All" tab; ?category= scopes the list
 // before pagination, same as `q` already does.
-router.get("/packs", attachVM("seu/packs/index"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/packs", requireBadge(["None"]), attachVM("seu/packs/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Packs";
     const params = parseListParams(req.query, { sortable: ["name", "version", "status", "category"], defaultSort: "name", defaultDir: "asc" });
@@ -49,36 +51,11 @@ router.get("/packs", attachVM("seu/packs/index"), async (req: Request, res: Resp
     req.vm.opt.activeCategory = activeCategory;
     req.vm.opt.states = PACK_STATES;
     req.vm.opt.activeStatus = activeStatus;
-    // Registry "Copy" action (owner: "Add a Copy button and enable it for
-    // users that have *_define badge") — View-only otherwise (owner: "Do not
-    // include the transition button here"); this page no longer offers any
-    // transition control, root bypasses the badge check the same way every
-    // other noun_verb authorisation does.
-    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
-    const canCopy = actorId ? (await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "pack_define" })).allowed : false;
-    req.vm.opt.canCopy = canCopy;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/packs/index", req.vm);
   } catch (err) {
     logger.error("[web/seu/packs] GET /packs error", err as Error);
     next(err);
-  }
-});
-
-/** POST /aisworg/seu/packs/:id/copy — Registry "Copy" action: a new, editable Draft at the next available version. */
-router.post("/packs/:id/copy", async (req: Request, res: Response) => {
-  const backTo = "/aisworg/seu/packs";
-  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
-  if (!actorId) return flashError(req, res, backTo, "Sign in required.");
-  const auth = await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "pack_define" });
-  if (!auth.allowed) return flashError(req, res, backTo, "You don't hold the pack_define badge.");
-  try {
-    const result = await copyPackAsNewDraft(String(req.params.id), actorId);
-    if (!result.ok) return flashError(req, res, backTo, `Copy failed: ${result.errors.join("; ")}`);
-    return flashSuccess(req, res, `/aisworg/seu/sdk/pack-authoring/${result.draftId}`, "Pack copied — a new Draft is ready to edit.");
-  } catch (err) {
-    logger.error("[web/seu/packs] POST /packs/:id/copy error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
   }
 });
 

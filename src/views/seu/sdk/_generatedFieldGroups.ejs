@@ -13,7 +13,9 @@
     Locals: groups (FieldGroups), canEdit (bool), referentialOptions,
     contributionHelp (Record<string,string>), verifiableFieldHelp
     (Record<string,string>), checklistOptions (ChecklistOption[], CR-060 —
-    checklistIds' cross-Pack picker source), sections (string[], optional — which of
+    checklistIds' cross-Pack picker source), renderMarkdown (CR-077 —
+    (raw: string) => string, threaded through to _referentialListGroup.ejs),
+    sections (string[], optional — which of
     metadata/packSelection/deliverables/compatibility/dependencies/contributions
     to include; omitted = all), idPrefix (string, optional — keeps tab/pane
     element ids unique when this partial is included more than once on the
@@ -71,7 +73,23 @@
       tabs.push({ id: c.key, label: c.label, type: f.kind === 'json' ? 'json' : 'referential-list', field: f, helpKey: c.key, count: f.kind === 'referential-list' ? f.existingCount : 0, hasContent: hasContent });
     });
   }
-  var defaultActive = tabs.findIndex(function (t) { return t.hasContent; });
+  // Bug fix (owner: branching a new Pack from an existing version's content
+  // lands on the Dependencies tab instead of Identity & Metadata, then
+  // "going back to identity" no longer shows the version — it's there in the
+  // markup the whole time, just never the tab you land on). The
+  // hasContent jump makes sense for CONTINUING an existing Draft (land on
+  // whatever the author actually has to work on) but is wrong for a form
+  // that was just freshly loaded via inheritance/branching
+  // (?fromPackId=/?parentTemplateId=/?parentProfileId=/
+  // ?parentDeliverableDefinitionId=) — the author just came from choosing
+  // what to prefill FROM, and lands back on the very fields (Code, the
+  // computed Version, Name) that choice just filled in, not on whichever
+  // section happened to inherit the most content. `isNew` alone can't
+  // distinguish "still-blank new form" from "just-prefilled new form", but
+  // it doesn't need to: Identity & Metadata (tabs[0] whenever this entity
+  // has any metadata fields at all, which every kind does) is exactly where
+  // a blank form's own first field already lives too.
+  var defaultActive = locals.isNew ? 0 : tabs.findIndex(function (t) { return t.hasContent; });
   if (defaultActive === -1) defaultActive = 0;
 %>
 
@@ -115,12 +133,66 @@
                       must still fill in); meaningless once the page is just
                       showing what was already saved. %>
                   <label class="form-label small fw-semibold"><%= f.label %><% if (f.required && canEdit) { %> <span class="text-danger">*</span><% } %></label>
-                  <%- include('_referentialListGroup', { field: f, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions }) %>
+                  <%- include('_referentialListGroup', { field: f, canEdit: canEdit, referentialOptions: locals.referentialOptions, ontologyOptions: locals.ontologyOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions, renderMarkdown: locals.renderMarkdown }) %>
                   <% if (f.help) { %><div class="form-text small"><%= f.help %></div><% } %>
                 </div>
               <% } else { %>
-              <div class="col-md-6" <% if (f.showWhen) { %>data-show-when="<%= f.showWhen %>" style="<%= isShowWhenHidden(f) ? 'display:none' : '' %>"<% } %>>
-                <label class="form-label small fw-semibold"><%= f.label %><% if (f.required && canEdit) { %> <span class="text-danger">*</span><% } %></label>
+              <%# CR-081 — Pack's own `category` forced full-width (owner:
+                  "Category in its own row. Code and version alongside") so
+                  code/packVersion (both still col-md-6, right after category
+                  in FIELD_DISPLAY_ORDER) land paired on the row below,
+                  instead of category eating half of code's own row and
+                  packVersion drifting off to sit next to name several rows
+                  later. Name-checked, not kind-checked — Template/Profile
+                  have no field named `category` at all, so this is a Pack-
+                  only effect by construction.
+                  Settled, two SEPARATE things going to two separate places
+                  (owner: "Did i not already say the computed version should
+                  be muted belongside the name" — right, and that stands
+                  alongside, not instead of, "show the version selector
+                  alongside the code": these are two different pieces of
+                  version information, not one). The COMPUTED version itself
+                  (what this Draft's version will actually be) renders muted
+                  next to Name, below. The version SELECTOR (existing
+                  versions to branch content from) renders here, in
+                  packVersion's own column beside Code — relabelled, since
+                  this column no longer shows "the version," only the
+                  choices; isNew-only, since there's nothing to branch from
+                  once a Draft already exists. %>
+              <% if (f.name === 'packVersion' && locals.kindLabel === 'Pack') { %>
+                <%# The computed value itself is never independently editable
+                    and never shown in its own column any more (see the Name
+                    field's own label, below, in this same loop) — but it
+                    still has to reach the server on submit, for both a
+                    genuinely new Draft (blank until Code picks a category)
+                    and a continuing edit of one already created (its version
+                    was fixed at creation and must round-trip unchanged). A
+                    plain hidden input, generic to every case, does that
+                    without needing its own visible column at all. %>
+                <% if (locals.isNew) { %>
+                <div class="col-md-6">
+                  <label class="form-label small fw-semibold">Existing versions</label>
+                  <div class="pack-code-versions small"></div>
+                  <div class="form-text small">Pick one to start this new Draft from its content. Its own version is computed automatically once Code is chosen — shown next to Name.</div>
+                </div>
+                <% } %>
+                <input type="hidden" name="packVersion" id="packVersion-field" value="<%= f.value %>">
+              <% } else { %>
+              <div class="<%= f.name === 'category' ? 'col-12' : 'col-md-6' %>" <% if (f.showWhen) { %>data-show-when="<%= f.showWhen %>" style="<%= isShowWhenHidden(f) ? 'display:none' : '' %>"<% } %>>
+                <label class="form-label small fw-semibold">
+                  <%= f.label %><% if (f.required && canEdit) { %> <span class="text-danger">*</span><% } %>
+                  <% if (f.name === 'name' && locals.kindLabel === 'Pack') { %>
+                    <%# Owner: "Did i not already say the computed version
+                        should be muted belongside the name" — the OTHER of
+                        the two version pieces (the selector lives beside
+                        Code instead, above). id matched by
+                        dynamicOntologyField.js's updateVersionPanel, which
+                        keeps this in sync with the hidden packVersion input
+                        above as Code changes; the server-rendered value here
+                        is just this render's starting point. %>
+                    <span id="packVersion-display" class="text-muted fw-normal ms-1">(<%= fieldValueByName['packVersion'] ? ('v' + fieldValueByName['packVersion']) : 'version pending' %>)</span>
+                  <% } %>
+                </label>
                 <% if (!canEdit) { %>
                   <%# View mode — plain text, not a disabled control (owner:
                       "The view should show the details... just not
@@ -154,7 +226,13 @@
                       only by this field's own "Next version" button
                       (patch-bump, edit.ejs's script, generic over
                       .version-field); a fresh draft is pre-seeded 1.0.0 by
-                      the route, never typed. %>
+                      the route, never typed.
+                      CR-081 — Pack's own packVersion no longer reaches this
+                      branch at all (handled entirely by the outer loop —
+                      its own column becomes the version-selector, and the
+                      computed value itself displays next to Name instead),
+                      so every case still arriving here is Template/Profile/
+                      Deliverable's own version field, unaffected. %>
                   <div class="input-group input-group-sm">
                     <input id="<%= f.name %>-field" name="<%= f.name %>" class="form-control form-control-sm font-monospace version-field" value="<%= f.value %>" readonly required>
                     <% if (canEdit) { %>
@@ -171,11 +249,68 @@
                     <option value="">— select —</option>
                     <% f.options.forEach(function(opt) { %><option value="<%= opt %>" <%= f.value === opt ? 'selected' : '' %>><%= opt %></option><% }) %>
                   </select>
+                <% } else if (f.kind === 'referential-select' && f.ontology && f.dynamicSourceField) { %>
+                  <%# CR-079 step (d) — Pack's own `code`: concept type is
+                      DRIVEN by another field's current value (category), not
+                      fixed, so this can't be a plain <select> populated once
+                      at render time — the author can change category in the
+                      browser first.
+                      Bug fix (owner: "this is really very bad... is this how
+                      dropdown+text is implemented") — a first version used a
+                      native <input list>/<datalist>: its suggestion popup is
+                      browser/OS-drawn, unstyleable, inconsistent across
+                      browsers, and shows the raw code ahead of the friendly
+                      label. Rebuilt as a real on-page combo box instead
+                      (dynamicOntologyField.js): a plain text input (still
+                      free-text capable, no separate "type new" affordance
+                      needed) plus a JS-driven, Bootstrap-styled suggestion
+                      list that opens on focus (browsing every option for the
+                      current category, before typing anything) and filters
+                      live as you type, entirely within the page's own CSS —
+                      matching the "how does the user know what's already
+                      available" requirement properly instead of relying on
+                      a native picker's inconsistent, unstyleable UI. %>
+                  <% var _driverOpts = ((locals.ontologyOptions || {})[f.dynamicSourceDriverConceptType] || []); %>
+                  <% var _optionsByDriverValue = {}; %>
+                  <% _driverOpts.forEach(function(driverOpt) { _optionsByDriverValue[driverOpt.code] = (locals.ontologyOptions || {})[(driverOpt.code || '').toLowerCase() + (f.dynamicSourceSuffix || '')] || []; }); %>
+                  <%# CR-081 — Pack's own `code`: version is a computed
+                      SEQUENCE per code (owner: "version is to be treated
+                      like a 'sequence'. If it['s] taken, assign the next"),
+                      never hand-typed and never shown before Code has a
+                      value at all (owner: "Version should not be shown in
+                      the form by default that is wrong"). packCodeVersions
+                      (server-computed, per code: Published-through-Archived
+                      versions+status to branch from, plus the version the
+                      next Draft under that code will actually get) is
+                      embedded the same "no round trip" way the category
+                      driver data above is (has to live here — this is where
+                      Code's own current value is); dynamicOntologyField.js
+                      reads it off this combo box to update the Version field
+                      AND render its branch-picker list — both live in
+                      Version's own column beside this one, not here (owner:
+                      "show the version selector alongside the code" — see
+                      that field's own rendering, below, in this same file). %>
+                  <%
+                    // CR-081 — gated on isNew (not just f.name === 'code'
+                    // alone): the branch-picker's own links navigate to THIS
+                    // page with ?fromPackId=, which only /sdk/:slug/new
+                    // handles. Rendering the attribute (and the JS behavior
+                    // it drives) on an existing Draft's edit page would
+                    // clobber that Draft's own already-saved version the
+                    // moment its author so much as touched Code, and offer
+                    // dead-end branch-picker links — so this must only ever
+                    // be present on a genuinely new, not-yet-created Draft.
+                  %>
+                  <div class="ontology-combo" data-driver-field="<%= f.dynamicSourceField %>" data-driver-values='<%- JSON.stringify(_optionsByDriverValue) %>' <% if (f.name === 'code' && locals.isNew) { %>data-code-versions='<%- JSON.stringify(locals.packCodeVersions || {}) %>'<% } %>>
+                    <input id="<%= f.name %>-field" name="<%= f.name %>" class="form-control form-control-sm ontology-combo-input" autocomplete="off" value="<%= f.value %>" <%- f.required ? 'required' : '' %> <%- canEdit ? '' : 'disabled' %>>
+                    <div class="ontology-combo-menu"></div>
+                  </div>
+                  <div class="form-text small">Click or start typing to browse existing codes for the chosen category, or type a new one — publishing is blocked until it's a real, registered Ontology concept.</div>
                 <% } else if (f.kind === 'referential-select' && f.ontology) { %>
                   <%# Ch.18 Ontology (owner: "the schema has to pick the
                       values from the ontology... use a generic function") —
                       ONE branch for every ontology-backed referential-select
-                      on any kind (Pack's code/category today; Template/
+                      on any kind (Pack's category today; Template/
                       Profile whenever a future field carries the same
                       x-ontology:true marker). Which concept_type to show
                       comes from f.referentialSource (== the schema's
@@ -215,8 +350,17 @@
                   <textarea name="<%= f.name %>" class="form-control form-control-sm font-monospace" rows="4" <%- canEdit ? '' : 'disabled' %>><%= f.value %></textarea>
                 <% } %>
                 <% } %>
-                <% if (f.help) { %><div class="form-text small"><%= f.help %></div><% } %>
+                <%# CR-081 — owner: "the help on the field should not be
+                    obscuring the whole thing." Pack's own driven code combo
+                    already renders its own specific inline help line above
+                    (and the branch-picker panel below that) — this generic
+                    schema-level f.help would be a THIRD stacked block of
+                    small muted text right under it, purely redundant, adding
+                    clutter rather than information. Suppressed for that one
+                    case only; every other field's help is unaffected. %>
+                <% if (f.help && !(f.kind === 'referential-select' && f.ontology && f.dynamicSourceField)) { %><div class="form-text small"><%= f.help %></div><% } %>
               </div>
+              <% } %>
               <% } %>
             <% }) %>
           </div>
@@ -257,7 +401,7 @@
           <% } else if (t.type === 'json') { %>
             <textarea name="<%= t.field.name %>" class="form-control form-control-sm font-monospace" rows="6" <%- canEdit ? '' : 'disabled' %>><%= t.field.value %></textarea>
           <% } else { %>
-            <%- include('_referentialListGroup', { field: t.field, canEdit: canEdit, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions }) %>
+            <%- include('_referentialListGroup', { field: t.field, canEdit: canEdit, referentialOptions: locals.referentialOptions, ontologyOptions: locals.ontologyOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions, renderMarkdown: locals.renderMarkdown }) %>
           <% } %>
         <% } %>
 

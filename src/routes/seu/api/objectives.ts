@@ -26,14 +26,14 @@ import { requireTenant } from "../../../middleware/requireTenant.js";
 // as objectivesDB.findAll/findRootsPage's own "NULL never matches" rule.
 router.param(
   "id",
-  requireTenantScope.forParam("id", objectivesDB.findById, { mode: "api", notFoundMessage: "Objective not found" })
+  requireTenantScope.forParam("id", objectivesDB.findById, (o) => o.sponsoring_authority?.tenant ?? null, { mode: "api", notFoundMessage: "Objective not found" })
 );
 
 /** POST /objectives — Ch.1: create an Objective, optionally tiered/decomposed under a parent. */
 router.post(
   "/objectives",
   requireBadge(["objective_propose"], { mode: "api" }),
-  requireTenantScope.forField("body", "parentObjectiveId", objectivesDB.findById, { mode: "api", notFoundMessage: "Parent Objective not found" }),
+  requireTenantScope.forField("body", "parentObjectiveId", objectivesDB.findById, (o) => o.sponsoring_authority?.tenant ?? null, { mode: "api", notFoundMessage: "Parent Objective not found" }),
   async (req: Request, res: Response) => {
   try {
     const { statement, requiredCapabilityCodes, tier, parentObjectiveId, status } = req.body ?? {};

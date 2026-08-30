@@ -17,6 +17,23 @@ import type { CapabilityRow, ObjectiveCommentRow, ObjectiveRow, ObjectiveStatus,
 // A child's tier must not be "more strategic" than its parent's.
 const TIER_RANK: Record<ObjectiveTier, number> = { Strategic: 0, Operational: 1, Engineering: 2 };
 
+// CR-079 bug fix — capabilitiesDB.findByCodes has no Pack scoping, and a
+// capability code is now a genuinely shared Ontology term (capability-name)
+// that multiple Packs can each independently contribute (e.g. "development"
+// from openup-development AND every Technology pack) — so a bare code can
+// legitimately match more than one row. An Objective requires the
+// COMPETENCY once, not once per Pack that happens to offer it; de-dupe by
+// code, same treatment templates.ts's own materialisePackSelectionsAndCapabilities
+// got for the identical reason. Used by both createObjective and the
+// requiredCapabilityCodes edit path below.
+function dedupeByCode(capabilities: CapabilityRow[]): CapabilityRow[] {
+  const byCode = new Map<string, CapabilityRow>();
+  for (const capability of capabilities) {
+    if (!byCode.has(capability.code)) byCode.set(capability.code, capability);
+  }
+  return [...byCode.values()];
+}
+
 export async function createObjective(input: {
   statement: string;
   requiredCapabilityCodes: string[];
@@ -108,7 +125,7 @@ export async function createObjective(input: {
 
   const { data: capabilities, error: capErr } = await capabilitiesDB.findByCodes(input.requiredCapabilityCodes);
   if (capErr) throw capErr;
-  const found = capabilities ?? [];
+  const found = dedupeByCode(capabilities ?? []);
   const foundCodes = new Set(found.map((c) => c.code));
   const missing = input.requiredCapabilityCodes.filter((code) => !foundCodes.has(code));
   if (missing.length > 0) {
@@ -549,7 +566,7 @@ export async function updateObjective(
   if (input.requiredCapabilityCodes) {
     const { data: capabilities, error: capErr } = await capabilitiesDB.findByCodes(input.requiredCapabilityCodes);
     if (capErr) throw capErr;
-    const found = capabilities ?? [];
+    const found = dedupeByCode(capabilities ?? []);
     const foundCodes = new Set(found.map((c) => c.code));
     const missing = input.requiredCapabilityCodes.filter((code) => !foundCodes.has(code));
     if (missing.length > 0) throw new Error(`unknown Capability code(s): ${missing.join(", ")}`);

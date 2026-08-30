@@ -1,0 +1,25 @@
+<%# CR-077 — edit control for a markdown-formatted long-text field (Checklist/
+    Quality Gate/Review Gate/Obligation Definition's own statement/prompt).
+    Only ever included from _referentialListGroup.ejs's editable-cards branch,
+    which is only reached when canEdit is true — no read-mode branch needed
+    here; the same field's read-mode rendering lives in
+    _referentialListGroup.ejs itself, via renderMarkdown.
+    Same <textarea> name/value contract as a plain textarea — formGenerator's
+    reassembly needs no changes. The toolbar (public/js/markdownEditor.js,
+    delegated on document so cloned "+ Add another"/"+ Add item" rows work
+    with no re-init) only inserts markdown syntax at the cursor; it never
+    intercepts submission. No live preview yet (CR-078, deferred) — save and
+    view the rendered result in read mode.
+    Locals: name, value, required (bool). %>
+<div class="md-editor-field">
+  <div class="md-toolbar btn-group btn-group-sm mb-1" role="group" aria-label="Markdown formatting">
+    <button type="button" class="btn btn-outline-secondary" data-md-action="bold" title="Bold"><i class="bi bi-type-bold"></i></button>
+    <button type="button" class="btn btn-outline-secondary" data-md-action="italic" title="Italic"><i class="bi bi-type-italic"></i></button>
+    <button type="button" class="btn btn-outline-secondary" data-md-action="code" title="Inline code"><i class="bi bi-code"></i></button>
+    <button type="button" class="btn btn-outline-secondary" data-md-action="codeblock" title="Code block"><i class="bi bi-code-square"></i></button>
+    <button type="button" class="btn btn-outline-secondary" data-md-action="list" title="Bulleted list"><i class="bi bi-list-ul"></i></button>
+    <button type="button" class="btn btn-outline-secondary" data-md-action="link" title="Link"><i class="bi bi-link-45deg"></i></button>
+  </div>
+  <textarea name="<%= name %>" class="form-control form-control-sm font-monospace md-editor-textarea" rows="4" <%- required ? 'required' : '' %>><%= value %></textarea>
+  <div class="form-text small">Markdown supported — fenced <code>```</code> blocks for code. Save to see it rendered.</div>
+</div>

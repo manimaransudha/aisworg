@@ -150,9 +150,9 @@ function entityLifecycleVerbs(entityType: string): string[] {
   return [...set].sort();
 }
 
-// The distinct Pack lifecycle verbs (validate/publish/activate/deprecate/
-// retire/archive), derived from the vocabulary so this stays correct if the
-// graph changes.
+// The distinct Pack lifecycle verbs (validate/publish/reject/activate/
+// retire/archive — CR-080: deprecate dropped, reject added), derived from
+// the vocabulary so this stays correct if the graph changes.
 function packVerbs(): string[] {
   const raw = readFileSync(path.join(__dirname, "data", "authorityVocabulary.json"), "utf8");
   const transitions = (JSON.parse(raw) as { transitions: VocabTransition[] }).transitions;

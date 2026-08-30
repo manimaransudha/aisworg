@@ -4,7 +4,7 @@
   "name": "E-Book Library Management System",
   "requiredCapabilityCodes": [
     "requirements-analysis",
-    "architecture",
+    "architecture-solution-design",
     "catalog-management",
     "circulation-management",
     "development",
@@ -23,7 +23,7 @@
     {
       "name": "Architecture Document",
       "category": "Documentation",
-      "producingCapabilityCode": "architecture"
+      "producingCapabilityCode": "architecture-solution-design"
     },
     {
       "name": "Catalog Metadata Design",
@@ -60,7 +60,7 @@
     {
       "toName": "Catalog Metadata Design",
       "fromType": "Capability",
-      "fromCapabilityCode": "architecture"
+      "fromCapabilityCode": "architecture-solution-design"
     },
     {
       "toName": "Circulation Rules Specification",
@@ -70,7 +70,7 @@
     {
       "toName": "Circulation Rules Specification",
       "fromType": "Capability",
-      "fromCapabilityCode": "architecture"
+      "fromCapabilityCode": "architecture-solution-design"
     },
     {
       "toName": "Source Code",

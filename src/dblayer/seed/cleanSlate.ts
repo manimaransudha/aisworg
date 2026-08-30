@@ -64,6 +64,7 @@ import { seedDomainTechnologyPacks } from "./seedDomainTechnologyPacks.js";
 import { seedSdlcPhasePacks } from "./seedSdlcPhasePacks.js";
 import { seedSdlcStandardTemplates } from "./seedSdlcStandardTemplates.js";
 import { seedAllTestFixturePacks } from "./seedTestFixturePacks.js";
+import { seedAllTabsPackFixture } from "./seedAllTabsPackFixture.js";
 
 // Migration 119's own INSERT, duplicated here so clean-slate is
 // self-sufficient for these concepts regardless of migration-apply history —
@@ -110,6 +111,109 @@ const TEST_FIXTURE_PACK_ONTOLOGY_CONCEPTS: Array<[code: string, label: string]> 
 // to borrow. Same `test-<code>` treatment capability-name already gets above
 // for every test-fixture Pack twin.
 const TEMPLATE_CATEGORY_TEST_CONCEPTS: Array<[code: string, label: string]> = [["test-enterprise-web-application", "Test: Web Application"]];
+
+// CR-079 step (a) — the six new category-scoped Pack-identity concept types
+// (migration 132), mirrored here the same way capability-name's own Pack
+// codes are above: every real Pack's own current code, grouped by its real
+// category, plus each one's test-fixture twin. Kept in exact sync with
+// migration 132's own INSERT — this dual-source pattern is a known,
+// accepted drift risk (already caught once for capability-name: technology-c/
+// technology-cpp existed only in this file's own list, not migration 119),
+// not a new one introduced here.
+const CATEGORY_SCOPED_PACK_NAME_CONCEPTS: Array<[conceptType: string, code: string, label: string]> = [
+  ["compliance-name", "security-privacy-compliance", "Security, Privacy & Compliance (SDLC Phase 4)"],
+  ["compliance-name", "test-security-privacy-compliance", "Security, Privacy & Compliance (SDLC Phase 4)"],
+  ["domain-name", "domain-ebook-library", "E-Book Library Domain Practices"],
+  ["domain-name", "test-domain-ebook-library", "E-Book Library Domain Practices"],
+  ["engineering-name", "architecture-solution-design", "Architecture (OpenUP Capability Pattern)"],
+  ["engineering-name", "configuration-management", "Configuration & Change Management (OpenUP Capability Pattern)"],
+  ["engineering-name", "development", "Development (OpenUP Capability Pattern)"],
+  ["engineering-name", "experience-design", "Experience Design (SDLC Phase 2)"],
+  ["engineering-name", "hypercare-stabilization", "Hypercare & Stabilization (SDLC Phase 12)"],
+  ["engineering-name", "implementation-engineering", "Implementation (SDLC Phase 7)"],
+  ["engineering-name", "internationalization-localization", "Internationalization & Localization (SDLC Phase 14)"],
+  ["engineering-name", "launch-management", "Launch (SDLC Phase 11)"],
+  ["engineering-name", "ongoing-operations-governance", "Ongoing Operations & Governance (SDLC Phase 15)"],
+  ["engineering-name", "platform-developer-experience", "Platform & Developer Experience (SDLC Phase 5)"],
+  ["engineering-name", "project-management", "Project Management (OpenUP Capability Pattern)"],
+  ["engineering-name", "quality-engineering-hardening", "Quality Engineering & Hardening (SDLC Phase 8)"],
+  ["engineering-name", "requirements-analysis", "Requirements (OpenUP Capability Pattern)"],
+  ["engineering-name", "scale-performance-optimization", "Scale & Performance Optimization (SDLC Phase 9)"],
+  ["engineering-name", "technical-architecture-discovery", "Technical Discovery & Architecture (SDLC Phase 3)"],
+  ["engineering-name", "test-configuration-management", "Configuration & Change Management (OpenUP Capability Pattern)"],
+  ["engineering-name", "test-experience-design", "Experience Design (SDLC Phase 2)"],
+  ["engineering-name", "test-hypercare-stabilization", "Hypercare & Stabilization (SDLC Phase 12)"],
+  ["engineering-name", "test-implementation-engineering", "Implementation (SDLC Phase 7)"],
+  ["engineering-name", "test-internationalization-localization", "Internationalization & Localization (SDLC Phase 14)"],
+  ["engineering-name", "test-launch-management", "Launch (SDLC Phase 11)"],
+  ["engineering-name", "test-ongoing-operations-governance", "Ongoing Operations & Governance (SDLC Phase 15)"],
+  ["engineering-name", "test-platform-developer-experience", "Platform & Developer Experience (SDLC Phase 5)"],
+  ["engineering-name", "test-project-management", "Project Management (OpenUP Capability Pattern)"],
+  ["engineering-name", "test-quality-engineering-hardening", "Quality Engineering & Hardening (SDLC Phase 8)"],
+  ["engineering-name", "test-scale-performance-optimization", "Scale & Performance Optimization (SDLC Phase 9)"],
+  ["engineering-name", "test-technical-architecture-discovery", "Technical Discovery & Architecture (SDLC Phase 3)"],
+  ["engineering-name", "test-testing-qa", "Test (OpenUP Capability Pattern)"],
+  ["engineering-name", "testing-qa", "Test (OpenUP Capability Pattern)"],
+  // CR-079 bug fix / CR-080 / CR-081 — migrations 134/135/136/138/139's own
+  // stable test-run Pack identity codes (registerTestOntologyCode's
+  // dynamically-minted junk, removed; replaced by these permanent concepts —
+  // see migration 134's own header). Missed from this dual-source list when
+  // each migration was first added; caught and closed together here rather
+  // than one at a time, per the SAME known-drift-risk pattern already
+  // flagged above for capability-name/technology-c/technology-cpp.
+  ["engineering-name", "test-comp-arity", "Test: Composition Arity"],
+  ["engineering-name", "test-comp-samecode", "Test: Composition Same Code"],
+  ["engineering-name", "test-comp-cd", "Test: Composition Conflict Detection"],
+  ["engineering-name", "test-compose-specialize-parent", "Test: Compose Specialize Parent"],
+  ["engineering-name", "test-compose-specialize-child", "Test: Compose Specialize Child"],
+  ["engineering-name", "test-compose-union-a", "Test: Compose Union A"],
+  ["engineering-name", "test-compose-union-b", "Test: Compose Union B"],
+  ["engineering-name", "test-compose-union-child", "Test: Compose Union Child"],
+  ["engineering-name", "test-compose-merge-shared", "Test: Compose Merge Shared"],
+  ["engineering-name", "test-compose-merge-child", "Test: Compose Merge Child"],
+  ["engineering-name", "test-compose-intersect-a", "Test: Compose Intersect A"],
+  ["engineering-name", "test-compose-intersect-b", "Test: Compose Intersect B"],
+  ["engineering-name", "test-compose-intersect-child", "Test: Compose Intersect Child"],
+  ["engineering-name", "test-compose-supplement-base", "Test: Compose Supplement Base"],
+  ["engineering-name", "test-compose-supplement-extra", "Test: Compose Supplement Extra"],
+  ["engineering-name", "test-compose-supplement-child", "Test: Compose Supplement Child"],
+  ["engineering-name", "test-compose-override", "Test: Compose Override"],
+  ["engineering-name", "test-compose-override-draft", "Test: Compose Override Draft"],
+  ["engineering-name", "test-compose-notdraft-parent", "Test: Compose Not-Draft Parent"],
+  ["engineering-name", "test-compose-mandatory", "Test: Compose Mandatory"],
+  ["engineering-name", "test-compose-optional", "Test: Compose Optional"],
+  ["engineering-name", "test-pack", "Test: Pack"],
+  ["engineering-name", "test-conflict", "Test: Conflict"],
+  ["engineering-name", "test-live-code", "Test: Live Code"],
+  ["engineering-name", "test-reactivate-supersede", "Test: Reactivate Supersede"],
+  ["engineering-name", "test-tenant-scoped", "Test: Tenant Scoped"],
+  ["engineering-name", "test-tenant-reactivate", "Test: Tenant Reactivate"],
+  ["engineering-name", "webflow-phase9-pack", "Test: WebFlow Phase 9 Pack"],
+  ["engineering-name", "test-sdk-pack", "Test: SDK Pack"],
+  ["engineering-name", "test-pack-versioning", "Test: Pack Versioning"],
+  ["engineering-name", "test-pack-no-active-version", "Test: Pack No Active Version"],
+  ["engineering-name", "test-pack-still-active", "Test: Pack Still Active"],
+  ["engineering-name", "test-pack-reject", "Test: Pack Reject"],
+  ["engineering-name", "test-pack-sequence", "Test: Pack Version Sequence"],
+  ["engineering-name", "test-pack-all-tabs", "Test: All Tabs Populated"],
+  ["organisation-name", "backlog-release-planning", "Backlog & Release Planning (SDLC Phase 6)"],
+  ["organisation-name", "beta-early-access-management", "Beta / Early Access (SDLC Phase 10)"],
+  ["organisation-name", "growth-optimization", "Growth & Optimization (SDLC Phase 13)"],
+  ["organisation-name", "product-discovery", "Product Discovery (SDLC Phase 1)"],
+  ["organisation-name", "test-backlog-release-planning", "Backlog & Release Planning (SDLC Phase 6)"],
+  ["organisation-name", "test-beta-early-access-management", "Beta / Early Access (SDLC Phase 10)"],
+  ["organisation-name", "test-growth-optimization", "Growth & Optimization (SDLC Phase 13)"],
+  ["organisation-name", "test-product-discovery", "Product Discovery (SDLC Phase 1)"],
+  ["organisation-name", "test-vision-opportunity-framing", "Vision & Opportunity (SDLC Phase 0)"],
+  ["organisation-name", "vision-opportunity-framing", "Vision & Opportunity (SDLC Phase 0)"],
+  // migration 134 — governance-ebm-sharpening.test.ts's own two Packs use category: "Organisation".
+  ["organisation-name", "conflict-a", "Test: Conflict A"],
+  ["organisation-name", "conflict-b", "Test: Conflict B"],
+  ["technology-name", "technology-c", "C Engineering Practices"],
+  ["technology-name", "technology-cpp", "C++ Engineering Practices"],
+  ["technology-name", "technology-nodejs", "Node.js Engineering Practices"],
+  ["technology-name", "test-technology-nodejs", "Node.js Engineering Practices"],
+];
 
 const REAL_METRIC_IDENTIFIERS = [
   "deliverable-cycle-time",
@@ -227,6 +331,21 @@ async function run(): Promise<void> {
     }
     logger.info(`[db:clean-slate] step 1d — ensured ${TEST_FIXTURE_PACK_ONTOLOGY_CONCEPTS.length} test-fixture-pack Ontology concepts.`);
 
+    // Step 1d-2 — CR-079 step (a): the six new category-scoped Pack-identity
+    // concepts (migration 132), same idempotent-insert treatment as step 1d
+    // above, needed before step (b)'s validatePackSeed rewiring can check a
+    // real or test Pack's own code against its own category's vocabulary
+    // instead of capability-name.
+    for (const [conceptType, code, label] of CATEGORY_SCOPED_PACK_NAME_CONCEPTS) {
+      await client.query(
+        `INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id)
+         VALUES ($1, $2, $3, '11111111-1111-1111-1111-111111111111')
+         ON CONFLICT (concept_type, code, tenant_id) DO NOTHING`,
+        [conceptType, code, label]
+      );
+    }
+    logger.info(`[db:clean-slate] step 1d-2 — ensured ${CATEGORY_SCOPED_PACK_NAME_CONCEPTS.length} category-scoped Pack-name Ontology concepts.`);
+
     // Step 1e — template-categories test concept(s) (see
     // TEMPLATE_CATEGORY_TEST_CONCEPTS's own comment). Not consumed by any
     // step below (cleanSlate.ts's own step 8 only ever publishes real
@@ -339,9 +458,16 @@ async function run(): Promise<void> {
     // cleaned up first, same as step 2a does for Template/Profile owners —
     // no real Pack-owned rows exist today (nothing authors them yet), but
     // this keeps the invariant true once something does.
+    // CR-080 — pack_comments (migration 137, Validated -> Draft Reject's own
+    // comment thread) has a real NO ACTION FK into packs, same as the tables
+    // named above — added here too, cleared before packsDeleted, same
+    // pattern. Currently always empty pre-reseed (nothing seeds one), so this
+    // was harmless to miss until the first real Reject actually ran — caught
+    // before that happened, not after clean-slate broke on it.
+    const packCommentsDeleted = await client.query("DELETE FROM pack_comments");
     const dependencyDefsForPacksDeleted = await client.query("DELETE FROM dependency_definitions WHERE owning_entity_type = 'Pack'");
     const packsDeleted = await client.query("DELETE FROM packs");
-    logger.info(`[db:clean-slate] step 2c — deleted ${dependencyDefsForPacksDeleted.rowCount} Pack-owned dependency_definitions rows, ${packsDeleted.rowCount} packs.`);
+    logger.info(`[db:clean-slate] step 2c — deleted ${packCommentsDeleted.rowCount} pack_comments, ${dependencyDefsForPacksDeleted.rowCount} Pack-owned dependency_definitions rows, ${packsDeleted.rowCount} packs.`);
 
     // Step 2d — non-reserved Tenants (and everything FK-bound to them). The
     // reserved tenants are fixtures that must survive: 'default' (commissioning
@@ -451,6 +577,19 @@ async function run(): Promise<void> {
   // version per code can be Active; a test file that mints its own
   // throwaway versions under a REAL Pack's code deprecates it). Rerun-safe.
   await seedAllTestFixturePacks();
+
+  // Step 7c — owner: "Create atleast one pack seed json which has all the
+  // tabs populated." test-pack-all-tabs.pack.json deliberately populates
+  // every generated-form tab at once (Identity & Metadata, Compatibility,
+  // Dependencies, and every Contribution type) — a single realistic fixture
+  // for authoring-UI/validation work to exercise all of them against,
+  // unlike steps 6/6b/7's real Packs (each only populates the handful of
+  // tabs its own real content needs) or step 7b's twins (several explicitly
+  // strip reviewGates/checklists — see that file's own header). Must run
+  // after step 6 (needs architecture-solution-design, its own required
+  // dependency, already Active). Migration 140 registers its own stable
+  // engineering-name concept. Rerun-safe.
+  await seedAllTabsPackFixture();
 
   // Step 8 — the 9 standard Templates (+ default Profiles), one per real
   // template-categories Ontology concept, drawing on steps 6/6b/7's real

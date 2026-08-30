@@ -1,7 +1,7 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import { PLATFORM_TENANT_ID } from "./constants.js";
-import type { DbResult, PackCategory, PackClassification, PackContributions, PackRow, PackStatus } from "./seuTypes.js";
+import type { DbResult, PackCategory, PackClassification, PackCommentRow, PackContributions, PackRow, PackStatus } from "./seuTypes.js";
 
 export const packsDB = {
   // Ch.41 VM-002 "Versions are immutable" — a plain INSERT, no ON CONFLICT
@@ -292,6 +292,23 @@ export const packsDB = {
     }
   },
 
+  // CR-081 — deliberately narrower than findAllVisibleTo: a Pack code's
+  // version SEQUENCE is scoped to exactly one tenant (Ch.41 VM-002 identity
+  // is (code, pack_version, tenant_id)), not "Platform + mine" — Platform's
+  // own lineage under a given code and a tenant's own lineage under the
+  // identical code text are two independent series, never merged. Used by
+  // the "New Pack" form's branch picker to compute this tenant's own next
+  // version in sequence without accidentally blending in Platform's.
+  async findAllForTenant(tenantId: string): Promise<DbResult<PackRow[]>> {
+    try {
+      const { rows } = await query<PackRow>("SELECT * FROM packs WHERE tenant_id = $1 ORDER BY code, created_at DESC", [tenantId]);
+      return { data: rows };
+    } catch (err) {
+      logger.error("[packsDB] findAllForTenant error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   // Same visibility rule as findAllVisibleTo, narrowed to the live catalog —
   // the Active Packs authoring tab and every Pack-code dropdown (Dependencies,
   // Template's mandatoryPackCodes, Profile's optionalPackCodes) only ever
@@ -326,6 +343,38 @@ export const packsDB = {
       return { data: Number(rows[0]?.count ?? 0) };
     } catch (err) {
       logger.error("[packsDB] count error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // CR-080 — general-purpose, append-only comment thread on a Pack. Never
+  // updated or deleted at the application layer — same insert-only
+  // discipline as objective_comments (CR-073). The Validated -> Draft
+  // (Reject) transition requires one of these on every use.
+  async addComment(packId: string, actorId: number | null, commentText: string): Promise<DbResult<PackCommentRow>> {
+    try {
+      const { rows } = await query<PackCommentRow>(
+        `INSERT INTO pack_comments (pack_id, actor_id, comment_text)
+         VALUES ($1, $2, $3)
+         RETURNING *`,
+        [packId, actorId, commentText]
+      );
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[packsDB] addComment error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async getComments(packId: string): Promise<DbResult<PackCommentRow[]>> {
+    try {
+      const { rows } = await query<PackCommentRow>(
+        "SELECT * FROM pack_comments WHERE pack_id = $1 ORDER BY created_at",
+        [packId]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[packsDB] getComments error", err as Error);
       return { error: err as Error };
     }
   },

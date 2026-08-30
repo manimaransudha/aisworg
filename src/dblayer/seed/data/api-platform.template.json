@@ -24,7 +24,7 @@
     {
       "name": "Architecture Document",
       "category": "Documentation",
-      "producingCapabilityCode": "architecture"
+      "producingCapabilityCode": "architecture-solution-design"
     },
     {
       "name": "Technical Architecture & Discovery Document",
@@ -71,7 +71,7 @@
     {
       "toName": "Architecture Document",
       "fromType": "Capability",
-      "fromCapabilityCode": "architecture"
+      "fromCapabilityCode": "architecture-solution-design"
     },
     {
       "toName": "Technical Architecture & Discovery Document",

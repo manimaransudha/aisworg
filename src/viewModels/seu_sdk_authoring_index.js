@@ -1,12 +1,13 @@
 import { createViewModel } from "../utils/viewModel.js";
 
 // Entity-direct authoring (bug fix correcting CR-014): "sessions" (Deliverable
-// authoring sessions) is replaced by "tabs" — one per verb the entity's noun
-// actually has (data-driven, "however many verbs there are"), each carrying
-// its own `rows` (Draft/Validated/Active/… rows currently at that stage,
-// scoped to the logged-in actor except the live Active catalog) — see
-// web/sdkAuthoring.ts's buildAuthoringTabs.
+// authoring sessions) was replaced by per-verb "tabs", which the owner's own
+// "similar to Objectives" redesign then replaced again — one flat `rows` list
+// of the viewer's own authored rows (any status), each carrying whatever
+// governed-transition action buttons the viewer currently holds the badge
+// for (rows[].actions) — see web/sdkAuthoring.ts's myAuthoredRowsWithActions
+// and core/sdkAuthoring.ts's computeRowActions.
 export const seu_sdk_authoring_indexVM = createViewModel({
-  required: ["title", "kindLabel", "slug", "showDrafts", "tabs", "canCreate"],
+  required: ["title", "kindLabel", "slug", "showDrafts", "rows", "canCreate"],
   optional: ["flash", "definitions", "listBasePath", "canWriteAuthority", "activeNouns", "mappingByNoun"],
 });

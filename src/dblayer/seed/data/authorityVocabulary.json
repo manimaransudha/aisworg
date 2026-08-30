@@ -635,39 +635,21 @@
     },
     {
       "entityType": "Pack",
-      "fromState": "Active",
-      "toState": "Deprecated",
-      "verb": "deprecate"
-    },
-    {
-      "entityType": "Pack",
-      "fromState": "Deprecated",
-      "toState": "Retired",
-      "verb": "retire"
-    },
-    {
-      "entityType": "Pack",
       "fromState": "Retired",
       "toState": "Archived",
       "verb": "archive"
     },
     {
       "entityType": "Pack",
-      "fromState": "Deprecated",
-      "toState": "Active",
-      "verb": "activate"
+      "fromState": "Active",
+      "toState": "Retired",
+      "verb": "retire"
     },
     {
       "entityType": "Pack",
-      "fromState": "Retired",
-      "toState": "Active",
-      "verb": "activate"
-    },
-    {
-      "entityType": "Pack",
-      "fromState": "Archived",
-      "toState": "Active",
-      "verb": "activate"
+      "fromState": "Validated",
+      "toState": "Draft",
+      "verb": "reject"
     },
     {
       "entityType": "Participant",

@@ -14,12 +14,12 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "cpp-development",
+        "code": "development",
         "name": "Source code generation",
         "description": "Follow these practices during coding."
       },
       {
-        "code": "cpp-code-review",
+        "code": "code-review",
         "name": "Code Review",
         "description": "Peer review of Source Code changes before merge."
       }

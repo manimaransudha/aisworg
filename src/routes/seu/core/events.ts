@@ -45,6 +45,9 @@ export async function getEventsPage(opts: {
   seuId?: string;
   eventType?: string;
   entityType?: string;
+  name?: string;
+  sort?: string;
+  dir?: "asc" | "desc";
 }): Promise<{ items: EventRow[]; total: number }> {
   const { data } = await eventsDB.findPage(opts);
   return { items: data?.items ?? [], total: data?.total ?? 0 };

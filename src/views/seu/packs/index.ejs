@@ -103,14 +103,12 @@
                 <% p.pack.dependencies.forEach(function(d, i) { %><code><%= d.packCode %>@<%= d.version %></code><%= i < p.pack.dependencies.length - 1 ? ', ' : '' %><% }) %>
               </p>
             <% } %>
+            <%# CR-081 — Copy removed: reaching this same outcome (a new
+                Draft, pre-filled, at the next version) is now the "New Pack"
+                form's own existing-code branch picker, not a separate
+                Registry action. %>
             <div class="d-flex gap-2">
               <a href="/aisworg/seu/sdk/pack-authoring/<%= p.pack.id %>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye me-1"></i>View</a>
-              <% if (locals.canCopy) { %>
-                <form method="POST" action="/aisworg/seu/packs/<%= p.pack.id %>/copy">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-copy me-1"></i>Copy</button>
-                </form>
-              <% } %>
             </div>
           </div>
         </div>

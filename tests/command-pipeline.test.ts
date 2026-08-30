@@ -32,7 +32,7 @@ async function commissionTestSeu(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
@@ -137,7 +137,7 @@ test("a dispatched transition leaves a traceable Command and a Completed/Dispose
 test("executionEngine defers dispatch when no Participant fulfils the producing Capability, and reports the reason", async () => {
   const seuId = await commissionTestSeu("phase3-engine");
   const detail = await getSeuDetailView(seuId);
-  const architectureCapability = detail?.capabilities.find((c) => c.code === "architecture");
+  const architectureCapability = detail?.capabilities.find((c) => c.code === "architecture-solution-design");
   assert.ok(architectureCapability);
 
   const result = await executionEngine.execute({

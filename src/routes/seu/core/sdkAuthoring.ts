@@ -23,7 +23,7 @@ import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { profilesDB } from "../../../dblayer/profilesDB.js";
 import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
 import {
-  advancePackOneStep, validatePackSeed, packMetadataFromSeed, findActiveCompositionSource,
+  advancePackOneStep, validatePackSeed, packMetadataFromSeed, findActiveCompositionSource, packCodeVersionSummaries,
   type PackSeedInput,
 } from "./packs.js";
 import { advanceTemplateOneStep, materialiseTemplateDraft, validateTemplateSeed, getPackSelectionsByCategory, getDependencyGraphContent, PACK_SELECTION_SLOTS, type TemplateSeedInput, type PackSelectionsByCategory } from "./templates.js";
@@ -34,8 +34,12 @@ import {
   type DeliverableDefinitionSeedInput,
 } from "./deliverableDefinitions.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
+import { eventsDB } from "../../../dblayer/eventsDB.js";
+import { eventBus } from "../../../domain/engine/eventBus.js";
 import { compositionEngine, type CompositionSource } from "../../../domain/engine/compositionEngine.js";
-import type { PackContributions, PackRow, ProfileRow, SchemaDefinitionEntityKind, TemplateRow } from "../../../dblayer/seuTypes.js";
+import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
+import { listCurrentTransitionDefinitions } from "./transitionDefinitions.js";
+import type { PackContributions, PackRow, ProfileRow, SchemaDefinitionEntityKind, TemplateRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { randomUUID } from "node:crypto";
 
 // ---------------------------------------------------------------------------
@@ -68,9 +72,17 @@ export function toPackSeedInput(content: Record<string, unknown>): PackSeedInput
   } as unknown as PackSeedInput["contributions"];
   return {
     ...(content as unknown as PackSeedInput),
-    // CR-015: `code` is a system UUID, not an authored field. Reuse one already
-    // on the content (an imported doc, or the row's own code); else mint one.
-    code: typeof content.code === "string" && content.code.trim() ? (content.code as string) : randomUUID(),
+    // CR-015 ("`code` is a system UUID") is DEPRECATED — superseded by CR-020
+    // Part 2 (Ontology-backed `capability-name` picker) and CR-046 (real
+    // server-side enforcement of it). See CR-015's own Update note. Every real
+    // path already supplies its own code (the picker, a seed/CLI .pack.json's
+    // own code, or an imported doc's own code) — a missing/blank code here is
+    // a caller error, left as-is for validatePackSeed's assertCanonicalCategory
+    // to reject with a real message, not papered over with a meaningless UUID
+    // that would fail that same check anyway. Confirmed live 2026-08-29: no
+    // Pack, any status, has ever had a UUID code.
+    // Dead code removed: code: ... ? content.code : randomUUID()
+    code: typeof content.code === "string" ? content.code.trim() : "",
     packVersion: typeof content.packVersion === "string" && content.packVersion.trim() ? (content.packVersion as string) : "0.1.0",
     contributions,
     dependencies: (content.dependencies as PackSeedInput["dependencies"]) ?? [],
@@ -280,23 +292,15 @@ function toSummary(r: { id: string; code: string; name: string; status: string; 
   return { id: r.id, code: r.code, name: r.name, status: r.status, createdAt: r.created_at };
 }
 
-// --- Authoring tabs ----------------------------------------------------------
-// Redesign (owner, 2026-08-20): "The vertical tabs should show the ones on my
-// verb queue. Eg. Packs that I defined irrespective of whatever status it is
-// in, packs that are in validate etc. Tabs like All Validated packs are not
-// required as they are available in the Pack registry." Retires the old
-// per-verb "what did I already do" tabs (All/User {Verb}ed {kind}s, Active
-// {kind}s, each a toState-scoped listAuthoringByVerb call) — the now-
-// filterable Registry (CR-036) shows exactly that. Two kinds of tab remain:
-//   - "I defined" (listMyAuthoredRows below) — every row this actor authored,
-//     any status, not just Draft.
-//   - a Queue per verb this actor holds the badge for (listAuthoringQueue) —
-//     unchanged from before.
-
-// "I defined" tab — every row THIS actor authored, at whatever status it's
-// currently sitting at. Always scoped to the real actor, even for root — "I
-// defined" is inherently personal, unlike the old live-catalog tab's own
-// root-sees-everyone treatment. findDrafts is deliberately NOT reused here —
+// --- "My authored rows" (the whole authoring index list) --------------------
+// Every row THIS actor authored, at whatever status it's currently sitting
+// at. Always scoped to the real actor, even for root — inherently personal,
+// unlike the Registry's own root-sees-everyone treatment. Originally one of
+// two tabs (the other, a per-verb cross-author "Queue," showed OTHER
+// authors' rows sitting in a status the viewer could act on) — the tabs
+// (and the whole "I defined" vs. "Queue" split) were replaced entirely by
+// this one flat list per the owner's own redesign, below. findDrafts is
+// deliberately NOT reused here —
 // it's hardcoded to WHERE status IN ('Draft', 'Validated') (this actor's
 // current WIP), not "every status." findAll (root/admin's own "see
 // everything" listing, already existed for each of these three) filtered
@@ -323,39 +327,74 @@ export async function listMyAuthoredRows(kind: SchemaDefinitionEntityKind, actor
   return [];
 }
 
-// --- Per-verb "Queue" tabs (owner: "add a tab to show what is the queue
-// applicable to the badge you hold... a tab to show queue that needs
-// validation") — every row currently sitting in fromState, full stop, not
-// scoped to who (if anyone) already acted.
-// No `define` queue: Draft is birth, not a hop consumed from some prior
-// state, so there's nothing to queue there (see [[creation-authority-not-a-
-// transition]]). viewer null = unscoped (root — every tenant's queue).
-export async function listAuthoringQueue(kind: SchemaDefinitionEntityKind, fromState: string, viewer?: { isRoot: boolean; tenantId: string } | null): Promise<AuthoringDraftSummary[]> {
-  if (kind === "Pack") {
-    const { data } = await packsDB.findByStatus(fromState as PackRow["status"], viewer && !viewer.isRoot ? viewer.tenantId : null);
-    return (data ?? []).map(toSummary);
+// Owner: "I want to change the packs list Pack authoring-All packs similar to
+// Objectives. List the tenant scope+platform packs as a list with action
+// buttons corresponding to the badge." Confirmed with the owner: applies to
+// every grammar-authored kind sharing this page (Pack/Template/Profile/
+// Deliverable — not just Pack); the tab structure (an "I defined" tab plus a
+// separate cross-author "Queue" tab per verb) is replaced entirely by one
+// flat list; visibility stays author-scoped (listMyAuthoredRows above,
+// unchanged) — owner: "why do you want to show beyond what the author has to
+// see. If they want to see anything else, they view it on the pack
+// registry." Each row shows every governed transition the viewer currently
+// holds the badge for, off THAT row's own current status — mirroring
+// Objectives' own hasObjectiveBadge(node.verb) pattern.
+export interface AuthoringRowAction {
+  verb: string;
+  toState: string;
+  // /publish advances exactly one step along the canonical Draft -> ... ->
+  // Active path (each kind's own AUTHORING_NEXT_STATE map), including Pack's
+  // Draft-only structural-validation gate. /transition is the generic,
+  // explicit-targetState route — everything else: post-Active governance
+  // (Template/Profile/Deliverable still have their older reactivation-
+  // capable lifecycle, CR-080 only simplified Pack's) and Pack's own Reject
+  // (Validated -> Draft, the one transition anywhere requiring a comment).
+  endpoint: "publish" | "transition";
+  requiresComment: boolean;
+}
+
+// The canonical Draft -> ... -> Active forward walk for one kind, as a set of
+// "fromState->toState" edges — the same walk buildAuthoringTabs used to build
+// its own tab ordering (now removed along with the tabs themselves), kept
+// here because computeRowActions still needs it to tell "the one canonical
+// next step" (-> /publish) apart from any other real, governed edge off the
+// same status (-> /transition), without hardcoding each kind's own
+// AUTHORING_NEXT_STATE map (core/packs.ts, core/templates.ts, etc. each keep
+// their own private copy already — this derives the same shape generically,
+// from the real transition_definitions graph, so it works for any kind
+// without importing four separate private maps).
+async function canonicalForwardEdges(kind: SchemaDefinitionEntityKind): Promise<Set<string>> {
+  const allTds = await listCurrentTransitionDefinitions();
+  const byFromState = new Map<string, Array<{ toState: string }>>();
+  for (const d of allTds) {
+    if (d.entityType !== kind || !d.isActive || !d.verb) continue;
+    if (!byFromState.has(d.fromState)) byFromState.set(d.fromState, []);
+    byFromState.get(d.fromState)!.push({ toState: d.toState });
   }
-  // Bug fix (owner, 2026-08-18): Template/Profile used to have exactly one
-  // non-define verb (publish, Draft -> Active), so findDrafts (Draft/Validated
-  // only) covered every possible fromState. Now that both have Pack's full
-  // six-hop lifecycle (transitionDefinitions.json seed change), a queue's
-  // fromState can be Published/Active/Deprecated/Retired too — findDrafts
-  // would silently return empty for those. Owner, 2026-08-19: Template and
-  // now Profile both have Pack's tenant-ownership model too, so both are
-  // scoped the same way Pack's own findByStatus call above is.
-  if (kind === "Template") {
-    const { data } = await templatesDB.findByStatus(fromState as TemplateRow["status"], viewer && !viewer.isRoot ? viewer.tenantId : null);
-    return (data ?? []).map(toSummary);
+  const edges = new Set<string>();
+  const visited = new Set(["Draft"]);
+  let current = "Draft";
+  for (;;) {
+    const next = (byFromState.get(current) ?? []).find((e) => !visited.has(e.toState));
+    if (!next) break;
+    edges.add(`${current}->${next.toState}`);
+    visited.add(next.toState);
+    current = next.toState;
   }
-  if (kind === "Profile") {
-    const { data } = await profilesDB.findByStatus(fromState as ProfileRow["status"], viewer && !viewer.isRoot ? viewer.tenantId : null);
-    return (data ?? []).map(toSummary);
-  }
-  if (kind === "Deliverable") {
-    const { data } = await deliverableDefinitionsDB.findByStatus(fromState as TemplateRow["status"], viewer && !viewer.isRoot ? viewer.tenantId : null);
-    return (data ?? []).map((d) => toSummary({ id: d.id, code: d.code, name: d.code, status: d.status, created_at: d.created_at }));
-  }
-  return [];
+  return edges;
+}
+
+export async function computeRowActions(kind: SchemaDefinitionEntityKind, status: string, held: Set<string>, isRoot: boolean): Promise<AuthoringRowAction[]> {
+  const canonical = await canonicalForwardEdges(kind);
+  const { data } = await transitionDefinitionsDB.findPossibleNextTransitions(kind as TransitionEntityType, status);
+  return (data ?? [])
+    .filter((t) => t.verb && (isRoot || held.has(`${kind.toLowerCase()}_${t.verb}`)))
+    .map((t) => ({
+      verb: t.verb as string,
+      toState: t.toState,
+      endpoint: (canonical.has(`${status}->${t.toState}`) ? "publish" : "transition") as "publish" | "transition",
+      requiresComment: kind === "Pack" && t.toState === "Draft",
+    }));
 }
 
 // CR-045 follow-up — getPackSelectionsByCategory/getProfilePackSelections
@@ -517,6 +556,74 @@ export async function inheritedTemplateContent(parentTemplateId: string, viewerT
   };
 }
 
+// CR-081 — "New Pack" form's existing-code branch picker: mirrors
+// inheritedTemplateContent's own "real page reload, real content
+// reconstruction" shape exactly, rather than a client-side JSON-rehydration
+// exercise (Pack's contributions are deep/nested; a real server render is
+// the robust way to repopulate them). Deliberately stricter than Template's
+// own Platform-or-own-tenant visibility: a Pack code's version SEQUENCE is
+// scoped to exactly one tenant (packCodeVersionSummaries' own reasoning —
+// Platform's and a tenant's own lineage under the identical code text are
+// independent series), so branching is only ever offered from — and only
+// ever accepted from — this SAME viewer's own tenant, never Platform's.
+// packVersion is always OVERWRITTEN to the freshly computed next-in-sequence
+// value, never the source row's own version — which existing version you
+// pick for its CONTENT never changes which number the new Draft gets.
+const BRANCHABLE_PACK_STATUSES = new Set(["Published", "Active", "Retired", "Archived"]);
+export async function inheritedPackVersionContent(fromPackId: string, viewerTenantId: string): Promise<{ ok: true; content: Record<string, unknown> } | { ok: false; error: string }> {
+  const { data: source } = await packsDB.findById(fromPackId);
+  if (!source) return { ok: false, error: "source Pack not found" };
+  // Bug fix (owner: a tenant with none of their own Packs under a code
+  // couldn't branch from Platform's — packCodeVersionSummaries now offers
+  // Platform's own versions as a fallback content source when this tenant
+  // has nothing of their own under that code (see that function's own
+  // comment); this check has to accept the same Platform-owned source it
+  // now legitimately links to, not just this exact tenant's own rows.
+  if (source.tenant_id !== viewerTenantId && source.tenant_id !== PLATFORM_TENANT_ID) return { ok: false, error: "source Pack is not this tenant's own" };
+  if (!BRANCHABLE_PACK_STATUSES.has(source.status)) return { ok: false, error: `a Pack can only be branched from Published, Active, Retired, or Archived (this one is ${source.status})` };
+  const summaries = await packCodeVersionSummaries(viewerTenantId);
+  // Bug fix (owner: branching from an existing Pack — e.g. domain-ebook-
+  // library — showed its one Dependency correctly, but every Contribution
+  // tab came up empty despite the source Pack's own JSON clearly having
+  // content there): generateFields (formGenerator.ts) reads the schema's own
+  // FLAT field names directly off this content object — contributionCapabilities,
+  // contributionServices, contributionChecklists, and so on — it never looks
+  // at a nested `contributions` key at all. `dependencies` only ever "worked"
+  // by coincidence: it's the one field whose flat schema name happens to
+  // match packs.dependencies' own column name exactly. Every other
+  // contribution type's DB column name (contributions.capabilities,
+  // contributions.services, ...) is a different key than its own schema
+  // field name, so nesting it under one `contributions` object here left
+  // every one of them looking up something that was never there. toPackSeedInput
+  // (the inverse, used when this form is later SAVED) already expects and
+  // flattens these same keys — this mirrors it on the way in, not just out.
+  const c = source.contributions ?? {};
+  return {
+    ok: true,
+    content: {
+      code: source.code,
+      name: source.name,
+      category: source.category,
+      packVersion: summaries[source.code]?.nextVersion ?? "1.0.0",
+      installationClassification: source.installation_classification,
+      contributionCapabilities: c.capabilities ?? [],
+      contributionServices: c.services ?? [],
+      contributionAuthorityRules: c.authorityRules ?? [],
+      contributionPolicies: c.policies ?? [],
+      contributionQualityGates: c.qualityGates ?? [],
+      contributionChecklists: c.checklists ?? [],
+      contributionReviewGates: c.reviewGates ?? [],
+      contributionObligationDefinitions: c.obligationDefinitions ?? [],
+      contributionsCompliance: {
+        complianceFrameworks: c.complianceFrameworks ?? [],
+        complianceRequirements: c.complianceRequirements ?? [],
+      },
+      dependencies: source.dependencies,
+      compositionSources: source.composition_sources,
+    },
+  };
+}
+
 // Owner, 2026-08-19: "19.2 and 19.3 has to be fixed similar to pack and
 // template" — same treatment as assertTemplateCodeVersionFree, scoped to the
 // authoring tenant (profiles_code_version_tenant_key, migration 064).
@@ -594,6 +701,41 @@ async function withDefaultTemplatePurpose(content: Record<string, unknown>, code
   return { ...content, purpose: concept.description };
 }
 
+// CR-079 step (d) — when a Pack Draft's own `code` doesn't resolve against
+// its category's own Ontology vocabulary, publish ConceptCreated (Ch.18
+// §14 — already named there, but zero of its 7 events exist anywhere in the
+// codebase before this; emission only, who consumes it is a separate,
+// deferred layer — Chapter 18 / design/mvp-build-plan/Ontology Plan.md).
+// Owner: "when a new pack code is entered, ConceptCreated event has to be
+// triggered." Called on every Draft create/save, not just once — but
+// de-duplicated per (Pack, code, conceptType) via the events table itself
+// (nothing else tracks "pending" concepts), so resaving the same still-
+// unregistered code doesn't re-fire. Owner: "One unregistered code get one
+// conceptcreated from one pack. If another pack uses the same unregistered
+// code, there will be another conceptcreated event" — deliberately NOT
+// deduplicated across different Packs proposing the same code; conflict
+// resolution across proposals happens at consumption, out of scope here.
+async function emitConceptCreatedIfUnregistered(packId: string, code: string, category: string, tenantId?: string): Promise<void> {
+  if (!code.trim() || !category.trim()) return;
+  const conceptType = `${category.toLowerCase()}-name`;
+  const ontologyViewer = { isRoot: false, tenantId: tenantId ?? PLATFORM_TENANT_ID };
+  const { data: concept } = await ontologyDB.findConcept(conceptType, code, ontologyViewer);
+  if (concept?.is_active) return; // already a real, registered concept — nothing to propose
+  const { data: priorEvents } = await eventsDB.findByOriginatingObject("Pack", packId);
+  const alreadyProposed = (priorEvents ?? []).some(
+    (e) => e.event_type === "ConceptCreated" && e.payload?.code === code && e.payload?.conceptType === conceptType
+  );
+  if (alreadyProposed) return;
+  await eventBus.publish({
+    eventType: "ConceptCreated",
+    originatingObjectType: "Pack",
+    originatingObjectId: packId,
+    seuId: null,
+    correlationId: eventBus.newCorrelationId(),
+    payload: { code, conceptType },
+  });
+}
+
 // --- Create a Draft from authored content (real author) ---------------------
 // tenantId (Pack/Template ownership, owner: "Packs will have ownership" /
 // CR-026 "Add a tenant_id column") — the real author's own tenant_id
@@ -607,7 +749,10 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
   if (input.kind === "Pack") {
     // A Pack Draft is created directly (status Draft) from the authored content;
     // full structural/referential validation is the publish-time gate, not the
-    // draft gate (WIP is allowed to be incomplete). Code is a system UUID.
+    // draft gate (WIP is allowed to be incomplete). "Code is a system UUID" was
+    // CR-015 — deprecated (see toPackSeedInput's own comment and CR-015's
+    // Update note): `code` comes from toPackSeedInput's real value now (the
+    // Ontology picker, a seed file, or an imported doc), never a minted UUID.
     const seed = toPackSeedInput(input.content);
     const collision = await assertPackCodeVersionFree(seed.code, seed.packVersion, input.tenantId ?? PLATFORM_TENANT_ID);
     if (collision) return { ok: false, errors: [collision] };
@@ -625,6 +770,27 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       tenantId: input.tenantId,
     });
     if (error || !pack) return { ok: false, errors: [(error ?? new Error("failed to create Pack draft")).message] };
+    // Bug fix (owner: "I do not see whatever pack i created on the event
+    // bus") — this authoring path never published anything on creation at
+    // all; the FIRST event only ever appeared once/if the Draft was later
+    // Validated (transitionPack's own EVENT_BY_TARGET_STATE), so a Draft
+    // that hadn't been advanced yet was genuinely invisible on the Event
+    // Bus, not filtered out or hidden — there was nothing to find.
+    // createPackDraft (the seed-file/CLI path) already publishes
+    // "PackRegistered" the moment its own row exists; same event name here
+    // for the same underlying fact ("a new Pack row now exists"), with the
+    // real author recorded — that path has no human actor to attribute it
+    // to, this one does.
+    await eventBus.publish({
+      eventType: "PackRegistered",
+      originatingObjectType: "Pack",
+      originatingObjectId: pack.id,
+      seuId: null, // platform catalog entity, not SEU-scoped
+      correlationId: eventBus.newCorrelationId(),
+      payload: { code: pack.code, packVersion: pack.pack_version },
+      actorId: input.actorId,
+    });
+    await emitConceptCreatedIfUnregistered(pack.id, seed.code, seed.category, input.tenantId);
     return { ok: true, draftId: pack.id };
   }
   if (input.kind === "Template") {
@@ -748,6 +914,7 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     });
     if (error) return { ok: false, errors: [error.message] };
     if (!data) return { ok: false, errors: ["draft not found or no longer editable (only Draft rows can be saved)"] };
+    await emitConceptCreatedIfUnregistered(input.id, seed.code, seed.category, existingPack.tenant_id);
     return { ok: true };
   }
   if (input.kind === "Template") {

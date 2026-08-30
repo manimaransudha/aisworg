@@ -47,7 +47,26 @@ export interface JsonSchemaProperty {
   // Pack/Template/Profile — which fields are ontology-backed is entirely a
   // schema fact, never a per-field-name branch in code.
   "x-ontology"?: boolean;
+  // CR-079 step (d) — this field's Ontology concept type isn't fixed; it's
+  // derived from another field's CURRENT value on this same schema (Pack's
+  // own `code`, driven by `category`: category "Technology" -> concept type
+  // "technology-name"). x-referential-source-by names the driver field;
+  // x-referential-source-suffix is appended to the driver's own value,
+  // lowercased. Mutually exclusive with a fixed x-referential-source on the
+  // same field — a field is either always one concept type, or driven.
+  // Owner: "Category has to be the first field... From what gets chosen
+  // there, code dropdown has to be generated."
+  "x-referential-source-by"?: string;
+  "x-referential-source-suffix"?: string;
   "x-help"?: string;
+  // CR-077 — a long-text field authored in Markdown (Checklist/Quality Gate/
+  // Review Gate/Obligation Definition's own statement/prompt). Orthogonal to
+  // x-widget (which picks the control SHAPE — input/textarea/referential-list);
+  // this picks content semantics layered on a string-kind field, top-level or
+  // nested-list item. Edit mode gets a formatting toolbar; view mode renders
+  // through marked+sanitize-html (domain/sdk/markdownRender.ts) instead of a
+  // plain pre-wrap div. No live preview yet — CR-078, deferred.
+  "x-format"?: "markdown";
   // CR-067 — "when a composition strategy is chosen, the UI widget should
   // appear." Generic conditional-reveal: names another field on this SAME
   // schema; this field stays hidden in the authoring form until that other
@@ -103,6 +122,11 @@ export interface ReferentialListItemField {
   required?: boolean;
   help?: string;
   label?: string;
+  // CR-077 — true when this item field's schema carries x-format:"markdown"
+  // (statement/prompt today). Drives the edit-mode toolbar and the view-mode
+  // renderMarkdown call in _referentialListGroup.ejs; independent of `full`
+  // (which only decides textarea-vs-input sizing).
+  markdown?: boolean;
   nestedItemFields?: ReferentialListItemField[];
 }
 
@@ -116,7 +140,12 @@ export type GeneratedField =
   // hand-typed (owner: "Editable text is not the correct approach").
   | { kind: "version"; name: string; label: string; required: boolean; value: string; help?: string; showWhen?: string }
   | { kind: "select"; name: string; label: string; required: boolean; value: string; options: string[]; help?: string; showWhen?: string }
-  | { kind: "referential-select"; name: string; label: string; required: boolean; value: string; referentialSource: string; ontology: boolean; help?: string; showWhen?: string }
+  // CR-079 step (d) — dynamicSourceField/dynamicSourceSuffix are set only
+  // when x-referential-source-by drives this field's concept type from
+  // another field's current value; the view renders a free-text-capable
+  // <input list>/<datalist> instead of a fixed <select> and swaps its
+  // options client-side when the named driver field changes.
+  | { kind: "referential-select"; name: string; label: string; required: boolean; value: string; referentialSource: string; ontology: boolean; help?: string; showWhen?: string; dynamicSourceField?: string; dynamicSourceSuffix?: string; dynamicSourceDriverConceptType?: string }
   | { kind: "json"; name: string; label: string; required: boolean; value: string; help?: string; showWhen?: string }
   // Bug fix (UI redesign, owner: "extremely unfriendly"): `existingCount` marks
   // how many of `rows` are the content's OWN rows vs. blank ones offered so an
@@ -149,7 +178,7 @@ function labelize(name: string): string {
 // one function, not a second hand-copied item-field builder.
 function buildItemFields(itemProps: Record<string, JsonSchemaProperty>, itemRequired: Set<string>): ReferentialListItemField[] {
   return Object.entries(itemProps).map(([fieldName, fieldDef]) => {
-    const common = { required: itemRequired.has(fieldName), help: fieldDef["x-help"], label: fieldDef["x-label"] ?? labelize(fieldName) };
+    const common = { required: itemRequired.has(fieldName), help: fieldDef["x-help"], label: fieldDef["x-label"] ?? labelize(fieldName), markdown: fieldDef["x-format"] === "markdown" };
     if (fieldDef.type === "array" && fieldDef.items?.properties) {
       const nestedRequired = new Set(fieldDef.items.required ?? []);
       const nestedItemFields = buildItemFields(fieldDef.items.properties, nestedRequired);
@@ -240,13 +269,31 @@ export function generateFields(schema: JsonSchemaDocument, content: Record<strin
     }
 
     if (def["x-widget"] === "referential-select") {
+      const driverField = def["x-referential-source-by"];
+      const driverSuffix = def["x-referential-source-suffix"] ?? "";
+      // CR-079 step (d) — a driven field's concept type is computed from the
+      // driver's CURRENT value on this same content, not a fixed schema
+      // string; empty (no options yet) until the driver itself has a value.
+      const referentialSource = driverField
+        ? (() => {
+            const driverValue = String(content[driverField] ?? "").trim();
+            return driverValue ? `${driverValue.toLowerCase()}${driverSuffix}` : "";
+          })()
+        : (def["x-referential-source"] ?? "");
       fields.push({
         kind: "referential-select", name, label: labelize(name), required: isRequired,
         value: rawValue !== undefined ? String(rawValue) : "",
-        referentialSource: def["x-referential-source"] ?? "",
+        referentialSource,
         ontology: def["x-ontology"] === true,
         help: def["x-help"],
         showWhen: def["x-show-when"],
+        dynamicSourceField: driverField,
+        dynamicSourceSuffix: driverField ? driverSuffix : undefined,
+        // The driver's OWN concept type (e.g. category:pack) — lets the view
+        // enumerate every possible driver value to pre-build the client-side
+        // options-by-driver-value map, without cross-referencing the
+        // driver's own generated field.
+        dynamicSourceDriverConceptType: driverField ? schema.properties?.[driverField]?.["x-referential-source"] : undefined,
       });
       continue;
     }
@@ -286,6 +333,23 @@ export function ontologyConceptTypesIn(schema: JsonSchemaDocument): string[] {
     }
   }
   return [...types];
+}
+
+// CR-079 step (d) — every field whose concept type is DRIVEN by another
+// field's value (x-referential-source-by), rather than fixed. The route's
+// loader (web/sdkAuthoring.ts's loadOntologyOptions) uses this to pre-fetch
+// every POSSIBLE concept type — not just whichever matches today's saved
+// value — since the author can change the driver field in the browser
+// before saving, and the client-side swap has no server round trip.
+export function dynamicReferentialSourceFieldsIn(schema: JsonSchemaDocument): Array<{ driverField: string; suffix: string }> {
+  const result: Array<{ driverField: string; suffix: string }> = [];
+  for (const def of Object.values(schema.properties ?? {})) {
+    const driverField = def["x-referential-source-by"];
+    if (def["x-widget"] === "referential-select" && def["x-ontology"] === true && driverField) {
+      result.push({ driverField, suffix: def["x-referential-source-suffix"] ?? "" });
+    }
+  }
+  return result;
 }
 
 // --- Display grouping (UI redesign, owner: "extremely unfriendly") --------
@@ -339,9 +403,22 @@ const DELIVERABLES_FIELD_NAMES = new Set(["deliverableCatalogue", "dependencyGra
 // isn't reliable to author-facing display order). Unlisted fields keep their
 // original relative order, appended after every listed one (Array.sort is
 // stable in Node, so this only ever pulls named fields forward).
+// CR-079 — `category` moved ahead of `code`/`name` (owner: "Category has to
+// be the first field... From what gets chosen there, code dropdown has to be
+// generated") — Pack's own `code` is now Ontology-driven BY category
+// (x-referential-source-by), so category must be authored first for the
+// Code field's options to be anything but empty.
+// CR-081 — `packVersion` moved to sit directly after `code` (owner: "Code
+// and version alongside") — Pack's own code combo box opens a suggestion
+// dropdown that needs the room a full-width category row above frees up, and
+// pairing code with its own computed version keeps the two visually
+// together instead of version landing next to `name` several fields later.
+// Harmless for Template/Profile, which never have a field literally named
+// `packVersion` — their own templateVersion/profileVersion stay exactly
+// where they already were in this same list, further down.
 const FIELD_DISPLAY_ORDER = [
-  "code", "name", "purpose", "templateVersion", "profileVersion", "packVersion",
-  "owner", "publisher", "category", "description", "environment", "baseTemplateCode",
+  "category", "code", "packVersion", "name", "purpose", "templateVersion", "profileVersion",
+  "owner", "publisher", "description", "environment", "baseTemplateCode",
   "installationClassification", "compositionStrategy", "compositionSources",
   "compliancePackCodes", "domainPackCodes", "engineeringPackCodes", "integrationPackCodes", "organisationPackCodes", "technologyPackCodes",
   "deliverableCatalogue", "dependencyGraph",
@@ -475,6 +552,89 @@ export function validateAgainstSchema(schema: JsonSchemaDocument, content: Recor
   return errors;
 }
 
+// Parses one referential-list field's posted rows back into real objects.
+// Recursive — Checklist's own `items` is a genuinely nested referential-list
+// (CR-060: contributionChecklists[].items[].statement/group, an item field
+// whose OWN type is "array", not a scalar), so a single-level version of
+// this needs to recurse into any item field shaped the same way, not just
+// the top-level field parseFormBody calls this for.
+//
+// Bug fix (owner: the row generateFields offers beyond the existing ones,
+// BLANK_ROWS_TO_OFFER "for convenience", pre-fills each item field's own
+// schema `default` — e.g. Pack dependencies' `type` defaults to "required"
+// — so an untouched offered row's <select> renders (and submits) "required"
+// even though the user never touched it. Detecting "blank" by "every field
+// empty" then treats that default as real content: the row survives, gets
+// saved with an empty identifying field (packCode), and validatePackSeed
+// reports a phantom "required dependency ... Pack "" not found". Worse, it
+// COMPOUNDS — the saved phantom row becomes an "existing" row next render,
+// on top of 3 MORE freshly offered blanks, so the count grows by 3 on every
+// Save. Fix: blank-ness is decided by the item's IDENTIFYING field(s) —
+// those marked `x-referential` (what the row is actually a row *of*) — not
+// by every field including ones that carry a schema default. Falls back to
+// "every field empty" only for item shapes with no identifying field.
+//
+// Bug fix (owner: flash error "cl.items.forEach is not a function" on
+// Validate) — before this function existed, an item field whose own type was
+// "array" fell through to the generic `String(raw ?? ...)` branch below,
+// silently stringifying the real nested array the form body parser (qs)
+// already built for Checklist's own items rows into "[object Object]" — a
+// string with a truthy .length, so it survived the blank-row filter below,
+// got saved as corrupt content, and crashed validatePackSeed's own
+// `cl.items.forEach` the moment anyone actually used a Checklist through the
+// real authoring form (JSON import parses real JSON directly and never went
+// through this path, which is why this had never surfaced before). The
+// "every field empty" fallback filter also needed to stop treating an EMPTY
+// array as "non-blank" the way `[] !== ""` naively would — a leftover blank
+// Checklist row with no name/description/asset AND zero items is still
+// blank, not a phantom row to keep.
+// A value counts as "filled" if it's a non-empty array, or a non-blank,
+// non-false scalar — shared by both blank-row filters below so an array-
+// typed field (a nested row-list OR a flat x-multi value-list) is judged the
+// same way in either position, identifying field or fallback.
+function isFieldFilled(v: unknown): boolean {
+  return Array.isArray(v) ? v.length > 0 : v !== "" && v !== false;
+}
+
+function parseReferentialListField(def: JsonSchemaProperty, rawValue: unknown): Record<string, unknown>[] {
+  const itemFieldNames = Object.keys(def.items?.properties ?? {});
+  const identifyingFieldNames = itemFieldNames.filter((fn) => def.items?.properties?.[fn]?.["x-referential"]);
+  const rowsArray = Array.isArray(rawValue) ? rawValue : rawValue ? [rawValue] : [];
+  return rowsArray
+    .map((row) => {
+      const out: Record<string, unknown> = {};
+      for (const fieldName of itemFieldNames) {
+        const fieldDef = def.items?.properties?.[fieldName];
+        const raw = (row as Record<string, unknown>)?.[fieldName];
+        // Bug fix (owner: Validate threw "" is not a canonical category:evidence
+        // concept / quality gate "" has an invalid governedTransition / review
+        // gate is missing a code — on a Draft branched from a Pack with NO
+        // Quality/Review Gates at all) — a genuinely nested row-list (an item
+        // field with its OWN `.items.properties`, like Checklist's own `items`)
+        // needs the recursive treatment just below; checklistIds/
+        // requiredPolicyCodes/recommendedChecklistIds are `type: "array"` too,
+        // but are a FLAT x-multi value list (a <select multiple> submitting
+        // raw id strings) with no `.items.properties` at all — recursing into
+        // those the same way silently turned every submitted id string into
+        // an empty `{}` (the recursive call's own itemFieldNames came back
+        // empty, so its per-row loop never ran), which then made this row's
+        // OWN blank-row check below always see a non-empty ARRAY for that
+        // field — `[] !== ""` is true no matter what an array holds — so the
+        // untouched blank "New item" row Quality/Review Gates always offer
+        // could never be recognised as blank and correctly dropped.
+        if (fieldDef?.type === "array" && fieldDef.items?.properties) out[fieldName] = parseReferentialListField(fieldDef, raw);
+        else if (fieldDef?.type === "array") out[fieldName] = Array.isArray(raw) ? raw.filter((v) => v !== "") : raw ? [raw] : [];
+        // CR-017: a boolean item field is a checkbox — present/"true" -> true.
+        else if (fieldDef?.type === "boolean") out[fieldName] = raw === true || raw === "true" || raw === "on";
+        else out[fieldName] = String(raw ?? fieldDef?.default ?? "");
+      }
+      return out;
+    })
+    .filter((row) => identifyingFieldNames.length > 0
+      ? identifyingFieldNames.some((fn) => isFieldFilled(row[fn]))
+      : Object.values(row).some(isFieldFilled));
+}
+
 // Reassembles posted form fields (flat body values + the referential-list's
 // indexed rows) back into the JSON document shape the schema describes —
 // the inverse of generateFields, so the web route doesn't need its own
@@ -504,40 +664,7 @@ export function parseFormBody(schema: JsonSchemaDocument, body: Record<string, u
     }
 
     if (def["x-widget"] === "referential-list") {
-      const itemFieldNames = Object.keys(def.items?.properties ?? {});
-      // Bug fix: the row generateFields offers beyond the existing ones
-      // (BLANK_ROWS_TO_OFFER, "for convenience") pre-fills each item field's
-      // own schema `default` — e.g. Pack dependencies' `type` defaults to
-      // "required" — so an untouched offered row's <select> renders (and
-      // submits) "required" even though the user never touched it. Detecting
-      // "blank" by "every field empty" then treats that default as real
-      // content: the row survives, gets saved with an empty identifying field
-      // (packCode), and validatePackSeed reports a phantom "required
-      // dependency ... Pack "" not found". Worse, it COMPOUNDS — the saved
-      // phantom row becomes an "existing" row next render, on top of 3 MORE
-      // freshly offered blanks, so the count grows by 3 on every Save. Fix:
-      // blank-ness is decided by the item's IDENTIFYING field(s) — those
-      // marked `x-referential` (what the row is actually a row *of*) — not by
-      // every field including ones that carry a schema default. Falls back to
-      // "every field empty" only for item shapes with no identifying field.
-      const identifyingFieldNames = itemFieldNames.filter((fn) => def.items?.properties?.[fn]?.["x-referential"]);
-      const rowsInput = body[name];
-      const rowsArray = Array.isArray(rowsInput) ? rowsInput : rowsInput ? [rowsInput] : [];
-      content[name] = rowsArray
-        .map((row) => {
-          const out: Record<string, unknown> = {};
-          for (const fieldName of itemFieldNames) {
-            const fieldDef = def.items?.properties?.[fieldName];
-            const raw = (row as Record<string, unknown>)?.[fieldName];
-            // CR-017: a boolean item field is a checkbox — present/"true" -> true.
-            if (fieldDef?.type === "boolean") out[fieldName] = raw === true || raw === "true" || raw === "on";
-            else out[fieldName] = String(raw ?? fieldDef?.default ?? "");
-          }
-          return out;
-        })
-        .filter((row) => identifyingFieldNames.length > 0
-          ? identifyingFieldNames.some((fn) => row[fn] !== "")
-          : Object.values(row).some((v) => v !== "" && v !== false));
+      content[name] = parseReferentialListField(def, body[name]);
       continue;
     }
 

@@ -4,8 +4,13 @@ A running register of change requests raised against the platform — feature ad
 
 | CR | Title | Status |
 |----|-------|--------|
-| [CR-076](change-requests/CR-076-generic-requireBadge-route-gate.md) | `requireBadge` + `requireTenantScope`: mandatory, generic authorization/scope-gate middleware on every route, replacing hand-rolled per-file copies | ✅ Built 2026-08-29 — mechanism + both `objectives.ts` routers (web + api); rest of `web/`/`api/` tracked follow-up |
-| [CR-072](change-requests/CR-072-transition-trigger-manual-vs-governed.md) | Transition Trigger: manual vs. governed — a new axis on Transition Definitions | 🟡 Open by design (ongoing; sub-item 1 Built 2026-08-28, rest open) |
+| [CR-081](change-requests/CR-081-pack-new-version-sequence-and-branch-picker.md) | Pack "New" form: version is a computed sequence, existing-code branch picker (pre-fill from a prior version), Registry Copy removed | ✅ Built 2026-08-29 |
+| [CR-080](change-requests/CR-080-pack-lifecycle-simplification-reject.md) | Pack lifecycle simplified (Deprecated dropped, reactivation removed) + Validated → Draft Reject with mandatory comment | ✅ Built 2026-08-29 |
+| [CR-079](change-requests/CR-079-pack-code-ontology-scoping-isCapability.md) | Pack `code`: category-scoped Ontology vocabularies (`capability-name` narrowed to Capability Contributions only) | ✅ Built 2026-08-29, verified 2026-08-30 |
+| [CR-078](change-requests/CR-078-markdown-live-preview.md) | Markdown live preview (deferred, split out of CR-077) | 🔵 Deferred — not built, no target |
+| [CR-077](change-requests/CR-077-markdown-statement-prompt-fields.md) | Markdown-formatted `statement`/`prompt` fields (Checklist/Quality Gate/Review Gate/Obligation Definition) | ✅ Built 2026-08-29 |
+| [CR-076](change-requests/CR-076-generic-requireBadge-route-gate.md) | `requireBadge` + `requireTenantScope`: mandatory, generic authorization/scope-gate middleware on every route, replacing hand-rolled per-file copies | ✅ Built 2026-08-29 — mechanism + `objectives.ts` + `packs.ts` (web + api both); `requireTenantScope` generalized beyond Objective's own storage shape; Template/Profile/SDK authoring/Ontology tracked follow-up |
+| [CR-072](change-requests/CR-072-transition-trigger-manual-vs-governed.md) | Transition Trigger: manual vs. governed — a new axis on Transition Definitions | 🟡 Open by design (ongoing; sub-item 1 + Pack sub-items 6–11 Built, rest open) |
 | [CR-071](change-requests/CR-071-objective-sponsoring-authority-tenant-scoping.md) | Objective: Sponsoring Authority (JSONB tenant scoping) for the Objectives list, badge-gated lifecycle buttons | ✅ Built 2026-08-28 |
 | [CR-070](change-requests/CR-070-admin-reassign-participants.md) | Admin screens: reassign Deliverables and other entities to new Participants | 🔵 Deferred (not designed) |
 | [CR-069](change-requests/CR-069-objective-display-id-renumber-on-move.md) | Objective display id: renumber on re-parent (split out of CR-068; CR-068 ships freeze-on-move only) | 🔵 Deferred (not designed) |

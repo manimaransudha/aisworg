@@ -127,6 +127,40 @@ export async function createPlatformUser(input: { email: string; name?: string; 
   return { ok: true, email: input.email, verificationLink: result.link ?? null };
 }
 
+const EDITABLE_ROLES = new Set(["general", "power", "super"]);
+
+export type UpdatePlatformUserResult = { ok: true } | { ok: false; detail: string };
+
+// Owner: "In aisworg/seu/identity/users page, add an action button to edit
+// the users." The legacy /auth/users page already edits exactly these two
+// columns (role, is_active) — userDB.updateRole/setActive already exist,
+// keyed by email; this just adds the id-keyed lookup so the newer Identity
+// Management surface (root-gated via requirePlatformBadge, not the legacy
+// page's own requireRole) can reach them without a second, ID-based DB
+// method. Deliberately NOT email/name/avatar_url/type/tenant_id — those are
+// either the OAuth-identity key or set once at creation (see
+// createPlatformUser above); no existing admin action anywhere in this app
+// has ever touched them, so this doesn't start now. Badges are a separate,
+// already-built flow (issueBadgeGrant/revokeBadgeGrant, Badge Management) —
+// not duplicated here.
+export async function updatePlatformUser(input: { id: number; role: string; isActive: boolean; actingUserEmail: string | null }): Promise<UpdatePlatformUserResult> {
+  if (!EDITABLE_ROLES.has(input.role)) return { ok: false, detail: `invalid role "${input.role}"` };
+  const user = await userDB.findById(input.id);
+  if (!user) return { ok: false, detail: "user not found" };
+  // Self-edit guard, by EMAIL not id — same as the legacy /auth/users page's
+  // own guard, and NOT interchangeable here: this app's dev/test auto-login
+  // shim (src/app.js) hardcodes a fixed id:1 session identity whose EMAIL
+  // happens to match a real seeded user row that itself has a DIFFERENT real
+  // database id — an id-based comparison silently never matches for that
+  // shim identity (confirmed live: the guard never fired), while email
+  // always correctly identifies who's actually acting, in the shim and in
+  // real OAuth login alike.
+  if (input.actingUserEmail && user.email === input.actingUserEmail) return { ok: false, detail: "you can't edit your own account from here" };
+  await userDB.updateRole(user.email, input.role);
+  await userDB.setActive(user.email, input.isActive);
+  return { ok: true };
+}
+
 export type CreateTenantResult =
   | { ok: true; tenant: TenantRow }
   | { ok: false; reason: "validation_failed"; detail: string };

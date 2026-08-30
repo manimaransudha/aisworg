@@ -9,7 +9,7 @@ import { dependencyDefinitionsDB } from "../../../dblayer/dependencyDefinitionsD
 import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
 import { assertCanonicalCategory } from "./ontology.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
-import type { TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../../../dblayer/seuTypes.js";
+import type { CapabilityRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../../../dblayer/seuTypes.js";
 
 export interface TemplateCandidate {
   id: string;
@@ -378,6 +378,37 @@ export async function getDependencyGraphContent(templateId: string): Promise<Tem
   }));
 }
 
+// CR-079 bug fix — deriveCapabilityCodesFromPackCodes above already resolves
+// this precisely (selected pack codes -> their real pack ids ->
+// findByOriginatingPackIds, genuinely Pack-scoped), but
+// materialisePackSelectionsAndCapabilities used to throw that precision away
+// down to bare code strings and re-resolve via capabilitiesDB.findByCodes,
+// which has NO Pack scoping at all — so once contributionCapabilities[].code
+// became a real, shared Ontology vocabulary (capability-name), any OTHER
+// Active Pack anywhere sharing that code (never selected on this Template)
+// got silently pulled in as an additional required Capability. Owner:
+// "template should pull all and de-dupe. So if i have a project that needs
+// technology-nodejs and technology-go, both are going to pull anything
+// associated with development" — i.e. scoped to the Template's own SELECTED
+// packs only, collapsed to one row when more than one of them shares a
+// code (the same competency, not a duplicate requirement). This keeps the
+// real rows from the same Pack-scoped resolution instead of round-tripping
+// through codes at all.
+async function deriveDedupedCapabilitiesFromPackCodes(packCodes: string[]): Promise<CapabilityRow[]> {
+  const packIds: string[] = [];
+  for (const code of packCodes) {
+    const { data: pack } = await packsDB.findActiveByCode(code);
+    if (pack) packIds.push(pack.id);
+  }
+  if (packIds.length === 0) return [];
+  const { data: capabilities } = await capabilitiesDB.findByOriginatingPackIds(packIds);
+  const byCode = new Map<string, CapabilityRow>();
+  for (const capability of capabilities ?? []) {
+    if (!byCode.has(capability.code)) byCode.set(capability.code, capability);
+  }
+  return [...byCode.values()];
+}
+
 // CR-038 — shared by publishTemplate and materialiseTemplateDraft: write the
 // six category-scoped Pack selections, then derive and store
 // requiredCapabilityCodes fresh from that same selection (never read from
@@ -386,9 +417,8 @@ async function materialisePackSelectionsAndCapabilities(templateId: string, seed
   for (const slot of PACK_SELECTION_SLOTS) {
     await templatesDB.setPackSelection(templateId, slot.listKind, (seed[slot.field] as string[] | undefined) ?? []);
   }
-  const derivedCapabilityCodes = await deriveCapabilityCodesFromPackCodes(collectAllPackCodes(seed));
-  const { data: capabilities } = await capabilitiesDB.findByCodes(derivedCapabilityCodes);
-  await templatesDB.setRequiredCapabilities(templateId, (capabilities ?? []).map((c) => c.id));
+  const capabilities = await deriveDedupedCapabilitiesFromPackCodes(collectAllPackCodes(seed));
+  await templatesDB.setRequiredCapabilities(templateId, capabilities.map((c) => c.id));
 }
 
 export type PublishTemplateResult = { ok: true; templateId: string } | { ok: false; errors: string[] };

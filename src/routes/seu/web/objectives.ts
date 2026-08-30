@@ -111,7 +111,7 @@ async function getObjectiveViewerContext(req: Request): Promise<{ isRoot: boolea
 // only visible to root, same as it already is in the list/search views.
 router.param(
   "id",
-  requireTenantScope.forParam("id", objectivesDB.findById, {
+  requireTenantScope.forParam("id", objectivesDB.findById, (o) => o.sponsoring_authority?.tenant ?? null, {
     notFoundRedirect: "/aisworg/seu/objectives",
     notFoundMessage: "Objective not found.",
   })
@@ -194,7 +194,7 @@ router.get("/objectives/:id/children", requireBadge(["None"]), async (req: Reque
 router.get(
   "/objectives/new",
   requireBadge(["objective_propose"], { redirectTo: "/aisworg/seu/objectives", denyMessage: "You don't hold the badge required to add Objectives." }),
-  requireTenantScope.forField("query", "parent", objectivesDB.findById, {
+  requireTenantScope.forField("query", "parent", objectivesDB.findById, (o) => o.sponsoring_authority?.tenant ?? null, {
     notFoundRedirect: "/aisworg/seu/objectives",
     notFoundMessage: "Parent Objective not found.",
   }),
@@ -250,7 +250,7 @@ router.get(
 router.post(
   "/objectives",
   requireBadge(["objective_propose"], { redirectTo: "/aisworg/seu/objectives", denyMessage: "You don't hold the badge required to add Objectives." }),
-  requireTenantScope.forField("body", "parentObjectiveId", objectivesDB.findById, {
+  requireTenantScope.forField("body", "parentObjectiveId", objectivesDB.findById, (o) => o.sponsoring_authority?.tenant ?? null, {
     notFoundRedirect: "/aisworg/seu/objectives",
     notFoundMessage: "Parent Objective not found.",
   }),

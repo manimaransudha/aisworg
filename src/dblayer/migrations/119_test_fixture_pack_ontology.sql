@@ -1,3 +1,14 @@
+-- ⚠️ DEV/TEST ONLY — DO NOT RUN THIS MIGRATION IN PRODUCTION. Owner,
+-- 2026-08-29. Every row this file inserts belongs to the test-fixture-pack
+-- system: the 24 `test-`-prefixed twins are self-evidently test-only, and
+-- even the 2 "real" rows below (domain-ebook-library, technology-nodejs) are
+-- fixes to seed Packs that are not wired into any production seeding
+-- pipeline today (this file's own note: "masked only because neither file is
+-- wired into cleanSlate.ts's active pipeline yet"). Applying this migration
+-- against a production database would register 26 dev/test concepts —
+-- "Test: …" labels included — as permanent, canonical `capability-name`
+-- Ontology entries with no legitimate production use.
+--
 -- Ontology (Ch.18) — two real `capability-name` concepts plus 24 test-only
 -- twins.
 --

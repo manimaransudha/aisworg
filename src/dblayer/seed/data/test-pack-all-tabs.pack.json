@@ -1,0 +1,117 @@
+{
+  "code": "test-pack-all-tabs",
+  "name": "Test: All Tabs Populated",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "A dedicated test fixture — every generated-form tab (Identity & Metadata, Compatibility, Dependencies, and every Contribution type) is deliberately populated with real, valid content, so authoring-UI and validation changes have one realistic Pack to exercise all of them against at once. Not a real business Pack — migration 140 registers its own stable engineering-name concept.",
+  "migrationGuidance": "None — static test fixture, not a real production Pack.",
+  "incompatiblePackVersions": "none",
+  "supportedPlatformVersion": "1.0",
+  "minSupportedPlatformVersion": "1.0",
+  "maxSupportedPlatformVersion": "2.0",
+  "dependencies": [
+    { "packCode": "architecture-solution-design", "version": "1.0.0", "type": "required" }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "code-review",
+        "name": "Code Review",
+        "description": "Ensures code changes are reviewed for quality and correctness before merging."
+      }
+    ],
+    "services": [
+      {
+        "code": "api-contracts",
+        "capabilityCode": "code-review",
+        "name": "API Contracts",
+        "contractDescription": "A versioned, reviewed contract describing this Pack's own API surface.",
+        "serviceLevel": [
+          { "label": "Review turnaround", "target": "1 business day" },
+          { "label": "Availability", "target": "99.9% uptime" }
+        ]
+      }
+    ],
+    "checklists": [
+      {
+        "name": "Test: All Tabs Checklist",
+        "description": "Verifies the fixture's own Checklist tab renders and saves correctly.",
+        "items": [
+          { "statement": "Every generated-form tab renders its own saved content correctly.", "group": "Fixture" },
+          { "statement": "Nested checklist items round-trip as a real array, not a stringified blob.", "group": "Fixture" }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "api-specification",
+        "name": "API Specification Review",
+        "governedTransition": "Pack|Draft|Validated",
+        "statement": "The API specification is complete and internally consistent.",
+        "classification": "judgment",
+        "prompt": "Review the API specification for completeness and consistency.",
+        "participant": "AI+human",
+        "outputContract": "assessment-acceptance",
+        "checklistIds": ["Test: All Tabs Checklist"]
+      }
+    ],
+    "qualityGates": [
+      {
+        "name": "Fixture Quality Gate",
+        "category": "Analytical Evidence",
+        "governedTransition": "Pack|Draft|Validated",
+        "criteriaType": "no_unresolved_obligations",
+        "classification": "machine-verifiable",
+        "statement": "No unresolved Obligations block this transition.",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes"
+      }
+    ],
+    "policies": [
+      {
+        "code": "no-hardcoded-secrets",
+        "name": "No Hardcoded Secrets",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "Pack|Draft|Validated",
+        "severity": "High"
+      }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "fixture-review-followup",
+        "category": "Engineering",
+        "origin": "Telemetry and Knowledge Model",
+        "statement": "A follow-up review is required after this fixture is exercised.",
+        "classification": "human-attested",
+        "participant": "human",
+        "outputContract": "passed-failed-notes"
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "fixture-authority-rule",
+        "authorisedRole": "power",
+        "governedTransition": "Pack|Draft|Validated"
+      }
+    ],
+    "complianceFrameworks": [
+      {
+        "code": "test-fixture-framework",
+        "name": "Test Fixture Framework",
+        "description": "A synthetic compliance framework, present only to populate this fixture's Compliance tab."
+      }
+    ],
+    "complianceRequirements": [
+      {
+        "code": "test-fixture-requirement",
+        "frameworkCode": "test-fixture-framework",
+        "name": "Test Fixture Requirement",
+        "description": "A synthetic requirement under the fixture framework.",
+        "criteria": { "type": "no_unresolved_obligations" },
+        "severity": "Low"
+      }
+    ]
+  }
+}

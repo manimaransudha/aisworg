@@ -18,6 +18,7 @@ import {
   issueBadgeGrant,
   listTenantsForManagement,
   revokeBadgeGrant,
+  updatePlatformUser,
 } from "../core/identity.js";
 import type { BadgeScopeKind, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 
@@ -120,6 +121,11 @@ router.get("/identity/users", requirePlatformBadge("root"), attachVM("seu/identi
     req.vm.opt.listBasePath = "/aisworg/seu/identity/users";
     // CR-004: operational tenants for the create-user tenant picker (excludes the reserved 'platform').
     req.vm.req.tenants = view.tenants.filter((t) => !t.is_system);
+    // Owner: "add an action button to edit the users" — the edit form is
+    // hidden for the viewer's own row (same self-edit guard the legacy
+    // /auth/users page already has), so the view needs to know who's
+    // looking, not just who's listed.
+    req.vm.req.currentUserEmail = req.session?.user?.email ?? null;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/identity/users", req.vm);
   } catch (err) {
@@ -213,6 +219,29 @@ router.post("/identity/users", requirePlatformBadge("root"), async (req: Request
     return flashSuccess(req, res, usersBackTo, result.verificationLink ? `User created. SMTP not configured — verification link: ${result.verificationLink}` : `User created — verification email sent to ${result.email}.`);
   } catch (err) {
     logger.error("[web/seu/identity] POST /identity/users error", err as Error);
+    return flashError(req, res, usersBackTo, (err as Error).message);
+  }
+});
+
+/** POST /aisworg/seu/identity/users/:id/update — owner: "add an action
+ *  button to edit the users." Same two columns the legacy /auth/users page
+ *  already edits (role, is_active); see updatePlatformUser's own comment for
+ *  why the edit stays scoped to just those two. */
+router.post("/identity/users/:id/update", requirePlatformBadge("root"), async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) return flashError(req, res, usersBackTo, "Invalid user id.");
+  const { role } = req.body ?? {};
+  // An unchecked checkbox submits no key at all — its absence IS "false".
+  const isActive = req.body?.isActive === "true";
+  if (typeof role !== "string") return flashError(req, res, usersBackTo, "Role is required.");
+  try {
+    // Self-edit guard lives in updatePlatformUser itself (by email, not id —
+    // see that function's own comment for why id doesn't work here).
+    const result = await updatePlatformUser({ id, role, isActive, actingUserEmail: req.session?.user?.email ?? null });
+    if (!result.ok) return flashError(req, res, usersBackTo, `Could not update user: ${result.detail}`);
+    return flashSuccess(req, res, usersBackTo, "User updated.");
+  } catch (err) {
+    logger.error("[web/seu/identity] POST /identity/users/:id/update error", err as Error);
     return flashError(req, res, usersBackTo, (err as Error).message);
   }
 });

@@ -62,7 +62,10 @@ INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id) VAL
   ('capability-name', 'knowledge-management', 'Knowledge Management', '11111111-1111-1111-1111-111111111111'),
   ('capability-name', 'compliance-audit', 'Compliance / Audit', '11111111-1111-1111-1111-111111111111'),
   ('capability-name', 'data-migration', 'Data Migration', '11111111-1111-1111-1111-111111111111'),
-  ('capability-name', 'change-management', 'Change Management', '11111111-1111-1111-1111-111111111111')
+  ('capability-name', 'change-management', 'Change Management', '11111111-1111-1111-1111-111111111111'),
+  ('capability-name', 'code-review', 'Code Review', '11111111-1111-1111-1111-111111111111'),
+  ('capability-name', 'catalog-management', 'Catalog Management', '11111111-1111-1111-1111-111111111111'),
+  ('capability-name', 'circulation-management', 'Circulationtalog Management', '11111111-1111-1111-1111-111111111111')
 ON CONFLICT (concept_type, code, tenant_id) DO NOTHING;
 
 -- CR-059 build-time fix — same class of bug already fixed in migration

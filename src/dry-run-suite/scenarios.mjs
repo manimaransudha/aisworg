@@ -8,7 +8,7 @@ import { scenario, check, must, note } from "./lib/harness.mjs";
 import { SimVCS, SimParticipant, SimOrchestrator } from "./lib/edge.mjs";
 
 const RUN = Date.now().toString(36); // unique per run, so Objectives never collide
-const CAPS = ["requirements-analysis", "architecture", "development"];
+const CAPS = ["requirements-analysis", "architecture-solution-design", "development"];
 const cap = (caps, code) => caps.find((c) => c.code === code);
 const del = (dels, name) => dels.find((d) => d.name === name);
 
@@ -87,7 +87,7 @@ async function atlas() {
     const seu = await must("commission Atlas SEU -> Operational, tenant-scoped, capabilities+deliverables seeded", async () => {
       const s = await standUp(tenant.id, "Create an ebook library management system", {
         "requirements-analysis": "Human",
-        architecture: "AI",
+        "architecture-solution-design": "AI",
         development: "AI",
       });
       assert.ok(s.deliverables.length >= 1, "expected seeded deliverables");
@@ -103,7 +103,7 @@ async function atlas() {
     // Same capability, reached the Atlas way: requirements-analysis is human-on-ui.
     await check("register per-Capability execution targets (human-on-ui + external-orchestrator)", async () => {
       const reqCap = cap(seu.capabilities, "requirements-analysis");
-      const archCap = cap(seu.capabilities, "architecture");
+      const archCap = cap(seu.capabilities, "architecture-solution-design");
       await P.setExecutionTarget({ tenantId: tenant.id, capabilityId: reqCap.capabilityId, mode: "human-on-ui" });
       await P.setExecutionTarget({ tenantId: tenant.id, capabilityId: archCap.capabilityId, mode: "external-orchestrator", adapterEndpoint: "https://agents.atlas.example/hook", adapterAuthRef: "atlas-agent-token" });
       const got = await P.getExecutionTarget(reqCap.capabilityId, tenant.id);
@@ -207,7 +207,7 @@ async function babylon() {
     const seu = await must("commission Babylon SEU -> Operational (roles swapped: AI analyst, human architect)", () =>
       standUp(tenant.id, "Build a school student enrollment system mapping students to courses so they earn required credits", {
         "requirements-analysis": "AI",
-        architecture: "Human",
+        "architecture-solution-design": "Human",
         development: "AI",
       })
     );

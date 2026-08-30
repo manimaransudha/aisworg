@@ -25,20 +25,21 @@ import { packsDB } from "../../../dblayer/packsDB.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { badgeGrantsDB } from "../../../dblayer/badgeGrantsDB.js";
 import {
-  generateFields, parseFormBody, validateAgainstSchema, groupFieldsForDisplay, ontologyConceptTypesIn,
+  generateFields, parseFormBody, validateAgainstSchema, groupFieldsForDisplay, ontologyConceptTypesIn, dynamicReferentialSourceFieldsIn,
   CONTRIBUTION_SECTION_HELP, VERIFIABLE_ITEM_FIELD_HELP, type JsonSchemaDocument,
 } from "../../../domain/sdk/formGenerator.js";
+import { renderMarkdown } from "../../../domain/sdk/markdownRender.js";
 import { listConceptsForType } from "../core/ontology.js";
 import {
-  listAuthoringQueue, listMyAuthoredRows, getAuthoringDraft, createAuthoringDraft, saveAuthoringDraft, publishAuthoringDraft, composeAuthoringDraft,
-  listInheritableTemplates, inheritedTemplateContent, listInheritableProfiles, inheritedProfileContent,
+  listMyAuthoredRows, computeRowActions, getAuthoringDraft, createAuthoringDraft, saveAuthoringDraft, publishAuthoringDraft, composeAuthoringDraft,
+  listInheritableTemplates, inheritedTemplateContent, listInheritableProfiles, inheritedProfileContent, inheritedPackVersionContent,
   type AuthoringDraftSummary,
 } from "../core/sdkAuthoring.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { checklistsDB } from "../../../dblayer/checklistsDB.js";
-import { transitionPack } from "../core/packs.js";
+import { transitionPack, packCodeVersionSummaries } from "../core/packs.js";
 import { transitionTemplate, PACK_SELECTION_SLOTS, deriveCapabilityCodesFromPackCodes, deriveCapabilityProducingPacksFromPackCodes } from "../core/templates.js";
 import { transitionProfile } from "../core/profiles.js";
 import { transitionDeliverableDefinition, listInheritableDeliverableDefinitions, inheritedDeliverableDefinitionContent } from "../core/deliverableDefinitions.js";
@@ -133,60 +134,22 @@ async function requireAuthorityAdmin(req: Request, res: Response, next: NextFunc
 }
 
 
-async function buildAuthoringTabs(kind: SchemaDefinitionEntityKind, held: Set<string>, isRoot: boolean, myId: number | null, viewerTenantId: string | null): Promise<Array<{ key: string; label: string; verb: string; rows: AuthoringDraftSummary[] }>> {
-  const allTds = await listCurrentTransitionDefinitions();
-  const byFromState = new Map<string, Array<{ toState: string; verb: string }>>();
-  for (const d of allTds) {
-    if (d.entityType !== kind || !d.isActive || !d.verb) continue;
-    if (!byFromState.has(d.fromState)) byFromState.set(d.fromState, []);
-    byFromState.get(d.fromState)!.push({ toState: d.toState, verb: d.verb });
+// Owner: "I want to change the packs list Pack authoring-All packs similar
+// to Objectives. List the tenant scope+platform packs as a list with action
+// buttons corresponding to the badge." Replaces the old "I defined" +
+// per-verb "Queue" tabs (buildAuthoringTabs, removed) with one flat list of
+// the viewer's own authored rows, each carrying whatever governed-transition
+// action buttons the viewer currently holds the badge for — computeRowActions
+// (core/sdkAuthoring.ts) does the per-status lookup, called once per DISTINCT
+// status present rather than once per row.
+async function myAuthoredRowsWithActions(kind: SchemaDefinitionEntityKind, held: Set<string>, isRoot: boolean, myId: number | null): Promise<Array<AuthoringDraftSummary & { actions: Awaited<ReturnType<typeof computeRowActions>> }>> {
+  if (myId == null) return [];
+  const rows = await listMyAuthoredRows(kind, myId);
+  const actionsByStatus = new Map<string, Awaited<ReturnType<typeof computeRowActions>>>();
+  for (const status of new Set(rows.map((r) => r.status))) {
+    actionsByStatus.set(status, await computeRowActions(kind, status, held, isRoot));
   }
-  // Walk forward from Draft (the birth state), always taking the first edge to
-  // a not-yet-visited state — this naturally follows the entity's real
-  // lifecycle order and skips reactivation edges (e.g. Deprecated -> Active),
-  // since Active is already visited by the time those are reached. fromState
-  // is `current` at each step — carried along so a Queue tab (below) can ask
-  // "what's sitting in the state THIS verb consumes."
-  const verbOrder: Array<{ verb: string; toState: string; fromState: string }> = [{ verb: "define", toState: "Draft", fromState: "" }];
-  const visited = new Set(["Draft"]);
-  let current = "Draft";
-  for (;;) {
-    const next = (byFromState.get(current) ?? []).find((e) => !visited.has(e.toState));
-    if (!next) break;
-    verbOrder.push({ verb: next.verb, toState: next.toState, fromState: current });
-    visited.add(next.toState);
-    current = next.toState;
-  }
-
-  // Redesign (owner, 2026-08-20): "The vertical tabs should show the ones on
-  // my verb queue. Eg. Packs that I defined irrespective of whatever status
-  // it is in, packs that are in validate etc. Tabs like All Validated packs
-  // are not required as they are available in the Pack registry." Drops the
-  // old per-verb "what did I already do" tabs (All/User {Verb}ed {kind}s,
-  // Active {kind}s) entirely — that's exactly what the now-filterable
-  // Registry (CR-036) shows. What's left: one "I defined" tab (any status,
-  // not just Draft — listMyAuthoredRows, not listAuthoringByVerb's own
-  // toState-scoped "define" branch) plus one Queue tab per verb this actor
-  // actually holds the badge for (unchanged from before).
-  const viewer = viewerTenantId ? { isRoot, tenantId: viewerTenantId } : null;
-  const tabs: Array<{ key: string; label: string; verb: string; rows: AuthoringDraftSummary[] }> = [];
-  const defineBadge = `${kind.toLowerCase()}_define`;
-  if ((isRoot || held.has(defineBadge)) && myId != null) {
-    const rows = await listMyAuthoredRows(kind, myId);
-    tabs.push({ key: "define", label: `I defined`, verb: defineBadge, rows });
-  }
-  for (const { verb, fromState } of verbOrder) {
-    if (verb === "define") continue;
-    const badge = `${kind.toLowerCase()}_${verb}`;
-    // Separation of duties: a Queue tab is only ever shown to a holder of
-    // THIS specific verb's own badge (root bypasses) — never broadened the
-    // way the old live-catalog tab's own visibility check used to be.
-    if (!isRoot && !held.has(badge)) continue;
-    const queueRows = await listAuthoringQueue(kind, fromState, viewer);
-    const verbLabel = verb.charAt(0).toUpperCase() + verb.slice(1);
-    tabs.push({ key: `${verb}-queue`, label: `${verbLabel} queue`, verb: badge, rows: queueRows });
-  }
-  return tabs;
+  return rows.map((r) => ({ ...r, actions: actionsByStatus.get(r.status) ?? [] }));
 }
 
 /** GET /aisworg/seu/sdk/:slug — every in-progress and completed authoring session for this kind. */
@@ -207,11 +170,10 @@ router.get("/sdk/:slug", requireAuthoring("any"), attachVM("seu/sdk/authoring/in
     req.vm.req.showDrafts = grammarAuthored;
 
     if (grammarAuthored) {
-      const viewerTenantId = req.session?.user?.tenant_id ?? null;
-      req.vm.req.tabs = await buildAuthoringTabs(kind, held, isRoot, myId, viewerTenantId);
+      req.vm.req.rows = await myAuthoredRowsWithActions(kind, held, isRoot, myId);
       req.vm.req.canCreate = isRoot || held.has(authoringBadge(kind, "define"));
     } else {
-      req.vm.req.tabs = [];
+      req.vm.req.rows = [];
       req.vm.req.canCreate = false;
     }
 
@@ -454,7 +416,7 @@ router.post("/authority/transition-definitions/:id/update", requireAuthorityAdmi
 const CANONICAL_EVIDENCE_CATEGORIES = new Set(["Analytical Evidence", "Validation Evidence", "Operational Evidence", "Review Evidence", "Decision Evidence", "External Evidence"]);
 
 async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: string | null }): Promise<Record<string, string[]>> {
-  const [{ data: packs }, { data: templates }, featureFlags, deliverableNames, deliverableCategories, evidenceCategories, policyCategories, obligationCategories, obligationOrigins, serviceNames, { data: transitionDefinitions }] = await Promise.all([
+  const [{ data: packs }, { data: templates }, featureFlags, deliverableNames, deliverableCategories, evidenceCategories, policyCategories, obligationCategories, obligationOrigins, serviceNames, capabilityNames, { data: transitionDefinitions }] = await Promise.all([
     viewer.isRoot || !viewer.tenantId ? packsDB.findAll() : packsDB.findAllVisibleTo(viewer.tenantId),
     templatesDB.findAllActive(),
     listConceptsForType("feature-flag", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
@@ -485,6 +447,10 @@ async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: strin
     // and a Deployment Pack can each declare their own row under the same
     // code with different Service Level content).
     listConceptsForType("service-name", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
+    // CR-079 step (c) — a Capability contribution's own code (Track A),
+    // strictly picked from capability-name — same freely-extensible, shared-
+    // across-Packs treatment as service-name above.
+    listConceptsForType("capability-name", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
     transitionDefinitionsDB.listAll(),
   ]);
   const activePacks = (packs ?? []).filter((p) => p.status === "Active");
@@ -516,6 +482,7 @@ async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: strin
     "category:obligation": [...new Set(obligationCategories.map((c) => c.code))].sort(),
     "category:obligation-origin": [...new Set(obligationOrigins.map((c) => c.code))].sort(),
     "service-name": [...new Set(serviceNames.map((c) => c.code))].sort(),
+    "capability-name": [...new Set(capabilityNames.map((c) => c.code))].sort(),
     // CR-058 — a Quality Gate's Scope/Applicable Lifecycle Transition,
     // picked from real transition_definitions rows only (owner: "the pack
     // should not define something beyond what a transition definition
@@ -624,7 +591,28 @@ async function loadOntologyOptions(schema: JsonSchemaDocument, viewer: { isRoot:
     // picks an option (edit.ejs's script), not just on the admin page.
     return [conceptType, concepts.map((c) => ({ code: c.code, label: c.default_label, description: c.description })).sort((a, b) => a.label.localeCompare(b.label))] as const;
   }));
-  return Object.fromEntries(entries);
+  const result: Record<string, Array<{ code: string; label: string; description: string | null }>> = Object.fromEntries(entries);
+
+  // CR-079 step (d) — a field driven by another field's value (Pack's own
+  // `code`, driven by `category`) needs every POSSIBLE concept type
+  // pre-loaded, not just whichever matches today's saved category — the
+  // author can change category in the browser before saving, and the
+  // client-side swap has no server round trip to fetch a new one. The set of
+  // possible types is derived from the driver field's OWN governing
+  // vocabulary (category -> category:pack), never a hardcoded list — a new
+  // category is still a pure data change (Ch.5 §17).
+  for (const { driverField, suffix } of dynamicReferentialSourceFieldsIn(schema)) {
+    const driverConceptType = schema.properties?.[driverField]?.["x-referential-source"];
+    if (!driverConceptType) continue;
+    const driverConcepts = await listConceptsForType(driverConceptType, viewer, false);
+    await Promise.all(driverConcepts.map(async (driverConcept) => {
+      const conceptType = `${driverConcept.code.toLowerCase()}${suffix}`;
+      if (result[conceptType]) return;
+      const concepts = await listConceptsForType(conceptType, viewer, false);
+      result[conceptType] = concepts.map((c) => ({ code: c.code, label: c.default_label, description: c.description })).sort((a, b) => a.label.localeCompare(b.label));
+    }));
+  }
+  return result;
 }
 
 // Owner: "Pack code should include the pack and the version number in the
@@ -738,13 +726,30 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   // Registry governance moved here (owner, 2026-08-19: "Add it back to
   // Authoring" — the Registry page is view-only now). Once a Draft leaves
   // the Draft state, `nextHop`'s own single-match .find() is no longer
-  // sufficient — a Published/Active/Deprecated/Retired/Archived row can have
-  // MULTIPLE valid next states (e.g. Deprecated -> Retired AND Deprecated ->
-  // Active, a reactivation edge), not just the one linear authoring hop. Every
-  // possible next state is offered here (mirrors the removed Registry
-  // dropdown exactly); the real authority check still happens server-side in
-  // transitionPack/transitionTemplate/transitionProfile, same as it always did.
+  // sufficient — a Published/Active/Retired/Archived row can have MULTIPLE
+  // valid next states (e.g. CR-080's Pack Validated -> Published AND
+  // Validated -> Draft, a Reject edge), not just the one linear authoring
+  // hop. Every possible next state is offered here (mirrors the removed
+  // Registry dropdown exactly); the real authority check still happens
+  // server-side in transitionPack/transitionTemplate/transitionProfile, same
+  // as it always did.
   const possibleNextStates = draft && draft.status !== "Draft" && kind !== "TransitionDefinition" ? (await transitionDefinitionsDB.findPossibleNextStates(kind, draft.status)).data ?? [] : [];
+  // CR-080 — Pack's own comment thread (Reject requires one every time; any
+  // *_define/*_validate/*_publish/*_activate/*_retire/*_archive/*_reject
+  // holder can also read it here to see why a Draft was sent back).
+  req.vm.opt.packComments = draft && kind === "Pack" ? (await packsDB.getComments(draft.id)).data ?? [] : [];
+  // CR-081 — every code this tenant already has a Pack row under, with its
+  // Published-through-Archived versions+status (the branch picker) and the
+  // version the next Draft under that code will actually get (computed,
+  // sequence-based — see packCodeVersionSummaries' own header). Pre-embedded
+  // for the SAME "browser never needs a round trip" reason category->code's
+  // own driver data is (dynamicOntologyField.js swaps what it shows the
+  // moment Code resolves to a match, or falls back to "1.0.0" for a
+  // genuinely new code with no entry here at all). New-Pack-only (!draft) —
+  // the branch-picker's own links navigate to THIS page with ?fromPackId=,
+  // which only /sdk/:slug/new handles; rendering it on an existing Draft's
+  // edit page would just be a dead link.
+  req.vm.opt.packCodeVersions = kind === "Pack" && !draft ? await packCodeVersionSummaries(req.session?.user?.tenant_id ?? PLATFORM_TENANT_ID) : {};
   req.vm.req.title = draft ? `${kind} Definition — ${draft.status}` : `New ${kind}`;
   req.vm.req.kindLabel = kind;
   req.vm.req.slug = slug;
@@ -758,12 +763,24 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   // handing the view 23 interleaved fields with no structure.
   // Owner: "Version should be autogenerated using a next version button.
   // Editable text is not the correct approach." — packVersion/templateVersion
-  // are never typed; a brand-new draft starts at 1.0.0 (harmless no-op for
-  // whichever of the two a given kind's schema doesn't declare — Profile has
-  // neither), and from then on it's only advanced by the readonly field's own
-  // "Next version" button (_generatedFieldGroups.ejs / edit.ejs's patch-bump
-  // script, generic over kind "version" — CR-024).
-  const contentForForm = { packVersion: "1.0.0", templateVersion: "1.0.0", profileVersion: "1.0.0", definitionVersion: "1.0.0", ...(draft?.content ?? prefill?.content ?? {}) };
+  // are never typed; a brand-new Template/Profile/Deliverable Draft starts at
+  // 1.0.0 (harmless no-op for whichever of these a given kind's schema
+  // doesn't declare), and from then on it's only advanced by the readonly
+  // field's own "Next version" button (_generatedFieldGroups.ejs / edit.ejs's
+  // patch-bump script, generic over kind "version" — CR-024).
+  // CR-081 — Pack's OWN packVersion no longer defaults to "1.0.0" here (owner:
+  // "Version should not be shown in the form by default that is wrong").
+  // Since Code is now Ontology-driven-by-category with a real existing-code
+  // branch picker (see packCodeVersions below), 1.0.0 is often simply wrong
+  // before Code is even chosen — it's computed client-side instead
+  // (dynamicOntologyField.js) the moment Code resolves to something, new or
+  // existing. Left absent (not even an empty string) when there's no
+  // draft/prefill content yet, so the version widget renders genuinely blank.
+  const contentForForm = {
+    templateVersion: "1.0.0", profileVersion: "1.0.0", definitionVersion: "1.0.0",
+    ...(kind !== "Pack" ? { packVersion: "1.0.0" } : {}),
+    ...(draft?.content ?? prefill?.content ?? {}),
+  };
   req.vm.req.groups = groupFieldsForDisplay(generateFields(schema, contentForForm));
   req.vm.req.contentJson = JSON.stringify(draft?.content ?? {}, null, 2);
   req.vm.req.canEdit = canDefine && isDraft;
@@ -821,6 +838,10 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   req.vm.opt.ontologyOptions = await loadOntologyOptions(schema, viewer);
   req.vm.opt.contributionHelp = CONTRIBUTION_SECTION_HELP;
   req.vm.opt.verifiableFieldHelp = VERIFIABLE_ITEM_FIELD_HELP;
+  // CR-077 — passed through so _referentialListGroup.ejs's read-mode branches
+  // can render a markdown-flagged field's saved value as safe HTML instead of
+  // plain pre-wrap text.
+  req.vm.opt.renderMarkdown = renderMarkdown;
   req.vm.opt.flash = getFlash(req);
   return renderView(req, res, "seu/sdk/authoring/edit", req.vm);
 }
@@ -838,6 +859,28 @@ router.get("/sdk/:slug/new", requireAuthoring("define"), attachVM("seu/sdk/autho
     const parentTemplateId = kind === "Template" && typeof req.query.parentTemplateId === "string" ? req.query.parentTemplateId.trim() : "";
     const parentProfileId = kind === "Profile" && typeof req.query.parentProfileId === "string" ? req.query.parentProfileId.trim() : "";
     const parentDeliverableDefinitionId = kind === "Deliverable" && typeof req.query.parentDeliverableDefinitionId === "string" ? req.query.parentDeliverableDefinitionId.trim() : "";
+    // CR-081 — Pack's own version of the same "Inherit" mechanism: the "New
+    // Pack" form's existing-code branch picker reloads this page with
+    // ?fromPackId= when the author clicks one of the offered Published-
+    // through-Archived versions, pre-filling content the same real-render
+    // way Template/Profile Inheritance already do (never a client-side
+    // JSON-rehydration exercise).
+    const fromPackId = kind === "Pack" && typeof req.query.fromPackId === "string" ? req.query.fromPackId.trim() : "";
+    if (fromPackId) {
+      // Bug fix (owner: "the form is not prefilled") — must resolve the SAME
+      // way packCodeVersionSummaries did when it built the very links this
+      // branch handles (below, in renderAuthoringForm): a root/Platform-type
+      // viewer with no session tenant_id at all falls back to
+      // PLATFORM_TENANT_ID there, so every id in the panel belongs to
+      // PLATFORM_TENANT_ID — falling back to "" here instead made
+      // inheritedPackVersionContent's strict tenant match ("PLATFORM_TENANT_ID"
+      // !== "") fail every single time for exactly that (common, dev-testing)
+      // case, silently bouncing to the index instead of pre-filling.
+      const viewerTenantId = req.session?.user?.tenant_id ?? PLATFORM_TENANT_ID;
+      const inherited = await inheritedPackVersionContent(fromPackId, viewerTenantId);
+      if (!inherited.ok) return flashError(req, res, backToIndex(slug), inherited.error);
+      return await renderAuthoringForm(req, res, kind, slug, null, { content: inherited.content });
+    }
     if (parentTemplateId) {
       const viewerTenantId = req.session?.user?.tenant_id ?? "";
       const inherited = await inheritedTemplateContent(parentTemplateId, viewerTenantId);
@@ -1009,10 +1052,19 @@ router.post("/sdk/:slug/:draftId/publish", requireAuthoring("any"), async (req: 
     // Reached the live catalog -> the registry. NOT "no further governed
     // transition at all" — Pack always has more of those (Active -> Deprecated
     // -> Retired -> Archived), but those are registry governance, not more
-    // authoring. Any other state (e.g. Pack's Draft -> Validated) is still
-    // mid-pipeline — stay on the draft so the next verb-holder (maybe a
-    // different person) can take their own step.
-    if (result.status === "Active") return flashSuccess(req, res, PUBLISH_REDIRECT_BY_KIND[kind], `${kind} reached Active — published and registered.`);
+    // authoring. Any other state (e.g. Pack's Published, still short of
+    // Active) is still mid-pipeline — stay on the draft so the next
+    // verb-holder (maybe a different person) can take their own step.
+    //
+    // Owner: "When Validation is complete, it should go back to the All Packs
+    // page" — Pack's own Draft -> Validated hop is the one exception to the
+    // rule above: back to the list, same as reaching Active, not staying on
+    // the draft. Scoped to Pack + Validated specifically, not generalised to
+    // every kind's own first hop — Template/Profile/Deliverable's own
+    // pipelines are unaffected.
+    if (result.status === "Active" || (kind === "Pack" && result.status === "Validated")) {
+      return flashSuccess(req, res, PUBLISH_REDIRECT_BY_KIND[kind], result.status === "Active" ? `${kind} reached Active — published and registered.` : `Advanced to ${result.status}.`);
+    }
     return flashSuccess(req, res, backTo(slug, draftId), `Advanced to ${result.status}.`);
   } catch (err) {
     logger.error("[web/seu/sdkAuthoring] POST .../publish error", err as Error);
@@ -1031,7 +1083,7 @@ router.post("/sdk/:slug/:draftId/transition", requireAuthoring("any"), async (re
   const kind = resolveKind(slug);
   if (!kind) return next();
   const draftId = String(req.params.draftId);
-  const { targetState } = req.body ?? {};
+  const { targetState, comment } = req.body ?? {};
   if (typeof targetState !== "string" || !targetState.trim()) {
     return flashError(req, res, backTo(slug, draftId), "Target state is required.");
   }
@@ -1039,7 +1091,11 @@ router.post("/sdk/:slug/:draftId/transition", requireAuthoring("any"), async (re
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
   try {
     if (kind === "Pack") {
-      const result = await transitionPack({ packId: draftId, targetState, actorRole, actorId });
+      // CR-080 — comment is only actually required by transitionPack itself
+      // for Validated -> Draft (Reject); harmless to pass through unused for
+      // every other target state, same "real check happens server-side"
+      // discipline the rest of this generic route already follows.
+      const result = await transitionPack({ packId: draftId, targetState, actorRole, actorId, comment: typeof comment === "string" ? comment : undefined });
       if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${"detail" in result ? result.detail : result.reason}`);
       return flashSuccess(req, res, backTo(slug, draftId), `Moved to "${result.appliedTransition.toState}".`);
     }

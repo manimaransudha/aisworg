@@ -20,16 +20,9 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { objectivesDB } from "../src/dblayer/objectivesDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
-import { registerTestOntologyCode, deleteTestOntologyCodes } from "./testFixtures.js";
-
-// CR-046 (owner: "the test script should use a code present in the
-// ontology") — Pack.code is Ontology-validated (capability-name) at publish
-// time now; the two real concepts this file registers are tracked and
-// cleaned up here, same discipline as pack-sdk.test.ts's own.
-const createdOntologyCodes: Array<{ conceptType: string; code: string }> = [];
+import { uniqueTestPackVersion } from "./testFixtures.js";
 
 after(async () => {
-  await deleteTestOntologyCodes(createdOntologyCodes);
   await pool.end();
 });
 
@@ -45,18 +38,16 @@ after(async () => {
 // Archived-Packs-compose-silently bug below was found), so this test can no
 // longer assume their ambient status.
 test("compositionEngine.compose resolves a Template's mandatory Pack plus a Profile's optional Pack, deterministically", async () => {
-  const mandatoryCode = await registerTestOntologyCode("capability-name", "test-compose-mandatory");
-  createdOntologyCodes.push({ conceptType: "capability-name", code: mandatoryCode });
-  const optionalCode = await registerTestOntologyCode("capability-name", "test-compose-optional");
-  createdOntologyCodes.push({ conceptType: "capability-name", code: optionalCode });
+  const mandatoryCode = "test-compose-mandatory";
+  const optionalCode = "test-compose-optional";
 
   const mandatory = await publishPack({
-    seed: { code: mandatoryCode, name: "Test Mandatory Pack", category: "Engineering", packVersion: "1.0.0", installationClassification: "Mandatory", contributions: {} },
+    seed: { code: mandatoryCode, name: "Test Mandatory Pack", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Mandatory", contributions: {} },
     actorRole: "power", actorId: "1001",
     activate: true,
   });
   const optional = await publishPack({
-    seed: { code: optionalCode, name: "Test Optional Pack", category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", contributions: {} },
+    seed: { code: optionalCode, name: "Test Optional Pack", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} },
     actorRole: "power", actorId: "1001",
     activate: true,
   });

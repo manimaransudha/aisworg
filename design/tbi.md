@@ -51,3 +51,28 @@ Chapter 5
 
 5. Is there a capability flag?
 
+Capability:
+Is just a bare slot (similar to  a phase with no definition; definition is in the packs)
+
+Reach for packs: Platform packs will be available to all users of the platform"
+- This should be a tenant configuration. address it in multi-tenancy
+
+Classification applies to the contributions that are *checked*. The rest inform or provide, and are not classified.
+
+| Contribution (§9) | Typical classification |
+|---|---|
+| Checklists | per item; span all three |
+| Quality Gates | mostly machine-verifiable |
+| Review Gates | judgment (AI-assessed, human-ratified) by nature |
+| Obligation Definitions | machine-verifiable (evidence present) or human-attested (approval obtained) |
+| Policies / Standards / Decision Rules | machine-verifiable where objective, judgment where interpretive |
+| Ontology, Knowledge Assets, Templates, UI Components, Services, Metrics | not classified — inputs and assets, not checks |
+
+By Pack taxonomy (§6), the weight differs:
+
+- **Technology packs** — mostly machine-verifiable (conventions, build, test).
+- **Compliance packs** — a mix of machine-verifiable (evidence present) and human-attested (approvals, sign-offs).
+- **Domain and architecture concerns** — largely judgment.
+- **Integration packs** — external-evidence (machine-verifiable via connectors).
+- **Platform and Organisation packs** — spread across all three.
+

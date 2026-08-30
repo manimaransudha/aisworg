@@ -3,8 +3,8 @@
 // Management applied to Packs). Pack becomes the 11th TransitionEntityType,
 // governed by the same generic transitionEngine every other entity type
 // already uses (Ch.29 §10) — Draft -> Validated -> Published -> Active ->
-// Deprecated -> Retired -> Archived, exactly the enum packs.status already
-// had since MVP, just finally driven by something.
+// Retired -> Archived (CR-080 — Deprecated dropped, plus a Validated -> Draft
+// Reject hop), driven by real transition_definitions rows (migration 137).
 //
 // validatePackSeed/publishPack together are this MVP's Pack SDK (Ch.39,
 // scoped down — see Post-MVP Build Sequence.md's Phase 9 notes for the full
@@ -134,9 +134,9 @@ export interface PackSeedInput {
   // tenant"). Optional: seed scripts/the CLI publishing with no human author
   // don't set it and get the Platform tenant (packsDB.create's own default);
   // the interactive authoring route always sets it from the real author's
-  // own tenant (createAuthoringDraft); reactivateAsNewVersion always sets it
-  // to the PRIOR row's own tenant_id (reactivation is versioning, never a
-  // change of ownership).
+  // own tenant (createAuthoringDraft); copyPackAsNewDraft always sets it to
+  // the PRIOR row's own tenant_id (copying is versioning, never a change of
+  // ownership).
   tenantId?: string;
   // §8 / §13 metadata (all optional, declaration-only)
   description?: string;
@@ -200,27 +200,35 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
   // tenant, so an unauthored/CLI-published Pack sees Platform's vocabulary
   // only, same as before this change).
   const ontologyViewer = { isRoot: false, tenantId: seed.tenantId ?? PLATFORM_TENANT_ID };
-  // CR-046 bug fix (owner: "why are test scripts adding code that is not in
-  // the ontology??? I thought we fixed this") — code (migration 050,
-  // capability-name, x-ontology: true) was the one Ontology-backed field on
-  // this entire entity that never actually got assertCanonicalCategory
-  // treatment, unlike category/installationClassification/compositionStrategy
-  // right below, which all did from the start. The browser's own dropdown
-  // (x-referential-select) already constrained a real author to a valid
-  // value; this is what makes that constraint real for every OTHER caller —
-  // tests, scripts, a future API client — not just the browser form.
-  try {
-    await assertCanonicalCategory("capability-name", seed.code ?? "", ontologyViewer);
-  } catch (err) {
-    errors.push((err as Error).message);
-  }
   // CR-020: category is validated against the Ontology's category:pack
   // concepts (data), not a hardcoded list or the now-superseded pack_category
   // table — a new category is an Ontology Management data change, no code
   // change. assertCanonicalCategory throws; converted to an accumulated error
   // here since validatePackSeed collects every problem rather than failing fast.
+  // Validated before `code` below — code's own check needs a category value
+  // to know which sibling vocabulary to check against.
   try {
     await assertCanonicalCategory("category:pack", seed.category ?? "", ontologyViewer);
+  } catch (err) {
+    errors.push((err as Error).message);
+  }
+  // CR-079 step (b) — supersedes CR-046's fix (owner: "why are test scripts
+  // adding code that is not in the ontology??? I thought we fixed this"),
+  // which made `code` check capability-name unconditionally. A Pack is never
+  // itself a capability, only something that CONTRIBUTES to one (§9's own
+  // contributionCapabilities — see the separate, still-real capability-name
+  // check on THOSE, CR-079 step (c) above). Owner's own worked examples:
+  // "web-standards pack will be a technology pack contributing to
+  // development and code-review capabilities... web-standards by itself is
+  // not a capability" / "icd-10 pack will be a compliance pack contributing
+  // to requirements-specification... icd-10 by itself is not a capability."
+  // Every category now has its own sibling concept type — domain-name,
+  // technology-name, compliance-name, organisation-name, integration-name,
+  // engineering-name (migration 132) — so a Pack's own `code` is checked
+  // against ITS category's vocabulary instead.
+  const packNameConceptType = `${(seed.category ?? "").toLowerCase()}-name`;
+  try {
+    await assertCanonicalCategory(packNameConceptType, seed.code ?? "", ontologyViewer);
   } catch (err) {
     errors.push((err as Error).message);
   }
@@ -272,6 +280,21 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
     }
   }
   checkDuplicates("capability", seed.contributions.capabilities);
+  // CR-079 step (c) — a Capability contribution's own code is now real,
+  // Ontology-backed (capability-name), same treatment CR-064 already gave
+  // Service's own code below: the browser dropdown already constrains a
+  // real author; this makes it real for every OTHER caller (JSON import,
+  // seed files, tests, a future API client). Strictly enforced — no
+  // free-text/"type new" path for this field (owner: "contributionCapabilities[].code
+  // is a strict dropdown of the capability-name"), unlike Pack's own
+  // top-level code.
+  for (const cap of seed.contributions.capabilities ?? []) {
+    try {
+      await assertCanonicalCategory("capability-name", cap.code ?? "", ontologyViewer);
+    } catch (err) {
+      errors.push((err as Error).message);
+    }
+  }
   checkDuplicates("service", seed.contributions.services);
   checkDuplicates("authority rule", seed.contributions.authorityRules);
   checkDuplicates("policy", seed.contributions.policies);
@@ -566,7 +589,11 @@ export async function advancePackLifecycle(pack: PackRow, actorRole: string, act
     currentPack = activateResult.pack;
 
     if (previousActive && previousActive.id !== currentPack.id) {
-      const supersedeResult = await transitionPack({ packId: previousActive.id, targetState: "Deprecated", actorRole, actorId });
+      // CR-080 — superseded-on-republish now lands on Retired directly (was
+      // Deprecated, which never had any functional difference from Retired
+      // anyway) — the same Active -> Retired hop the explicit lifecycle
+      // wind-down step uses, not a separate mechanism.
+      const supersedeResult = await transitionPack({ packId: previousActive.id, targetState: "Retired", actorRole, actorId });
       if (supersedeResult.ok) supersededPack = supersedeResult.pack;
     }
   }
@@ -600,7 +627,11 @@ export async function advancePackOneStep(pack: PackRow, actorRole: string, actor
     if (!activateResult.ok) return { ok: false, pack, errors: [`transition to "Active" failed: ${"detail" in activateResult ? activateResult.detail : activateResult.reason}`] };
     let supersededPack: PackRow | null = null;
     if (previousActive && previousActive.id !== activateResult.pack.id) {
-      const supersedeResult = await transitionPack({ packId: previousActive.id, targetState: "Deprecated", actorRole, actorId });
+      // CR-080 — superseded-on-republish now lands on Retired directly (was
+      // Deprecated, which never had any functional difference from Retired
+      // anyway) — the same Active -> Retired hop the explicit lifecycle
+      // wind-down step uses, not a separate mechanism.
+      const supersedeResult = await transitionPack({ packId: previousActive.id, targetState: "Retired", actorRole, actorId });
       if (supersedeResult.ok) supersededPack = supersedeResult.pack;
     }
     return { ok: true, pack: activateResult.pack, supersededPack };
@@ -805,19 +836,18 @@ async function seedContributions(pack: PackRow, seed: PackSeedInput): Promise<vo
 }
 
 // Ch.5 §15 / Ch.38 §15 event names, one per lifecycle hop.
+// CR-080 — Deprecated dropped from Pack's lifecycle entirely (never actually
+// distinguished from Retired at runtime); Draft added as a target for the
+// new Validated -> Draft (Reject) hop, named the same past-tense way every
+// other hop's event is.
 const EVENT_BY_TARGET_STATE: Record<string, string> = {
+  Draft: "PackRejected",
   Validated: "PackValidated",
   Published: "PackPublished",
   Active: "PackActivated",
-  Deprecated: "PackDeprecated",
   Retired: "PackRetired",
   Archived: "PackArchived",
 };
-
-// A Pack transitioning back to Active from one of these does not resurrect
-// its own row (see reactivateAsNewVersion below) — added per
-// Open Design Questions.md, logged there for a relook during Phase 9/10.
-const TERMINAL_REACTIVATABLE_STATES = new Set(["Deprecated", "Retired", "Archived"]);
 
 export type TransitionPackResult =
   | { ok: true; pack: PackRow; appliedTransition: { fromState: string; toState: string } }
@@ -827,7 +857,13 @@ export type TransitionPackResult =
   // reason unconditionally (SDK UI Layer Plan), so it's handled here for
   // type-correctness even though nothing can currently produce it.
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
-  | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
+  | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string }
+  // CR-080 — Reject (Validated -> Draft) requires feedback every time, and it
+  // must actually be new text, not the same value as the most recent comment
+  // already on record — mirrors Objective's CR-073 "comment_required"
+  // discipline exactly (owner: "There has to be a comment field and a
+  // similar implementation").
+  | { ok: false; reason: "comment_required"; detail: string };
 
 // Post-completion fix (Open Design Questions.md #3): every SEU-scoped entity
 // type now runs its transition through qualityGateEngine.evaluate first,
@@ -836,7 +872,7 @@ export type TransitionPackResult =
 // quality_gate_evaluations.seu_id is NOT NULL, so there is nowhere to record
 // an evaluation against. Logged as a real, structural limitation, not
 // silently skipped.
-export async function transitionPack(input: { packId: string; targetState: string; actorRole: string; actorId?: string }): Promise<TransitionPackResult> {
+export async function transitionPack(input: { packId: string; targetState: string; actorRole: string; actorId?: string; comment?: string }): Promise<TransitionPackResult> {
   const { data: pack } = await packsDB.findById(input.packId);
   if (!pack) return { ok: false, reason: "not_found" };
 
@@ -857,19 +893,28 @@ export async function transitionPack(input: { packId: string; targetState: strin
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }
 
-  // Reactivating from a terminal state: governance above already authorised
-  // this specific (fromState -> Active) transition — what actually happens
-  // is a new Version, not a status flip on this row (immutable per VM-002).
-  if (input.targetState === "Active" && TERMINAL_REACTIVATABLE_STATES.has(fromState)) {
-    const result = await reactivateAsNewVersion(pack, input.actorRole, input.actorId);
-    if (!result.ok || !result.pack) {
-      return { ok: false, reason: "policy_blocked", detail: result.errors?.join("; ") ?? "reactivation failed" };
+  // CR-080 — Reject (Validated -> Draft) requires its own, new feedback on
+  // every use. Checked after authorisation (so an under-badged actor sees
+  // "authority_denied", not a comment-validation error) and before writing
+  // anything — mirrors transitionObjective's identical CR-073 check exactly.
+  const trimmedComment = input.comment?.trim() ?? "";
+  if (fromState === "Validated" && input.targetState === "Draft") {
+    if (!trimmedComment) {
+      return { ok: false, reason: "comment_required", detail: "Rejecting requires feedback — provide a comment explaining what needs to change." };
     }
-    return { ok: true, pack: result.pack, appliedTransition: { fromState, toState: input.targetState } };
+    const { data: existingComments } = await packsDB.getComments(pack.id);
+    const mostRecent = existingComments?.[existingComments.length - 1];
+    if (mostRecent && mostRecent.comment_text.trim() === trimmedComment) {
+      return { ok: false, reason: "comment_required", detail: "Provide new feedback — this matches the most recent comment already on record." };
+    }
   }
 
   const { data: updated, error } = await packsDB.updateStatus(pack.id, input.targetState as PackRow["status"]);
   if (error || !updated) throw error ?? new Error("failed to update pack status");
+
+  if (trimmedComment) {
+    await packsDB.addComment(pack.id, input.actorId != null ? Number(input.actorId) : null, trimmedComment);
+  }
 
   await eventBus.publish({
     eventType: EVENT_BY_TARGET_STATE[input.targetState] ?? "PackTransitioned",
@@ -885,80 +930,123 @@ export async function transitionPack(input: { packId: string; targetState: strin
   return { ok: true, pack: updated, appliedTransition: { fromState, toState: input.targetState } };
 }
 
-// Ch.41 VM-002 "Versions are immutable" — reactivating a Deprecated/Retired/
-// Archived Pack back to Active must never resurrect the old row in place;
-// that would mutate a published Version after the fact, and could leave two
-// rows of the same code simultaneously Active with no record of which one
-// is "real." Instead this publishes a brand new Version carrying the same
-// content (name/category/classification/contributions/dependencies) as the
-// old row, auto-bumping the patch number until an unused (code,
-// packVersion) is found, then runs it through the normal Draft -> Validated
-// -> Published -> Active pipeline — which also supersedes whatever else is
-// currently Active for this code, same as any other activation. The old row
-// itself is untouched and stays at its old status forever.
-async function reactivateAsNewVersion(pack: PackRow, actorRole: string, actorId: string | undefined): Promise<PublishPackResult> {
-  const nextVersion = await nextAvailablePatchVersion(pack.code, pack.pack_version, pack.tenant_id);
-  const seed: PackSeedInput = {
-    code: pack.code,
-    name: pack.name,
-    category: pack.category,
-    packVersion: nextVersion,
-    installationClassification: pack.installation_classification,
-    contributions: pack.contributions,
-    dependencies: pack.dependencies,
-    compositionSources: pack.composition_sources,
-    // Reactivation is versioning, not a change of ownership — the new
-    // Version stays owned by whichever tenant (or Platform) the ORIGINAL
-    // Pack belonged to, regardless of who holds the badge that triggers it.
-    tenantId: pack.tenant_id,
-  };
-  return publishPack({ seed, actorRole, actorId, activate: true });
+// CR-081 — real numeric semver comparison, not string comparison ("10.0.0" <
+// "2.0.0" lexicographically, which is wrong). Returns >0 if a > b, <0 if
+// a < b, 0 if equal.
+function compareSemver(a: string, b: string): number {
+  const pa = a.split(".").map(Number);
+  const pb = b.split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
 }
 
-// CR-026 Part 2: scoped to the reactivating Pack's own tenant — a bumped
-// version only needs to dodge THIS tenant's own existing rows, not every
-// other tenant (or Platform's) unrelated same-code history.
-async function nextAvailablePatchVersion(code: string, fromVersion: string, tenantId: string): Promise<string> {
+// CR-081 — Pack version is a single SEQUENCE per (code, tenant), not a
+// semver tree (owner: "version is to be treated like a 'sequence'. If it['s]
+// taken, assign the next"). "New Pack" form's branch picker, driven by this:
+// for every code this tenant already has a Pack row under, the Published-
+// through-Archived versions to offer as a content starting point (Draft/
+// Validated excluded — owner: "Those are still 'draft'... they should be
+// clickable and you should be able to continue edits", not a thing to branch
+// a NEW version off of), plus the version the next Draft will actually get —
+// always the highest version across EVERY status for that code (including
+// Draft/Validated, so an in-progress, not-yet-visible Draft's number is
+// still never collided with), patch-bumped via the existing
+// nextAvailablePatchVersion (already does "if taken, try the next patch").
+// This is what makes the version genuinely a sequence: which existing
+// version an author picks to copy CONTENT from never changes which number
+// the new Draft gets.
+export interface PackCodeVersionSummary {
+  versions: Array<{ id: string; version: string; status: PackRow["status"] }>;
+  nextVersion: string;
+}
+const BRANCHABLE_STATUSES = new Set<PackRow["status"]>(["Published", "Active", "Retired", "Archived"]);
+
+// Bug fix (owner: "why does it take it so long to load the record?") —
+// nextAvailablePatchVersion's own DB round trip is right for a real
+// creation/branch (must check the LIVE table, since another actor could
+// have taken a version in the meantime), but calling it once per distinct
+// code here made this whole summary O(n) SEQUENTIAL, AWAITED queries — one
+// per code the tenant has ever used, every single time the New Pack page
+// loads. Measured directly against a real dev DB: 77 codes, 2.76s, ~36ms/
+// code — almost the entire page's load time. findAllForTenant, one line
+// above, already fetched every row nextAvailablePatchVersion's own query
+// could ever match (identical tenant scoping — see findByCodeAndVersion),
+// so the same "is this candidate already taken" check can be answered
+// entirely from the rows already in hand, with zero further queries. This
+// summary is inherently a point-in-time snapshot regardless (a genuinely
+// new collision from another actor between page load and actual submit is
+// already caught for real at creation time, same as before) — so trading
+// the live re-check for the free in-memory one changes nothing about
+// correctness, only about not paying for 77 round trips to render a list.
+function nextAvailablePatchVersionInMemory(fromVersion: string, takenVersions: ReadonlySet<string>): string {
   const [major, minor, startingPatch] = fromVersion.split(".").map(Number);
   let patch = startingPatch ?? 0;
   for (let attempts = 0; attempts < 1000; attempts++) {
     patch += 1;
     const candidate = `${major}.${minor}.${patch}`;
-    const { data: existing } = await packsDB.findByCodeAndVersion(code, candidate, tenantId);
-    if (!existing) return candidate;
+    if (!takenVersions.has(candidate)) return candidate;
   }
-  throw new Error(`could not find an unused version for Pack ${code} after bumping from ${fromVersion}`);
+  throw new Error(`could not find an unused version after bumping from ${fromVersion}`);
 }
 
-// Registry "Copy" action (owner, 2026-08-19: "Add a Copy button... enabled
-// for users that have *_define badge. It should create a copy and bump up
-// the version"). Unlike reactivateAsNewVersion (reactivation, straight to
-// Active) this lands in Draft — a real, editable starting point, not an
-// instant republish. No lineage recorded (parent_template_id-style field
-// doesn't exist on Pack) — a copy is not Inheritance (CR-026's parent-code-
-// lock model): it's a new, independently-editable Draft that merely starts
-// from this row's current content, same code, bumped version, same tenant
-// (ownership doesn't change just because someone with authoring rights
-// copied it forward).
-export async function copyPackAsNewDraft(packId: string, actorId: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
-  const { data: source } = await packsDB.findById(packId);
-  if (!source) return { ok: false, errors: ["Pack not found"] };
-  const nextVersion = await nextAvailablePatchVersion(source.code, source.pack_version, source.tenant_id);
-  const { data: pack, error } = await packsDB.create({
-    code: source.code,
-    name: source.name,
-    category: source.category,
-    packVersion: nextVersion,
-    installationClassification: source.installation_classification,
-    contributions: source.contributions,
-    dependencies: source.dependencies,
-    compositionSources: source.composition_sources,
-    metadata: source.metadata,
-    authoredBy: Number(actorId),
-    tenantId: source.tenant_id,
-  });
-  if (error || !pack) return { ok: false, errors: [(error ?? new Error("failed to copy Pack")).message] };
-  return { ok: true, draftId: pack.id };
+function groupByCode(rows: PackRow[]): Map<string, PackRow[]> {
+  const byCode = new Map<string, PackRow[]>();
+  for (const pack of rows) {
+    const list = byCode.get(pack.code) ?? [];
+    list.push(pack);
+    byCode.set(pack.code, list);
+  }
+  return byCode;
+}
+
+export async function packCodeVersionSummaries(tenantId: string): Promise<Record<string, PackCodeVersionSummary>> {
+  const { data: ownPacks } = await packsDB.findAllForTenant(tenantId);
+  const byCode = groupByCode(ownPacks ?? []);
+
+  // Bug fix (owner: logged in as a real tenant author — pack-define@athens.com,
+  // a tenant with zero Packs of its own — picked an existing Domain code and
+  // saw an empty branch-picker, even though Platform has real published
+  // versions under it). Confirmed live: findAllForTenant's own "no
+  // Platform-or-own merge" scoping was working exactly as CR-081 originally
+  // specified — but that spec, tested for real against a genuine tenant
+  // identity for the first time, turned out to be the wrong default. Owner:
+  // "Include Platform as a fallback" — when this tenant has NOTHING of its
+  // own under a code, offer Platform's own branchable versions as a content
+  // source instead, the same way Template/Profile Inheritance already lets a
+  // tenant start from a Platform baseline. `nextVersion` is deliberately
+  // NOT part of this fallback — it stays this tenant's own sequence
+  // (starts fresh at "1.0.0" when they have nothing of their own) regardless
+  // of which version they copy content from; CR-081's own "which version you
+  // branch FROM never changes which number the new Draft gets" rule is
+  // unaffected by widening WHERE that content can come from.
+  const platformByCode = tenantId === PLATFORM_TENANT_ID ? null : groupByCode((await packsDB.findAllForTenant(PLATFORM_TENANT_ID)).data ?? []);
+
+  const result: Record<string, PackCodeVersionSummary> = {};
+  const allCodes = new Set([...byCode.keys(), ...(platformByCode?.keys() ?? [])]);
+  for (const code of allCodes) {
+    const ownRows = byCode.get(code) ?? [];
+    if (ownRows.length > 0) {
+      const highest = ownRows.reduce((max, r) => (compareSemver(r.pack_version, max) > 0 ? r.pack_version : max), ownRows[0]!.pack_version);
+      const nextVersion = nextAvailablePatchVersionInMemory(highest, new Set(ownRows.map((r) => r.pack_version)));
+      const versions = ownRows
+        .filter((r) => BRANCHABLE_STATUSES.has(r.status))
+        .map((r) => ({ id: r.id, version: r.pack_version, status: r.status }))
+        .sort((a, b) => compareSemver(b.version, a.version));
+      result[code] = { versions, nextVersion };
+      continue;
+    }
+    const platformRows = platformByCode?.get(code) ?? [];
+    if (platformRows.length === 0) continue;
+    const versions = platformRows
+      .filter((r) => BRANCHABLE_STATUSES.has(r.status))
+      .map((r) => ({ id: r.id, version: r.pack_version, status: r.status }))
+      .sort((a, b) => compareSemver(b.version, a.version));
+    result[code] = { versions, nextVersion: "1.0.0" };
+  }
+  return result;
 }
 
 export interface PackWithNextStates {

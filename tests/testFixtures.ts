@@ -49,6 +49,16 @@
 // shared identity, so this fixture no longer needs to avoid the real Packs
 // at all — the original collision is solved at its actual source.
 //
+// 2026-08-29 (CR-079 bug fix) — sdk-authoring.test.ts's own randomized,
+// per-run capability-name concept is gone too (registerTestOntologyCode
+// removed entirely — see testFixtures.ts's own uniqueTestPackVersion note).
+// It now uses a stable, migration-seeded engineering-name code
+// ("test-sdk-pack", migration 134) instead, same as every other test file —
+// the mechanism changed, but the principle the 2026-08-25 fix above
+// established still holds: sdk-authoring.test.ts has its own distinct Pack
+// identity, separate from this fixture's own real Pack dependencies, so
+// there's still nothing for this fixture to avoid.
+//
 // 2026-08-27 — the fixture's OWN identity renamed: `enterprise-web-application`
 // (web-application.template.json) collided with a REAL production Template,
 // `enterprise-web-application-parent.template.json` (one of the 9 standard
@@ -65,7 +75,6 @@
 // createAuthoringDraft/publishAuthoringDraft — this fixture calls
 // templatesDB.upsert directly), so no new Ontology concept was needed, unlike
 // the Pack-code rename earlier.
-import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -75,8 +84,6 @@ import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
 import { dependencyDefinitionsDB } from "../src/dblayer/dependencyDefinitionsDB.js";
 import { materialiseDependencyGraph } from "../src/domain/engine/materialiseDependencyGraph.js";
 import { deriveCapabilityCodesFromPackCodes } from "../src/routes/seu/core/templates.js";
-import { addConcept } from "../src/routes/seu/core/ontology.js";
-import pool from "../src/utils/db.js";
 import { transitionDeliverable, type TransitionDeliverableResult } from "../src/routes/seu/core/deliverables.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
@@ -103,30 +110,39 @@ export function ensureTestFixturePacks(): Promise<void> {
 
 // CR-046 (owner: "why are test scripts adding code that is not in the
 // ontology??? I thought we fixed this" / "the test script should use a code
-// present in the ontology") — Pack.code (capability-name) and Template.code
-// (template-categories) are now server-side Ontology-validated at publish
-// time (validatePackSeed/validateTemplateSeed's own assertCanonicalCategory
-// check). Most tests need a fresh, per-call-unique identity (to avoid
-// colliding with a prior run's own leftover rows in this never-reset dev
-// database) — reusing one of the small pre-seeded vocabulary's fixed values
-// wouldn't give that, so this registers a REAL Ontology concept first,
-// genuinely "present in the ontology," not just coincidentally matching one.
-// Callers track the returned code themselves and delete the row in their own
-// after(), matching the existing user/grant/Template cleanup discipline
-// already in these files (e.g. sdk-authoring.test.ts) — this helper only
-// creates, it never cleans up on its own.
-export async function registerTestOntologyCode(conceptType: string, prefix: string): Promise<string> {
-  const code = `${prefix}-${randomUUID()}`;
-  await addConcept({ conceptType, code, defaultLabel: prefix }, { isRoot: true, tenantId: null });
-  return code;
+// present in the ontology") — Pack.code and Template.code (template-categories)
+// are server-side Ontology-validated at publish time (validatePackSeed/
+// validateTemplateSeed's own assertCanonicalCategory check).
+//
+// CR-079 bug fix — this used to be solved by minting a fresh, random-UUID-
+// suffixed Ontology concept per test run (registerTestOntologyCode,
+// removed). Owner: "the ontology was updated with what test fixture needs.
+// This should be removed. The source of truth is what we fed through the
+// migration files." That was exactly the "test litter" pollution CR-079
+// fixed capability-name of in the first place — every one of those dynamic
+// prefixes already had a stable, descriptive name (only the random suffix
+// was ever the problem), so each is now a real, permanent concept seeded by
+// migration 134 instead, under its own test's actual category — Packs never
+// need to be registered as capability-name at all (a Pack is never itself a
+// capability, CR-079). Per-run uniqueness moves to packVersion, the real
+// axis Pack identity is scoped by (code, packVersion, tenant_id) — not code
+// alone — so reusing the same stable code every run is safe as long as the
+// version differs.
+export function uniqueTestPackVersion(): string {
+  return `${Date.now()}.${Math.floor(Math.random() * 1000000)}.0`;
 }
 
-// Shared delete helper for the above — one raw DELETE, callers just track
-// which (conceptType, code) pairs they registered.
-export async function deleteTestOntologyCodes(entries: Array<{ conceptType: string; code: string }>): Promise<void> {
-  for (const { conceptType, code } of entries) {
-    await pool.query("DELETE FROM ontology_concepts WHERE concept_type = $1 AND code = $2", [conceptType, code]);
-  }
+// Companion to the above — a stable, reused test Pack code means "reactivate
+// from a terminal state auto-bumps the patch version" tests can no longer
+// assert a hardcoded literal (e.g. "1.0.1"): the base version is now
+// unpredictable (uniqueTestPackVersion's own Date.now()-derived value), not
+// always "1.0.0". Mirrors packsDB's own real patch-bump logic (increment the
+// trailing segment) so the test computes the SAME expected value the app
+// itself would produce, from whatever base version it actually used.
+export function bumpPatch(version: string): string {
+  const parts = version.split(".");
+  parts[parts.length - 1] = String(Number(parts[parts.length - 1]) + 1);
+  return parts.join(".");
 }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -257,9 +273,17 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
   // the tests, since Capability.code is free text with no Ontology
   // constraint blocking the rename). Reproduces the exact same 3 capability
   // codes core-engineering used to, just sourced from real Packs now.
+  // CR-079 bug fix — findByCodes has no Pack scoping, and a capability code
+  // is now a genuinely shared Ontology term (capability-name) multiple Packs
+  // can each independently contribute (e.g. "development" from
+  // openup-development AND every Technology pack) — de-dupe by code, same
+  // treatment templates.ts's own materialisePackSelectionsAndCapabilities
+  // got for the identical reason, so this fixture doesn't over-attribute
+  // capabilities from Packs outside its own mandatoryPackCodes selection.
   const derivedCapabilityCodes = await deriveCapabilityCodesFromPackCodes(templateSeed.mandatoryPackCodes);
   const { data: capabilities } = await capabilitiesDB.findByCodes(derivedCapabilityCodes);
-  const requiredCapabilityIds = (capabilities ?? []).map((c) => c.id);
+  const dedupedCapabilities = new Map((capabilities ?? []).map((c) => [c.code, c]));
+  const requiredCapabilityIds = [...dedupedCapabilities.values()].map((c) => c.id);
 
   const { data: existingRequired } = await templatesDB.getRequiredCapabilities(template.id);
   if (!sameSet((existingRequired ?? []).map((c) => c.id), requiredCapabilityIds)) {

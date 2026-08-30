@@ -1,6 +1,6 @@
 # CR-072 — Transition Trigger: manual vs. governed (a new axis on Transition Definitions)
 
-**Raised:** 2026-08-28 · **Origin:** owner, following directly from CR-071's own badge-gating work — "What triggers the transition? In some cases, it is governance. In some cases, it has to be manual... Add trigger to the schema. It can be manual or governed. We will expand governed as we go along." · **Status:** 🟡 **Open by design — not meant to close.** One CR tracking every (entity_type, from_state, to_state) transition's trigger definition, addressed as its own sub-item, closed independently as each is settled. New sub-items get appended here rather than spawning new CRs. Sub-item 1 (Objective Proposed→Active) is ✅ Built 2026-08-28; all other sub-items remain open.
+**Raised:** 2026-08-28 · **Origin:** owner, following directly from CR-071's own badge-gating work — "What triggers the transition? In some cases, it is governance. In some cases, it has to be manual... Add trigger to the schema. It can be manual or governed. We will expand governed as we go along." · **Status:** 🟡 **Open by design — not meant to close.** One CR tracking every (entity_type, from_state, to_state) transition's trigger definition, addressed as its own sub-item, closed independently as each is settled. New sub-items get appended here rather than spawning new CRs. Sub-item 1 (Objective Proposed→Active) is ✅ Built 2026-08-28; sub-items 6–11 (all of Pack, all manual, CR-080) are ✅ Built 2026-08-29; every other sub-item remains open.
 
 ### The gap, established through direct analysis (no code changed yet)
 
@@ -44,6 +44,14 @@ Confirmed every one of Objective's 7 transitions has a required policy attached 
 | 3 | Objective | Active → Retired | Manual | 🔵 Classified only — no submit_verb defined; behaves as CR-071 already built it |
 | 4 | Objective | Active → Superseded | Manual | 🔵 Classified only — no submit_verb defined yet |
 | 5 | Objective | Achieved/Retired/Superseded → Archived | Manual | 🔵 Classified only — no submit_verb defined yet |
+| 6 | Pack | Draft → Validated | Manual | ✅ Built 2026-08-29 (CR-080) — no submit_verb |
+| 7 | Pack | Validated → Published | Manual | ✅ Built 2026-08-29 (CR-080) — no submit_verb |
+| 8 | Pack | Validated → Draft (Reject) | Manual | ✅ Built 2026-08-29 (CR-080) — real Submit-adjacent step: mandatory, always-new comment enforced in `transitionPack` itself, not a `submit_verb`/queue pattern |
+| 9 | Pack | Published → Active | Manual | ✅ Built 2026-08-29 (CR-080) — no submit_verb |
+| 10 | Pack | Active → Retired | Manual | ✅ Built 2026-08-29 (CR-080) — no submit_verb |
+| 11 | Pack | Retired → Archived | Manual | ✅ Built 2026-08-29 (CR-080) — no submit_verb |
+
+> **Sub-items 6–11, 2026-08-29 (owner: "By the way, all transitions are manual").** Pack's whole lifecycle classified in one pass while CR-080 (Pack lifecycle simplification — Deprecated dropped, reactivation removed, Validated → Draft Reject added) was being built — see that CR for the full design. Unlike Objective, no Pack transition is governed; none needed a `submit_verb`/queue-style Submit step either — Reject's own mandatory-comment requirement is enforced directly inside `transitionPack`, a different (and simpler) mechanism than sub-item 1's Submit-then-Activate pattern, not a second instance of it.
 
 ### Built 2026-08-28 (sub-item 1 only)
 

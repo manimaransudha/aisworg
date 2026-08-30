@@ -86,7 +86,7 @@ async function commissionAndFulfil(prefix: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromForm({
     statement: `${prefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);

@@ -76,7 +76,7 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       statement: "Acceptance test: stand up a customer web portal",
-      requiredCapabilityCodes: ["requirements-analysis", "architecture", "development"],
+      requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
       tier: "Engineering",
       parentObjectiveId: root.id,
     }),
@@ -86,7 +86,7 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
   assert.equal(objective.requiredCapabilities.length, 3);
 
   // 2 — select/validate a Template against the Objective's required Capabilities (Ch.6 §11)
-  const templatesRes = await request(`${baseUrl}/templates?capabilityCodes=requirements-analysis,architecture,development`);
+  const templatesRes = await request(`${baseUrl}/templates?capabilityCodes=requirements-analysis,architecture-solution-design,development`);
   assert.equal(templatesRes.status, 200);
   const { candidates } = await templatesRes.json();
   const template = candidates.find((c: { satisfies: boolean }) => c.satisfies);

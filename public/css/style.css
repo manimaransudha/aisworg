@@ -349,3 +349,80 @@ body:has(.login-card, .auth-card, .verify-card, .card-center) { background: var(
 }
 
 .badge.bg-secondary-subtle { background: #eef1f5 !important; }
+
+/* ---------- Ontology combo box (CR-079) — a category-driven "pick from a
+   list or type your own" field (Pack's own `code`, driven by `category`).
+   Was a native <input list>/<datalist> combo-box; owner: "this is really
+   very bad" — the suggestion popup is browser/OS-drawn, unstyleable,
+   inconsistent across browsers, and shows raw codes ahead of the friendly
+   label. Rebuilt as a plain text input plus a JS-driven, Bootstrap-styled
+   suggestion list (dynamicOntologyField.js) — a real, on-page combo box, not
+   a native one. ---------- */
+.ontology-combo { position: relative; }
+.ontology-combo-input { padding-right: 1.9rem; }
+.ontology-combo::after {
+  content: "\F282"; /* bootstrap-icons chevron-down */
+  font-family: "bootstrap-icons";
+  position: absolute;
+  right: .6rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: .7rem;
+  pointer-events: none;
+}
+.ontology-combo-menu {
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 1050;
+  margin-top: .25rem;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+.ontology-combo-menu.show { display: block; }
+.ontology-combo-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: .4rem .75rem;
+  border: 0;
+  background: none;
+  font-size: .85rem;
+  color: var(--text);
+}
+.ontology-combo-item .ontology-combo-item-code { display: block; font-size: .72rem; color: var(--text-muted); }
+.ontology-combo-item:hover, .ontology-combo-item.active { background: var(--surface-muted); }
+.ontology-combo-empty { padding: .4rem .75rem; font-size: .8rem; color: var(--text-muted); font-style: italic; }
+
+/* CR-081 — the branch-picker (existing versions to start a new one from)
+   needs a real, visible boundary of its own: it sits directly under the
+   Code field's own small muted help line, and without one both read as an
+   undifferentiated block of small gray text (owner: "It is extremely hard
+   to even understand what is happening"). Only present when it actually has
+   content (dynamicOntologyField.js never appends the label/list otherwise),
+   so an author who hasn't picked an existing code sees nothing extra at all. */
+.pack-code-versions:not(:empty) {
+  padding: .5rem .65rem;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.pack-code-versions .badge { font-weight: 500; font-size: .78rem; }
+
+/* A readonly "version" field (CR-024) is real, computed data — not a label,
+   not disabled text — but Bootstrap gives it the exact same look as a blank
+   or plain <div>, especially once CR-081 stopped pre-filling Pack's own
+   version with a literal default. A light, distinct fill plus a visible
+   border makes it read as "a field holding a real value" at a glance. */
+.version-field[readonly] {
+  background: var(--surface-muted);
+  border-color: var(--border);
+}
+.version-field[readonly]:focus { box-shadow: none; }
