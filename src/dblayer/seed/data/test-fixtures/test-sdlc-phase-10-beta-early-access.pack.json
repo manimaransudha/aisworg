@@ -180,17 +180,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Beta & Early Access Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "beta-entry-exit-criteria",
-        "checklistIds": [
-          "Beta / Early Access (SDLC Phase 10) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

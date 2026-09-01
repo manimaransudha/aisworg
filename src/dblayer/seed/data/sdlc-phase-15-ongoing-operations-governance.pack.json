@@ -23,8 +23,14 @@
         "name": "SRE Playbook",
         "contractDescription": "Site reliability engineering procedures, error budget management rules, and automated incident triage playbooks.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -33,8 +39,14 @@
         "name": "Incident & Change Management Process",
         "contractDescription": "ITIL-aligned incident response workflow, Change Advisory Board (CAB) review protocol, and emergency change fast-path.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -43,8 +55,14 @@
         "name": "Audit Evidence Catalog",
         "contractDescription": "Continuous compliance evidence collection, access control logs, and SOC2/ISO27001 audit artifact repository.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "executive-approved" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -53,8 +71,14 @@
         "name": "Business Continuity & DR Plan",
         "contractDescription": "Disaster recovery drill plan, backup verification schedule, and maximum tolerable downtime specs.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "executive-approved" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -63,8 +87,14 @@
         "name": "Tech Debt Register",
         "contractDescription": "Architectural refactoring backlog, deprecated API sunset timeline, and debt prioritization score.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -73,8 +103,14 @@
         "name": "Quarterly Architecture Review",
         "contractDescription": "Quarterly system health check, dependency vulnerability audit, and capacity scaling review.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       }
     ],
@@ -144,17 +180,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Ongoing Operations Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "sre-playbook",
-        "checklistIds": [
-          "Ongoing Operations & Governance (SDLC Phase 15) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

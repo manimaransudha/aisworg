@@ -180,17 +180,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Backlog & Release Planning Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "release-plan",
-        "checklistIds": [
-          "Backlog & Release Planning (SDLC Phase 6) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

@@ -23,8 +23,14 @@
         "name": "Hypercare Runbook",
         "contractDescription": "Post-launch support procedures, daily triage meeting protocol, and rapid escalation matrix.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -33,8 +39,14 @@
         "name": "Known Issues & Bug Tracker",
         "contractDescription": "Post-launch defect log, severity classification, and fix release tracking.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -43,8 +55,14 @@
         "name": "Post-Mortem & Lessons Learned",
         "contractDescription": "Blameless post-mortem retrospective report identifying root causes, timeline, and corrective actions.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "executive-approved" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -53,8 +71,14 @@
         "name": "Operational KPIs Report",
         "contractDescription": "Post-launch system stability, latency, error rates, and support ticket volume metrics report.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -63,8 +87,14 @@
         "name": "Customer Feedback Summary",
         "contractDescription": "Early adopter feedback synthesis, usability friction points, and CSAT scores.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -73,8 +103,14 @@
         "name": "Hotfix Plan & Ownership Matrix",
         "contractDescription": "Rapid hotfix deployment pipeline, approval fast-path rules, and regression safety checks.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       }
     ],
@@ -144,17 +180,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Hypercare Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "post-mortem-lessons-learned",
-        "checklistIds": [
-          "Hypercare & Stabilization (SDLC Phase 12) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

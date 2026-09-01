@@ -23,8 +23,14 @@
         "name": "Technical Specifications per Feature",
         "contractDescription": "Detailed engineering implementation specifications, component diagrams, and data flow patterns.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -33,8 +39,14 @@
         "name": "Architecture Decision Records",
         "contractDescription": "ADR documents recording context, options evaluated, rationale, and consequences of key technical decisions.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -43,8 +55,14 @@
         "name": "Coding Standards & Review Guidelines",
         "contractDescription": "Language style guides, linter rules, code review criteria, and pull request template specs.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -53,8 +71,14 @@
         "name": "API Contracts",
         "contractDescription": "Executable interface contracts (OpenAPI / gRPC / TypeScript definitions) between frontend and backend services.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -63,8 +87,14 @@
         "name": "Unit & Integration Test Plans",
         "contractDescription": "Test coverage targets, mock strategies, and integration test suite specifications.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -73,8 +103,14 @@
         "name": "Data Migration Plan",
         "contractDescription": "Database migration scripts, backward-compatible schema changes, and rollback verification.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -83,8 +119,14 @@
         "name": "Localization & Internationalization Strategy",
         "contractDescription": "i18n string extraction, translation key conventions, and date/currency formatting patterns.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -93,8 +135,14 @@
         "name": "Feature Flag Documentation",
         "contractDescription": "Feature toggle names, default fallback states, and flag lifecycle cleanup tasks.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       }
     ],
@@ -164,17 +212,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Implementation Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "technical-specifications-per-feature",
-        "checklistIds": [
-          "Implementation (SDLC Phase 7) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

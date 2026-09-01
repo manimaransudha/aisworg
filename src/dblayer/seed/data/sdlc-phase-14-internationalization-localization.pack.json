@@ -23,8 +23,14 @@
         "name": "Locale & Language Strategy",
         "contractDescription": "Tiered locale rollout prioritization, fallback locale rules, and currency/timezone formatting matrix.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -33,8 +39,14 @@
         "name": "Translation Glossary & Style Guide",
         "contractDescription": "Brand term translation rules, non-translatable technical keywords, and tone of voice guides per target locale.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -43,8 +55,14 @@
         "name": "Pseudolocalization Report",
         "contractDescription": "Automated string expansion, accent character encoding, and UI container truncation test report.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -53,8 +71,14 @@
         "name": "RTL & Cultural Adaptation Review",
         "contractDescription": "Right-to-Left (RTL) CSS layout mirroring, icon directionality, and local cultural symbol appropriateness audit.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -63,8 +87,14 @@
         "name": "Regional Compliance Addenda",
         "contractDescription": "Country-specific legal disclosures, tax formatting (VAT/GST), and local consumer protection terms.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "executive-approved" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       }
     ],
@@ -134,17 +164,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Internationalization Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "locale-language-strategy",
-        "checklistIds": [
-          "Internationalization & Localization (SDLC Phase 14) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

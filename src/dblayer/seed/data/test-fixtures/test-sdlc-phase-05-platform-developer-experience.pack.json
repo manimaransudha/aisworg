@@ -196,17 +196,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Platform & DevEx Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "ci-cd-pipeline-specification",
-        "checklistIds": [
-          "Platform & Developer Experience (SDLC Phase 5) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

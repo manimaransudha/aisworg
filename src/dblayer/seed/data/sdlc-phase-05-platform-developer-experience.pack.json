@@ -23,8 +23,14 @@
         "name": "CI/CD Pipeline Specification",
         "contractDescription": "Automated build, test, artifact publishing, and deployment pipeline workflow definition.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -33,8 +39,14 @@
         "name": "Infrastructure as Code Plan",
         "contractDescription": "Terraform / CloudFormation / Pulumi modular infrastructure automation plan.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -43,8 +55,14 @@
         "name": "Environments Matrix",
         "contractDescription": "Dev, Staging, QA, and Production environment configuration, parity rules, and data masking controls.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -53,8 +71,14 @@
         "name": "Secrets Management & Access Control Plan",
         "contractDescription": "HashiCorp Vault / AWS Secrets Manager integration, secret rotation policies, and IAM access controls.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -63,8 +87,14 @@
         "name": "Observability Strategy",
         "contractDescription": "Distributed tracing (OpenTelemetry), centralized log aggregation, and metric alerting architecture.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -73,8 +103,14 @@
         "name": "SLO/SLA/SLI Definitions",
         "contractDescription": "Service Level Indicators (SLI), Service Level Objectives (SLO), and Error Budget policies.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "executive-approved" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -83,8 +119,14 @@
         "name": "Runbooks & Playbooks",
         "contractDescription": "Standard operating procedures for deployment, rollback, backup restoration, and incident triage.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       }
     ],
@@ -154,17 +196,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Platform & DevEx Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "ci-cd-pipeline-specification",
-        "checklistIds": [
-          "Platform & Developer Experience (SDLC Phase 5) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

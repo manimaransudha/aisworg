@@ -180,17 +180,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Hypercare Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "post-mortem-lessons-learned",
-        "checklistIds": [
-          "Hypercare & Stabilization (SDLC Phase 12) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

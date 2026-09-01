@@ -23,8 +23,14 @@
         "name": "Threat Model (STRIDE)",
         "contractDescription": "Security threat modeling covering Spoofing, Tampering, Repudiation, Info Disclosure, DoS, and Elevation of Privilege.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "executive-approved" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -33,8 +39,14 @@
         "name": "Security Controls Matrix",
         "contractDescription": "Security control implementation specifications mapping SOC2, ISO27001, and NIST controls.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -43,8 +55,14 @@
         "name": "Privacy Impact Assessment",
         "contractDescription": "GDPR / CCPA privacy risk evaluation, data flow mapping, and user consent mechanics.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -53,8 +71,14 @@
         "name": "Data Protection Addendum & Vendor List",
         "contractDescription": "Third-party vendor risk assessment, sub-processor list, and DPA contract templates.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -63,8 +87,14 @@
         "name": "Compliance Readiness Checklist",
         "contractDescription": "Regulatory compliance gap analysis and audit evidence mapping.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -73,8 +103,14 @@
         "name": "Secure SDLC Guidelines",
         "contractDescription": "OWASP Top 10 secure coding guidelines, SAST/DAST integration, and secret scanner rules.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       }
     ],
@@ -144,17 +180,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Security & Compliance Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "threat-model-stride",
-        "checklistIds": [
-          "Security, Privacy & Compliance (SDLC Phase 4) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

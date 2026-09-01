@@ -196,17 +196,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Quality Engineering & Hardening Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "master-test-plan",
-        "checklistIds": [
-          "Quality Engineering & Hardening (SDLC Phase 8) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

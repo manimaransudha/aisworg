@@ -23,8 +23,14 @@
         "name": "Architecture Notebook",
         "contractDescription": "The candidate architecture, key design decisions, and rationale — sufficient to guide implementation.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       }
     ],
@@ -91,17 +97,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "OpenUP Architecture Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "architecture-notebook",
-        "checklistIds": [
-          "Architecture (OpenUP Capability Pattern) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

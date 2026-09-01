@@ -23,8 +23,14 @@
         "name": "Change Request",
         "contractDescription": "A recorded, dispositioned request to change a baselined asset.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -33,8 +39,14 @@
         "name": "Configuration Management Plan",
         "contractDescription": "The approach for identifying, controlling, and auditing engineering assets under change.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       }
     ],
@@ -101,17 +113,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "OpenUP Configuration Management Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "configuration-management-plan",
-        "checklistIds": [
-          "Configuration & Change Management (OpenUP Capability Pattern) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

@@ -23,8 +23,14 @@
         "name": "Launch Checklist",
         "contractDescription": "Comprehensive go-live checklist covering technical, operational, legal, and customer support sign-offs.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "executive-approved" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -33,8 +39,14 @@
         "name": "Deployment & Rollout Plan",
         "contractDescription": "Canary deployment schedule, progressive traffic shifting (10% -> 25% -> 50% -> 100%), and rollback procedures.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -43,8 +55,14 @@
         "name": "Incident Response Plan",
         "contractDescription": "On-call rotation, severity 1 incident bridge protocol, status page automation, and incident commander roles.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -53,8 +71,14 @@
         "name": "Monitoring & Dashboards",
         "contractDescription": "Real-time Datadog/Grafana launch dashboards tracking error rates, latency percentiles, and transaction volume.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -63,8 +87,14 @@
         "name": "Customer Communication Plan",
         "contractDescription": "Press release, customer email broadcasts, release notes, and product update documentation.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "executive-approved" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       }
     ],
@@ -134,17 +164,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Launch Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "deployment-rollout-plan",
-        "checklistIds": [
-          "Launch (SDLC Phase 11) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

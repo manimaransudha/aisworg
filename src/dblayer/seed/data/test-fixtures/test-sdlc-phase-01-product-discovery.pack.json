@@ -212,17 +212,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Product Discovery Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "product-requirements-document",
-        "checklistIds": [
-          "Product Discovery (SDLC Phase 1) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

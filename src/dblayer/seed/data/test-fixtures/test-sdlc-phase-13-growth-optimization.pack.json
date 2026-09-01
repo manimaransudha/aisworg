@@ -180,17 +180,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Growth & Optimization Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "product-analytics-specification",
-        "checklistIds": [
-          "Growth & Optimization (SDLC Phase 13) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

@@ -164,17 +164,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Internationalization Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "locale-language-strategy",
-        "checklistIds": [
-          "Internationalization & Localization (SDLC Phase 14) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

@@ -113,17 +113,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "OpenUP Configuration Management Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "configuration-management-plan",
-        "checklistIds": [
-          "Configuration & Change Management (OpenUP Capability Pattern) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

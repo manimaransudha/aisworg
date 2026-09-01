@@ -23,8 +23,14 @@
         "name": "Beta Entry/Exit Criteria",
         "contractDescription": "Cohort selection rules, entry prerequisites, exit gate thresholds, and feature flag access limits.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "executive-approved" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -33,8 +39,14 @@
         "name": "Feedback Capture & Analysis Plan",
         "contractDescription": "In-app feedback widgets, structured survey Cadence, and customer interview triage workflow.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -43,8 +55,14 @@
         "name": "Beta Success Metrics",
         "contractDescription": "Daily Active Users (DAU), feature adoption rates, NPS / CSAT targets, and crash-free session metrics.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -53,8 +71,14 @@
         "name": "Support Playbook for Beta Users",
         "contractDescription": "Dedicated support slack channel protocol, response SLA matrix, and escalation path for beta participants.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -63,8 +87,14 @@
         "name": "Known Issues Log",
         "contractDescription": "Public/internal active bug log, workaround instructions, and scheduled fix milestones.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -73,8 +103,14 @@
         "name": "Risk Mitigation Plan",
         "contractDescription": "Data rollback plan, cohort de-escalation steps, and incident communication protocol for beta regressions.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       }
     ],
@@ -144,17 +180,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Beta & Early Access Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "beta-entry-exit-criteria",
-        "checklistIds": [
-          "Beta / Early Access (SDLC Phase 10) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

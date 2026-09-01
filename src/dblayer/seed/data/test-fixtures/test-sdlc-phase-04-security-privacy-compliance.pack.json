@@ -180,17 +180,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Security & Compliance Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "threat-model-stride",
-        "checklistIds": [
-          "Security, Privacy & Compliance (SDLC Phase 4) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

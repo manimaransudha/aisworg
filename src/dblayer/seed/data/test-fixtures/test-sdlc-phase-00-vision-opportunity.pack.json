@@ -275,17 +275,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Vision & Opportunity Framing Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "vision-one-pager",
-        "checklistIds": [
-          "Vision & Opportunity (SDLC Phase 0) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

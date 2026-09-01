@@ -180,17 +180,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Scale & Performance Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "capacity-scaling-model",
-        "checklistIds": [
-          "Scale & Performance Optimization (SDLC Phase 9) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

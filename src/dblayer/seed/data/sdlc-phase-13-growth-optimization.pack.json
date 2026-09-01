@@ -23,8 +23,14 @@
         "name": "Product Analytics Specification",
         "contractDescription": "Funnel tracking, retention cohort specs, and product-led growth telemetry implementation.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -33,8 +39,14 @@
         "name": "Event Taxonomy & Tracking Plan",
         "contractDescription": "Segment / Mixpanel event naming conventions, property schemas, and privacy consent rules.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -43,8 +55,14 @@
         "name": "Experimentation Framework",
         "contractDescription": "A/B testing methodology, sample size calculator rules, and statistical significance criteria.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -53,8 +71,14 @@
         "name": "Growth Experiments Backlog",
         "contractDescription": "ICE / RICE prioritized growth experiment hypotheses targeting acquisition, activation, and referral loops.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -63,8 +87,14 @@
         "name": "Pricing & Packaging Tests",
         "contractDescription": "Tiered packaging experiments, Van Westendorp price sensitivity tests, and feature paywall triggers.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "executive-approved" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -73,8 +103,14 @@
         "name": "Retention & Engagement Dashboard",
         "contractDescription": "Daily, weekly, and monthly retention curves, churn prediction models, and power user curve analysis.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       }
     ],
@@ -144,17 +180,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Growth & Optimization Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "product-analytics-specification",
-        "checklistIds": [
-          "Growth & Optimization (SDLC Phase 13) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

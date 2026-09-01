@@ -23,8 +23,14 @@
         "name": "Capacity & Scaling Model",
         "contractDescription": "Compute, memory, database IOPS, and storage scaling projections mapped to traffic growth models.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -33,8 +39,14 @@
         "name": "Autoscaling & Caching Strategy",
         "contractDescription": "HPA / VPA autoscaling policies, Redis/Memcached invalidation rules, and multi-tier cache hit ratio targets.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -43,8 +55,14 @@
         "name": "CDN & Edge Strategy",
         "contractDescription": "Edge caching, static asset optimization, and origin shield routing policies.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -53,8 +71,14 @@
         "name": "Multi-Region & Disaster Recovery Plan",
         "contractDescription": "Active-passive or active-active multi-region failover automation and data sync specs.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "executive-approved" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -63,8 +87,14 @@
         "name": "Chaos Engineering Report",
         "contractDescription": "Chaos Mesh / Litmus fault injection experiments testing dependency failures and automatic failover.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -73,8 +103,14 @@
         "name": "Cost Optimization & FinOps Plan",
         "contractDescription": "Reserved instance / Savings Plan allocation, idle resource cleanup, and cost-per-transaction targets.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       }
     ],
@@ -144,17 +180,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Scale & Performance Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "capacity-scaling-model",
-        "checklistIds": [
-          "Scale & Performance Optimization (SDLC Phase 9) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

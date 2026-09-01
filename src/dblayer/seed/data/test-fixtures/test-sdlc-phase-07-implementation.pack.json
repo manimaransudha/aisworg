@@ -212,17 +212,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Implementation Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "technical-specifications-per-feature",
-        "checklistIds": [
-          "Implementation (SDLC Phase 7) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

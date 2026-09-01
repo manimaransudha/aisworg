@@ -23,8 +23,14 @@
         "name": "Information Architecture Map",
         "contractDescription": "Content structure, taxonomy, site map, and navigation flow diagram.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -33,8 +39,14 @@
         "name": "Wireframes",
         "contractDescription": "Low-fidelity and high-fidelity interface layout designs across key responsive break-points.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -43,8 +55,14 @@
         "name": "Clickable Prototype",
         "contractDescription": "Interactive screen transitions and user flow prototype for usability testing.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -53,8 +71,14 @@
         "name": "Design System & UI Kit",
         "contractDescription": "Reusable UI components, color palettes, typography, spacing scale, and interaction states.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "executive-approved" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -63,8 +87,14 @@
         "name": "Design Tokens",
         "contractDescription": "Machine-readable design system variables for color, typography, borders, and shadows.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -73,8 +103,14 @@
         "name": "Content Strategy & Voice/Tone Guide",
         "contractDescription": "Microcopy standards, content hierarchy guidelines, and error message voice tone.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -83,8 +119,14 @@
         "name": "Accessibility Compliance Checklist",
         "contractDescription": "WCAG 2.1 AA contrast, keyboard navigation, and screen reader compliance audit checklist.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -93,8 +135,14 @@
         "name": "Usability Test Plan & Report",
         "contractDescription": "Usability testing script, user session recordings analysis, and task success metrics report.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       }
     ],
@@ -164,17 +212,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Experience Design Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "clickable-prototype",
-        "checklistIds": [
-          "Experience Design (SDLC Phase 2) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

@@ -23,8 +23,14 @@
         "name": "Master Test Plan",
         "contractDescription": "Comprehensive testing strategy covering unit, integration, system, regression, and UAT methodologies.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -33,8 +39,14 @@
         "name": "Test Cases & Traceability Matrix",
         "contractDescription": "Requirement-to-test mapping matrix ensuring 100% functional acceptance criteria coverage.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -43,8 +55,14 @@
         "name": "Automated Test Suite Reports",
         "contractDescription": "CI test run outputs, flaky test isolation reports, and automated regression suite execution logs.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -53,8 +71,14 @@
         "name": "Performance & Load Test Plan/Results",
         "contractDescription": "k6 / Locust load test execution results, latency percentile distribution, and bottleneck analysis.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -63,8 +87,14 @@
         "name": "Security Testing Report",
         "contractDescription": "DAST penetration testing, dependency vulnerability report, and static code security analysis output.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "executive-approved" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -73,8 +103,14 @@
         "name": "Accessibility Audit",
         "contractDescription": "axe-core automated audit and manual screen reader (NVDA/VoiceOver) accessibility test report.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -83,8 +119,14 @@
         "name": "UAT Plan & Sign-off Report",
         "contractDescription": "User acceptance test script execution, defect triage log, and business stakeholder sign-off.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "executive-approved" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       }
     ],
@@ -154,17 +196,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Quality Engineering & Hardening Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "master-test-plan",
-        "checklistIds": [
-          "Quality Engineering & Hardening (SDLC Phase 8) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

@@ -23,8 +23,14 @@
         "name": "Vision One-Pager",
         "contractDescription": "Product vision and strategic direction, condensed to one page.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "executive-approved" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -33,8 +39,14 @@
         "name": "Lean Business Model Canvas",
         "contractDescription": "Business model framework covering value proposition, channels, revenue, and cost structure.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -43,8 +55,14 @@
         "name": "Market Sizing Brief",
         "contractDescription": "Market analysis and opportunity sizing (TAM/SAM/SOM).",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -53,8 +71,14 @@
         "name": "Competitive Teardown",
         "contractDescription": "Competitive landscape analysis of comparable products and their positioning.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -63,8 +87,14 @@
         "name": "JTBD Insights Summary",
         "contractDescription": "Jobs-to-be-done research insights motivating the opportunity.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -73,8 +103,14 @@
         "name": "Jobs-to-be-Done Statements",
         "contractDescription": "Detailed JTBD customer statements and pain/gain profiles.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -83,8 +119,14 @@
         "name": "Success Metrics & OKRs Draft",
         "contractDescription": "Initial success metrics and objectives/key-results definition for the opportunity.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -93,8 +135,14 @@
         "name": "Initial Risks & Assumptions Log",
         "contractDescription": "Early identification of the risks and unvalidated assumptions the opportunity rests on.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -103,8 +151,14 @@
         "name": "Outcome-Based Product Roadmap",
         "contractDescription": "High-level strategic roadmap mapping opportunity horizons and target business outcomes.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "executive-approved" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -113,8 +167,14 @@
         "name": "Core Vision Document",
         "contractDescription": "Comprehensive strategic vision narrative and core market thesis.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "executive-approved" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       }
     ],
@@ -215,17 +275,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Vision & Opportunity Framing Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "vision-one-pager",
-        "checklistIds": [
-          "Vision & Opportunity (SDLC Phase 0) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

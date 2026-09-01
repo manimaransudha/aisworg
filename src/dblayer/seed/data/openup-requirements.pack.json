@@ -126,17 +126,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "OpenUP Requirements Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "requirements-specification",
-        "checklistIds": [
-          "Requirements (OpenUP Capability Pattern) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

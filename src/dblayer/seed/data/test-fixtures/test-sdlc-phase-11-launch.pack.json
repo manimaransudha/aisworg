@@ -164,17 +164,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Launch Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "deployment-rollout-plan",
-        "checklistIds": [
-          "Launch (SDLC Phase 11) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

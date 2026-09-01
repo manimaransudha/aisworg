@@ -228,17 +228,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Technical Architecture Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "solution-architecture-document",
-        "checklistIds": [
-          "Technical Discovery & Architecture (SDLC Phase 3) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

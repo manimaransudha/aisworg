@@ -23,8 +23,14 @@
         "name": "Solution Architecture Document",
         "contractDescription": "High-level system architecture design, component decomposition, and design rationale.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "executive-approved" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -33,8 +39,14 @@
         "name": "C4 Diagrams",
         "contractDescription": "System architecture visualization across Context, Container, Component, and Code levels.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -43,8 +55,14 @@
         "name": "API Design Specification",
         "contractDescription": "OpenAPI / REST / GraphQL schema contracts, error formats, and authentication mechanisms.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -53,8 +71,14 @@
         "name": "Data Model & ERD",
         "contractDescription": "Database schema, entity-relationship diagrams, index strategy, and migration patterns.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       },
       {
@@ -63,8 +87,14 @@
         "name": "Non-Functional Requirements Spec",
         "contractDescription": "Target latency, throughput, availability, durability, scalability, and recovery metrics.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -73,8 +103,14 @@
         "name": "Tenancy Model",
         "contractDescription": "Multi-tenant isolation model, tenant scoping rules, and shared vs isolated database tiering.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -83,8 +119,14 @@
         "name": "Data Residency & Privacy Plan",
         "contractDescription": "Regional data storage boundaries, encryption at rest/in transit, and PII anonymization strategy.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -93,8 +135,14 @@
         "name": "Tech Stack Evaluation Matrix",
         "contractDescription": "Framework, language, and infrastructure trade-off matrix with build-vs-buy analysis.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
         ]
       },
       {
@@ -103,8 +151,14 @@
         "name": "Integration Architecture Overview",
         "contractDescription": "Third-party APIs, webhooks, message queues, and event-driven integration patterns.",
         "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "172800" }
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
         ]
       }
     ],
@@ -174,17 +228,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "Technical Architecture Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "solution-architecture-document",
-        "checklistIds": [
-          "Technical Discovery & Architecture (SDLC Phase 3) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }

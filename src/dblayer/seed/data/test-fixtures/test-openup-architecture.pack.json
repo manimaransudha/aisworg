@@ -97,17 +97,6 @@
         ]
       }
     ],
-    "qualityGates": [
-      {
-        "name": "OpenUP Architecture Quality Gate",
-        "category": "Validation Evidence",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "criteriaType": "requires_accepted_review",
-        "deliverableName": "architecture-notebook",
-        "checklistIds": [
-          "Architecture (OpenUP Capability Pattern) Checklist"
-        ]
-      }
-    ]
+    "qualityGates": []
   }
 }
