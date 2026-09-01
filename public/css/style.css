@@ -22,6 +22,7 @@
 
 /* ---------- Design tokens ---------- */
 :root {
+  /* Old dark/low-contrast tokens commented out per rule:
   --success: #10b981;
   --danger: #f43f5e;
   --warning: #f59e0b;
@@ -37,56 +38,144 @@
   --radius-sm: 8px;
   --shadow-sm: 0 4px 12px rgba(15, 23, 42, .04);
   --shadow-md: 0 8px 24px rgba(15, 23, 42, .08);
+  */
+  --success: #10b981;
+  --success-text: #14532d;
+  --danger: #f43f5e;
+  --danger-text: #881337;
+  --warning: #f59e0b;
+  --warning-text: #78350f;
+  --primary: #6366f1;
+  --primary-dark: #4f46e5;
+  --primary-light: #eef2ff;
+  --dark: #0f172a;
+  --header-bg: #f1f5f9;
+  --surface: #ffffff;
+  --surface-muted: #f8fafc;
+  --border: #cbd5e1;
+  --border-dark: #94a3b8;
+  --border-subtle: #e2e8f0;
+  --text: #0f172a;
+  --text-muted: #475569;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow-sm: 0 2px 4px 0 rgba(15, 23, 42, 0.06), 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 6px 12px -2px rgba(15, 23, 42, 0.08), 0 3px 6px -3px rgba(15, 23, 42, 0.05);
+  --shadow-lg: 0 12px 20px -4px rgba(15, 23, 42, 0.1), 0 4px 8px -4px rgba(15, 23, 42, 0.06);
 }
 
-/* ---------- Base ---------- */
+/* ---------- Base & Typography ---------- */
 body {
   background: var(--surface-muted);
   color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
-h1, h2, h3, h4, h5, h6 { color: var(--text); font-weight: 700; }
-a { color: var(--primary-dark); }
-a:hover { color: var(--primary); }
+h1, h2, h3, h4, h5, h6 { color: var(--text); font-weight: 700; letter-spacing: -0.02em; }
+a { color: var(--primary-dark); text-decoration: none; }
+a:hover { color: var(--primary); text-decoration: underline; }
 ::selection { background: rgba(99, 102, 241, .18); }
 
-/* ---------- Navbar ---------- */
-.navbar { padding: 0.5rem 0; background: var(--dark) !important; }
-.navbar .logo { letter-spacing: -.01em; }
-.nav-links { gap: .15rem; }
-.nav-links .nav-link {
-  border-radius: 999px;
-  padding: .45rem .9rem;
-  transition: background .15s;
+/* Standard Page Header Layout */
+.page-header {
+  margin-bottom: 1.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--border);
 }
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  margin-bottom: 0.25rem;
+}
+.page-subtitle {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin-bottom: 0;
+  line-height: 1.5;
+}
+
+/* ---------- Navbar ---------- */
+/* Old dark navbar commented out per rule:
+.navbar { padding: 0.5rem 0; background: var(--dark) !important; }
 .nav-links .nav-link:hover,
 .nav-links .nav-link.active { background: rgba(255, 255, 255, .08); }
 .navbar .dropdown-menu-dark {
   border: 1px solid rgba(255, 255, 255, .08);
   box-shadow: var(--shadow-md);
 }
+*/
+.navbar { padding: 0.5rem 0; background: #ffffff !important; border-bottom: 2px solid var(--border) !important; box-shadow: var(--shadow-sm); }
+.navbar .navbar-brand { color: var(--text) !important; font-weight: 800; letter-spacing: -0.02em; }
+.navbar .logo { color: var(--primary-dark); }
+.nav-links { gap: .25rem; }
+.nav-links .nav-link {
+  color: var(--text-muted) !important;
+  border-radius: 999px;
+  padding: .45rem .9rem;
+  font-weight: 500;
+  transition: all .15s ease-in-out;
+}
+.nav-links .nav-link:hover,
+.nav-links .nav-link.active {
+  background: var(--primary-light) !important;
+  color: var(--primary-dark) !important;
+  font-weight: 600;
+}
+.navbar .dropdown-menu {
+  border: 1px solid var(--border) !important;
+  box-shadow: var(--shadow-md);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: .5rem;
+}
+.navbar .dropdown-item {
+  color: var(--text);
+  border-radius: 6px;
+  padding: .45rem .75rem;
+  font-size: .875rem;
+  font-weight: 500;
+}
+.navbar .dropdown-item:hover,
+.navbar .dropdown-item.active {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+}
 .back-to-top {
   transition: transform .15s, box-shadow .15s;
 }
 .back-to-top:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 
-/* ---------- Cards, generically ---------- */
-.card {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
-}
-.card.border-0 { border: 1px solid var(--border) !important; }
-
-/* Section card — the single most-reused custom idiom in the app (attention,
-   compliance, reviews, telemetry, workqueue, seus/detail, and more). */
-.section-card {
-  border: none;
+/* ---------- Cards & Elevation Architecture ---------- */
+.card,
+.section-card,
+.principle-card,
+.layer-card,
+.category-card,
+.hub-card,
+.card-tile,
+.metric-card,
+.stat-tile,
+.login-card,
+.auth-card,
+.verify-card,
+.card-center {
+  border: 1px solid var(--border) !important;
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
   background: var(--surface);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card.border-0 { border: 1px solid var(--border) !important; }
+
+.section-card, .layer-card, .category-card {
   margin-bottom: 1.5rem;
   overflow: hidden;
 }
+
+/* Old dark section header commented out per rule:
 .section-header {
   background: var(--dark);
   color: #fff;
@@ -96,49 +185,76 @@ a:hover { color: var(--primary); }
   text-transform: uppercase;
   letter-spacing: .05em;
 }
+*/
+.section-header, .layer-header, .category-header {
+  background: var(--header-bg) !important;
+  color: var(--text) !important;
+  font-weight: 700;
+  font-size: .875rem;
+  padding: .85rem 1.25rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  border-bottom: 2px solid var(--border) !important;
+  border-left: 5px solid var(--primary-dark) !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
 
-/* Stat/metric/hub "big number" tile family — metric-card (telemetry),
-   stat-tile (dashboard), hub-card (identity hub), principle-card/layer-card
-   (dashboard), category-card (settings) all share the same underlying
-   idiom; centralized here once instead of re-declared per view. */
-.metric-card,
-.stat-tile,
-.principle-card,
-.layer-card,
-.category-card,
-.hub-card,
-.card-tile {
-  border: none;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
-  background: var(--surface);
+/* Principle & Hub Cards */
+.principle-card { padding: 1.25rem; height: 100%; }
+.principle-card i { color: var(--primary-dark); font-size: 1.25rem; margin-bottom: 0.5rem; display: block; }
+.principle-title { font-weight: 700; color: var(--text); font-size: 0.9rem; margin-bottom: 0.35rem; }
+.principle-note { color: var(--text-muted); font-size: 0.8125rem; line-height: 1.5; }
+
+/* Interactive Hover States with Accent Borders */
+.hub-card:hover,
+.stat-tile:hover,
+.principle-card:hover,
+.card-tile:hover,
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-dark) !important;
 }
+
+/* Stat & Metric Tiles */
 .metric-card, .stat-tile { padding: 1.25rem; text-align: center; }
-.metric-value, .stat-value, .hub-count { font-size: 1.8rem; font-weight: 700; color: var(--dark); }
+.metric-value, .stat-value, .hub-count { font-size: 2rem; font-weight: 800; color: var(--primary-dark); letter-spacing: -0.03em; }
 .metric-label, .stat-label, .hub-count-label {
-  font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted);
+  font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); font-weight: 600; margin-top: 0.25rem;
 }
-.layer-card, .category-card { margin-bottom: 1.5rem; overflow: hidden; }
-.layer-header, .category-header {
-  background: linear-gradient(135deg, var(--primary-dark), var(--primary));
-  color: #fff; font-weight: 600; font-size: .95rem; padding: .85rem 1.25rem;
-  text-transform: uppercase; letter-spacing: .05em;
+
+/* Item Rows inside Cards & Settings */
+.component-row, .setting-item {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background-color 0.15s ease-in-out;
 }
-.hub-card {
-  padding: 1.75rem; height: 100%; text-decoration: none; display: block;
-  transition: box-shadow .15s, transform .15s;
+.component-row:last-child, .setting-item:last-child { border-bottom: none; }
+.component-row:hover, .setting-item:hover { background-color: var(--header-bg); }
+.component-name, .setting-title { font-weight: 600; color: var(--text); font-size: 0.9rem; }
+.component-note, .setting-desc { color: var(--text-muted); font-size: 0.8125rem; margin-top: 0.2rem; }
+
+.setting-key {
+  font-family: var(--bs-font-monospace, monospace);
+  color: var(--primary-dark);
+  font-size: 0.75rem;
+  background: var(--primary-light);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  display: inline-block;
 }
-.hub-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.setting-type { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; }
+
+.hub-card { padding: 1.75rem; height: 100%; text-decoration: none; display: block; }
+.hub-card i.hub-icon { font-size: 1.75rem; color: var(--primary-dark); }
+.hub-card h3 { font-size: 1.1rem; font-weight: 700; color: var(--text); margin: 0.85rem 0 0.35rem; }
+.hub-card p { color: var(--text-muted); font-size: 0.85rem; margin: 0; line-height: 1.5; }
 .card-tile { margin-bottom: 1rem; padding: 1.25rem; }
 
-/* ---------- Pill / badge system ---------- *
- * The single biggest consolidation opportunity found: ~10 view-local
- * "badge with a semantic color suffix" families, all hand-rolled with the
- * same 5 color pairs. Kept as the exact class names already in use across
- * the app (state-badge/priority-badge/status-pill/outcome-badge/etc, each
- * with their own per-value suffix classes) rather than renamed, so no view
- * markup needs to change — just centralized here as the canonical
- * definition instead of copy-pasted per file. */
+/* ---------- Pill / badge system ---------- */
 .state-badge, .priority-badge, .status-pill, .outcome-badge, .scope-badge,
 .mode-badge, .classification-badge, .tier-badge, .req-state, .version-badge,
 .cap-badge, .sl-badge, .status-badge {
@@ -151,11 +267,7 @@ a:hover { color: var(--primary); }
   display: inline-block;
 }
 
-/* Canonical state palette (seus/detail.ejs's own version is the fullest —
-   used as the master list every narrower per-view subset already agreed
-   with). Green = done/good, yellow = in-progress/pending, red = blocked/
-   failed, blue = in-progress (distinct hue for SEU's own "In Progress"),
-   gray = terminal/neutral. */
+/* Old badge contrast rules commented out per rule:
 .state-Operational, .state-Fulfilled, .state-Satisfied, .state-Approved,
 .state-Completed, .state-Dispatched, .state-Resolved, .state-Verified,
 .state-Closed, .state-Accepted, .state-Published, .state-Referenced,
@@ -171,11 +283,30 @@ a:hover { color: var(--primary); }
 .state-Superseded { background: #fee2e2; color: #991b1b; }
 .state-Disposed, .state-Unknown, .state-Waived, .status-deferred { background: #f1f5f9; color: #64748b; }
 .state-In-Progress { background: #dbeafe; color: #1e40af; }
-
-/* Priority / severity */
 .priority-High, .priority-Critical, .sev-High, .sev-Critical { background: #fee2e2; color: #b91c1c; }
 .priority-Medium { background: #fef3c7; color: #92400e; }
 .priority-Low { background: #e2e8f0; color: #475569; }
+*/
+.state-Operational, .state-Fulfilled, .state-Satisfied, .state-Approved,
+.state-Completed, .state-Dispatched, .state-Resolved, .state-Verified,
+.state-Closed, .state-Accepted, .state-Published, .state-Referenced,
+.state-Applied, .state-Baselined, .state-Active, .state-Achieved,
+.status-live { background: #dcfce7; color: #14532d; }
+.state-Pending, .state-Commissioned, .state-Configured, .state-Activated,
+.state-Defined, .state-Unfulfilled, .state-Generated, .state-Assigned,
+.state-Executing, .state-Identified, .state-Analysed, .state-Collected,
+.state-Observed, .state-Proposed, .state-Validated, .state-Reviewed,
+.status-partial { background: #fef3c7; color: #78350f; }
+.state-Blocked, .state-Suspended, .state-Retired, .state-Archived,
+.state-Deferred, .state-Cancelled, .state-Failed, .state-Deprecated,
+.state-Superseded { background: #fee2e2; color: #881337; }
+.state-Disposed, .state-Unknown, .state-Waived, .status-deferred { background: #f1f5f9; color: #334155; }
+.state-In-Progress { background: #dbeafe; color: #1e3a8a; }
+
+/* Priority / severity high contrast */
+.priority-High, .priority-Critical, .sev-High, .sev-Critical { background: #fee2e2; color: #881337; }
+.priority-Medium { background: #fef3c7; color: #78350f; }
+.priority-Low { background: #f1f5f9; color: #334155; }
 
 /* Compliance status pills */
 .status-Compliant { background: #dcfce7; color: #166534; }
@@ -329,23 +460,84 @@ body:has(.login-card, .auth-card, .verify-card, .card-center) { background: var(
 .rlg-sort-icon { font-size: .7rem; color: #98a2b3; vertical-align: 1px; }
 .rlg-sort-th[data-sort-dir] .rlg-sort-icon { color: var(--primary-dark, #4338ca); }
 
-/* ---------- Buttons, forms, tables — the app-wide gaps: every page uses
-   these, none had any custom styling at all before this file. ---------- */
-.btn { border-radius: var(--radius-sm); font-weight: 500; }
-.btn-primary { background: var(--primary-dark); border-color: var(--primary-dark); }
-.btn-primary:hover { background: var(--primary); border-color: var(--primary); }
-
-.form-control, .form-select { border-radius: var(--radius-sm); border-color: var(--border); }
-.form-control:focus, .form-select:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 .2rem rgba(99, 102, 241, .15);
+/* ---------- Buttons, forms, tables ---------- */
+.btn {
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: .875rem;
+  padding: .45rem .95rem;
+  transition: all .15s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  gap: .375rem;
+  justify-content: center;
 }
-.form-label { color: var(--text); }
+.btn-primary {
+  background: var(--primary-dark);
+  border-color: var(--primary-dark);
+  color: #ffffff;
+  box-shadow: 0 1px 2px 0 rgba(79, 70, 229, 0.25);
+}
+.btn-primary:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px 0 rgba(79, 70, 229, 0.35);
+}
+.btn-outline-secondary {
+  border-color: var(--border-dark) !important;
+  color: #334155;
+  background: #ffffff;
+}
+.btn-outline-secondary:hover {
+  background: var(--surface-muted);
+  border-color: var(--text) !important;
+  color: var(--text);
+}
 
-.table { --bs-table-hover-bg: #f8fafc; }
+.form-control, .form-select {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-dark) !important;
+  background-color: #ffffff;
+  color: var(--text);
+  padding: .5rem .75rem;
+  font-size: .875rem;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+}
+.form-control:focus, .form-select:focus {
+  border-color: var(--primary-dark) !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2) !important;
+  outline: none;
+}
+.form-label {
+  color: var(--text);
+  font-weight: 600;
+  font-size: .8125rem;
+  margin-bottom: .375rem;
+}
+
+.table {
+  --bs-table-hover-bg: #f8fafc;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
 .table thead th {
-  font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
-  color: var(--text-muted); font-weight: 700; border-bottom-width: 1px;
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+  font-weight: 700;
+  border-bottom: 2px solid var(--border) !important;
+  background-color: var(--header-bg);
+  padding: .75rem 1rem;
+}
+.table tbody td {
+  padding: .85rem 1rem;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text);
 }
 
 .badge.bg-secondary-subtle { background: #eef1f5 !important; }

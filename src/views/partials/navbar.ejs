@@ -1,4 +1,7 @@
+<%# Commented out old dark navbar per rule:
 <nav class="navbar navbar-expand-lg navbar-dark shadow-sm">
+%>
+<nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm">
   <div class="container">
     <!-- <a class="navbar-brand logo fw-bold" href="/finanaly"><i class="bi bi-graph-up-arrow me-1"></i>SEU Studio</a> -->
     <a class="navbar-brand logo fw-bold" href="/aisworg"><i class="bi bi-graph-up-arrow me-1"></i>SEU Studio</a>
@@ -23,7 +26,10 @@
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               SEU Platform
             </a>
+            <%# Commented out dropdown-menu-dark per rule:
             <ul class="dropdown-menu dropdown-menu-dark">
+            %>
+            <ul class="dropdown-menu shadow-sm border">
               <li><a class="dropdown-item <%= currentPage === 'seu-dashboard' ? 'active' : '' %>" href="/aisworg">
                 <i class="bi bi-speedometer2 me-2"></i>Dashboard
               </a></li>
@@ -52,7 +58,10 @@
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               Governance
             </a>
+            <%# Commented out dropdown-menu-dark per rule:
             <ul class="dropdown-menu dropdown-menu-dark">
+            %>
+            <ul class="dropdown-menu shadow-sm border">
               <li><a class="dropdown-item <%= currentPage === 'seu-attention' ? 'active' : '' %>" href="/aisworg/seu/attention">
                 <i class="bi bi-bell me-2"></i>Attention
               </a></li>
@@ -71,7 +80,10 @@
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               SDK / Authoring
             </a>
+            <%# Commented out dropdown-menu-dark per rule:
             <ul class="dropdown-menu dropdown-menu-dark">
+            %>
+            <ul class="dropdown-menu shadow-sm border">
               <li><a class="dropdown-item <%= currentPage === 'seu-packs' ? 'active' : '' %>" href="/aisworg/seu/packs">
                 <i class="bi bi-box-seam me-2"></i>Pack Registry
               </a></li>
@@ -121,7 +133,10 @@
                (scoped per-request, live-queried instead). -->
           <% const _platformBadges = _u?.platformBadges || []; %>
           <li class="nav-item d-none d-lg-flex align-items-center small me-2">
-            <span class="me-2 text-white-50"><%= _u?.name || _u?.email %></span>
+            <%# Commented out low contrast text-white-50 per rule:
+            <span class="me-2 text-white-50">_u?.name || _u?.email</span>
+            %>
+            <span class="me-2 text-secondary font-weight-medium"><%= _u?.name || _u?.email %></span>
             <% if (_platformBadges.length > 0) { %>
               <% _platformBadges.forEach(function(b) { %>
                 <span class="badge bg-secondary-subtle text-dark-emphasis me-1" style="font-weight:600;"><%= b %></span>
@@ -143,7 +158,10 @@
                 <i class="bi bi-incognito me-1"></i>Act as:
                 <span class="badge bg-warning text-dark ms-1"><%= _curBadge %></span>
               </a>
+              <%# Commented out dropdown-menu-dark per rule:
               <div class="dropdown-menu dropdown-menu-dark dropdown-menu-end p-3" style="min-width:20rem;">
+              %>
+              <div class="dropdown-menu dropdown-menu-end p-3 shadow-sm border" style="min-width:20rem;">
                 <div class="small text-warning-emphasis mb-2">
                   <i class="bi bi-exclamation-triangle me-1"></i>Dev impersonation (god user only)
                 </div>
@@ -169,7 +187,7 @@
                 </form>
                 <form method="POST" action="/aisworg/seu/dev/act-as/reset" class="mt-2">
                   <input type="hidden" name="_csrf" value="<%= locals.csrfToken %>">
-                  <button type="submit" class="btn btn-sm btn-outline-light w-100">Reset to root</button>
+                  <button type="submit" class="btn btn-sm btn-outline-secondary w-100">Reset to root</button>
                 </form>
               </div>
             </li>
@@ -186,7 +204,10 @@
                 <i class="bi bi-person-circle"></i>
               <% } %>
             </a>
+            <%# Commented out dropdown-menu-dark per rule:
             <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
+            %>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm border">
               <li class="dropdown-header d-lg-none">
                 <%= _u?.name || _u?.email %><% if (_platformBadges.length > 0) { %> &middot; <%= _platformBadges.join(', ') %><% } %>
               </li>
@@ -205,7 +226,7 @@
               </a></li>
               <% } %>
               <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item text-warning" href="/aisworg/auth/logout">
+              <li><a class="dropdown-item text-danger" href="/aisworg/auth/logout">
                 <i class="bi bi-box-arrow-right me-2"></i>Sign out
               </a></li>
             </ul>
@@ -228,8 +249,8 @@
 <button id="backToTop" title="Back to top"
   style="display:none;position:fixed;bottom:1.5rem;right:1.5rem;z-index:1050;
          width:2.4rem;height:2.4rem;border-radius:50%;border:none;
-         background:#1e293b;color:#fff;font-size:1rem;line-height:1;
-         box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;
+         background:#4f46e5;color:#fff;font-size:1rem;line-height:1;
+         box-shadow:0 2px 8px rgba(79,70,229,.3);cursor:pointer;
          transition:opacity .2s,transform .2s;opacity:.85;"
   onmouseover="this.style.opacity='1';this.style.transform='translateY(-2px)'"
   onmouseout="this.style.opacity='.85';this.style.transform=''"

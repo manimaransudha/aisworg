@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <%- include('../../partials/head') %>
+  <%# Commented out local per-view style overrides in favor of central style.css per rule:
   <style>
     .hub-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); background: #fff; padding: 1.75rem; height: 100%; text-decoration: none; display: block; transition: box-shadow 0.15s, transform 0.15s; }
     .hub-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.08); transform: translateY(-2px); }
@@ -11,6 +12,7 @@
     .hub-count { font-size: 1.75rem; font-weight: 700; color: #4f46e5; margin-top: 0.75rem; }
     .hub-count-label { font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; }
   </style>
+  %>
 </head>
 <body>
   <header><%- include('../../partials/navbar') %></header>

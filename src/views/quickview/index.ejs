@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <%- include('../partials/head') %>
+  <%# Commented out local per-view style overrides in favor of central style.css per rule:
   <style>
     .card-tile { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); background: #fff; margin-bottom: 1rem; padding: 1.25rem; }
     .state-badge { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; padding: 0.22rem 0.6rem; border-radius: 999px; }
@@ -10,6 +11,7 @@
     .state-Suspended, .state-Retired, .state-Archived { background: #f1f5f9; color: #64748b; }
     .progress { height: 6px; border-radius: 999px; }
   </style>
+  %>
 </head>
 <body>
   <%- include('../partials/helpers') %>

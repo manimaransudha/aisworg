@@ -2,12 +2,16 @@
 <html lang="en">
 <head>
   <%- include('../../partials/head') %>
+  <%# Commented out per-view dark overrides to use canonical style.css light design system per rule:
+  /*
+  .section-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); background: #fff; margin-bottom: 1.5rem; overflow: hidden; }
+  .section-header { background: #0f172a; color: #fff; font-weight: 600; font-size: 0.9rem; padding: 0.85rem 1.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .mode-badge { font-size: 0.68rem; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
+  .mode-human-on-ui { background: #dbeafe; color: #1e40af; }
+  .mode-external-orchestrator { background: #e2e8f0; color: #475569; }
+  */
+  %>
   <style>
-    .section-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); background: #fff; margin-bottom: 1.5rem; overflow: hidden; }
-    .section-header { background: #0f172a; color: #fff; font-weight: 600; font-size: 0.9rem; padding: 0.85rem 1.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
-    .mode-badge { font-size: 0.68rem; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
-    .mode-human-on-ui { background: #dbeafe; color: #1e40af; }
-    .mode-external-orchestrator { background: #e2e8f0; color: #475569; }
     .stub-banner { border: 1px dashed #f59e0b; background: #fffbeb; color: #92400e; border-radius: 10px; padding: 0.85rem 1.1rem; font-size: 0.85rem; }
   </style>
 </head>

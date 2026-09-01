@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <%- include('../../partials/head') %>
+  <%# Commented out per-view dark overrides to use canonical style.css light design system per rule:
   <style>
     .section-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); background: #fff; margin-bottom: 1.5rem; overflow: hidden; }
     .section-header { background: #0f172a; color: #fff; font-weight: 600; font-size: 0.9rem; padding: 0.85rem 1.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -14,6 +15,7 @@
     .state-In-Progress { background: #dbeafe; color: #1e40af; }
     .edge-note { font-size: 0.75rem; color: #64748b; }
   </style>
+  %>
 </head>
 <body>
   <header><%- include('../../partials/navbar') %></header>

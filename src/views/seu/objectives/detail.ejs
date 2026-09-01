@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <%- include('../../partials/head') %>
+  <%# Commented out per-view dark overrides to use canonical style.css light design system per rule:
   <style>
     .section-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); background: #fff; margin-bottom: 1.5rem; overflow: hidden; }
     .section-header { background: #0f172a; color: #fff; font-weight: 600; font-size: 0.9rem; padding: 0.85rem 1.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -14,6 +15,7 @@
     .tier-badge { font-size: 0.7rem; font-weight: 600; padding: 0.22rem 0.55rem; border-radius: 6px; background: #ede9fe; color: #5b21b6; }
     .display-id-pill { display: inline-block; font-family: var(--bs-font-monospace, monospace); font-size: 0.72rem; font-weight: 700; padding: 0.18rem 0.55rem; border-radius: 999px; background: #e2e8f0; color: #334155; }
   </style>
+  %>
 </head>
 <body>
   <header><%- include('../../partials/navbar') %></header>
