@@ -1,0 +1,58 @@
+{
+  "code": "technology-oracle",
+  "name": "Oracle Database Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "development",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "code-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "Oracle Database Engineering Standards",
+        "description": "Validation checklist for PL/SQL development, Oracle performance tuning, security, and high availability.",
+        "items": [
+          {
+            "statement": "PL/SQL procedures and packages enforce strict exception handling and avoid silent WHEN OTHERS THEN NULL clauses.",
+            "group": "PL/SQL Architecture"
+          },
+          {
+            "statement": "SQL queries use bind variables exclusively to prevent SQL injection and maximize SGA library cache cursor sharing.",
+            "group": "Security & Cursor Sharing"
+          },
+          {
+            "statement": "Query execution plans are analyzed via EXPLAIN PLAN / AUTOTRACE to verify index usage and avoid unexpected full table scans.",
+            "group": "Performance Tuning"
+          },
+          {
+            "statement": "Tables and indexes specify appropriate tablespaces, partitioning strategies, and storage parameters.",
+            "group": "Storage & Schema Design"
+          },
+          {
+            "statement": "Data Guard failover compatibility and RAC node connection load balancing are validated for mission-critical schemas.",
+            "group": "High Availability & Resilience"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

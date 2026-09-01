@@ -205,6 +205,14 @@
           {
             "statement": "Form/Input validation is not just to add required attribute also validate the input via JS to make sure expected input is entered by user.",
             "group": "Input & Form Validation"
+          },
+          {
+            "statement": "TypeScript compiler settings enforce strict mode (strict: true, noImplicitAny: true) with zero explicit any type usage.",
+            "group": "TypeScript & Type Safety"
+          },
+          {
+            "statement": "Complex type models use discriminated unions and type guards over unsafe type assertions (as unknown as T).",
+            "group": "TypeScript & Type Safety"
           }
         ]
       }

@@ -1,0 +1,58 @@
+{
+  "code": "technology-sql",
+  "name": "SQL Database Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "development",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "code-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "SQL Database Engineering Standards",
+        "description": "Validation checklist for ANSI SQL standards, schema migrations, query performance tuning, and SQL injection safety.",
+        "items": [
+          {
+            "statement": "All DDL and DML operations execute via parameter markers or prepared statements to prevent SQL injection.",
+            "group": "SQL Security & Injection Prevention"
+          },
+          {
+            "statement": "Database schema migrations are version-controlled, idempotent, and reversible with explicit rollback logic.",
+            "group": "Schema Migration Governance"
+          },
+          {
+            "statement": "Foreign keys, unique constraints, and check constraints enforce relational data integrity at the database layer.",
+            "group": "Relational Integrity & Schema Design"
+          },
+          {
+            "statement": "Indexes are created for high-cardinality join and filter columns, and execution plans (EXPLAIN ANALYZE) confirm index usage.",
+            "group": "Query Performance & Indexing"
+          },
+          {
+            "statement": "Connection pools are configured with appropriate max connection limits, idle timeouts, and health checks.",
+            "group": "Connection Management"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

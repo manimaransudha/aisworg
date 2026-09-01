@@ -56,6 +56,20 @@ const DOMAIN_TECHNOLOGY_PACK_FILES = [
   "technology-html.pack.json",
   "technology-git.pack.json",
   "technology-css.pack.json",
+  "technology-rust.pack.json",
+  "technology-rails.pack.json",
+  "technology-oracle.pack.json",
+  "technology-db2.pack.json",
+  "technology-cobol.pack.json",
+  "technology-python.pack.json",
+  "technology-java.pack.json",
+  "technology-go.pack.json",
+  "technology-csharp.pack.json",
+  "technology-swift.pack.json",
+  "technology-kotlin.pack.json",
+  "technology-docker.pack.json",
+  "technology-kubernetes.pack.json",
+  "technology-sql.pack.json",
 ];
 
 export async function seedDomainTechnologyPacks(): Promise<void> {

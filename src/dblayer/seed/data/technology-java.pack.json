@@ -1,0 +1,58 @@
+{
+  "code": "technology-java",
+  "name": "Java Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "development",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "code-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "Java Engineering Standards",
+        "description": "Validation checklist for Java 17/21 standards, Spring Boot architecture, static analysis, and JUnit testing.",
+        "items": [
+          {
+            "statement": "Modern Java language constructs (records, sealed classes, pattern matching, switch expressions) are used over verbose boilerplate.",
+            "group": "Language Standards & Style"
+          },
+          {
+            "statement": "Spring dependency injection uses constructor injection rather than field injection (@Autowired on fields is avoided).",
+            "group": "Dependency Injection & Spring"
+          },
+          {
+            "statement": "JPA/Hibernate queries avoid N+1 issues via JOIN FETCH or Entity Graphs, and transactions specify proper read-only flags.",
+            "group": "Data Access & Persistence"
+          },
+          {
+            "statement": "Static analysis via Checkstyle, SpotBugs, and SonarQube returns zero high-severity code smells or security flaws.",
+            "group": "Static Analysis & Quality"
+          },
+          {
+            "statement": "Unit tests use JUnit 5 and AssertJ / Mockito with high branch coverage and isolated test slices.",
+            "group": "Testing & Verification"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

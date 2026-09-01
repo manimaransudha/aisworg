@@ -1,0 +1,62 @@
+{
+  "code": "technology-cobol",
+  "name": "COBOL Mainframe Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "development",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "code-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "COBOL & Mainframe Engineering Standards",
+        "description": "Validation checklist for Enterprise COBOL structure, COPYBOOK definitions, CICS transaction safety, and JCL execution.",
+        "items": [
+          {
+            "statement": "COBOL source code adheres strictly to four DIVISION structures (IDENTIFICATION, ENVIRONMENT, DATA, PROCEDURE).",
+            "group": "COBOL Structure & Layout"
+          },
+          {
+            "statement": "Data items use standardized COPYBOOK structures with explicit level numbers (01, 05, 10) and picture clauses (PIC X, PIC 9).",
+            "group": "Data Definitions & Copybooks"
+          },
+          {
+            "statement": "Packed decimal (COMP-3) arithmetic fields include sign clauses and overflow/truncation guards.",
+            "group": "Arithmetic & Numeric Safety"
+          },
+          {
+            "statement": "IBM CICS commands (EXEC CICS LINK/XCTL/READ) handle RESP and RESP2 return codes without unhandled ABENDs.",
+            "group": "CICS & Online Transactions"
+          },
+          {
+            "statement": "JCL batch job steps specify valid COND parameters, DISP status settings, and dataset name (DSN) governance rules.",
+            "group": "JCL Batch Execution"
+          },
+          {
+            "statement": "EBCDIC to ASCII character code conversions are validated when interfacing mainframe feeds with distributed systems.",
+            "group": "Data Encoding & Interop"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}
