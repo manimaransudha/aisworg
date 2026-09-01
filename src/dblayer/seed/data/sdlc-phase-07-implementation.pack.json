@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Building the product features and functionality \u2014 aka Build, Delivery, Engineering Execution, Construction, Maker Sprint.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Building the product features and functionality — aka Build, Delivery, Engineering Execution, Construction, Maker Sprint.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -21,71 +21,156 @@
         "code": "technical-specifications-per-feature",
         "capabilityCode": "implementation-engineering",
         "name": "Technical Specifications per Feature",
-        "contractDescription": "Detailed implementation specs."
+        "contractDescription": "Detailed engineering implementation specifications, component diagrams, and data flow patterns.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "architecture-decision-records",
         "capabilityCode": "implementation-engineering",
         "name": "Architecture Decision Records",
-        "contractDescription": "Technical decision documentation."
+        "contractDescription": "ADR documents recording context, options evaluated, rationale, and consequences of key technical decisions.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "coding-standards-review-guidelines",
         "capabilityCode": "implementation-engineering",
         "name": "Coding Standards & Review Guidelines",
-        "contractDescription": "Development standards."
+        "contractDescription": "Language style guides, linter rules, code review criteria, and pull request template specs.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "api-contracts",
         "capabilityCode": "implementation-engineering",
         "name": "API Contracts",
-        "contractDescription": "Service interface definitions."
+        "contractDescription": "Executable interface contracts (OpenAPI / gRPC / TypeScript definitions) between frontend and backend services.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "unit-integration-test-plans",
         "capabilityCode": "implementation-engineering",
         "name": "Unit & Integration Test Plans",
-        "contractDescription": "Testing strategy."
+        "contractDescription": "Test coverage targets, mock strategies, and integration test suite specifications.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "data-migration-plan",
         "capabilityCode": "implementation-engineering",
         "name": "Data Migration Plan",
-        "contractDescription": "Data transition strategy."
+        "contractDescription": "Database migration scripts, backward-compatible schema changes, and rollback verification.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "localization-internationalization-strategy",
         "capabilityCode": "implementation-engineering",
         "name": "Localization & Internationalization Strategy",
-        "contractDescription": "Global expansion planning."
+        "contractDescription": "i18n string extraction, translation key conventions, and date/currency formatting patterns.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "feature-flag-documentation",
         "capabilityCode": "implementation-engineering",
         "name": "Feature Flag Documentation",
-        "contractDescription": "Feature toggle management."
+        "contractDescription": "Feature toggle names, default fallback states, and flag lifecycle cleanup tasks.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [
+      {
+        "code": "policy-code-review-peer-approval-standard",
+        "name": "Code Review Peer Approval Policy",
+        "category": "Engineering",
+        "constraintType": "Standard",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "conditionType": "always_true",
+        "severity": "high"
       }
     ],
     "checklists": [
       {
         "name": "Implementation (SDLC Phase 7) Checklist",
+        "description": "Validation checklist for feature implementation, code review, and automated unit testing.",
         "items": [
           {
             "statement": "The implemented code conforms to the documented API contracts and architecture decision records."
+          },
+          {
+            "statement": "Every pull request requires at least 1 peer approval and passing CI build before merging."
+          },
+          {
+            "statement": "Unit and integration test suites meet minimum code coverage target (>= 80%)."
+          },
+          {
+            "statement": "Database migration scripts are tested for both upgrade and rollback paths."
+          },
+          {
+            "statement": "No hardcoded secrets, credentials, or unhandled exceptions exist in merged feature branches."
           }
         ]
       }
     ],
     "reviewGates": [
       {
-        "code": "Source Code",
-        "statement": "The Source Code has been reviewed and accepted as sufficient to proceed to Quality Engineering & Hardening.",
+        "code": "technical-specifications-per-feature",
+        "name": "Implementation Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
+        "statement": "The Source Code has been reviewed and accepted as sufficient to proceed to Quality Engineering & Hardening.",
         "prompt": "Does the Source Code meet the technical specifications, coding standards, and architecture decisions for this feature set?",
         "participant": "human",
         "outputContract": "assessment-acceptance",
-        "name": "Implementation Review",
+        "checklistIds": [
+          "Implementation (SDLC Phase 7) Checklist"
+        ]
+      }
+    ],
+    "qualityGates": [
+      {
+        "name": "Implementation Quality Gate",
+        "category": "Validation Evidence",
         "governedTransition": "Deliverable|In Progress|Approved",
+        "criteriaType": "requires_accepted_review",
+        "deliverableName": "technical-specifications-per-feature",
         "checklistIds": [
           "Implementation (SDLC Phase 7) Checklist"
         ]

@@ -4,8 +4,8 @@
   "category": "Organisation",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Establishing the foundational product vision and market opportunity before any solution work begins \u2014 aka North Star, Product Strategy, Problem Framing, Opportunity Mapping, Lean Inception, 0\u21921.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Establishing the foundational product vision and market opportunity before any solution work begins — aka North Star, Product Strategy, Problem Framing, Opportunity Mapping, Lean Inception, 0→1.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -21,43 +21,270 @@
         "code": "vision-one-pager",
         "capabilityCode": "vision-opportunity-framing",
         "name": "Vision One-Pager",
-        "contractDescription": "Product vision and strategic direction, condensed to one page."
+        "contractDescription": "Product vision and strategic direction, condensed to one page.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "lean-business-model-canvas",
         "capabilityCode": "vision-opportunity-framing",
         "name": "Lean Business Model Canvas",
-        "contractDescription": "Business model framework covering value proposition, channels, revenue, and cost structure."
+        "contractDescription": "Business model framework covering value proposition, channels, revenue, and cost structure.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "market-sizing-brief",
         "capabilityCode": "vision-opportunity-framing",
         "name": "Market Sizing Brief",
-        "contractDescription": "Market analysis and opportunity sizing (TAM/SAM/SOM)."
+        "contractDescription": "Market analysis and opportunity sizing (TAM/SAM/SOM).",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
+        ]
       },
       {
         "code": "competitive-teardown",
         "capabilityCode": "vision-opportunity-framing",
         "name": "Competitive Teardown",
-        "contractDescription": "Competitive landscape analysis of comparable products and their positioning."
+        "contractDescription": "Competitive landscape analysis of comparable products and their positioning.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
+        ]
       },
       {
         "code": "jtbd-insights-summary",
         "capabilityCode": "vision-opportunity-framing",
         "name": "JTBD Insights Summary",
-        "contractDescription": "Jobs-to-be-done research insights motivating the opportunity."
+        "contractDescription": "Jobs-to-be-done research insights motivating the opportunity.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
+        ]
+      },
+      {
+        "code": "jobs-to-be-done-statements",
+        "capabilityCode": "vision-opportunity-framing",
+        "name": "Jobs-to-be-Done Statements",
+        "contractDescription": "Detailed JTBD customer statements and pain/gain profiles.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
+        ]
       },
       {
         "code": "success-metrics-okrs-draft",
         "capabilityCode": "vision-opportunity-framing",
         "name": "Success Metrics & OKRs Draft",
-        "contractDescription": "Initial success metrics and objectives/key-results definition for the opportunity."
+        "contractDescription": "Initial success metrics and objectives/key-results definition for the opportunity.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "initial-risks-assumptions-log",
         "capabilityCode": "vision-opportunity-framing",
         "name": "Initial Risks & Assumptions Log",
-        "contractDescription": "Early identification of the risks and unvalidated assumptions the opportunity rests on."
+        "contractDescription": "Early identification of the risks and unvalidated assumptions the opportunity rests on.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
+      },
+      {
+        "code": "outcome-based-product-roadmap",
+        "capabilityCode": "vision-opportunity-framing",
+        "name": "Outcome-Based Product Roadmap",
+        "contractDescription": "High-level strategic roadmap mapping opportunity horizons and target business outcomes.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
+        ]
+      },
+      {
+        "code": "vision",
+        "capabilityCode": "vision-opportunity-framing",
+        "name": "Core Vision Document",
+        "contractDescription": "Comprehensive strategic vision narrative and core market thesis.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [
+      {
+        "code": "policy-empirical-market-validation",
+        "name": "Empirical Market Validation Policy",
+        "category": "Organisation",
+        "constraintType": "Policy",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "conditionType": "always_true",
+        "severity": "high"
+      },
+      {
+        "code": "policy-strategic-investment-alignment",
+        "name": "Strategic Investment Alignment Policy",
+        "category": "Quality",
+        "constraintType": "Standard",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "conditionType": "always_true",
+        "severity": "medium"
+      }
+    ],
+    "checklists": [
+      {
+        "name": "Vision & Opportunity (SDLC Phase 0) Checklist",
+        "description": "Comprehensive validation checklist for product vision, market opportunity framing, and strategic alignment.",
+        "items": [
+          {
+            "statement": "The stated vision and opportunity sizing are grounded in real market/user evidence, not assertion alone."
+          },
+          {
+            "statement": "Target user persona, core pain points, and Jobs-to-be-Done (JTBD) are explicitly identified with documented user quotes or research data."
+          },
+          {
+            "statement": "TAM (Total Addressable Market), SAM (Serviceable Addressable Market), and SOM (Serviceable Obtainable Market) have documented calculation models."
+          },
+          {
+            "statement": "Competitive teardown identifies at least 3 direct or indirect alternatives and defines proposed moat/differentiator."
+          },
+          {
+            "statement": "Lean Business Model Canvas addresses value proposition, customer channels, revenue model, cost structure, and unfair advantage."
+          },
+          {
+            "statement": "Initial key assumptions and top critical risks (value, usability, feasibility, business viability) are logged with validation hypotheses."
+          },
+          {
+            "statement": "Success metrics and draft OKRs define clear leading indicators and measurable business outcomes."
+          },
+          {
+            "statement": "Executive and key stakeholder alignment has been achieved on project scope, strategic intent, and seed funding boundary."
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "vision-one-pager",
+        "name": "Product Vision One-Pager Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Product Vision One-Pager has been reviewed and accepted as clear, strategically aligned, and compelling.",
+        "prompt": "Does the Product Vision One-Pager clearly articulate the North Star, problem framing, and strategic intent?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Vision & Opportunity (SDLC Phase 0) Checklist"
+        ]
+      },
+      {
+        "code": "lean-business-model-canvas",
+        "name": "Lean Canvas & Viability Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Lean Business Model Canvas has been evaluated for financial, strategic, and operational viability.",
+        "prompt": "Is the business model canvas realistic, supported by assumptions, and financially viable?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Vision & Opportunity (SDLC Phase 0) Checklist"
+        ]
+      }
+    ],
+    "qualityGates": [
+      {
+        "name": "Vision & Opportunity Framing Quality Gate",
+        "category": "Validation Evidence",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "criteriaType": "requires_accepted_review",
+        "deliverableName": "vision-one-pager",
+        "checklistIds": [
+          "Vision & Opportunity (SDLC Phase 0) Checklist"
+        ]
       }
     ]
   }

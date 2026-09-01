@@ -35,6 +35,23 @@
         "name": "Risk List",
         "contractDescription": "Identified risks, their exposure, and their mitigation or contingency."
       }
-    ]
+    ],
+    "checklists": [
+      {
+        "name": "Project Management (OpenUP Capability Pattern) Checklist",
+        "items": [
+          {
+            "statement": "A Project Plan exists covering scope, phases, and milestones."
+          },
+          {
+            "statement": "An Iteration Plan exists with committed scope the team has agreed to."
+          },
+          {
+            "statement": "Risks are identified, assessed, and have an owner and mitigation."
+          }
+        ]
+      }
+    ],
+    "reviewGates": []
   }
 }

@@ -4,8 +4,8 @@
   "category": "Organisation",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Planning feature development and releases \u2014 aka Roadmapping, Program Increment Planning, Flight Plan, Delivery Strategy.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Planning feature development and releases — aka Roadmapping, Program Increment Planning, Flight Plan, Delivery Strategy.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -21,49 +21,140 @@
         "code": "outcome-based-product-roadmap",
         "capabilityCode": "backlog-release-planning",
         "name": "Outcome-Based Product Roadmap",
-        "contractDescription": "Strategic product roadmap."
+        "contractDescription": "Strategic product roadmap mapping Now/Next/Later horizons to measurable business outcomes.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "executive-approved" },
+          { "label": "Turnaround Time", "target": "172800" }
+        ]
       },
       {
         "code": "feature-epic-backlog-acceptance-criteria",
         "capabilityCode": "backlog-release-planning",
         "name": "Feature/Epic Backlog & Acceptance Criteria",
-        "contractDescription": "Development backlog."
+        "contractDescription": "Sequenced user story backlog with explicit Given/When/Then acceptance criteria and story point estimates.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "release-plan",
         "capabilityCode": "backlog-release-planning",
         "name": "Release Plan",
-        "contractDescription": "Release strategy and timeline."
+        "contractDescription": "Release milestones, deployment train schedule, scope boundaries, and target release dates.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "feature-flag-rollout-strategy",
         "capabilityCode": "backlog-release-planning",
         "name": "Feature Flag & Rollout Strategy",
-        "contractDescription": "Progressive feature deployment."
+        "contractDescription": "Canary deployment, targeted user cohort segmentation, and feature kill-switch rules.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "dependency-map",
         "capabilityCode": "backlog-release-planning",
         "name": "Dependency Map",
-        "contractDescription": "Feature and system dependencies."
+        "contractDescription": "Cross-team, inter-service, and external API dependency graph mapping critical path bottlenecks.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "governance-raci-chart",
         "capabilityCode": "backlog-release-planning",
         "name": "Governance & RACI Chart",
-        "contractDescription": "Decision-making framework."
+        "contractDescription": "Responsible, Accountable, Consulted, and Informed matrix for release decision-making.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [
+      {
+        "code": "policy-backlog-readiness-standard",
+        "name": "Backlog Readiness Standard Policy",
+        "category": "Organisation",
+        "constraintType": "Standard",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "conditionType": "always_true",
+        "severity": "high"
       }
     ],
     "checklists": [
       {
         "name": "Backlog & Release Planning (SDLC Phase 6) Checklist",
+        "description": "Validation checklist for backlog refinement, release sequencing, and dependency mapping.",
         "items": [
           {
             "statement": "Every backlog item in the feature/epic backlog carries clear, testable acceptance criteria."
+          },
+          {
+            "statement": "Critical path dependencies between backend services and frontend components are mapped with clear ownership."
+          },
+          {
+            "statement": "Release plan defines target dates, freeze windows, and rollback criteria."
+          },
+          {
+            "statement": "Feature flag rollout strategy details target user cohorts and telemetry kill-switch triggers."
+          },
+          {
+            "statement": "RACI matrix assigns explicit single-point accountability for release sign-off."
           }
         ]
       }
     ],
-    "reviewGates": []
+    "reviewGates": [
+      {
+        "code": "release-plan",
+        "name": "Release Planning Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Release Plan and refined backlog have been reviewed and accepted as ready for execution.",
+        "prompt": "Is the Release Plan realistic, dependency-checked, and backed by a refined backlog with testable acceptance criteria?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Backlog & Release Planning (SDLC Phase 6) Checklist"
+        ]
+      }
+    ],
+    "qualityGates": [
+      {
+        "name": "Backlog & Release Planning Quality Gate",
+        "category": "Validation Evidence",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "criteriaType": "requires_accepted_review",
+        "deliverableName": "release-plan",
+        "checklistIds": [
+          "Backlog & Release Planning (SDLC Phase 6) Checklist"
+        ]
+      }
+    ]
   }
 }

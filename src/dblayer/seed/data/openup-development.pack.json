@@ -21,18 +21,27 @@
         "code": "implementation-elements",
         "capabilityCode": "development",
         "name": "Implementation Elements",
-        "contractDescription": "Working code implementing the design for this increment, ready for integration."
+        "contractDescription": "Working code implementing the design for this increment, ready for integration.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "integrated-build",
         "capabilityCode": "development",
         "name": "Integrated Build",
-        "contractDescription": "A build integrating this increment's implementation elements, ready for test."
+        "contractDescription": "A build integrating this increment's implementation elements, ready for test.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       }
     ],
     "checklists": [
       {
         "name": "Development (OpenUP Capability Pattern) Checklist",
+        "description": "Validation checklist for OpenUP implementation elements, unit testing, and integrated builds.",
         "items": [
           {
             "statement": "The design for this increment is consistent with the Architecture Notebook."
@@ -46,7 +55,21 @@
         ]
       }
     ],
-    "reviewGates": [],
+    "reviewGates": [
+      {
+        "code": "implementation-elements",
+        "name": "OpenUP Development Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "statement": "The Implementation Elements have been reviewed and accepted as meeting design specifications.",
+        "classification": "human-attested",
+        "prompt": "Do the implementation elements satisfy the design and unit-level checks?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Development (OpenUP Capability Pattern) Checklist"
+        ]
+      }
+    ],
     "qualityGates": [
       {
         "name": "No Unresolved Obligations",

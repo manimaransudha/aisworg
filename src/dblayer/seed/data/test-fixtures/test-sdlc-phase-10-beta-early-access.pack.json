@@ -4,8 +4,8 @@
   "category": "Organisation",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Managing beta program and early user feedback \u2014 aka Private Beta, Pilot, Dogfooding, Soft Launch.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Managing beta program and early user feedback — aka Private Beta, Pilot, Dogfooding, Soft Launch.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -21,37 +21,175 @@
         "code": "beta-entry-exit-criteria",
         "capabilityCode": "beta-early-access-management",
         "name": "Beta Entry/Exit Criteria",
-        "contractDescription": "Beta program parameters."
+        "contractDescription": "Cohort selection rules, entry prerequisites, exit gate thresholds, and feature flag access limits.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "feedback-capture-analysis-plan",
         "capabilityCode": "beta-early-access-management",
         "name": "Feedback Capture & Analysis Plan",
-        "contractDescription": "User feedback management."
+        "contractDescription": "In-app feedback widgets, structured survey Cadence, and customer interview triage workflow.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "beta-success-metrics",
         "capabilityCode": "beta-early-access-management",
         "name": "Beta Success Metrics",
-        "contractDescription": "Beta program measurement."
+        "contractDescription": "Daily Active Users (DAU), feature adoption rates, NPS / CSAT targets, and crash-free session metrics.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "support-playbook-beta-users",
         "capabilityCode": "beta-early-access-management",
         "name": "Support Playbook for Beta Users",
-        "contractDescription": "Beta user support."
+        "contractDescription": "Dedicated support slack channel protocol, response SLA matrix, and escalation path for beta participants.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "known-issues-log",
         "capabilityCode": "beta-early-access-management",
         "name": "Known Issues Log",
-        "contractDescription": "Issue tracking and communication."
+        "contractDescription": "Public/internal active bug log, workaround instructions, and scheduled fix milestones.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "risk-mitigation-plan",
         "capabilityCode": "beta-early-access-management",
         "name": "Risk Mitigation Plan",
-        "contractDescription": "Beta program risk management."
+        "contractDescription": "Data rollback plan, cohort de-escalation steps, and incident communication protocol for beta regressions.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [
+      {
+        "code": "policy-beta-exit-criteria-fulfillment-standard",
+        "name": "Beta Exit Criteria Fulfillment Standard Policy",
+        "category": "Organisation",
+        "constraintType": "Standard",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "conditionType": "always_true",
+        "severity": "high"
+      }
+    ],
+    "checklists": [
+      {
+        "name": "Beta / Early Access (SDLC Phase 10) Checklist",
+        "description": "Validation checklist for beta program execution, feedback triage, and general availability readiness.",
+        "items": [
+          {
+            "statement": "Feedback from beta users is being captured, triaged, and reflected in the known issues log on an ongoing basis."
+          },
+          {
+            "statement": "Beta entry and exit criteria are explicitly approved by product management and engineering leads."
+          },
+          {
+            "statement": "Beta user crash-free session rate meets or exceeds the 99.5% target."
+          },
+          {
+            "statement": "Dedicated support channel and escalation playbook are operational with defined response SLAs."
+          },
+          {
+            "statement": "Customer feedback analysis demonstrates positive CSAT trend and validates key value assumptions."
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "beta-entry-exit-criteria",
+        "name": "Beta Program Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Beta Entry/Exit Criteria and feedback analysis have been reviewed and accepted as sufficient to proceed to General Launch.",
+        "prompt": "Has the Beta program successfully met its exit criteria, user feedback targets, and stability metrics?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Beta / Early Access (SDLC Phase 10) Checklist"
+        ]
+      }
+    ],
+    "qualityGates": [
+      {
+        "name": "Beta & Early Access Quality Gate",
+        "category": "Validation Evidence",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "criteriaType": "requires_accepted_review",
+        "deliverableName": "beta-entry-exit-criteria",
+        "checklistIds": [
+          "Beta / Early Access (SDLC Phase 10) Checklist"
+        ]
       }
     ]
   }

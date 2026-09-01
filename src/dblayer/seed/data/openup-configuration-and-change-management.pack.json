@@ -21,28 +21,97 @@
         "code": "change-request",
         "capabilityCode": "configuration-management",
         "name": "Change Request",
-        "contractDescription": "A recorded, dispositioned request to change a baselined asset."
+        "contractDescription": "A recorded, dispositioned request to change a baselined asset.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "configuration-management-plan",
         "capabilityCode": "configuration-management",
         "name": "Configuration Management Plan",
-        "contractDescription": "The approach for identifying, controlling, and auditing engineering assets under change."
+        "contractDescription": "The approach for identifying, controlling, and auditing engineering assets under change.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [
+      {
+        "code": "policy-openup-change-control-baseline-standard",
+        "name": "OpenUP Change Control Baseline Standard Policy",
+        "category": "Engineering",
+        "constraintType": "Standard",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "conditionType": "always_true",
+        "severity": "medium"
       }
     ],
     "checklists": [
       {
         "name": "Configuration & Change Management (OpenUP Capability Pattern) Checklist",
+        "description": "Validation checklist for change requests, impact analysis, and asset baselining.",
         "items": [
           {
             "statement": "A proposed change is recorded with its rationale and impact."
           },
           {
             "statement": "Version control and baselining are established for the project's assets."
+          },
+          {
+            "statement": "Change requests undergo formal impact assessment covering scope, schedule, and cost."
+          },
+          {
+            "statement": "Approved changes are linked to corresponding backlog tasks and verification tests."
           }
         ]
       }
     ],
-    "reviewGates": []
+    "reviewGates": [
+      {
+        "code": "configuration-management-plan",
+        "name": "Configuration Management Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "statement": "The Configuration Management Plan and Change Request procedures have been reviewed and accepted.",
+        "classification": "human-attested",
+        "prompt": "Are configuration management rules and change control procedures established and operational?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Configuration & Change Management (OpenUP Capability Pattern) Checklist"
+        ]
+      }
+    ],
+    "qualityGates": [
+      {
+        "name": "OpenUP Configuration Management Quality Gate",
+        "category": "Validation Evidence",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "criteriaType": "requires_accepted_review",
+        "deliverableName": "configuration-management-plan",
+        "checklistIds": [
+          "Configuration & Change Management (OpenUP Capability Pattern) Checklist"
+        ]
+      }
+    ]
   }
 }

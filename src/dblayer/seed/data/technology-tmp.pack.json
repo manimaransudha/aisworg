@@ -1,6 +1,6 @@
 {
-  "code": "technology-tmp",
-  "name": "HTML Engineering Practices",
+  "code": "technology-html",
+  "name": "HTML Engineering Practices (Draft)",
   "category": "Technology",
   "packVersion": "1.0.0",
   "installationClassification": "Optional",
@@ -28,9 +28,16 @@
     "checklists": [
       {
         "name": "HTML Standards",
-        "description": "HTML Standards",
+        "description": "HTML Standards Checklist",
         "items": [
-          
+          {
+            "statement": "The Doctype is HTML5 and is at the top of all your HTML pages.",
+            "group": "HTML Document Structure"
+          },
+          {
+            "statement": "Semantic tags are used appropriately across all markup.",
+            "group": "HTML Structure & Semantics"
+          }
         ]
       }
     ],

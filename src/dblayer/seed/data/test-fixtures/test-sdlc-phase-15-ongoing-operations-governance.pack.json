@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Establishing long-term operational excellence \u2014 aka SRE & Ops, Continuous Improvement, Risk & Compliance Governance.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Establishing long-term operational excellence — aka SRE & Ops, Continuous Improvement, Risk & Compliance Governance.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -21,37 +21,175 @@
         "code": "sre-playbook",
         "capabilityCode": "ongoing-operations-governance",
         "name": "SRE Playbook",
-        "contractDescription": "Site reliability engineering procedures."
+        "contractDescription": "Site reliability engineering procedures, error budget management rules, and automated incident triage playbooks.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "incident-change-management-process",
         "capabilityCode": "ongoing-operations-governance",
         "name": "Incident & Change Management Process",
-        "contractDescription": "Operational processes."
+        "contractDescription": "ITIL-aligned incident response workflow, Change Advisory Board (CAB) review protocol, and emergency change fast-path.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "audit-evidence-catalog",
         "capabilityCode": "ongoing-operations-governance",
         "name": "Audit Evidence Catalog",
-        "contractDescription": "Compliance documentation."
+        "contractDescription": "Continuous compliance evidence collection, access control logs, and SOC2/ISO27001 audit artifact repository.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
+        ]
       },
       {
         "code": "business-continuity-dr-plan",
         "capabilityCode": "ongoing-operations-governance",
         "name": "Business Continuity & DR Plan",
-        "contractDescription": "Disaster recovery procedures."
+        "contractDescription": "Disaster recovery drill plan, backup verification schedule, and maximum tolerable downtime specs.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
+        ]
       },
       {
         "code": "tech-debt-register",
         "capabilityCode": "ongoing-operations-governance",
         "name": "Tech Debt Register",
-        "contractDescription": "Technical debt management."
+        "contractDescription": "Architectural refactoring backlog, deprecated API sunset timeline, and debt prioritization score.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "quarterly-architecture-review",
         "capabilityCode": "ongoing-operations-governance",
         "name": "Quarterly Architecture Review",
-        "contractDescription": "Architecture governance."
+        "contractDescription": "Quarterly system health check, dependency vulnerability audit, and capacity scaling review.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
+        ]
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [
+      {
+        "code": "policy-steady-state-governance-standard",
+        "name": "Steady-State Governance Standard Policy",
+        "category": "Engineering",
+        "constraintType": "Standard",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "conditionType": "always_true",
+        "severity": "high"
+      }
+    ],
+    "checklists": [
+      {
+        "name": "Ongoing Operations & Governance (SDLC Phase 15) Checklist",
+        "description": "Validation checklist for operational SRE playbooks, change management, and technical debt governance.",
+        "items": [
+          {
+            "statement": "The tech debt register is reviewed and updated on a recurring cadence rather than left stale after creation."
+          },
+          {
+            "statement": "Disaster recovery failover simulation drill is conducted annually with documented recovery times."
+          },
+          {
+            "statement": "Compliance audit evidence catalog is refreshed continuously to satisfy external auditor requests."
+          },
+          {
+            "statement": "SRE error budget policies determine release freeze thresholds whenever SLI targets are breached."
+          },
+          {
+            "statement": "Quarterly architecture reviews record approved refactoring allocations for the upcoming engineering sprint."
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "sre-playbook",
+        "name": "Operational Readiness Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Runbook / Operational Documentation (SRE playbook, business continuity plan) has been reviewed and accepted as sufficient for ongoing operations.",
+        "prompt": "Does the Runbook / Operational Documentation sufficiently cover incident response, change management, and business continuity for steady-state operations?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Ongoing Operations & Governance (SDLC Phase 15) Checklist"
+        ]
+      }
+    ],
+    "qualityGates": [
+      {
+        "name": "Ongoing Operations Quality Gate",
+        "category": "Validation Evidence",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "criteriaType": "requires_accepted_review",
+        "deliverableName": "sre-playbook",
+        "checklistIds": [
+          "Ongoing Operations & Governance (SDLC Phase 15) Checklist"
+        ]
       }
     ]
   }

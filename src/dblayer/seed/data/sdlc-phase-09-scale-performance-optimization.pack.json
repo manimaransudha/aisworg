@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Optimizing for scale and performance \u2014 aka Scale-Up, Resilience, Stress & Chaos Testing, FinOps Optimization.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Optimizing for scale and performance — aka Scale-Up, Resilience, Stress & Chaos Testing, FinOps Optimization.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -21,49 +21,140 @@
         "code": "capacity-scaling-model",
         "capabilityCode": "scale-performance-optimization",
         "name": "Capacity & Scaling Model",
-        "contractDescription": "Scaling strategy and projections."
+        "contractDescription": "Compute, memory, database IOPS, and storage scaling projections mapped to traffic growth models.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "autoscaling-caching-strategy",
         "capabilityCode": "scale-performance-optimization",
         "name": "Autoscaling & Caching Strategy",
-        "contractDescription": "Performance optimization."
+        "contractDescription": "HPA / VPA autoscaling policies, Redis/Memcached invalidation rules, and multi-tier cache hit ratio targets.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "cdn-edge-strategy",
         "capabilityCode": "scale-performance-optimization",
         "name": "CDN & Edge Strategy",
-        "contractDescription": "Content delivery optimization."
+        "contractDescription": "Edge caching, static asset optimization, and origin shield routing policies.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "multi-region-disaster-recovery-plan",
         "capabilityCode": "scale-performance-optimization",
         "name": "Multi-Region & Disaster Recovery Plan",
-        "contractDescription": "Business continuity."
+        "contractDescription": "Active-passive or active-active multi-region failover automation and data sync specs.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "executive-approved" },
+          { "label": "Turnaround Time", "target": "172800" }
+        ]
       },
       {
         "code": "chaos-engineering-report",
         "capabilityCode": "scale-performance-optimization",
         "name": "Chaos Engineering Report",
-        "contractDescription": "System resilience testing."
+        "contractDescription": "Chaos Mesh / Litmus fault injection experiments testing dependency failures and automatic failover.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "172800" }
+        ]
       },
       {
         "code": "cost-optimization-finops-plan",
         "capabilityCode": "scale-performance-optimization",
         "name": "Cost Optimization & FinOps Plan",
-        "contractDescription": "Financial optimization."
+        "contractDescription": "Reserved instance / Savings Plan allocation, idle resource cleanup, and cost-per-transaction targets.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [
+      {
+        "code": "policy-high-availability-resilience-standard",
+        "name": "High Availability & Resilience Standard Policy",
+        "category": "Engineering",
+        "constraintType": "Standard",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "conditionType": "always_true",
+        "severity": "high"
       }
     ],
     "checklists": [
       {
         "name": "Scale & Performance Optimization (SDLC Phase 9) Checklist",
+        "description": "Validation checklist for system autoscaling, caching efficiency, chaos resilience, and FinOps targets.",
         "items": [
           {
             "statement": "The capacity and scaling model's assumptions have been validated against actual load and chaos testing results, not projected in isolation."
+          },
+          {
+            "statement": "Autoscaling triggers (CPU/Memory/Queue Depth) scale out seamlessly under 2x peak traffic without dropping requests."
+          },
+          {
+            "statement": "Cache hit ratio exceeds target threshold (>= 90%) for high-frequency database read paths."
+          },
+          {
+            "statement": "Chaos engineering fault injection experiments demonstrate zero unhandled cascading failures."
+          },
+          {
+            "statement": "FinOps cost optimization plan identifies resource right-sizing opportunities with clear target ROI."
           }
         ]
       }
     ],
-    "reviewGates": []
+    "reviewGates": [
+      {
+        "code": "capacity-scaling-model",
+        "name": "Scale & Resilience Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Capacity & Scaling Model and supporting performance reports have been reviewed and accepted as sufficient to proceed to Beta & Early Access.",
+        "prompt": "Does the system demonstrate sufficient scaling headroom, fault tolerance, and cost efficiency to support Beta users?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Scale & Performance Optimization (SDLC Phase 9) Checklist"
+        ]
+      }
+    ],
+    "qualityGates": [
+      {
+        "name": "Scale & Performance Quality Gate",
+        "category": "Validation Evidence",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "criteriaType": "requires_accepted_review",
+        "deliverableName": "capacity-scaling-model",
+        "checklistIds": [
+          "Scale & Performance Optimization (SDLC Phase 9) Checklist"
+        ]
+      }
+    ]
   }
 }

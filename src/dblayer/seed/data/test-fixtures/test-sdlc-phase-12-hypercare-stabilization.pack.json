@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Post-launch support and stabilization \u2014 aka Post-Launch Support, Warranty Period, Hot Stage.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Post-launch support and stabilization — aka Post-Launch Support, Warranty Period, Hot Stage.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -21,37 +21,175 @@
         "code": "hypercare-runbook",
         "capabilityCode": "hypercare-stabilization",
         "name": "Hypercare Runbook",
-        "contractDescription": "Post-launch support procedures."
+        "contractDescription": "Post-launch support procedures, daily triage meeting protocol, and rapid escalation matrix.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "known-issues-bug-tracker",
         "capabilityCode": "hypercare-stabilization",
         "name": "Known Issues & Bug Tracker",
-        "contractDescription": "Issue management."
+        "contractDescription": "Post-launch defect log, severity classification, and fix release tracking.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "post-mortem-lessons-learned",
         "capabilityCode": "hypercare-stabilization",
         "name": "Post-Mortem & Lessons Learned",
-        "contractDescription": "Launch retrospective."
+        "contractDescription": "Blameless post-mortem retrospective report identifying root causes, timeline, and corrective actions.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
+        ]
       },
       {
         "code": "operational-kpis-report",
         "capabilityCode": "hypercare-stabilization",
         "name": "Operational KPIs Report",
-        "contractDescription": "Performance metrics."
+        "contractDescription": "Post-launch system stability, latency, error rates, and support ticket volume metrics report.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "customer-feedback-summary",
         "capabilityCode": "hypercare-stabilization",
         "name": "Customer Feedback Summary",
-        "contractDescription": "User feedback analysis."
+        "contractDescription": "Early adopter feedback synthesis, usability friction points, and CSAT scores.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "hotfix-plan-ownership-matrix",
         "capabilityCode": "hypercare-stabilization",
         "name": "Hotfix Plan & Ownership Matrix",
-        "contractDescription": "Rapid response procedures."
+        "contractDescription": "Rapid hotfix deployment pipeline, approval fast-path rules, and regression safety checks.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [
+      {
+        "code": "policy-hypercare-exit-stability-standard",
+        "name": "Hypercare Exit Stability Standard Policy",
+        "category": "Engineering",
+        "constraintType": "Standard",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "conditionType": "always_true",
+        "severity": "high"
+      }
+    ],
+    "checklists": [
+      {
+        "name": "Hypercare & Stabilization (SDLC Phase 12) Checklist",
+        "description": "Validation checklist for post-launch monitoring, defect resolution, and retrospective learning.",
+        "items": [
+          {
+            "statement": "Issues logged during hypercare are triaged and assigned an owner within the agreed response window."
+          },
+          {
+            "statement": "All Sev-1 and Sev-2 post-launch incidents have completed blameless post-mortem reports with assigned action items."
+          },
+          {
+            "statement": "Hotfix deployment pipeline is operational with automated smoke test verification."
+          },
+          {
+            "statement": "Operational KPIs (uptime, latency, error rate) satisfy production SLA targets over 14 consecutive days."
+          },
+          {
+            "statement": "Handover to ongoing operations team is formally completed with updated runbooks."
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "post-mortem-lessons-learned",
+        "name": "Hypercare Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Post-Mortem & Lessons Learned report has been reviewed and accepted as sufficient to proceed to Growth & Optimization.",
+        "prompt": "Does the Post-Mortem & Lessons Learned report show the launch has stabilized sufficiently to justify moving into Growth & Optimization?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Hypercare & Stabilization (SDLC Phase 12) Checklist"
+        ]
+      }
+    ],
+    "qualityGates": [
+      {
+        "name": "Hypercare Quality Gate",
+        "category": "Validation Evidence",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "criteriaType": "requires_accepted_review",
+        "deliverableName": "post-mortem-lessons-learned",
+        "checklistIds": [
+          "Hypercare & Stabilization (SDLC Phase 12) Checklist"
+        ]
       }
     ]
   }

@@ -4,8 +4,8 @@
   "category": "Organisation",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Understanding user needs and defining product requirements \u2014 aka Discovery Sprint, Exploration Sprint, Problem/Solution Fit, Inception, Validation Sprint.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Understanding user needs and defining product requirements — aka Discovery Sprint, Exploration Sprint, Problem/Solution Fit, Inception, Validation Sprint.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -21,49 +21,207 @@
         "code": "product-requirements-document",
         "capabilityCode": "product-discovery",
         "name": "Product Requirements Document",
-        "contractDescription": "Comprehensive product requirements."
+        "contractDescription": "Comprehensive product requirements document specifying user stories, acceptance criteria, and feature scopes.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "user-personas",
         "capabilityCode": "product-discovery",
         "name": "User Personas",
-        "contractDescription": "Target user profiles and characteristics."
+        "contractDescription": "Target user profiles, behavioral archetypes, and key characteristics.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
+        ]
       },
       {
         "code": "customer-journey-map",
         "capabilityCode": "product-discovery",
         "name": "Customer Journey Map",
-        "contractDescription": "End-to-end user experience mapping."
+        "contractDescription": "End-to-end user experience mapping across key touchpoints and pain moments.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
+        ]
       },
       {
         "code": "jobs-to-be-done-statements",
         "capabilityCode": "product-discovery",
         "name": "Jobs-to-be-Done Statements",
-        "contractDescription": "Detailed JTBD analysis."
+        "contractDescription": "Detailed JTBD analysis specifying functional, social, and emotional user jobs.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
+        ]
       },
       {
         "code": "research-plan-interview-guide",
         "capabilityCode": "product-discovery",
         "name": "Research Plan & Interview Guide",
-        "contractDescription": "User research methodology."
+        "contractDescription": "User research methodology, target cohort sampling, and structured interview protocol.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "research-findings-report",
         "capabilityCode": "product-discovery",
         "name": "Research Findings Report",
-        "contractDescription": "User research results and insights."
+        "contractDescription": "User research results, affinity maps, key insights, and evidence metrics.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
+        ]
       },
       {
         "code": "service-blueprint",
         "capabilityCode": "product-discovery",
         "name": "Service Blueprint",
-        "contractDescription": "Service design and touchpoint mapping."
+        "contractDescription": "Service design mapping frontstage actions, backstage processes, and support systems.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
+        ]
       },
       {
         "code": "hypothesis-validation-tracker",
         "capabilityCode": "product-discovery",
         "name": "Hypothesis Validation Tracker",
-        "contractDescription": "Assumption testing framework."
+        "contractDescription": "Assumption testing framework tracking validated, invalidated, and pending hypotheses.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [
+      {
+        "code": "policy-user-research-evidence-standard",
+        "name": "User Research Evidence Standard Policy",
+        "category": "Quality",
+        "constraintType": "Standard",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "conditionType": "always_true",
+        "severity": "high"
+      }
+    ],
+    "checklists": [
+      {
+        "name": "Product Discovery (SDLC Phase 1) Checklist",
+        "description": "Validation checklist for user research, requirements definition, and hypothesis testing.",
+        "items": [
+          {
+            "statement": "The persona, journey, and JTBD artifacts are grounded in actual user research rather than internal assumption."
+          },
+          {
+            "statement": "At least 5 qualitative user interviews or quantitative research responses have been conducted and documented."
+          },
+          {
+            "statement": "Product Requirements Document includes clear functional specifications, non-functional targets, and measurable acceptance criteria."
+          },
+          {
+            "statement": "All core product hypotheses have been logged in the validation tracker with explicit pass/fail criteria."
+          },
+          {
+            "statement": "Service blueprint maps key customer touchpoints to backend support systems and operational dependencies."
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "product-requirements-document",
+        "name": "Product Requirements Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Product Requirements Document has been reviewed and accepted as sufficient to proceed to Experience Design.",
+        "prompt": "Does the Product Requirements Document reflect validated user/market research and provide sufficient direction for Experience Design?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Product Discovery (SDLC Phase 1) Checklist"
+        ]
+      }
+    ],
+    "qualityGates": [
+      {
+        "name": "Product Discovery Quality Gate",
+        "category": "Validation Evidence",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "criteriaType": "requires_accepted_review",
+        "deliverableName": "product-requirements-document",
+        "checklistIds": [
+          "Product Discovery (SDLC Phase 1) Checklist"
+        ]
       }
     ]
   }

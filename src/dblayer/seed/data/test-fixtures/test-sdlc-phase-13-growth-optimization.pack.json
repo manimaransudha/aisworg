@@ -4,8 +4,8 @@
   "category": "Organisation",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Driving product growth and optimization \u2014 aka Product-Led Growth, Growth Loops, Experimentation Framework, 1\u2192N Stage.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Driving product growth and optimization — aka Product-Led Growth, Growth Loops, Experimentation Framework, 1→N Stage.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -21,37 +21,175 @@
         "code": "product-analytics-specification",
         "capabilityCode": "growth-optimization",
         "name": "Product Analytics Specification",
-        "contractDescription": "Analytics implementation."
+        "contractDescription": "Funnel tracking, retention cohort specs, and product-led growth telemetry implementation.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "event-taxonomy-tracking-plan",
         "capabilityCode": "growth-optimization",
         "name": "Event Taxonomy & Tracking Plan",
-        "contractDescription": "Data collection strategy."
+        "contractDescription": "Segment / Mixpanel event naming conventions, property schemas, and privacy consent rules.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "experimentation-framework",
         "capabilityCode": "growth-optimization",
         "name": "Experimentation Framework",
-        "contractDescription": "A/B testing methodology."
+        "contractDescription": "A/B testing methodology, sample size calculator rules, and statistical significance criteria.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "growth-experiments-backlog",
         "capabilityCode": "growth-optimization",
         "name": "Growth Experiments Backlog",
-        "contractDescription": "Growth testing pipeline."
+        "contractDescription": "ICE / RICE prioritized growth experiment hypotheses targeting acquisition, activation, and referral loops.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "pricing-packaging-tests",
         "capabilityCode": "growth-optimization",
         "name": "Pricing & Packaging Tests",
-        "contractDescription": "Monetization optimization."
+        "contractDescription": "Tiered packaging experiments, Van Westendorp price sensitivity tests, and feature paywall triggers.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
+        ]
       },
       {
         "code": "retention-engagement-dashboard",
         "capabilityCode": "growth-optimization",
         "name": "Retention & Engagement Dashboard",
-        "contractDescription": "User engagement metrics."
+        "contractDescription": "Daily, weekly, and monthly retention curves, churn prediction models, and power user curve analysis.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [
+      {
+        "code": "policy-data-driven-growth-standard",
+        "name": "Data-Driven Growth Standard Policy",
+        "category": "Organisation",
+        "constraintType": "Standard",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "conditionType": "always_true",
+        "severity": "medium"
+      }
+    ],
+    "checklists": [
+      {
+        "name": "Growth & Optimization (SDLC Phase 13) Checklist",
+        "description": "Validation checklist for product analytics, A/B experiment execution, and retention optimization.",
+        "items": [
+          {
+            "statement": "Each entry in the growth experiments backlog states a clear hypothesis and a measurable success metric before it is run."
+          },
+          {
+            "statement": "Event tracking plan validation confirms zero missing properties across primary conversion funnels."
+          },
+          {
+            "statement": "A/B test results meet minimum 95% statistical significance threshold before rollout to 100% of users."
+          },
+          {
+            "statement": "Retention curves demonstrate a flattened tail indicating long-term product-market fit stability."
+          },
+          {
+            "statement": "Pricing and packaging changes are vetted against customer churn impact and ARR projections."
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "product-analytics-specification",
+        "name": "Growth Optimization Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Product Analytics Specification and experimentation results have been reviewed and accepted as sufficient to proceed to Internationalization & Localization.",
+        "prompt": "Do the analytics specification and experiment results demonstrate sustainable growth, retention, and monetisation momentum?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Growth & Optimization (SDLC Phase 13) Checklist"
+        ]
+      }
+    ],
+    "qualityGates": [
+      {
+        "name": "Growth & Optimization Quality Gate",
+        "category": "Validation Evidence",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "criteriaType": "requires_accepted_review",
+        "deliverableName": "product-analytics-specification",
+        "checklistIds": [
+          "Growth & Optimization (SDLC Phase 13) Checklist"
+        ]
       }
     ]
   }

@@ -1,12 +1,12 @@
 {
   "code": "test-domain-ebook-library",
-  "name": "Test E-Book Library Domain Practices",
+  "name": "E-Book Library Domain Practices",
   "category": "Domain",
   "packVersion": "1.0.0",
   "installationClassification": "Mandatory",
   "dependencies": [
     {
-      "packCode": "test-testing-qa",
+      "packCode": "development",
       "version": "1.0.0",
       "type": "required"
     }

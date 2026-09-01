@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Ensuring product quality and reliability \u2014 aka QA, Verification & Validation, Test Fest, Quality Gate.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Ensuring product quality and reliability — aka QA, Verification & Validation, Test Fest, Quality Gate.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -21,65 +21,146 @@
         "code": "master-test-plan",
         "capabilityCode": "quality-engineering-hardening",
         "name": "Master Test Plan",
-        "contractDescription": "Comprehensive testing strategy."
+        "contractDescription": "Comprehensive testing strategy covering unit, integration, system, regression, and UAT methodologies.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "test-cases-traceability-matrix",
         "capabilityCode": "quality-engineering-hardening",
         "name": "Test Cases & Traceability Matrix",
-        "contractDescription": "Test coverage mapping."
+        "contractDescription": "Requirement-to-test mapping matrix ensuring 100% functional acceptance criteria coverage.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "automated-test-suite-reports",
         "capabilityCode": "quality-engineering-hardening",
         "name": "Automated Test Suite Reports",
-        "contractDescription": "Test automation results."
+        "contractDescription": "CI test run outputs, flaky test isolation reports, and automated regression suite execution logs.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "performance-load-test-plan-results",
         "capabilityCode": "quality-engineering-hardening",
         "name": "Performance & Load Test Plan/Results",
-        "contractDescription": "Performance validation."
+        "contractDescription": "k6 / Locust load test execution results, latency percentile distribution, and bottleneck analysis.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "172800" }
+        ]
       },
       {
         "code": "security-testing-report",
         "capabilityCode": "quality-engineering-hardening",
         "name": "Security Testing Report",
-        "contractDescription": "Security validation results."
+        "contractDescription": "DAST penetration testing, dependency vulnerability report, and static code security analysis output.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "executive-approved" },
+          { "label": "Turnaround Time", "target": "172800" }
+        ]
       },
       {
         "code": "accessibility-audit",
         "capabilityCode": "quality-engineering-hardening",
         "name": "Accessibility Audit",
-        "contractDescription": "Accessibility compliance verification."
+        "contractDescription": "axe-core automated audit and manual screen reader (NVDA/VoiceOver) accessibility test report.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "uat-plan-sign-off-report",
         "capabilityCode": "quality-engineering-hardening",
         "name": "UAT Plan & Sign-off Report",
-        "contractDescription": "User acceptance testing."
+        "contractDescription": "User acceptance test script execution, defect triage log, and business stakeholder sign-off.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "executive-approved" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [
+      {
+        "code": "policy-zero-critical-defects-release-standard",
+        "name": "Zero Critical Defects Release Standard Policy",
+        "category": "Quality",
+        "constraintType": "Policy",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "conditionType": "always_true",
+        "severity": "high"
       }
     ],
     "checklists": [
       {
         "name": "Quality Engineering & Hardening (SDLC Phase 8) Checklist",
+        "description": "Validation checklist for test coverage, performance load testing, security audits, and UAT sign-off.",
         "items": [
           {
             "statement": "The test cases and traceability matrix demonstrate coverage against every requirement in scope for this release."
+          },
+          {
+            "statement": "Automated regression suite passes 100% clean with zero flaky test failures in the deployment candidate build."
+          },
+          {
+            "statement": "Performance load testing verifies p95 latency targets under 1.5x peak anticipated load."
+          },
+          {
+            "statement": "Security penetration testing and DAST scans report zero unresolved High or Critical vulnerabilities."
+          },
+          {
+            "statement": "UAT sign-off report is formally approved by business stakeholders with zero blocking open defects."
           }
         ]
       }
     ],
     "reviewGates": [
       {
-        "code": "Test Report / Results",
-        "statement": "The Test Report / Results (automated test suite, performance, security, and accessibility testing) have been reviewed and accepted as sufficient to proceed to Scale & Performance Optimization.",
+        "code": "master-test-plan",
+        "name": "Quality Engineering Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
+        "statement": "The Test Report / Results (automated test suite, performance, security, and accessibility testing) have been reviewed and accepted as sufficient to proceed to Scale & Performance Optimization.",
         "prompt": "Do the Test Report / Results show sufficient quality, coverage, and hardening to justify moving into Scale & Performance Optimization?",
         "participant": "human",
         "outputContract": "assessment-acceptance",
-        "name": "Quality Engineering Review",
+        "checklistIds": [
+          "Quality Engineering & Hardening (SDLC Phase 8) Checklist"
+        ]
+      }
+    ],
+    "qualityGates": [
+      {
+        "name": "Quality Engineering & Hardening Quality Gate",
+        "category": "Validation Evidence",
         "governedTransition": "Deliverable|In Progress|Approved",
+        "criteriaType": "requires_accepted_review",
+        "deliverableName": "master-test-plan",
         "checklistIds": [
           "Quality Engineering & Hardening (SDLC Phase 8) Checklist"
         ]

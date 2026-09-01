@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Executing the product launch \u2014 aka Go-Live, GA, Rollout, Ignite.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Executing the product launch — aka Go-Live, GA, Rollout, Ignite.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -21,53 +21,126 @@
         "code": "launch-checklist",
         "capabilityCode": "launch-management",
         "name": "Launch Checklist",
-        "contractDescription": "Comprehensive launch preparation."
+        "contractDescription": "Comprehensive go-live checklist covering technical, operational, legal, and customer support sign-offs.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "executive-approved" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "deployment-rollout-plan",
         "capabilityCode": "launch-management",
         "name": "Deployment & Rollout Plan",
-        "contractDescription": "Launch execution strategy."
+        "contractDescription": "Canary deployment schedule, progressive traffic shifting (10% -> 25% -> 50% -> 100%), and rollback procedures.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "incident-response-plan",
         "capabilityCode": "launch-management",
         "name": "Incident Response Plan",
-        "contractDescription": "Launch incident management."
+        "contractDescription": "On-call rotation, severity 1 incident bridge protocol, status page automation, and incident commander roles.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "monitoring-dashboards",
         "capabilityCode": "launch-management",
         "name": "Monitoring & Dashboards",
-        "contractDescription": "Launch monitoring setup."
+        "contractDescription": "Real-time Datadog/Grafana launch dashboards tracking error rates, latency percentiles, and transaction volume.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "customer-communication-plan",
         "capabilityCode": "launch-management",
         "name": "Customer Communication Plan",
-        "contractDescription": "Launch communications."
+        "contractDescription": "Press release, customer email broadcasts, release notes, and product update documentation.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "executive-approved" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [
+      {
+        "code": "policy-production-go-live-approval-standard",
+        "name": "Production Go-Live Approval Standard Policy",
+        "category": "Engineering",
+        "constraintType": "Policy",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "conditionType": "always_true",
+        "severity": "high"
       }
     ],
     "checklists": [
       {
         "name": "Launch (SDLC Phase 11) Checklist",
+        "description": "Validation checklist for launch readiness, deployment rollout, monitoring, and incident commander alignment.",
         "items": [
           {
             "statement": "The launch checklist, rollout plan, and incident response plan are complete and all owners have confirmed readiness."
+          },
+          {
+            "statement": "Deployment rollout script has been executed successfully in staging environment with automated verification."
+          },
+          {
+            "statement": "On-call incident commander and response team are actively monitoring war-room channels during rollout."
+          },
+          {
+            "statement": "Real-time monitoring dashboards and alerting thresholds are verified live before traffic shift."
+          },
+          {
+            "statement": "Customer communications, release notes, and status page updates are scheduled and pre-approved."
           }
         ]
       }
     ],
     "reviewGates": [
       {
-        "code": "Deployment Package",
-        "statement": "The Deployment Package and rollout plan have been reviewed and accepted as sufficient to proceed to Hypercare & Stabilization.",
+        "code": "deployment-rollout-plan",
+        "name": "Launch Readiness Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
+        "statement": "The Deployment Package and rollout plan have been reviewed and accepted as sufficient to proceed to Hypercare & Stabilization.",
         "prompt": "Is the Deployment Package, along with the incident response and monitoring plans, sufficiently ready to justify launching?",
         "participant": "human",
         "outputContract": "assessment-acceptance",
-        "name": "Launch Readiness Review",
+        "checklistIds": [
+          "Launch (SDLC Phase 11) Checklist"
+        ]
+      }
+    ],
+    "qualityGates": [
+      {
+        "name": "Launch Quality Gate",
+        "category": "Validation Evidence",
         "governedTransition": "Deliverable|In Progress|Approved",
+        "criteriaType": "requires_accepted_review",
+        "deliverableName": "deployment-rollout-plan",
         "checklistIds": [
           "Launch (SDLC Phase 11) Checklist"
         ]

@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Expanding to global markets \u2014 aka i18n/L10n, Globalization, Regionalization.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Expanding to global markets — aka i18n/L10n, Globalization, Regionalization.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -21,31 +21,159 @@
         "code": "locale-language-strategy",
         "capabilityCode": "internationalization-localization",
         "name": "Locale & Language Strategy",
-        "contractDescription": "Global expansion strategy."
+        "contractDescription": "Tiered locale rollout prioritization, fallback locale rules, and currency/timezone formatting matrix.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "translation-glossary-style-guide",
         "capabilityCode": "internationalization-localization",
         "name": "Translation Glossary & Style Guide",
-        "contractDescription": "Localization standards."
+        "contractDescription": "Brand term translation rules, non-translatable technical keywords, and tone of voice guides per target locale.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "pseudolocalization-report",
         "capabilityCode": "internationalization-localization",
         "name": "Pseudolocalization Report",
-        "contractDescription": "Localization testing."
+        "contractDescription": "Automated string expansion, accent character encoding, and UI container truncation test report.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "rtl-cultural-adaptation-review",
         "capabilityCode": "internationalization-localization",
         "name": "RTL & Cultural Adaptation Review",
-        "contractDescription": "Cultural customization."
+        "contractDescription": "Right-to-Left (RTL) CSS layout mirroring, icon directionality, and local cultural symbol appropriateness audit.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "regional-compliance-addenda",
         "capabilityCode": "internationalization-localization",
         "name": "Regional Compliance Addenda",
-        "contractDescription": "Local regulatory compliance."
+        "contractDescription": "Country-specific legal disclosures, tax formatting (VAT/GST), and local consumer protection terms.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
+        ]
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [
+      {
+        "code": "policy-i18n-layout-encoding-standard",
+        "name": "i18n Layout & Encoding Standard Policy",
+        "category": "Engineering",
+        "constraintType": "Standard",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "conditionType": "always_true",
+        "severity": "medium"
+      }
+    ],
+    "checklists": [
+      {
+        "name": "Internationalization & Localization (SDLC Phase 14) Checklist",
+        "description": "Validation checklist for internationalization, string extraction, RTL support, and regional compliance.",
+        "items": [
+          {
+            "statement": "The product has been pseudolocalized and tested to catch layout, truncation, and encoding issues before real translations are applied."
+          },
+          {
+            "statement": "All UI strings are extracted into translatable resource files with zero hardcoded text in components."
+          },
+          {
+            "statement": "Dates, times, currencies, and numbers adapt dynamically to the user's active browser/system locale."
+          },
+          {
+            "statement": "Right-to-Left (RTL) layout mirroring functions correctly without broken alignment or obscured icons."
+          },
+          {
+            "statement": "Regional legal terms and tax requirements are verified for all target launch territories."
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "locale-language-strategy",
+        "name": "i18n & Localization Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Locale & Language Strategy and localization audits have been reviewed and accepted as sufficient to proceed to Ongoing Operations & Governance.",
+        "prompt": "Does the product demonstrate full internationalization readiness, accurate translations, and regional compliance for target markets?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Internationalization & Localization (SDLC Phase 14) Checklist"
+        ]
+      }
+    ],
+    "qualityGates": [
+      {
+        "name": "Internationalization Quality Gate",
+        "category": "Validation Evidence",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "criteriaType": "requires_accepted_review",
+        "deliverableName": "locale-language-strategy",
+        "checklistIds": [
+          "Internationalization & Localization (SDLC Phase 14) Checklist"
+        ]
       }
     ]
   }

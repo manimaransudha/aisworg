@@ -21,24 +21,83 @@
         "code": "vision",
         "capabilityCode": "requirements-analysis",
         "name": "Vision",
-        "contractDescription": "A shared statement of the problem, stakeholders, and high-level scope of the solution."
+        "contractDescription": "A shared statement of the problem, stakeholders, and high-level scope of the solution.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "requirements-specification",
         "capabilityCode": "requirements-analysis",
         "name": "Requirements Specification",
-        "contractDescription": "Detailed, reviewable statements of what the solution must do \u2014 specific enough for Development and Test to act on."
+        "contractDescription": "Detailed, reviewable statements of what the solution must do — specific enough for Development and Test to act on.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "glossary",
         "capabilityCode": "requirements-analysis",
         "name": "Glossary",
-        "contractDescription": "Shared definitions of domain terms used consistently across requirements, design, and test."
+        "contractDescription": "Shared definitions of domain terms used consistently across requirements, design, and test.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [
+      {
+        "code": "policy-openup-requirements-traceability-standard",
+        "name": "OpenUP Requirements Traceability Standard Policy",
+        "category": "Engineering",
+        "constraintType": "Standard",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "conditionType": "always_true",
+        "severity": "high"
       }
     ],
     "checklists": [
       {
         "name": "Requirements (OpenUP Capability Pattern) Checklist",
+        "description": "Validation checklist for OpenUP requirements elicitation, specification, and stakeholder sign-off.",
         "items": [
           {
             "statement": "Stakeholder needs and constraints have been elicited and outlined as candidate requirements."
@@ -54,7 +113,7 @@
     ],
     "reviewGates": [
       {
-        "code": "Requirements Specification",
+        "code": "requirements-specification",
         "name": "Requirements Specification Review",
         "governedTransition": "Deliverable|In Progress|Approved",
         "statement": "The Requirements Specification has been reviewed and accepted by its Stakeholder(s).",
@@ -62,6 +121,18 @@
         "prompt": "Do the requirements reflect what the Stakeholder actually needs, and are they approved?",
         "participant": "human",
         "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Requirements (OpenUP Capability Pattern) Checklist"
+        ]
+      }
+    ],
+    "qualityGates": [
+      {
+        "name": "OpenUP Requirements Quality Gate",
+        "category": "Validation Evidence",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "criteriaType": "requires_accepted_review",
+        "deliverableName": "requirements-specification",
         "checklistIds": [
           "Requirements (OpenUP Capability Pattern) Checklist"
         ]

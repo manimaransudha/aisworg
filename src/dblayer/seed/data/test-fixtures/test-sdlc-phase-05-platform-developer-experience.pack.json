@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Setting up development and deployment infrastructure \u2014 aka DevOps Foundations, Paved Road, Golden Path, Platform Engineering.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Setting up development and deployment infrastructure — aka DevOps Foundations, Paved Road, Golden Path, Platform Engineering.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -21,43 +21,191 @@
         "code": "ci-cd-pipeline-specification",
         "capabilityCode": "platform-developer-experience",
         "name": "CI/CD Pipeline Specification",
-        "contractDescription": "Deployment automation."
+        "contractDescription": "Automated build, test, artifact publishing, and deployment pipeline workflow definition.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "infrastructure-as-code-plan",
         "capabilityCode": "platform-developer-experience",
         "name": "Infrastructure as Code Plan",
-        "contractDescription": "Infrastructure automation."
+        "contractDescription": "Terraform / CloudFormation / Pulumi modular infrastructure automation plan.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
+        ]
       },
       {
         "code": "environments-matrix",
         "capabilityCode": "platform-developer-experience",
         "name": "Environments Matrix",
-        "contractDescription": "Environment configuration."
+        "contractDescription": "Dev, Staging, QA, and Production environment configuration, parity rules, and data masking controls.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "secrets-management-access-control-plan",
         "capabilityCode": "platform-developer-experience",
         "name": "Secrets Management & Access Control Plan",
-        "contractDescription": "Security infrastructure."
+        "contractDescription": "HashiCorp Vault / AWS Secrets Manager integration, secret rotation policies, and IAM access controls.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "observability-strategy",
         "capabilityCode": "platform-developer-experience",
         "name": "Observability Strategy",
-        "contractDescription": "Monitoring and logging."
+        "contractDescription": "Distributed tracing (OpenTelemetry), centralized log aggregation, and metric alerting architecture.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "172800"
+          }
+        ]
       },
       {
         "code": "slo-sla-sli-definitions",
         "capabilityCode": "platform-developer-experience",
         "name": "SLO/SLA/SLI Definitions",
-        "contractDescription": "Service level objectives."
+        "contractDescription": "Service Level Indicators (SLI), Service Level Objectives (SLO), and Error Budget policies.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "executive-approved"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "runbooks-playbooks",
         "capabilityCode": "platform-developer-experience",
         "name": "Runbooks & Playbooks",
-        "contractDescription": "Operational procedures."
+        "contractDescription": "Standard operating procedures for deployment, rollback, backup restoration, and incident triage.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [
+      {
+        "code": "policy-paved-road-automation-standard",
+        "name": "Paved-Road Automation Standard Policy",
+        "category": "Engineering",
+        "constraintType": "Standard",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "conditionType": "always_true",
+        "severity": "high"
+      }
+    ],
+    "checklists": [
+      {
+        "name": "Platform & Developer Experience (SDLC Phase 5) Checklist",
+        "description": "Validation checklist for platform readiness, CI/CD automation, and observability infrastructure.",
+        "items": [
+          {
+            "statement": "The CI/CD pipeline specification and environments matrix consistently cover every environment from development through production."
+          },
+          {
+            "statement": "Infrastructure as Code (IaC) modules are version-controlled, linted, and automated with no manual environment state edits."
+          },
+          {
+            "statement": "Secrets management solution enforces automated rotation and eliminates hardcoded credentials in repositories."
+          },
+          {
+            "statement": "Centralized logging and distributed tracing (OpenTelemetry) are configured for all microservices."
+          },
+          {
+            "statement": "SLI/SLO metrics and error budget burn rate alerts are wired to team incident notification channels."
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "ci-cd-pipeline-specification",
+        "name": "Platform Readiness Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The CI/CD Pipeline Definition and supporting platform documentation have been reviewed and accepted as sufficient to proceed to Backlog & Release Planning.",
+        "prompt": "Is the CI/CD Pipeline Definition, along with the environments, secrets management, and observability plans, sufficiently mature to support development and release?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Platform & Developer Experience (SDLC Phase 5) Checklist"
+        ]
+      }
+    ],
+    "qualityGates": [
+      {
+        "name": "Platform & DevEx Quality Gate",
+        "category": "Validation Evidence",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "criteriaType": "requires_accepted_review",
+        "deliverableName": "ci-cd-pipeline-specification",
+        "checklistIds": [
+          "Platform & Developer Experience (SDLC Phase 5) Checklist"
+        ]
       }
     ]
   }

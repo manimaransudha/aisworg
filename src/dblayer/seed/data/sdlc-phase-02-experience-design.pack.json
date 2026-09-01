@@ -4,8 +4,8 @@
   "category": "Engineering",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Designing the user experience and interface \u2014 aka UX/UI Design, Experience Architecture, Experience Blueprinting, Design Sprint.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Designing the user experience and interface — aka UX/UI Design, Experience Architecture, Experience Blueprinting, Design Sprint.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -21,71 +21,156 @@
         "code": "information-architecture-map",
         "capabilityCode": "experience-design",
         "name": "Information Architecture Map",
-        "contractDescription": "Content structure and navigation."
+        "contractDescription": "Content structure, taxonomy, site map, and navigation flow diagram.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "wireframes",
         "capabilityCode": "experience-design",
         "name": "Wireframes",
-        "contractDescription": "Low-fidelity interface designs."
+        "contractDescription": "Low-fidelity and high-fidelity interface layout designs across key responsive break-points.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "172800" }
+        ]
       },
       {
         "code": "clickable-prototype",
         "capabilityCode": "experience-design",
         "name": "Clickable Prototype",
-        "contractDescription": "Interactive prototype documentation."
+        "contractDescription": "Interactive screen transitions and user flow prototype for usability testing.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "172800" }
+        ]
       },
       {
         "code": "design-system-ui-kit",
         "capabilityCode": "experience-design",
         "name": "Design System & UI Kit",
-        "contractDescription": "Visual design standards."
+        "contractDescription": "Reusable UI components, color palettes, typography, spacing scale, and interaction states.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "executive-approved" },
+          { "label": "Turnaround Time", "target": "172800" }
+        ]
       },
       {
         "code": "design-tokens",
         "capabilityCode": "experience-design",
         "name": "Design Tokens",
-        "contractDescription": "Design system variables and tokens."
+        "contractDescription": "Machine-readable design system variables for color, typography, borders, and shadows.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "content-strategy-voice-tone-guide",
         "capabilityCode": "experience-design",
         "name": "Content Strategy & Voice/Tone Guide",
-        "contractDescription": "Content guidelines."
+        "contractDescription": "Microcopy standards, content hierarchy guidelines, and error message voice tone.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "accessibility-compliance-checklist",
         "capabilityCode": "experience-design",
         "name": "Accessibility Compliance Checklist",
-        "contractDescription": "Accessibility requirements."
+        "contractDescription": "WCAG 2.1 AA contrast, keyboard navigation, and screen reader compliance audit checklist.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "usability-test-plan-report",
         "capabilityCode": "experience-design",
         "name": "Usability Test Plan & Report",
-        "contractDescription": "User testing methodology and results."
+        "contractDescription": "Usability testing script, user session recordings analysis, and task success metrics report.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "172800" }
+        ]
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [
+      {
+        "code": "policy-wcag-accessibility-standard",
+        "name": "WCAG 2.1 AA Accessibility Standard Policy",
+        "category": "Quality",
+        "constraintType": "Standard",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "conditionType": "always_true",
+        "severity": "high"
       }
     ],
     "checklists": [
       {
         "name": "Experience Design (SDLC Phase 2) Checklist",
+        "description": "Validation checklist for UX/UI design assets, design tokens, and accessibility standards.",
         "items": [
           {
             "statement": "Design decisions in the wireframes and prototypes are traceable back to discovery research and usability findings."
+          },
+          {
+            "statement": "Color contrast ratios across all text and interactive UI elements satisfy WCAG 2.1 AA standard (minimum 4.5:1 ratio)."
+          },
+          {
+            "statement": "Interactive prototype has been tested with at least 3 representative users with documented task completion rates."
+          },
+          {
+            "statement": "Design tokens (color, typography, spacing, border radii) are extracted and ready for frontend implementation."
+          },
+          {
+            "statement": "Responsive breakpoint behavior (mobile, tablet, desktop) is explicitly defined for all key views."
           }
         ]
       }
     ],
     "reviewGates": [
       {
-        "code": "UX/UI Design Specification",
-        "statement": "The UX/UI Design Specification (wireframes, prototype, design system) has been reviewed and accepted as sufficient to proceed to Technical Discovery & Architecture.",
+        "code": "clickable-prototype",
+        "name": "Experience Design Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
+        "statement": "The UX/UI Design Specification (wireframes, prototype, design system) has been reviewed and accepted as sufficient to proceed to Technical Discovery & Architecture.",
         "prompt": "Is the UX/UI Design Specification sufficiently detailed, usable, and accessible to guide implementation?",
         "participant": "human",
         "outputContract": "assessment-acceptance",
-        "name": "Experience Design Review",
+        "checklistIds": [
+          "Experience Design (SDLC Phase 2) Checklist"
+        ]
+      }
+    ],
+    "qualityGates": [
+      {
+        "name": "Experience Design Quality Gate",
+        "category": "Validation Evidence",
         "governedTransition": "Deliverable|In Progress|Approved",
+        "criteriaType": "requires_accepted_review",
+        "deliverableName": "clickable-prototype",
         "checklistIds": [
           "Experience Design (SDLC Phase 2) Checklist"
         ]

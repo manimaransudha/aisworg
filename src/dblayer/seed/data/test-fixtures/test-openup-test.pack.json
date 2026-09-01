@@ -29,6 +29,34 @@
         "name": "Test Evaluation Summary",
         "contractDescription": "A summary assessment of test results and residual risk/quality for this increment."
       }
+    ],
+    "checklists": [
+      {
+        "name": "Test (OpenUP Capability Pattern) Checklist",
+        "items": [
+          {
+            "statement": "Test ideas covering the requirement's normal, boundary, and failure behaviour have been identified."
+          },
+          {
+            "statement": "Test cases have been implemented and are repeatable."
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "Test Report / Results",
+        "name": "Test Results Evaluation",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "statement": "Test results have been evaluated and the solution's quality/residual risk assessed.",
+        "classification": "judgment",
+        "prompt": "Given the test results, is the solution's quality acceptable, and is residual risk understood?",
+        "participant": "AI+human",
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Test (OpenUP Capability Pattern) Checklist"
+        ]
+      }
     ]
   }
 }

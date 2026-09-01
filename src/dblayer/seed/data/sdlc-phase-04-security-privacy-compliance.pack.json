@@ -4,8 +4,8 @@
   "category": "Compliance",
   "packVersion": "1.0.0",
   "installationClassification": "Recommended",
-  "description": "Establishing security and compliance frameworks \u2014 aka Trust & Safety, SecOps Hardening, Compliance Sprint, Risk & Assurance.",
-  "owner": "SDLC Templates \u2014 NoteShare Pro Reference Library",
+  "description": "Establishing security and compliance frameworks — aka Trust & Safety, SecOps Hardening, Compliance Sprint, Risk & Assurance.",
+  "owner": "SDLC Templates — NoteShare Pro Reference Library",
   "publisher": "Platform",
   "dependencies": [],
   "contributions": {
@@ -21,59 +21,136 @@
         "code": "threat-model-stride",
         "capabilityCode": "security-privacy-compliance",
         "name": "Threat Model (STRIDE)",
-        "contractDescription": "Security threat analysis."
+        "contractDescription": "Security threat modeling covering Spoofing, Tampering, Repudiation, Info Disclosure, DoS, and Elevation of Privilege.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "executive-approved" },
+          { "label": "Turnaround Time", "target": "172800" }
+        ]
       },
       {
         "code": "security-controls-matrix",
         "capabilityCode": "security-privacy-compliance",
         "name": "Security Controls Matrix",
-        "contractDescription": "Security control implementation."
+        "contractDescription": "Security control implementation specifications mapping SOC2, ISO27001, and NIST controls.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "privacy-impact-assessment",
         "capabilityCode": "security-privacy-compliance",
         "name": "Privacy Impact Assessment",
-        "contractDescription": "Privacy risk evaluation."
+        "contractDescription": "GDPR / CCPA privacy risk evaluation, data flow mapping, and user consent mechanics.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "172800" }
+        ]
       },
       {
         "code": "data-protection-addendum-vendor-list",
         "capabilityCode": "security-privacy-compliance",
         "name": "Data Protection Addendum & Vendor List",
-        "contractDescription": "Vendor compliance."
+        "contractDescription": "Third-party vendor risk assessment, sub-processor list, and DPA contract templates.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "compliance-readiness-checklist",
         "capabilityCode": "security-privacy-compliance",
         "name": "Compliance Readiness Checklist",
-        "contractDescription": "Regulatory compliance tracking."
+        "contractDescription": "Regulatory compliance gap analysis and audit evidence mapping.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
       },
       {
         "code": "secure-sdlc-guidelines",
         "capabilityCode": "security-privacy-compliance",
         "name": "Secure SDLC Guidelines",
-        "contractDescription": "Secure development practices."
+        "contractDescription": "OWASP Top 10 secure coding guidelines, SAST/DAST integration, and secret scanner rules.",
+        "serviceLevel": [
+          { "label": "Quality Bar", "target": "peer-reviewed" },
+          { "label": "Turnaround Time", "target": "86400" }
+        ]
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [
+      {
+        "code": "policy-zero-trust-security-baseline",
+        "name": "Zero-Trust Security Baseline Policy",
+        "category": "Security",
+        "constraintType": "Policy",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "conditionType": "always_true",
+        "severity": "high"
       }
     ],
     "checklists": [
       {
         "name": "Security, Privacy & Compliance (SDLC Phase 4) Checklist",
+        "description": "Validation checklist for threat modeling, privacy impact assessments, and secure coding practices.",
         "items": [
           {
             "statement": "Every identified STRIDE threat has a corresponding documented security control or explicit accepted risk."
+          },
+          {
+            "statement": "Data flow diagrams identify all PII ingest, processing, storage, and egress paths with encryption requirements."
+          },
+          {
+            "statement": "Third-party vendor risk assessment is completed for all external APIs and SaaS sub-processors."
+          },
+          {
+            "statement": "Automated secret scanning and SAST vulnerability scanning are enforced in the CI/CD pipeline."
+          },
+          {
+            "statement": "Role-Based Access Control (RBAC) and Principle of Least Privilege are explicitly documented."
           }
         ]
       }
     ],
     "reviewGates": [
       {
-        "code": "Security Assessment Report",
-        "statement": "The Security Assessment Report (threat model, security controls, privacy impact assessment) has been reviewed and accepted as sufficient to proceed to Platform & Developer Experience.",
+        "code": "threat-model-stride",
+        "name": "Security Assessment Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
         "classification": "human-attested",
+        "statement": "The Security Assessment Report (threat model, security controls, privacy impact assessment) has been reviewed and accepted as sufficient to proceed to Platform & Developer Experience.",
         "prompt": "Does the Security Assessment Report show the system's security, privacy, and compliance posture is sufficiently addressed?",
         "participant": "human",
         "outputContract": "assessment-acceptance",
-        "name": "Security Assessment Review",
+        "checklistIds": [
+          "Security, Privacy & Compliance (SDLC Phase 4) Checklist"
+        ]
+      }
+    ],
+    "qualityGates": [
+      {
+        "name": "Security & Compliance Quality Gate",
+        "category": "Validation Evidence",
         "governedTransition": "Deliverable|In Progress|Approved",
+        "criteriaType": "requires_accepted_review",
+        "deliverableName": "threat-model-stride",
         "checklistIds": [
           "Security, Privacy & Compliance (SDLC Phase 4) Checklist"
         ]

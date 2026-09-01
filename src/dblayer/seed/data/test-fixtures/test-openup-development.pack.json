@@ -1,5 +1,5 @@
 {
-  "code": "test-development",
+  "code": "development",
   "name": "Development (OpenUP Capability Pattern)",
   "category": "Engineering",
   "packVersion": "1.0.0",
@@ -21,13 +21,96 @@
         "code": "implementation-elements",
         "capabilityCode": "development",
         "name": "Implementation Elements",
-        "contractDescription": "Working code implementing the design for this increment, ready for integration."
+        "contractDescription": "Working code implementing the design for this increment, ready for integration.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
       },
       {
         "code": "integrated-build",
         "capabilityCode": "development",
         "name": "Integrated Build",
-        "contractDescription": "A build integrating this increment's implementation elements, ready for test."
+        "contractDescription": "A build integrating this increment's implementation elements, ready for test.",
+        "serviceLevel": [
+          {
+            "label": "Quality Bar",
+            "target": "peer-reviewed"
+          },
+          {
+            "label": "Turnaround Time",
+            "target": "86400"
+          }
+        ]
+      }
+    ],
+    "checklists": [
+      {
+        "name": "Development (OpenUP Capability Pattern) Checklist",
+        "description": "Validation checklist for OpenUP implementation elements, unit testing, and integrated builds.",
+        "items": [
+          {
+            "statement": "The design for this increment is consistent with the Architecture Notebook."
+          },
+          {
+            "statement": "The implementation satisfies its design and passes unit-level checks."
+          },
+          {
+            "statement": "Implementation elements have been integrated into a build without regressions."
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "implementation-elements",
+        "name": "OpenUP Development Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "statement": "The Implementation Elements have been reviewed and accepted as meeting design specifications.",
+        "classification": "human-attested",
+        "prompt": "Do the implementation elements satisfy the design and unit-level checks?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Development (OpenUP Capability Pattern) Checklist"
+        ]
+      }
+    ],
+    "qualityGates": [
+      {
+        "name": "No Unresolved Obligations",
+        "category": "Review Evidence",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "criteriaType": "no_unresolved_obligations"
+      },
+      {
+        "name": "Requires Accepted Evidence or Approved Decision",
+        "category": "Validation Evidence",
+        "governedTransition": "Deliverable|Approved|Baselined",
+        "criteriaType": "requires_accepted_evidence_or_approved_decision"
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
       }
     ],
     "policies": [

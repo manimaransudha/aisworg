@@ -12,9 +12,9 @@
         "description": "Elicits and specifies engineering requirements."
       },
       {
-        "code": "architecture",
-        "name": "Architecture",
-        "description": "Designs the technical solution structure."
+        "code": "architecture-solution-design",
+        "name": "Architecture & Solution Design",
+        "description": "Designs the technical solution structure and architecture."
       },
       {
         "code": "development",
@@ -35,7 +35,7 @@
       },
       {
         "code": "approved-architecture",
-        "capabilityCode": "architecture",
+        "capabilityCode": "architecture-solution-design",
         "name": "Approved Architecture",
         "contractDescription": "A reviewed, approved technical design satisfying the approved requirements.",
         "serviceLevel": [
