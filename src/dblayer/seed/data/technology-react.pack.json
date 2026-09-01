@@ -1,0 +1,190 @@
+{
+  "code": "technology-react",
+  "name": "React Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "development",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "code-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "React Standards",
+        "description": "React Standards",
+        "items": [
+          {
+            "statement": "Check if common services can be made",
+            "group": "Code Reuse & Modularity"
+          },
+          {
+            "statement": "Create a common component if it can be reused in an app. Create single responsibility components",
+            "group": "Component Design & Reusability"
+          },
+          {
+            "statement": "Create a separate folder for routes for a specific page and import all components and map them with the routes.",
+            "group": "Routing & Project Structure"
+          },
+          {
+            "statement": "State and UI should be maintained separately.",
+            "group": "State Management"
+          },
+          {
+            "statement": "The project should have a Readme file with instructions how to run locally and other useful info",
+            "group": "Documentation"
+          },
+          {
+            "statement": "Minimize logic in the render method. Logic should be in helper methods, container components or in Redux actions (if used)",
+            "group": "Component Design & Code Organization"
+          },
+          {
+            "statement": "Use functional components for components that don’t use state",
+            "group": "Component Design"
+          },
+          {
+            "statement": "Make sure you don’t edit props within a component",
+            "group": "Props & Component State"
+          },
+          {
+            "statement": "Use code formatting such as beautify and prettier for indenting the codes",
+            "group": "Code Formatting & Style"
+          },
+          {
+            "statement": "Remove unwanted variables and method that are not in use.",
+            "group": "Code Quality & Cleanup"
+          },
+          {
+            "statement": "Remove unwanted packages that are not in use from package.json",
+            "group": "Dependency Management"
+          },
+          {
+            "statement": "Every useEffect and function should have proper commenting",
+            "group": "Code Documentation"
+          },
+          {
+            "statement": "There should be consistency in the import statement used in the files",
+            "group": "Code Organization & Standards"
+          },
+          {
+            "statement": "Need to have baseUrl set for import",
+            "group": "Project Configuration"
+          },
+          {
+            "statement": "Avoid using var, and promote use of let and const.",
+            "group": "JavaScript Coding Standards"
+          },
+          {
+            "statement": "There should be 0 warnings while compiling the code",
+            "group": "Build & Code Quality"
+          },
+          {
+            "statement": "Make sure that sensitive data are saved on .env files and are used from that on projects.",
+            "group": "Configuration & Secrets Management"
+          },
+          {
+            "statement": "Avoid unnecessary use of redux",
+            "group": "State Management"
+          },
+          {
+            "statement": "Merge common styling by providing the common classnames",
+            "group": "Styling & CSS"
+          },
+          {
+            "statement": "Prevent unwanted re-rendering of components",
+            "group": "Performance Optimization"
+          },
+          {
+            "statement": "Create utils for performing common action through the project",
+            "group": "Code Reuse & Modularity"
+          },
+          {
+            "statement": "Use constant file in a component to get the static content",
+            "group": "Code Organization & Configuration"
+          },
+          {
+            "statement": "Use arrow functions to create methods instead of binding in constructors.",
+            "group": "Component & Function Patterns"
+          },
+          {
+            "statement": "While using keys for dynamic lists check if keys are unique index should be fine if the list items will not change order. Preferred way is to use primary keys generated from db.",
+            "group": "Lists & Rendering"
+          },
+          {
+            "statement": "Try avoiding multiple setState in a single function and be mindful of the asynchronous nature of setStates.",
+            "group": "State Management"
+          },
+          {
+            "statement": "When changing state in setState based on previous state value use previous state.",
+            "group": "State Management"
+          },
+          {
+            "statement": "Sync and npm-check to automate the task of identifying insecure and outdated components.",
+            "group": "Dependency Management & Security"
+          },
+          {
+            "statement": "Use Redux for global state management",
+            "group": "State Management"
+          },
+          {
+            "statement": "Make sure to use functional components for components that don’t use state",
+            "group": "Component Design"
+          },
+          {
+            "statement": "Don’t use mixins, prefer HOC and composition",
+            "group": "Component Design & Composition"
+          },
+          {
+            "statement": "Avoid using inline styles, rather use themes or styled components",
+            "group": "Styling & CSS"
+          },
+          {
+            "statement": "Avoid to useEffect without dependencies - Can loop infinitely",
+            "group": "React Hooks & Effects"
+          },
+          {
+            "statement": "Use Memoization to reduce load on App / Server",
+            "group": "Performance Optimization"
+          },
+          {
+            "statement": "Apply Lazy-Loading where its required to optimize bundle load",
+            "group": "Performance Optimization"
+          },
+          {
+            "statement": "Avoid direct DOM access",
+            "group": "DOM & Component Design"
+          },
+          {
+            "statement": "Avoid JSON injection attacks",
+            "group": "Security"
+          },
+          {
+            "statement": "All the paths private information should be a part of env file to avoid exposing",
+            "group": "Configuration & Secrets Management"
+          },
+          {
+            "statement": "Minimize logic in the render method. Logic should be in helper methods, container components or in Redux actions (if used)",
+            "group": "Component Design & Code Organization"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

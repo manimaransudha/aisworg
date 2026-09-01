@@ -285,7 +285,7 @@ Additional metadata may be introduced without modifying the Runtime Kernel.
 
 A Pack may contribute one or more of the following.
 
-### Behaviour
+### Engineering Behaviour
 
 Engineering behaviour.
 
@@ -315,9 +315,9 @@ Domain terminology and semantic relationships.
 
 
 
-### Knowledge Assets
+### Engineering Capital
 
-Reference knowledge.
+Reference knowledge and assets.
 
 
 
@@ -327,13 +327,13 @@ Platform services.
 
 
 
-### User Interface Components
+### Reusable Components
 
 Dashboards, reports and configuration interfaces.
 
 
 
-### Templates
+### Engineering Templates
 
 Reusable engineering templates.
 
@@ -363,7 +363,7 @@ Standard obligation types.
 
 
 
-### Metrics
+### Engineering Metrics
 
 Engineering metrics and reporting definitions.
 
@@ -522,9 +522,9 @@ Pack identity is `(code, pack_version)` (`UNIQUE`, migration `010`), not `code` 
 
 Contributions are no longer an opaque JSON blob. The Pack grammar declares each kind as a **flattened, structured list** (`contributionCapabilities[]`, `contributionServices[]`, `contributionAuthorityRules[]`, `contributionPolicies[]`, `contributionQualityGates[]`, `contributionChecklists[]`, `contributionReviewGates[]`, `contributionObligationDefinitions[]`), so the form and validation follow from the validator (CR-016). At publish they are reassembled into `PackContributions` (`seuTypes.ts`) and persist in `packs.contributions` (JSONB).
 
-- **Built (Pack-contributable):** Capabilities; Services; Authority/Decision Rules; Policies **and** Standards (`constraintType`); Quality Gates; **Checklists; Review Gates; Obligation Definitions** (new — CR-016); Compliance Frameworks + Requirements (kept a raw-JSON `contributionsCompliance` field — deeply nested).
-- **Verifiable items** (checklist item, quality-gate criterion, review requirement, obligation) carry their own §20 fields — `statement`, `classification` (machine-verifiable / judgment / human-attested), `externalEvidence`, `prompt`, `participant`, `outputContract`, `assurance` — **per item** (a checklist can hold a machine-verifiable *and* a judgment item).
-- **Still not Pack-contributable:** Ontology, Knowledge Assets, User-Interface Components, Templates (a separate top-level entity that *references* Packs), and Metrics-via-Pack.
+- **Built (Pack-contributable):** Capabilities; Services; Authority/Decision Rules; Policies **and** Standards (`constraintType`); Quality Gates; **Checklists; Review Gates; Obligation Definitions** (new — CR-016); Compliance Frameworks + Requirements (kept a raw-JSON `contributionsCompliance` field — deeply nested); **Engineering Behaviour, Engineering Metrics, Reusable Components, Engineering Templates** (new — CR-082, unified under one `contributionEngineeringCapital[]` kind, minimal stub — see below).
+- **Verifiable items** (checklist item, quality-gate criterion, review requirement, obligation) carry their own §20 fields — `statement`, `classification` (machine-verifiable / judgment / human-attested), `externalEvidence`, `prompt`, `participant`, `outputContract`, `assurance` — **per item** (a checklist can hold a machine-verifiable *and* a judgment item). Engineering Capital items carry neither — not classified, inputs/assets rather than checks (`tbi.md`'s own §9 note).
+- **Still not Pack-contributable:** Ontology, Knowledge Assets (§9's own separate "Engineering Capital" subsection — unrelated to CR-082's `EngineeringCapital` contribution kind despite the shared name, see below), and Templates (a separate top-level entity that *references* Packs).
 - **Materialisation caveat:** `seedContributions` materialises Capabilities/Services/Authority Rules/Policies/Quality Gates/Review Gates/**Checklists** (Review Gates added by CR-059, Checklists by CR-060, see below) into their tables. Obligation Definitions and the §20 fields still live in `packs.contributions` (JSONB) **only** — for the §20 fields, because nothing consumes them yet (§19.14 execution); for Obligation Definitions specifically, CR-062 settled this as a deliberate, permanent choice, not a temporary gap — unlike Checklist/Policy, nothing else on the platform needs to cross-reference a specific Obligation Definition by id, so there's no real Definition table to materialise into at all.
 - **Quality Gate contributions now carry Chapter 26 §8's own structure — ✅ built (CR-058, 2 follow-ups, form redesign — all 2026-08-22).** `contributionQualityGates[]` renders as a real repeatable-card form (the same generic `referential-list` widget as the Template Deliverable Catalogue, not raw JSON). Its schema exposes an Ontology-backed `category` (`category:evidence` — reused directly; a first attempt at a standalone `category:quality-gate` vocabulary was superseded the same day, see Ch.26 §19.4), a `transition_definitions`-sourced `governedTransition` picker (a Pack may only attach a gate to a transition that already exists — `validatePackSeed` checks it resolves), 4 named criteria types including a Required-Policies type, and — outside the authored form, since neither is Pack-author-facing — badge-gated Waiver Rules (`quality_gate_waivers`, `qualitygate_waive`) and a Quality Gate version independent of the contributing Pack's own (`(entity_type, from_state, to_state, category, version)` identity, new row per version). Deliberately kept to one criteria type per gate, no generic AND/OR — composite logic resolves once, inside participant execution, before the gate ever runs.
   - **`code` was removed from the form entirely** (owner: "the code isn't a UUID or a freeform Pack-specific string — it's the category identifier itself") — `category` now doubles as the gate's own identity; `qualityGatesDB.upsert` sets `code = category` server-side, no author input at all.
@@ -556,6 +556,7 @@ Contributions are no longer an opaque JSON blob. The Pack grammar declares each 
   - **Capabilities — ✅ built (CR-065, 2026-08-24; Ch.10 Capability Model).** The last contribution kind in this list to leave the pre-CR-058 raw shape. Chapter 10's own first-ever audit (§18, filed and revised the same day alongside CR-065 — the owner corrected several early findings) confirmed the owner's own framing precisely: **Capability's lack of independent lifecycle/versioning is deliberate, real design, not an absence** — no `status` column, but Pack already publishes a complete, real, named lifecycle-event set (`PackRegistered/Validated/Published/Activated/Deprecated/Retired/Archived`) Capability rides on. Stability is real too, not incidental — `sdkAuthoring.ts`'s `canEdit = canDefine && isDraft` gates the only real write path to Draft-status Packs only. **What did get built: identity and versioning.** `code` is now Pack-scoped (`(originating_pack_id, code)`, was a bare global unique — the same fix Checklist/Policy/Service already got, confirmed to touch nothing else since all 8 downstream FK tables reference the stable `id`, never `code`) — owner: "This is already implemented in pack model." `version` is now real too — not independent, a denormalized copy of the owning Pack's own `pack_version`, kept in sync on every upsert — owner: "capabilities.version just copies over the pack's version." **Structure (§8) settles small**: Category dropped entirely (owner: "code already carries the required intelligence" — no replacement, no new concept type); Supported Participant Types dropped (already modeled at a finer grain, on each verifiable item's own `classification`); Success Criteria dropped (already fully expressed by the existing Policy + Quality Gate pairing); Inputs/Outputs/Required Knowledge/Expected Deliverables all dropped (owner: "determined at template authoring and not at capability authoring"). Net: Capability's real Structure is just **Identifier, Name, Description** — 3 of the chapter's 10 named fields, with every other one mapping onto a mechanism that already exists elsewhere in the platform, at a more appropriate grain. **Deferred, not this CR's job**: Capability Relationships' partial semantics (only `required` has real behaviour, zero circular-dependency detection) split out as **CR-066** (shared platform-wide Pack-dependency/Composition Engine infrastructure); `CapabilityRequested`/`Unavailable`/`Released` deferred to whenever execution-side Capability work is picked up; the Obligation→revised-Capability-version automation acknowledged as real and explicitly deferred, not scheduled anywhere yet.
     - **Scale**: `category` stripped from all 28 Capability declarations across the 25 Pack JSON files that had it (22 clean-slate-exercised + 3 non-exercised); `db:clean-slate` re-verified running clean end to end, all 30 live Capabilities landing through the new Pack-scoped upsert with `version` correctly copied from each owning Pack's real `pack_version`.
   - **Series closed, 2026-08-24.** Every kind in `contributionCapabilities[]` through `contributionObligationDefinitions[]` has now been audited against its own governing chapter, had its design settled, and been built — the same discipline CR-058 started against Chapter 26 now covers the whole §19.4 list: Quality Gates (CR-058), Review Gates (CR-059), Checklists (CR-060), Policies (CR-061), Obligation Definitions (CR-062), Services (CR-064), Capabilities (CR-065) — all ✅ built. Authority/Decision Rules was never part of this series — confirmed legacy, pre-noun×verb, deliberately not the platform's own recommended mechanism for new Packs (`formGenerator.ts`'s own help text), not a live gap needing this treatment. Two follow-ups spun out along the way, tracked separately: CR-063 (Obligation's own named lifecycle events) and CR-066 (Pack dependency-type semantics + circular-dependency detection, split from CR-065).
+  - **Engineering Behaviour / Engineering Metrics / Reusable Components ("User-Interface Components" above) / Engineering Templates — ✅ built (CR-082, 2026-08-30).** Reopens this "closed" series for the four §9 kinds it never covered — confirmed still-not-Pack-contributable when CR-082 was raised. Built as one unified contribution kind, `contributionEngineeringCapital[]`, not four separate schema fields — owner: "Just say EngineeringCapital... Type will be Engineering Behaviour / Engineering Metrics / Reusable Components / Engineering templates etc." Minimal stub, deliberately: `type` (Ontology-backed, new freely-extensible concept type `engineering-capital`, migration 141) + `url` (plain text) only — no §20 verifiable-item fields, since these are inputs/assets, not checks (`tbi.md`'s own §9 classification note). Richer per-type structure stays explicitly deferred, owner: "these should be in details later." **Naming note**: this reuses the name of §9's own separate, pre-existing "Engineering Capital" subsection ("Reference knowledge and assets" — §19.4's "Knowledge Assets," still not built) — owner's own choice of container name, not a claim that CR-082 also built that one; the two remain distinct. Also confirmed distinct from the platform's own first-class Template entity — owner: "Template Entity this app defines is not the same as Engineering Templates. Completely unrelated."
 
 ## 19.5 ✅ Metadata coverage (§8; CR-018)
 

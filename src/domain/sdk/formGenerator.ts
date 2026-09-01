@@ -484,6 +484,7 @@ export const CONTRIBUTION_SECTION_HELP: Record<string, string> = {
   contributionChecklists: "Reusable Checklists (Ch.47) — a Name/Description plus its own ordered list of Items (just a Statement each). A Checklist carries no scope, participant, or required/advisory status of its own; Review Gates and Quality Gates reference it by id (checklistIds/recommendedChecklistIds) to say when it applies and whether it's required.",
   contributionReviewGates: "Verifiable review requirements — typically \"judgment\" or \"human-attested\" items that gate a review outcome.",
   contributionObligationDefinitions: "Verifiable obligations this Pack can raise — a commitment that must be resolved, of the Category given.",
+  contributionEngineeringCapital: "Engineering Behaviour, Engineering Metrics, Reusable Components, or Engineering Templates this Pack contributes — a Type and a URL to where it actually lives.",
   contributionsCompliance: "Compliance Frameworks and their Requirements this Pack declares (raw JSON — deeply nested, not yet a structured widget).",
 };
 export const VERIFIABLE_ITEM_FIELD_HELP: Record<string, string> = {

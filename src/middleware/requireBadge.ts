@@ -48,12 +48,20 @@ const NONE = "None";
 // "...to edit Objectives.") from their old inline flashError calls; the
 // generic default only applies where no route ever had bespoke wording to
 // begin with (every newly-added check this CR introduced).
-export function requireBadge(badges: string[], opts: { mode?: "web" | "api"; redirectTo?: string | ((req: Request) => string); denyMessage?: string } = {}) {
+// match: "all" (default) — every listed badge is required, the original
+// settled semantics, unchanged for every caller that doesn't pass this.
+// "any" — holding ONE of the listed badges is enough (owner, 2026-08-30: a
+// few specific transitions are intentionally reachable by more than one
+// badge, e.g. Pack's Draft->Validated by pack_validate OR pack_define OR
+// pack_reject — resolved per-request by the caller, e.g.
+// core/sdkAuthoring.ts's requiredBadgeForRowAction, not hardcoded here).
+export function requireBadge(badges: string[], opts: { mode?: "web" | "api"; redirectTo?: string | ((req: Request) => string); denyMessage?: string; match?: "all" | "any" } = {}) {
   if (badges.length === 0) {
     throw new Error("requireBadge(): pass ['None'] to declare no badge is required — an empty array is not a valid, reviewable declaration.");
   }
   const required = badges[0] === NONE ? [] : badges;
   const mode = opts.mode ?? "web";
+  const match = opts.match ?? "all";
   if (mode === "web" && required.length > 0 && !opts.redirectTo) {
     throw new Error("requireBadge(): redirectTo is required in web mode when a real badge is listed — pass mode: 'api' for a JSON-only router instead.");
   }
@@ -72,14 +80,16 @@ export function requireBadge(badges: string[], opts: { mode?: "web" | "api"; red
     }
 
     const held = await resolveHeldBadges(req);
-    if (held.isRoot || required.every((b) => held.badgeTypes.has(b))) {
+    const satisfied = match === "any" ? required.some((b) => held.badgeTypes.has(b)) : required.every((b) => held.badgeTypes.has(b));
+    if (held.isRoot || satisfied) {
       next();
       return;
     }
 
-    const missing = required.filter((b) => !held.badgeTypes.has(b));
-    logger.warn(`[requireBadge] ${user.email} tried ${req.method} ${req.path} — needs [${required.join(", ")}], missing [${missing.join(", ")}]`);
-    const message = opts.denyMessage ?? `You don't hold the required badge(s) for this action: ${missing.join(", ")}.`;
+    logger.warn(`[requireBadge] ${user.email} tried ${req.method} ${req.path} — needs [${match === "any" ? "any of " : ""}${required.join(", ")}], held none of it`);
+    const message = opts.denyMessage ?? (match === "any"
+      ? `You don't hold any of the required badge(s) for this action: ${required.join(", ")}.`
+      : `You don't hold the required badge(s) for this action: ${required.filter((b) => !held.badgeTypes.has(b)).join(", ")}.`);
     if (mode === "api") {
       res.status(403).json({ success: false, message });
       return;

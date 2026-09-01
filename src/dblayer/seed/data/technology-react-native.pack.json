@@ -1,0 +1,142 @@
+{
+  "code": "technology-react-native",
+  "name": "React Native Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "development",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "code-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "React Native Standards",
+        "description": "React Native Standards",
+        "items": [
+          {
+            "statement": "All the components, globals, images, redux etc.. Should be written inside the src folder",
+            "group": "Folder Structure"
+          },
+          {
+            "statement": "Images should be there in the images folder under the src folder.",
+            "group": "Folder Structure"
+          },
+          {
+            "statement": "Redux files should be written inside the store folder under the src folder",
+            "group": "Folder Structure"
+          },
+          {
+            "statement": "You can create stack navigator file inside navigation folder under src",
+            "group": "Folder Structure"
+          },
+          {
+            "statement": "A folder and sub folder name should always start with small letters and the files belongs the folders is always in pascal case.",
+            "group": "Naming Conventions"
+          },
+          {
+            "statement": "Object and variable declaration should always in camel case statement.",
+            "group": "Naming Conventions"
+          },
+          {
+            "statement": "Divide The Components (split the React Native components into two individual directories: container and plain components)",
+            "group": "Component Structure"
+          },
+          {
+            "statement": "Declare The Types: It can either be Flow or Typescript",
+            "group": "Type Safety"
+          },
+          {
+            "statement": "Separate the styles from the components.",
+            "group": "Styling"
+          },
+          {
+            "statement": "Remove console.log() after debugging, It will make app slower.",
+            "group": "Code Quality & Performance"
+          },
+          {
+            "statement": "Create aliases using babel-plugin-module-resolver to avoid nested imports",
+            "group": "Project Configuration"
+          },
+          {
+            "statement": "Use Hooks (avoid class based component)",
+            "group": "Component Design"
+          },
+          {
+            "statement": "Use Redux for for the store state (Avoid unnecessary use of redux)",
+            "group": "State Management"
+          },
+          {
+            "statement": "Add fastlane set up for automate development and build release process",
+            "group": "Build & Release"
+          },
+          {
+            "statement": "Use Platform specific styles.",
+            "group": "Platform-Specific Development"
+          },
+          {
+            "statement": "Alway assign unique key to each element.",
+            "group": "Component Rendering"
+          },
+          {
+            "statement": "create class component when we have to use state otherwise we should use functional component",
+            "group": "Component Design"
+          },
+          {
+            "statement": "Use spread operator. It can make your React code much more beautiful and clean",
+            "group": "JavaScript Coding Standards"
+          },
+          {
+            "statement": "write your api calls within the useEffect for hooks / write your api calls withing the componentDidMount for class component.",
+            "group": "API & Lifecycle Management"
+          },
+          {
+            "statement": "Always implement as much client validation as possible at front end level",
+            "group": "Input Validation"
+          },
+          {
+            "statement": "make sure that the app you are building is responsive",
+            "group": "Responsive Design"
+          },
+          {
+            "statement": "DO use Safe Area View to look good on every iOS device",
+            "group": "Platform-Specific Development"
+          },
+          {
+            "statement": "Use a linter to make your code easier to review.",
+            "group": "Code Quality & Standards"
+          },
+          {
+            "statement": "Lock Dependencies(remove the ^ character in order to lock the dependency on that specific version)",
+            "group": "Dependency Management"
+          },
+          {
+            "statement": "Review your code at least once before creating a pull or merge request",
+            "group": "Code Review"
+          },
+          {
+            "statement": "Check internet connectivity for a better user experience",
+            "group": "Network & Connectivity"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

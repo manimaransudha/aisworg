@@ -75,9 +75,14 @@ pack-define@athens.com
 pack_all@platform.com
 template-define@athens.com
 
+Vocabulary 
+https://www.iso.org/obp/ui/en/#iso:std:iso-iec:2382:ed-1:v2:en
 
-Validation can happen by both the badges define and validate.  otherwise pack will necer move out of draft. 
-Similarly, reject can be done by validate badge also  and validate can be done by reject badge also
+https://www.sotc.in/india-tour-packages/bhutan-tour-packages/bhutan-escape?pkgId=PKG012337&packageClassId=0&destination=PKG012337_bhutan_COUNTRY_1?pkgId=PKG012337
+
+https://www.trekpanda.in/tours/bhutan-tour-package-from-india
+
+https://www.flamingotravels.co.in/india-tour-packages/bhutan-holiday-tour-packages
 
 
 Capability Patterns (reusable process fragments)

@@ -275,7 +275,7 @@ export interface PackContributions {
   // same as reviewGates/qualityGates. Executing a Checklist (a Participant
   // works through `items`, produces one Evidence record) is out of scope —
   // SEU-commissioning-phase work, not Pack-side declaration.
-  checklists?: Array<{ name: string; description?: string; asset?: string; items: ChecklistItem[] }>;
+  checklists?: Array<{ name: string; description?: string; items: ChecklistItem[] }>;
   // CR-059 — a Review Gate is real and persisted now (review_gates table),
   // unlike the other declaration-only rows in this interface. `code` is the
   // deliverable type it's for (Ontology's deliverable-name vocabulary,
@@ -293,6 +293,13 @@ export interface PackContributions {
   // Definition table — nothing cross-references one by id, unlike
   // Checklist/Policy — this stays a JSONB declaration only.
   obligationDefinitions?: Array<{ code?: string; category?: string; origin?: string } & VerifiableItemFields>;
+  // CR-082 — Ch.5 §9's Engineering Behaviour / Engineering Metrics /
+  // Reusable Components / Engineering Templates, unified under one
+  // contribution kind rather than four schema fields. Minimal stub (owner:
+  // "these should be in details later") — type is Ontology-backed
+  // (engineering-capital, freely-extensible); not a §20 verifiable item —
+  // these are inputs/assets, not checks (tbi.md's own §9 classification note).
+  engineeringCapital?: Array<{ type?: string; url?: string }>;
   // Compliance Model — Plan (Phase 15, Ch.27 FR-27.1): a Pack contributes
   // Compliance Frameworks and their declarative Requirements. Compliance
   // composes existing primitives (§8), so a requirement's criteria reuses the
@@ -1049,7 +1056,6 @@ export interface ChecklistRow {
   id: string;
   name: string;
   description: string | null;
-  asset: string | null;
   originating_pack_id: string;
   items: ChecklistItem[];
   created_at: string;

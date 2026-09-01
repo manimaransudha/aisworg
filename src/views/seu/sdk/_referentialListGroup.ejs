@@ -16,6 +16,51 @@
 <%
   function ilabel(n) { return n.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, function(c){ return c.toUpperCase(); }); }
   var isDependencies = field.name === 'dependencies';
+  var isChecklists = field.name === 'contributionChecklists';
+  var isQualityGates = field.name === 'contributionQualityGates';
+  var isReviewGates = field.name === 'contributionReviewGates';
+  var isPolicies = field.name === 'contributionPolicies';
+  var isObligationDefinitions = field.name === 'contributionObligationDefinitions';
+  var isServices = field.name === 'contributionServices';
+  // Owner: "the list is not correct for all the tabs. it has to depend on
+  // the information carried in the tab" — these 5 kinds share the same
+  // problem the flat table has: every possible field renders as a column
+  // regardless of whether a given row actually uses it (e.g. a Quality
+  // Gate only ever populates ONE of deliverableName/requiredPolicyCodes,
+  // depending on criteriaType — the other stays a blank column always).
+  // Card per row instead, populated fields only — same pattern already
+  // proven for Dependencies/Deliverable Catalogue/Dependency Graph/Checklists
+  // above. Capabilities/Engineering Capital/Authority Rules (3 fields each)
+  // stay on the generic table — reads fine already, no change needed.
+  function resolveMultiRefs(refs, options) {
+    return (Array.isArray(refs) ? refs : []).map(function(ref) {
+      var matched = options.find(function(o) { return o.id === ref || o.name === ref; });
+      return matched ? (matched.name + ' — ' + matched.packName) : ('⚠ ' + ref + ' (not found)');
+    });
+  }
+  function formatGovernedTransition(raw) {
+    var parts = (raw || '').split('|');
+    return parts.length === 3 ? (parts[0] + ': ' + parts[1] + ' → ' + parts[2]) : raw;
+  }
+  // Shared by Quality Gates/Review Gates/Obligation Definitions — the same
+  // §20 verifiable-item fields (statement/prompt markdown paragraphs, then
+  // a small badge row for classification/participant/outputContract/
+  // externalEvidence/assurance), each shown only when the row actually has it.
+  function verifiableFieldsBlock(row, statementMd, promptMd) { %>
+    <% if (row.statement) { %>
+      <div class="small mb-1"><% if (statementMd) { %><%- renderMarkdown(row.statement) %><% } else { %><%= row.statement %><% } %></div>
+    <% } %>
+    <% if (row.prompt) { %>
+      <div class="small text-muted fst-italic mb-1"><strong class="fst-normal">Prompt:</strong> <% if (promptMd) { %><%- renderMarkdown(row.prompt) %><% } else { %><%= row.prompt %><% } %></div>
+    <% } %>
+    <div class="mt-1">
+      <% if (row.classification) { %><span class="badge bg-light text-dark border me-1"><%= row.classification %></span><% } %>
+      <% if (row.participant) { %><span class="badge bg-light text-dark border me-1"><%= row.participant %></span><% } %>
+      <% if (row.outputContract) { %><span class="badge bg-light text-dark border me-1"><%= row.outputContract %></span><% } %>
+      <% if (row.externalEvidence === 'true') { %><span class="badge bg-light text-dark border me-1">External evidence</span><% } %>
+      <% if (row.assurance) { %><span class="badge bg-light text-dark border me-1">Assurance: <%= row.assurance %></span><% } %>
+    </div>
+  <% }
   var packOptions = locals.packDependencyOptions || [];
   // Bug fix (owner: "In dependencies, there is a category tab. It is not
   // populated... It should be one of the ontology pack categories") — this
@@ -178,6 +223,157 @@
         </li>
       <% }) %>
     </ul>
+  <% } else if (isChecklists) { %>
+    <%# Owner: "In checklist view, the metadata has to be shown separately.
+        And the items. And each of the group should be a collapsible view." —
+        Name/Description no longer cram into flat table columns alongside a
+        huge Items cell; each Checklist is its own card (metadata as the
+        header, Items below), and each `group` (same grouping this widget's
+        nested-list table-cell branch already does) collapses independently
+        via Bootstrap's collapse component, not always-expanded. %>
+    <% var checklistItemsField = field.itemFields.find(function(f) { return f.name === 'items'; }); %>
+    <% var checklistStatementMarkdown = (checklistItemsField && checklistItemsField.nestedItemFields || []).some(function(nf) { return nf.name === 'statement' && nf.markdown; }); %>
+    <% existingRows.forEach(function(row, ci) { %>
+      <div class="card mb-2">
+        <div class="card-body">
+          <h6 class="mb-1"><%= row.name || '—' %></h6>
+          <% if (row.description) { %><p class="text-muted small mb-2"><%= row.description %></p><% } %>
+          <%
+            var checklistItems = Array.isArray(row.items) ? row.items.slice(0, Math.max(row.items.length - 1, 0)) : [];
+            var checklistGroups = []; var checklistGroupIndex = {};
+            checklistItems.forEach(function(it) {
+              var groupName = (it.group || '').trim() || 'Ungrouped';
+              if (!(groupName in checklistGroupIndex)) { checklistGroupIndex[groupName] = checklistGroups.length; checklistGroups.push({ name: groupName, rows: [] }); }
+              checklistGroups[checklistGroupIndex[groupName]].rows.push(it);
+            });
+          %>
+          <% if (!checklistItems.length) { %>
+            <p class="text-muted small mb-0">No items</p>
+          <% } else { %>
+            <div class="accordion accordion-flush">
+              <% checklistGroups.forEach(function(g, gi) { %>
+                <% var collapseId = 'checklist-' + ci + '-group-' + gi + '-' + field.name; %>
+                <div class="accordion-item">
+                  <h2 class="accordion-header">
+                    <button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#<%= collapseId %>">
+                      <%= g.name %> <span class="badge bg-secondary-subtle text-secondary ms-2"><%= g.rows.length %></span>
+                    </button>
+                  </h2>
+                  <div id="<%= collapseId %>" class="accordion-collapse collapse">
+                    <div class="accordion-body py-2">
+                      <ul class="list-unstyled mb-0 ps-0">
+                        <% g.rows.forEach(function(item) { %>
+                          <li class="mb-1 small">
+                            <% if (checklistStatementMarkdown && item.statement) { %><%- renderMarkdown(item.statement) %><% } else { %><%= item.statement || '—' %><% } %>
+                          </li>
+                        <% }) %>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    <% }) %>
+  <% } else if (isServices) { %>
+    <% var serviceLevelField = field.itemFields.find(function(f) { return f.name === 'serviceLevel'; }); %>
+    <% existingRows.forEach(function(row) { %>
+      <div class="card mb-2">
+        <div class="card-body">
+          <h6 class="mb-1"><%= row.name || '—' %> <code class="text-muted small"><%= row.code || '—' %></code></h6>
+          <% if (row.capabilityCode) { %><span class="badge bg-light text-dark border mb-2">Capability: <%= row.capabilityCode %></span><% } %>
+          <% if (row.contractDescription) { %><p class="text-muted small mb-2"><%= row.contractDescription %></p><% } %>
+          <%
+            var serviceLevelRows = Array.isArray(row.serviceLevel) ? row.serviceLevel.slice(0, Math.max(row.serviceLevel.length - 1, 0)) : [];
+          %>
+          <% if (serviceLevelRows.length) { %>
+            <div class="small">
+              <strong class="text-muted">Service Level</strong>
+              <ul class="list-unstyled mb-0 ps-0">
+                <% serviceLevelRows.forEach(function(sl) { %>
+                  <li><%= sl.label || '—' %>: <%= sl.target || '—' %></li>
+                <% }) %>
+              </ul>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    <% }) %>
+  <% } else if (isPolicies) { %>
+    <% existingRows.forEach(function(row) { %>
+      <div class="card mb-2">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <h6 class="mb-1"><%= row.name || '—' %> <code class="text-muted small"><%= row.code || '—' %></code></h6>
+            <% if (row.constraintType) { %><span class="badge <%= row.constraintType === 'Policy' ? 'bg-danger-subtle text-danger' : 'bg-warning-subtle text-warning' %>"><%= row.constraintType %></span><% } %>
+          </div>
+          <div class="mb-1">
+            <% if (row.category) { %><span class="badge bg-light text-dark border me-1"><%= row.category %></span><% } %>
+            <% if (row.severity) { %><span class="badge bg-light text-dark border me-1"><%= row.severity %></span><% } %>
+          </div>
+          <% if (row.governedTransition) { %><div class="text-muted small mb-1"><%= formatGovernedTransition(row.governedTransition) %></div><% } %>
+          <% if (row.conditionType) { %>
+            <div class="small text-muted">Condition: <%= row.conditionType %><% if (row.conditionField) { %> on <code class="text-muted"><%= row.conditionField %></code><% } %><% if (row.conditionValues) { %> = <%= row.conditionValues %><% } %></div>
+          <% } %>
+        </div>
+      </div>
+    <% }) %>
+  <% } else if (isQualityGates || isReviewGates) { %>
+    <% var statementField = field.itemFields.find(function(f) { return f.name === 'statement'; }); %>
+    <% var promptField = field.itemFields.find(function(f) { return f.name === 'prompt'; }); %>
+    <% var statementIsMarkdown = statementField && statementField.markdown; %>
+    <% var promptIsMarkdown = promptField && promptField.markdown; %>
+    <% existingRows.forEach(function(row) { %>
+      <div class="card mb-2">
+        <div class="card-body">
+          <h6 class="mb-1">
+            <%= row.name || '—' %>
+            <% if (isQualityGates && row.category) { %><span class="badge bg-light text-dark border"><%= row.category %></span><% } %>
+            <% if (isReviewGates && row.code) { %><code class="text-muted small"><%= row.code %></code><% } %>
+          </h6>
+          <% if (row.governedTransition) { %><div class="text-muted small mb-1"><%= formatGovernedTransition(row.governedTransition) %></div><% } %>
+          <% if (isQualityGates && row.criteriaType) { %>
+            <div class="small text-muted mb-1">
+              Criteria: <%= row.criteriaType %>
+              <% if (row.deliverableName) { %> — Review Gate: <span class="badge bg-light text-dark border"><%= row.deliverableName %></span><% } %>
+              <% if (row.requiredPolicyCodes && row.requiredPolicyCodes.length) { %>
+                <% resolveMultiRefs(row.requiredPolicyCodes, locals.policyOptions || []).forEach(function(label) { %> <span class="badge bg-light text-dark border me-1"><%= label %></span><% }) %>
+              <% } %>
+            </div>
+          <% } %>
+          <% if (row.checklistIds && row.checklistIds.length) { %>
+            <div class="small text-muted mb-1">Required Checklists:
+              <% resolveMultiRefs(row.checklistIds, locals.checklistOptions || []).forEach(function(label) { %> <span class="badge bg-light text-dark border me-1"><%= label %></span><% }) %>
+            </div>
+          <% } %>
+          <% if (row.recommendedChecklistIds && row.recommendedChecklistIds.length) { %>
+            <div class="small text-muted mb-1">Recommended Checklists:
+              <% resolveMultiRefs(row.recommendedChecklistIds, locals.checklistOptions || []).forEach(function(label) { %> <span class="badge bg-light text-dark border me-1"><%= label %></span><% }) %>
+            </div>
+          <% } %>
+          <% verifiableFieldsBlock(row, statementIsMarkdown, promptIsMarkdown); %>
+        </div>
+      </div>
+    <% }) %>
+  <% } else if (isObligationDefinitions) { %>
+    <% var obStatementField = field.itemFields.find(function(f) { return f.name === 'statement'; }); %>
+    <% var obPromptField = field.itemFields.find(function(f) { return f.name === 'prompt'; }); %>
+    <% var obStatementIsMarkdown = obStatementField && obStatementField.markdown; %>
+    <% var obPromptIsMarkdown = obPromptField && obPromptField.markdown; %>
+    <% existingRows.forEach(function(row) { %>
+      <div class="card mb-2">
+        <div class="card-body">
+          <h6 class="mb-1"><%= row.code || '—' %></h6>
+          <div class="mb-1">
+            <% if (row.category) { %><span class="badge bg-light text-dark border me-1"><%= row.category %></span><% } %>
+            <% if (row.origin) { %><span class="badge bg-light text-dark border me-1"><%= row.origin %></span><% } %>
+          </div>
+          <% verifiableFieldsBlock(row, obStatementIsMarkdown, obPromptIsMarkdown); %>
+        </div>
+      </div>
+    <% }) %>
   <% } else { %>
     <%# Owner: "the lists should be shown as lists... What if there are 10
         records? How readable is this?" — a first attempt here used inline
@@ -262,15 +458,35 @@
                       <% if (!nestedViewRows.length) { %>
                         <span class="text-muted">None</span>
                       <% } else { %>
-                        <ul class="list-unstyled mb-0 ps-0">
-                          <% nestedViewRows.forEach(function(nestedRow) { %>
-                            <li class="mb-1">
-                              <span class="badge <%= nestedRow.mandatory === 'Mandatory' ? 'bg-danger-subtle text-danger' : 'bg-secondary-subtle text-secondary' %> small fw-normal me-1"><%= nestedRow.mandatory || '—' %></span>
-                              <% if (nestedStatementMarkdown && nestedRow.statement) { %><%- renderMarkdown(nestedRow.statement) %><% } else { %><%= nestedRow.statement || '—' %><% } %>
-                              <% if (nestedRow.participant) { %><span class="text-muted">(<%= nestedRow.participant %>)</span><% } %>
-                            </li>
-                          <% }) %>
-                        </ul>
+                        <%# Owner: "display the statements by group" — Checklist
+                            items' own optional `group` (migration 120, purely
+                            organisational, e.g. "Formatting"/"Naming conventions")
+                            clusters the view instead of one flat list. Order
+                            follows first appearance in the data, not alphabetised.
+                            A Checklist that never uses `group` at all still
+                            renders as one plain flat list — no lone "Ungrouped"
+                            heading over everything. %>
+                        <% var nestedGroups = []; var nestedGroupIndex = {}; %>
+                        <% nestedViewRows.forEach(function(nestedRow) {
+                             var groupName = (nestedRow.group || '').trim() || 'Ungrouped';
+                             if (!(groupName in nestedGroupIndex)) { nestedGroupIndex[groupName] = nestedGroups.length; nestedGroups.push({ name: groupName, rows: [] }); }
+                             nestedGroups[nestedGroupIndex[groupName]].rows.push(nestedRow);
+                           }); %>
+                        <% var nestedShowHeadings = !(nestedGroups.length === 1 && nestedGroups[0].name === 'Ungrouped'); %>
+                        <% nestedGroups.forEach(function(g) { %>
+                          <div class="mb-2">
+                            <% if (nestedShowHeadings) { %><div class="text-uppercase text-muted small fw-semibold mb-1"><%= g.name %></div><% } %>
+                            <ul class="list-unstyled mb-0 ps-0">
+                              <% g.rows.forEach(function(nestedRow) { %>
+                                <li class="mb-1">
+                                  <span class="badge <%= nestedRow.mandatory === 'Mandatory' ? 'bg-danger-subtle text-danger' : 'bg-secondary-subtle text-secondary' %> small fw-normal me-1"><%= nestedRow.mandatory || '—' %></span>
+                                  <% if (nestedStatementMarkdown && nestedRow.statement) { %><%- renderMarkdown(nestedRow.statement) %><% } else { %><%= nestedRow.statement || '—' %><% } %>
+                                  <% if (nestedRow.participant) { %><span class="text-muted">(<%= nestedRow.participant %>)</span><% } %>
+                                </li>
+                              <% }) %>
+                            </ul>
+                          </div>
+                        <% }) %>
                       <% } %>
                     <% } else if (itemField.kind === 'referential-multi') { %>
                       <%# CR-060/CR-061 — checklistIds/requiredPolicyCodes,

@@ -14,7 +14,6 @@ export const checklistsDB = {
   async upsert(input: {
     name: string;
     description?: string;
-    asset?: string;
     items: ChecklistItem[];
     originatingPackId: string;
   }): Promise<DbResult<ChecklistRow>> {
@@ -22,12 +21,12 @@ export const checklistsDB = {
     try {
       await client.query("BEGIN");
       const { rows } = await client.query<ChecklistRow>(
-        `INSERT INTO checklists (name, description, asset, items, originating_pack_id)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO checklists (name, description, items, originating_pack_id)
+         VALUES ($1, $2, $3, $4)
          ON CONFLICT (originating_pack_id, name)
-         DO UPDATE SET description = EXCLUDED.description, asset = EXCLUDED.asset, items = EXCLUDED.items, updated_at = NOW()
+         DO UPDATE SET description = EXCLUDED.description, items = EXCLUDED.items, updated_at = NOW()
          RETURNING *`,
-        [input.name, input.description ?? null, input.asset ?? null, JSON.stringify(input.items), input.originatingPackId]
+        [input.name, input.description ?? null, JSON.stringify(input.items), input.originatingPackId]
       );
       await client.query("COMMIT");
       return { data: rows[0] };

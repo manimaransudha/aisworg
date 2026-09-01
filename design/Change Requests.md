@@ -4,6 +4,7 @@ A running register of change requests raised against the platform — feature ad
 
 | CR | Title | Status |
 |----|-------|--------|
+| [CR-082](change-requests/CR-082-engineering-capital-contribution.md) | Pack contribution kind `EngineeringCapital` (unifies Ch.5 §9's Engineering Behaviour/Metrics/Reusable Components/Engineering Templates) — minimal stub | ✅ Built 2026-08-30 |
 | [CR-081](change-requests/CR-081-pack-new-version-sequence-and-branch-picker.md) | Pack "New" form: version is a computed sequence, existing-code branch picker (pre-fill from a prior version), Registry Copy removed | ✅ Built 2026-08-29 |
 | [CR-080](change-requests/CR-080-pack-lifecycle-simplification-reject.md) | Pack lifecycle simplified (Deprecated dropped, reactivation removed) + Validated → Draft Reject with mandatory comment | ✅ Built 2026-08-29 |
 | [CR-079](change-requests/CR-079-pack-code-ontology-scoping-isCapability.md) | Pack `code`: category-scoped Ontology vocabularies (`capability-name` narrowed to Capability Contributions only) | ✅ Built 2026-08-29, verified 2026-08-30 |

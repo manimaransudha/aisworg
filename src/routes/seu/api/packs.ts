@@ -5,7 +5,7 @@ const router = express.Router();
 
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
-import { listPacksWithNextStates, transitionPack } from "../core/packs.js";
+import { listPacksWithNextStates, transitionPack, alternateBadgesForPackTransition } from "../core/packs.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { requireBadge } from "../../../middleware/requireBadge.js";
@@ -82,10 +82,16 @@ function postPackTransition(targetState: PackStatus) {
   };
 }
 
-router.post("/packs/:id/transition/validate", requireBadge(["pack_validate"], { mode: "api" }), postPackTransition("Validated"));
+// Owner (2026-08-30): Draft->Validated and Validated->Draft are each
+// reachable by more than one badge — alternateBadgesForPackTransition
+// (core/packs.ts) is the ONE definition, also read by transitionPack's own
+// transitionEngine.evaluate call (the actual enforcement) and by
+// web/sdkAuthoring.ts's equivalent route gate, so this list can never drift
+// from what's actually enforced.
+router.post("/packs/:id/transition/validate", requireBadge(["pack_validate", ...(alternateBadgesForPackTransition("Draft", "Validated") ?? [])], { mode: "api", match: "any" }), postPackTransition("Validated"));
 router.post("/packs/:id/transition/publish", requireBadge(["pack_publish"], { mode: "api" }), postPackTransition("Published"));
 /** Reject requires a genuinely new, non-empty comment every time — enforced in transitionPack itself, not here. */
-router.post("/packs/:id/transition/reject", requireBadge(["pack_reject"], { mode: "api" }), postPackTransition("Draft"));
+router.post("/packs/:id/transition/reject", requireBadge(["pack_reject", ...(alternateBadgesForPackTransition("Validated", "Draft") ?? [])], { mode: "api", match: "any" }), postPackTransition("Draft"));
 router.post("/packs/:id/transition/activate", requireBadge(["pack_activate"], { mode: "api" }), postPackTransition("Active"));
 router.post("/packs/:id/transition/retire", requireBadge(["pack_retire"], { mode: "api" }), postPackTransition("Retired"));
 router.post("/packs/:id/transition/archive", requireBadge(["pack_archive"], { mode: "api" }), postPackTransition("Archived"));

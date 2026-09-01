@@ -4,7 +4,8 @@
 // form tab (Identity & Metadata, Compatibility, Dependencies, and every
 // Contribution type: Capabilities, Services, Checklists, Review Gates,
 // Quality Gates, Policies, Obligation Definitions, Authority Rules,
-// Compliance), so authoring-UI and validation changes have one realistic
+// Engineering Capital (CR-082), Compliance), so authoring-UI and validation
+// changes have one realistic
 // Pack to exercise all of them against at once — unlike the openup-*/sdlc-*
 // families, which each populate only the handful of tabs their own real
 // content actually needs.

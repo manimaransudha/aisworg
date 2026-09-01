@@ -43,13 +43,9 @@ Chapter 5
 
 1. a re-published Pack version can mutate a shared contributed object in place - this should also bump up the version as this is a definition change for the pack. why are we not doing this?
 
-2. pack codes have been using capability codes ; versioning is correct. Feeding back to ontology when a publishing happens. Also "packCode": "development", in dependencies should point to capability code, not the pack code or both ? Have a type so only capabilities are filtered. Service name has to be Ontology
-
 3. Implementation of installation classification - where does this fall?
 
 4. Check composition
-
-5. Is there a capability flag?
 
 Capability:
 Is just a bare slot (similar to  a phase with no definition; definition is in the packs)
@@ -76,3 +72,4 @@ By Pack taxonomy (§6), the weight differs:
 - **Integration packs** — external-evidence (machine-verifiable via connectors).
 - **Platform and Organisation packs** — spread across all three.
 
+Engineering Behaviour, Engineering Templates, Engineering Metrics, Reusable Components, 

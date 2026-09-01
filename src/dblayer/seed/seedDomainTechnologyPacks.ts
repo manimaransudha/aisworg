@@ -27,6 +27,7 @@
 // triple-counted "code-review" the same way the OpenUP test twins once
 // duplicated requirements-analysis/architecture/development. Renamed to
 // nodejs-code-review/c-code-review/cpp-code-review in all 3 files.
+// 2026-08-31 - Added more technology packs to load
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -42,7 +43,20 @@ function loadJson<T>(fileName: string): T {
   return JSON.parse(readFileSync(path.join(dataDir, fileName), "utf8")) as T;
 }
 
-const DOMAIN_TECHNOLOGY_PACK_FILES = ["domain-ebook-library.pack.json", "technology-nodejs.pack.json", "technologyc.pack.json", "technologycpp.pack.json"];
+const DOMAIN_TECHNOLOGY_PACK_FILES = [
+  "domain-ebook-library.pack.json",
+  "technology-nodejs.pack.json",
+  "technologyc.pack.json",
+  "technologycpp.pack.json",
+  "technology-sass.pack.json",
+  "technology-react.pack.json",
+  "technology-react-native.pack.json",
+  "technology-php.pack.json",
+  "technology-js.pack.json",
+  "technology-html.pack.json",
+  "technology-git.pack.json",
+  "technology-css.pack.json",
+];
 
 export async function seedDomainTechnologyPacks(): Promise<void> {
   // Published concurrently — all 4 depend only on `development` (already

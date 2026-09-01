@@ -1,0 +1,214 @@
+{
+  "code": "technology-js",
+  "name": "Javascript Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "development",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "code-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "Javascript Standards",
+        "description": "Javascript Standards",
+        "items": [
+          {
+            "statement": "Choose easy to understand and short names for variables and functions.",
+            "group": "Naming Conventions"
+          },
+          {
+            "statement": "Try using closures and the module pattern.",
+            "group": "JavaScript Design Patterns"
+          },
+          {
+            "statement": "Use linting to verify your code.",
+            "group": "Code Quality & Standards"
+          },
+          {
+            "statement": "Comment what you consider needed (`/* */` is much safer to use because it doesn’t cause errors when the line break is removed.).",
+            "group": "Code Documentation"
+          },
+          {
+            "statement": "Use Shortcut Notations.",
+            "group": "JavaScript Syntax & Conventions"
+          },
+          {
+            "statement": "Write smaller, generic helper functions that fulfill one specific task rather than catch-all methods.",
+            "group": "Functions & Modularity"
+          },
+          {
+            "statement": "Avoid heavy nesting.",
+            "group": "Code Quality & Readability"
+          },
+          {
+            "statement": "Keep computation-heavy code outside of loops.",
+            "group": "Performance Optimization"
+          },
+          {
+            "statement": "Keep DOM Access to a Minimum.",
+            "group": "DOM & Performance"
+          },
+          {
+            "statement": "Don’t trust that data reaches your function is of the right format.Test with `typeof` and then do something with it.",
+            "group": "Input Validation & Type Safety"
+          },
+          {
+            "statement": "Don’t expect elements in the DOM to be available.Test for them and that they indeed are what you expect them to be before altering them.",
+            "group": "DOM & Error Handling"
+          },
+          {
+            "statement": "Never ever use JavaScript to protect something.",
+            "group": "Security"
+          },
+          {
+            "statement": "Use single quotation marks for string declarations.",
+            "group": "JavaScript Syntax & Conventions"
+          },
+          {
+            "statement": "Keep indentation as 2.",
+            "group": "Code Formatting & Style"
+          },
+          {
+            "statement": "No js inline code has to be present in html.",
+            "group": "Code Organization"
+          },
+          {
+            "statement": "Collate, minify and optimize your code in a build process.",
+            "group": "Build & Optimization"
+          },
+          {
+            "statement": "JavaScript files are loaded asynchronously using async or deferred using defer attribute.",
+            "group": "Script Loading & Performance"
+          },
+          {
+            "statement": "Use of if, if else, else if, switch should be used properly. Avoid too many nested if else statements, instead go for switch-case.",
+            "group": "Control Flow"
+          },
+          {
+            "statement": "const and let should be used based on their definition.",
+            "group": "Variables & Scope"
+          },
+          {
+            "statement": "Functions should hardly ever be 20 - 40 lines long.",
+            "group": "Functions & Modularity"
+          },
+          {
+            "statement": "Add parameter description for every function parameter as a part of comments.",
+            "group": "Code Documentation"
+          },
+          {
+            "statement": "Proper use of HOF (Higher order functions.).",
+            "group": "Functions & Modularity"
+          },
+          {
+            "statement": "Every method/function should have a try-catch block to avoid run time errors.",
+            "group": "Error Handling"
+          },
+          {
+            "statement": "Use loggers in the catch block to get exact error.",
+            "group": "Error Handling & Logging"
+          },
+          {
+            "statement": "Verify if business logic is proper and written efficiently.",
+            "group": "Business Logic"
+          },
+          {
+            "statement": "Function casing.",
+            "group": "Naming Conventions"
+          },
+          {
+            "statement": "Using spread operator.",
+            "group": "JavaScript Syntax & Conventions"
+          },
+          {
+            "statement": "Be consistent in your usage of arrow function.",
+            "group": "JavaScript Syntax & Conventions"
+          },
+          {
+            "statement": "Use destructuring assignment for arrays and objects.",
+            "group": "JavaScript Syntax & Conventions"
+          },
+          {
+            "statement": "Variable casing.",
+            "group": "Naming Conventions"
+          },
+          {
+            "statement": "Use Promises or Async/Await. Rejection is handled.",
+            "group": "Asynchronous Programming"
+          },
+          {
+            "statement": "No syntax/runtime errors and warnings in the code.",
+            "group": "Code Quality & Testing"
+          },
+          {
+            "statement": "No deprecated functions in the code.",
+            "group": "Code Quality & Maintenance"
+          },
+          {
+            "statement": "Check that each function is doing only a single thing.",
+            "group": "Functions & Modularity"
+          },
+          {
+            "statement": "No magic numbers. Put all such numbers as a constant.",
+            "group": "Code Quality & Maintainability"
+          },
+          {
+            "statement": "Make sure recursive function don’t end up in infinite loop.",
+            "group": "Control Flow & Error Prevention"
+          },
+          {
+            "statement": "Avoid inline styling through JS use classes instead.",
+            "group": "DOM & Styling"
+          },
+          {
+            "statement": "make sure the whole script wrapped inside document ready.",
+            "group": "DOM Initialization"
+          },
+          {
+            "statement": "Use meaningful names for variables and function.",
+            "group": "Naming Conventions"
+          },
+          {
+            "statement": "Add proper commenting.",
+            "group": "Code Documentation"
+          },
+          {
+            "statement": "Try using deffer while loading Scripts to avoid render blocking resources issue in the performance.",
+            "group": "Script Loading & Performance"
+          },
+          {
+            "statement": "Make sure there is no message/error present in the console.",
+            "group": "Debugging & Error Handling"
+          },
+          {
+            "statement": "Please make sure to use condition while using offset().top property if the offset is present then only use top or else it will throw an error in the console.",
+            "group": "DOM & Error Handling"
+          },
+          {
+            "statement": "Form/Input validation is not just to add required attribute also validate the input via JS to make sure expected input is entered by user.",
+            "group": "Input & Form Validation"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

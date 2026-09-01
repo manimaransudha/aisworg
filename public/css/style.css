@@ -397,7 +397,7 @@ body:has(.login-card, .auth-card, .verify-card, .card-center) { background: var(
   font-size: .85rem;
   color: var(--text);
 }
-.ontology-combo-item .ontology-combo-item-code { display: block; font-size: .72rem; color: var(--text-muted); }
+.ontology-combo-item .ontology-combo-item-secondary { display: block; font-size: .72rem; color: var(--text-muted); }
 .ontology-combo-item:hover, .ontology-combo-item.active { background: var(--surface-muted); }
 .ontology-combo-empty { padding: .4rem .75rem; font-size: .8rem; color: var(--text-muted); font-style: italic; }
 

@@ -20,9 +20,13 @@ import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
+import { requireBadge } from "../../../middleware/requireBadge.js";
+import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
+import { profilesDB } from "../../../dblayer/profilesDB.js";
+import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
 import { badgeGrantsDB } from "../../../dblayer/badgeGrantsDB.js";
 import {
   generateFields, parseFormBody, validateAgainstSchema, groupFieldsForDisplay, ontologyConceptTypesIn, dynamicReferentialSourceFieldsIn,
@@ -31,7 +35,7 @@ import {
 import { renderMarkdown } from "../../../domain/sdk/markdownRender.js";
 import { listConceptsForType } from "../core/ontology.js";
 import {
-  listMyAuthoredRows, computeRowActions, getAuthoringDraft, createAuthoringDraft, saveAuthoringDraft, publishAuthoringDraft, composeAuthoringDraft,
+  listTenantAuthoringRows, computeRowActions, requiredBadgeForRowAction, getAuthoringDraft, createAuthoringDraft, saveAuthoringDraft, publishAuthoringDraft, composeAuthoringDraft,
   listInheritableTemplates, inheritedTemplateContent, listInheritableProfiles, inheritedProfileContent, inheritedPackVersionContent,
   type AuthoringDraftSummary,
 } from "../core/sdkAuthoring.js";
@@ -58,13 +62,6 @@ const KIND_BY_SLUG: Record<string, SchemaDefinitionEntityKind> = {
   "profile-authoring": "Profile",
   "transition-definition-authoring": "TransitionDefinition",
   "deliverable-authoring": "Deliverable",
-};
-const PUBLISH_REDIRECT_BY_KIND: Record<SchemaDefinitionEntityKind, string> = {
-  Pack: "/aisworg/seu/packs",
-  Template: "/aisworg/seu/sdk/template-authoring",
-  Profile: "/aisworg/seu/sdk/profile-authoring",
-  TransitionDefinition: "/aisworg/seu/sdk/transition-definition-authoring",
-  Deliverable: "/aisworg/seu/sdk/deliverable-authoring",
 };
 
 function resolveKind(slug: string): SchemaDefinitionEntityKind | null {
@@ -126,6 +123,86 @@ function requireAuthoring(need: "any" | "define" | "publish") {
   };
 }
 
+// SDK meta layer, part 1: the badge these routes need is pure f(kind) — no
+// DB row involved, resolvable from :slug alone — so this just resolves it
+// and hands off to the SAME requireBadge every other router (api/packs.ts,
+// web/packs.ts) already uses, instead of requireAuthoring's own hand-rolled
+// badge check. Covers /new, POST /sdk/:slug (create), and the :draftId
+// define-level actions (save/compose/import) — every route whose authority
+// requirement doesn't depend on the row's own current state.
+function requireDefineBadge() {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const slug = String(req.params.slug);
+    const kind = resolveKind(slug);
+    if (!kind) return next();
+    return requireBadge([authoringBadge(kind, "define")], { mode: "web", redirectTo: backToIndex(slug) })(req, res, next);
+  };
+}
+
+// SDK meta layer, part 2: /publish and /transition need a badge that
+// depends on the row's own current status (and, for /transition, the
+// requested targetState) — the same DB-derived lookup transitionEngine
+// itself performs moments later. requiredBadgeForRowAction (core/sdkAuthoring.ts)
+// is the single place that resolves it, shared with computeRowActions'
+// button-generation logic so the gate here and the buttons on the "All
+// Packs"-style list page can never name a different badge for the same
+// transition. Once resolved, this also just hands off to requireBadge —
+// same middleware, never a parallel check. Fails closed: no draft, or no
+// governed edge for the request as given, denies rather than falling
+// through ungated.
+function requireRowActionBadge(action: { endpoint: "publish" } | { endpoint: "transition"; targetStateField: "targetState" }) {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const slug = String(req.params.slug);
+    const kind = resolveKind(slug);
+    if (!kind) return next();
+    const draftId = String(req.params.draftId);
+    const draft = await getAuthoringDraft(kind, draftId);
+    if (!draft) return flashError(req, res, backToIndex(slug), "Draft not found.");
+    const target = action.endpoint === "publish"
+      ? ({ endpoint: "publish" } as const)
+      : (() => {
+          const raw = req.body?.[action.targetStateField];
+          const targetState = typeof raw === "string" ? raw.trim() : "";
+          return targetState ? ({ endpoint: "transition", toState: targetState } as const) : null;
+        })();
+    if (!target) return flashError(req, res, backTo(slug, draftId), "Target state is required.");
+    const badges = await requiredBadgeForRowAction(kind, draft.status, target);
+    if (!badges) return flashError(req, res, backTo(slug, draftId), `No governed ${action.endpoint} is available from ${draft.status}.`);
+    return requireBadge(badges, { mode: "web", redirectTo: backTo(slug, draftId), match: "any" })(req, res, next);
+  };
+}
+
+// SDK meta layer, part 3: tenant reach on the row named by :draftId — the
+// same per-:id check requireTenantScope.forParam already provides
+// api/packs.ts (CR-076), generalised across the four kinds this router
+// dispatches on. A single static requireTenantScope.forParam registration
+// (the shape api/packs.ts uses, fixed to one entity at route-registration
+// time) can't cover a kind-dynamic router — so this resolves the right
+// (lookup, getTenantId) pair per request, from the SAME four DB modules
+// getAuthoringDraft already dispatches on, then hands off to the SAME
+// requireTenantScope used everywhere else. Root bypasses (requireTenantScope's
+// own rule); a Platform-owned row stays reachable by every tenant, mirroring
+// api/packs.ts's own platformTenantId opt-in — TODO: revisit when real
+// multi-tenancy lands (owner, 2026-08-30: "this will change when we
+// implement multi-tenancy"). Gates the view page too (owner: "tenant
+// scoped"), even though the view page carries no badge requirement at all.
+function requireDraftTenantScope() {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const slug = String(req.params.slug);
+    const kind = resolveKind(slug);
+    if (!kind) return next();
+    const opts = { mode: "web" as const, notFoundRedirect: backToIndex(slug), notFoundMessage: "Not found.", platformTenantId: PLATFORM_TENANT_ID };
+    const gate =
+      kind === "Pack" ? requireTenantScope.forParam("draftId", packsDB.findById, (p) => p.tenant_id, opts) :
+      kind === "Template" ? requireTenantScope.forParam("draftId", templatesDB.findById, (t) => t.tenant_id, opts) :
+      kind === "Profile" ? requireTenantScope.forParam("draftId", profilesDB.findById, (p) => p.tenant_id, opts) :
+      kind === "Deliverable" ? requireTenantScope.forParam("draftId", deliverableDefinitionsDB.findById, (d) => d.tenant_id, opts) :
+      null;
+    if (!gate) return next();
+    return gate(req, res, next, String(req.params.draftId));
+  };
+}
+
 // The /authority/* vocabulary-management surface administers the governed
 // vocabulary itself → gated by TransitionDefinition authoring authority.
 async function requireAuthorityAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -137,14 +214,16 @@ async function requireAuthorityAdmin(req: Request, res: Response, next: NextFunc
 // Owner: "I want to change the packs list Pack authoring-All packs similar
 // to Objectives. List the tenant scope+platform packs as a list with action
 // buttons corresponding to the badge." Replaces the old "I defined" +
-// per-verb "Queue" tabs (buildAuthoringTabs, removed) with one flat list of
-// the viewer's own authored rows, each carrying whatever governed-transition
-// action buttons the viewer currently holds the badge for — computeRowActions
-// (core/sdkAuthoring.ts) does the per-status lookup, called once per DISTINCT
-// status present rather than once per row.
-async function myAuthoredRowsWithActions(kind: SchemaDefinitionEntityKind, held: Set<string>, isRoot: boolean, myId: number | null): Promise<Array<AuthoringDraftSummary & { actions: Awaited<ReturnType<typeof computeRowActions>> }>> {
-  if (myId == null) return [];
-  const rows = await listMyAuthoredRows(kind, myId);
+// per-verb "Queue" tabs (buildAuthoringTabs, removed) with one flat list,
+// tenant + Platform scoped (listTenantAuthoringRows — reopened from an
+// initial author-only scoping, owner 2026-08-30: "It just gets messy... let
+// us display all the packs belonging to the tenant + platform"), each
+// carrying whatever governed-transition action buttons the viewer currently
+// holds the badge for — computeRowActions (core/sdkAuthoring.ts) does the
+// per-status lookup, called once per DISTINCT status present rather than
+// once per row.
+async function tenantAuthoringRowsWithActions(kind: SchemaDefinitionEntityKind, held: Set<string>, isRoot: boolean, tenantId: string | null): Promise<Array<AuthoringDraftSummary & { actions: Awaited<ReturnType<typeof computeRowActions>> }>> {
+  const rows = await listTenantAuthoringRows(kind, { isRoot, tenantId });
   const actionsByStatus = new Map<string, Awaited<ReturnType<typeof computeRowActions>>>();
   for (const status of new Set(rows.map((r) => r.status))) {
     actionsByStatus.set(status, await computeRowActions(kind, status, held, isRoot));
@@ -160,7 +239,7 @@ router.get("/sdk/:slug", requireAuthoring("any"), attachVM("seu/sdk/authoring/in
   try {
     const held = await heldBadges(req);
     const isRoot = held.has("root");
-    const myId = req.session?.user?.id != null ? Number(req.session.user.id) : null;
+    const tenantId = req.session?.user?.tenant_id ?? null;
     // CR-019: TransitionDefinition is authored via the CR-007 form embedded below,
     // not the entity-direct grammar path — hide the draft affordances.
     const grammarAuthored = kind !== "TransitionDefinition";
@@ -170,7 +249,7 @@ router.get("/sdk/:slug", requireAuthoring("any"), attachVM("seu/sdk/authoring/in
     req.vm.req.showDrafts = grammarAuthored;
 
     if (grammarAuthored) {
-      req.vm.req.rows = await myAuthoredRowsWithActions(kind, held, isRoot, myId);
+      req.vm.req.rows = await tenantAuthoringRowsWithActions(kind, held, isRoot, tenantId);
       req.vm.req.canCreate = isRoot || held.has(authoringBadge(kind, "define"));
     } else {
       req.vm.req.rows = [];
@@ -416,7 +495,7 @@ router.post("/authority/transition-definitions/:id/update", requireAuthorityAdmi
 const CANONICAL_EVIDENCE_CATEGORIES = new Set(["Analytical Evidence", "Validation Evidence", "Operational Evidence", "Review Evidence", "Decision Evidence", "External Evidence"]);
 
 async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: string | null }): Promise<Record<string, string[]>> {
-  const [{ data: packs }, { data: templates }, featureFlags, deliverableNames, deliverableCategories, evidenceCategories, policyCategories, obligationCategories, obligationOrigins, serviceNames, capabilityNames, { data: transitionDefinitions }] = await Promise.all([
+  const [{ data: packs }, { data: templates }, featureFlags, deliverableNames, deliverableCategories, evidenceCategories, policyCategories, obligationCategories, obligationOrigins, serviceNames, capabilityNames, engineeringCapitalTypes, { data: transitionDefinitions }] = await Promise.all([
     viewer.isRoot || !viewer.tenantId ? packsDB.findAll() : packsDB.findAllVisibleTo(viewer.tenantId),
     templatesDB.findAllActive(),
     listConceptsForType("feature-flag", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
@@ -451,6 +530,10 @@ async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: strin
     // strictly picked from capability-name — same freely-extensible, shared-
     // across-Packs treatment as service-name above.
     listConceptsForType("capability-name", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
+    // CR-082 — Engineering Capital's own type classification (Engineering
+    // Behaviour / Engineering Metrics / Reusable Components / Engineering
+    // Templates), freely-extensible, same treatment as service-name/capability-name.
+    listConceptsForType("engineering-capital", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
     transitionDefinitionsDB.listAll(),
   ]);
   const activePacks = (packs ?? []).filter((p) => p.status === "Active");
@@ -483,6 +566,7 @@ async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: strin
     "category:obligation-origin": [...new Set(obligationOrigins.map((c) => c.code))].sort(),
     "service-name": [...new Set(serviceNames.map((c) => c.code))].sort(),
     "capability-name": [...new Set(capabilityNames.map((c) => c.code))].sort(),
+    "engineering-capital": [...new Set(engineeringCapitalTypes.map((c) => c.code))].sort(),
     // CR-058 — a Quality Gate's Scope/Applicable Lifecycle Transition,
     // picked from real transition_definitions rows only (owner: "the pack
     // should not define something beyond what a transition definition
@@ -722,7 +806,13 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   // null`, which made canPublish permanently false on the new-draft form
   // regardless of this actor's authority.
   const hop = await nextHop(kind, draft ? draft.status : "Draft");
-  const canAdvance = !!hop && (isRoot || held.has(`${kind.toLowerCase()}_${hop.verb}`));
+  // requiredBadgeForRowAction (core/sdkAuthoring.ts) — the SAME resolver
+  // requireRowActionBadge's route gate and the "All Packs" list's
+  // computeRowActions use — so this button's visibility can never disagree
+  // with what /publish will actually allow. nextHop itself stays (still the
+  // simplest way to get the hop's toState/verb for the button's label).
+  const advanceBadges = hop ? await requiredBadgeForRowAction(kind, draft ? draft.status : "Draft", { endpoint: "publish" }) : null;
+  const canAdvance = !!hop && (isRoot || (advanceBadges ?? []).some((b) => held.has(b)));
   // Registry governance moved here (owner, 2026-08-19: "Add it back to
   // Authoring" — the Registry page is view-only now). Once a Draft leaves
   // the Draft state, `nextHop`'s own single-match .find() is no longer
@@ -847,7 +937,7 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
 }
 
 /** GET /aisworg/seu/sdk/:slug/new — the empty generated form for a new draft. */
-router.get("/sdk/:slug/new", requireAuthoring("define"), attachVM("seu/sdk/authoring/edit"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/sdk/:slug/new", requireDefineBadge(), attachVM("seu/sdk/authoring/edit"), async (req: Request, res: Response, next: NextFunction) => {
   const slug = String(req.params.slug);
   const kind = resolveKind(slug);
   if (!kind || kind === "TransitionDefinition") return next();
@@ -906,7 +996,7 @@ router.get("/sdk/:slug/new", requireAuthoring("define"), attachVM("seu/sdk/autho
 });
 
 /** POST /aisworg/seu/sdk/:slug — create a Draft entity from the authored content (real author). */
-router.post("/sdk/:slug", requireAuthoring("define"), async (req: Request, res: Response, next: NextFunction) => {
+router.post("/sdk/:slug", requireDefineBadge(), async (req: Request, res: Response, next: NextFunction) => {
   const slug = String(req.params.slug);
   const kind = resolveKind(slug);
   if (!kind) return next();
@@ -940,16 +1030,20 @@ router.post("/sdk/:slug", requireAuthoring("define"), async (req: Request, res: 
 });
 
 /** GET /aisworg/seu/sdk/:slug/:draftId — the generated form, prefilled from the Draft entity.
- * Deliberately NOT requireAuthoring-gated (bug fix, CR-046: a Registry "View"
- * link must work for anyone logged in, matching the Registry list pages
- * themselves — which carry no badge requirement at all — not just the
- * subset of viewers who happen to hold a define/publish/etc. badge for this
- * kind). renderAuthoringForm computes held/canDefine/canEdit/canPublish
+ * Deliberately NOT badge-gated (bug fix, CR-046: a Registry "View" link must
+ * work for anyone logged in, matching the Registry list pages themselves —
+ * which carry no badge requirement at all — not just the subset of viewers
+ * who happen to hold a define/publish/etc. badge for this kind).
+ * renderAuthoringForm computes held/canDefine/canEdit/canPublish
  * independently of this route's own gate, so a badge-less viewer correctly
  * gets a genuine read-only page (CR-045's plain-text rendering), not a
  * disabled one; every mutating action (save/publish/transition/import)
- * keeps its own separate requireAuthoring gate below, unaffected. */
-router.get("/sdk/:slug/:draftId", attachVM("seu/sdk/authoring/edit"), async (req: Request, res: Response, next: NextFunction) => {
+ * keeps its own separate badge gate below, unaffected. Tenant reach IS
+ * checked here though (owner, 2026-08-30: "tenant scoped; view access is
+ * fine") — badge-open and tenant-scoped are two independent axes; this row
+ * simply isn't yours to view at all if it's neither your tenant's nor
+ * Platform's. */
+router.get("/sdk/:slug/:draftId", requireDraftTenantScope(), attachVM("seu/sdk/authoring/edit"), async (req: Request, res: Response, next: NextFunction) => {
   const slug = String(req.params.slug);
   const kind = resolveKind(slug);
   if (!kind) return next();
@@ -964,7 +1058,7 @@ router.get("/sdk/:slug/:draftId", attachVM("seu/sdk/authoring/edit"), async (req
 });
 
 /** POST /aisworg/seu/sdk/:slug/:draftId/save — update the Draft's authored content. */
-router.post("/sdk/:slug/:draftId/save", requireAuthoring("define"), async (req: Request, res: Response, next: NextFunction) => {
+router.post("/sdk/:slug/:draftId/save", requireDraftTenantScope(), requireDefineBadge(), async (req: Request, res: Response, next: NextFunction) => {
   const slug = String(req.params.slug);
   const kind = resolveKind(slug);
   if (!kind) return next();
@@ -992,7 +1086,7 @@ router.post("/sdk/:slug/:draftId/save", requireAuthoring("define"), async (req: 
  * declares both fields (Pack today); composeAuthoringDraft itself returns a
  * clean "not yet available" error for every other kind, so no extra gating
  * is needed here. */
-router.post("/sdk/:slug/:draftId/compose", requireAuthoring("define"), async (req: Request, res: Response, next: NextFunction) => {
+router.post("/sdk/:slug/:draftId/compose", requireDraftTenantScope(), requireDefineBadge(), async (req: Request, res: Response, next: NextFunction) => {
   const slug = String(req.params.slug);
   const kind = resolveKind(slug);
   if (!kind) return next();
@@ -1011,7 +1105,7 @@ router.post("/sdk/:slug/:draftId/compose", requireAuthoring("define"), async (re
 });
 
 /** POST /aisworg/seu/sdk/:slug/:draftId/import — replace the whole document with pasted JSON. */
-router.post("/sdk/:slug/:draftId/import", requireAuthoring("define"), async (req: Request, res: Response, next: NextFunction) => {
+router.post("/sdk/:slug/:draftId/import", requireDraftTenantScope(), requireDefineBadge(), async (req: Request, res: Response, next: NextFunction) => {
   const slug = String(req.params.slug);
   const kind = resolveKind(slug);
   if (!kind) return next();
@@ -1033,13 +1127,14 @@ router.post("/sdk/:slug/:draftId/import", requireAuthoring("define"), async (req
 });
 
 /** POST /aisworg/seu/sdk/:slug/:draftId/publish — advance ONE governed hop, run by the REAL actor under THAT hop's own verb. */
-// Gate is deliberately "any" here, not "publish" — which specific `{kind}_*`
-// badge is required depends on which hop this draft is about to take (Draft->
-// Validated needs pack_validate, not pack_publish), and the real authorisation
-// is enforced inside publishAuthoringDraft's own transitionEngine call
-// regardless. The route only needs to confirm the actor has SOME authority on
-// this kind before it's worth attempting.
-router.post("/sdk/:slug/:draftId/publish", requireAuthoring("any"), async (req: Request, res: Response, next: NextFunction) => {
+// requireRowActionBadge resolves the exact `{kind}_<verb>` badge this hop
+// needs (Draft -> Validated needs pack_validate, not pack_publish) from the
+// row's own current status, then delegates to requireBadge — the precise
+// check, not the old "any {kind}_* badge" door-opener. publishAuthoringDraft's
+// own transitionEngine call still re-checks (defense in depth, same
+// transition_definitions data via a different path) and is the authoritative
+// gate; this just moves the denial earlier and onto the shared middleware.
+router.post("/sdk/:slug/:draftId/publish", requireDraftTenantScope(), requireRowActionBadge({ endpoint: "publish" }), async (req: Request, res: Response, next: NextFunction) => {
   const slug = String(req.params.slug);
   const kind = resolveKind(slug);
   if (!kind) return next();
@@ -1049,23 +1144,14 @@ router.post("/sdk/:slug/:draftId/publish", requireAuthoring("any"), async (req: 
   try {
     const result = await publishAuthoringDraft({ kind, id: draftId, actorId, actorRole: req.session?.user?.role ?? "general" });
     if (!result.ok) return flashError(req, res, backTo(slug, draftId), result.errors.join("; "));
-    // Reached the live catalog -> the registry. NOT "no further governed
-    // transition at all" — Pack always has more of those (Active -> Deprecated
-    // -> Retired -> Archived), but those are registry governance, not more
-    // authoring. Any other state (e.g. Pack's Published, still short of
-    // Active) is still mid-pipeline — stay on the draft so the next
-    // verb-holder (maybe a different person) can take their own step.
-    //
-    // Owner: "When Validation is complete, it should go back to the All Packs
-    // page" — Pack's own Draft -> Validated hop is the one exception to the
-    // rule above: back to the list, same as reaching Active, not staying on
-    // the draft. Scoped to Pack + Validated specifically, not generalised to
-    // every kind's own first hop — Template/Profile/Deliverable's own
-    // pipelines are unaffected.
-    if (result.status === "Active" || (kind === "Pack" && result.status === "Validated")) {
-      return flashSuccess(req, res, PUBLISH_REDIRECT_BY_KIND[kind], result.status === "Active" ? `${kind} reached Active — published and registered.` : `Advanced to ${result.status}.`);
-    }
-    return flashSuccess(req, res, backTo(slug, draftId), `Advanced to ${result.status}.`);
+    // Owner (2026-08-30): "Publish button on success should go back to all
+    // packs. Check this for all the buttons." — every successful hop lands
+    // back on the tenant-scoped authoring list (backToIndex), not the
+    // individual draft page and not the Pack Registry — the list is where
+    // the next verb-holder (maybe a different person) finds this row now
+    // that it's tenant + Platform scoped, not just author-scoped.
+    const msg = result.status === "Active" ? `${kind} reached Active — published and registered.` : `Advanced to ${result.status}.`;
+    return flashSuccess(req, res, backToIndex(slug), msg);
   } catch (err) {
     logger.error("[web/seu/sdkAuthoring] POST .../publish error", err as Error);
     return flashError(req, res, backTo(slug, draftId), (err as Error).message);
@@ -1074,19 +1160,18 @@ router.post("/sdk/:slug/:draftId/publish", requireAuthoring("any"), async (req: 
 
 /** POST /aisworg/seu/sdk/:slug/:draftId/transition — post-Active Registry governance
  *  (Active -> Deprecated -> Retired -> Archived, and reactivation), relocated
- *  from the now view-only Registry page (owner, 2026-08-19). Gate is "any" for
- *  the same reason /publish's is — the real authority for THIS specific target
- *  state is enforced inside transitionPack/transitionTemplate/transitionProfile's
- *  own transitionEngine call. */
-router.post("/sdk/:slug/:draftId/transition", requireAuthoring("any"), async (req: Request, res: Response, next: NextFunction) => {
+ *  from the now view-only Registry page (owner, 2026-08-19). requireRowActionBadge
+ *  resolves the precise badge THIS target state needs (same shared resolver
+ *  /publish uses); transitionPack/transitionTemplate/transitionProfile's own
+ *  transitionEngine call still re-checks (defense in depth, authoritative). */
+router.post("/sdk/:slug/:draftId/transition", requireDraftTenantScope(), requireRowActionBadge({ endpoint: "transition", targetStateField: "targetState" }), async (req: Request, res: Response, next: NextFunction) => {
   const slug = String(req.params.slug);
   const kind = resolveKind(slug);
   if (!kind) return next();
   const draftId = String(req.params.draftId);
+  // requireRowActionBadge already required targetState to be a non-empty
+  // string to resolve the badge above — guaranteed present here.
   const { targetState, comment } = req.body ?? {};
-  if (typeof targetState !== "string" || !targetState.trim()) {
-    return flashError(req, res, backTo(slug, draftId), "Target state is required.");
-  }
   const actorRole = req.session?.user?.role ?? "general";
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
   try {
@@ -1097,22 +1182,24 @@ router.post("/sdk/:slug/:draftId/transition", requireAuthoring("any"), async (re
       // discipline the rest of this generic route already follows.
       const result = await transitionPack({ packId: draftId, targetState, actorRole, actorId, comment: typeof comment === "string" ? comment : undefined });
       if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${"detail" in result ? result.detail : result.reason}`);
-      return flashSuccess(req, res, backTo(slug, draftId), `Moved to "${result.appliedTransition.toState}".`);
+      // Owner (2026-08-30): "Publish button on success should go back to all
+      // packs. Check this for all the buttons." — same as /publish above.
+      return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.appliedTransition.toState}".`);
     }
     if (kind === "Template") {
       const result = await transitionTemplate({ templateId: draftId, targetState: targetState as never, actorRole, actorId });
       if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
-      return flashSuccess(req, res, backTo(slug, draftId), `Moved to "${result.template.status}".`);
+      return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.template.status}".`);
     }
     if (kind === "Profile") {
       const result = await transitionProfile({ profileId: draftId, targetState: targetState as never, actorRole, actorId });
       if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
-      return flashSuccess(req, res, backTo(slug, draftId), `Moved to "${result.profile.status}".`);
+      return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.profile.status}".`);
     }
     if (kind === "Deliverable") {
       const result = await transitionDeliverableDefinition({ deliverableDefinitionId: draftId, targetState: targetState as never, actorRole, actorId });
       if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
-      return flashSuccess(req, res, backTo(slug, draftId), `Moved to "${result.deliverableDefinition.status}".`);
+      return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.deliverableDefinition.status}".`);
     }
     return next();
   } catch (err) {

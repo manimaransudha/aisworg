@@ -23,7 +23,7 @@ import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { profilesDB } from "../../../dblayer/profilesDB.js";
 import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
 import {
-  advancePackOneStep, validatePackSeed, packMetadataFromSeed, findActiveCompositionSource, packCodeVersionSummaries,
+  advancePackOneStep, validatePackSeed, packMetadataFromSeed, findActiveCompositionSource, packCodeVersionSummaries, alternateBadgesForPackTransition,
   type PackSeedInput,
 } from "./packs.js";
 import { advanceTemplateOneStep, materialiseTemplateDraft, validateTemplateSeed, getPackSelectionsByCategory, getDependencyGraphContent, PACK_SELECTION_SLOTS, type TemplateSeedInput, type PackSelectionsByCategory } from "./templates.js";
@@ -67,6 +67,7 @@ export function toPackSeedInput(content: Record<string, unknown>): PackSeedInput
     checklists: arr("contributionChecklists", "checklists"),
     reviewGates: arr("contributionReviewGates", "reviewGates"),
     obligationDefinitions: arr("contributionObligationDefinitions", "obligationDefinitions"),
+    engineeringCapital: arr("contributionEngineeringCapital", "engineeringCapital"),
     complianceFrameworks: Array.isArray(compliance.complianceFrameworks) ? compliance.complianceFrameworks : (legacy.complianceFrameworks ?? []),
     complianceRequirements: Array.isArray(compliance.complianceRequirements) ? compliance.complianceRequirements : (legacy.complianceRequirements ?? []),
   } as unknown as PackSeedInput["contributions"];
@@ -213,6 +214,7 @@ function packRowToContent(pack: PackRow): Record<string, unknown> {
     contributionChecklists: (c as Record<string, unknown[]>).checklists ?? [],
     contributionReviewGates: (c as Record<string, unknown[]>).reviewGates ?? [],
     contributionObligationDefinitions: (c as Record<string, unknown[]>).obligationDefinitions ?? [],
+    contributionEngineeringCapital: (c as Record<string, unknown[]>).engineeringCapital ?? [],
     contributionsCompliance: {
       complianceFrameworks: (c as Record<string, unknown[]>).complianceFrameworks ?? [],
       complianceRequirements: (c as Record<string, unknown[]>).complianceRequirements ?? [],
@@ -292,37 +294,41 @@ function toSummary(r: { id: string; code: string; name: string; status: string; 
   return { id: r.id, code: r.code, name: r.name, status: r.status, createdAt: r.created_at };
 }
 
-// --- "My authored rows" (the whole authoring index list) --------------------
-// Every row THIS actor authored, at whatever status it's currently sitting
-// at. Always scoped to the real actor, even for root — inherently personal,
-// unlike the Registry's own root-sees-everyone treatment. Originally one of
-// two tabs (the other, a per-verb cross-author "Queue," showed OTHER
-// authors' rows sitting in a status the viewer could act on) — the tabs
-// (and the whole "I defined" vs. "Queue" split) were replaced entirely by
-// this one flat list per the owner's own redesign, below. findDrafts is
-// deliberately NOT reused here —
-// it's hardcoded to WHERE status IN ('Draft', 'Validated') (this actor's
-// current WIP), not "every status." findAll (root/admin's own "see
-// everything" listing, already existed for each of these three) filtered
-// client-side to this actor's own authored_by is the real "any status"
-// query — small per-actor row counts in practice, same tradeoff the Registry
-// pages' own in-memory pagination already makes.
-export async function listMyAuthoredRows(kind: SchemaDefinitionEntityKind, actorId: number): Promise<AuthoringDraftSummary[]> {
+// --- Tenant authoring rows (the whole authoring index list) -----------------
+// Every row visible to this viewer's tenant (+ Platform), at whatever status
+// it's currently sitting at — root sees every tenant's. Originally scoped to
+// ONLY the real actor's own authored_by (an "I defined" tab, plus a separate
+// per-verb cross-author "Queue" tab for others' rows the viewer could act
+// on); the tabs were replaced by one flat list, initially still author-
+// scoped. Reopened author-scoping entirely (owner, 2026-08-30: "I do not see
+// the packs that are validated within the tenant" — logged in as a
+// pack_publish-only actor, someone else's row, correctly badge-gated to act
+// on, but simply never listed here at all. Owner: "If that is meant for
+// authoring, then that page / page registry should not be visible to any
+// other badge. It just gets messy. For now, let us display all the packs
+// belonging to the tenant + platform.") — same visibility rule as the Pack
+// Registry (packsDB.findAllVisibleTo) and every other cross-tenant list on
+// this authoring surface (loadReferentialOptions, loadActivePackDependencyOptions).
+// findDrafts is deliberately NOT reused here — it's hardcoded to WHERE
+// status IN ('Draft', 'Validated') (this actor's current WIP only), not
+// "every status."
+export async function listTenantAuthoringRows(kind: SchemaDefinitionEntityKind, viewer: { isRoot: boolean; tenantId: string | null }): Promise<AuthoringDraftSummary[]> {
+  const visible = viewer.isRoot || !viewer.tenantId;
   if (kind === "Pack") {
-    const { data } = await packsDB.findAll();
-    return (data ?? []).filter((p) => p.authored_by === actorId).map(toSummary);
+    const { data } = visible ? await packsDB.findAll() : await packsDB.findAllVisibleTo(viewer.tenantId as string);
+    return (data ?? []).map(toSummary);
   }
   if (kind === "Template") {
-    const { data } = await templatesDB.findAll();
-    return (data ?? []).filter((t) => t.authored_by === actorId).map(toSummary);
+    const { data } = visible ? await templatesDB.findAll() : await templatesDB.findAllVisibleTo(viewer.tenantId as string);
+    return (data ?? []).map(toSummary);
   }
   if (kind === "Profile") {
-    const { data } = await profilesDB.findAll();
-    return (data ?? []).filter((p) => p.authored_by === actorId).map(toSummary);
+    const { data } = visible ? await profilesDB.findAll() : await profilesDB.findAllVisibleTo(viewer.tenantId as string);
+    return (data ?? []).map(toSummary);
   }
   if (kind === "Deliverable") {
-    const { data } = await deliverableDefinitionsDB.findAll();
-    return (data ?? []).filter((d) => d.authored_by === actorId).map((d) => toSummary({ id: d.id, code: d.code, name: d.code, status: d.status, created_at: d.created_at }));
+    const { data } = visible ? await deliverableDefinitionsDB.findAll() : await deliverableDefinitionsDB.findAllVisibleTo(viewer.tenantId as string);
+    return (data ?? []).map((d) => toSummary({ id: d.id, code: d.code, name: d.code, status: d.status, created_at: d.created_at }));
   }
   return [];
 }
@@ -333,10 +339,8 @@ export async function listMyAuthoredRows(kind: SchemaDefinitionEntityKind, actor
 // every grammar-authored kind sharing this page (Pack/Template/Profile/
 // Deliverable — not just Pack); the tab structure (an "I defined" tab plus a
 // separate cross-author "Queue" tab per verb) is replaced entirely by one
-// flat list; visibility stays author-scoped (listMyAuthoredRows above,
-// unchanged) — owner: "why do you want to show beyond what the author has to
-// see. If they want to see anything else, they view it on the pack
-// registry." Each row shows every governed transition the viewer currently
+// flat list, tenant + Platform scoped (listTenantAuthoringRows above). Each
+// row shows every governed transition the viewer currently
 // holds the badge for, off THAT row's own current status — mirroring
 // Objectives' own hasObjectiveBadge(node.verb) pattern.
 export interface AuthoringRowAction {
@@ -384,17 +388,54 @@ async function canonicalForwardEdges(kind: SchemaDefinitionEntityKind): Promise<
   return edges;
 }
 
-export async function computeRowActions(kind: SchemaDefinitionEntityKind, status: string, held: Set<string>, isRoot: boolean): Promise<AuthoringRowAction[]> {
+// Every real, governed edge off this status, unfiltered by who's asking —
+// the single source of truth both computeRowActions (filters by the
+// viewer's own held badges, for button rendering) and
+// requiredBadgeForRowAction (web/sdkAuthoring.ts's /publish + /transition
+// route guard, which needs the UNFILTERED badge a given action requires,
+// before it knows whether the actor holds it) resolve from.
+async function possibleRowActions(kind: SchemaDefinitionEntityKind, status: string): Promise<AuthoringRowAction[]> {
   const canonical = await canonicalForwardEdges(kind);
   const { data } = await transitionDefinitionsDB.findPossibleNextTransitions(kind as TransitionEntityType, status);
   return (data ?? [])
-    .filter((t) => t.verb && (isRoot || held.has(`${kind.toLowerCase()}_${t.verb}`)))
+    .filter((t) => t.verb)
     .map((t) => ({
       verb: t.verb as string,
       toState: t.toState,
       endpoint: (canonical.has(`${status}->${t.toState}`) ? "publish" : "transition") as "publish" | "transition",
       requiresComment: kind === "Pack" && t.toState === "Draft",
     }));
+}
+
+export async function computeRowActions(kind: SchemaDefinitionEntityKind, status: string, held: Set<string>, isRoot: boolean): Promise<AuthoringRowAction[]> {
+  const actions = await possibleRowActions(kind, status);
+  return actions.filter((a) => {
+    if (isRoot) return true;
+    const canonical = `${kind.toLowerCase()}_${a.verb}`;
+    if (held.has(canonical)) return true;
+    const alternates = kind === "Pack" ? alternateBadgesForPackTransition(status, a.toState) : undefined;
+    return (alternates ?? []).some((b) => held.has(b));
+  });
+}
+
+// web/sdkAuthoring.ts's /publish + /transition route guard: resolves the
+// FULL set of badges that would satisfy a specific row action (the
+// canonical noun_verb, plus any alternates this exact transition declares —
+// same table transitionPack's own transitionEngine.evaluate call reads, so
+// the route gate and the actual enforcement can never name a different
+// acceptable set), purely from (kind, status[, targetState]) — the same
+// DB-derived shape possibleRowActions already computes for button rendering.
+// /publish has no targetState (it's always the one canonical next hop);
+// /transition's targetState comes from the request body. Returns null when
+// there's no such governed edge — the caller denies (fails closed), same as
+// authority_denied would.
+export async function requiredBadgeForRowAction(kind: SchemaDefinitionEntityKind, status: string, target: { endpoint: "publish" } | { endpoint: "transition"; toState: string }): Promise<string[] | null> {
+  const actions = await possibleRowActions(kind, status);
+  const action = target.endpoint === "publish" ? actions.find((a) => a.endpoint === "publish") : actions.find((a) => a.toState === target.toState);
+  if (!action) return null;
+  const canonical = `${kind.toLowerCase()}_${action.verb}`;
+  const alternates = kind === "Pack" ? alternateBadgesForPackTransition(status, action.toState) : undefined;
+  return alternates?.length ? [canonical, ...alternates] : [canonical];
 }
 
 // CR-045 follow-up — getPackSelectionsByCategory/getProfilePackSelections
@@ -614,6 +655,7 @@ export async function inheritedPackVersionContent(fromPackId: string, viewerTena
       contributionChecklists: c.checklists ?? [],
       contributionReviewGates: c.reviewGates ?? [],
       contributionObligationDefinitions: c.obligationDefinitions ?? [],
+      contributionEngineeringCapital: c.engineeringCapital ?? [],
       contributionsCompliance: {
         complianceFrameworks: c.complianceFrameworks ?? [],
         complianceRequirements: c.complianceRequirements ?? [],

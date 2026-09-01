@@ -66,23 +66,38 @@ export const transitionEngine = {
     // existing callers that never pass these keep working unchanged.
     entityId?: string;
     seuId?: string;
+    // Additive, optional — every existing caller omits this and behaviour is
+    // unchanged (the transition's single canonical noun_verb badge only).
+    // When given, the actor may hold ANY ONE of these IN ADDITION TO the
+    // canonical badge (owner, 2026-08-30: certain governed edges are
+    // intentionally reachable by more than one badge — see
+    // badgeAuthorityEngine's own comment).
+    alternateBadges?: string[];
   }): Promise<TransitionOutcome> {
     const { data: definition } = await transitionDefinitionsDB.find(input.entityType, input.fromState, input.toState);
     if (!definition) return { allowed: false, reason: "no_transition_definition" };
 
     // CR-006 — authorisation is one check: root bypass OR the actor holds the
-    // transition's `noun_verb` badge (from the definition's verb). No role, no
-    // scope (that is a separate gate, not this layer), no acting-badge
-    // declaration, no governed_entity_type. Every governed transition requires
-    // its badge; a non-root actor without it is denied (the exception).
+    // transition's `noun_verb` badge (from the definition's verb) OR one of
+    // this specific transition's own declared alternates. No role, no scope
+    // (that is a separate gate, not this layer), no acting-badge declaration,
+    // no governed_entity_type. Every governed transition requires its badge
+    // (or an alternate); a non-root actor without either is denied (the
+    // exception).
     let authorityBadge: string | null = null;
     if (definition.verb) {
-      const requiredBadge = `${input.entityType.toLowerCase()}_${definition.verb}`;
+      const canonicalBadge = `${input.entityType.toLowerCase()}_${definition.verb}`;
+      const requiredBadge = input.alternateBadges?.length ? [canonicalBadge, ...input.alternateBadges] : canonicalBadge;
       const auth = await badgeAuthorityEngine.authorise({ actorId: input.actorId ?? "", requiredBadge });
       if (!auth.allowed) {
-        return { allowed: false, reason: "authority_denied", authorityRuleCode: requiredBadge, badgeDenialReason: auth.reason };
+        return { allowed: false, reason: "authority_denied", authorityRuleCode: canonicalBadge, badgeDenialReason: auth.reason };
       }
-      authorityBadge = requiredBadge;
+      // The accountability record: which badge THIS actor actually used, not
+      // blindly the canonical one — an author who moved their own Pack out
+      // of Draft under pack_define genuinely did so under pack_define, not
+      // pack_validate. Root bypass still records the canonical requirement
+      // (there's no "matched badge" to report for a bypass).
+      authorityBadge = auth.via === "badge" ? (auth.matchedBadge ?? canonicalBadge) : canonicalBadge;
     }
 
     // CR-072 — a real gate, not a UI-only filter: a transition whose row

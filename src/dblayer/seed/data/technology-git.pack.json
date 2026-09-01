@@ -1,0 +1,162 @@
+{
+  "code": "technology-git",
+  "name": "Git Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "development",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "configuration-management",
+        "name": "Configuration Management",
+        "description": "Version control standards"
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "Git Standards",
+        "description": "Git Standards",
+        "items": [
+        {
+          "statement": "Write clear, descriptive PR titles and descriptions.",
+          "group": "Pull Request Standards"
+        },
+        {
+          "statement": "Include relevant ticket/issue numbers in the title (e.g. feat: add rate limits (AX-123)).",
+          "group": "Pull Request Standards"
+        },
+        {
+          "statement": "Description should include:\n\n- Summary of the changes\n-  Document any breaking changes\n- Add screenshots for UI changes (if applicable)\n- List testing steps and expected outcomes (if applicable)\n- Include notes on any required deployment steps or infrastructure changes (if applicable)",
+          "group": "Pull Request Standards"
+        },
+        {
+          "statement": "Create branches from the latest main.",
+          "group": "Branch Management"
+        },
+        {
+          "statement": "Use consistent branch naming: type/short-description or type/ticket-number-short-description\n\n- Types: feat, fix, docs, style, refactor, test, chore",
+          "group": "Branch Management"
+        },
+        {
+          "statement": "Keep branches up-to-date with main.",
+          "group": "Branch Management"
+        },
+        {
+          "statement": "Delete branches after merging (configured on GitHub in the repository settings).",
+          "group": "Branch Management"
+        },
+        {
+          "statement": "Write clear, descriptive commit messages.",
+          "group": "Commit Standards"
+        },
+        {
+          "statement": "Use conventional commit format: type(scope): description\n\n- Scope is optional\n- Types: feat, fix, docs, style, refactor, test, chore\n- Examples:\n\t- feat: add rate limits on API endpoints\n\t- feat(auth): add login functionality\n\t- fix: handle null values in API response\n\t- docs: update installation instructions\n\t- style: improve button styling\n\t- refactor: extract helper functions\n\t- test: add test for login component\n\t- chore(deps): update dependencies",
+          "group": "Commit Standards"
+        },
+        {
+          "statement": "Keep commits atomic and focused.",
+          "group": "Commit Standards"
+        },
+        {
+          "statement": "Include ticket/request numbers in commit messages.",
+          "group": "Commit Standards"
+        },
+        {
+          "statement": "Squash commits when appropriate (e.g. if there are multiple commits that don’t need to be in the history)",
+          "group": "Commit Standards"
+        },
+        {
+          "statement": "Follow project coding standards.",
+          "group": "Code Quality"
+        },
+        {
+          "statement": "Use Prettier/ESLint for consistent formatting.",
+          "group": "Code Quality"
+        },
+        {
+          "statement": "Remove all console.logs and debug code.",
+          "group": "Code Quality"
+        },
+        {
+          "statement": "No commented-out code (use TODO: comments if needed).",
+          "group": "Code Quality"
+        },
+        {
+          "statement": "Write meaningful comments for complex logic.",
+          "group": "Code Quality"
+        },
+        {
+          "statement": "Maintain proper .gitignore configuration.",
+          "group": "File Management"
+        },
+        {
+          "statement": "Don’t commit Build artifacts (dist, build).",
+          "group": "File Management"
+        },
+        {
+          "statement": "Don’t commit Dependencies (node_modules).",
+          "group": "File Management"
+        },
+        {
+          "statement": "Don’t commit Environment files, secret credentials or key files (e.g. .env, .key, .pem, etc.).",
+          "group": "File Management"
+        },
+        {
+          "statement": "Don’t commit IDE/editor files (.vscode, .idea).",
+          "group": "File Management"
+        },
+        {
+          "statement": "Don’t commit log files.",
+          "group": "File Management"
+        },
+        {
+          "statement": "Don’t commit cache directories.",
+          "group": "File Management"
+        },
+        {
+          "statement": "Keep PRs small and focused (e.g. don’t mix refactoring with new features).",
+          "group": "Review Process"
+        },
+        {
+          "statement": "Break large features into smaller PRs.",
+          "group": "Review Process"
+        },
+        {
+          "statement": "Ensure CI/CD checks pass (e.g. linting, tests).",
+          "group": "Review Process"
+        },
+        {
+          "statement": "Test changes locally before requesting review.",
+          "group": "Review Process"
+        },
+        {
+          "statement": "Update documentation if needed.",
+          "group": "Review Process"
+        },
+        {
+          "statement": "Don’t commit sensitive data.",
+          "group": "Security"
+        },
+        {
+          "statement": "Handle errors appropriately.",
+          "group": "Security"
+        }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

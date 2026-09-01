@@ -1,0 +1,170 @@
+{
+  "code": "technology-html",
+  "name": "HTML Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "development",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "code-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "HTML Standards",
+        "description": "HTML Standards",
+        "items": [
+          {
+            "statement": "The Doctype is HTML5 and is at the top of all your HTML pages.",
+            "group": "HTML Document Structure"
+          },
+          {
+            "statement": "The charset declared (UTF-8) is declared correctly.",
+            "group": "HTML Document Structure"
+          },
+          {
+            "statement": "A title is used on all pages",
+            "group": "SEO & Metadata"
+          },
+          {
+            "statement": "A meta description is provided, it is unique and doesn’t possess more than 150 characters.",
+            "group": "SEO & Metadata"
+          },
+          {
+            "statement": "Favicons are added and displayed correctly",
+            "group": "SEO & Metadata"
+          },
+          {
+            "statement": "Use rel=“canonical” to avoid duplicate content.",
+            "group": "SEO & Metadata"
+          },
+          {
+            "statement": "If your project is a blog or has articles, an RSS link was provided.",
+            "group": "SEO & Metadata"
+          },
+          {
+            "statement": "All CSS files are loaded before any JavaScript files in the HEAD",
+            "group": "CSS & JavaScript Loading"
+          },
+          {
+            "statement": "Semantic tags are used appropriately",
+            "group": "HTML Structure & Semantics"
+          },
+          {
+            "statement": "Error pages for 404 / server errors exists",
+            "group": "Error Handling"
+          },
+          {
+            "statement": "In case you are using external links with target=“_blank”, your link should have a rel=“noopener” attribute to prevent tab nabbing",
+            "group": "Security"
+          },
+          {
+            "statement": "Unnecessary code needs to be removed before sending the page to production.",
+            "group": "Code Quality"
+          },
+          {
+            "statement": "All pages need to be tested with the W3C validator to identify possible issues in the HTML code.",
+            "group": "HTML Validation"
+          },
+          {
+            "statement": "Use HTML validator to validate your code",
+            "group": "HTML Validation"
+          },
+          {
+            "statement": "Your website shows your content correctly with adblocker enabled",
+            "group": "Compatibility & Resilience"
+          },
+          {
+            "statement": "Make sure no links are broken on your page",
+            "group": "Links & Navigation"
+          },
+          {
+            "statement": "All images are optimized to be rendered in the browser.",
+            "group": "Image Optimization"
+          },
+          {
+            "statement": "You provide layout images 2x or 3x, support retina display.",
+            "group": "Image Optimization"
+          },
+          {
+            "statement": "Use sprites wherever feasible",
+            "group": "Image Optimization"
+          },
+          {
+            "statement": "All <img> have an alternative text which describe the image visually.",
+            "group": "Accessibility"
+          },
+          {
+            "statement": "Images are lazyloaded",
+            "group": "Image Performance"
+          },
+          {
+            "statement": "All anchor should has title attribute for SEO purpose",
+            "group": "SEO & Metadata"
+          },
+          {
+            "statement": "Follow two tabs indentation",
+            "group": "Code Formatting & Style"
+          },
+          {
+            "statement": "Avoid using the <hr> and <br> tags.",
+            "group": "HTML Structure & Semantics"
+          },
+          {
+            "statement": "Avoid empty elements in the structure",
+            "group": "HTML Structure & Semantics"
+          },
+          {
+            "statement": "Abound using the <i> tag for the icons. Simply use the <span> tag and write the icon name and icon can be added via css using the pseudo elements(before & after)",
+            "group": "HTML Structure & Semantics"
+          },
+          {
+            "statement": "Add proper commenting to the code/section",
+            "group": "Code Quality"
+          },
+          {
+            "statement": "Use the wrapper properly.",
+            "group": "HTML Structure & Layout"
+          },
+          {
+            "statement": "Give meaningful classes.",
+            "group": "CSS & Naming Conventions"
+          },
+          {
+            "statement": "Avoid inline and internal styling.",
+            "group": "CSS & Styling"
+          },
+          {
+            "statement": "Wrap every input element, select, and textarea in a block level element.",
+            "group": "HTML Structure & Forms"
+          },
+          {
+            "statement": "Wrap every image inside a block level element.",
+            "group": "HTML Structure & Layout"
+          },
+          {
+            "statement": "Do not add any text in uppercase. Manage it via css.",
+            "group": "CSS & Styling"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

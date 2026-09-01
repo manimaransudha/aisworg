@@ -103,6 +103,12 @@
         "description": "A synthetic compliance framework, present only to populate this fixture's Compliance tab."
       }
     ],
+    "engineeringCapital": [
+      {
+        "type": "Engineering Behaviour",
+        "url": "https://example.internal/engineering-behaviour/code-review-standards"
+      }
+    ],
     "complianceRequirements": [
       {
         "code": "test-fixture-requirement",

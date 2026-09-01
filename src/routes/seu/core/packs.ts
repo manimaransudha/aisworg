@@ -476,6 +476,18 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
     }
   }
 
+  // CR-082 — Engineering Capital contributions: minimal stub (type + url).
+  // type is Ontology-backed (engineering-capital, migration 141). url is
+  // plain text, no format check — "these should be in details later".
+  for (const ec of seed.contributions.engineeringCapital ?? []) {
+    try {
+      await assertCanonicalCategory("engineering-capital", ec.type ?? "", ontologyViewer);
+    } catch (err) {
+      errors.push((err as Error).message);
+    }
+    if (!ec.url?.trim()) errors.push("engineering capital entry is missing a url");
+  }
+
   // CR-064 — Service contributions: code is real, Ontology-backed
   // (service-name, migration 113 — freely-extensible, same capability-name/
   // feature-flag pattern, deliberately shared across Packs so two different
@@ -743,7 +755,6 @@ async function seedContributions(pack: PackRow, seed: PackSeedInput): Promise<vo
     const { data: checklist, error } = await checklistsDB.upsert({
       name: cl.name,
       description: cl.description,
-      asset: cl.asset,
       items: cl.items,
       originatingPackId: pack.id,
     });
@@ -872,6 +883,24 @@ export type TransitionPackResult =
 // quality_gate_evaluations.seu_id is NOT NULL, so there is nowhere to record
 // an evaluation against. Logged as a real, structural limitation, not
 // silently skipped.
+// Owner (2026-08-30, notes.md): "Validation can happen by both the badges
+// define and validate, otherwise pack will never move out of draft.
+// Similarly, reject can be done by validate badge also and validate can be
+// done by reject badge also." The ONE definition of these alternates — both
+// transitionPack's own transitionEngine.evaluate call below (the actual
+// authority, for every caller: web /publish, web /transition, and every
+// api/packs.ts transition/* route) and the badge-gate resolvers upstream of
+// it (core/sdkAuthoring.ts's requiredBadgeForRowAction, api/packs.ts's own
+// route registrations) read from this same table, so the door and the
+// actual enforcement can never name a different acceptable set.
+export function alternateBadgesForPackTransition(fromState: string, toState: string): string[] | undefined {
+  const ALTERNATE_BADGES: Record<string, string[]> = {
+    "Draft->Validated": ["pack_define", "pack_reject"],
+    "Validated->Draft": ["pack_validate"],
+  };
+  return ALTERNATE_BADGES[`${fromState}->${toState}`];
+}
+
 export async function transitionPack(input: { packId: string; targetState: string; actorRole: string; actorId?: string; comment?: string }): Promise<TransitionPackResult> {
   const { data: pack } = await packsDB.findById(input.packId);
   if (!pack) return { ok: false, reason: "not_found" };
@@ -884,6 +913,7 @@ export async function transitionPack(input: { packId: string; targetState: strin
     actorRole: input.actorRole,
     actorId: input.actorId,
     context: { pack },
+    alternateBadges: alternateBadgesForPackTransition(fromState, input.targetState),
   });
   if (!gate.allowed) {
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Pack ${fromState} -> ${input.targetState}` };

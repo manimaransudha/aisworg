@@ -135,13 +135,13 @@
           item.type = 'button';
           item.className = 'ontology-combo-item';
           item.dataset.code = opt.code;
-          var labelEl = document.createElement('span');
-          labelEl.textContent = opt.label;
-          item.appendChild(labelEl);
           var codeEl = document.createElement('span');
-          codeEl.className = 'ontology-combo-item-code';
           codeEl.textContent = opt.code;
           item.appendChild(codeEl);
+          var labelEl = document.createElement('span');
+          labelEl.className = 'ontology-combo-item-secondary';
+          labelEl.textContent = opt.label;
+          item.appendChild(labelEl);
           // mousedown, not click — fires before the input's own blur would
           // otherwise close the menu first and swallow the selection.
           //

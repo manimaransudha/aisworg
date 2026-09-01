@@ -29,7 +29,6 @@
       {
         "name": "C Programming Practices",
         "description": "Best practices for C programming language",
-        "asset": "link to the organisation asset .editorconfig",
         "items": [
           {
             "statement": "Use .editorconfig to setup your editor",

@@ -10,16 +10,27 @@ import { badgeGrantsDB } from "../../dblayer/badgeGrantsDB.js";
 const ROOT_BADGE_CODE = "root";
 
 export const badgeAuthorityEngine = {
-  // Authorised iff the actor holds `root` (bypass) OR holds the required
-  // `noun_verb` badge, Active. No role, no scope, no governed_entity_type,
+  // Authorised iff the actor holds `root` (bypass) OR holds ANY ONE of the
+  // required badge(s), Active. No role, no scope, no governed_entity_type,
   // no acting-badge declaration.
-  async authorise(input: { actorId: string; requiredBadge: string }): Promise<
-    { allowed: true; via: "root" | "badge" } | { allowed: false; reason: "missing_badge" }
+  //
+  // requiredBadge accepts a single badge (the common case — one noun_verb)
+  // or an array (owner, 2026-08-30: some governed edges are intentionally
+  // reachable by more than one badge, e.g. Pack's Draft->Validated by
+  // pack_validate OR pack_define OR pack_reject — otherwise a pack_define-
+  // only author could never move their own Pack out of Draft). matchedBadge
+  // reports which one actually satisfied it, for the caller's own accountability
+  // record (transitionEngine's authorityBadge) — "authorised under pack_define"
+  // is a different, real fact from "authorised under pack_validate".
+  async authorise(input: { actorId: string; requiredBadge: string | string[] }): Promise<
+    { allowed: true; via: "root" | "badge"; matchedBadge?: string } | { allowed: false; reason: "missing_badge" }
   > {
     const { data: grants } = await badgeGrantsDB.findActiveForHolder(input.actorId);
     const active = (grants ?? []).filter((g) => g.status === "Active");
     if (active.some((g) => g.badge_type === ROOT_BADGE_CODE)) return { allowed: true, via: "root" };
-    if (active.some((g) => g.badge_type === input.requiredBadge)) return { allowed: true, via: "badge" };
+    const required = Array.isArray(input.requiredBadge) ? input.requiredBadge : [input.requiredBadge];
+    const matched = active.find((g) => required.includes(g.badge_type));
+    if (matched) return { allowed: true, via: "badge", matchedBadge: matched.badge_type };
     return { allowed: false, reason: "missing_badge" };
   },
 };
