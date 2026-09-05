@@ -1,0 +1,72 @@
+{
+  "code": "compliance-us-state-privacy",
+  "name": "US Multi-State Privacy Compliance (CCPA/CPRA, VCDPA, CPA)",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Comprehensive compliance framework for US state data privacy statutes (California CCPA/CPRA, Virginia VCDPA, Colorado CPA, Connecticut CTDPA, Utah UCPA, Texas, Oregon, etc.), covering GPC signals, 'Do Not Sell/Share', Sensitive Data Opt-In, and Universal Deletion.",
+  "owner": "US Privacy Compliance & State Regulatory Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-us-state-privacy-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-us-state-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "US Multi-State Privacy Compliance Audit Checklist",
+        "description": "Validation checklist for California CCPA/CPRA, VCDPA, CPA, CTDPA, UCPA, and state breach notification requirements.",
+        "items": [
+          {
+            "statement": "Global Privacy Control (GPC) signals sent by browser user agents automatically opt-out users from sale/sharing of personal data.",
+            "group": "GPC & Opt-Out Signals (CCPA/CPRA)"
+          },
+          {
+            "statement": "Clear web notice 'Do Not Sell or Share My Personal Information' and 'Limit the Use of My Sensitive Personal Information' are rendered.",
+            "group": "Consumer Opt-Out Links"
+          },
+          {
+            "statement": "Explicit opt-in consent is obtained prior to collecting Sensitive Personal Data (geolocation, biometrics, health, ethnicity) in VCDPA/CPA states.",
+            "group": "Sensitive Data Opt-In (VCDPA/CPA)"
+          },
+          {
+            "statement": "Consumer privacy request workflow processes Access, Deletion, and Correction requests within 45 calendar days.",
+            "group": "DSAR Request Fulfillment"
+          },
+          {
+            "statement": "State breach notification mechanisms guarantee reporting to state Attorneys General within statutory timelines (e.g. 15-45 days).",
+            "group": "State Breach Notification"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "us-state-privacy-attestation-gate",
+        "name": "US State Privacy Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The US Privacy Counsel attests that GPC signal handling, sensitive data opt-ins, and state DSAR workflows satisfy CCPA/CPRA, VCDPA, and state statutes.",
+        "prompt": "Does the privacy audit evidence confirm full compliance with US multi-state privacy laws?",
+        "participant": "human",
+        "outputContract": "us-state-privacy-attestation",
+        "checklistIds": [
+          "US Multi-State Privacy Compliance Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

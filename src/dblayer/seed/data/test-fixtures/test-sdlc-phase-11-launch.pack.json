@@ -11,91 +11,14 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "launch-management",
+        "code": "software-release",
         "name": "Launch Management",
         "description": "Executes the coordinated go-live of the product, including rollout sequencing, monitoring, and incident readiness."
       }
     ],
     "services": [
       {
-        "code": "launch-checklist",
-        "capabilityCode": "launch-management",
-        "name": "Launch Checklist",
-        "contractDescription": "Comprehensive go-live checklist covering technical, operational, legal, and customer support sign-offs.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "executive-approved"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "deployment-rollout-plan",
-        "capabilityCode": "launch-management",
-        "name": "Deployment & Rollout Plan",
-        "contractDescription": "Canary deployment schedule, progressive traffic shifting (10% -> 25% -> 50% -> 100%), and rollback procedures.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "incident-response-plan",
-        "capabilityCode": "launch-management",
-        "name": "Incident Response Plan",
-        "contractDescription": "On-call rotation, severity 1 incident bridge protocol, status page automation, and incident commander roles.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "monitoring-dashboards",
-        "capabilityCode": "launch-management",
-        "name": "Monitoring & Dashboards",
-        "contractDescription": "Real-time Datadog/Grafana launch dashboards tracking error rates, latency percentiles, and transaction volume.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "customer-communication-plan",
-        "capabilityCode": "launch-management",
-        "name": "Customer Communication Plan",
-        "contractDescription": "Press release, customer email broadcasts, release notes, and product update documentation.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "executive-approved"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
+        "code": "deployment-governance-service"
       }
     ],
     "authorityRules": [
@@ -115,17 +38,7 @@
         "authorisedRole": "general"
       }
     ],
-    "policies": [
-      {
-        "code": "policy-production-go-live-approval-standard",
-        "name": "Production Go-Live Approval Standard Policy",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "conditionType": "always_true",
-        "severity": "high"
-      }
-    ],
+    "policies": [],
     "checklists": [
       {
         "name": "Launch (SDLC Phase 11) Checklist",

@@ -1,0 +1,49 @@
+{
+  "code": "rollback-capability",
+  "name": "Rollback Capability",
+  "description": "A Release Package must have a documented rollback procedure, dry-run tested, completing within the declared recovery time objective.",
+  "category": "Operational",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [
+    "release-package"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Rollback procedure is documented for this release.",
+      "requiredEvidence": [
+        {
+          "type": "rollback_procedure_document"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Rollback was dry-run tested in a non-production environment for this release.",
+      "requiredEvidence": [
+        {
+          "type": "rollback_test_result"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "The tested rollback completed within the declared recovery time objective (RTO).",
+      "requiredEvidence": [
+        {
+          "type": "rollback_test_result",
+          "metric": "duration"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

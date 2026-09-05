@@ -1,0 +1,48 @@
+{
+  "code": "internal-review-process",
+  "name": "Internal Review Process",
+  "description": "Decisions above a defined risk threshold require an Architecture Review Board review that concluded Approved.",
+  "category": "Organisation",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "The decision has a recorded risk score.",
+      "requiredEvidence": [
+        {
+          "type": "risk_assessment_record"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Decisions scoring at or above the declared risk threshold have a recorded Architecture Review Board review.",
+      "requiredEvidence": [
+        {
+          "type": "review_result",
+          "board": "architecture_review_board"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "The review's recorded outcome is Approved, not merely Reviewed or Rejected.",
+      "requiredEvidence": [
+        {
+          "type": "review_result",
+          "field": "outcome"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

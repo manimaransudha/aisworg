@@ -1,0 +1,68 @@
+{
+  "code": "compliance-fcpa",
+  "name": "FCPA & UK Bribery Act Corporate Integrity Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for the Foreign Corrupt Practices Act (FCPA) and UK Bribery Act 2010, covering anti-bribery controls, third-party intermediary due diligence, gift/hospitality tracking, and books & records accuracy.",
+  "owner": "Corporate Ethics & Anti-Corruption Governance Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-fcpa-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-fcpa-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "FCPA & Anti-Bribery Compliance Audit Checklist",
+        "description": "Validation checklist for FCPA anti-bribery provisions (15 U.S.C. § 78dd-1) and UK Bribery Act Section 7 adequacy.",
+        "items": [
+          {
+            "statement": "Anti-bribery policy explicitly prohibits facilitation payments, kickbacks, and improper payments to foreign officials.",
+            "group": "Anti-Bribery Policy (§ 78dd-1)"
+          },
+          {
+            "statement": "Third-party sales intermediaries undergo background screening and execute anti-corruption contract representations.",
+            "group": "Third-Party Intermediaries"
+          },
+          {
+            "statement": "Gift, travel, and hospitality expenses involving government officials are pre-cleared by Compliance.",
+            "group": "Gifts & Hospitality Governance"
+          },
+          {
+            "statement": "Financial ledgers accurately describe all payments and prohibit off-the-books slush funds or false invoices.",
+            "group": "Books & Records (§ 78m(b))"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "fcpa-ethics-compliance-gate",
+        "name": "FCPA Anti-Corruption Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Chief Compliance Officer confirms that third-party due diligence and financial record controls satisfy FCPA and UK Bribery Act requirements.",
+        "prompt": "Does the anti-bribery audit evidence confirm compliance with FCPA and UK Bribery Act standards?",
+        "participant": "human",
+        "outputContract": "fcpa-compliance-attestation",
+        "checklistIds": [
+          "FCPA & Anti-Bribery Compliance Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

@@ -11,23 +11,14 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "testing-qa",
+        "code": "software-validation",
         "name": "Testing",
         "description": "Verifies the solution against requirements and quality expectations, on behalf of the Tester role."
       }
     ],
     "services": [
       {
-        "code": "test-case",
-        "capabilityCode": "testing-qa",
-        "name": "Test Case",
-        "contractDescription": "A specific, repeatable check of solution behaviour against a requirement."
-      },
-      {
-        "code": "test-evaluation-summary",
-        "capabilityCode": "testing-qa",
-        "name": "Test Evaluation Summary",
-        "contractDescription": "A summary assessment of test results and residual risk/quality for this increment."
+        "code": "quality-assurance-service"
       }
     ],
     "checklists": [

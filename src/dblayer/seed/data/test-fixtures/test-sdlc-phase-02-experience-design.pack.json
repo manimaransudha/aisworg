@@ -11,139 +11,14 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "experience-design",
+        "code": "software-design",
         "name": "Experience Design",
         "description": "Translates validated user needs into concrete interface designs, prototypes, and a coherent design system ready for engineering handoff."
       }
     ],
     "services": [
       {
-        "code": "information-architecture-map",
-        "capabilityCode": "experience-design",
-        "name": "Information Architecture Map",
-        "contractDescription": "Content structure, taxonomy, site map, and navigation flow diagram.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "wireframes",
-        "capabilityCode": "experience-design",
-        "name": "Wireframes",
-        "contractDescription": "Low-fidelity and high-fidelity interface layout designs across key responsive break-points.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "clickable-prototype",
-        "capabilityCode": "experience-design",
-        "name": "Clickable Prototype",
-        "contractDescription": "Interactive screen transitions and user flow prototype for usability testing.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "design-system-ui-kit",
-        "capabilityCode": "experience-design",
-        "name": "Design System & UI Kit",
-        "contractDescription": "Reusable UI components, color palettes, typography, spacing scale, and interaction states.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "executive-approved"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "design-tokens",
-        "capabilityCode": "experience-design",
-        "name": "Design Tokens",
-        "contractDescription": "Machine-readable design system variables for color, typography, borders, and shadows.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "content-strategy-voice-tone-guide",
-        "capabilityCode": "experience-design",
-        "name": "Content Strategy & Voice/Tone Guide",
-        "contractDescription": "Microcopy standards, content hierarchy guidelines, and error message voice tone.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "accessibility-compliance-checklist",
-        "capabilityCode": "experience-design",
-        "name": "Accessibility Compliance Checklist",
-        "contractDescription": "WCAG 2.1 AA contrast, keyboard navigation, and screen reader compliance audit checklist.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "usability-test-plan-report",
-        "capabilityCode": "experience-design",
-        "name": "Usability Test Plan & Report",
-        "contractDescription": "Usability testing script, user session recordings analysis, and task success metrics report.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
+        "code": "detailed-design-service"
       }
     ],
     "authorityRules": [
@@ -163,17 +38,7 @@
         "authorisedRole": "general"
       }
     ],
-    "policies": [
-      {
-        "code": "policy-wcag-accessibility-standard",
-        "name": "WCAG 2.1 AA Accessibility Standard Policy",
-        "category": "Quality",
-        "constraintType": "Standard",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "conditionType": "always_true",
-        "severity": "high"
-      }
-    ],
+    "policies": [],
     "checklists": [
       {
         "name": "Experience Design (SDLC Phase 2) Checklist",

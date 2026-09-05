@@ -1,0 +1,62 @@
+{
+  "code": "coding-standards",
+  "name": "Coding Standards",
+  "description": "Source Code must conform to the style, complexity and hygiene standards declared by the active Technology Pack.",
+  "category": "Engineering",
+  "constraintType": "Standard",
+  "applicabilityDeliverableNames": [
+    "source-code"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Lint tool reports zero errors against the active Technology Pack's declared ruleset.",
+      "requiredEvidence": [
+        {
+          "type": "lint_result",
+          "severity_filter": "error"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Lint warning count does not exceed the threshold declared by the active governance tier.",
+      "requiredEvidence": [
+        {
+          "type": "lint_result",
+          "severity_filter": "warning"
+        }
+      ],
+      "severity": "Low",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Cyclomatic complexity per function does not exceed the Technology Pack's declared ceiling.",
+      "requiredEvidence": [
+        {
+          "type": "complexity_scan_result"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "No block of commented-out code exceeding five lines is present in the Deliverable.",
+      "requiredEvidence": [
+        {
+          "type": "lint_result",
+          "rule": "no-dead-code"
+        }
+      ],
+      "severity": "Low",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

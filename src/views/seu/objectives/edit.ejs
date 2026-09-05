@@ -39,7 +39,7 @@
       </p>
 
       <% if (capabilities.length === 0) { %>
-        <div class="alert alert-warning">No Capabilities are loaded yet — run <code>pnpm db:clean-slate</code> (base Packs must already exist) first.</div>
+        <div class="alert alert-warning">No capability-name Ontology concepts are loaded yet — run the ontology migrations (046, 150) first.</div>
       <% } else { %>
         <form method="POST" action="/aisworg/seu/objectives/<%= objective.id %>/update" class="card border-0 shadow-sm p-4 mb-4">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -53,12 +53,13 @@
             <label class="form-label fw-semibold">Required Capabilities</label>
             <div id="capability-list">
               <% capabilities.forEach(function(c) { %>
-                <div class="form-check">
+                <div class="form-check mb-1">
                   <input class="form-check-input" type="checkbox" name="requiredCapabilityCodes" value="<%= c.code %>"
                          id="cap-<%= c.code %>"
                          <%= (locals.selectedCodes || []).includes(c.code) ? 'checked' : '' %>>
                   <label class="form-check-label" for="cap-<%= c.code %>">
                     <%= c.name %> <code class="text-muted small"><%= c.code %></code>
+                    <% if (c.description) { %><div class="text-muted small"><%= c.description %></div><% } %>
                   </label>
                 </div>
               <% }) %>

@@ -1,0 +1,75 @@
+{
+  "code": "integration-slack",
+  "name": "Slack Collaboration & ChatOps Integration",
+  "category": "Integration",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Integration pack for Slack, providing connectivity to Slack Web API (chat.postMessage), Incoming Webhooks, Slash Commands, and Block Kit interactive message notifications for ChatOps workflows.",
+  "owner": "Developer Platform Integration Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "software-construction",
+        "name": "Integration Engineering",
+        "description": "Integrates Slack bot user OAuth tokens, Webhooks, and Block Kit message formatting."
+      },
+      {
+        "code": "recovering-organisational-knowledge",
+        "name": "Knowledge Management",
+        "description": "Integrates Slack automated release announcements, build status alerts, and incident channel updates."
+      }
+    ],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-slack-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-slack-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Slack Integration Verification Checklist",
+        "description": "Validation checklist for Slack Bot Token permissions, incoming webhooks, and Block Kit payload validation.",
+        "items": [
+          {
+            "statement": "Slack Bot User OAuth Token grants chat:write and channels:read scopes.",
+            "group": "Bot Token Auth"
+          },
+          {
+            "statement": "Incoming Webhooks post rich Block Kit formatted messages to target Slack channels.",
+            "group": "Block Kit Webhooks"
+          },
+          {
+            "statement": "Slack Slash Commands process user interactions and return instant ephemerally formatted responses.",
+            "group": "Slash Commands"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "slack-integration-review-gate",
+        "name": "Slack ChatOps Integration Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Collaboration Lead confirms that Slack Bot tokens and incoming webhooks post notifications properly.",
+        "prompt": "Does the Slack integration verify message delivery and Block Kit payload formatting?",
+        "participant": "human",
+        "outputContract": "slack-integration-attestation",
+        "checklistIds": [
+          "Slack Integration Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

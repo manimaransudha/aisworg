@@ -1,0 +1,58 @@
+{
+  "code": "test-technology-docker",
+  "name": "Docker Containerization Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "software-construction",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "engineering-work-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "Docker Containerization Engineering Standards",
+        "description": "Validation checklist for multi-stage Dockerfiles, non-root user security, layer caching, and vulnerability scanning.",
+        "items": [
+          {
+            "statement": "Dockerfiles use multi-stage builds to keep production runtime images minimal and free of build toolchains.",
+            "group": "Dockerfile Multi-Stage Architecture"
+          },
+          {
+            "statement": "Containers execute under non-root users (USER 10001) with explicit read-only root filesystems where possible.",
+            "group": "Container Security & Privileges"
+          },
+          {
+            "statement": "Base images use minimal distributions (distroless or alpine) with explicit digest / version pinning.",
+            "group": "Base Image Hygiene"
+          },
+          {
+            "statement": "Dockerfile instructions order COPY and RUN commands to maximize layer caching efficiency.",
+            "group": "Layer Cache Optimization"
+          },
+          {
+            "statement": "Trivy / Grype image vulnerability scanners execute in CI/CD and block images with critical/high CVEs.",
+            "group": "Vulnerability Scanning"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

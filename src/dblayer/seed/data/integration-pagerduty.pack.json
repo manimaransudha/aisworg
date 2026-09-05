@@ -1,0 +1,70 @@
+{
+  "code": "integration-pagerduty",
+  "name": "PagerDuty Incident Response Integration",
+  "category": "Integration",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Integration pack for PagerDuty, providing connectivity to PagerDuty Events API v2, on-call schedule routing, automated incident escalation policies, and incident status synchronization.",
+  "owner": "SRE & Incident Operations Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "operating-production-systems",
+        "name": "Production Support & Incident Management / Hypercare & Stabilization",
+        "description": "Integrates PagerDuty incident trigger, acknowledge, and resolve events via Events API v2. Integrates PagerDuty hypercare escalation schedules and rapid incident response notifications."
+      }
+    ],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-pagerduty-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-pagerduty-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "PagerDuty Integration Verification Checklist",
+        "description": "Validation checklist for PagerDuty Integration Key, escalation policy assignments, and webhook listeners.",
+        "items": [
+          {
+            "statement": "PagerDuty Events API v2 Integration Key triggers incidents with payload routing severity.",
+            "group": "Events API Key Auth"
+          },
+          {
+            "statement": "On-Call Escalation Policies specify primary, secondary, and manager escalation tiers.",
+            "group": "Escalation Policies"
+          },
+          {
+            "statement": "PagerDuty Webhooks notify external ChatOps channels on incident state change (triggered, acknowledged, resolved).",
+            "group": "Webhook State Sync"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "pagerduty-integration-review-gate",
+        "name": "PagerDuty Integration Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The On-Call Incident Commander confirms that PagerDuty alert triggers and escalation schedules operate properly.",
+        "prompt": "Does the PagerDuty integration confirm incident trigger dispatch and escalation routing?",
+        "participant": "human",
+        "outputContract": "pagerduty-integration-attestation",
+        "checklistIds": [
+          "PagerDuty Integration Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

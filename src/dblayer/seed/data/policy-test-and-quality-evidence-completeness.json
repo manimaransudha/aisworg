@@ -1,0 +1,53 @@
+{
+  "code": "test-and-quality-evidence-completeness",
+  "name": "Test and Quality Evidence Completeness",
+  "description": "Test and performance reports name the exact version they were run against, every open defect has an assigned severity and owner, and confidence/benchmark evidence is produced before, not after, the decision that relies on it.",
+  "category": "Quality",
+  "constraintType": "Standard",
+  "applicabilityDeliverableNames": [
+    "test-report-results",
+    "performance-load-test-report",
+    "defect-log",
+    "confidence-assessment",
+    "benchmark-report"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Every Test Report Results and Performance/Load Test Report names the specific build or version it was executed against.",
+      "requiredEvidence": [
+        {
+          "type": "test_result",
+          "field": "version_under_test"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Every open entry in the Defect Log has an assigned severity and owner.",
+      "requiredEvidence": [
+        {
+          "type": "defect_log_review"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "A Confidence Assessment or Benchmark Report is produced before the Release-stage decision that relies on it, not compiled retroactively to justify one already made.",
+      "requiredEvidence": [
+        {
+          "type": "confidence_assessment"
+        }
+      ],
+      "severity": "Low",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

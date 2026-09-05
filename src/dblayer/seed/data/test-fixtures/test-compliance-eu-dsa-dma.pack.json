@@ -1,0 +1,72 @@
+{
+  "code": "test-compliance-eu-dsa-dma",
+  "name": "EU Digital Services & Digital Markets Act (DSA / DMA / Data Act)",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for the EU Digital Services Act (DSA - Regulation (EU) 2022/2065), Digital Markets Act (DMA - Regulation (EU) 2022/1925), and EU Data Act, covering notice-and-action illegal content workflows, recommender system transparency, gatekeeper interoperability, and B2B/B2C data sharing.",
+  "owner": "EU Digital Platforms Governance Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-dsa-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-dsa-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "EU Digital Services & Markets Act Audit Checklist",
+        "description": "Validation checklist for DSA, DMA, and EU Data Act compliance obligations.",
+        "items": [
+          {
+            "statement": "Notice-and-action mechanism allows users to report illegal content and receive electronic receipt confirmation (DSA Art. 16).",
+            "group": "Notice & Action (Art. 16)"
+          },
+          {
+            "statement": "Statement of Reasons is issued automatically whenever content is removed, demoted, or accounts suspended (DSA Art. 17).",
+            "group": "Statement of Reasons (Art. 17)"
+          },
+          {
+            "statement": "Recommender systems explain main ranking criteria and offer a non-profiling feed option in terms and conditions (DSA Art. 27).",
+            "group": "Recommender Systems (Art. 27)"
+          },
+          {
+            "statement": "User interface design avoids dark patterns that deceive, manipulate, or impair user autonomy (DSA Art. 25).",
+            "group": "Dark Pattern Prohibition (Art. 25)"
+          },
+          {
+            "statement": "EU Data Act data portability interfaces enable users to transfer generated IoT/cloud data to competing services seamlessly.",
+            "group": "EU Data Act Portability"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "dsa-dma-compliance-gate",
+        "name": "EU Digital Services Act Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Head of Trust & Safety confirms that content moderation notice-and-action, dark pattern checks, and recommender transparency comply with the DSA.",
+        "prompt": "Does the platform compliance review confirm full alignment with EU DSA and DMA requirements?",
+        "participant": "human",
+        "outputContract": "dsa-dma-compliance-attestation",
+        "checklistIds": [
+          "EU Digital Services & Markets Act Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

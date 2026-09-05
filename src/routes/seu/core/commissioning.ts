@@ -10,6 +10,8 @@ import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { seuCapabilitiesDB } from "../../../dblayer/seuCapabilitiesDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
+import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
+import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
@@ -17,6 +19,7 @@ import { logger } from "../../../utils/logger.js";
 import { createObjective, ensureOneShotContainer } from "./objectives.js";
 import { findCandidateTemplates } from "./templates.js";
 import { findOrCreateDefaultProfile } from "./profiles.js";
+import { resolveLabels } from "./ontology.js";
 import type { CommissioningReport, SeuLifecycleState, SeuRow } from "../../../dblayer/seuTypes.js";
 
 export type CommissionResult =
@@ -191,21 +194,48 @@ export async function commissionSeu(input: {
   // re-derived per SEU. Commissioning only creates this SEU's own Deliverable
   // instances; the canonical graph they'll be evaluated against already
   // exists independent of this commission ever happening.
-  // CR-038 — keyed by name now, not a separate catalogue-local code (dropped
-  // outright — see TemplateDeliverableSeed's own comment); this map only
-  // ever fed the commissioning report's own diagnostic list below.
+  // CR-087 — deliverable_catalogue entries carry a real deliverable-name
+  // Ontology CODE now (seed.code), not free-typed display text; resolved to
+  // its tenant-aware label here (same resolveLabels materialiseDependencyGraph.ts
+  // uses to write dependency_definitions' own to_name/from_name) so
+  // deliverables.name — matched against those columns by the gating engine
+  // via plain string equality — stays exactly the value the graph expects.
+  const deliverableLabelByCode = await resolveLabels(tenantId, "deliverable-name");
+  // CR-087 follow-up — producingCapabilityCode is no longer authored on the
+  // Deliverable Catalogue at all (owner: "producing capability code does not
+  // require an editable field. That can be automatically generated"): which
+  // Capability produces a given catalogue entry is derived here instead, off
+  // this SEU's own required Capabilities' Active Service Definition outputs
+  // (Ch.11) — the same inputs/outputs contract materialiseDependencyGraph.ts
+  // already trusts for Capability-type dependency edges. A catalogue entry
+  // whose code isn't declared as an output by any required Capability's
+  // Service Definition gets no producing Capability — the same, already-
+  // supported "no Capability declared" path dispatchEngine.ts takes (dispatched
+  // unassigned rather than routed), not an error.
+  // ServiceDefinitionRow.outputs is mistyped `string | null` (pre-existing —
+  // the column itself is a real Postgres TEXT[], migration 159); cast to the
+  // actual runtime shape rather than widen that shared type here.
+  const { data: serviceDefinitions } = await serviceDefinitionsDB.findAllVisibleTo(tenantId ?? PLATFORM_TENANT_ID);
+  const producingCapabilityByDeliverableCode = new Map<string, { id: string }>();
+  for (const capability of requiredCapabilities ?? []) {
+    const def = (serviceDefinitions ?? []).find((d) => d.capability_code === capability.code && d.status === "Active");
+    const outputs = (def?.outputs as unknown as string[] | null) ?? [];
+    for (const outputCode of outputs) {
+      if (!producingCapabilityByDeliverableCode.has(outputCode)) {
+        producingCapabilityByDeliverableCode.set(outputCode, { id: capability.id });
+      }
+    }
+  }
   const deliverableIdByName = new Map<string, string>();
   for (const seed of template.deliverable_catalogue) {
-    const producingCapability = seed.producingCapabilityCode
-      ? (requiredCapabilities ?? []).find((c) => c.code === seed.producingCapabilityCode)
-      : undefined;
+    const producingCapability = producingCapabilityByDeliverableCode.get(seed.code);
+    const name = deliverableLabelByCode[seed.code] ?? seed.code;
     const { data: deliverable } = await deliverablesDB.create({
       seuId: seu.id,
-      name: seed.name,
-      category: seed.category,
+      name,
       producingCapabilityId: producingCapability?.id ?? null,
     });
-    if (deliverable) deliverableIdByName.set(seed.name, deliverable.id);
+    if (deliverable) deliverableIdByName.set(name, deliverable.id);
   }
 
   // Ch.37 — remaining transitions are system-internal for MVP (no Authority/

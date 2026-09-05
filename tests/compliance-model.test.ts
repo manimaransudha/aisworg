@@ -25,11 +25,11 @@ after(async () => {
 
 async function commissionSeu(prefix: string) {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromForm({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"], actorRole: "super", actorId: "1001", requestedBy: 1001 });
+  const result = await commissionFromForm({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorRole: "super", actorId: "1001", requestedBy: 1001 });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
   const detail = await getSeuDetailView(result.seu.id);
-  const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Specification");
+  const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(deliverable);
   return { seuId: result.seu.id, deliverableId: deliverable.id };
 }

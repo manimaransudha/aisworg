@@ -1,0 +1,72 @@
+{
+  "code": "compliance-pci-dss",
+  "name": "PCI-DSS v4.0 Cardholder Data Security Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for Payment Card Industry Data Security Standard (PCI-DSS) v4.0, covering Cardholder Data Environment (CDE) segmentation, primary account number (PAN) tokenization, key management, quarterly ASV vulnerability scanning, and annual ROC/SAQ attestation.",
+  "owner": "Payment Security & Compliance Governance Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-pci-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-pci-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "PCI-DSS v4.0 Security Controls & Audit Checklist",
+        "description": "Validation checklist for PCI-DSS v4.0 Requirements 1-12 covering CDE isolation, encryption, access control, and logging.",
+        "items": [
+          {
+            "statement": "Sensitive Authentication Data (CVV2/CVC2, full track data, PINs) is never stored after transaction authorization.",
+            "group": "Data Protection (Requirement 3)"
+          },
+          {
+            "statement": "Primary Account Numbers (PAN) are tokenized or encrypted using strong cryptography (AES-256) across all storage locations.",
+            "group": "Data Encryption (Requirement 3.4)"
+          },
+          {
+            "statement": "Multi-Factor Authentication (MFA) is enforced for all administrative and user access into the Cardholder Data Environment.",
+            "group": "Access Control (Requirement 8.3)"
+          },
+          {
+            "statement": "Quarterly Approved Scanning Vendor (ASV) vulnerability scans pass with zero high or critical CVSS vulnerabilities.",
+            "group": "Vulnerability Management (Requirement 11.3)"
+          },
+          {
+            "statement": "FIM (File Integrity Monitoring) alerts trigger automatically upon unauthorized changes to critical CDE system files.",
+            "group": "Monitoring & Audit (Requirement 11.5)"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "pci-dss-qsa-attestation-review",
+        "name": "PCI-DSS QSA Attestation Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Qualified Security Assessor (QSA) or PCI Internal Security Assessor (ISA) attests that CDE controls, tokenization, and ASV scans comply with PCI-DSS v4.0.",
+        "prompt": "Has the Qualified Security Assessor verified CDE isolation, tokenization, and PCI-DSS v4.0 compliance?",
+        "participant": "human",
+        "outputContract": "pci-qsa-attestation",
+        "checklistIds": [
+          "PCI-DSS v4.0 Security Controls & Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

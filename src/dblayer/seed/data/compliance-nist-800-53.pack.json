@@ -1,0 +1,72 @@
+{
+  "code": "compliance-nist-800-53",
+  "name": "NIST SP 800-53 Rev. 5 Security & Privacy Controls Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for NIST SP 800-53 Rev. 5 Security and Privacy Controls for Information Systems and Organizations, covering 20 control families (AC, AU, CM, IA, IR, RA, SC, SI, etc.), RMF Step 4 authorization, and continuous control monitoring.",
+  "owner": "NIST RMF Governance & Enterprise Architecture Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-nist-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-nist-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "NIST SP 800-53 Rev. 5 Control Family Verification Checklist",
+        "description": "Validation checklist for NIST SP 800-53 Rev. 5 control families across AC, AU, CM, IA, IR, SC, and SI.",
+        "items": [
+          {
+            "statement": "Access Control policies enforce Principle of Least Privilege (AC-6) and separation of duties (AC-5).",
+            "group": "Access Control (AC)"
+          },
+          {
+            "statement": "Audit events are logged centrally into a SIEM with timestamp synchronization (NTP) and integrity protection (AU-2, AU-8, AU-9).",
+            "group": "Audit & Accountability (AU)"
+          },
+          {
+            "statement": "Configuration baselines are enforced and unauthorized software installation is blocked (CM-2, CM-7).",
+            "group": "Configuration Management (CM)"
+          },
+          {
+            "statement": "Flaw remediation (SI-2) deploys critical security patches within 30 days of vendor release.",
+            "group": "System & Information Integrity (SI)"
+          },
+          {
+            "statement": "System boundary protection devices (firewalls, WAFs) isolate internal subnetworks from external networks (SC-7).",
+            "group": "System & Communications Protection (SC)"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "nist-800-53-authorizing-official-gate",
+        "name": "NIST RMF Authorizing Official (AO) Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Authorizing Official (AO) and Chief Information Security Officer confirm that security control assessment results warrant formal System Authorization (ATO).",
+        "prompt": "Does the Security Assessment Report (SAR) demonstrate acceptable risk to grant an ATO under NIST RMF?",
+        "participant": "human",
+        "outputContract": "nist-rmf-ato-attestation",
+        "checklistIds": [
+          "NIST SP 800-53 Rev. 5 Control Family Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

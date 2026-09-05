@@ -76,7 +76,7 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       statement: "Acceptance test: stand up a customer web portal",
-      requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
+      requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
       tier: "Engineering",
       parentObjectiveId: root.id,
     }),
@@ -86,7 +86,7 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
   assert.equal(objective.requiredCapabilities.length, 3);
 
   // 2 — select/validate a Template against the Objective's required Capabilities (Ch.6 §11)
-  const templatesRes = await request(`${baseUrl}/templates?capabilityCodes=requirements-analysis,architecture-solution-design,development`);
+  const templatesRes = await request(`${baseUrl}/templates?capabilityCodes=requirements-analysis,architecture-design,software-construction`);
   assert.equal(templatesRes.status, 200);
   const { candidates } = await templatesRes.json();
   const template = candidates.find((c: { satisfies: boolean }) => c.satisfies);
@@ -135,8 +135,8 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
   assert.equal(fulfilment.seuCapability.status, "Fulfilled");
 
   // 7/8 — progress a Deliverable through its lifecycle (Ch.15/Ch.29), gated by dependency readiness + Authority/Policy
-  const requirementsSpec = status.deliverables.find((d: { name: string }) => d.name === "Requirements Specification");
-  assert.ok(requirementsSpec, "expected the seeded 'Requirements Specification' Deliverable");
+  const requirementsSpec = status.deliverables.find((d: { name: string }) => d.name === "Requirements Analysis Model");
+  assert.ok(requirementsSpec, "expected the seeded 'Requirements Analysis Model' Deliverable");
   assert.equal(requirementsSpec.lifecycleState, "Defined");
 
   const transitionRes = await request(`${baseUrl}/deliverables/${requirementsSpec.id}/transition`, {
@@ -190,7 +190,7 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
 
   // Dependency gating is real, not decorative: the downstream Deliverable must
   // still be blocked, since its upstream dependency hasn't reached 'Approved' yet.
-  const architectureDoc = status.deliverables.find((d: { name: string }) => d.name === "Architecture Document");
+  const architectureDoc = status.deliverables.find((d: { name: string }) => d.name === "Architecture Decision Record");
   assert.ok(architectureDoc);
   const blockedRes = await request(`${baseUrl}/deliverables/${architectureDoc.id}/transition`, {
     method: "POST",

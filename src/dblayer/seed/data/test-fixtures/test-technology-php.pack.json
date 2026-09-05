@@ -1,0 +1,270 @@
+{
+  "code": "test-technology-php",
+  "name": "PHP Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "software-construction",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "engineering-work-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "PHP Standards",
+        "description": "PHP Standards",
+        "items": [
+          {
+            "statement": "Does the validation present in .php file?",
+            "group": "Input Validation"
+          },
+          {
+            "statement": "Does developer use htmlentities() to prevent their site from cross scripting?",
+            "group": "Security & Cross-Site Scripting"
+          },
+          {
+            "statement": "Files MUST use only <?php and <?= tags.",
+            "group": "PHP Tags"
+          },
+          {
+            "statement": "Class names MUST be declared in “StudlyCaps”.",
+            "group": "Naming Conventions"
+          },
+          {
+            "statement": "Class constants MUST be declared in all upper-case with underscore separators.",
+            "group": "Naming Conventions"
+          },
+          {
+            "statement": "Method names MUST be declared in “camelCase”.",
+            "group": "Naming Conventions"
+          },
+          {
+            "statement": "Avoid fopen wrappers/reliance on fopen wrappers (PHP/SQL)",
+            "group": "Security"
+          },
+          {
+            "statement": "Avoid unsanitized variables (PHP/SQL)",
+            "group": "Security & Input Validation"
+          },
+          {
+            "statement": "Ensure all Functions are outside of Loops",
+            "group": "Code Structure & Modularity"
+          },
+          {
+            "statement": "Create classes out of functions where appropriate",
+            "group": "Object-Oriented Design"
+          },
+          {
+            "statement": "Implement inheritance",
+            "group": "Object-Oriented Design"
+          },
+          {
+            "statement": "PHP code MUST use the long tags or the short-echo tags. It MUST NOT use the other tag variations.",
+            "group": "PHP Tags"
+          },
+          {
+            "statement": "All PHP files MUST use the Unix LF (line feed) line ending.",
+            "group": "File Standards"
+          },
+          {
+            "statement": "All PHP files MUST end with a single blank line.",
+            "group": "File Standards"
+          },
+          {
+            "statement": "The closing ?> tag MUST be omitted from files containing only PHP.",
+            "group": "PHP Tags"
+          },
+          {
+            "statement": "There MUST NOT be a hard limit on line length.",
+            "group": "Line Formatting"
+          },
+          {
+            "statement": "The soft limit on line length MUST be 120 characters; automated style checkers MUST warn but MUST NOT error at the soft limit.",
+            "group": "Line Formatting"
+          },
+          {
+            "statement": "Lines SHOULD NOT be longer than 80 characters; lines longer than that SHOULD be split into multiple subsequent lines of no more than 80 characters each.",
+            "group": "Line Formatting"
+          },
+          {
+            "statement": "There MUST NOT be trailing whitespace at the end of non-blank lines.",
+            "group": "Line Formatting"
+          },
+          {
+            "statement": "Blank lines MAY be added to improve readability and to indicate related blocks of code.",
+            "group": "Line Formatting"
+          },
+          {
+            "statement": "There MUST NOT be more than one statement per line.",
+            "group": "Line Formatting"
+          },
+          {
+            "statement": "Code MUST use an indent of 4 spaces for each indent level, and MUST NOT use tabs for indenting.",
+            "group": "Indentation & Formatting"
+          },
+          {
+            "statement": "If present, is there one blank line after the namespace declaration? Are all the use declarations written after the namespace declaration?",
+            "group": "Namespaces & Use Declarations"
+          },
+          {
+            "statement": "There MUST be one use keyword per declaration.",
+            "group": "Namespaces & Use Declarations"
+          },
+          {
+            "statement": "There MUST be one blank line after the all use block.",
+            "group": "Namespaces & Use Declarations"
+          },
+          {
+            "statement": "The extends and implements keywords MUST be declared on the same line as the class name.",
+            "group": "Class Declarations"
+          },
+          {
+            "statement": "The opening brace for the class MUST go on its own line; the closing brace for the class MUST go on the next line after the body.",
+            "group": "Class Declarations"
+          },
+          {
+            "statement": "Visibility MUST be declared on all properties.",
+            "group": "Properties"
+          },
+          {
+            "statement": "Avoid var keyword for property",
+            "group": "Properties"
+          },
+          {
+            "statement": "Avoid more than one property per statement",
+            "group": "Properties"
+          },
+          {
+            "statement": "Property names SHOULD NOT be prefixed with a single underscore to indicate protected or private visibility.",
+            "group": "Properties"
+          },
+          {
+            "statement": "A property declaration looks like the following.",
+            "group": "Properties"
+          },
+          {
+            "statement": "Visibility declaration on all methods.",
+            "group": "Methods"
+          },
+          {
+            "statement": "Method names SHOULD NOT be prefixed with a single underscore to indicate protected or private visibility.",
+            "group": "Methods"
+          },
+          {
+            "statement": "Method names MUST NOT be declared with a space after the method name. The opening brace MUST go on its own line, and the closing brace MUST go on the next line following the body.",
+            "group": "Methods"
+          },
+          {
+            "statement": "There MUST NOT be a space after the opening parenthesis, and there MUST NOT be a space before the closing parenthesis.",
+            "group": "Methods"
+          },
+          {
+            "statement": "In the argument list, there MUST NOT be a space before each comma, and there MUST be one space after each comma.",
+            "group": "Method Arguments"
+          },
+          {
+            "statement": "Method arguments with default values MUST go at the end of the argument list.",
+            "group": "Method Arguments"
+          },
+          {
+            "statement": "When present, the abstract and final declarations MUST precede the visibility declaration.",
+            "group": "Abstract, Final & Static Declarations"
+          },
+          {
+            "statement": "When present, the static declaration MUST come after the visibility declaration.",
+            "group": "Abstract, Final & Static Declarations"
+          },
+          {
+            "statement": "When making a method or function call, there MUST NOT be a space between the method or function name and the opening parenthesis, there MUST NOT be a space after the opening parenthesis, and there MUST NOT be a space before the closing parenthesis. In the argument list, there MUST NOT be a space before each comma, and there MUST be one space after each comma.",
+            "group": "Method & Function Calls"
+          },
+          {
+            "statement": "Closures MUST be declared with a space after the function keyword, and a space before and after the use keyword.",
+            "group": "Closures"
+          },
+          {
+            "statement": "The opening brace MUST go on the same line, and the closing brace MUST go on the next line following the body.",
+            "group": "Closures"
+          },
+          {
+            "statement": "There MUST NOT be a space after the opening parenthesis of the argument list or variable list, and there MUST NOT be a space before the closing parenthesis of the argument list or variable list.",
+            "group": "Closures"
+          },
+          {
+            "statement": "In the argument list and variable list, there MUST NOT be a space before each comma, and there MUST be one space after each comma.",
+            "group": "Closures"
+          },
+          {
+            "statement": "Closure arguments with default values MUST go at the end of the argument list.",
+            "group": "Closures"
+          },
+          {
+            "statement": "Argument lists and variable lists MAY be split across multiple lines, where each subsequent line is indented once. When doing so, the first item in the list MUST be on the next line, and there MUST be only one argument or variable per line. When the ending list is split across multiple lines, the closing parenthesis and opening brace MUST be placed together on their own line with one space between them.",
+            "group": "Closures"
+          },
+          {
+            "statement": "Anywhere you are unconditionally including a class file, use require_once. Anywhere you are conditionally including a class file (for example, factory methods), use include_once.",
+            "group": "File Inclusion"
+          },
+          {
+            "statement": "If your package needs to define global variables, their names should start with a single underscore followed by the package name and another underscore.",
+            "group": "Global Variables & Functions"
+          },
+          {
+            "statement": "Global functions should be named using the “studly caps” style (also referred to as “bumpy case” or “camel caps”). In addition, they should have the package name as a prefix, to avoid name collisions between packages. The initial letter of the name (after the prefix) is lowercase, and each letter that starts a new “word” is capitalized.",
+            "group": "Global Variables & Functions"
+          },
+          {
+            "statement": "Classes should be given descriptive names. Avoid using abbreviations where possible. Class names should always begin with an uppercase letter. The PEAR class hierarchy is also reflected in the class name, each level of the hierarchy separated with a single underscore.",
+            "group": "Naming Conventions"
+          },
+          {
+            "statement": "Class variables (a.k.a properties) and methods should be named using the “studly caps” style (also referred to as “bumpy case” or “camel caps”).",
+            "group": "Naming Conventions"
+          },
+          {
+            "statement": "Constants should always be all-uppercase, with underscores to separate words. Prefix constant names with the uppercase name of the class/package they are used in.",
+            "group": "Naming Conventions"
+          },
+          {
+            "statement": "Assignments in arrays may be aligned. When splitting array definitions onto several lines, the last value may also have a trailing comma.",
+            "group": "Arrays & Formatting"
+          },
+          {
+            "statement": "In general, we use single quotes to enclose literal strings.",
+            "group": "Strings"
+          },
+          {
+            "statement": "If you’d like to insert values from variables, concatenate strings.",
+            "group": "Strings"
+          },
+          {
+            "statement": "A space must be inserted before and after the dot for better readability.",
+            "group": "Strings"
+          },
+          {
+            "statement": "You may break a string into multiple lines if you use the dot operator. You’ll have to indent each following line to mark them as part of the value assignment.",
+            "group": "Strings"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

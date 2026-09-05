@@ -1,0 +1,48 @@
+{
+  "code": "change-approval-required",
+  "name": "Change Approval Required",
+  "description": "A change requires an approved decision from the Change Evaluation and Scheduling Service, confirmed non-conflicting with concurrently scheduled changes, with a documented rollback plan.",
+  "category": "Operational",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Change request has an associated approved decision from the Change Evaluation and Scheduling Service.",
+      "requiredEvidence": [
+        {
+          "type": "change_approval_record"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [
+        "Emergency change may proceed with retrospective approval within one business day, per Authority policy."
+      ],
+      "relatedObligations": []
+    },
+    {
+      "statement": "The change does not conflict with another approved change scheduled for the same window.",
+      "requiredEvidence": [
+        {
+          "type": "change_conflict_report"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "The change includes a documented rollback plan (satisfies O3 where the change is itself a release).",
+      "requiredEvidence": [
+        {
+          "type": "rollback_procedure_document"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

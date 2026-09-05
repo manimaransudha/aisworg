@@ -1,0 +1,75 @@
+{
+  "code": "integration-azure",
+  "name": "Microsoft Azure Cloud Platform Integration",
+  "category": "Integration",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Integration pack for Microsoft Azure Cloud Platform, providing connectivity to Azure Entra ID Managed Identities, Azure Resource Manager (ARM / Bicep), AKS clusters, Azure Key Vault, and Azure Monitor / Log Analytics.",
+  "owner": "Cloud Infrastructure & Platform Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "operating-production-systems",
+        "name": "Infrastructure Management / Monitoring, Observability & SRE",
+        "description": "Integrates Azure Virtual Machines, AKS Kubernetes, Resource Groups, and ARM/Bicep templates. Integrates Azure Monitor metrics, Log Analytics workspaces, and Application Insights."
+      },
+      {
+        "code": "software-construction",
+        "name": "Platform & Developer Experience",
+        "description": "Integrates Azure Entra ID Workload Identity and Azure CLI authentication."
+      }
+    ],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-azure-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-azure-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Azure Cloud Integration Verification Checklist",
+        "description": "Validation checklist for Azure Workload Identity authentication, AKS credentials, and Azure Monitor alerts.",
+        "items": [
+          {
+            "statement": "Azure Entra ID Service Principal / Workload Identity authenticates with Azure RBAC permissions.",
+            "group": "Entra ID Auth"
+          },
+          {
+            "statement": "Azure Key Vault secrets fetch securely using Managed Identity tokens without hardcoded credentials.",
+            "group": "Key Vault Access"
+          },
+          {
+            "statement": "Azure Monitor Alert rules trigger Action Group webhooks on resource metric thresholds.",
+            "group": "Azure Monitor Alerts"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "azure-cloud-review-gate",
+        "name": "Azure Cloud Integration Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Azure Cloud Architect confirms that Entra ID authentication and Azure Monitor alerts satisfy cloud standards.",
+        "prompt": "Does the Azure integration verify Workload Identity authentication and Key Vault secret retrieval?",
+        "participant": "human",
+        "outputContract": "azure-integration-attestation",
+        "checklistIds": [
+          "Azure Cloud Integration Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

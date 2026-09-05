@@ -11,91 +11,14 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "internationalization-localization",
+        "code": "software-construction",
         "name": "Internationalization & Localization",
         "description": "Adapts the product's language, formatting, and cultural presentation to operate correctly in new regional markets."
       }
     ],
     "services": [
       {
-        "code": "locale-language-strategy",
-        "capabilityCode": "internationalization-localization",
-        "name": "Locale & Language Strategy",
-        "contractDescription": "Tiered locale rollout prioritization, fallback locale rules, and currency/timezone formatting matrix.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "translation-glossary-style-guide",
-        "capabilityCode": "internationalization-localization",
-        "name": "Translation Glossary & Style Guide",
-        "contractDescription": "Brand term translation rules, non-translatable technical keywords, and tone of voice guides per target locale.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "pseudolocalization-report",
-        "capabilityCode": "internationalization-localization",
-        "name": "Pseudolocalization Report",
-        "contractDescription": "Automated string expansion, accent character encoding, and UI container truncation test report.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "rtl-cultural-adaptation-review",
-        "capabilityCode": "internationalization-localization",
-        "name": "RTL & Cultural Adaptation Review",
-        "contractDescription": "Right-to-Left (RTL) CSS layout mirroring, icon directionality, and local cultural symbol appropriateness audit.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "regional-compliance-addenda",
-        "capabilityCode": "internationalization-localization",
-        "name": "Regional Compliance Addenda",
-        "contractDescription": "Country-specific legal disclosures, tax formatting (VAT/GST), and local consumer protection terms.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "executive-approved"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
+        "code": "software-implementation-service"
       }
     ],
     "authorityRules": [
@@ -115,17 +38,7 @@
         "authorisedRole": "general"
       }
     ],
-    "policies": [
-      {
-        "code": "policy-i18n-layout-encoding-standard",
-        "name": "i18n Layout & Encoding Standard Policy",
-        "category": "Engineering",
-        "constraintType": "Standard",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "conditionType": "always_true",
-        "severity": "medium"
-      }
-    ],
+    "policies": [],
     "checklists": [
       {
         "name": "Internationalization & Localization (SDLC Phase 14) Checklist",

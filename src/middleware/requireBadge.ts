@@ -62,6 +62,11 @@ export function requireBadge(badges: string[], opts: { mode?: "web" | "api"; red
   const required = badges[0] === NONE ? [] : badges;
   const mode = opts.mode ?? "web";
   const match = opts.match ?? "all";
+  // Root bypass is a dev/test convenience (exercising every route without
+  // minting every badge by hand) — not a production access path. Same
+  // NODE_ENV !== 'production' gate src/dev/actAs.ts already uses for the
+  // same reason.
+  const rootBypassAllowed = process.env.NODE_ENV !== "production";
   if (mode === "web" && required.length > 0 && !opts.redirectTo) {
     throw new Error("requireBadge(): redirectTo is required in web mode when a real badge is listed — pass mode: 'api' for a JSON-only router instead.");
   }
@@ -81,7 +86,7 @@ export function requireBadge(badges: string[], opts: { mode?: "web" | "api"; red
 
     const held = await resolveHeldBadges(req);
     const satisfied = match === "any" ? required.some((b) => held.badgeTypes.has(b)) : required.every((b) => held.badgeTypes.has(b));
-    if (held.isRoot || satisfied) {
+    if ((held.isRoot && rootBypassAllowed) || satisfied) {
       next();
       return;
     }

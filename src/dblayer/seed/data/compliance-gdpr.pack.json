@@ -1,0 +1,72 @@
+{
+  "code": "compliance-gdpr",
+  "name": "GDPR Data Privacy & Protection Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for the General Data Protection Regulation (GDPR), covering Data Protection Impact Assessments (DPIA), Lawful Basis for Processing, Data Subject Rights (DSAR), Sub-processor DPAs, and 72-hour Supervisory Authority breach notifications.",
+  "owner": "Data Protection Officer (DPO) & Privacy Legal Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-gdpr-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-gdpr-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "GDPR Privacy & Data Subject Rights Verification Checklist",
+        "description": "Validation checklist for GDPR Article 5 principles, Articles 12-22 Data Subject Rights, and Article 35 DPIAs.",
+        "items": [
+          {
+            "statement": "Lawful basis for processing (Consent, Legitimate Interest, Contract Performance) is documented for every PII data category.",
+            "group": "Principles & Lawful Basis (Art. 5 & 6)"
+          },
+          {
+            "statement": "Automated mechanisms support Data Subject Access Requests (DSAR), Export (JSON/CSV), and Right to be Forgotten within 30 days.",
+            "group": "Data Subject Rights (Art. 15-21)"
+          },
+          {
+            "statement": "Data Protection Impact Assessment (DPIA) is completed and signed off by the DPO for high-risk processing operations.",
+            "group": "DPIA & Privacy by Design (Art. 25 & 35)"
+          },
+          {
+            "statement": "Standard Contractual Clauses (SCCs) and Transfer Impact Assessments (TIAs) are in place for non-EU data transfers.",
+            "group": "International Transfers (Art. 44-49)"
+          },
+          {
+            "statement": "Incident response plan guarantees notification to Supervisory Authorities within 72 hours of discovering a personal data breach.",
+            "group": "Breach Notification (Art. 33)"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "gdpr-dpo-privacy-attestation",
+        "name": "GDPR DPA & Privacy Attestation Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Data Protection Officer (DPO) and Legal Counsel attest that personal data processing, DPIA, consent mechanics, and DSAR workflows satisfy GDPR requirements.",
+        "prompt": "Does the Data Protection Officer confirm that DPIA, DSAR automation, and GDPR privacy controls are fully compliant?",
+        "participant": "human",
+        "outputContract": "gdpr-dpo-attestation",
+        "checklistIds": [
+          "GDPR Privacy & Data Subject Rights Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

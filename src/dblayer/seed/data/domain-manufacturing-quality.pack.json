@@ -1,0 +1,72 @@
+{
+  "code": "domain-manufacturing-quality",
+  "name": "Manufacturing & Quality Control Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for Manufacturing Operations and Quality Control, covering Material Requirements Planning (MRP), Master Production Scheduling (MPS), work order execution, shop-floor tracking, quality inspections, non-conformance CAPA, scrap management, and preventive maintenance.",
+  "owner": "Global Manufacturing & Quality Engineering Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-mfg-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-mfg-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Manufacturing & Quality Control Audit Checklist",
+        "description": "Validation checklist for MRP BOM explosion, work order tracking, quality inspection, non-conformance, and CAPA.",
+        "items": [
+          {
+            "statement": "Bill of Materials (BOM) revisions are controlled and material availability verified prior to work order release.",
+            "group": "MRP & Work Orders"
+          },
+          {
+            "statement": "Shop-floor execution logs machine runtime, operator ID, produced quantity, and scrapped material.",
+            "group": "Shop-Floor Execution"
+          },
+          {
+            "statement": "Quality inspection plans execute at defined control points (incoming, in-process, final release).",
+            "group": "Quality Inspection"
+          },
+          {
+            "statement": "Defective components trigger Non-Conformance Reports (NCR) and material quarantine.",
+            "group": "Non-Conformance Control"
+          },
+          {
+            "statement": "Corrective Action Preventive Action (CAPA) plans perform 5-Why / 8D root-cause analysis with verification of effectiveness.",
+            "group": "CAPA & RCA"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "quality-director-signoff-gate",
+        "name": "Quality Assurance Director Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Quality Assurance Director confirms that manufacturing inspections, NCR quarantines, and CAPA resolutions meet ISO 9001 standards.",
+        "prompt": "Does the manufacturing quality documentation confirm product compliance and CAPA effectiveness?",
+        "participant": "human",
+        "outputContract": "mfg-quality-attestation",
+        "checklistIds": [
+          "Manufacturing & Quality Control Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

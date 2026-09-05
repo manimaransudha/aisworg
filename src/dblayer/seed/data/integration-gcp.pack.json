@@ -1,0 +1,75 @@
+{
+  "code": "integration-gcp",
+  "name": "Google Cloud Platform (GCP) Integration",
+  "category": "Integration",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Integration pack for Google Cloud Platform (GCP), providing connectivity to GCP Workload Identity Federation, Google Kubernetes Engine (GKE), Google Cloud Storage (GCS), Cloud IAM, and Cloud Logging/Monitoring (Operations Suite).",
+  "owner": "Cloud Infrastructure & Platform Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "operating-production-systems",
+        "name": "Infrastructure Management / Monitoring, Observability & SRE",
+        "description": "Integrates GCP Compute Engine, GKE cluster management, VPC subnets, and Cloud Storage buckets. Integrates Google Cloud Logging, Cloud Monitoring metrics, and Trace."
+      },
+      {
+        "code": "software-construction",
+        "name": "Platform & Developer Experience",
+        "description": "Integrates GCP Workload Identity Federation and gcloud SDK credentials."
+      }
+    ],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-gcp-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-gcp-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "GCP Integration Verification Checklist",
+        "description": "Validation checklist for GCP Workload Identity, GKE cluster access, and Cloud Operations Suite alerts.",
+        "items": [
+          {
+            "statement": "GCP Workload Identity Federation authenticates service accounts without long-lived service account key files.",
+            "group": "Workload Identity Auth"
+          },
+          {
+            "statement": "GKE cluster credentials obtain via gcloud container clusters get-credentials.",
+            "group": "GKE Auth"
+          },
+          {
+            "statement": "Google Cloud Monitoring Alert Policies dispatch webhook notifications on log metric thresholds.",
+            "group": "Cloud Monitoring Alerts"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "gcp-integration-review-gate",
+        "name": "GCP Cloud Integration Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The GCP Cloud Architect confirms that Workload Identity and Cloud Monitoring alerts operate properly.",
+        "prompt": "Does the GCP integration verify Workload Identity authentication and GKE cluster access?",
+        "participant": "human",
+        "outputContract": "gcp-integration-attestation",
+        "checklistIds": [
+          "GCP Integration Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

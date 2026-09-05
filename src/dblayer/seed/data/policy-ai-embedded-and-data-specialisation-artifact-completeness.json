@@ -1,0 +1,55 @@
+{
+  "code": "ai-embedded-and-data-specialisation-artifact-completeness",
+  "name": "AI, Embedded, and Data Specialisation Artifact Completeness",
+  "description": "A trained model is documented and evaluated, a firmware build is verified against its declared hardware interface, and a data pipeline's output meets its own declared quality thresholds.",
+  "category": "Engineering",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [
+    "training-data-specification",
+    "model-card",
+    "model-evaluation-report",
+    "hardware-interface-specification",
+    "firmware-build",
+    "hardware-compatibility-report",
+    "data-pipeline-specification",
+    "data-quality-report"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "A Model Card exists for every trained model, declaring its own Training Data Specification and Model Evaluation Report.",
+      "requiredEvidence": [
+        {
+          "type": "model_documentation_check"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "A Firmware Build is accompanied by a Hardware Compatibility Report confirming it against its declared Hardware Interface Specification.",
+      "requiredEvidence": [
+        {
+          "type": "hardware_compatibility_report"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "A Data Pipeline Specification's own output meets the thresholds declared in its Data Quality Report before being consumed downstream.",
+      "requiredEvidence": [
+        {
+          "type": "data_quality_report"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

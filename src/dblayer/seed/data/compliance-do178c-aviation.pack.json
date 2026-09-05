@@ -1,0 +1,72 @@
+{
+  "code": "compliance-do178c-aviation",
+  "name": "DO-178C Airborne Systems Software Certification",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for FAA / EASA DO-178C (Software Considerations in Airborne Systems and Equipment Certification) across Software Levels A, B, C, D, and E, covering PSAC, SAS, SVR, structural coverage analysis (MC/DC), and DER audit evidence.",
+  "owner": "Avionics Software Certification & DER Authority",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-do178c-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-do178c-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "DO-178C Airborne Software Certification Checklist",
+        "description": "Validation checklist for DO-178C Tables A-1 to A-10 objectives.",
+        "items": [
+          {
+            "statement": "Plan for Software Aspects of Certification (PSAC) is approved by the FAA / EASA Designated Engineering Representative (DER).",
+            "group": "Certification Planning (PSAC)"
+          },
+          {
+            "statement": "High-level software requirements (HLR) and low-level software requirements (LLR) maintain bi-directional traceability (Table A-3).",
+            "group": "Requirements Traceability"
+          },
+          {
+            "statement": "Source code complies with Software Coding Standards and eliminates unexecutable or dead code (Table A-5).",
+            "group": "Coding Standards"
+          },
+          {
+            "statement": "Modified Condition / Decision Coverage (MC/DC) achieves 100% coverage for Level A flight control software (Table A-7).",
+            "group": "Structural Coverage (MC/DC)"
+          },
+          {
+            "statement": "Software Accomplishment Summary (SAS) and Software Configuration Index (SCI) are submitted for final DER sign-off.",
+            "group": "Software Accomplishment Summary"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "do178c-der-signoff-gate",
+        "name": "DO-178C Designated Engineering Representative (DER) Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Designated Engineering Representative (DER) / Compliance Verification Engineer (CVE) attests that DO-178C life cycle objectives are satisfied.",
+        "prompt": "Does the avionics software verification package confirm 100% objective completion under DO-178C?",
+        "participant": "human",
+        "outputContract": "do178c-der-attestation",
+        "checklistIds": [
+          "DO-178C Airborne Software Certification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

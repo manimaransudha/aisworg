@@ -103,7 +103,7 @@ Every contribution shall remain traceable to its originating Pack.
 
 The platform recognises the following Pack categories.
 
-### 6.1 Platform Packs
+### 6.1 Platform Packs (Engineering Packs)
 
 Platform Packs provide default platform behaviour.
 
@@ -135,7 +135,7 @@ Organisation Packs should extend Platform Packs wherever practical.
 
 ### 6.3 Domain Packs
 
-Domain Packs contribute business-domain knowledge.
+Domain Packs contribute to business-domain knowledge.
 
 Examples:
 
@@ -167,13 +167,13 @@ Examples:
 - ISO 27001
 - GDPR
 
-Typical contributions include:
+  Typical contributions include:
 
-- compliance obligations;
-- evidence requirements;
-- audit requirements;
-- approval rules;
-- quality constraints.
+  - compliance obligations;
+  - evidence requirements;
+  - audit requirements;
+  - approval rules;
+  - quality constraints.
 
 
 

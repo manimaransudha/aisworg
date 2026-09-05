@@ -14,52 +14,24 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "catalog-management",
+        "code": "understanding-business-domain",
         "name": "Catalog & Metadata Management",
         "description": "Curates e-book catalog metadata (ISBN, title, author, format, licensed copy count) and catalog structure."
       },
       {
-        "code": "circulation-management",
+        "code": "operating-production-systems",
         "name": "Circulation Management",
         "description": "Governs borrowing, returns, loan periods, and hold/waitlist rules when no licensed copies are available."
       }
     ],
     "services": [
       {
-        "code": "approved-catalog-metadata-design",
-        "capabilityCode": "catalog-management",
-        "name": "Approved Catalog Metadata Design",
-        "contractDescription": "A reviewed, approved data model and rule set for catalog titles and their metadata.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          }
-        ]
+        "code": "domain-model-service"
       },
       {
-        "code": "approved-circulation-rules",
-        "capabilityCode": "circulation-management",
-        "name": "Approved Circulation Rules",
-        "contractDescription": "A reviewed, approved specification of borrowing, return, and hold/waitlist rules.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          }
-        ]
+        "code": "availability-assurance-service"
       }
     ],
-    "policies": [
-      {
-        "code": "policy-library-isbn-metadata-standard",
-        "name": "ISBN Metadata Standard",
-        "category": "Documentation",
-        "constraintType": "Standard",
-        "governedTransition": "Deliverable|Defined|In Progress",
-        "conditionType": "always_true",
-        "severity": "Low"
-      }
-    ]
+    "policies": []
   }
 }

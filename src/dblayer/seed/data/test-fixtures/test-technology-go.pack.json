@@ -1,0 +1,58 @@
+{
+  "code": "test-technology-go",
+  "name": "Go Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "software-construction",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "engineering-work-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "Go Engineering Standards",
+        "description": "Validation checklist for Go code style, concurrency, error handling, and static analysis.",
+        "items": [
+          {
+            "statement": "Go source code passes gofmt, govet, and golangci-lint without unaddressed warnings.",
+            "group": "Code Style & Linting"
+          },
+          {
+            "statement": "Error handling is explicit (if err != nil) and error strings are formatted without capitalized leading letters or punctuation.",
+            "group": "Error Handling"
+          },
+          {
+            "statement": "Goroutines manage lifecycle, use context.Context for cancellation propagation, and avoid goroutine leaks.",
+            "group": "Concurrency & Goroutines"
+          },
+          {
+            "statement": "Tests run clean with the race detector enabled (go test -race ./...) without data races.",
+            "group": "Testing & Race Detection"
+          },
+          {
+            "statement": "Interfaces are defined by the consumer, kept small and focused, and unexported unless public export is explicitly required.",
+            "group": "Interface & API Design"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "code": "integration-snyk",
+  "name": "Snyk Security & Vulnerability Scanning Integration",
+  "category": "Integration",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Integration pack for Snyk Security Platform, providing connectivity to Snyk Open Source dependency scanning, Snyk Container image scanning, Snyk Code SAST, Snyk Infrastructure as Code (IaC) misconfiguration audits, and automated PR fix recommendations.",
+  "owner": "DevSecOps & Application Security Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "protect-organisational-assets",
+        "name": "Security Engineering / Security & Privacy Compliance",
+        "description": "Integrates Snyk Open Source dependency vulnerability checks, container scanning, and Snyk Code SAST. Integrates Snyk license compliance checks (GPL, AGPL risk identification) and IaC security audits."
+      }
+    ],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-snyk-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-snyk-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Snyk Security Integration Verification Checklist",
+        "description": "Validation checklist for Snyk Service Account API tokens, SCM repository monitoring, and CI vulnerability thresholds.",
+        "items": [
+          {
+            "statement": "Snyk Service Account API Token authenticates REST API calls and CLI scanner jobs.",
+            "group": "Snyk API Auth"
+          },
+          {
+            "statement": "Snyk monitors open source dependencies and alerts on newly disclosed CVEs.",
+            "group": "Dependency Monitoring"
+          },
+          {
+            "statement": "Snyk CLI in CI build pipeline fails builds when high/critical vulnerabilities are detected.",
+            "group": "CI Vulnerability Thresholds"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "snyk-integration-review-gate",
+        "name": "Snyk DevSecOps Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Security Lead confirms that Snyk vulnerability scans and license compliance checks satisfy security requirements.",
+        "prompt": "Does the Snyk integration verify vulnerability scan triggers and PR fix recommendation delivery?",
+        "participant": "human",
+        "outputContract": "snyk-integration-attestation",
+        "checklistIds": [
+          "Snyk Security Integration Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

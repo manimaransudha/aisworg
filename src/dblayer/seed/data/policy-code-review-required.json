@@ -1,0 +1,52 @@
+{
+  "code": "code-review-required",
+  "name": "Code Review Required",
+  "description": "Source Code requires a passed review, by a participant other than its author, addressing all prior findings, before Ready.",
+  "category": "Quality",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [
+    "source-code"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "At least one review_result with outcome Passed exists for the Work Item.",
+      "requiredEvidence": [
+        {
+          "type": "review_result"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [
+        "Emergency hotfix, approved by an Authority holder, may defer review to within 24 hours post-release."
+      ],
+      "relatedObligations": []
+    },
+    {
+      "statement": "The reviewing participant is not the same participant who authored the change.",
+      "requiredEvidence": [
+        {
+          "type": "review_result",
+          "field": "reviewer_identity"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "All findings raised in a prior review round on this Deliverable are marked resolved or explicitly deferred with rationale.",
+      "requiredEvidence": [
+        {
+          "type": "review_result",
+          "field": "prior_findings_status"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

@@ -11,123 +11,14 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "quality-engineering-hardening",
+        "code": "software-validation",
         "name": "Quality Engineering & Hardening",
         "description": "Verifies the product meets functional, performance, security, and accessibility quality bars before it is exposed to real users."
       }
     ],
     "services": [
       {
-        "code": "master-test-plan",
-        "capabilityCode": "quality-engineering-hardening",
-        "name": "Master Test Plan",
-        "contractDescription": "Comprehensive testing strategy covering unit, integration, system, regression, and UAT methodologies.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "test-cases-traceability-matrix",
-        "capabilityCode": "quality-engineering-hardening",
-        "name": "Test Cases & Traceability Matrix",
-        "contractDescription": "Requirement-to-test mapping matrix ensuring 100% functional acceptance criteria coverage.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "automated-test-suite-reports",
-        "capabilityCode": "quality-engineering-hardening",
-        "name": "Automated Test Suite Reports",
-        "contractDescription": "CI test run outputs, flaky test isolation reports, and automated regression suite execution logs.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "performance-load-test-plan-results",
-        "capabilityCode": "quality-engineering-hardening",
-        "name": "Performance & Load Test Plan/Results",
-        "contractDescription": "k6 / Locust load test execution results, latency percentile distribution, and bottleneck analysis.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "security-testing-report",
-        "capabilityCode": "quality-engineering-hardening",
-        "name": "Security Testing Report",
-        "contractDescription": "DAST penetration testing, dependency vulnerability report, and static code security analysis output.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "executive-approved"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "accessibility-audit",
-        "capabilityCode": "quality-engineering-hardening",
-        "name": "Accessibility Audit",
-        "contractDescription": "axe-core automated audit and manual screen reader (NVDA/VoiceOver) accessibility test report.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "uat-plan-sign-off-report",
-        "capabilityCode": "quality-engineering-hardening",
-        "name": "UAT Plan & Sign-off Report",
-        "contractDescription": "User acceptance test script execution, defect triage log, and business stakeholder sign-off.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "executive-approved"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
+        "code": "quality-assurance-service"
       }
     ],
     "authorityRules": [
@@ -147,17 +38,7 @@
         "authorisedRole": "general"
       }
     ],
-    "policies": [
-      {
-        "code": "policy-zero-critical-defects-release-standard",
-        "name": "Zero Critical Defects Release Standard Policy",
-        "category": "Quality",
-        "constraintType": "Policy",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "conditionType": "always_true",
-        "severity": "high"
-      }
-    ],
+    "policies": [],
     "checklists": [
       {
         "name": "Quality Engineering & Hardening (SDLC Phase 8) Checklist",

@@ -18,15 +18,17 @@
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { assertCanonicalCategory } from "./ontology.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
+import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
+import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
 import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { authorityRulesDB } from "../../../dblayer/authorityRulesDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
+import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
 import { backfillAuthorityRuleCode, backfillPolicyCode } from "../../../dblayer/seed/seedTransitionDefinitions.js";
 import { qualityGatesDB } from "../../../dblayer/qualityGatesDB.js";
 import { reviewGatesDB } from "../../../dblayer/reviewGatesDB.js";
 import { checklistsDB } from "../../../dblayer/checklistsDB.js";
-import { complianceDB } from "../../../dblayer/complianceDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
@@ -43,6 +45,67 @@ function parseGovernedTransition(value: string | undefined): { entityType: Trans
   if (parts.length !== 3 || parts.some((p) => !p.trim())) return null;
   const [entityType, fromState, toState] = parts;
   return { entityType: entityType as TransitionEntityType, fromState, toState };
+}
+
+// CR-089 follow-on — deliverable-names produced by this Pack's own declared
+// Capabilities, via each Capability's canonical Service Definition outputs
+// (Ch.11) — same "capability -> Service Definition -> outputs" walk
+// loadPackCodesCapabilityCoverage (web/sdkAuthoring.ts) already runs for
+// Template's own Pack Codes tab, one level up (there: deliverable-names ->
+// capabilities; here: capabilities -> deliverable-names). The narrowing
+// signal contributionPolicies[] needed (CR-089's own open question 1,
+// resolved this session) — a canonical Policy has no direct Capability tie,
+// but its applicabilityDeliverableNames does, indirectly, through this walk.
+async function deliverableNamesFromCapabilityCodes(capabilityCodes: string[], viewerTenantId: string): Promise<Set<string>> {
+  const { data: definitions } = await serviceDefinitionsDB.findAllVisibleTo(viewerTenantId);
+  const names = new Set<string>();
+  const capSet = new Set(capabilityCodes);
+  for (const def of definitions ?? []) {
+    if (def.status !== "Active" || !capSet.has(def.capability_code)) continue;
+    for (const code of (def.outputs as unknown as string[] | null) ?? []) names.add(code);
+  }
+  return names;
+}
+
+// CR-089 follow-on — governedTransition, required on the real Pack-composed
+// `policies` table (Quality Gate's requiredPolicyCodes depends on it), is
+// derived from the canonical Policy Definition's own
+// applicabilityDeliverableLifecycle rather than authored on the Pack (owner:
+// "is not deliverable_lifecycle equivalent of that?") — the transition
+// LANDING on the most-advanced named state, or landing on Baselined (the
+// final gate) when the list is empty ("matches every state" per CR-089's
+// own convention). Every one of the 34 canonical policies derives to
+// Deliverable|Approved|Baselined today (none currently scope to an
+// earlier-only state); the mechanism still generalises correctly the moment
+// one does. Defined has no incoming edge (it's the initial state) — falls
+// back to its own outgoing edge (Defined -> In Progress) in that case,
+// since nothing can govern entry into the very first state.
+const DELIVERABLE_LIFECYCLE_ORDER = ["Defined", "In Progress", "Approved", "Baselined"];
+function deriveGovernedTransitionFromDeliverableLifecycle(states: string[]): string {
+  const mostAdvanced = states.length
+    ? states.reduce((latest, s) => (DELIVERABLE_LIFECYCLE_ORDER.indexOf(s) > DELIVERABLE_LIFECYCLE_ORDER.indexOf(latest) ? s : latest), states[0])
+    : "Baselined";
+  const idx = DELIVERABLE_LIFECYCLE_ORDER.indexOf(mostAdvanced);
+  const [fromState, toState] = idx > 0 ? [DELIVERABLE_LIFECYCLE_ORDER[idx - 1], mostAdvanced] : [DELIVERABLE_LIFECYCLE_ORDER[0], DELIVERABLE_LIFECYCLE_ORDER[1]];
+  return `Deliverable|${fromState}|${toState}`;
+}
+
+// CR-089 follow-on — the highest severity among the Definition's own
+// conditions, since the real Pack-composed `policies` table has one flat
+// severity column but a canonical Policy Definition's severity lives per
+// condition (Ch.24 §8 — a Policy-level severity couldn't say which
+// condition's violation it describes once there's more than one). "Worst
+// case this Policy's violation could mean" is a defensible reduction, not a
+// guess at real per-condition evaluation (deferred — the evaluation engine
+// doesn't consult `conditions[]` at all yet, only `always_true`/`field_in`
+// on the old flat shape).
+const SEVERITY_RANK: Record<string, number> = { Critical: 4, High: 3, Medium: 2, Low: 1 };
+function highestConditionSeverity(conditions: Array<{ severity?: string }>): string {
+  let best = "Medium";
+  for (const cond of conditions) {
+    if (cond.severity && (SEVERITY_RANK[cond.severity] ?? 0) > (SEVERITY_RANK[best] ?? 0)) best = cond.severity;
+  }
+  return best;
 }
 
 // CR-060, corrected same day — a gate's checklistIds entry can arrive in
@@ -297,7 +360,16 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
   }
   checkDuplicates("service", seed.contributions.services);
   checkDuplicates("authority rule", seed.contributions.authorityRules);
-  checkDuplicates("policy", seed.contributions.policies);
+  // CR-089 follow-on — policies is now a flat string[] of codes (no {code}
+  // wrapper, unlike every other contribution type), so checkDuplicates'
+  // generic Array<{code}> shape doesn't fit; checked directly instead.
+  {
+    const seenPolicyCodes = new Set<string>();
+    for (const code of seed.contributions.policies ?? []) {
+      if (seenPolicyCodes.has(code)) errors.push(`duplicate policy code within Pack: "${code}"`);
+      seenPolicyCodes.add(code);
+    }
+  }
 
   // CR-058 — no author-typed `code` on a Quality Gate contribution
   // (deriveQualityGateCode above); duplicate detection within one Pack's
@@ -414,39 +486,29 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
     }
   }
 
-  // CR-061 — Policy contributions: Name/Category/Constraint Type/Governed
-  // Transition required. Category is Ontology-backed (category:policy,
-  // migration 107 — a new concept type, not reused from category:evidence/
-  // category:pack, owner: "It does not change the policy category").
-  // Governed Transition resolves to a real transition_definitions row, same
-  // discipline as Quality Gate/Review Gate's own scope check — definition-
-  // side only (owner: "we are not addressing this here" re: the evaluation
-  // engine actually consulting it). Condition's flat, authored shape
-  // (conditionType/conditionField/conditionValues) is structurally checked
-  // here; reassembled into condition's real nested JSONB shape at
-  // seedContributions time. code uniqueness matches policiesDB.upsert's own
-  // (originating_pack_id, code) key.
-  const seenPolicyCodes = new Set<string>();
-  for (const policy of seed.contributions.policies ?? []) {
-    if (!policy.code?.trim()) errors.push("policy is missing a code");
-    else if (seenPolicyCodes.has(policy.code)) errors.push(`duplicate policy code within Pack: "${policy.code}"`);
-    else seenPolicyCodes.add(policy.code);
-    if (!policy.name?.trim()) errors.push(`policy "${policy.code}" is missing a name`);
-    try {
-      await assertCanonicalCategory("category:policy", policy.category ?? "", ontologyViewer);
-    } catch (err) {
-      errors.push((err as Error).message);
+  // CR-089 follow-on — Policy contributions: code now resolves against a
+  // real Policy Definition (policy_definitions), same move CR-086 made for
+  // Services above. Duplicate-code checked generically already
+  // (checkDuplicates("policy", ...) below). Scoped the same way: the
+  // Definition's own applicability_deliverable_names must intersect a
+  // deliverable-name produced by this Pack's own declared Capabilities'
+  // Service Definitions — or be empty ("matches every deliverable-name
+  // today", the same always-present-list convention CR-089 established),
+  // which always passes regardless of this Pack's Capabilities.
+  const packCapabilityCodes = (seed.contributions.capabilities ?? []).map((c) => c.code);
+  const packDeliverableNames = await deliverableNamesFromCapabilityCodes(packCapabilityCodes, ontologyViewer.tenantId ?? PLATFORM_TENANT_ID);
+  for (const policyCode of seed.contributions.policies ?? []) {
+    if (!policyCode?.trim()) {
+      errors.push("policy is missing a code");
+      continue;
     }
-    const scope = parseGovernedTransition(policy.governedTransition);
-    if (!scope) {
-      errors.push(`policy "${policy.name}" has an invalid governedTransition — expected "EntityType|fromState|toState"`);
-    } else {
-      const { data: definition } = await transitionDefinitionsDB.find(scope.entityType, scope.fromState, scope.toState);
-      if (!definition) errors.push(`policy "${policy.name}" references a transition that doesn't exist: ${scope.entityType} ${scope.fromState} -> ${scope.toState}`);
+    const { data: definition } = await policyDefinitionsDB.findActiveByCodeVisibleTo(policyCode, ontologyViewer.tenantId ?? PLATFORM_TENANT_ID);
+    if (!definition) {
+      errors.push(`policy "${policyCode}" does not resolve to an Active Policy Definition visible to this tenant`);
+      continue;
     }
-    if (policy.conditionType === "field_in") {
-      if (!policy.conditionField?.trim()) errors.push(`policy "${policy.name}" has conditionType field_in but no conditionField`);
-      if (!policy.conditionValues?.trim()) errors.push(`policy "${policy.name}" has conditionType field_in but no conditionValues`);
+    if (definition.applicability_deliverable_names.length > 0 && !definition.applicability_deliverable_names.some((d) => packDeliverableNames.has(d))) {
+      errors.push(`policy "${policyCode}" does not govern any deliverable-name produced by this Pack's own declared Capabilities`);
     }
   }
 
@@ -488,26 +550,48 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
     if (!ec.url?.trim()) errors.push("engineering capital entry is missing a url");
   }
 
-  // CR-064 — Service contributions: code is real, Ontology-backed
-  // (service-name, migration 113 — freely-extensible, same capability-name/
-  // feature-flag pattern, deliberately shared across Packs so two different
-  // Packs can each declare their own row under the same canonical code).
-  // capabilityCode stays same-Pack-only, unchanged. serviceLevel items each
-  // need both label and target.
-  const capabilityCodes = new Set((seed.contributions.capabilities ?? []).map((c) => c.code));
-  for (const svc of seed.contributions.services ?? []) {
-    if (!capabilityCodes.has(svc.capabilityCode)) {
-      errors.push(`service "${svc.code}" references unknown capability "${svc.capabilityCode}" — the capability must be declared in this same Pack's contributions`);
-    }
+  // Owner (2026-09-01): "The compliance tab in pack model is just a
+  // placeholder. It has to be expanded to pick from one of the existing
+  // compliance codes." A code-only reference to an existing Compliance
+  // Pack's own compliance-name code (migration 144) — same shape as
+  // featureFlagCodes, on every Pack regardless of its own category.
+  for (const code of seed.contributions.complianceCodes ?? []) {
     try {
-      await assertCanonicalCategory("service-name", svc.code ?? "", ontologyViewer);
+      await assertCanonicalCategory("compliance-name", code, ontologyViewer);
     } catch (err) {
       errors.push((err as Error).message);
     }
-    (svc.serviceLevel ?? []).forEach((sl, i) => {
-      if (!sl.label?.trim()) errors.push(`service "${svc.code}" service level ${i + 1} is missing a label`);
-      if (!sl.target?.trim()) errors.push(`service "${svc.code}" service level ${i + 1} is missing a target`);
-    });
+  }
+
+  // CR-086 follow-on (owner: "the services form should show all services
+  // tied to the capabilities that are in contributions.capability[]...
+  // Capability Code/Name/Contract Description... do not have to be stored")
+  // — code now resolves against a real Service Definition (not a freestanding
+  // service-name concept), and that Definition's own capability_code must be
+  // one of THIS Pack's own declared Capabilities (mirrors the old
+  // svc.capabilityCode check, just resolved off the Definition instead of a
+  // stored field). serviceLevel overrides are validated against the
+  // Definition's own rows — a Pack may only override a target the Definition
+  // actually declares, never invent a new dimension.
+  const capabilityCodes = new Set((seed.contributions.capabilities ?? []).map((c) => c.code));
+  for (const svc of seed.contributions.services ?? []) {
+    const { data: definition } = await serviceDefinitionsDB.findActiveByCodeVisibleTo(svc.code ?? "", ontologyViewer.tenantId ?? PLATFORM_TENANT_ID);
+    if (!definition) {
+      errors.push(`service "${svc.code}" does not resolve to an Active Service Definition visible to this tenant`);
+      continue;
+    }
+    if (!capabilityCodes.has(definition.capability_code)) {
+      errors.push(`service "${svc.code}" is aligned to capability "${definition.capability_code}", which is not declared in this same Pack's own Capabilities`);
+    }
+    const definitionLevelCodes = new Set(definition.service_level.map((sl) => sl.code));
+    for (const override of svc.serviceLevel ?? []) {
+      if (!definitionLevelCodes.has(override.code)) {
+        errors.push(`service "${svc.code}" overrides service level "${override.code}", which the Service Definition does not declare`);
+      }
+      if (typeof override.target !== "number" || Number.isNaN(override.target)) {
+        errors.push(`service "${svc.code}" service level "${override.code}" target must be a number`);
+      }
+    }
   }
 
   for (const dep of seed.dependencies ?? []) {
@@ -670,10 +754,16 @@ export async function publishPack(input: { seed: PackSeedInput; actorRole: strin
 async function seedContributions(pack: PackRow, seed: PackSeedInput): Promise<void> {
   const capabilityIdByCode = new Map<string, string>();
   for (const cap of seed.contributions.capabilities ?? []) {
+    // Owner: "what is stored in contributionCapabilities[]? Just store only
+    // the code" — name/description no longer travel with the Pack's own
+    // authored row at all; resolved here from the capability-name Ontology
+    // concept the code already validates against (validatePackSeed's own
+    // assertCanonicalCategory check), the single real source for both.
+    const { data: concept } = await ontologyDB.findConcept("capability-name", cap.code, { isRoot: false, tenantId: pack.tenant_id });
     const { data: capability, error } = await capabilitiesDB.upsertFromPack({
       code: cap.code,
-      name: cap.name,
-      description: cap.description ?? null,
+      name: concept?.default_label ?? cap.code,
+      description: concept?.description ?? null,
       version: pack.pack_version,
       originatingPackId: pack.id,
     });
@@ -682,14 +772,26 @@ async function seedContributions(pack: PackRow, seed: PackSeedInput): Promise<vo
   }
 
   for (const svc of seed.contributions.services ?? []) {
-    const capabilityId = capabilityIdByCode.get(svc.capabilityCode);
-    if (!capabilityId) throw new Error(`service ${svc.name} references unknown capability ${svc.capabilityCode}`);
+    // Owner: "the original service definition should not be overwritten" —
+    // read-only lookup; this Pack's own overrides are merged into a fresh
+    // array below and written only to `services` (the Pack-composed table),
+    // never back to service_definitions.
+    const { data: definition } = await serviceDefinitionsDB.findActiveByCodeVisibleTo(svc.code, pack.tenant_id);
+    if (!definition) throw new Error(`service ${svc.code} does not resolve to an Active Service Definition`);
+    const capabilityId = capabilityIdByCode.get(definition.capability_code);
+    if (!capabilityId) throw new Error(`service ${svc.code} references unknown capability ${definition.capability_code}`);
+    const overrideByCode = new Map<string, number>();
+    for (const ov of svc.serviceLevel ?? []) overrideByCode.set(ov.code, ov.target);
+    const mergedServiceLevel = definition.service_level.map((base) => ({
+      ...base,
+      target: overrideByCode.has(base.code) ? overrideByCode.get(base.code)! : base.target,
+    }));
     const { error } = await servicesDB.upsertFromPack({
       code: svc.code,
       providingCapabilityId: capabilityId,
-      name: svc.name,
-      contractDescription: svc.contractDescription,
-      serviceLevel: svc.serviceLevel,
+      name: definition.name,
+      contractDescription: definition.purpose ?? "",
+      serviceLevel: mergedServiceLevel,
       originatingPackId: pack.id,
     });
     if (error) throw error;
@@ -710,36 +812,39 @@ async function seedContributions(pack: PackRow, seed: PackSeedInput): Promise<vo
     await backfillAuthorityRuleCode(rule.code, createdRule.id);
   }
 
-  // CR-061 — processed before qualityGates: a requires_active_policy gate
-  // resolves its target Policies' real ids from this same map, mirroring
-  // exactly how checklistIdByName/reviewGateIdByCode already work.
-  // condition's flat, authored shape (conditionType/conditionField/
-  // conditionValues) is reassembled into its real nested JSONB shape here —
-  // the same criteriaType-flattening pattern Quality Gate's own criteria
-  // already uses. Policy's identity is (originating_pack_id, code), not
-  // global (owner: "it is not global so no versioning required similar to
-  // checklist") — policiesDB.upsert keeps a Policy's id stable across every
-  // republish of this Pack, same as checklistsDB.upsert.
+  // CR-089 follow-on — processed before qualityGates: a requires_active_policy
+  // gate resolves its target Policies' real ids from this same map, mirroring
+  // exactly how checklistIdByName/reviewGateIdByCode already work. Every
+  // field but `code` is resolved off the canonical Policy Definition
+  // (validatePackSeed already confirmed it resolves and is applicable) —
+  // governedTransition derived from applicability_deliverable_lifecycle,
+  // severity the highest among the Definition's own conditions, condition
+  // itself always {type: "always_true"} (the real per-condition evaluation
+  // this Definition's own conditions[] describes isn't consulted by the
+  // engine yet — same "declaration only for now" status governedTransition
+  // itself already carried before this session). Policy's identity is
+  // (originating_pack_id, code), not global (owner: "it is not global so no
+  // versioning required similar to checklist") — policiesDB.upsert keeps a
+  // Policy's id stable across every republish of this Pack, same as
+  // checklistsDB.upsert.
   const policyIdByCode = new Map<string, string>();
-  for (const policy of seed.contributions.policies ?? []) {
-    const condition: Record<string, unknown> =
-      policy.conditionType === "field_in"
-        ? { type: "field_in", field: policy.conditionField, values: (policy.conditionValues ?? "").split(",").map((v) => v.trim()).filter(Boolean) }
-        : { type: policy.conditionType ?? "always_true" };
+  for (const policyCode of seed.contributions.policies ?? []) {
+    const { data: definition } = await policyDefinitionsDB.findActiveByCodeVisibleTo(policyCode, pack.tenant_id);
+    if (!definition) throw new Error(`policy ${policyCode} does not resolve to an Active Policy Definition`);
     const { data: created, error } = await policiesDB.upsert({
-      code: policy.code,
-      name: policy.name,
-      category: policy.category,
-      constraintType: policy.constraintType,
-      governedTransition: policy.governedTransition,
-      condition,
-      severity: policy.severity,
+      code: policyCode,
+      name: definition.name,
+      category: definition.category,
+      constraintType: definition.constraint_type,
+      governedTransition: deriveGovernedTransitionFromDeliverableLifecycle(definition.applicability_deliverable_lifecycle),
+      condition: { type: "always_true" },
+      severity: highestConditionSeverity(definition.conditions),
       originatingPackId: pack.id,
     });
-    if (error || !created) throw error ?? new Error(`policy upsert failed: ${policy.code}`);
-    policyIdByCode.set(policy.code, created.id);
+    if (error || !created) throw error ?? new Error(`policy upsert failed: ${policyCode}`);
+    policyIdByCode.set(policyCode, created.id);
     // 2026-08-25 — same self-heal as authority rules, above.
-    await backfillPolicyCode(policy.code, created.id);
+    await backfillPolicyCode(policyCode, created.id);
   }
   const resolvePolicyCodes = (refs: string[] | undefined): string[] => (refs ?? []).map((ref) => policyIdByCode.get(ref) ?? ref);
 
@@ -824,26 +929,6 @@ async function seedContributions(pack: PackRow, seed: PackSeedInput): Promise<vo
     if (error) throw error;
   }
 
-  // Compliance Model (Phase 15, Ch.27 FR-27.1): frameworks + their declarative
-  // requirements, attributed to this Pack so per-SEU applicability follows the
-  // SEU's composed Packs (FR-27.2).
-  for (const framework of seed.contributions.complianceFrameworks ?? []) {
-    const { error } = await complianceDB.upsertFramework({ code: framework.code, name: framework.name, description: framework.description, originatingPackId: pack.id });
-    if (error) throw error;
-  }
-  for (const req of seed.contributions.complianceRequirements ?? []) {
-    const { error } = await complianceDB.upsertRequirement({
-      code: req.code,
-      frameworkCode: req.frameworkCode,
-      name: req.name,
-      description: req.description,
-      criteria: req.criteria,
-      severity: req.severity,
-      conflictsWith: req.conflictsWith,
-      originatingPackId: pack.id,
-    });
-    if (error) throw error;
-  }
 }
 
 // Ch.5 §15 / Ch.38 §15 event names, one per lifecycle hop.

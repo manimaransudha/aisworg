@@ -1,0 +1,72 @@
+{
+  "code": "domain-procurement-sourcing",
+  "name": "Procurement & Strategic Sourcing Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for procurement and strategic sourcing, covering purchase requisitions (PR), RFQ/RFP bidding, purchase orders (PO), 3-way matching, supplier onboarding, supplier scorecards, and contract lifecycle management.",
+  "owner": "Global Procurement & Sourcing Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-procurement-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-procurement-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Procurement & Sourcing Audit Checklist",
+        "description": "Validation checklist for PR approvals, competitive RFQ bidding, PO issuance, and 3-way matching.",
+        "items": [
+          {
+            "statement": "Purchase Requisitions are approved per Delegation of Authority (DoA) thresholds prior to PO creation.",
+            "group": "Requisition Approval"
+          },
+          {
+            "statement": "Competitive RFQ/RFP bidding includes at least 3 qualified supplier quotations for spend above threshold.",
+            "group": "Strategic Sourcing"
+          },
+          {
+            "statement": "New suppliers undergo compliance screening, tax ID verification, and bank account validation.",
+            "group": "Supplier Onboarding"
+          },
+          {
+            "statement": "Goods Receipt Notes (GRN) record physical inspection, accepted quantity, and damaged items.",
+            "group": "Goods Receipt"
+          },
+          {
+            "statement": "Vendor invoice price and quantity match PO and GRN within approved tolerance limits (3-Way Match).",
+            "group": "3-Way Invoice Matching"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "procurement-director-signoff-gate",
+        "name": "Procurement Director Sourcing Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Head of Procurement confirms that competitive sourcing, vendor evaluation, and 3-way matching rules are satisfied.",
+        "prompt": "Does the procurement documentation confirm competitive bidding and 3-way match validation?",
+        "participant": "human",
+        "outputContract": "procurement-sourcing-attestation",
+        "checklistIds": [
+          "Procurement & Sourcing Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

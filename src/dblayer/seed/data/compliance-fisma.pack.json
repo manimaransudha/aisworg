@@ -1,0 +1,72 @@
+{
+  "code": "compliance-fisma",
+  "name": "FISMA & Executive Order 14028 Federal Cybersecurity Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for the Federal Information Security Modernization Act (FISMA - 44 U.S.C. § 3551) and Executive Order 14028 (Improving the Nation's Cybersecurity), covering FIPS 199 security categorization, Software Supply Chain Security (SBOM), zero-trust architecture, and Cyber Incident Reporting.",
+  "owner": "Federal Civilian Information Security Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-fisma-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-fisma-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "FISMA & EO 14028 Federal Audit Checklist",
+        "description": "Validation checklist for FISMA 44 U.S.C. § 3554, NIST RMF, and EO 14028 section 4 requirements.",
+        "items": [
+          {
+            "statement": "FIPS 199 security categorization report defines system impact levels for Confidentiality, Integrity, and Availability.",
+            "group": "FIPS 199 Categorization"
+          },
+          {
+            "statement": "Software Bill of Materials (SBOM) in SPDX or CycloneDX format is generated automatically for every software build.",
+            "group": "EO 14028 Supply Chain (SBOM)"
+          },
+          {
+            "statement": "Secure Software Development Framework (NIST SP 800-218 SSDF) attestation form is signed by the software vendor.",
+            "group": "SSDF Attestation (SP 800-218)"
+          },
+          {
+            "statement": "Zero Trust Architecture deployment enforces microsegmentation and continuous identity verification.",
+            "group": "Zero Trust Architecture"
+          },
+          {
+            "statement": "CISA cyber incident reporting procedures guarantee notification within 8 hours for federal civilian agency systems.",
+            "group": "CISA Incident Escalation"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "fisma-iso-attestation-gate",
+        "name": "FISMA Information Security Officer Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Federal Information Security Officer (ISO) confirms that FIPS 199 categorization, SBOMs, and SSDF attestations satisfy FISMA and EO 14028.",
+        "prompt": "Does the federal cybersecurity audit evidence confirm compliance with FISMA and EO 14028 mandates?",
+        "participant": "human",
+        "outputContract": "fisma-compliance-attestation",
+        "checklistIds": [
+          "FISMA & EO 14028 Federal Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

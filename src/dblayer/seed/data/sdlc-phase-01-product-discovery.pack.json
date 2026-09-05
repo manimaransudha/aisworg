@@ -11,139 +11,14 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "product-discovery",
+        "code": "understanding-business-domain",
         "name": "Product Discovery",
         "description": "Establishes a validated understanding of user needs, problems, and product requirements through structured research and hypothesis testing."
       }
     ],
     "services": [
       {
-        "code": "product-requirements-document",
-        "capabilityCode": "product-discovery",
-        "name": "Product Requirements Document",
-        "contractDescription": "Comprehensive product requirements document specifying user stories, acceptance criteria, and feature scopes.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "user-personas",
-        "capabilityCode": "product-discovery",
-        "name": "User Personas",
-        "contractDescription": "Target user profiles, behavioral archetypes, and key characteristics.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "customer-journey-map",
-        "capabilityCode": "product-discovery",
-        "name": "Customer Journey Map",
-        "contractDescription": "End-to-end user experience mapping across key touchpoints and pain moments.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "jobs-to-be-done-statements",
-        "capabilityCode": "product-discovery",
-        "name": "Jobs-to-be-Done Statements",
-        "contractDescription": "Detailed JTBD analysis specifying functional, social, and emotional user jobs.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "research-plan-interview-guide",
-        "capabilityCode": "product-discovery",
-        "name": "Research Plan & Interview Guide",
-        "contractDescription": "User research methodology, target cohort sampling, and structured interview protocol.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "research-findings-report",
-        "capabilityCode": "product-discovery",
-        "name": "Research Findings Report",
-        "contractDescription": "User research results, affinity maps, key insights, and evidence metrics.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "executive-approved"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "service-blueprint",
-        "capabilityCode": "product-discovery",
-        "name": "Service Blueprint",
-        "contractDescription": "Service design mapping frontstage actions, backstage processes, and support systems.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "hypothesis-validation-tracker",
-        "capabilityCode": "product-discovery",
-        "name": "Hypothesis Validation Tracker",
-        "contractDescription": "Assumption testing framework tracking validated, invalidated, and pending hypotheses.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
+        "code": "domain-model-service"
       }
     ],
     "authorityRules": [
@@ -163,17 +38,7 @@
         "authorisedRole": "general"
       }
     ],
-    "policies": [
-      {
-        "code": "policy-user-research-evidence-standard",
-        "name": "User Research Evidence Standard Policy",
-        "category": "Quality",
-        "constraintType": "Standard",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "conditionType": "always_true",
-        "severity": "high"
-      }
-    ],
+    "policies": [],
     "checklists": [
       {
         "name": "Product Discovery (SDLC Phase 1) Checklist",

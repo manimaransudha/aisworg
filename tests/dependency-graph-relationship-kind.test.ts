@@ -10,6 +10,16 @@
 //      parent's own name for that slot (isRenameOf, core/templates.ts).
 //   4. Renaming to an unrelated name (no lineage) still blocks publish.
 //   5. Derivation-kind edges are freely editable — no lock at all.
+//
+// CR-087 — deliverableCatalogue[].code (was .name) and dependencyGraph's
+// toCode/fromCode (were toName/fromName) updated throughout: entry.code is
+// now asserted against the real deliverable-name Ontology vocabulary
+// (validateTemplateSeed), so the literal "Architecture"/"Data Architecture"
+// strings this file used are replaced with real codes
+// (solution-architecture-document/database-schema-data-model). The
+// dynamically-generated phase2-* codes are unaffected — they become real
+// deliverable-name concepts via publishDeliverableDefinition's own
+// syncOntologyOnActivate before any Template references them, same as before.
 import "dotenv/config";
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -53,6 +63,11 @@ const ROOT_ACTOR_ID = "1";
 const DEMO_TENANT_ID = "22222222-2222-2222-2222-222222222222";
 const REAL_TEMPLATE_CODE = "mobile-application"; // real, seeded template-categories concept
 
+// Real deliverable-name Ontology codes (migration 048) standing in for this
+// file's own "Architecture"/"Data Architecture" fixture pair.
+const ARCH_CODE = "solution-architecture-document";
+const DATA_ARCH_CODE = "database-schema-data-model";
+
 function uniqueVersion(): string {
   return `0.0.${Date.now()}${Math.floor(Math.random() * 1000)}`;
 }
@@ -83,7 +98,7 @@ async function publishDeliverableDefinition(code: string, tenantId: string, pare
   return created.draftId;
 }
 
-function templateContent(code: string, version: string, catalogue: Array<{ name: string; category: string }>, dependencyGraph: Array<Record<string, unknown>>): Record<string, unknown> {
+function templateContent(code: string, version: string, catalogue: Array<{ code: string; category: string }>, dependencyGraph: Array<Record<string, unknown>>): Record<string, unknown> {
   return {
     code,
     templateVersion: version,
@@ -97,8 +112,8 @@ function templateContent(code: string, version: string, catalogue: Array<{ name:
 async function publishParentTemplate(dependencyGraph: Array<Record<string, unknown>>): Promise<{ id: string; version: string }> {
   const version = uniqueVersion();
   const catalogue = [
-    { name: "Architecture", category: "Architecture" },
-    { name: "Data Architecture", category: "Architecture" },
+    { code: ARCH_CODE, category: "Architecture" },
+    { code: DATA_ARCH_CODE, category: "Architecture" },
   ];
   const created = await createAuthoringDraft({ kind: "Template", actorId: ROOT_ACTOR_ID, content: templateContent(REAL_TEMPLATE_CODE, version, catalogue, dependencyGraph) });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
@@ -109,10 +124,10 @@ async function publishParentTemplate(dependencyGraph: Array<Record<string, unkno
   return { id: created.draftId, version };
 }
 
-const DECOMPOSITION_EDGE = { toName: "Data Architecture", fromType: "Deliverable", fromName: "Architecture", requiredState: "Approved", relationshipKind: "decomposition" };
+const DECOMPOSITION_EDGE = { toCode: DATA_ARCH_CODE, fromType: "Deliverable", fromCode: ARCH_CODE, requiredState: "Approved", relationshipKind: "decomposition" };
 
 test("CR-049 Phase 2: a plain 'dependency' edge is unrestricted on Template Inheritance — unchanged behaviour", async () => {
-  const plainEdge = { toName: "Data Architecture", fromType: "Deliverable", fromName: "Architecture", requiredState: "Approved", relationshipKind: "dependency" };
+  const plainEdge = { toCode: DATA_ARCH_CODE, fromType: "Deliverable", fromCode: ARCH_CODE, requiredState: "Approved", relationshipKind: "dependency" };
   const parent = await publishParentTemplate([plainEdge]);
 
   // Derived Template drops the edge entirely — must NOT be rejected, since
@@ -123,7 +138,7 @@ test("CR-049 Phase 2: a plain 'dependency' edge is unrestricted on Template Inhe
     actorId: ROOT_ACTOR_ID,
     tenantId: DEMO_TENANT_ID,
     parentTemplateId: parent.id,
-    content: templateContent(REAL_TEMPLATE_CODE, uniqueVersion(), [{ name: "Architecture", category: "Architecture" }], []),
+    content: templateContent(REAL_TEMPLATE_CODE, uniqueVersion(), [{ code: ARCH_CODE, category: "Architecture" }], []),
   });
   assert.equal(childCreated.ok, true, !childCreated.ok ? childCreated.errors.join("; ") : undefined);
   if (!childCreated.ok) return;
@@ -140,7 +155,7 @@ test("CR-049 Phase 2: a Decomposition edge is locked — dropping it on a derive
     actorId: ROOT_ACTOR_ID,
     tenantId: DEMO_TENANT_ID,
     parentTemplateId: parent.id,
-    content: templateContent(REAL_TEMPLATE_CODE, uniqueVersion(), [{ name: "Architecture", category: "Architecture" }, { name: "Data Architecture", category: "Architecture" }], []),
+    content: templateContent(REAL_TEMPLATE_CODE, uniqueVersion(), [{ code: ARCH_CODE, category: "Architecture" }, { code: DATA_ARCH_CODE, category: "Architecture" }], []),
   });
   assert.equal(childCreated.ok, true, !childCreated.ok ? childCreated.errors.join("; ") : undefined);
   if (!childCreated.ok) return;
@@ -166,13 +181,13 @@ test("CR-049 Phase 2: a Decomposition edge may be renamed to the tenant's own De
 
   // The parent Template's own edge must reference these exact codes for the
   // lineage chain to resolve — publish a fresh parent using them instead of
-  // the fixed "Architecture"/"Data Architecture" literals the other tests use.
+  // the fixed ARCH_CODE/DATA_ARCH_CODE constants the other tests use.
   const parentVersion = uniqueVersion();
   const parentCreated = await createAuthoringDraft({
     kind: "Template",
     actorId: ROOT_ACTOR_ID,
-    content: templateContent(REAL_TEMPLATE_CODE, parentVersion, [{ name: archCode, category: "Architecture" }, { name: dataArchCode, category: "Architecture" }], [
-      { toName: dataArchCode, fromType: "Deliverable", fromName: archCode, requiredState: "Approved", relationshipKind: "decomposition" },
+    content: templateContent(REAL_TEMPLATE_CODE, parentVersion, [{ code: archCode, category: "Architecture" }, { code: dataArchCode, category: "Architecture" }], [
+      { toCode: dataArchCode, fromType: "Deliverable", fromCode: archCode, requiredState: "Approved", relationshipKind: "decomposition" },
     ]),
   });
   assert.equal(parentCreated.ok, true, !parentCreated.ok ? parentCreated.errors.join("; ") : undefined);
@@ -191,8 +206,8 @@ test("CR-049 Phase 2: a Decomposition edge may be renamed to the tenant's own De
     actorId: ROOT_ACTOR_ID,
     tenantId: DEMO_TENANT_ID,
     parentTemplateId: parentCreated.draftId,
-    content: templateContent(REAL_TEMPLATE_CODE, uniqueVersion(), [{ name: tenantArchCode, category: "Architecture" }, { name: tenantDataArchCode, category: "Architecture" }], [
-      { toName: tenantDataArchCode, fromType: "Deliverable", fromName: tenantArchCode, requiredState: "Approved", relationshipKind: "decomposition" },
+    content: templateContent(REAL_TEMPLATE_CODE, uniqueVersion(), [{ code: tenantArchCode, category: "Architecture" }, { code: tenantDataArchCode, category: "Architecture" }], [
+      { toCode: tenantDataArchCode, fromType: "Deliverable", fromCode: tenantArchCode, requiredState: "Approved", relationshipKind: "decomposition" },
     ]),
   });
   assert.equal(childCreated.ok, true, !childCreated.ok ? childCreated.errors.join("; ") : undefined);
@@ -216,8 +231,8 @@ test("CR-049 Phase 2: renaming a locked edge to an UNRELATED Deliverable Definit
     actorId: ROOT_ACTOR_ID,
     tenantId: DEMO_TENANT_ID,
     parentTemplateId: parent.id,
-    content: templateContent(REAL_TEMPLATE_CODE, uniqueVersion(), [{ name: unrelatedCode, category: "Architecture" }, { name: "Data Architecture", category: "Architecture" }], [
-      { toName: "Data Architecture", fromType: "Deliverable", fromName: unrelatedCode, requiredState: "Approved", relationshipKind: "decomposition" },
+    content: templateContent(REAL_TEMPLATE_CODE, uniqueVersion(), [{ code: unrelatedCode, category: "Architecture" }, { code: DATA_ARCH_CODE, category: "Architecture" }], [
+      { toCode: DATA_ARCH_CODE, fromType: "Deliverable", fromCode: unrelatedCode, requiredState: "Approved", relationshipKind: "decomposition" },
     ]),
   });
   assert.equal(childCreated.ok, true, !childCreated.ok ? childCreated.errors.join("; ") : undefined);
@@ -230,7 +245,7 @@ test("CR-049 Phase 2: renaming a locked edge to an UNRELATED Deliverable Definit
 });
 
 test("CR-049 Phase 2: a Derivation edge is freely editable on Template Inheritance — no lock at all", async () => {
-  const derivationEdge = { toName: "Data Architecture", fromType: "Deliverable", fromName: "Architecture", requiredState: "Approved", relationshipKind: "derivation" };
+  const derivationEdge = { toCode: DATA_ARCH_CODE, fromType: "Deliverable", fromCode: ARCH_CODE, requiredState: "Approved", relationshipKind: "derivation" };
   const parent = await publishParentTemplate([derivationEdge]);
 
   // Derived Template drops the Derivation edge entirely — must succeed,
@@ -240,7 +255,7 @@ test("CR-049 Phase 2: a Derivation edge is freely editable on Template Inheritan
     actorId: ROOT_ACTOR_ID,
     tenantId: DEMO_TENANT_ID,
     parentTemplateId: parent.id,
-    content: templateContent(REAL_TEMPLATE_CODE, uniqueVersion(), [{ name: "Architecture", category: "Architecture" }], []),
+    content: templateContent(REAL_TEMPLATE_CODE, uniqueVersion(), [{ code: ARCH_CODE, category: "Architecture" }], []),
   });
   assert.equal(childCreated.ok, true, !childCreated.ok ? childCreated.errors.join("; ") : undefined);
   if (!childCreated.ok) return;

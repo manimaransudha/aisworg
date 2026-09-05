@@ -6,7 +6,11 @@ export const deliverablesDB = {
   async create(input: {
     seuId: string;
     name: string;
-    category: string;
+    // CR-087 follow-up — optional now (migration 163 dropped the column's
+    // NOT NULL): Template-commissioned Deliverables no longer supply one
+    // (core/commissioning.ts); the separate manual "add a Deliverable to a
+    // live SEU" path (core/deliverables.ts) still always passes a real value.
+    category?: string | null;
     acquisitionScope?: AcquisitionScope;
     producingCapabilityId?: string | null;
   }): Promise<DbResult<DeliverableRow>> {
@@ -15,7 +19,7 @@ export const deliverablesDB = {
         `INSERT INTO deliverables (seu_id, name, category, acquisition_scope, producing_capability_id)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING *`,
-        [input.seuId, input.name, input.category, input.acquisitionScope ?? "SEU", input.producingCapabilityId ?? null]
+        [input.seuId, input.name, input.category ?? null, input.acquisitionScope ?? "SEU", input.producingCapabilityId ?? null]
       );
       return { data: rows[0] };
     } catch (err) {

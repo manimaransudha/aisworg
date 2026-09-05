@@ -60,9 +60,9 @@ test("composeAuthoringDraft — specialization pre-fills a new Draft from an Act
       // CR-079 step (c) — a Capability contribution's own code is now a
       // real, enforced Ontology dropdown (capability-name); reuse a real
       // registered value rather than minting a throwaway one (capability
-      // identity is Pack-scoped, so reusing "development" across many
+      // identity is Pack-scoped, so reusing "software-construction" across many
       // unrelated test Packs is safe — no collision).
-      contributions: { capabilities: [{ code: "development", name: "Cap" }] },
+      contributions: { capabilities: [{ code: "software-construction", name: "Cap" }] },
     },
     actorRole: "power", actorId: "1001", activate: true,
   });
@@ -92,7 +92,7 @@ test("composeAuthoringDraft — specialization pre-fills a new Draft from an Act
   assert.ok(composed);
   assert.equal(composed!.code, parentCode, "Specialization's own definition: creation is an exact copy of the parent, including code");
   assert.equal(composed!.name, "Parent Pack");
-  assert.deepEqual(composed!.contributions.capabilities, [{ code: "development", name: "Cap" }]);
+  assert.deepEqual(composed!.contributions.capabilities, [{ code: "software-construction", name: "Cap" }]);
   // Own identity fields Specialization must NOT inherit from the parent.
   assert.equal(composed!.pack_version, childVersion, "packVersion is never copied from the parent — this Draft's own starting version survives the compose");
   assert.equal(composed!.metadata.compositionStrategy, "specialization", "this Draft's own composition choice must survive the compose, not be overwritten by the parent's");
@@ -102,14 +102,14 @@ test("composeAuthoringDraft — union combines two distinct Active Packs' fields
   const codeA = "test-compose-union-a";
   const codeB = "test-compose-union-b";
   const a = await publishPack({
-    // CR-079 step (c) — real registered capability-name values ("development",
-    // "testing-qa"), not throwaway per-Pack ones; kept distinct across A/B so
+    // CR-079 step (c) — real registered capability-name values ("software-construction",
+    // "software-validation"), not throwaway per-Pack ones; kept distinct across A/B so
     // union's "both survive" assertion below still proves something real.
-    seed: { code: codeA, name: "Union Source A", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "development", name: "Cap A" }] } },
+    seed: { code: codeA, name: "Union Source A", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "software-construction", name: "Cap A" }] } },
     actorRole: "power", actorId: "1001", activate: true,
   });
   const b = await publishPack({
-    seed: { code: codeB, name: "Union Source B", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "testing-qa", name: "Cap B" }] } },
+    seed: { code: codeB, name: "Union Source B", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "software-validation", name: "Cap B" }] } },
     actorRole: "power", actorId: "1001", activate: true,
   });
   assert.equal(a.ok, true);
@@ -137,7 +137,7 @@ test("composeAuthoringDraft — union combines two distinct Active Packs' fields
   assert.equal(composed!.name, "Union Draft", "Save's own required-field fallback, since `name` was excluded from the composed fields as a conflict");
   // ...while non-conflicting array items combine unambiguously (both capabilities present, nothing dropped).
   const capCodes = (composed!.contributions.capabilities ?? []).map((c) => c.code).sort();
-  assert.deepEqual(capCodes, ["development", "testing-qa"].sort());
+  assert.deepEqual(capCodes, ["software-construction", "software-validation"].sort());
 });
 
 // Real, honest limitation (not something this test works around): Pack's own
@@ -157,7 +157,7 @@ test("composeAuthoringDraft — union combines two distinct Active Packs' fields
 test("composeAuthoringDraft — merge with a code entered twice self-merges cleanly (real wiring, no conflicts, since a Pack agrees with itself)", async () => {
   const sharedCode = "test-compose-merge-shared";
   const published = await publishPack({
-    seed: { code: sharedCode, name: "Merge Source", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "development", name: "Cap" }] } },
+    seed: { code: sharedCode, name: "Merge Source", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "software-construction", name: "Cap" }] } },
     actorRole: "power", actorId: "1001", activate: true,
   });
   assert.equal(published.ok, true);
@@ -178,7 +178,7 @@ test("composeAuthoringDraft — merge with a code entered twice self-merges clea
   const { data: composed } = await packsDB.findById(draft.pack.id);
   assert.ok(composed);
   assert.equal(composed!.name, "Merge Source");
-  assert.deepEqual((composed!.contributions.capabilities ?? []).map((c) => c.code), ["development"]);
+  assert.deepEqual((composed!.contributions.capabilities ?? []).map((c) => c.code), ["software-construction"]);
 });
 
 test("composeAuthoringDraft — intersection keeps only unanimous fields, drops a disagreeing one silently (no conflicts reported)", async () => {
@@ -188,11 +188,11 @@ test("composeAuthoringDraft — intersection keeps only unanimous fields, drops 
     // CR-079 step (c) — real registered capability-name values, kept
     // distinct so the two sides' arrays genuinely disagree (what this test
     // is actually about).
-    seed: { code: codeA, name: "Common Name", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "development", name: "Cap A" }] } },
+    seed: { code: codeA, name: "Common Name", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "software-construction", name: "Cap A" }] } },
     actorRole: "power", actorId: "1001", activate: true,
   });
   const b = await publishPack({
-    seed: { code: codeB, name: "Common Name", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "testing-qa", name: "Cap B" }] } },
+    seed: { code: codeB, name: "Common Name", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "software-validation", name: "Cap B" }] } },
     actorRole: "power", actorId: "1001", activate: true,
   });
   assert.equal(a.ok, true);

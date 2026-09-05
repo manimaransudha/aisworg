@@ -1,0 +1,72 @@
+{
+  "code": "domain-retail-ecommerce",
+  "name": "Retail & E-Commerce Commerce Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for Retail and E-Commerce, covering product catalog curation, dynamic pricing & promotion rules, shopping cart persistence, multi-step checkout, payment gateway integration, fraud screening, order orchestration, shipping fulfillment, returns, and customer loyalty programs.",
+  "owner": "Global Retail & E-Commerce Commerce Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-retail-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-retail-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Retail & E-Commerce Audit Checklist",
+        "description": "Validation checklist for catalog pricing, cart calculations, fraud screening, carrier shipping, and customer loyalty.",
+        "items": [
+          {
+            "statement": "Product catalog displays accurate SKU pricing, tax category codes, and real-time inventory availability.",
+            "group": "Catalog Management"
+          },
+          {
+            "statement": "Checkout cart calculates sales tax based on customer delivery address and applies valid promo codes.",
+            "group": "Cart & Checkout"
+          },
+          {
+            "statement": "Fraud screening flags high-risk orders and triggers 3D-Secure 2.0 challenge authentication.",
+            "group": "Fraud Prevention"
+          },
+          {
+            "statement": "Order orchestration routes orders to nearest fulfillment center or store location (BOPIS).",
+            "group": "Fulfillment & Dispatch"
+          },
+          {
+            "statement": "Customer loyalty rewards points calculate and update accurately upon order completion.",
+            "group": "Loyalty & Rewards"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "ecommerce-director-signoff-gate",
+        "name": "E-Commerce Commerce Director Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The E-Commerce Director confirms that cart pricing, tax engine, fraud screening, and fulfillment workflows satisfy retail benchmarks.",
+        "prompt": "Does the e-commerce platform package confirm cart calculation accuracy and fraud screening enforcement?",
+        "participant": "human",
+        "outputContract": "retail-ecommerce-attestation",
+        "checklistIds": [
+          "Retail & E-Commerce Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "code": "domain-hr-payroll",
+  "name": "Human Resources & Payroll Lifecycle Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for Human Resources and Payroll (Hire-to-Retire), covering applicant tracking (ATS), offer management, employee onboarding, attendance, leave management, payroll processing, tax calculation, benefits, performance appraisals, and exit offboarding.",
+  "owner": "Global Human Resources & Payroll Operations Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-hr-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-hr-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Human Resources & Payroll Audit Checklist",
+        "description": "Validation checklist for ATS hiring, payroll calculation accuracy, statutory tax filings, and offboarding de-provisioning.",
+        "items": [
+          {
+            "statement": "New hires complete background verification and Form I-9 / national identity verification prior to day 1.",
+            "group": "Recruitment & Onboarding"
+          },
+          {
+            "statement": "Time and attendance inputs are approved by department managers before locking payroll cycles.",
+            "group": "Attendance & Inputs"
+          },
+          {
+            "statement": "Gross-to-net calculations match tax withholding tables and statutory deduction limits.",
+            "group": "Payroll Processing"
+          },
+          {
+            "statement": "Direct deposit payment files (NACHA/Bank Transfer) undergo dual executive sign-off prior to transmission.",
+            "group": "Payment Disbursement"
+          },
+          {
+            "statement": "Terminated employee system accounts (email, VPN, SSO, building badge) are revoked on the effective departure date.",
+            "group": "Exit Offboarding & Access Revocation"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "payroll-hr-director-signoff-gate",
+        "name": "Payroll & HR Director Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The HR & Payroll Director confirms that payroll calculations, statutory tax filings, and offboarding steps satisfy labor laws.",
+        "prompt": "Does the HR & Payroll audit package confirm calculation accuracy and regulatory compliance?",
+        "participant": "human",
+        "outputContract": "hr-payroll-attestation",
+        "checklistIds": [
+          "Human Resources & Payroll Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

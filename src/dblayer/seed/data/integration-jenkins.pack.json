@@ -1,0 +1,70 @@
+{
+  "code": "integration-jenkins",
+  "name": "Jenkins Automation Server Integration",
+  "category": "Integration",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Integration pack for Jenkins Automation Server, providing connectivity to Jenkins REST API, declarative Jenkinsfile pipeline jobs, build parameter triggers, agent node orchestration, and build status notifications.",
+  "owner": "DevOps & Build Infrastructure Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "software-release",
+        "name": "DevOps & CI/CD Engineering / Production Deployment & Release Management",
+        "description": "Integrates Jenkins build pipelines, agent nodes, parameter triggers, and SCM polling. Integrates Jenkins CD release pipelines, approval gates, and deployment artifact archiving."
+      }
+    ],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-jenkins-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-jenkins-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Jenkins Integration Verification Checklist",
+        "description": "Validation checklist for Jenkins API token credentials, webhook triggers, and node agent availability.",
+        "items": [
+          {
+            "statement": "Jenkins User API Token authenticates successfully against Jenkins Controller REST endpoint.",
+            "group": "Jenkins API Auth"
+          },
+          {
+            "statement": "Generic Webhook Trigger plugin receives SCM commit payload and launches target pipeline job.",
+            "group": "Pipeline Webhook Trigger"
+          },
+          {
+            "statement": "Jenkins Agent nodes report healthy status and required build toolchains (Node, JDK, Docker).",
+            "group": "Agent Health"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "jenkins-integration-review-gate",
+        "name": "Jenkins Integration Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The DevOps Engineer confirms that Jenkins API tokens, webhook triggers, and agent nodes operate cleanly.",
+        "prompt": "Does the Jenkins integration verification confirm pipeline execution and build status notification?",
+        "participant": "human",
+        "outputContract": "jenkins-integration-attestation",
+        "checklistIds": [
+          "Jenkins Integration Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

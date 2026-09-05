@@ -1,0 +1,72 @@
+{
+  "code": "domain-healthcare-pharma",
+  "name": "Healthcare Clinical & Pharmaceutical R&D Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for Healthcare Clinical Operations and Pharmaceutical R&D, covering patient intake, EHR clinical notes, e-prescriptions, lab/imaging LIS/PACS workflows, clinical trial management (CTMS), adverse event reporting (pharmacovigilance), and pharma batch release.",
+  "owner": "Global Healthcare & Pharmaceutical Operations Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-healthcare-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-healthcare-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Healthcare & Pharmaceutical Clinical Audit Checklist",
+        "description": "Validation checklist for EHR documentation, CPOE order entry, clinical trial eCRFs, and SAE pharmacovigilance.",
+        "items": [
+          {
+            "statement": "Clinical EHR notes follow SOAP structure and incorporate ICD-10 / SNOMED CT diagnostic codes.",
+            "group": "Clinical Documentation"
+          },
+          {
+            "statement": "Computerized Provider Order Entry (CPOE) checks for drug-drug interactions and patient allergy alerts.",
+            "group": "CPOE & Medication Safety"
+          },
+          {
+            "statement": "Clinical trial subjects execute Informed Consent Forms (ICF) prior to protocol enrollment.",
+            "group": "Clinical Trial Enrollment"
+          },
+          {
+            "statement": "Serious Adverse Events (SAE) are reported to the Medical Monitor and Institutional Review Board (IRB) within 24 hours.",
+            "group": "Pharmacovigilance (SAE)"
+          },
+          {
+            "statement": "Pharmaceutical manufacturing batch records undergo Qualified Person (QP) release sign-off prior to distribution.",
+            "group": "Pharma Batch Release"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "chief-medical-officer-signoff-gate",
+        "name": "Chief Medical Officer Clinical Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Chief Medical Officer and Head of Pharmacovigilance confirm that EHR clinical safety and trial SAE workflows comply with GCP guidelines.",
+        "prompt": "Does the healthcare documentation confirm clinical safety and pharmacovigilance compliance?",
+        "participant": "human",
+        "outputContract": "healthcare-pharma-attestation",
+        "checklistIds": [
+          "Healthcare & Pharmaceutical Clinical Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

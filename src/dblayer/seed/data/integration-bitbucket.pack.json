@@ -1,0 +1,75 @@
+{
+  "code": "integration-bitbucket",
+  "name": "Atlassian Bitbucket Integration",
+  "category": "Integration",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Integration pack for Atlassian Bitbucket Cloud and Data Center, providing connectivity to Git repositories, Pull Request code reviews, branch permissions, and Bitbucket Pipelines.",
+  "owner": "Developer Platform Integration Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "engineering-work-review",
+        "name": "Code Review",
+        "description": "Integrates Bitbucket Pull Request approvals, inline code comments, and merge check policies."
+      },
+      {
+        "code": "software-release",
+        "name": "DevOps & CI/CD Engineering",
+        "description": "Integrates Bitbucket Pipelines YAML build steps, deployment environments, and build status checks."
+      }
+    ],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-bitbucket-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-bitbucket-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Bitbucket Integration Verification Checklist",
+        "description": "Validation checklist for Bitbucket App Password / OAuth credentials, webhooks, and pipeline status checks.",
+        "items": [
+          {
+            "statement": "Bitbucket App Password or OAuth Consumer token grants repository and pullrequest permissions.",
+            "group": "Bitbucket Auth"
+          },
+          {
+            "statement": "Bitbucket Webhooks notify target endpoints on repo:push and pullrequest:created events.",
+            "group": "Webhook Listeners"
+          },
+          {
+            "statement": "Pull Request merge checks require minimum approved reviewers and successful pipeline builds.",
+            "group": "PR Merge Checks"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "bitbucket-integration-review-gate",
+        "name": "Bitbucket Integration Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Lead Developer confirms that Bitbucket API connections and Pull Request merge checks satisfy code review rules.",
+        "prompt": "Does the Bitbucket integration verify Pull Request approval rules and webhook event delivery?",
+        "participant": "human",
+        "outputContract": "bitbucket-integration-attestation",
+        "checklistIds": [
+          "Bitbucket Integration Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

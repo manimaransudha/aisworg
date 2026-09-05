@@ -1,0 +1,72 @@
+{
+  "code": "domain-product-management",
+  "name": "Product Strategy & Lifecycle Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for Product Strategy and Lifecycle Management, covering product discovery, PRDs (Product Requirement Documents), user story mapping, feature prioritization frameworks (RICE/Kano), product roadmap management, release planning, product analytics, and customer feedback loops.",
+  "owner": "Global Product Management & Design Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-product-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-product-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Product Strategy & Lifecycle Audit Checklist",
+        "description": "Validation checklist for product discovery, PRD completion, feature prioritization, and release planning.",
+        "items": [
+          {
+            "statement": "Product Discovery validates user pain points using customer interviews, survey data, or usage telemetry.",
+            "group": "Product Discovery"
+          },
+          {
+            "statement": "Product Requirement Documents (PRDs) define explicit user personas, functional specs, and acceptance criteria.",
+            "group": "PRD Requirements"
+          },
+          {
+            "statement": "Feature backlog items are scored using RICE or Kano frameworks to justify roadmap placement.",
+            "group": "Feature Prioritization"
+          },
+          {
+            "statement": "Release plans specify scope, telemetry events, feature flag strategy, and rollback criteria.",
+            "group": "Release Planning"
+          },
+          {
+            "statement": "Product analytics dashboards track post-launch feature adoption, funnel conversion, and retention metrics.",
+            "group": "Product Analytics"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "product-director-signoff-gate",
+        "name": "Product Management Director Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Product Management Director confirms that PRDs, roadmap prioritization, and telemetry plans satisfy product standards.",
+        "prompt": "Does the product management package confirm feature value, requirement clarity, and release readiness?",
+        "participant": "human",
+        "outputContract": "product-management-attestation",
+        "checklistIds": [
+          "Product Strategy & Lifecycle Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

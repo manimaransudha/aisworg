@@ -40,7 +40,7 @@ async function strategicRoot(): Promise<string> {
 test("createObjective rejects a child whose tier is more strategic than its parent's", async () => {
   const { objective: parent } = await createObjective({
     statement: `phase1-parent-${randomUUID()}`,
-    requiredCapabilityCodes: ["architecture-solution-design"],
+    requiredCapabilityCodes: ["architecture-design"],
     tier: "Operational",
     parentObjectiveId: await strategicRoot(), requestedBy: 1001,});
 
@@ -48,7 +48,7 @@ test("createObjective rejects a child whose tier is more strategic than its pare
     () =>
       createObjective({
         statement: `phase1-bad-child-${randomUUID()}`,
-        requiredCapabilityCodes: ["architecture-solution-design"],
+        requiredCapabilityCodes: ["architecture-design"],
         tier: "Strategic",
         parentObjectiveId: parent.id, requestedBy: 1001,}),
     /cannot be more strategic than its parent/
@@ -58,11 +58,11 @@ test("createObjective rejects a child whose tier is more strategic than its pare
 test("createObjective accepts a valid child, and getObjectiveDetail shows both sides of the decomposition tree", async () => {
   const { objective: parent } = await createObjective({
     statement: `phase1-parent-${randomUUID()}`,
-    requiredCapabilityCodes: ["architecture-solution-design"],
+    requiredCapabilityCodes: ["architecture-design"],
     tier: "Strategic", requestedBy: 1001, status: "Proposed",});
   const { objective: child } = await createObjective({
     statement: `phase1-child-${randomUUID()}`,
-    requiredCapabilityCodes: ["development"],
+    requiredCapabilityCodes: ["software-construction"],
     tier: "Operational",
     parentObjectiveId: parent.id, requestedBy: 1001,});
 
@@ -77,7 +77,7 @@ test("createObjective accepts a valid child, and getObjectiveDetail shows both s
 test("updateObjective bumps the version's patch segment and applies the edit", async () => {
   const { objective } = await createObjective({
     statement: `phase1-versioned-${randomUUID()}`,
-    requiredCapabilityCodes: ["architecture-solution-design"],
+    requiredCapabilityCodes: ["architecture-design"],
     tier: "Engineering",
     // CR-075 — updateObjective now requires Proposed (every other status is
     // Comments-only); explicit here since this test is about version-bump
@@ -99,7 +99,7 @@ test("updateObjective bumps the version's patch segment and applies the edit", a
 test("transitionObjective follows the Ch.1 lifecycle and rejects an undefined transition", async () => {
   const { objective } = await createObjective({
     statement: `phase1-lifecycle-${randomUUID()}`,
-    requiredCapabilityCodes: ["architecture-solution-design"],
+    requiredCapabilityCodes: ["architecture-design"],
     tier: "Engineering",
     parentObjectiveId: await strategicRoot(),
     status: "Proposed", requestedBy: 1001,});
@@ -128,7 +128,7 @@ test("transitionObjective follows the Ch.1 lifecycle and rejects an undefined tr
 test("a submitted Proposed Objective locks both Edit and Delete until the activate badge holder acts on it", async () => {
   const { objective } = await createObjective({
     statement: `phase1-locked-${randomUUID()}`,
-    requiredCapabilityCodes: ["architecture-solution-design"],
+    requiredCapabilityCodes: ["architecture-design"],
     tier: "Engineering",
     parentObjectiveId: await strategicRoot(),
     status: "Proposed", requestedBy: 1001,
@@ -176,7 +176,7 @@ test("only a Proposed Objective can have its fields/decomposition edited — eve
   });
   const { objective: child } = await createObjective({
     statement: `phase1-proposed-only-child-${randomUUID()}`,
-    requiredCapabilityCodes: ["architecture-solution-design"],
+    requiredCapabilityCodes: ["architecture-design"],
     tier: "Engineering",
     parentObjectiveId: root.id,
     status: "Proposed", requestedBy: 1001,
@@ -203,7 +203,7 @@ test("only a Proposed Objective can have its fields/decomposition edited — eve
     () =>
       createObjective({
         statement: `phase1-proposed-only-grandchild-${randomUUID()}`,
-        requiredCapabilityCodes: ["architecture-solution-design"],
+        requiredCapabilityCodes: ["architecture-design"],
         tier: "Engineering",
         parentObjectiveId: child.id,
         requestedBy: 1001,
@@ -248,7 +248,7 @@ test("reParentObjective refuses a cross-tenant move, and listReParentCandidates 
   });
   const { objective: athensChild } = await createObjective({
     statement: `phase1-tenant-move-athens-child-${randomUUID()}`,
-    requiredCapabilityCodes: ["architecture-solution-design"], tier: "Engineering",
+    requiredCapabilityCodes: ["architecture-design"], tier: "Engineering",
     parentObjectiveId: athensRoot.id, requestedBy: 2001, status: "Proposed",
   });
 
@@ -278,14 +278,14 @@ test("submitting a Proposed root locks edit/delete/move/add-child on its whole s
   });
   const { objective: child } = await createObjective({
     statement: `phase1-subtree-child-${randomUUID()}`,
-    requiredCapabilityCodes: ["architecture-solution-design"],
+    requiredCapabilityCodes: ["architecture-design"],
     tier: "Operational",
     parentObjectiveId: root.id,
     status: "Proposed", requestedBy: 1001,
   });
   const { objective: grandchild } = await createObjective({
     statement: `phase1-subtree-grandchild-${randomUUID()}`,
-    requiredCapabilityCodes: ["architecture-solution-design"],
+    requiredCapabilityCodes: ["architecture-design"],
     tier: "Engineering",
     parentObjectiveId: child.id,
     status: "Proposed", requestedBy: 1001,
@@ -317,7 +317,7 @@ test("submitting a Proposed root locks edit/delete/move/add-child on its whole s
     () =>
       createObjective({
         statement: `phase1-subtree-new-grandchild-${randomUUID()}`,
-        requiredCapabilityCodes: ["architecture-solution-design"],
+        requiredCapabilityCodes: ["architecture-design"],
         tier: "Engineering",
         parentObjectiveId: child.id,
         requestedBy: 1001,
@@ -350,7 +350,7 @@ test("submitting a Proposed root locks edit/delete/move/add-child on its whole s
 test("transitionObjective Active -> Reject requires new feedback every time and records it as a comment", async () => {
   const { objective } = await createObjective({
     statement: `phase1-reject-${randomUUID()}`,
-    requiredCapabilityCodes: ["architecture-solution-design"],
+    requiredCapabilityCodes: ["architecture-design"],
     tier: "Engineering",
     parentObjectiveId: await strategicRoot(),
     status: "Proposed", requestedBy: 1001,
@@ -398,7 +398,7 @@ test("getRejectedObjectivesPage reflects an ancestor's lock on a Reject-status r
   });
   const { objective: child } = await createObjective({
     statement: `phase1-rejected-list-child-${randomUUID()}`,
-    requiredCapabilityCodes: ["architecture-solution-design"],
+    requiredCapabilityCodes: ["architecture-design"],
     tier: "Engineering",
     parentObjectiveId: root.id,
     status: "Proposed", requestedBy: 1001,
@@ -426,7 +426,7 @@ test("getRejectedObjectivesPage reflects an ancestor's lock on a Reject-status r
 test("commissionSeu requires the Objective to be Active — blocks Proposed, succeeds once Activated", async () => {
   const { objective } = await createObjective({
     statement: `phase1-gate-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     tier: "Engineering",
     parentObjectiveId: await strategicRoot(),
     status: "Proposed", requestedBy: 1001,});
@@ -451,7 +451,7 @@ test("commissionSeu requires the Objective to be Active — blocks Proposed, suc
 test("commissionFromExistingObjective reuses the Objective's own declared Capabilities, no re-picking", async () => {
   const { objective } = await createObjective({
     statement: `phase1-existing-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     tier: "Engineering",
     parentObjectiveId: await strategicRoot(),
     requestedBy: 1001,

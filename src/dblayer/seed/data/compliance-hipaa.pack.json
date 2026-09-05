@@ -1,0 +1,72 @@
+{
+  "code": "compliance-hipaa",
+  "name": "HIPAA Health Data Privacy & Security Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for the Health Insurance Portability and Accountability Act (HIPAA), covering ePHI protection, Security Rule technical safeguards, Privacy Rule governance, BAA vendor management, and audit trail requirements.",
+  "owner": "Compliance Engineering & Security Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-hipaa-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-hipaa-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "HIPAA Technical Safeguards & Audit Verification Checklist",
+        "description": "Validation checklist for HIPAA Security Rule §164.312 compliance including access controls, encryption, audit controls, and integrity.",
+        "items": [
+          {
+            "statement": "All electronic Protected Health Information (ePHI) is encrypted at rest (AES-256) and in transit (TLS 1.3).",
+            "group": "Technical Safeguards (§164.312(a))"
+          },
+          {
+            "statement": "Unique user identification and automatic logoff mechanisms are enforced across all ePHI application interfaces.",
+            "group": "Access Control (§164.312(a)(2))"
+          },
+          {
+            "statement": "Audit logs record all access attempts to ePHI (user ID, timestamp, patient ID, action type) with WORM storage guarantees.",
+            "group": "Audit Controls (§164.312(b))"
+          },
+          {
+            "statement": "Valid Business Associate Agreements (BAAs) are executed and filed for all third-party vendors handling ePHI.",
+            "group": "Business Associate Management (§164.502(e))"
+          },
+          {
+            "statement": "Breach notification procedures specify 60-day maximum reporting timelines to HHS and affected individuals.",
+            "group": "Breach Notification (§164.404)"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "hipaa-security-privacy-review",
+        "name": "HIPAA Compliance Attestation Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The HIPAA Compliance Officer and CISO attest that ePHI technical safeguards, audit trails, and BAA agreements fully satisfy HIPAA Security & Privacy Rules.",
+        "prompt": "Are ePHI encryption, audit trails, and Business Associate Agreements fully verified for HIPAA compliance?",
+        "participant": "human",
+        "outputContract": "hipaa-compliance-attestation",
+        "checklistIds": [
+          "HIPAA Technical Safeguards & Audit Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

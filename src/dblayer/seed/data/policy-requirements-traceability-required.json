@@ -1,0 +1,50 @@
+{
+  "code": "requirements-traceability-required",
+  "name": "Requirements Traceability Required",
+  "description": "Source Code and Requirements Specification must trace to each other bidirectionally, with no undeclared orphans on either side.",
+  "category": "Engineering",
+  "constraintType": "Standard",
+  "applicabilityDeliverableNames": [
+    "source-code"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Every Source Code module traces to at least one Requirements Specification item.",
+      "requiredEvidence": [
+        {
+          "type": "traceability_record",
+          "direction": "code_to_requirement"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Every Requirements Specification item traces to at least one Source Code module, or is explicitly marked Deferred or Rejected.",
+      "requiredEvidence": [
+        {
+          "type": "traceability_record",
+          "direction": "requirement_to_code"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "No Requirements Specification item remains untraced and unmarked for more than one release cycle.",
+      "requiredEvidence": [
+        {
+          "type": "traceability_gap_report"
+        }
+      ],
+      "severity": "Low",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

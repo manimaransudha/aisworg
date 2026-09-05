@@ -1,0 +1,72 @@
+{
+  "code": "domain-order-management",
+  "name": "Order Management & Fulfillment Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for order management and fulfillment, covering quote-to-order conversion, order validation, credit checks, inventory reservation, order fulfillment routing, backorder tracking, cancellations, and return merchandise authorizations (RMA).",
+  "owner": "Order Management & Commerce Operations Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-order-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-order-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Order Management & Fulfillment Audit Checklist",
+        "description": "Validation checklist for order validation, inventory allocation, fulfillment tracking, and RMA return handling.",
+        "items": [
+          {
+            "statement": "Sales quotes are validated for pricing, discount approvals, and tax calculation prior to order conversion.",
+            "group": "Order Capture"
+          },
+          {
+            "statement": "Customer credit balance check prevents order release if exposure exceeds credit limit.",
+            "group": "Credit Validation"
+          },
+          {
+            "statement": "Inventory hard reservation assigns available stock to order lines without double allocation.",
+            "group": "Inventory Allocation"
+          },
+          {
+            "statement": "Backordered items trigger automated customer notifications and estimated restock fulfillment dates.",
+            "group": "Backorder Management"
+          },
+          {
+            "statement": "Returned items under RMA undergo quality inspection before issuing customer credit memos.",
+            "group": "RMA Returns & Refunds"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "order-operations-signoff-gate",
+        "name": "Order Operations Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Order Operations Manager confirms that credit validation, inventory reservation, and RMA workflows function properly.",
+        "prompt": "Does the order management workflow satisfy fulfillment accuracy and credit control rules?",
+        "participant": "human",
+        "outputContract": "order-management-attestation",
+        "checklistIds": [
+          "Order Management & Fulfillment Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

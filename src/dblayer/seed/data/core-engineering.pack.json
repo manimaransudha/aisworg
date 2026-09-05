@@ -12,36 +12,22 @@
         "description": "Elicits and specifies engineering requirements."
       },
       {
-        "code": "architecture-solution-design",
+        "code": "architecture-design",
         "name": "Architecture & Solution Design",
         "description": "Designs the technical solution structure and architecture."
       },
       {
-        "code": "development",
+        "code": "software-construction",
         "name": "Development",
         "description": "Implements the solution against the approved architecture."
       }
     ],
     "services": [
       {
-        "code": "approved-requirements-specification",
-        "capabilityCode": "requirements-analysis",
-        "name": "Approved Requirements Specification",
-        "contractDescription": "A reviewed, approved statement of what the solution must do.",
-        "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
-        ]
+        "code": "requirements-analysis-service"
       },
       {
-        "code": "approved-architecture",
-        "capabilityCode": "architecture-solution-design",
-        "name": "Approved Architecture",
-        "contractDescription": "A reviewed, approved technical design satisfying the approved requirements.",
-        "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
-        ]
+        "code": "architectural-review-service"
       }
     ],
     "authorityRules": [
@@ -121,116 +107,7 @@
         "authorisedRole": "general"
       }
     ],
-    "policies": [
-      {
-        "code": "policy-commission-baseline",
-        "name": "Commissioning baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "SEU|Pending|Commissioned",
-        "severity": "Medium",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-deliverable-transition-baseline",
-        "name": "Deliverable transition baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "Deliverable|Defined|In Progress",
-        "severity": "Low",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-objective-transition-baseline",
-        "name": "Objective transition baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "Objective|Proposed|Active",
-        "severity": "Low",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-obligation-transition-baseline",
-        "name": "Obligation transition baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "Obligation|Identified|Analysed",
-        "severity": "Low",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-evidence-transition-baseline",
-        "name": "Evidence transition baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "Evidence|Collected|Validated",
-        "severity": "Low",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-knowledge-transition-baseline",
-        "name": "Knowledge transition baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "Knowledge|Observed|Proposed",
-        "severity": "Low",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-decision-transition-baseline",
-        "name": "Decision transition baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "Decision|Identified|Analysed",
-        "severity": "Low",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-knowledgescope-transition-baseline",
-        "name": "Acquisition Scope promotion baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "KnowledgeScope|SEU|Capability",
-        "severity": "Medium",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-attentionitem-transition-baseline",
-        "name": "Attention Item transition baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "AttentionItem|Created|Delivered",
-        "severity": "Low",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-externalinteraction-transition-baseline",
-        "name": "External Interaction transition baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "ExternalInteraction|Created|Validated",
-        "severity": "Low",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-pack-transition-baseline",
-        "name": "Pack transition baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "Pack|Draft|Validated",
-        "severity": "Low",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-participant-transition-baseline",
-        "name": "Participant transition baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "Participant|Created|Available",
-        "severity": "Low",
-        "conditionType": "always_true"
-      }
-    ],
+    "policies": [],
     "qualityGates": [
       {
         "name": "No Unresolved Obligations",

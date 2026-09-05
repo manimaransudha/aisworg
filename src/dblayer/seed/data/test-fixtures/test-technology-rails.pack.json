@@ -1,0 +1,58 @@
+{
+  "code": "test-technology-rails",
+  "name": "Ruby on Rails Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "software-construction",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "engineering-work-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "Ruby on Rails Engineering Standards",
+        "description": "Validation checklist for Ruby on Rails MVC, Active Record, Security, and Sidekiq background processing.",
+        "items": [
+          {
+            "statement": "Active Record queries use includes(), joins(), or preload() to eliminate N+1 database queries.",
+            "group": "Active Record & Performance"
+          },
+          {
+            "statement": "Controllers enforce Strong Parameters (params.require().permit()) to prevent mass assignment vulnerabilities.",
+            "group": "Security & Controllers"
+          },
+          {
+            "statement": "Code passes RuboCop style analysis and Brakeman static security scanner without unaddressed high-severity alerts.",
+            "group": "Code Quality & Security"
+          },
+          {
+            "statement": "Background jobs executed via Sidekiq/ActiveJob are idempotent and handle retries gracefully without data duplication.",
+            "group": "Background Processing"
+          },
+          {
+            "statement": "Database migrations are reversible (change method or explicit up/down) and indexed appropriately for query filters.",
+            "group": "Database Migrations"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

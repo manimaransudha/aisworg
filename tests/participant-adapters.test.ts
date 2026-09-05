@@ -86,14 +86,14 @@ async function commissionAndFulfil(prefix: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromForm({
     statement: `${prefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
   const seuId = result.seu.id;
   const detail = await getSeuDetailView(seuId);
-  const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Specification");
+  const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
   assert.ok(deliverable && capability);
   await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantType: "AI", displayName: `${prefix} Agent` });

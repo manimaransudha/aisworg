@@ -1,0 +1,98 @@
+{
+  "code": "test-technology-sass",
+  "name": "SASS Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "software-construction",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "engineering-work-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "SASS Standards",
+        "description": "SASS Standards",
+        "items": [
+          {
+            "statement": "There should be default / global folder for variables, mixins etc.",
+            "group": "SASS Project Structure"
+          },
+          {
+            "statement": "There should be modules folder for section wise partial files if sections are used in multiple pages",
+            "group": "SASS Project Structure"
+          },
+          {
+            "statement": "There should be pages folder for page wise partial files if page styling is unique.",
+            "group": "SASS Project Structure"
+          },
+          {
+            "statement": "Strictly use Variables for Colors, Breakpoints, Font Family, Font Size, Font Weight. Use Object variables if possible",
+            "group": "SASS Variables"
+          },
+          {
+            "statement": "Create mixins to reuse it in all partial files. Use mixins wherever possible and do not create unnecessary mixins, if not used, remove it.",
+            "group": "SASS Mixins"
+          },
+          {
+            "statement": "Use meaningful class and IDs",
+            "group": "Naming Conventions"
+          },
+          {
+            "statement": "Use extends / placeholders for repeated styling",
+            "group": "SASS Extends & Placeholders"
+          },
+          {
+            "statement": "Nesting must be upto 6 levels.",
+            "group": "SASS Nesting"
+          },
+          {
+            "statement": "& operator should be used for selecting parent and pseudo selectors.",
+            "group": "SASS Syntax"
+          },
+          {
+            "statement": "Operators( +,-,*,/,%) : This mathematical operators should be used for calculating % values",
+            "group": "SASS Operators"
+          },
+          {
+            "statement": "Comment your code if necessary, because partial files names are already self explanatory.",
+            "group": "Code Documentation"
+          },
+          {
+            "statement": "Omit unit specification after “0” values. Do not use units (px) after 0 values unless they are required.",
+            "group": "CSS Formatting"
+          },
+          {
+            "statement": "Omit leading “0”s in values.",
+            "group": "CSS Formatting"
+          },
+          {
+            "statement": "Use 3 character hexadecimal notation where possible.",
+            "group": "CSS Formatting"
+          },
+          {
+            "statement": "Follow Codecop : Declarations are to be consistently ordered; box-model, display, positioning and etc.",
+            "group": "CSS Property Ordering"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

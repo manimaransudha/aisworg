@@ -535,3 +535,349 @@ Real, matches the chapter's own 5-step sequence closely enough: Dependency Engin
 4. **[Code — real mechanism, still genuinely partial, split out as CR-066]** Capability Relationships (§9) map onto Pack-level `dependencies[]` + Composition Engine composition, not the Dependency Engine's Capability-typed entity (a different mechanism entirely, Ch.11's own territory). Confirmed partial exactly as the owner assessed: only `required` has real semantics (3 of 4 dependency types don't), and zero circular-dependency detection exists despite §9's own explicit requirement. Shared, platform-wide infrastructure, not Capability-specific — filed as its own CR (18.5).
 5. **[Code, surprising positive]** Discovery-by-objective is genuinely real (`objectivesDB.getRequiredCapabilities`), not aspirational — the strongest-built §11 axis, alongside discovery-by-Pack (18.7).
 6. **[Code, surprising positive]** Capability Fulfilment (§10) and Selection (§12) are both real and match the chapter closely — the strongest-built areas of this chapter overall (18.6, 18.8).
+
+## My notes
+
+Business Analysis Planning and
+Monitoring, Elicitation and Collaboration, Requirements Life Cycle Management,
+Strategy Analysis, Requirements Analysis and Design Definition (RADD),
+Solution Evaluation
+
+Business Analysis Planning and Monitoring: describes the tasks that
+business analysts perform to organize and coordinate the efforts of
+business analysts and stakeholders. 
+
+Elicitation and Collaboration: describes the tasks that business analysts
+perform to prepare for and conduct elicitation activities and confirm the
+results obtained. It also describes the communication with stakeholders
+once the business analysis information is assembled and the ongoing
+collaboration with them throughout the business analysis activities.
+
+Requirements Life Cycle Management: describes the tasks that business
+analysts perform in order to manage and maintain requirements and design
+information from inception to retirement. These tasks describe establishing
+meaningful relationships between related requirements and designs, and
+assessing, analyzing and gaining consensus on proposed changes to
+requirements and designs.
+
+Strategy Analysis: describes the business analysis work that must be
+performed to collaborate with stakeholders in order to identify a need of
+strategic or tactical importance (the business need), enable the enterprise to
+
+
+('capability-name', 'Discovering business requirements', 'Discovering business requirements', '','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Understanding business domains', 'Understanding business domains', '','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Validating engineering requirements', 'Validating engineering requirements', '','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Modelling complex systems', 'Modelling complex systems', '','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Designing software architecture', 'Designing software architecture', '','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Constructing software systems', 'Constructing software systems', '','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Managing engineering configuration', 'Managing engineering configuration', '','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Verifying software quality', 'Verifying software quality', '','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Documenting engineering work', 'Documenting engineering work', '','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Protecting organisational assets', 'Protecting organisational assets', '','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Governing engineering decisions', 'Governing engineering decisions', '','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Managing software release', 'Managing software release', '','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Operating production systems', 'Operating production systems', '','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Recovering organisational knowledge', 'Recovering organisational knowledge', '','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Learning from operational experience', 'Learning from operational experience', '','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Improving engineering practice', 'Improving engineering practice', '','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Adapting to changing business need', 'Adapting to changing business need', '','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Continuous architectural analysis', 'Continuous architectural analysis', 
+'replaces periodic milestone review with persistent, continuous evaluation','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Real-time organisational documentation', 'Real-time organisational documentation', 'replaces documentation that lags implementation with continuous generation, validation and refinement','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Automatic traceability generation', 'Automatic traceability generation', 'replaces selective, expensive traceability with continuous establishment and validation as artefacts evolve' ,'11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Knowledge recovery from legacy systems', 'Knowledge recovery from legacy systems', 'reconstructing engineering knowledge that had effectively disappeared, rather than only analysing current behaviour.','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Continuous compliance verification', 'Continuous compliance verification', 'replaces periodic audit (a snapshot) with continuous evaluation against policy and regulatory obligation.','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Engineering decision explainability', 'Engineering decision explainability', 'decisions remain explicitly connected to their supporting evidence, knowledge, policy, objective and outcome.','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Evidence-based organisational reasoning', 'Evidence-based organisational reasoning', 'reasoning through shared organisational knowledge rather than solely through synchronous conversation/meeting.','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Continuous requirements validation', 'Continuous requirements validation', '','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Predictive engineering risk assessment', 'Predictive engineering risk assessment', '','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Continuous quality assurance', 'Continuous quality assurance', '','11111111-1111-1111-1111-111111111111'),
+ 
+('capability-name', 'Organisational memory synthesis', 'Organisational memory synthesis', 'Organisational memory synthesis across multiple projects','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Continuous organisational learning', 'Continuous organisational learning', '','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Autonomous capability optimisation', 'Autonomous capability optimisation', '','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Enterprise-wide engineering impact analysis', 'Enterprise-wide engineering impact analysis', 'Enterprise-wide engineering impact analysis','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Continuous stakeholder-intent reconciliation', 'Continuous stakeholder-intent reconciliation', 'persistently synthesising scattered stakeholder signal (meetings, tickets, support conversations, emails) into a single current requirement baseline, instead of periodic elicitation sessions','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Continuous domain-model drift detection', 'Continuous domain-model drift detection', 'catching the moment a documented domain model diverges from how the business actually behaves, rather than discovering it at the next modelling exercise','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Predictive architectural obsolescence detection', 'Predictive architectural obsolescence detection', 'forecasting when a pattern will fail to scale from continuous trend analysis of usage and load, before it actually breaks','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Cross-system structural pattern recognition', 'Cross-system structural pattern recognition', 'spotting a structural weakness in one system because an AI participant has simultaneously reasoned over the architecture of every other system the organisation runs','11111111-1111-1111-1111-111111111111'),
+  
+('capability-name', 'Cross-codebase pattern propagation', 'Cross-codebase pattern propagation', 'the instant a fix or improvement is made anywhere, identifying and proposing the equivalent fix everywhere else it applies, across the entire portfolio at once','11111111-1111-1111-1111-111111111111'),
+ 
+('capability-name', 'Continuous configuration drift detection', 'Continuous configuration drift detection', 'persistently verifying that deployed configuration across every environment still matches declared intent, rather than catching drift during an incident','11111111-1111-1111-1111-111111111111'),
+ 
+('capability-name', 'Predictive test-coverage gap detection', 'Predictive test-coverage gap detection', 'identifying, before any defect occurs, which class of defect current test coverage would fail to catch, reasoned from historical defect/architecture correlation','11111111-1111-1111-1111-111111111111'),
+ 
+('capability-name', 'Continuous vulnerability posture assessment', 'Continuous vulnerability posture assessment', 'whole-portfolio exposure analysis maintained continuously, rather than periodic penetration testing','11111111-1111-1111-1111-111111111111'),
+ 
+('capability-name', 'Predictive threat-pattern anticipation', 'Predictive threat-pattern anticipation', 'recognising an emerging attack pattern elsewhere in the industry and pre-emptively checking the organisation systems for the same exposure before it is exploited','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Continuous policy-conflict detection', 'Continuous policy-conflict detection', 'persistently checking every active policy, standard and decision across the whole organisation for latent contradiction, at a scale no governance board could track exhaustively','11111111-1111-1111-1111-111111111111'),
+ 
+('capability-name', 'Continuous release-risk forecasting', 'Continuous release-risk forecasting', 'an ongoing, continuously updated risk prediction for an in-progress release, reasoned from the complete history of every prior release  outcome, rather than a single go/no-go review','11111111-1111-1111-1111-111111111111'),
+ 
+('capability-name', 'Predictive incident anticipation', 'Predictive incident anticipation', 'recognising the precursor conditions of a future production incident from continuous telemetry correlation, before it manifests','11111111-1111-1111-1111-111111111111'),
+
+('capability-name', 'Autonomous root-cause synthesis', 'Autonomous root-cause synthesis', 'reconstructing a full root-cause chain across code, infrastructure, configuration and decision history the instant an incident occurs, rather than requiring multi-team manual investigation','11111111-1111-1111-1111-111111111111'),
+ 
+('capability-name', 'Autonomous standard synthesis', 'Autonomous standard synthesis', 'drafting or refining engineering standards directly from continuously accumulating evidence of what works, rather than through periodic committee review','11111111-1111-1111-1111-111111111111'),
+ 
+('capability-name', 'Cross-organisational capability benchmarking', 'Cross-organisational capability benchmarking', 'continuously comparing this organisation's capability maturity against every other capability instance the platform hosts, surfacing improvement opportunities no organisation could see in isolation','11111111-1111-1111-1111-111111111111'),
+ 
+('capability-name', 'Continuous objective-alignment monitoring', 'Continuous objective-alignment monitoring', 'persistently checking whether ongoing engineering work still serves its stated Objective as business conditions shift, flagging drift automatically instead of waiting for a scheduled review','11111111-1111-1111-1111-111111111111'),
+ 
+
+Assign a Capability Steward. 
+
+The value exchanged between capabilities is not limited to tangible engineering artefact — it includes information, knowledge, evidence, decision, architectural guidance, engineering assurance, risk assessment, compliance assessment, operational intelligence, recommendation, governance and organisational memory, encompassing every organisational outcome that contributes to organisational objective.
+
+----------
+
+Services
+
+Group A — 17 base capabilities (grounded in §7.4-7.5 where named)
+1. Discovering business requirements — Service: Business Requirement Discovery Service
+Purpose: surface stakeholder need before design begins · Inputs: stakeholder access, business objective, prior domain knowledge · Outputs: discovered business requirement set · Quality: completeness, stakeholder coverage, ambiguity-free · Governance: requirements-management policy · Success: sponsor confirms requirement set represents intent · Consumers: Requirements Analysis, Architecture · Provider: Requirements Engineering Capability
+
+2. Understanding business domains — Service: Domain Model Service
+Purpose: give the organisation a shared model of the business it serves · Inputs: business documentation, stakeholder interviews, existing domain artefacts · Outputs: validated domain model, terminology, business rules · Quality: consistency, terminological precision · Governance: Ontology Model policy · Success: domain experts ratify the model · Consumers: Requirements Engineering, Architecture, Knowledge Management · Provider: Requirements Engineering Capability
+
+3. Validating engineering requirements — Service: Requirement Validation Service
+Purpose: confirm discovered requirements are correct, complete and agreed · Inputs: discovered requirement set, acceptance criteria · Outputs: validated, approved requirement baseline · Quality: traceability, stakeholder sign-off, no unresolved conflict · Governance: change-control policy · Success: requirement baseline approved and frozen · Consumers: Architecture, Software Construction, Verification · Provider: Requirements Engineering Capability
+
+4. Modelling complex systems — Service: System Model Service
+Purpose: represent structural and behavioural complexity before committing to design · Inputs: validated requirements, domain model, constraints · Outputs: system model (structural/behavioural views) · Quality: internal consistency, completeness against requirements · Governance: modelling standard · Success: model reviewed and accepted as basis for architecture · Consumers: Architecture · Provider: Architecture Capability
+
+5. Designing software architecture — Service: Architectural Review Service (fully worked in §7.6, line 87 — reused verbatim)
+Purpose: evaluate proposed solutions for architectural integrity and organisational alignment · Inputs: approved solution proposal, business requirements, architectural constraint, applicable standard · Outputs: approved architectural decision, documented rationale, identified risk, recommendation · Quality: compliance with architecture principle, complete reasoning, full traceability · Governance: enterprise architecture policy, security standard, technology standard, regulatory obligation · Success: decision approved, risk addressed, traceability established · Consumers: Software Construction, Project Governance · Provider: Architecture Capability
+
+6. Constructing software systems — Service: Software Implementation Service
+Purpose: deliver a working component satisfying agreed expectation · Inputs: architectural guidance, implementation standard · Outputs: implemented software component, implementation artefact · Quality: functional correctness, adherence to standard, maintainability · Governance: coding standard, security policy · Success: component satisfies architectural and functional specification · Consumers: Verification · Provider: Software Construction Capability
+
+7. Managing engineering configuration — Service: Baseline Management Service
+Purpose: preserve version integrity of every engineering artefact · Inputs: artefact versions, change requests · Outputs: managed baseline, version-integrity record · Quality: consistency, no untracked drift · Governance: configuration-management policy · Success: baseline reproducible on demand · Consumers: every capability · Provider: Configuration Management Capability
+
+8. Verifying software quality — Service: Quality Assurance Service
+Purpose: provide justified confidence the implementation satisfies specification · Inputs: implemented software, requirement baseline, test standard · Outputs: verification evidence, defect findings, confidence assessment · Quality: coverage, defect-detection effectiveness · Governance: quality policy, compliance standard · Success: confidence sufficient to justify release · Consumers: Release Management · Provider: Verification Capability
+
+9. Documenting engineering work — Service: Technical Documentation Service
+Purpose: keep an accurate, current representation of engineering knowledge · Inputs: architectural decisions, implementation artefacts, requirement baseline · Outputs: technical and user documentation · Quality: currency, completeness, clarity · Governance: documentation standard · Success: documentation matches current system state · Consumers: Operations, Knowledge Management, external customers · Provider: Documentation Capability
+
+10. Protecting organisational assets — Service: Vulnerability Assessment Service (named in §7.4, line 55)
+Purpose: identify and reduce exposure to security threat · Inputs: system artefacts, threat intelligence · Outputs: threat assessment, vulnerability findings, policy enforcement record · Quality: coverage, false-negative minimisation · Governance: security policy, regulatory obligation · Success: no unmitigated critical vulnerability at release · Consumers: Architecture, Software Construction, Release Management · Provider: Security Capability
+
+11. Governing engineering decisions — Service: Decision Validation Service
+Purpose: ensure engineering decisions comply with policy before taking effect · Inputs: proposed decision, applicable policy · Outputs: approved or rejected decision, rationale · Quality: consistency, explainability · Governance: decision-governance policy · Success: decision recorded with traceable rationale · Consumers: every capability · Provider: Governance Capability
+
+12. Managing software release — Service: Deployment Governance Service (named in §7.4, line 55)
+Purpose: determine and coordinate readiness for deployment · Inputs: quality assurance evidence, release candidate · Outputs: release recommendation, deployment coordination record · Quality: risk-adjusted go/no-go accuracy · Governance: release policy, change-control standard · Success: release deployed without rollback · Consumers: Operations · Provider: Release Management Capability
+
+13. Operating production systems — Service: Availability Assurance Service (named in §7.4, line 55)
+Purpose: keep deployed systems reliable and observable · Inputs: deployed software, monitoring configuration · Outputs: operational intelligence, incident records, performance data · Quality: uptime, mean-time-to-detect · Governance: SLA/operational policy · Success: agreed availability target met · Consumers: Requirements Engineering (feedback), Architecture (feedback) · Provider: Operations Capability
+
+14. Recovering organisational knowledge — Service: Knowledge Discovery Service (named in §7.4, line 55)
+Purpose: reconstruct engineering understanding not currently captured · Inputs: legacy artefacts, historical decisions, source code · Outputs: recovered knowledge item · Quality: accuracy, provenance completeness · Governance: knowledge validation policy · Success: recovered knowledge validated and published · Consumers: Architecture, Knowledge Management · Provider: Knowledge Management Capability
+
+15. Learning from operational experience — Service: Operational Intelligence Service
+Purpose: convert production experience into reusable understanding · Inputs: incident records, telemetry, operational evidence · Outputs: operational knowledge, lessons learned · Quality: actionability, timeliness · Governance: organisational-learning policy · Success: knowledge item published and referenced by future decisions · Consumers: Requirements Engineering, Architecture, Operations · Provider: Operations Capability
+
+16. Improving engineering practice — Service: Standard Refinement Service
+Purpose: keep engineering standards current with accumulated evidence · Inputs: evidence from service delivery, review findings · Outputs: revised standard, checklist, practice guidance · Quality: adoption rate, defect-reduction impact · Governance: standards-governance policy · Success: revised standard formally published · Consumers: every capability · Provider: Governance Capability
+
+17. Adapting to changing business need — Service: Capability Realignment Service
+Purpose: keep the capability portfolio aligned to shifting objectives · Inputs: revised or superseded Objectives, market/business signal · Outputs: capability gap assessment, realignment recommendation · Quality: responsiveness, accuracy of gap identification · Governance: strategic-governance policy · Success: capability portfolio reflects current Objectives · Consumers: organisational leadership, Template Model (Book 3 analogue) · Provider: Governance Capability
+
+Group B — 14 existing AI-native capabilities (§6.10/§7.8, contracts constructed)
+18. Continuous architectural analysis — Service: Architectural Awareness Service (named directly, §7.8 line 115: "organisational awareness service")
+Purpose: maintain continuous, always-current architectural integrity assessment · Inputs: every artefact/model change · Outputs: real-time conformance status, drift alerts · Quality: latency (near-zero), false-positive rate · Governance: architecture policy · Success: no undetected divergence exceeding tolerance · Consumers: Architecture, Software Construction · Provider: Architecture Capability
+
+19. Real-time organisational documentation — Service: Continuous Documentation Service
+Purpose: keep documentation synchronised with current system state at all times · Inputs: every artefact change · Outputs: continuously updated documentation · Quality: currency (zero lag), accuracy · Governance: documentation standard · Success: no documentation ever found stale at audit · Consumers: Operations, Knowledge Management, customers · Provider: Documentation Capability
+
+20. Automatic traceability generation — Service: Continuous Trace Awareness Service (named §7.8 line 115)
+Purpose: keep every artefact relationship current without manual maintenance · Inputs: every artefact/decision change · Outputs: live traceability graph · Quality: completeness, no orphaned link · Governance: traceability policy · Success: full trace path reconstructible on demand · Consumers: Governance, Knowledge Management, Verification · Provider: Knowledge Management Capability
+
+21. Knowledge recovery from legacy systems — Service: Legacy Knowledge Reconstruction Service
+Purpose: reconstruct disappeared engineering knowledge from legacy artefacts · Inputs: legacy code, historical records, operational history · Outputs: reconstructed knowledge item with provenance · Quality: accuracy against ground truth where verifiable · Governance: knowledge validation policy · Success: reconstructed knowledge validated by domain review · Consumers: Architecture, Knowledge Management · Provider: Knowledge Management Capability
+
+22. Continuous compliance verification — Service: Persistent Compliance Service (named §7.8 line 115: "persistent service")
+Purpose: evaluate every change against applicable policy the instant it occurs · Inputs: every architectural/implementation/deployment/operational event · Outputs: continuous compliance status, violation alerts · Quality: zero-lag detection, coverage of all applicable frameworks · Governance: every active Compliance Pack's policy · Success: no compliance violation reaches release undetected · Consumers: Governance, Release Management · Provider: Compliance Capability
+
+23. Engineering decision explainability — Service: Decision Rationale Service
+Purpose: keep every significant decision connected to its supporting evidence and outcome · Inputs: decision record, supporting evidence, governing policy · Outputs: explainable decision trace · Quality: completeness of rationale chain · Governance: decision-governance policy · Success: any decision explainable on demand without reconstruction effort · Consumers: Governance, audit/regulatory stakeholders · Provider: Governance Capability
+
+24. Evidence-based organisational reasoning — Service: Organisational Reasoning Service
+Purpose: let engineering decisions emerge from accumulated organisational understanding rather than isolated discussion · Inputs: organisational knowledge base, accumulated evidence · Outputs: reasoned recommendation · Quality: consistency with prior precedent, evidentiary support · Governance: decision-governance policy · Success: recommendation accepted or explicitly overridden with rationale · Consumers: every capability · Provider: Knowledge Management Capability
+
+25. Continuous requirements validation — Service: Continuous Requirement Conformance Service
+Purpose: keep the requirement baseline validated as it evolves, not only at baseline-freeze · Inputs: every requirement change · Outputs: continuous validation status · Quality: zero-lag detection of newly introduced conflict · Governance: requirements-management policy · Success: no invalid requirement reaches architecture undetected · Consumers: Architecture · Provider: Requirements Engineering Capability
+
+26. Predictive engineering risk assessment — Service: Engineering Risk Forecast Service
+Purpose: forecast engineering risk before it materialises · Inputs: historical risk/outcome data, current engineering state · Outputs: risk forecast with confidence level · Quality: predictive accuracy (calibrated against outcomes) · Governance: risk-management policy · Success: forecast risk actually materialising within predicted window, tracked · Consumers: Governance, Release Management · Provider: Governance Capability
+
+27. Continuous quality assurance — Service: Continuous Confidence Service
+Purpose: maintain an always-current confidence assessment rather than a point-in-time one · Inputs: every code/test change · Outputs: live confidence score, defect findings · Quality: coverage, latency · Governance: quality policy · Success: confidence score never stale at any release decision · Consumers: Release Management · Provider: Verification Capability
+
+28. Organisational memory synthesis across multiple projects — Service: Cross-Project Knowledge Synthesis Service
+Purpose: synthesise reusable understanding across every concurrent and historical project · Inputs: knowledge items from every project · Outputs: synthesised, generalised knowledge · Quality: generalisability, non-contradiction · Governance: knowledge acquisition-scope policy (cf. Book 3 Ch.16 §12) · Success: synthesised knowledge reused by at least one other project · Consumers: every capability, every project · Provider: Knowledge Management Capability
+
+29. Continuous organisational learning — Service: Continuous Learning Service
+Purpose: keep the capability-improvement loop running without waiting for retrospectives · Inputs: evidence generated by every service interaction · Outputs: capability-improvement recommendation · Quality: cycle time between evidence and improvement · Governance: organisational-learning policy · Success: measurable capability-maturity increase over time · Consumers: every capability · Provider: Governance Capability
+
+30. Autonomous capability optimisation — Service: Capability Self-Optimisation Service
+Purpose: improve a capability's own effectiveness without waiting for external direction · Inputs: capability performance evidence · Outputs: applied optimisation, improvement record · Quality: measurable performance delta, non-regression · Governance: capability-ownership policy · Success: optimisation improves measured capability metric without introducing regression · Consumers: capability owner · Provider: the optimising capability itself
+
+31. Enterprise-wide engineering impact analysis — Service: Cross-Enterprise Impact Analysis Service
+Purpose: assess the consequence of a proposed change across the entire enterprise before it's made · Inputs: proposed change, full trace graph · Outputs: impact report spanning affected capabilities/projects · Quality: completeness of affected-entity discovery · Governance: change-control policy · Success: no unanticipated downstream impact discovered post-change · Consumers: Governance, Architecture · Provider: Knowledge Management Capability
+
+Group C — 16 additional AI-native capabilities (newly proposed; contracts constructed)
+32. Continuous stakeholder-intent reconciliation — Service: Stakeholder Intent Reconciliation Service
+Purpose: keep requirement understanding synchronised with scattered, ongoing stakeholder signal · Inputs: meetings, tickets, support conversations, email · Outputs: continuously reconciled intent baseline · Quality: currency, conflict detection · Governance: requirements policy · Success: no stale intent baseline older than defined threshold · Consumers: Requirements Engineering · Provider: Requirements Engineering Capability
+
+33. Continuous domain-model drift detection — Service: Domain Model Conformance Service
+Purpose: detect the moment the domain model diverges from actual business behaviour · Inputs: domain model, live business signal · Outputs: drift alert · Quality: detection latency · Governance: Ontology policy · Success: drift corrected before it propagates into requirements · Consumers: Requirements Engineering, Architecture · Provider: Requirements Engineering Capability
+
+34. Predictive architectural obsolescence detection — Service: Architectural Obsolescence Forecast Service
+Purpose: forecast when a pattern will fail to scale, before it breaks · Inputs: usage/load telemetry, architectural model · Outputs: obsolescence forecast · Quality: lead time before actual failure, accuracy · Governance: architecture policy · Success: forecast pattern replaced before failure occurs · Consumers: Architecture · Provider: Architecture Capability
+
+35. Cross-system structural pattern recognition — Service: Cross-System Pattern Recognition Service
+Purpose: identify structural weakness in one system by reasoning across every system's architecture simultaneously · Inputs: architectural models of every system · Outputs: identified structural pattern/risk · Quality: cross-system coverage · Governance: architecture policy · Success: pattern confirmed applicable and addressed · Consumers: Architecture · Provider: Architecture Capability
+
+36. Cross-codebase pattern propagation — Service: Fix Propagation Service
+Purpose: propagate a fix or improvement to every place it applies, instantly · Inputs: applied fix, codebase inventory · Outputs: propagation candidates, applied propagations · Quality: precision (no incorrect propagation), coverage · Governance: change-control policy · Success: all valid instances remediated · Consumers: Software Construction · Provider: Software Construction Capability
+
+37. Continuous configuration drift detection — Service: Configuration Conformance Service
+Purpose: verify deployed configuration matches declared intent at all times · Inputs: declared configuration, live environment state · Outputs: drift alert, remediation recommendation · Quality: detection latency, coverage across environments · Governance: configuration-management policy · Success: drift remediated before incident occurs · Consumers: Operations, Configuration Management · Provider: Configuration Management Capability
+
+38. Predictive test-coverage gap detection — Service: Coverage Gap Forecast Service
+Purpose: identify defect classes current coverage would fail to catch, before they occur · Inputs: historical defect data, current test suite, architecture · Outputs: predicted coverage gap · Quality: predictive precision · Governance: quality policy · Success: predicted gap closed before associated defect class occurs · Consumers: Verification · Provider: Verification Capability
+
+39. Continuous vulnerability posture assessment — Service: Continuous Security Posture Service
+Purpose: maintain whole-portfolio security exposure awareness continuously · Inputs: every code/infrastructure change · Outputs: live posture status · Quality: coverage, zero-lag · Governance: security policy · Success: no critica critical exposure undetected between assessments (there are none — it's continuous) · Consumers: Security, Governance · Provider: Security Capability
+
+40. Predictive threat-pattern anticipation — Service: Threat Anticipation Service
+Purpose: check the organisation's own exposure the moment a new attack pattern emerges elsewhere · Inputs: external threat intelligence, internal system inventory · Outputs: anticipatory exposure assessment · Quality: time-to-check after new pattern publication · Governance: security policy · Success: exposure checked and mitigated before exploitation · Consumers: Security · Provider: Security Capability
+
+41. Continuous policy-conflict detection — Service: Policy Consistency Service
+Purpose: detect latent contradiction across every active policy/standard/decision · Inputs: full policy corpus · Outputs: conflict report · Quality: coverage, false-positive rate · Governance: governance policy itself · Success: no unresolved conflict reaches enforcement · Consumers: Governance · Provider: Governance Capability
+
+42. Continuous release-risk forecasting — Service: Release Risk Forecast Service
+Purpose: maintain an ongoing, updating risk prediction for an in-progress release · Inputs: full history of prior release outcomes, current release content · Outputs: continuously updated risk score · Quality: calibration accuracy · Governance: release policy · Success: risk score correlates with actual post-release incident rate · Consumers: Release Management · Provider: Release Management Capability
+
+43. Predictive incident anticipation — Service: Incident Anticipation Service
+Purpose: recognise precursor conditions of a future incident before it manifests · Inputs: continuous telemetry · Outputs: anticipatory alert · Quality: lead time, false-positive rate · Governance: operational policy · Success: anticipated incident prevented or mitigated pre-emptively · Consumers: Operations · Provider: Operations Capability
+
+44. Autonomous root-cause synthesis — Service: Root-Cause Synthesis Service
+Purpose: reconstruct a full root-cause chain the instant an incident occurs · Inputs: code, infrastructure, configuration, decision history · Outputs: synthesised root-cause chain · Quality: accuracy, completeness, time-to-synthesis · Governance: incident-management policy · Success: root cause confirmed correct on human review · Consumers: Operations, Governance · Provider: Operations Capability
+
+45. Autonomous standard synthesis — Service: Standard Synthesis Service
+Purpose: draft or refine engineering standards directly from accumulating evidence · Inputs: evidence from service delivery across the organisation · Outputs: proposed standard revision · Quality: evidentiary grounding, adoption rate post-publication · Governance: standards-governance policy · Success: proposed revision formally adopted · Consumers: Governance, every capability · Provider: Governance Capability
+
+46. Cross-organisational capability benchmarking — Service: Capability Benchmarking Service
+Purpose: compare this organisation's capability maturity against every other capability instance the platform hosts · Inputs: capability maturity data (where sharing permitted) · Outputs: benchmark report, improvement opportunity · Quality: comparability, tenant-isolation compliance · Governance: multi-tenancy/data-sharing policy (Book 3 Ch.42) · Success: benchmark-identified opportunity acted upon · Consumers: Governance, capability owners · Provider: Knowledge Management Capability
+
+47. Continuous objective-alignment monitoring — Service: Objective Alignment Service
+Purpose: continuously check ongoing engineering work still serves its stated Objective · Inputs: active Objective, current engineering state · Outputs: alignment status, drift alert · Quality: detection latency · Governance: strategic-governance policy · Success: drift corrected or Objective formally revised before divergence compounds · Consumers: Governance, organisational leadership · Provider: Governance Capability
+
+
+## Capability
+
+code,default_label,"description
+"
+requirements-elicitation,Requirements Elicitation,"Systematically discover and capture stakeholder needs, business objectives, constraints, and expectations from relevant sources and express them as candidate requirements for subsequent analysis and validation."
+understanding-business-domain,Understanding business domain,"Establish, model, validate, and maintain a shared understanding of the business domain, including its concepts, terminology, entities, relationships, processes, rules, roles, and constraints, so that engineering decisions are grounded in accurate domain knowledge."
+requirements-analysis,Analysing engineering requirements,"examine, structure, refine, model, and reason about elicited requirements to establish their meaning, relationships, dependencies, conflicts, constraints, priorities, and implications, producing a coherent requirements specification suitable for validation and subsequent engineering."
+requirements-validation,Validating engineering requirements,"establish that analysed requirements accurately represent intended business and stakeholder needs and are correct, complete, consistent, feasible, unambiguous, verifiable, traceable, and appropriately agreed before being established as the authoritative engineering baseline."
+modelling-complex-systems,Modelling complex systems,"create, analyse, and maintain coherent structural and behavioural representations of a system, its context, interactions, dependencies, and constraints, so that system complexity can be understood and used as a reliable basis for architectural and engineering decisions."
+architecture-design,Designing software architecture,"determine, evaluate, document, and maintain the fundamental structure of a software system, including its major components, responsibilities, interfaces, interactions, architectural patterns, constraints, and significant design decisions, so that validated requirements and business objectives can be realised within acceptable engineering risk"
+software-construction,Constructing software systems,"transform architectural and detailed design specifications into working software components and implementation artefacts through coding, configuration, generation, and use of appropriate software assets, while maintaining conformance with applicable requirements, architecture, and engineering standards"
+software-design,Designing software components,"decompose architectural elements into implementable software components and determine their responsibilities, interfaces, behaviour, internal structure, dependencies, and design constraints so that they can be constructed consistently with the architecture and allocated requirements"
+engineering-configuration,Managing engineering configuration,"establish and maintain controlled configuration items, baselines, versions, dependencies, and configuration status throughout the engineering lifecycle, ensuring that authorised changes are incorporated consistently and that the composition of any engineering product or environment can be determined and reproduced."
+software-validation,Verifying software quality,"systematically examine and test software and associated engineering artefacts against defined requirements, specifications, standards, and quality criteria, producing objective evidence of conformance and identifying deviations that require resolution."
+engineering-documentation,Documenting engineering work,"create, maintain, organise, and retrieve authoritative records of engineering activities, decisions, artefacts, rationale, and evidence throughout the engineering lifecycle, ensuring that relevant engineering knowledge is understandable, traceable, and available to those who need it."
+protect-organisational-assets,Protecting organisational assets,"identify organisational assets and their protection requirements, assess threats and vulnerabilities, establish and apply appropriate protective controls, and monitor their effectiveness so that assets remain protected against unauthorised access, misuse, damage, loss, compromise, or disruption"
+governing-engineering-decisions,Governing engineering decisions,"establish decision-making authority, criteria, processes, and controls for significant engineering decisions, and to ensure that such decisions are appropriately evaluated, authorised, recorded, and subject to review throughout the engineering lifecycle."
+software-release,Managing software release,"plan, assemble, assess, authorise, and control the release of identified software configurations into their intended environments, ensuring that release prerequisites are satisfied, the released configuration is known and reproducible, and the transition is performed in a controlled manner"
+operating-production-systems,Operating production systems,"operate, monitor, maintain, support, and control software systems in their production environments, ensuring that services remain available, perform as required, remain secure, and respond appropriately to operational events and changing conditions"
+recovering-organisational-knowledge,Recovering organisational knowledge,"locate, retrieve, reconstruct, and contextualise existing organisational knowledge from available records, artefacts, systems, and other sources so that previously established knowledge can be made accessible and usable for current engineering and organisational needs."
+learning,Learning from operational experience,"systematically capture, analyse, and synthesise operational experience, incidents, problems, performance data, and other operational evidence into actionable lessons and improvements for engineering, operations, and organisational practice."
+engineering-practice-improvement,Improving engineering practice,"systematically evaluate engineering practices using experience, evidence, performance information, and identified deficiencies, and to develop, validate, adopt, and maintain improvements to the methods, processes, standards, and practices used to perform engineering work."
+adapting-business-needs,Adapting to changing business need,"detect and assess changes in business objectives, priorities, operating conditions, and organisational needs, determine their implications for engineering capabilities and systems, and realign engineering direction, resources, and priorities so that engineering remains relevant to the business."
+continuous-architectural-analysis,Continuous architectural analysis,"continuously analyse the evolving architecture of software systems against their requirements, architectural principles, constraints, dependencies, and operational evidence, identifying architectural risks, deviations, degradation, and emerging implications early enough to support corrective or evolutionary decisions"
+real-time-organisational-documentation,Real-time organisational documentation,"continuously capture, update, organise, and maintain organisational knowledge and engineering information as work occurs and changes are made, keeping authoritative documentation closely synchronised with the current state of the organisation, its systems, decisions, and practices."
+automatic-traceability-generation,Automatic traceability generation,"automatically identify and maintain traceable relationships among engineering artefacts, including requirements, designs, architecture, implementation, tests, defects, and releases, so that dependencies, lineage, coverage, and impact relationships can be determined throughout the engineering lifecycle."
+legacy-modernisation,Knowledge recovery from legacy systems (Specialisation from “Recovering organisational knowledge”),
+continuous-compliance-verification,Continuous compliance verification,
+engineering-decision-explainability,Engineering decision explainability,
+evidence-based-organisational-reasoning,Evidence-based organisational reasoning,
+continuous-requirements-validation,Continuous requirements validation,"continuously evaluate requirements against current business and stakeholder needs, system context, engineering constraints, and evolving implementation evidence, detecting invalid, obsolete, conflicting, incomplete, or otherwise non-conforming requirements early enough to support corrective action."
+predictive-engineering-risk-assessment,Predictive engineering risk assessment,"analyse current and historical engineering information to identify emerging risk patterns, forecast the likelihood and potential impact of future engineering risks, and provide early risk assessments that support preventive action and engineering decision-making."
+continuous-quality-assurance,Continuous quality assurance,"continuously monitor and assess the quality of engineering processes, artefacts, and outcomes against defined requirements, standards, policies, and quality criteria, providing ongoing evidence of quality status and initiating corrective action when deviations are detected."
+organisational-memory-synthesis,Organisational memory synthesis across multiple projects,"aggregate, relate, and synthesise knowledge from multiple projects and their engineering artefacts, experiences, decisions, and outcomes to identify reusable organisational knowledge, cross-project patterns, dependencies, lessons, and insights."
+continuous-organisational-learning,Continuous organisational learning,"continuously capture and synthesise organisational experience and knowledge, evaluate its implications, incorporate validated learning into organisational knowledge, practices, decisions, and capabilities, and assess whether the resulting changes improve organisational outcomes."
+autonomous-capability-optimisation,Autonomous capability optimisation,"continuously assess organisational capability performance and autonomously identify, evaluate, prioritise, and implement changes to capability structure, capacity, processes, resources, and supporting mechanisms in order to improve organisational outcomes within defined objectives, constraints, and governance controls."
+enterprise-wide-engineering-impact-analysis,Enterprise-wide engineering impact analysis,"analyse the relationships and dependencies across the organisation's engineering systems, capabilities, projects, assets, and processes to determine the direct and indirect effects of proposed changes or conditions, including affected stakeholders, requirements, architecture, resources, risks, and downstream activities."
+continuous-stakeholder-intent-reconciliation,Continuous stakeholder-intent reconciliation,"continuously capture and analyse evolving stakeholder intentions, compare them with established requirements and with one another, identify conflicts, ambiguities, and divergences, and facilitate their resolution so that the engineering baseline remains aligned with the current and collectively agreed stakeholder intent."
+continuous-domain-model-drift-detection,Continuous domain-model drift detection,"continuously monitor changes in the business domain and compare them with the established domain model, identifying changes, inconsistencies, omissions, or obsolete representations that cause the model to diverge from the domain it represents."
+predictive-architectural-obsolescence-detection,"Predictive architectural obsolescence detection
+(Specialisation from “Predictive engineering risk assessment”)","continuously analyse architectural technologies, dependencies, patterns, constraints, support lifecycles, and external technology trends to predict emerging architectural obsolescence and provide sufficient early warning for architectural remediation, replacement, or evolution."
+cross-system-structural-pattern-recognition,Cross-system structural pattern recognition,"analyse and compare the structures of multiple software systems and identify recurring, significant, or anomalous structural patterns across their architectures, components, interfaces, dependencies, and other engineering relationships."
+cross-codebase-pattern-propagation,Cross-codebase pattern propagation,"identify engineering patterns or improvements that are applicable across multiple codebases, determine their affected locations and contextual variations, and propagate the approved pattern or change across those codebases while preserving correctness, consistency, and local compatibility."
+continuous-configuration-drift-detection,Continuous configuration drift detection,"continuously monitor and compare actual software, infrastructure, environment, and configuration states against authorised configuration baselines and policies, detecting, assessing, and reporting deviations so that configuration integrity can be maintained."
+predictive-test-coverage-gap-detection,"Predictive test-coverage gap detection
+(Specialisation from “Predictive engineering risk assessment”)","analyse software structure, requirements, changes, dependencies, existing test assets, and historical verification evidence to predict areas where test coverage is likely to be insufficient, identify the nature and significance of the anticipated gaps, and provide early direction for additional verification."
+continuous-vulnerability-posture-assessment,Continuous vulnerability posture assessment,"continuously identify, assess, correlate, and monitor vulnerabilities across organisational technology assets and their environments, determine their significance and exposure, and maintain an up-to-date view of the organisation's vulnerability posture to support prioritised remediation and risk decisions."
+predictive-threat-pattern-anticipation,Predictive threat-pattern anticipation,"continuously analyse threat intelligence, historical security events, emerging attack techniques, vulnerabilities, system characteristics, and environmental signals to identify and forecast threat patterns that are likely to affect organisational assets, providing early warning to support preventive security action."
+continuous-policy-conflict-detection,Continuous policy-conflict detection,"continuously analyse applicable policies, rules, standards, and controls and their relationships to identify conflicting, contradictory, or mutually incompatible requirements, determine the affected engineering activities or decisions, and provide timely evidence for policy resolution."
+continuous-release-risk-management,Continuous release-risk forecasting,"continuously analyse release contents, changes, dependencies, verification evidence, defects, configuration, operational conditions, and historical release outcomes to forecast the likelihood and potential impact of release-related problems and provide early risk information for release decisions."
+predictive-incident-anticipation,Predictive incident anticipation,"continuously analyse operational conditions, system behaviour, telemetry, changes, dependencies, historical incidents, and other relevant signals to identify patterns indicating that an operational incident is likely to occur, assess its potential impact, and provide early warning to support preventive or mitigating action."
+autonomous-root-cause-synthesis,Autonomous root-cause synthesis,"autonomously correlate and analyse evidence from incidents, system behaviour, telemetry, changes, configurations, dependencies, defects, and engineering records to identify, evaluate, and synthesise probable root causes and their causal relationships, providing an explainable basis for corrective action."
+autonomous-standard-synthesis,"Autonomous standard synthesis
+(Specialisation from “Improving engineering practice”)","autonomously analyse engineering practices, organisational knowledge, experience, policies, existing standards, and evidence to identify recurring principles and formulate, evaluate, and maintain candidate standards for adoption within the organisation."
+cross-organisational-capability-benchmarking,Cross-organisational capability benchmarking,"systematically compare organisational capabilities and their performance against relevant external organisations or established benchmarks, using comparable measures and contextual information to determine relative capability position and identify opportunities for improvement."
+continuous-objective-alignment-monitoring,Continuous objective-alignment monitoring,"continuously monitor and evaluate the alignment of engineering activities, decisions, systems, investments, and outcomes with established business and organisational objectives, detecting divergence, loss of relevance, or conflicting priorities early enough to support corrective action."
+business-analysis-approach,Planning the business analysis approach,"determine and establish the methods, activities, techniques, roles, responsibilities, deliverables, timing, and governance by which business analysis will be conducted for an initiative, taking into account its context, objectives, complexity, constraints, and stakeholder environment."
+requirements-prioritising,Prioritising engineering requirements,"evaluate and establish the relative priority of engineering requirements using defined business, stakeholder, technical, risk, regulatory, dependency, cost, and other relevant criteria, so that requirements can be appropriately sequenced and resources directed toward the most important outcomes."
+solution-options,Recommending solution options by value,"identify and evaluate alternative solution options against business objectives, stakeholder needs, expected benefits, costs, risks, constraints, and other relevant criteria, and to recommend the option or combination of options that provides the most appropriate overall value."
+integrating-constructed-components,Integrating constructed components,"combine independently constructed software components and assemblies into progressively larger, coherent subsystems and systems, ensuring that their interfaces, dependencies, interactions, and configurations conform to the defined integration specifications."
+engineering-assets-reuse,Reusing existing engineering assets,"identify potentially reusable engineering assets, assess their suitability, quality, security, compatibility, provenance, licensing, and lifecycle status, and select and incorporate appropriate assets into engineering solutions where reuse provides an acceptable alternative to new construction."
+engineering-work-review,Reviewing engineering work,"independently examine engineering artefacts, activities, and decisions against applicable requirements, standards, policies, and review criteria, identify and communicate deficiencies or deviations, and determine whether the reviewed work is acceptable for progression or requires correction and re-review."
+corrective-actions,Eliminating recurring operational problems,"systematically identify recurring operational problems, analyse their underlying causes, implement and track permanent corrective actions, and verify that the causes have been eliminated or adequately controlled so that the problems do not recur."
+defect-management,Managing defects to resolution,"systematically capture, classify, assess, prioritise, assign, track, resolve, and close software defects, ensuring that resolutions are verified and that defects that cannot yet be resolved are explicitly deferred, owned, and controlled."
+vendor-supplier-management,Managing external vendors and suppliers,"establish and manage relationships with external vendors, suppliers, and service providers, including their selection, contractual arrangements, performance, risk, compliance, and ongoing relationship management, so that externally provided products and services meet organisational requirements."
+capability-evolution,Stewarding capability evolution and maturity,"assess, govern, and guide the evolution and maturity of organisational capabilities by establishing capability objectives, evaluating current capability performance and maturity, identifying gaps and improvement opportunities, defining evolutionary priorities, and monitoring progress toward the desired capability state."
+change-management,Managing engineering change,"control proposed changes to engineering artefacts and engineering baselines by assessing their justification, impact, dependencies, risks, and consequences, obtaining appropriate authorisation, coordinating their implementation, and maintaining traceable records of the resulting state."

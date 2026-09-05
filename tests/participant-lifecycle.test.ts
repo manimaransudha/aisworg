@@ -48,7 +48,7 @@ async function commissionAndFulfil(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
@@ -126,7 +126,7 @@ test("Build order step 3: dispatchEngine moves the fulfilling Participant's own 
   assert.equal(participant.state, "Available");
 
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Specification");
+  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec);
 
   const result = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: "1" });

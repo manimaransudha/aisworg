@@ -1,0 +1,58 @@
+{
+  "code": "test-technology-kotlin",
+  "name": "Kotlin Android Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "software-construction",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "engineering-work-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "Kotlin Android Engineering Standards",
+        "description": "Validation checklist for Kotlin Android Coroutines, Jetpack Compose, Room DB, and ProGuard/R8 obfuscation.",
+        "items": [
+          {
+            "statement": "Coroutines manage lifecycle cancellation via viewModelScope / lifecycleScope and avoid GlobalScope usages.",
+            "group": "Coroutines & Concurrency"
+          },
+          {
+            "statement": "Jetpack Compose UI components minimize recompositions via Stable / Immutable data models.",
+            "group": "UI & Jetpack Compose"
+          },
+          {
+            "statement": "ktlint and detekt static analysis tools enforce Kotlin coding conventions and prevent code smells.",
+            "group": "Code Quality & Formatting"
+          },
+          {
+            "statement": "Room database migrations include explicit test cases for version upgrades.",
+            "group": "Data Persistence & Room"
+          },
+          {
+            "statement": "ProGuard / R8 rules are verified to ensure release builds obfuscate code without stripping necessary reflection targets.",
+            "group": "Build Security & Obfuscation"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

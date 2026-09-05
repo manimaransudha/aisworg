@@ -1,6 +1,5 @@
 import { objectivesDB } from "../../../dblayer/objectivesDB.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
-import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
@@ -11,27 +10,34 @@ import { userDB } from "../../../dblayer/userDB.js";
 import { badgeGrantsDB } from "../../../dblayer/badgeGrantsDB.js";
 import { findCandidateTemplates } from "./templates.js";
 import { listRealProfilesForTemplate } from "./profiles.js";
-import type { CapabilityRow, ObjectiveCommentRow, ObjectiveRow, ObjectiveStatus, ObjectiveTier } from "../../../dblayer/seuTypes.js";
+import { listConceptsForType, resolveLabels } from "./ontology.js";
+import type { ObjectiveCommentRow, ObjectiveRow, ObjectiveStatus, ObjectiveTier, RequiredCapability } from "../../../dblayer/seuTypes.js";
 
 // Ch.1 §7: Strategic decomposes into Operational decomposes into Engineering.
 // A child's tier must not be "more strategic" than its parent's.
 const TIER_RANK: Record<ObjectiveTier, number> = { Strategic: 0, Operational: 1, Engineering: 2 };
 
-// CR-079 bug fix — capabilitiesDB.findByCodes has no Pack scoping, and a
-// capability code is now a genuinely shared Ontology term (capability-name)
-// that multiple Packs can each independently contribute (e.g. "development"
-// from openup-development AND every Technology pack) — so a bare code can
-// legitimately match more than one row. An Objective requires the
-// COMPETENCY once, not once per Pack that happens to offer it; de-dupe by
-// code, same treatment templates.ts's own materialisePackSelectionsAndCapabilities
-// got for the identical reason. Used by both createObjective and the
-// requiredCapabilityCodes edit path below.
-function dedupeByCode(capabilities: CapabilityRow[]): CapabilityRow[] {
-  const byCode = new Map<string, CapabilityRow>();
-  for (const capability of capabilities) {
-    if (!byCode.has(capability.code)) byCode.set(capability.code, capability);
+// CR-086 step 2 (settling CR-085's own deferred question — owner: "The
+// ontology for capability-name in CR086 overrides any previous definition"):
+// an Objective's requiredCapabilityCodes are bare capability-name Ontology
+// terms, validated against ontology_concepts (migration 046+150), not
+// resolved to a specific Pack's `capabilities` row — CR-085's own framing
+// ("Objective... does not need [to] know where the capability code came
+// from. It just needs the capability code... This is not objective's job").
+// Used by both createObjective and the requiredCapabilityCodes edit path
+// below.
+async function resolveRequiredCapabilities(codes: string[]): Promise<RequiredCapability[]> {
+  const uniqueCodes = [...new Set(codes)];
+  const concepts = await listConceptsForType("capability-name", { isRoot: false, tenantId: null }, false);
+  const byCode = new Map(concepts.map((c) => [c.code, c]));
+  const missing = uniqueCodes.filter((code) => !byCode.has(code));
+  if (missing.length > 0) {
+    throw new Error(`unknown capability code(s): ${missing.join(", ")}`);
   }
-  return [...byCode.values()];
+  return uniqueCodes.map((code) => {
+    const concept = byCode.get(code)!;
+    return { code, name: concept.default_label, description: concept.description ?? null };
+  });
 }
 
 export async function createObjective(input: {
@@ -48,7 +54,7 @@ export async function createObjective(input: {
   // parent tenant-reach check, nor the "parent must be Proposed" edit-scope
   // check, below. Set only by that one caller.
   skipParentValidation?: boolean;
-}): Promise<{ objective: ObjectiveRow; requiredCapabilities: CapabilityRow[] }> {
+}): Promise<{ objective: ObjectiveRow; requiredCapabilities: RequiredCapability[] }> {
   const tier = input.tier ?? "Engineering";
 
   // CR-009: only Strategic may be parentless (the root). Operational/Engineering
@@ -123,17 +129,9 @@ export async function createObjective(input: {
   });
   if (error || !objective) throw error ?? new Error("failed to create objective");
 
-  const { data: capabilities, error: capErr } = await capabilitiesDB.findByCodes(input.requiredCapabilityCodes);
-  if (capErr) throw capErr;
-  const found = dedupeByCode(capabilities ?? []);
-  const foundCodes = new Set(found.map((c) => c.code));
-  const missing = input.requiredCapabilityCodes.filter((code) => !foundCodes.has(code));
-  if (missing.length > 0) {
-    throw new Error(`unknown capability code(s): ${missing.join(", ")}`);
-  }
-
-  await objectivesDB.addCapabilities(objective.id, found.map((c) => c.id));
-  return { objective, requiredCapabilities: found };
+  const requiredCapabilities = await resolveRequiredCapabilities(input.requiredCapabilityCodes);
+  await objectivesDB.addCapabilities(objective.id, requiredCapabilities.map((c) => c.code));
+  return { objective, requiredCapabilities };
 }
 
 // CR-009: bare Engineering Objectives are no longer allowed — they must
@@ -372,7 +370,7 @@ export interface ObjectiveDetailView {
   // activation: editing is locked so it can't be changed out from under the
   // objective_activate holder now reviewing it. See isObjectiveEditLocked.
   editLocked: boolean;
-  requiredCapabilities: CapabilityRow[];
+  requiredCapabilities: RequiredCapability[];
   comments: ObjectiveCommentRow[];
   possibleNextStates: string[];
   // CR-071 — toState -> verb, so a caller can check the viewer's own badge for
@@ -435,17 +433,27 @@ export async function getObjectiveDetail(id: string): Promise<ObjectiveDetailVie
   // an expand affordance and each child's own commissionable state.
   const { data: childChildCounts } = await objectivesDB.childCounts(childRows.map((c) => c.id));
 
+  // Objectives have no tenant_id column of their own, but requested_by
+  // (owner, 2026-08-19: "they are tied to a user that is tied to a tenant")
+  // resolves one — the requester's own tenant, same as any other acting-user
+  // tenant lookup. Falls back to Platform-only (no tenant) for a
+  // null/system-created requested_by, same conservative default
+  // findCandidateTemplates itself already applies when given none. Also used
+  // below to resolve required-Capability display labels (CR-086 step 2).
+  const requester = objective.requested_by != null ? await userDB.findById(objective.requested_by) : null;
+  const tenantId = requester?.tenant_id ?? null;
+  const capabilityCodes = (requiredCapabilities ?? []).map((c) => c.code);
+  const capabilityLabels = await resolveLabels(tenantId, "capability-name");
+  const resolvedRequiredCapabilities: RequiredCapability[] = capabilityCodes.map((code) => ({
+    code,
+    name: capabilityLabels[code] ?? code,
+    description: null,
+  }));
+
   let commissioningPreview: CommissioningPreview | null = null;
   // CR-009: commissionable only if a non-Strategic leaf (and Active).
   if (objective.status === "Active" && objective.tier !== "Strategic" && isLeaf) {
-    // Objectives have no tenant_id column of their own, but requested_by
-    // (owner, 2026-08-19: "they are tied to a user that is tied to a
-    // tenant") resolves one — the requester's own tenant, same as any other
-    // acting-user tenant lookup. Falls back to Platform-only (no tenant) for
-    // a null/system-created requested_by, same conservative default
-    // findCandidateTemplates itself already applies when given none.
-    const requester = objective.requested_by != null ? await userDB.findById(objective.requested_by) : null;
-    const candidates = await findCandidateTemplates((requiredCapabilities ?? []).map((c) => c.code), requester?.tenant_id ?? null);
+    const candidates = await findCandidateTemplates(capabilityCodes, tenantId);
     const template = candidates.find((c) => c.satisfies);
     if (template) {
       const realProfiles = await listRealProfilesForTemplate(template.id);
@@ -476,7 +484,7 @@ export async function getObjectiveDetail(id: string): Promise<ObjectiveDetailVie
     retirable: objective.status === "Active",
     rejectable: objective.status === "Active",
     editLocked,
-    requiredCapabilities: requiredCapabilities ?? [],
+    requiredCapabilities: resolvedRequiredCapabilities,
     comments: comments ?? [],
     possibleNextStates: eligibleTransitions.map((t) => t.toState),
     possibleTransitionVerbs: Object.fromEntries(eligibleTransitions.map((t) => [t.toState, t.verb])),
@@ -564,13 +572,8 @@ export async function updateObjective(
   }
 
   if (input.requiredCapabilityCodes) {
-    const { data: capabilities, error: capErr } = await capabilitiesDB.findByCodes(input.requiredCapabilityCodes);
-    if (capErr) throw capErr;
-    const found = dedupeByCode(capabilities ?? []);
-    const foundCodes = new Set(found.map((c) => c.code));
-    const missing = input.requiredCapabilityCodes.filter((code) => !foundCodes.has(code));
-    if (missing.length > 0) throw new Error(`unknown Capability code(s): ${missing.join(", ")}`);
-    const { error: setErr } = await objectivesDB.setRequiredCapabilities(id, found.map((c) => c.id));
+    const requiredCapabilities = await resolveRequiredCapabilities(input.requiredCapabilityCodes);
+    const { error: setErr } = await objectivesDB.setRequiredCapabilities(id, requiredCapabilities.map((c) => c.code));
     if (setErr) throw setErr;
   }
 
@@ -939,13 +942,17 @@ export async function transitionObjective(input: { objectiveId: string; targetSt
 // name/description, not an opaque model call. Suggestions are a starting
 // checkbox state, never the sole mechanism — a human still confirms them.
 export async function suggestCapabilityCodes(statement: string): Promise<string[]> {
-  const { data: capabilities } = await capabilitiesDB.findAll();
+  // CR-086 step 2 — matches against the same capability-name Ontology
+  // vocabulary the picker now renders, not the functional `capabilities`
+  // table (a suggestion whose code doesn't correspond to a rendered
+  // checkbox would silently no-op).
+  const concepts = await listConceptsForType("capability-name", { isRoot: false, tenantId: null }, false);
   const text = statement.toLowerCase();
   const matches: string[] = [];
-  for (const cap of capabilities ?? []) {
-    const haystack = [cap.name, cap.description ?? ""].join(" ").toLowerCase();
+  for (const concept of concepts) {
+    const haystack = [concept.default_label, concept.description ?? ""].join(" ").toLowerCase();
     const terms = haystack.split(/\W+/).filter((w) => w.length > 3);
-    if (terms.some((term) => text.includes(term))) matches.push(cap.code);
+    if (terms.some((term) => text.includes(term))) matches.push(concept.code);
   }
   return matches;
 }

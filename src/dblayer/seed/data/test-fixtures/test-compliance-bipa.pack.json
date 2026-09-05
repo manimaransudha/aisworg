@@ -1,0 +1,72 @@
+{
+  "code": "test-compliance-bipa",
+  "name": "Biometric Information Privacy Compliance (BIPA / CUBI)",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for Biometric Information Privacy Laws (Illinois BIPA 740 ILCS 14, Texas CUBI, Washington Biometric Privacy Law), covering written biometric release consents, retention/deletion schedules, and zero-sale bans.",
+  "owner": "Biometric Privacy & Legal Risk Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-bipa-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-bipa-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Biometric Privacy (BIPA / CUBI) Compliance Checklist",
+        "description": "Validation checklist for Illinois BIPA Section 15 requirements and state biometric statutes.",
+        "items": [
+          {
+            "statement": "Written consent release is executed by the user prior to capturing facial geometry, fingerprints, or voiceprints (Sec 15(b)).",
+            "group": "Written Notice & Release"
+          },
+          {
+            "statement": "Publicly available written policy documents the retention schedule and guidelines for permanently destroying biometric data (Sec 15(a)).",
+            "group": "Retention & Deletion Policy"
+          },
+          {
+            "statement": "Biometric data is destroyed upon satisfaction of initial purpose or within 3 years of last interaction, whichever occurs first.",
+            "group": "Purge Schedule"
+          },
+          {
+            "statement": "Selling, leasing, trading, or profiting from biometric identifiers is strictly prohibited by software architecture (Sec 15(c)).",
+            "group": "Zero Sale Prohibition"
+          },
+          {
+            "statement": "Biometric data is stored and transmitted using security controls at least as protective as other confidential financial data (Sec 15(e)).",
+            "group": "Storage & Encryption"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "bipa-privacy-attestation-gate",
+        "name": "Biometric Privacy Attestation Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "Legal Counsel confirms that biometric consent flows, public retention policies, and purge schedules satisfy Illinois BIPA and state biometric statutes.",
+        "prompt": "Does the legal audit confirm full compliance with BIPA biometric notice, consent, and deletion rules?",
+        "participant": "human",
+        "outputContract": "bipa-compliance-attestation",
+        "checklistIds": [
+          "Biometric Privacy (BIPA / CUBI) Compliance Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

@@ -1,8 +1,16 @@
-// Test-only Pack twins — mirrors of every real seed Pack (all 24
-// src/dblayer/seed/data/*.pack.json files except the confirmed-dead
-// core-engineering.pack.json), each republished under a `test-` prefixed
-// code (data/test-fixtures/, migration 119 registers their capability-name
-// Ontology concepts). Exists so tests that need "a real, Ontology-valid Pack
+// Test-only Pack twins — mirrors of every real seed Pack (every
+// src/dblayer/seed/data/*.pack.json file except the confirmed-dead
+// core-engineering.pack.json and the unloaded technology-tmp.pack.json —
+// owner 2026-09-01: "yes, build the test fixtures also," covering the 33
+// real Compliance Packs and the technology Packs added alongside them, none
+// of which had a twin before), each republished under a `test-` prefixed
+// code (data/test-fixtures/; migration 146 registers the compliance-name/
+// technology-name Pack-identity concepts this batch needs — capability-name
+// itself needs no test-twin registration, since every test-fixture Pack's
+// own contributions.capabilities[].code reuses the same shared canonical
+// terms the real Packs do, never a `test-`-prefixed variant; migration 119's
+// old `test-<code>` capability-name rows were dead weight, removed by
+// migration 151). Exists so tests that need "a real, Ontology-valid Pack
 // code" to author throwaway Pack-lifecycle fixtures against (e.g.
 // tests/sdk-authoring.test.ts, previously reusing the literal code
 // "development") never again collide with — and silently deprecate, since
@@ -96,6 +104,70 @@ const INDEPENDENT_TEST_FIXTURE_PACK_FILES = [
   "test-sdlc-phase-13-growth-optimization.pack.json",
   "test-sdlc-phase-14-internationalization-localization.pack.json",
   "test-sdlc-phase-15-ongoing-operations-governance.pack.json",
+  // 2026-09-01 — the 33 real Compliance Packs (none declares any
+  // `dependencies`, confirmed directly) plus the technology Packs added
+  // alongside them (each depends only on `development`, already Active from
+  // seedCapabilityPatternPacks — step 6 — well before this step runs, same
+  // as domain-ebook-library/technology-nodejs's own `development` dependency
+  // above; neither needs the two-phase split DEPENDENT_TEST_FIXTURE_PACK_FILES
+  // exists for).
+  "test-compliance-accessibility-ada-508.pack.json",
+  "test-compliance-aml-kyc.pack.json",
+  "test-compliance-automotive-wp29.pack.json",
+  "test-compliance-bipa.pack.json",
+  "test-compliance-coppa.pack.json",
+  "test-compliance-data-residency-localization.pack.json",
+  "test-compliance-do178c-aviation.pack.json",
+  "test-compliance-e-commerce-consumer-protection.pack.json",
+  "test-compliance-eu-ai-act.pack.json",
+  "test-compliance-eu-dora-nis2.pack.json",
+  "test-compliance-eu-dsa-dma.pack.json",
+  "test-compliance-eu-financial-reporting.pack.json",
+  "test-compliance-eu-mdr.pack.json",
+  "test-compliance-fcpa.pack.json",
+  "test-compliance-fda-21cfr11.pack.json",
+  "test-compliance-fedramp.pack.json",
+  "test-compliance-fisma.pack.json",
+  "test-compliance-gdpr.pack.json",
+  "test-compliance-glba.pack.json",
+  "test-compliance-hipaa.pack.json",
+  "test-compliance-india-dpdp.pack.json",
+  "test-compliance-india-rbi-pmla.pack.json",
+  "test-compliance-iso-27001.pack.json",
+  "test-compliance-itar-ear.pack.json",
+  "test-compliance-nist-800-53.pack.json",
+  "test-compliance-nydfs.pack.json",
+  "test-compliance-pci-dss.pack.json",
+  "test-compliance-psd2-psd3.pack.json",
+  "test-compliance-sebi-companies.pack.json",
+  "test-compliance-soc2.pack.json",
+  "test-compliance-sox.pack.json",
+  "test-compliance-uk-gdpr-dpa.pack.json",
+  "test-compliance-us-state-privacy.pack.json",
+  "test-technology-cobol.pack.json",
+  "test-technology-csharp.pack.json",
+  "test-technology-css.pack.json",
+  "test-technology-db2.pack.json",
+  "test-technology-docker.pack.json",
+  "test-technology-git.pack.json",
+  "test-technology-go.pack.json",
+  "test-technology-html.pack.json",
+  "test-technology-java.pack.json",
+  "test-technology-js.pack.json",
+  "test-technology-kotlin.pack.json",
+  "test-technology-kubernetes.pack.json",
+  "test-technology-oracle.pack.json",
+  "test-technology-php.pack.json",
+  "test-technology-python.pack.json",
+  "test-technology-rails.pack.json",
+  "test-technology-react-native.pack.json",
+  "test-technology-react.pack.json",
+  "test-technology-rust.pack.json",
+  "test-technology-sass.pack.json",
+  "test-technology-sql.pack.json",
+  "test-technology-swift.pack.json",
+  "test-technologyc.pack.json",
+  "test-technologycpp.pack.json",
 ];
 const DEPENDENT_TEST_FIXTURE_PACK_FILES = ["test-domain-ebook-library.pack.json", "test-technology-nodejs.pack.json"];
 const TEST_FIXTURE_PACK_FILES = [...INDEPENDENT_TEST_FIXTURE_PACK_FILES, ...DEPENDENT_TEST_FIXTURE_PACK_FILES];

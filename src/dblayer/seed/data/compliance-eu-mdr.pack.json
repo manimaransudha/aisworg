@@ -1,0 +1,72 @@
+{
+  "code": "compliance-eu-mdr",
+  "name": "EU Medical Device Regulation (MDR 2017/745 / IVDR)",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for the EU Medical Device Regulation (MDR - Regulation (EU) 2017/745) and In Vitro Diagnostic Medical Devices Regulation (IVDR - Regulation (EU) 2017/746), covering clinical evaluation, CE mark technical documentation, UDI tracking, and EUDAMED registration.",
+  "owner": "EU Medical Device Regulatory Affairs & Notified Body Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-eu-mdr-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-eu-mdr-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "EU MDR 2017/745 Technical Audit Checklist",
+        "description": "Validation checklist for EU MDR Annex I General Safety and Performance Requirements (GSPR) and software Rule 11.",
+        "items": [
+          {
+            "statement": "Medical Device Software classification under Rule 11 (Class I, IIa, IIb, III) is documented with clinical justification.",
+            "group": "Software Classification (Rule 11)"
+          },
+          {
+            "statement": "ISO 14971 risk management file assesses all software hazards and verifies risk reduction to acceptable levels.",
+            "group": "Risk Management (ISO 14971)"
+          },
+          {
+            "statement": "EN 62304 software development lifecycle evidence demonstrates architectural verification and unit testing.",
+            "group": "Software Lifecycle (EN 62304)"
+          },
+          {
+            "statement": "Basic UDI-DI and UDI-PI are assigned and integrated into software release metadata.",
+            "group": "UDI & EUDAMED"
+          },
+          {
+            "statement": "Post-Market Clinical Follow-up (PMCF) plan establishes systematic data collection on real-world software performance.",
+            "group": "Post-Market Surveillance (PMCF)"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "eu-mdr-person-responsible-gate",
+        "name": "EU MDR Person Responsible for Regulatory Compliance (PRRC) Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The PRRC confirms that clinical evaluation, technical documentation, and UDI assignments comply with EU MDR 2017/745.",
+        "prompt": "Does the technical documentation package satisfy EU MDR CE mark certification requirements?",
+        "participant": "human",
+        "outputContract": "eu-mdr-compliance-attestation",
+        "checklistIds": [
+          "EU MDR 2017/745 Technical Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

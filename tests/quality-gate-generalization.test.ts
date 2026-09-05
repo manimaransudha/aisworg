@@ -56,7 +56,7 @@ async function commissionTestSeu(statementPrefix: string): Promise<string> {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);

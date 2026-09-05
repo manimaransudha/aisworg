@@ -14,12 +14,12 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "development",
+        "code": "software-construction",
         "name": "Source code generation",
         "description": "Follow these practices during coding."
       },
       {
-        "code": "code-review",
+        "code": "engineering-work-review",
         "name": "Code Review",
         "description": "Peer review of Source Code changes before merge."
       }
@@ -71,7 +71,7 @@
             "group": "Variables"
           },
           {
-            "statement": "Have pointers been checked to be sure they don\u2019t reference variables outside of scope? Once a variable goes out of scope, what it contains is undefined.",
+            "statement": "Have pointers been checked to be sure they don’t reference variables outside of scope? Once a variable goes out of scope, what it contains is undefined.",
             "group": "Variables"
           },
           {
@@ -91,11 +91,11 @@
             "group": "Variables"
           },
           {
-            "statement": "If \u201cIf \u2026else if\u2026.else if\u201d goes beyond two levels, use a switch\u2026.case instead. This increases readability.",
+            "statement": "If “If …else if….else if” goes beyond two levels, use a switch….case instead. This increases readability.",
             "group": "Conditionals"
           },
           {
-            "statement": "When using a switch\u2026.case, always explicitly define default. Do not omit the break statement.",
+            "statement": "When using a switch….case, always explicitly define default. Do not omit the break statement.",
             "group": "Conditionals"
           },
           {
@@ -147,7 +147,7 @@
             "group": "Functions"
           },
           {
-            "statement": "Do not use ++ or \u2013 operators on parameters being passed to subroutines or macros. These can cause unexpected side results.",
+            "statement": "Do not use ++ or – operators on parameters being passed to subroutines or macros. These can cause unexpected side results.",
             "group": "Functions"
           },
           {

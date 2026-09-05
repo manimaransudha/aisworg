@@ -1,0 +1,75 @@
+{
+  "code": "integration-kubernetes",
+  "name": "Kubernetes Orchestration & Helm Integration",
+  "category": "Integration",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Integration pack for Kubernetes API and Helm Package Manager, providing connectivity to Kubernetes cluster API endpoints, ServiceAccount token authentication, Helm chart deployments, Custom Resource Definitions (CRDs), and pod status rollout tracking.",
+  "owner": "Cloud Native & Container Platform Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "operating-production-systems",
+        "name": "Infrastructure Management",
+        "description": "Integrates Kubernetes namespaces, Pods, Deployments, Services, Ingress, and Persistent Volume Claims (PVC)."
+      },
+      {
+        "code": "software-release",
+        "name": "Production Deployment & Release Management",
+        "description": "Integrates Helm release upgrades, rolling deployment rollouts, canary releases, and release rollbacks."
+      }
+    ],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-kubernetes-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-kubernetes-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Kubernetes Integration Verification Checklist",
+        "description": "Validation checklist for Kubernetes ServiceAccount RBAC permissions, Helm release values, and pod readiness probes.",
+        "items": [
+          {
+            "statement": "Kubernetes ServiceAccount RBAC Role / ClusterRole binds least-privilege permissions for target namespaces.",
+            "group": "RBAC ServiceAccount Auth"
+          },
+          {
+            "statement": "Helm release deployments pass helm lint and validate custom values.yaml schemas.",
+            "group": "Helm Deployment"
+          },
+          {
+            "statement": "Deployment rollout status (kubectl rollout status) confirms all pod readiness probes pass within timeout limits.",
+            "group": "Pod Rollout Status"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "kubernetes-integration-review-gate",
+        "name": "Kubernetes Infrastructure Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Container Platform Lead confirms that Kubernetes ServiceAccount RBAC and Helm release deployments operate properly.",
+        "prompt": "Does the Kubernetes integration verify cluster API authentication and Helm release rollout status?",
+        "participant": "human",
+        "outputContract": "kubernetes-integration-attestation",
+        "checklistIds": [
+          "Kubernetes Integration Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

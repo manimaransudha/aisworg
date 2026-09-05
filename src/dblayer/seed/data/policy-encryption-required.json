@@ -1,0 +1,60 @@
+{
+  "code": "encryption-required",
+  "name": "Encryption Required",
+  "description": "Sensitive data must be encrypted at rest and in transit, with keys held in an approved key management service.",
+  "category": "Security",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Sensitive data fields are encrypted at rest using AES-256 or an approved equivalent.",
+      "requiredEvidence": [
+        {
+          "type": "encryption_at_rest_scan_result"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Encryption keys are held in an approved key management service, never embedded in code or configuration.",
+      "requiredEvidence": [
+        {
+          "type": "secrets_scan_result",
+          "scope": "encryption_keys"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "All external network communication uses TLS 1.2 or higher.",
+      "requiredEvidence": [
+        {
+          "type": "tls_configuration_scan_result",
+          "scope": "external"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Internal service-to-service communication crossing a network segment boundary also uses TLS.",
+      "requiredEvidence": [
+        {
+          "type": "tls_configuration_scan_result",
+          "scope": "internal_cross_segment"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

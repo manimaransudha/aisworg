@@ -1,0 +1,77 @@
+{
+  "code": "architecture-documentation-required",
+  "name": "Architecture Documentation Required",
+  "description": "Every Architecture Deliverable requires a reviewed ADR documenting context, alternatives, and consequences before Approval.",
+  "category": "Engineering",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [
+    "architecture-decision-record"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "An ADR record exists, linked to this Architecture Deliverable.",
+      "requiredEvidence": [
+        {
+          "type": "adr_record"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "The ADR documents the problem context motivating the decision.",
+      "requiredEvidence": [
+        {
+          "type": "adr_record",
+          "field": "context"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "The ADR documents at least one alternative that was considered and rejected, with rationale.",
+      "requiredEvidence": [
+        {
+          "type": "adr_record",
+          "field": "alternatives_considered"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [
+        "A decision with no viable alternative (single-vendor constraint, regulatory mandate) may state 'no alternative' explicitly, with justification, in place of a rejected option."
+      ],
+      "relatedObligations": []
+    },
+    {
+      "statement": "The ADR documents both positive and negative consequences of the decision, including identified risk.",
+      "requiredEvidence": [
+        {
+          "type": "adr_record",
+          "field": "consequences"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "The ADR was reviewed and approved by an Architecture-capability participant other than its author.",
+      "requiredEvidence": [
+        {
+          "type": "review_result"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [
+        "A single-architect SEU (no second Architecture participant available) may substitute Authority sign-off for peer review, logged as a governance exception."
+      ],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

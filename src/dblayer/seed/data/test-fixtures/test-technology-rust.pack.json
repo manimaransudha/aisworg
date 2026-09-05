@@ -1,0 +1,62 @@
+{
+  "code": "test-technology-rust",
+  "name": "Rust Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "software-construction",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "engineering-work-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "Rust Engineering Standards",
+        "description": "Validation checklist for Rust memory safety, concurrency, error handling, and crate architecture.",
+        "items": [
+          {
+            "statement": "Ownership, borrowing, and lifetime annotations compile cleanly without bypassing rules via unnecessary clone() or unsafe blocks.",
+            "group": "Memory Safety & Ownership"
+          },
+          {
+            "statement": "All unsafe blocks are isolated, documented with explicit safety invariant comments, and audited via cargo-geiger.",
+            "group": "Unsafe Code & Audit"
+          },
+          {
+            "statement": "Errors use Result<T, E> and custom error enums (via main/thiserror or anyhow) with zero unhandled unwrap() or expect() calls in production.",
+            "group": "Error Handling"
+          },
+          {
+            "statement": "Code satisfies clippy linter checks (cargo clippy -- -D warnings) and formatted via cargo fmt.",
+            "group": "Code Style & Linting"
+          },
+          {
+            "statement": "Dependencies in Cargo.toml specify exact semver bounds and cargo-audit confirms zero vulnerable crates.",
+            "group": "Dependency & Security"
+          },
+          {
+            "statement": "Async tasks use Tokio / async-std context cancellation and avoid blocking the async executor loop.",
+            "group": "Async & Concurrency"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

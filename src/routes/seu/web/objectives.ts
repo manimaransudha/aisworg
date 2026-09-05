@@ -26,7 +26,7 @@ import {
 import { objectivesDB } from "../../../dblayer/objectivesDB.js";
 import { parseListParams, paginateList, listResult } from "../../../utils/listQuery.js";
 import { commissionFromExistingObjective } from "../core/commissioning.js";
-import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
+import { listConceptsForType } from "../core/ontology.js";
 import type { ObjectiveStatus, ObjectiveTier } from "../../../dblayer/seuTypes.js";
 import { requireBadge } from "../../../middleware/requireBadge.js";
 import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
@@ -217,9 +217,14 @@ router.get(
       tier = requested;
     }
 
-    const { data: capabilities } = await capabilitiesDB.findAll();
+    // CR-086 step 2 — the picker lists capability-name Ontology concepts
+    // (code/name/description), not rows from the Pack-instance-scoped
+    // `capabilities` table.
+    const { isRoot, tenantId } = await getObjectiveViewerContext(req);
+    const capabilities = (await listConceptsForType("capability-name", { isRoot, tenantId }, false))
+      .map((c) => ({ code: c.code, name: c.default_label, description: c.description }));
     req.vm.req.title = `New ${tier} Objective`;
-    req.vm.req.capabilities = capabilities ?? [];
+    req.vm.req.capabilities = capabilities;
     req.vm.req.parent = parent;
     req.vm.req.tier = tier;
     // Which Capabilities start checked, in precedence order:
@@ -349,13 +354,15 @@ router.get("/objectives/:id/edit", requireBadge(["objective_propose"], { redirec
     const id = String(req.params.id);
     const { data: objective } = await objectivesDB.findById(id);
     if (!objective) return flashError(req, res, "/aisworg/seu/objectives", "Objective not found.");
-    const { canComment } = await getObjectiveViewerContext(req);
+    const { isRoot, tenantId, canComment } = await getObjectiveViewerContext(req);
 
-    const { data: capabilities } = await capabilitiesDB.findAll();
+    // CR-086 step 2 — same Ontology-backed picker as /objectives/new.
+    const capabilities = (await listConceptsForType("capability-name", { isRoot, tenantId }, false))
+      .map((c) => ({ code: c.code, name: c.default_label, description: c.description }));
     const { data: requiredCapabilities } = await objectivesDB.getRequiredCapabilities(id);
     req.vm.req.title = `Edit ${objective.display_id ?? objective.id.slice(0, 8)}`;
     req.vm.req.objective = objective;
-    req.vm.req.capabilities = capabilities ?? [];
+    req.vm.req.capabilities = capabilities;
     const prior = takeFormInput(req);
     req.vm.req.statement = typeof prior?.statement === "string" ? prior.statement : objective.statement;
     req.vm.req.selectedCodes = prior && Array.isArray(prior.requiredCapabilityCodes)

@@ -36,7 +36,7 @@ import type {
 export interface SeuStatusView {
   seu: SeuRow;
   capabilities: Array<{ id: string; capabilityId: string; code: string; name: string; status: string }>;
-  deliverables: Array<{ id: string; name: string; category: string; lifecycleState: string }>;
+  deliverables: Array<{ id: string; name: string; category: string | null; lifecycleState: string }>;
 }
 
 export async function getSeuStatus(seuId: string): Promise<SeuStatusView | null> {
@@ -138,7 +138,7 @@ export interface SeuDetailDependencyEdge {
 export interface SeuDetailDeliverable {
   id: string;
   name: string;
-  category: string;
+  category: string | null;
   lifecycleState: string;
   acquisitionScope: string;
   possibleNextStates: string[];

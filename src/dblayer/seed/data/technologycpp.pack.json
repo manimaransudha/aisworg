@@ -14,12 +14,12 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "development",
+        "code": "software-construction",
         "name": "Source code generation",
         "description": "Follow these practices during coding."
       },
       {
-        "code": "code-review",
+        "code": "engineering-work-review",
         "name": "Code Review",
         "description": "Peer review of Source Code changes before merge."
       }
@@ -87,7 +87,7 @@
             "group": "Inheritance"
           },
           {
-            "statement": "Over estimation of predefined type\u2019s size (In C++, there is no guarantee that a particular type has a particular number of bits.)",
+            "statement": "Over estimation of predefined type’s size (In C++, there is no guarantee that a particular type has a particular number of bits.)",
             "group": "Variables"
           },
           {
@@ -103,11 +103,11 @@
             "group": "Variables"
           },
           {
-            "statement": "If \u201cIf \u2026else if\u2026.else if\u201d goes beyond two levels, use a switch\u2026.case instead. This increases readability.",
+            "statement": "If “If …else if….else if” goes beyond two levels, use a switch….case instead. This increases readability.",
             "group": "Conditionals"
           },
           {
-            "statement": "When using a switch\u2026.case, always explicitly define default. Do not omit the break statement.",
+            "statement": "When using a switch….case, always explicitly define default. Do not omit the break statement.",
             "group": "Conditionals"
           },
           {
@@ -159,7 +159,7 @@
             "group": "Functions"
           },
           {
-            "statement": "Do not use ++ or \u2013 operators on parameters being passed to subroutines or macros. These can cause unexpected side results.",
+            "statement": "Do not use ++ or – operators on parameters being passed to subroutines or macros. These can cause unexpected side results.",
             "group": "Functions"
           },
           {

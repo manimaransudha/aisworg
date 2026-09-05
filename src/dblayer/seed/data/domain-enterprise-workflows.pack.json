@@ -1,0 +1,72 @@
+{
+  "code": "domain-enterprise-workflows",
+  "name": "Cross-Domain Enterprise Workflows & E2E Value Chains",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for Cross-Domain Enterprise Workflows, covering end-to-end business value chains including Lead-to-Cash (L2C), Quote-to-Cash (Q2C), Order-to-Cash (O2C), Procure-to-Pay (P2P), Source-to-Pay (S2P), Record-to-Report (R2R), Hire-to-Retire (H2R), Plan-to-Produce (P2P), Idea-to-Product (I2P), and Issue-to-Resolution.",
+  "owner": "Enterprise Architecture & Cross-Domain Value Chain Governance Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-enterprise-workflows-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-enterprise-workflows-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Cross-Domain Enterprise Workflows Audit Checklist",
+        "description": "Validation checklist for end-to-end business value chains across L2C, P2P, R2R, H2R, and I2P.",
+        "items": [
+          {
+            "statement": "Lead-to-Cash (L2C) workflow maintains unique transaction correlation IDs from CRM opportunity to GL revenue posting.",
+            "group": "Lead-to-Cash (L2C)"
+          },
+          {
+            "statement": "Procure-to-Pay (P2P) workflow enforces budget checks, PO approval thresholds, and 3-way matching before payment release.",
+            "group": "Procure-to-Pay (P2P)"
+          },
+          {
+            "statement": "Record-to-Report (R2R) workflow reconciles sub-ledgers and automates journal adjustments prior to general ledger close.",
+            "group": "Record-to-Report (R2R)"
+          },
+          {
+            "statement": "Hire-to-Retire (H2R) workflow coordinates HR onboarding, payroll setup, IT provisioning, and offboarding deactivation.",
+            "group": "Hire-to-Retire (H2R)"
+          },
+          {
+            "statement": "Idea-to-Product (I2P) workflow maps product discovery concepts to PRD requirements, WBS schedules, and release builds.",
+            "group": "Idea-to-Product (I2P)"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "enterprise-chief-architect-signoff-gate",
+        "name": "Enterprise Chief Architect Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Enterprise Chief Architect confirms that cross-domain value chain orchestrations maintain data integrity, correlation tracking, and policy enforcement.",
+        "prompt": "Does the enterprise workflow documentation confirm end-to-end value chain integration and audit traceability?",
+        "participant": "human",
+        "outputContract": "enterprise-workflows-attestation",
+        "checklistIds": [
+          "Cross-Domain Enterprise Workflows Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

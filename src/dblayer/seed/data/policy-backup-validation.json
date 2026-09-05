@@ -1,0 +1,46 @@
+{
+  "code": "backup-validation",
+  "name": "Backup Validation",
+  "description": "The most recent production backup must have completed successfully, been restore-tested, and meet the declared retention minimum.",
+  "category": "Operational",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "The most recent scheduled backup completed successfully.",
+      "requiredEvidence": [
+        {
+          "type": "backup_completion_record"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "A restoration test against the most recent backup succeeded within the declared cadence window.",
+      "requiredEvidence": [
+        {
+          "type": "backup_validation_result"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Backup retention meets or exceeds the declared minimum duration.",
+      "requiredEvidence": [
+        {
+          "type": "backup_retention_record"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

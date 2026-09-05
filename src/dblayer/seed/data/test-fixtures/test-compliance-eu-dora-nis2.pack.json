@@ -1,0 +1,72 @@
+{
+  "code": "test-compliance-eu-dora-nis2",
+  "name": "EU DORA & NIS2 Digital Operational Resilience Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for the EU Digital Operational Resilience Act (DORA - Regulation (EU) 2022/2554), NIS2 Directive ((EU) 2022/2555), and Cyber Resilience Act (CRA), covering ICT risk management, threat-led penetration testing (TLPT), major incident reporting, and third-party risk.",
+  "owner": "EU Operational Resilience & SecOps Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-dora-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-dora-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "EU DORA & NIS2 Control Verification Checklist",
+        "description": "Validation checklist for DORA Articles 5-30 and NIS2 security management obligations.",
+        "items": [
+          {
+            "statement": "ICT Risk Management Framework is reviewed annually and approved by the Management Body (DORA Art. 6).",
+            "group": "ICT Risk Framework"
+          },
+          {
+            "statement": "Major ICT incidents trigger initial notification within 4h (classification) / 24h to competent authorities (DORA Art. 19).",
+            "group": "Incident Reporting"
+          },
+          {
+            "statement": "Threat-Led Penetration Testing (TLPT) covering production systems is executed at least every 3 years (DORA Art. 26).",
+            "group": "TLPT Penetration Testing"
+          },
+          {
+            "statement": "Register of Information is maintained detailing all contractual arrangements with ICT third-party service providers (DORA Art. 28).",
+            "group": "Third-Party Risk"
+          },
+          {
+            "statement": "Cyber Resilience Act (CRA) Software Bill of Materials (SBOM) is published in machine-readable format for all software products.",
+            "group": "CRA Supply Chain & SBOM"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "dora-resilience-attestation-gate",
+        "name": "EU DORA & NIS2 Resilience Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The CISO and Head of Risk confirm that ICT risk management, TLPT testing, and third-party contracts comply with DORA & NIS2.",
+        "prompt": "Does the operational resilience evidence confirm full compliance with EU DORA and NIS2 regulations?",
+        "participant": "human",
+        "outputContract": "dora-compliance-attestation",
+        "checklistIds": [
+          "EU DORA & NIS2 Control Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

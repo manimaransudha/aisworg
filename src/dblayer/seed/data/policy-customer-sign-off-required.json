@@ -1,0 +1,51 @@
+{
+  "code": "customer-sign-off-required",
+  "name": "Customer Sign-off Required",
+  "description": "A customer-facing Deliverable requires a human-attested sign-off, naming the exact version accepted, obtained before Baselined.",
+  "category": "Customer",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [
+    "Baselined"
+  ],
+  "conditions": [
+    {
+      "statement": "A human-attested sign-off record exists from the designated customer authority.",
+      "requiredEvidence": [
+        {
+          "type": "human_attestation",
+          "classification": "human-attested"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "The sign-off record names the specific Deliverable version being accepted.",
+      "requiredEvidence": [
+        {
+          "type": "human_attestation",
+          "field": "accepted_version"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "The sign-off timestamp precedes the Baselined transition, not recorded after the fact.",
+      "requiredEvidence": [
+        {
+          "type": "human_attestation",
+          "field": "timestamp"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

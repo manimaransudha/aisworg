@@ -1,0 +1,65 @@
+{
+  "code": "test-coverage-threshold",
+  "name": "Test Coverage Threshold",
+  "description": "Source Code must meet differentiated line, branch and critical-path coverage thresholds before Verification passes.",
+  "category": "Engineering",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [
+    "source-code"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Line coverage >= the threshold declared by the active governance tier.",
+      "requiredEvidence": [
+        {
+          "type": "test_result",
+          "metric": "line_coverage"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [
+        "Legacy code under active remediation may be granted a temporary lower threshold, time-boxed and tracked as an Obligation."
+      ],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Branch coverage >= the threshold declared by the active governance tier.",
+      "requiredEvidence": [
+        {
+          "type": "test_result",
+          "metric": "branch_coverage"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Modules tagged critical-path (authentication, payment, data-integrity) meet a threshold at least 15 points higher than the general threshold.",
+      "requiredEvidence": [
+        {
+          "type": "test_result",
+          "metric": "line_coverage",
+          "scope": "critical_path"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "No source file is excluded from coverage measurement without a documented, Authority-approved justification.",
+      "requiredEvidence": [
+        {
+          "type": "coverage_exclusion_record"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

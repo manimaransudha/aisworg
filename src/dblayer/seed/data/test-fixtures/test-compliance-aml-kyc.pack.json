@@ -1,0 +1,72 @@
+{
+  "code": "test-compliance-aml-kyc",
+  "name": "AML / KYC & OFAC Sanctions Screening Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for the Bank Secrecy Act (BSA), USA PATRIOT Act, FinCEN Customer Due Diligence (CDD) rule, OFAC sanctions screening, and EU AML Directives, covering PEP screening, real-time transaction monitoring, and SAR/CTR filings.",
+  "owner": "Global Financial Crime & AML Compliance Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-aml-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-aml-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "AML / KYC & OFAC Sanctions Audit Checklist",
+        "description": "Validation checklist for BSA, FinCEN CDD Rule, OFAC sanctions, and EU AML Directive requirements.",
+        "items": [
+          {
+            "statement": "Real-time sanctions screening checks all senders, beneficiaries, and intermediaries against OFAC SDN and global lists.",
+            "group": "OFAC Sanctions Screening"
+          },
+          {
+            "statement": "Customer Identification Program (CIP) verifies government photo IDs and national tax IDs prior to account activation.",
+            "group": "KYC & CIP Verification"
+          },
+          {
+            "statement": "FinCEN CDD rule identifies and verifies all 25%+ beneficial owners for legal entity customers.",
+            "group": "Beneficial Ownership (FinCEN CDD)"
+          },
+          {
+            "statement": "Suspicious Activity Reporting (SAR) workflow automatically files SAR reports with FinCEN within 30 days of detection.",
+            "group": "SAR & CTR Filings"
+          },
+          {
+            "statement": "Politically Exposed Persons (PEP) and adverse media screening is re-evaluated daily against updated databases.",
+            "group": "PEP & Adverse Media"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "aml-bsa-officer-attestation-gate",
+        "name": "BSA / AML Compliance Officer Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Designated BSA / AML Officer confirms that sanctions screening, KYC workflows, and SAR reporting comply with FinCEN and OFAC rules.",
+        "prompt": "Does the AML audit evidence confirm full compliance with BSA, FinCEN CDD, and OFAC sanctions requirements?",
+        "participant": "human",
+        "outputContract": "aml-compliance-attestation",
+        "checklistIds": [
+          "AML / KYC & OFAC Sanctions Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

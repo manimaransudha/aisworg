@@ -1,0 +1,75 @@
+{
+  "code": "integration-aws",
+  "name": "Amazon Web Services (AWS) Cloud Integration",
+  "category": "Integration",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Integration pack for Amazon Web Services (AWS), providing connectivity to AWS SDK / IAM Role authentication, CloudWatch metrics & logs, EKS Kubernetes clusters, S3 buckets, and CloudFormation infrastructure provisioning.",
+  "owner": "Cloud Infrastructure & Platform Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "operating-production-systems",
+        "name": "Infrastructure Management / Monitoring, Observability & SRE",
+        "description": "Integrates AWS EC2, EKS, VPC, and CloudFormation infrastructure provisioning. Integrates AWS CloudWatch metrics, alarms, log groups, and CloudTrail audit logs."
+      },
+      {
+        "code": "software-construction",
+        "name": "Platform & Developer Experience",
+        "description": "Integrates AWS IAM STS assume-role credentials and AWS CLI toolchain integrations."
+      }
+    ],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-aws-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-aws-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "AWS Integration Verification Checklist",
+        "description": "Validation checklist for AWS IAM STS assume-role credentials, CloudWatch alarm delivery, and EKS cluster connectivity.",
+        "items": [
+          {
+            "statement": "AWS IAM Role authentication utilizes Web Identity Federation / STS assume-role without hardcoded access keys.",
+            "group": "IAM STS Auth"
+          },
+          {
+            "statement": "AWS CloudWatch Alarm notifications route to SNS topics and monitoring webhooks.",
+            "group": "CloudWatch Alarms"
+          },
+          {
+            "statement": "AWS EKS cluster kubeconfig authenticates via AWS IAM Authenticator.",
+            "group": "EKS Connectivity"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "aws-integration-review-gate",
+        "name": "AWS Cloud Integration Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Cloud Architect confirms that AWS IAM roles, STS credentials, and CloudWatch metrics function properly.",
+        "prompt": "Does the AWS integration verify STS assume-role authentication and CloudWatch metric access?",
+        "participant": "human",
+        "outputContract": "aws-integration-attestation",
+        "checklistIds": [
+          "AWS Integration Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

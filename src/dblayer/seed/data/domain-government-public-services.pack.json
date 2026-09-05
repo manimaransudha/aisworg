@@ -1,0 +1,72 @@
+{
+  "code": "domain-government-public-services",
+  "name": "Government & Public Sector Services Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for Government Administration and Public Sector Services, covering citizen digital identity registration, permit/license processing, social welfare benefits administration, case management, public health inspections, and municipal tax collection.",
+  "owner": "Global Public Sector & Citizen Services Governance Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-gov-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-gov-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Government & Public Sector Audit Checklist",
+        "description": "Validation checklist for citizen licensing, permit inspections, welfare eligibility, and public records access.",
+        "items": [
+          {
+            "statement": "Citizen identity is verified against official national/state identity registries prior to permit issuance.",
+            "group": "Citizen Identity Verification"
+          },
+          {
+            "statement": "Permit applications undergo field inspector review and code compliance verification.",
+            "group": "Permits & Inspections"
+          },
+          {
+            "statement": "Social welfare benefit applications evaluate household income documentation against statutory threshold tables.",
+            "group": "Benefits Eligibility"
+          },
+          {
+            "statement": "Case management records log all caseworker interactions and benefit disbursement events.",
+            "group": "Case Management"
+          },
+          {
+            "statement": "Public records requests (FOIA/RTI) fulfill information disclosures within statutory response windows.",
+            "group": "Public Records (FOIA)"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "public-agency-director-signoff-gate",
+        "name": "Public Agency Director Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Public Agency Director confirms that permit processing, welfare eligibility, and public record disclosures comply with administrative law.",
+        "prompt": "Does the public sector documentation confirm statutory eligibility compliance and administrative law alignment?",
+        "participant": "human",
+        "outputContract": "government-public-services-attestation",
+        "checklistIds": [
+          "Government & Public Sector Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

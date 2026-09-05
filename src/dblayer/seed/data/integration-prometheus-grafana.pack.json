@@ -1,0 +1,70 @@
+{
+  "code": "integration-prometheus-grafana",
+  "name": "Prometheus & Grafana Observability Integration",
+  "category": "Integration",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Integration pack for Prometheus and Grafana, providing connectivity to PromQL metric queries, Prometheus Alertmanager alert rules, Grafana dashboard provisioning API, and custom SLA/SLO visualization dashboards.",
+  "owner": "SRE & Monitoring Operations Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "operating-production-systems",
+        "name": "Monitoring, Observability & SRE / Scale & Performance Optimization",
+        "description": "Integrates Prometheus metric scraping, PromQL alert rules, Alertmanager webhooks, and Grafana dashboards. Integrates PromQL latency percentiles (p95/p99), CPU/Memory utilization trends, and capacity planning graphs."
+      }
+    ],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-prometheus-grafana-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-prometheus-grafana-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Prometheus & Grafana Integration Verification Checklist",
+        "description": "Validation checklist for Prometheus HTTP API endpoints, Alertmanager webhook receivers, and Grafana API key provisioning.",
+        "items": [
+          {
+            "statement": "Prometheus Server HTTP API (/api/v1/query) executes PromQL queries and returns metric series.",
+            "group": "PromQL API Auth"
+          },
+          {
+            "statement": "Prometheus Alertmanager rules route firing alerts to PagerDuty/Slack webhook receivers.",
+            "group": "Alertmanager Routing"
+          },
+          {
+            "statement": "Grafana Service Account API Key provisions dashboards via Grafana REST API.",
+            "group": "Grafana Dashboard API"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "prometheus-grafana-review-gate",
+        "name": "Prometheus & Grafana Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Site Reliability Engineer confirms that Prometheus metric scraping, Alertmanager rules, and Grafana dashboards function correctly.",
+        "prompt": "Does the Prometheus & Grafana integration verify PromQL metric querying and Grafana dashboard provisioning?",
+        "participant": "human",
+        "outputContract": "prometheus-grafana-integration-attestation",
+        "checklistIds": [
+          "Prometheus & Grafana Integration Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

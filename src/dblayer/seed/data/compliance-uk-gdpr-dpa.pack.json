@@ -1,0 +1,68 @@
+{
+  "code": "compliance-uk-gdpr-dpa",
+  "name": "UK Data Protection & Online Safety Compliance (UK GDPR / OSA)",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for the UK Data Protection Act 2018, UK GDPR, Privacy and Electronic Communications Regulations (PECR), and Online Safety Act 2023 (OSA), covering ICO reporting, UK International Data Transfer Agreements (IDTA), and child online safety duties of care.",
+  "owner": "UK Regulatory Compliance & Data Protection Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-uk-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-uk-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "UK GDPR & Online Safety Act Verification Checklist",
+        "description": "Validation checklist for UK DPA 2018, PECR, and Online Safety Act 2023 requirements.",
+        "items": [
+          {
+            "statement": "UK International Data Transfer Agreement (IDTA) or UK Addendum is executed for non-adequate destination countries.",
+            "group": "UK IDTA Data Transfers"
+          },
+          {
+            "statement": "Cookie consent mechanism satisfies PECR regulations requiring prior explicit consent before setting non-essential cookies.",
+            "group": "PECR Cookie Consent"
+          },
+          {
+            "statement": "Online Safety Act (OSA) illegal content risk assessment identifies mitigations against priority illegal content.",
+            "group": "Online Safety Act (OSA)"
+          },
+          {
+            "statement": "ICO personal data breach notification procedures guarantee reporting to the ICO within 72 hours.",
+            "group": "ICO Breach Reporting"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "uk-dpo-attestation-gate",
+        "name": "UK DPO & Online Safety Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The UK Data Protection Officer confirms that UK IDTA agreements, PECR cookie controls, and OSA risk assessments meet UK legal standards.",
+        "prompt": "Does the UK privacy audit evidence confirm full compliance with UK GDPR and the Online Safety Act?",
+        "participant": "human",
+        "outputContract": "uk-gdpr-compliance-attestation",
+        "checklistIds": [
+          "UK GDPR & Online Safety Act Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

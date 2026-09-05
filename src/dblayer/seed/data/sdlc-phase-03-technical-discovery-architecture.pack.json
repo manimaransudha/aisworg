@@ -11,155 +11,14 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "technical-architecture-discovery",
+        "code": "architecture-design",
         "name": "Technical Discovery & Architecture",
         "description": "Defines the technical architecture, data model, and integration strategy needed to build the product reliably at scale."
       }
     ],
     "services": [
       {
-        "code": "solution-architecture-document",
-        "capabilityCode": "technical-architecture-discovery",
-        "name": "Solution Architecture Document",
-        "contractDescription": "High-level system architecture design, component decomposition, and design rationale.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "executive-approved"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "c4-diagrams",
-        "capabilityCode": "technical-architecture-discovery",
-        "name": "C4 Diagrams",
-        "contractDescription": "System architecture visualization across Context, Container, Component, and Code levels.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "api-design-spec",
-        "capabilityCode": "technical-architecture-discovery",
-        "name": "API Design Specification",
-        "contractDescription": "OpenAPI / REST / GraphQL schema contracts, error formats, and authentication mechanisms.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "data-model-erd",
-        "capabilityCode": "technical-architecture-discovery",
-        "name": "Data Model & ERD",
-        "contractDescription": "Database schema, entity-relationship diagrams, index strategy, and migration patterns.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "non-functional-requirements-spec",
-        "capabilityCode": "technical-architecture-discovery",
-        "name": "Non-Functional Requirements Spec",
-        "contractDescription": "Target latency, throughput, availability, durability, scalability, and recovery metrics.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "tenancy-model",
-        "capabilityCode": "technical-architecture-discovery",
-        "name": "Tenancy Model",
-        "contractDescription": "Multi-tenant isolation model, tenant scoping rules, and shared vs isolated database tiering.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "data-residency-privacy-plan",
-        "capabilityCode": "technical-architecture-discovery",
-        "name": "Data Residency & Privacy Plan",
-        "contractDescription": "Regional data storage boundaries, encryption at rest/in transit, and PII anonymization strategy.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "tech-stack-evaluation-matrix",
-        "capabilityCode": "technical-architecture-discovery",
-        "name": "Tech Stack Evaluation Matrix",
-        "contractDescription": "Framework, language, and infrastructure trade-off matrix with build-vs-buy analysis.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "integration-architecture-overview",
-        "capabilityCode": "technical-architecture-discovery",
-        "name": "Integration Architecture Overview",
-        "contractDescription": "Third-party APIs, webhooks, message queues, and event-driven integration patterns.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
+        "code": "architectural-review-service"
       }
     ],
     "authorityRules": [
@@ -179,17 +38,7 @@
         "authorisedRole": "general"
       }
     ],
-    "policies": [
-      {
-        "code": "policy-architecture-review-board-approval",
-        "name": "Architecture Review Board Approval Policy",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "conditionType": "always_true",
-        "severity": "high"
-      }
-    ],
+    "policies": [],
     "checklists": [
       {
         "name": "Technical Discovery & Architecture (SDLC Phase 3) Checklist",

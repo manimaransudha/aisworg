@@ -1,0 +1,72 @@
+{
+  "code": "compliance-fedramp",
+  "name": "FedRAMP High & Moderate Baseline Cloud Security Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for the Federal Risk and Authorization Management Program (FedRAMP) Moderate and High Baselines, covering System Security Plans (SSP), FIPS 140-3 validated encryption, Continuous Monitoring (ConMon), Plan of Action and Milestones (POA&M), and 3PAO audit assessment.",
+  "owner": "Federal Security & FedRAMP PMO Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-fedramp-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-fedramp-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "FedRAMP Security Controls & ConMon Verification Checklist",
+        "description": "Validation checklist for FedRAMP Moderate/High baseline security controls and 3PAO assessment readiness.",
+        "items": [
+          {
+            "statement": "System Security Plan (SSP) narrative explicitly documents control implementation details for all NIST SP 800-53 controls in the baseline.",
+            "group": "SSP Documentation (FedRAMP-SSP)"
+          },
+          {
+            "statement": "All encryption endpoints use NIST CMVP FIPS 140-2/3 validated modules for data in transit and data at rest.",
+            "group": "Cryptographic Protection (SC-13)"
+          },
+          {
+            "statement": "Monthly Continuous Monitoring (ConMon) package (OS, container, and DB scan reports) is submitted to FedRAMP PMO.",
+            "group": "Continuous Monitoring (CA-7)"
+          },
+          {
+            "statement": "POA&M entries for High vulnerabilities are resolved and closed within 30 days of discovery.",
+            "group": "POA&M Remediation (CA-5)"
+          },
+          {
+            "statement": "Third-Party Assessment Organization (3PAO) Security Assessment Plan (SAP) and Security Assessment Report (SAR) are completed.",
+            "group": "3PAO Independent Audit (CA-2)"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "fedramp-3pao-authorization-gate",
+        "name": "FedRAMP 3PAO Authorization Readiness Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Federal CISO and 3PAO Lead Assessor attest that SSP, FIPS 140-3 cryptography, and ConMon packages satisfy FedRAMP ATO requirements.",
+        "prompt": "Does the 3PAO Security Assessment Report confirm readiness for FedRAMP Agency or JAB ATO?",
+        "participant": "human",
+        "outputContract": "fedramp-ato-attestation",
+        "checklistIds": [
+          "FedRAMP Security Controls & ConMon Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

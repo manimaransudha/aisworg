@@ -69,8 +69,20 @@
   if (wantSection('contributions')) {
     (locals.groups.contributions || []).forEach(function (c) {
       var f = c.field;
-      var hasContent = f.kind === 'referential-list' ? f.rows.slice(0, f.existingCount).length > 0 : (f.value && f.value.trim() !== '{}' && f.value.trim() !== '[]' && f.value.trim() !== '');
-      tabs.push({ id: c.key, label: c.label, type: f.kind === 'json' ? 'json' : 'referential-list', field: f, helpKey: c.key, count: f.kind === 'referential-list' ? f.existingCount : 0, hasContent: hasContent });
+      // CR-089 follow-on — contributionPolicies is the first "contributions"
+      // field whose kind is referential-multi-select (a checkbox grid, not
+      // an add-a-row list): f.value is a string[] here, not a string, so the
+      // referential-list/json ternary below (f.value.trim()) would throw.
+      // Routed to the SAME 'simple' tab type Identity & Metadata uses — its
+      // generic per-field-kind switch (below) already renders
+      // referential-multi-select correctly; no _referentialListGroup include
+      // needed for a field with no per-item sub-fields at all.
+      var isMultiSelect = f.kind === 'referential-multi-select';
+      var hasContent = f.kind === 'referential-list' ? f.rows.slice(0, f.existingCount).length > 0
+        : isMultiSelect ? f.value.length > 0
+        : (f.value && f.value.trim() !== '{}' && f.value.trim() !== '[]' && f.value.trim() !== '');
+      var tabType = f.kind === 'json' ? 'json' : isMultiSelect ? 'simple' : 'referential-list';
+      tabs.push({ id: c.key, label: c.label, type: tabType, field: f, fields: isMultiSelect ? [f] : undefined, helpKey: c.key, count: f.kind === 'referential-list' ? f.existingCount : (isMultiSelect ? f.value.length : 0), hasContent: hasContent });
     });
   }
   // Bug fix (owner: branching a new Pack from an existing version's content
@@ -114,6 +126,51 @@
       <div class="tab-pane fade <%= i === defaultActive ? 'show active' : '' %>" id="<%= idPrefix %>-<%= t.id %>" role="tabpanel">
 
         <% if (t.type === 'simple') { %>
+          <%# Owner, 2026-09-04: "The form & the view should show read only
+              capability-names (deduped) from the deliverable catalog. The
+              next section should allow users to pick packs... If there are
+              no packs contributing to the capability, it has to be called
+              out... If there are packs that are contributing more than the
+              deliverable led capabilities, they have to be called out too."
+              Pure UI advisories (owner: "for now") — never block Save/Publish
+              (core/templates.ts's validateTemplateSeed is untouched).
+              "Required" is derived off deliverableCatalogue[].code itself
+              (owner: "Deliverables are tied to services which are tied to
+              capability") — every Active Service Definition whose own
+              declared outputs (Ch.11) name a code in this catalogue names a
+              producing Capability (sdkAuthoring.ts's
+              loadPackCodesCapabilityCoverage — same contract
+              commissioning.ts's own auto-derivation trusts, CR-087).
+              Guarded on the entity actually having a Deliverable Catalogue
+              tab at all (Template only — Profile shares this Pack Codes tab
+              for its own 4 category fields but has no deliverableCatalogue
+              to derive anything from). %>
+          <% if (t.id === 'packSelection' && (locals.groups.deliverables || []).length) { %>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold mb-1">Required Capabilities <span class="text-muted fw-normal">— from the Deliverable Catalogue's Capability dependencies, read-only</span></label>
+              <% if (!(locals.requiredCapabilityNames || []).length) { %>
+                <p class="text-muted small mb-2">None</p>
+              <% } else { %>
+                <div class="d-flex flex-wrap gap-1 mb-2">
+                  <% locals.requiredCapabilityNames.forEach(function(c) { %>
+                    <span class="badge bg-light text-dark border"><%= c.label %></span>
+                  <% }) %>
+                </div>
+              <% } %>
+              <% if ((locals.capabilityCoverageGaps || []).length) { %>
+                <div class="alert alert-warning small py-2 px-3 mb-2">
+                  <i class="bi bi-exclamation-triangle me-1"></i>
+                  No selected Pack contributes: <strong><%= locals.capabilityCoverageGaps.map(function(c) { return c.label; }).join(", ") %></strong>. Update the Deliverable Catalogue's dependency graph, or pick a Pack below that contributes it.
+                </div>
+              <% } %>
+              <% if ((locals.capabilityCoverageExcess || []).length) { %>
+                <div class="alert alert-info small py-2 px-3 mb-2">
+                  <i class="bi bi-info-circle me-1"></i>
+                  The selected Packs below also contribute: <strong><%= locals.capabilityCoverageExcess.map(function(c) { return c.label; }).join(", ") %></strong> — not required by the Deliverable Catalogue.
+                </div>
+              <% } %>
+            </div>
+          <% } %>
           <div class="row g-3">
             <% t.fields.forEach(function(f) { %>
               <% if (f.kind === 'referential-list') { %>
@@ -133,7 +190,7 @@
                       must still fill in); meaningless once the page is just
                       showing what was already saved. %>
                   <label class="form-label small fw-semibold"><%= f.label %><% if (f.required && canEdit) { %> <span class="text-danger">*</span><% } %></label>
-                  <%- include('_referentialListGroup', { field: f, canEdit: canEdit, referentialOptions: locals.referentialOptions, ontologyOptions: locals.ontologyOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions, renderMarkdown: locals.renderMarkdown }) %>
+                  <%- include('_referentialListGroup', { field: f, canEdit: canEdit, referentialOptions: locals.referentialOptions, ontologyOptions: locals.ontologyOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions, serviceDefinitionOptions: locals.serviceDefinitionOptions, renderMarkdown: locals.renderMarkdown }) %>
                   <% if (f.help) { %><div class="form-text small"><%= f.help %></div><% } %>
                 </div>
               <% } else { %>
@@ -178,7 +235,7 @@
                 <% } %>
                 <input type="hidden" name="packVersion" id="packVersion-field" value="<%= f.value %>">
               <% } else { %>
-              <div class="<%= f.name === 'category' ? 'col-12' : 'col-md-6' %>" <% if (f.showWhen) { %>data-show-when="<%= f.showWhen %>" style="<%= isShowWhenHidden(f) ? 'display:none' : '' %>"<% } %>>
+              <div class="<%= (f.name === 'category' || f.name === 'contributionPolicies') ? 'col-12' : 'col-md-6' %>" <% if (f.showWhen) { %>data-show-when="<%= f.showWhen %>" style="<%= isShowWhenHidden(f) ? 'display:none' : '' %>"<% } %>>
                 <label class="form-label small fw-semibold">
                   <%= f.label %><% if (f.required && canEdit) { %> <span class="text-danger">*</span><% } %>
                   <% if (f.name === 'name' && locals.kindLabel === 'Pack') { %>
@@ -211,6 +268,38 @@
                   <% } else if (f.kind === 'referential-select' && f.referentialSource === 'template-code') { %>
                     <% var _matchedTemplate = (locals.templateOptions || []).find(function(t) { return t.code === f.value; }); %>
                     <div class="small"><%= _matchedTemplate ? _matchedTemplate.name : (f.value ? ('⚠ ' + f.value + ' (not currently Active)') : '—') %></div>
+                  <% } else if (f.kind === 'referential-multi-select' && f.name === 'contributionPolicies') { %>
+                    <%# CR-089 follow-on — code/name/description of every
+                        ADOPTED canonical Policy Definition, resolved off
+                        policyDefinitionOptions (not Ontology-backed like
+                        every other multi-select, so a bespoke branch, not
+                        the generic one below). %>
+                    <% var _polOptsView = locals.policyDefinitionOptions || []; %>
+                    <% if (!f.value.length) { %>
+                      <div class="small text-muted">None adopted.</div>
+                    <% } else { %>
+                      <% f.value.forEach(function(code) { %>
+                        <% var _matchedPol = _polOptsView.find(function(p) { return p.code === code; }); %>
+                        <div class="card mb-2">
+                          <div class="card-body py-2">
+                            <h6 class="mb-1"><%= _matchedPol ? _matchedPol.name : ('⚠ ' + code + ' (not currently Active)') %> <code class="text-muted small"><%= code %></code></h6>
+                            <% if (_matchedPol && _matchedPol.description) { %><p class="text-muted small mb-0"><%= _matchedPol.description %></p><% } %>
+                          </div>
+                        </div>
+                      <% }) %>
+                    <% } %>
+                  <% } else if (f.kind === 'referential-multi-select') { %>
+                    <% var _ontOptsMultiView = ((locals.ontologyOptions || {})[f.referentialSource] || []); %>
+                    <% if (!f.value.length) { %>
+                      <div class="small text-muted">None</div>
+                    <% } else { %>
+                      <div class="d-flex flex-wrap gap-1">
+                        <% f.value.forEach(function(v) { %>
+                          <% var _matchedMulti = _ontOptsMultiView.find(function(o) { return o.code === v; }); %>
+                          <span class="badge bg-light text-dark border"><%= _matchedMulti ? _matchedMulti.label : ('⚠ ' + v) %></span>
+                        <% }) %>
+                      </div>
+                    <% } %>
                   <% } else { %>
                     <div class="small"><%= f.value || '—' %></div>
                   <% } %>
@@ -346,6 +435,54 @@
                     <option value="">— select —</option>
                     <% ((locals.referentialOptions || {})[f.referentialSource] || []).forEach(function(opt) { %><option value="<%= opt %>" <%= f.value === opt ? 'selected' : '' %>><%= opt %></option><% }) %>
                   </select>
+                <% } else if (f.kind === 'referential-multi-select' && f.name === 'contributionPolicies') { %>
+                  <%# CR-089 follow-on — owner: "Similar to services, pick the
+                      ones that are applicable to the contributingCapabilities[]...
+                      allow the user to check/uncheck to select/deselect a
+                      policy." Checkbox grid, not a <select multiple> (a
+                      canonical Policy isn't Ontology-backed, so the generic
+                      branch below can't source it anyway) — every Active
+                      Policy Definition, each carrying its own
+                      data-deliverable-names for referentialListGroup.js's
+                      live capability filter (dims, never hides/disables —
+                      advisory, same "Pure UI advisories" discipline the Pack
+                      Codes tab's own capability-coverage callouts use).
+                      Posted as "contributionPolicies[]" — only CHECKED boxes
+                      submit, so qs/Express collapse this into a clean,
+                      gap-free string[] with zero extra plumbing (same
+                      mechanism as the generic branch below). %>
+                  <% var _polOptsEdit = locals.policyDefinitionOptions || []; %>
+                  <script type="application/json" id="capability-deliverable-names-map"><%- JSON.stringify(locals.capabilityDeliverableNames || {}) %></script>
+                  <div class="policy-checkbox-grid" data-field-name="contributionPolicies">
+                    <% if (!_polOptsEdit.length) { %>
+                      <div class="text-muted small">No Active canonical Policy Definitions yet.</div>
+                    <% } %>
+                    <% _polOptsEdit.forEach(function(pd) { %>
+                      <div class="form-check mb-2 rlg-policy-row" data-deliverable-names="<%= (pd.applicabilityDeliverableNames || []).join(',') %>">
+                        <input class="form-check-input rlg-policy-checkbox" type="checkbox" name="contributionPolicies[]" value="<%= pd.code %>" id="policy-check-<%= pd.code %>" <%= f.value.indexOf(pd.code) !== -1 ? 'checked' : '' %> <%- canEdit ? '' : 'disabled' %>>
+                        <label class="form-check-label small" for="policy-check-<%= pd.code %>">
+                          <strong><%= pd.name %></strong> <code class="text-muted small"><%= pd.code %></code>
+                          <% if (pd.description) { %><div class="text-muted small"><%= pd.description %></div><% } %>
+                        </label>
+                      </div>
+                    <% }) %>
+                  </div>
+                  <div class="form-text small">Dimmed policies don't obviously govern a deliverable-name this Pack's own declared Capabilities currently produce — check them anyway if you know better; nothing here is enforced.</div>
+                <% } else if (f.kind === 'referential-multi-select') { %>
+                  <%# CR-086/Ch.11 follow-on — Service Definition's own
+                      `consumers`: same ontology-backed option source as a
+                      single-value referential-select (f.ontology), just a
+                      real multi-select. Posted as "<name>[]" so qs collapses
+                      it back to a plain array under the schema's own field
+                      name — parseFormBody's generic passthrough (no
+                      referential-multi-select-specific branch needed there)
+                      picks it up unchanged. %>
+                  <select name="<%= f.name %>[]" class="form-select form-select-sm" multiple size="6" <%- canEdit ? '' : 'disabled' %>>
+                    <% ((locals.ontologyOptions || {})[f.referentialSource] || []).forEach(function(opt) { %>
+                      <option value="<%= opt.code %>" <%= f.value.indexOf(opt.code) !== -1 ? 'selected' : '' %>><%= opt.label %></option>
+                    <% }) %>
+                  </select>
+                  <div class="form-text small">Ctrl/Cmd-click to select more than one — leave empty for none.</div>
                 <% } else if (f.kind === 'json') { %>
                   <textarea name="<%= f.name %>" class="form-control form-control-sm font-monospace" rows="4" <%- canEdit ? '' : 'disabled' %>><%= f.value %></textarea>
                 <% } %>
@@ -401,7 +538,7 @@
           <% } else if (t.type === 'json') { %>
             <textarea name="<%= t.field.name %>" class="form-control form-control-sm font-monospace" rows="6" <%- canEdit ? '' : 'disabled' %>><%= t.field.value %></textarea>
           <% } else { %>
-            <%- include('_referentialListGroup', { field: t.field, canEdit: canEdit, referentialOptions: locals.referentialOptions, ontologyOptions: locals.ontologyOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions, renderMarkdown: locals.renderMarkdown }) %>
+            <%- include('_referentialListGroup', { field: t.field, canEdit: canEdit, referentialOptions: locals.referentialOptions, ontologyOptions: locals.ontologyOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions, serviceDefinitionOptions: locals.serviceDefinitionOptions, renderMarkdown: locals.renderMarkdown }) %>
           <% } %>
         <% } %>
 

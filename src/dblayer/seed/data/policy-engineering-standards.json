@@ -1,0 +1,38 @@
+{
+  "code": "engineering-standards",
+  "name": "Engineering Standards",
+  "description": "Engineering standards must be reviewed on a defined cadence, with revisions grounded in accumulated evidence rather than unstructured opinion.",
+  "category": "Organisation",
+  "constraintType": "Standard",
+  "applicabilityDeliverableNames": [
+    "engineering-standard"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "The standard has been reviewed within the declared cadence window.",
+      "requiredEvidence": [
+        {
+          "type": "standard_review_record"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Any revision to the standard cites accumulated Telemetry evidence as its basis, not unstructured opinion alone.",
+      "requiredEvidence": [
+        {
+          "type": "standard_review_record",
+          "field": "evidentiary_basis"
+        }
+      ],
+      "severity": "Low",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

@@ -11,171 +11,14 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "vision-opportunity-framing",
+        "code": "requirements-elicitation",
         "name": "Vision & Opportunity Framing",
         "description": "Establishes the product vision, business model, and market opportunity that justifies building the product at all."
       }
     ],
     "services": [
       {
-        "code": "vision-one-pager",
-        "capabilityCode": "vision-opportunity-framing",
-        "name": "Vision One-Pager",
-        "contractDescription": "Product vision and strategic direction, condensed to one page.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "executive-approved"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "lean-business-model-canvas",
-        "capabilityCode": "vision-opportunity-framing",
-        "name": "Lean Business Model Canvas",
-        "contractDescription": "Business model framework covering value proposition, channels, revenue, and cost structure.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "market-sizing-brief",
-        "capabilityCode": "vision-opportunity-framing",
-        "name": "Market Sizing Brief",
-        "contractDescription": "Market analysis and opportunity sizing (TAM/SAM/SOM).",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "competitive-teardown",
-        "capabilityCode": "vision-opportunity-framing",
-        "name": "Competitive Teardown",
-        "contractDescription": "Competitive landscape analysis of comparable products and their positioning.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "jtbd-insights-summary",
-        "capabilityCode": "vision-opportunity-framing",
-        "name": "JTBD Insights Summary",
-        "contractDescription": "Jobs-to-be-done research insights motivating the opportunity.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "jobs-to-be-done-statements",
-        "capabilityCode": "vision-opportunity-framing",
-        "name": "Jobs-to-be-Done Statements",
-        "contractDescription": "Detailed JTBD customer statements and pain/gain profiles.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "success-metrics-okrs-draft",
-        "capabilityCode": "vision-opportunity-framing",
-        "name": "Success Metrics & OKRs Draft",
-        "contractDescription": "Initial success metrics and objectives/key-results definition for the opportunity.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "initial-risks-assumptions-log",
-        "capabilityCode": "vision-opportunity-framing",
-        "name": "Initial Risks & Assumptions Log",
-        "contractDescription": "Early identification of the risks and unvalidated assumptions the opportunity rests on.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "outcome-based-product-roadmap",
-        "capabilityCode": "vision-opportunity-framing",
-        "name": "Outcome-Based Product Roadmap",
-        "contractDescription": "High-level strategic roadmap mapping opportunity horizons and target business outcomes.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "executive-approved"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "vision",
-        "capabilityCode": "vision-opportunity-framing",
-        "name": "Core Vision Document",
-        "contractDescription": "Comprehensive strategic vision narrative and core market thesis.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "executive-approved"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
+        "code": "requirements-discovery-service"
       }
     ],
     "authorityRules": [
@@ -195,26 +38,7 @@
         "authorisedRole": "general"
       }
     ],
-    "policies": [
-      {
-        "code": "policy-empirical-market-validation",
-        "name": "Empirical Market Validation Policy",
-        "category": "Organisation",
-        "constraintType": "Policy",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "conditionType": "always_true",
-        "severity": "high"
-      },
-      {
-        "code": "policy-strategic-investment-alignment",
-        "name": "Strategic Investment Alignment Policy",
-        "category": "Quality",
-        "constraintType": "Standard",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "conditionType": "always_true",
-        "severity": "medium"
-      }
-    ],
+    "policies": [],
     "checklists": [
       {
         "name": "Vision & Opportunity (SDLC Phase 0) Checklist",

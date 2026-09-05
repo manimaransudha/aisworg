@@ -24,7 +24,7 @@ async function commissionTestSeuWithDeliverable(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
@@ -32,7 +32,7 @@ async function commissionTestSeuWithDeliverable(statementPrefix: string) {
   const seuId = result.seu.id;
 
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Specification");
+  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec);
   return { seuId, deliverableId: requirementsSpec.id };
 }

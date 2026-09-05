@@ -13,7 +13,7 @@ import pool from "../src/utils/db.js";
 import { commissionFromForm, commissionSeu } from "../src/routes/seu/core/commissioning.js";
 import { getEffectiveGovernanceModel } from "../src/routes/seu/core/governanceModel.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
-import { createObjective } from "../src/routes/seu/core/objectives.js";
+import { createObjective, submitObjective, transitionObjective } from "../src/routes/seu/core/objectives.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
@@ -30,7 +30,7 @@ after(async () => {
 
 test("FR-3.3: a commissioned SEU's Engineering Behavior Model is versioned (version 1 for the first)", async () => {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromForm({ statement: `ebm-version-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"], actorRole: "super", actorId: "1001", requestedBy: 1001 });
+  const result = await commissionFromForm({ statement: `ebm-version-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorRole: "super", actorId: "1001", requestedBy: 1001 });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
   const { data: seu } = await seusDB.findById(result.seu.id);
@@ -39,14 +39,31 @@ test("FR-3.3: a commissioned SEU's Engineering Behavior Model is versioned (vers
 });
 
 test("FR-21.1: an SEU exposes one effective Governance Model derived from its EBM (authority rules, policies, quality gates)", async () => {
-  await ensureWebAppTemplateFixture();
-  const result = await commissionFromForm({ statement: `gov-model-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"], actorRole: "super", actorId: "1001", requestedBy: 1001 });
-  assert.equal(result.ok, true);
+  // CR-087 — pinned to the fixture Template directly (commissionSeu, not
+  // commissionFromForm's own auto-matching): test-enterprise-web-application
+  // gained a 4th required capability (requirements-validation, CR-087 Step
+  // 2d) alongside every other seeded Template, which the "smallest
+  // satisfying candidate wins" selection in findCandidateTemplates is
+  // sensitive to — a different Template being picked broke this test's own
+  // assumptions about exactly which Packs get composed.
+  const { template: fixtureTemplate } = await ensureWebAppTemplateFixture();
+  const { data: profile } = await profilesDB.upsert({ code: `gov-model-profile-${randomUUID()}`, name: "Gov Model Profile", baseTemplateId: fixtureTemplate.id, environment: "development", configParameters: {} });
+  const { objective: govRoot } = await createObjective({ statement: `gov-model-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed" });
+  const { objective } = await createObjective({ statement: `gov-model-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], tier: "Engineering", parentObjectiveId: govRoot.id, requestedBy: 1001, status: "Proposed" });
+  await submitObjective(objective.id, 1001);
+  const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: "1001" });
+  assert.equal(activated.ok, true);
+
+  const result = await commissionSeu({ objectiveId: objective.id, templateId: fixtureTemplate.id, profileId: profile!.id, actorRole: "super", actorId: "1001", requestedBy: 1001 });
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
 
   const model = await getEffectiveGovernanceModel(result.seu.id);
   assert.ok(model, "expected an effective governance model");
   assert.equal(model!.ebm.version, 1);
+  // "development" (openup-development.pack.json) is the fixture's own
+  // mandatory Pack contributing software-construction — no Pack anywhere in
+  // this codebase has "software-construction" as its own top-level code.
   assert.ok(model!.ebm.composedPacks.some((p) => p.packCode === "development"), "the EBM's composed packs are listed");
   assert.ok(model!.authorityRules.some((r) => r.governedTransition === "deliverable.transition"), "authority rules derived from composed packs");
   assert.ok(model!.qualityGates.length >= 1, "quality gates derived from composed packs");

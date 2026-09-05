@@ -1,0 +1,74 @@
+{
+  "code": "legacy-knowledge-recovery",
+  "name": "Legacy Knowledge Recovery",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Reconstructs engineering knowledge (requirements, architecture, business rules) that legacy systems never documented or have since lost, from source code, historical records, and operational history — the capability CR-087's review found no seeded Template had a real producer for.",
+  "owner": "Platform",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "legacy-modernisation"
+      }
+    ],
+    "services": [
+      {
+        "code": "legacy-knowledge-reconstruction-service"
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Legacy Knowledge Recovery Checklist",
+        "description": "Validation checklist for knowledge reconstructed from legacy artefacts before it's trusted as a basis for modernisation decisions.",
+        "items": [
+          {
+            "statement": "Every reconstructed knowledge item cites the legacy artefact(s), historical record, or operational history it was derived from."
+          },
+          {
+            "statement": "Reconstructed business rules and behaviour have been cross-checked against the legacy system's actual observed behaviour, not inferred from code alone."
+          },
+          {
+            "statement": "Gaps where no reliable source could confirm the reconstructed knowledge are explicitly flagged, not silently filled in."
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "knowledge-base-articles",
+        "name": "Legacy Knowledge Recovery Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The reconstructed knowledge has been reviewed and accepted as an accurate, provenanced basis for modernisation decisions.",
+        "prompt": "Is the reconstructed knowledge accurate, properly sourced, and honest about what couldn't be confirmed?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Legacy Knowledge Recovery Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

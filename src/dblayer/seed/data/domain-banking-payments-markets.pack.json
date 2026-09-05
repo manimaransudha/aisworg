@@ -1,0 +1,72 @@
+{
+  "code": "domain-banking-payments-markets",
+  "name": "Banking, Payments & Capital Markets Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for Core Banking, Payment Processing, and Capital Markets, covering KYC onboarding, general ledger posting, funds transfer (ACH/Wire/SWIFT), ISO 20022 clearing, payment chargeback disputes, order management (OMS/EMS), trade matching, FIX protocol, and T+1 trade settlement.",
+  "owner": "Global Banking & Capital Markets Operations Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-banking-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-banking-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Banking, Payments & Capital Markets Audit Checklist",
+        "description": "Validation checklist for KYC onboarding, ISO 20022 payment clearing, pre-trade risk checks, and trade settlement.",
+        "items": [
+          {
+            "statement": "Customer KYC verification confirms identity documents against sanctions and PEP databases.",
+            "group": "KYC Onboarding"
+          },
+          {
+            "statement": "Payment messages follow ISO 20022 XML formats (pacs.008, camt.053) for domestic and international wire transfers.",
+            "group": "Payment Messaging"
+          },
+          {
+            "statement": "Chargeback dispute workflows capture representment evidence within card scheme deadlines (Visa/Mastercard).",
+            "group": "Payment Disputes"
+          },
+          {
+            "statement": "Pre-trade risk engine validates buying power and position limits in sub-millisecond execution windows.",
+            "group": "Pre-Trade Risk"
+          },
+          {
+            "statement": "Trade confirmation and allocation messages match counterparty instructions for T+1 settlement.",
+            "group": "Trade Clearing & Settlement"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "banking-operations-signoff-gate",
+        "name": "Head of Banking & Trading Operations Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Head of Trading & Banking Operations confirms that KYC onboarding, ISO 20022 payment clearing, and pre-trade risk checks meet financial regulations.",
+        "prompt": "Does the banking and trading documentation confirm transaction integrity and pre-trade risk enforcement?",
+        "participant": "human",
+        "outputContract": "banking-payments-attestation",
+        "checklistIds": [
+          "Banking, Payments & Capital Markets Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

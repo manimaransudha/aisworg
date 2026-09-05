@@ -1,0 +1,80 @@
+{
+  "code": "integration-gitlab",
+  "name": "GitLab DevOps Platform Integration",
+  "category": "Integration",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Integration pack for GitLab, providing connectivity to GitLab Git repositories, Merge Request reviews, `.gitlab-ci.yml` pipeline triggers, Container Registry, and SAST/DAST security scanning.",
+  "owner": "Developer Platform Integration Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "engineering-work-review",
+        "name": "Code Review",
+        "description": "Integrates GitLab Merge Request code discussions, code owner approvals, and diff reviews."
+      },
+      {
+        "code": "software-release",
+        "name": "DevOps & CI/CD Engineering",
+        "description": "Integrates GitLab CI/CD runner pipelines, artifact caching, and multi-stage deployment jobs."
+      },
+      {
+        "code": "protect-organisational-assets",
+        "name": "Security Engineering",
+        "description": "Integrates GitLab SAST, Dependency Scanning, Secret Detection, and License Compliance."
+      }
+    ],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-gitlab-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-gitlab-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "GitLab Integration Verification Checklist",
+        "description": "Validation checklist for GitLab API token access, project webhooks, and GitLab CI runner tags.",
+        "items": [
+          {
+            "statement": "GitLab Personal / Project Access Token grants api scope for repository and pipeline access.",
+            "group": "Authentication & Access"
+          },
+          {
+            "statement": "GitLab Webhook triggers on Merge Request events and Push events with secret token verification.",
+            "group": "Webhook Integration"
+          },
+          {
+            "statement": "GitLab CI runner tags match deployment environment requirements (docker, shell, kubernetes).",
+            "group": "CI/CD Pipeline Runners"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "gitlab-integration-review-gate",
+        "name": "GitLab Integration Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The DevOps Engineer confirms that GitLab API tokens and runner configurations satisfy connectivity requirements.",
+        "prompt": "Does the GitLab integration verification confirm pipeline trigger capability and access scope?",
+        "participant": "human",
+        "outputContract": "gitlab-integration-attestation",
+        "checklistIds": [
+          "GitLab Integration Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

@@ -13,7 +13,7 @@
 //      checkSustainedCapabilityShortages doesn't throw and (when it's the
 //      first detection) raises a real Obligation attached to one
 //      representative SEU. This one is deliberately not asserted as
-//      strictly raised:true — "architecture-solution-design"/"development" are real, shared
+//      strictly raised:true — "architecture-design"/"software-construction" are real, shared
 //      Capabilities other tests across this whole suite also leave
 //      Unfulfilled, so an earlier test run may have already raised (and
 //      correctly deduplicated) the same pattern; asserting the mechanism
@@ -51,7 +51,7 @@ async function commissionTestSeu(statementPrefix: string): Promise<string> {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
@@ -124,14 +124,14 @@ test("Capability shortage: findUnfulfilledByCapability surfaces real SEUs missin
     await commissionTestSeu("capability-shortage-b"),
     await commissionTestSeu("capability-shortage-c"),
   ];
-  // Deliberately leave "architecture-solution-design" unfulfilled on all three — a real,
+  // Deliberately leave "architecture-design" unfulfilled on all three — a real,
   // shared Capability other tests also leave Unfulfilled, which is exactly
   // why this test only asserts the subset it directly controls, not an
   // exact count.
 
   const { data: shortages, error } = await seuCapabilitiesDB.findUnfulfilledByCapability();
   assert.equal(error, undefined);
-  const architecture = (shortages ?? []).find((s) => s.capability_code === "architecture-solution-design");
+  const architecture = (shortages ?? []).find((s) => s.capability_code === "architecture-design");
   assert.ok(architecture, "expected 'architecture' to appear as an unfulfilled Capability");
   for (const seuId of seuIds) {
     assert.ok(architecture!.seu_ids.includes(seuId), `expected ${seuId} among architecture's unfulfilled SEUs`);
@@ -168,27 +168,27 @@ test("Capability shortage: dedup survives the representative SEU actually shifti
     await commissionTestSeu("capability-shortage-shift-b"),
     await commissionTestSeu("capability-shortage-shift-c"),
   ];
-  // Deliberately leave "architecture-solution-design" unfulfilled on all three, same as the
+  // Deliberately leave "architecture-design" unfulfilled on all three, same as the
   // test above — first pass establishes (or confirms already-deduplicated)
-  // the pattern for "architecture-solution-design".
+  // the pattern for "architecture-design".
   const before = await checkSustainedCapabilityShortages();
   void before;
   const afterFirstPass = await countMarked();
 
   const { data: shortagesBefore } = await seuCapabilitiesDB.findUnfulfilledByCapability();
-  const architectureBefore = (shortagesBefore ?? []).find((s) => s.capability_code === "architecture-solution-design");
+  const architectureBefore = (shortagesBefore ?? []).find((s) => s.capability_code === "architecture-design");
   assert.ok(architectureBefore);
   const representativeBefore = architectureBefore!.seu_ids[0];
 
-  // Commission one more SEU leaving "architecture-solution-design" unfulfilled — newer than
+  // Commission one more SEU leaving "architecture-design" unfulfilled — newer than
   // all three above, so it becomes the new representative (newest-first).
   const newestSeuId = await commissionTestSeu("capability-shortage-shift-newest");
 
   const { data: shortagesAfter } = await seuCapabilitiesDB.findUnfulfilledByCapability();
-  const architectureAfter = (shortagesAfter ?? []).find((s) => s.capability_code === "architecture-solution-design");
+  const architectureAfter = (shortagesAfter ?? []).find((s) => s.capability_code === "architecture-design");
   assert.ok(architectureAfter);
   const representativeAfter = architectureAfter!.seu_ids[0];
-  // Not asserted as strictly === newestSeuId: "architecture-solution-design" is a real,
+  // Not asserted as strictly === newestSeuId: "architecture-design" is a real,
   // shared Capability other test *files* also leave Unfulfilled, and the
   // full suite runs files concurrently — a different file's SEU can land
   // even newer than this test's own between these two queries. What this

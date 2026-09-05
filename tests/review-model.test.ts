@@ -33,13 +33,13 @@ async function commissionSeu(prefix: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromForm({
     statement: `${prefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
   const detail = await getSeuDetailView(result.seu.id);
-  const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Specification");
+  const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(deliverable);
   return { seuId: result.seu.id, deliverable };
 }
@@ -56,7 +56,7 @@ async function walkReviewToAccepted(reviewId: string, outcome: "Passed" | "Passe
 test("a Review runs its full lifecycle without modifying the reviewed object; its outcome is set at Completion and is immutable", async () => {
   const { seuId, deliverable } = await commissionSeu("review-lifecycle");
 
-  const review = await createReview({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Architecture", name: "Architecture Review of Requirements Specification" });
+  const review = await createReview({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Architecture", name: "Architecture Review of Requirements Analysis Model" });
   assert.equal(review.status, "Planned");
   assert.equal(review.outcome, null, "a fresh Review has no outcome");
 

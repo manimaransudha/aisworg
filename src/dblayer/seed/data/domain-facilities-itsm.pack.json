@@ -1,0 +1,72 @@
+{
+  "code": "domain-facilities-itsm",
+  "name": "Facilities, Fleet & IT Service Management (ITSM) Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for Facilities Management, Fleet Operations, and IT Service Management (ITIL ITSM), covering corporate space allocation, facilities work requests, fleet vehicle acquisition/maintenance, ITIL Incident, Problem, Change, Configuration (CMDB), and Release management.",
+  "owner": "Global Facilities & IT Operations Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-facilities-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-facilities-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Facilities, Fleet & ITSM Audit Checklist",
+        "description": "Validation checklist for facilities work orders, fleet inspections, ITIL incident management, CAB change control, and CMDB tracking.",
+        "items": [
+          {
+            "statement": "Facilities work requests log building location, asset ID, priority, and vendor maintenance SLA.",
+            "group": "Facilities Work Orders"
+          },
+          {
+            "statement": "Fleet vehicles undergo scheduled preventive maintenance and fuel card usage audits.",
+            "group": "Fleet Management"
+          },
+          {
+            "statement": "ITIL Incident Management logs impact/urgency and drives root-cause Problem Management investigations.",
+            "group": "ITIL Incident & Problem"
+          },
+          {
+            "statement": "Change Advisory Board (CAB) evaluates production change risk, implementation plan, and rollback procedures.",
+            "group": "ITSM Change Control"
+          },
+          {
+            "statement": "Configuration Management Database (CMDB) maps relationship dependencies across hardware, software, and services.",
+            "group": "CMDB Configuration"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "vp-it-operations-signoff-gate",
+        "name": "VP of IT & Facilities Operations Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The VP of IT & Facilities Operations confirms that facilities maintenance, fleet tracking, and ITIL CAB change controls satisfy operational benchmarks.",
+        "prompt": "Does the documentation confirm ITIL change control compliance and facilities SLA performance?",
+        "participant": "human",
+        "outputContract": "facilities-itsm-attestation",
+        "checklistIds": [
+          "Facilities, Fleet & ITSM Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

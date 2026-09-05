@@ -202,7 +202,7 @@
         <input type="hidden" name="parentDeliverableDefinitionId" value="<%= inheritingFromDeliverableDefinitionId %>">
       <% } %>
 
-      <%- include('../_generatedFieldGroups', { groups: groups, canEdit: canEdit, isNew: isNew, kindLabel: kindLabel, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, templateOptions: locals.templateOptions, ontologyOptions: locals.ontologyOptions, packCodeVersions: locals.packCodeVersions, contributionHelp: locals.contributionHelp, verifiableFieldHelp: locals.verifiableFieldHelp, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions, renderMarkdown: locals.renderMarkdown }) %>
+      <%- include('../_generatedFieldGroups', { groups: groups, canEdit: canEdit, isNew: isNew, kindLabel: kindLabel, referentialOptions: locals.referentialOptions, packDependencyOptions: locals.packDependencyOptions, templateOptions: locals.templateOptions, ontologyOptions: locals.ontologyOptions, packCodeVersions: locals.packCodeVersions, contributionHelp: locals.contributionHelp, verifiableFieldHelp: locals.verifiableFieldHelp, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions, serviceDefinitionOptions: locals.serviceDefinitionOptions, renderMarkdown: locals.renderMarkdown }) %>
 
       <% if (canEdit || canPublish) { %>
         <div class="authoring-action-bar">

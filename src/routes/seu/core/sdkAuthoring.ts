@@ -22,6 +22,8 @@ import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { profilesDB } from "../../../dblayer/profilesDB.js";
 import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
+import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
+import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
 import {
   advancePackOneStep, validatePackSeed, packMetadataFromSeed, findActiveCompositionSource, packCodeVersionSummaries, alternateBadgesForPackTransition,
   type PackSeedInput,
@@ -33,13 +35,23 @@ import {
   inheritedDeliverableDefinitionContent,
   type DeliverableDefinitionSeedInput,
 } from "./deliverableDefinitions.js";
+import {
+  advanceServiceDefinitionOneStep, validateServiceDefinitionSeed,
+  inheritedServiceDefinitionContent,
+  type ServiceDefinitionSeedInput,
+} from "./serviceDefinitions.js";
+import {
+  advancePolicyDefinitionOneStep, validatePolicyDefinitionSeed,
+  inheritedPolicyDefinitionContent,
+  type PolicyDefinitionSeedInput,
+} from "./policyDefinitions.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 import { eventsDB } from "../../../dblayer/eventsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { compositionEngine, type CompositionSource } from "../../../domain/engine/compositionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { listCurrentTransitionDefinitions } from "./transitionDefinitions.js";
-import type { PackContributions, PackRow, ProfileRow, SchemaDefinitionEntityKind, TemplateRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
+import type { PackContributions, PackRow, PolicyCondition, ProfileRow, SchemaDefinitionEntityKind, ServiceLevelExpectation, TemplateRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { randomUUID } from "node:crypto";
 
 // ---------------------------------------------------------------------------
@@ -57,10 +69,9 @@ export function toPackSeedInput(content: Record<string, unknown>): PackSeedInput
     if (Array.isArray(flat) && flat.length) return flat;
     return Array.isArray(legacy[legacyKey]) ? (legacy[legacyKey] as unknown[]) : [];
   };
-  const compliance = (typeof content.contributionsCompliance === "object" && content.contributionsCompliance ? content.contributionsCompliance : {}) as Record<string, unknown[]>;
   const contributions = {
     capabilities: arr("contributionCapabilities", "capabilities"),
-    services: arr("contributionServices", "services"),
+    services: normalizeServiceContributions(arr("contributionServices", "services")),
     authorityRules: arr("contributionAuthorityRules", "authorityRules"),
     policies: arr("contributionPolicies", "policies"),
     qualityGates: arr("contributionQualityGates", "qualityGates"),
@@ -68,8 +79,7 @@ export function toPackSeedInput(content: Record<string, unknown>): PackSeedInput
     reviewGates: arr("contributionReviewGates", "reviewGates"),
     obligationDefinitions: arr("contributionObligationDefinitions", "obligationDefinitions"),
     engineeringCapital: arr("contributionEngineeringCapital", "engineeringCapital"),
-    complianceFrameworks: Array.isArray(compliance.complianceFrameworks) ? compliance.complianceFrameworks : (legacy.complianceFrameworks ?? []),
-    complianceRequirements: Array.isArray(compliance.complianceRequirements) ? compliance.complianceRequirements : (legacy.complianceRequirements ?? []),
+    complianceCodes: normalizeReferentialCodes(arr("contributionComplianceCodes", "complianceCodes"), "complianceCode"),
   } as unknown as PackSeedInput["contributions"];
   return {
     ...(content as unknown as PackSeedInput),
@@ -110,6 +120,31 @@ function normalizePackCodes(raw: unknown): string[] {
 }
 function normalizeFeatureFlagCodes(raw: unknown): string[] {
   return normalizeReferentialCodes(raw, "featureCode");
+}
+
+// CR-086 follow-on — contributionServices[].serviceLevel is now Pack-side
+// TARGET OVERRIDES only ({code, target}, owner: "these fields do not have to
+// be stored"). parseReferentialListField (formGenerator.ts) stringifies
+// every non-array/non-boolean item field regardless of its own declared
+// schema type (target's own "type":"number" isn't special-cased there,
+// same reason toServiceLevelExpectations below has to coerce Service
+// Definition's own serviceLevel target) — so a form-submitted target arrives
+// as a string here and needs the same Number(...) coercion before
+// core/packs.ts compares/merges it against the Definition's own numeric
+// target.
+function normalizeServiceContributions(raw: unknown): Array<{ code: string; serviceLevel: Array<{ code: string; target: number }> }> {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((entry) => {
+    const e = (entry && typeof entry === "object" ? entry : {}) as Record<string, unknown>;
+    const levels = Array.isArray(e.serviceLevel) ? e.serviceLevel : [];
+    return {
+      code: typeof e.code === "string" ? e.code : "",
+      serviceLevel: levels
+        .filter((sl): sl is Record<string, unknown> => typeof sl === "object" && sl !== null)
+        .map((sl) => ({ code: typeof sl.code === "string" ? sl.code : "", target: typeof sl.target === "number" ? sl.target : Number(sl.target) }))
+        .filter((sl) => sl.code && !Number.isNaN(sl.target)),
+    };
+  });
 }
 
 // Owner: "Why is code not auto generated? There is a Name field that can be
@@ -182,12 +217,100 @@ export function toDeliverableDefinitionSeedInput(content: Record<string, unknown
   };
 }
 
+// CR-086/Ch.11 follow-on (migration 155) — serviceLevel is a real nested-list
+// field now (one object per measurable expectation), not free text. Loosely
+// validated here (right shape, right primitive types per field) — full
+// enum/required-field enforcement is validateServiceDefinitionSeed's job.
+function toServiceLevelExpectations(value: unknown): ServiceLevelExpectation[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((v): v is Record<string, unknown> => typeof v === "object" && v !== null)
+    .map((v) => ({
+      code: typeof v.code === "string" ? v.code : "",
+      label: typeof v.label === "string" ? v.label : "",
+      target_level: v.target_level === "maximum" || v.target_level === "exact" ? v.target_level : "minimum",
+      target: typeof v.target === "number" ? v.target : Number(v.target) || 0,
+      units: typeof v.units === "string" ? v.units : "",
+    }))
+    .filter((v) => v.code || v.label);
+}
+
+export function toServiceDefinitionSeedInput(content: Record<string, unknown>): ServiceDefinitionSeedInput {
+  return {
+    code: typeof content.code === "string" ? content.code : "",
+    name: typeof content.name === "string" ? content.name : "",
+    capabilityCode: typeof content.capabilityCode === "string" ? content.capabilityCode : "",
+    purpose: typeof content.purpose === "string" ? content.purpose : undefined,
+    inputs: typeof content.inputs === "string" ? content.inputs : undefined,
+    outputs: typeof content.outputs === "string" ? content.outputs : undefined,
+    serviceLevel: toServiceLevelExpectations(content.serviceLevel),
+    governance: typeof content.governance === "string" ? content.governance : undefined,
+    success: typeof content.success === "string" ? content.success : undefined,
+    consumers: Array.isArray(content.consumers) ? content.consumers.filter((c): c is string => typeof c === "string") : [],
+    version: typeof content.version === "string" && content.version.trim() ? content.version.trim() : "1.0.0",
+  };
+}
+
+// CR-089 — applicabilityDeliverableLifecycle is a real Postgres TEXT[]
+// column (policy_definitions) but has no Ontology backing to drive a
+// multi-select widget, so the schema represents it as a plain
+// comma-separated string (same convention contributionPolicies[].conditionValues
+// already uses, migration 109) — split/trim/filter back to a real array
+// here, the same way toPackSeedInput's parseGovernedTransition-adjacent
+// fields never need to (they're genuinely single strings) but conditionValues
+// itself does (core/packs.ts).
+function toCommaSeparatedList(value: unknown): string[] {
+  return typeof value === "string" ? value.split(",").map((v) => v.trim()).filter(Boolean) : Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
+// `conditions` is authored as raw JSON (x-widget: "json") — parseFormBody
+// (formGenerator.ts) already JSON.parses it back into real objects before
+// this ever runs; only loosely shape-checked here (full field-by-field
+// validation is validatePolicyDefinitionSeed's own job).
+function toPolicyConditions(value: unknown): PolicyCondition[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((v): v is Record<string, unknown> => typeof v === "object" && v !== null)
+    .map((v) => ({
+      statement: typeof v.statement === "string" ? v.statement : "",
+      requiredEvidence: Array.isArray(v.requiredEvidence) ? (v.requiredEvidence as Array<Record<string, unknown>>) : [],
+      severity: (v.severity as PolicyCondition["severity"]) ?? "Medium",
+      exceptionRules: Array.isArray(v.exceptionRules) ? v.exceptionRules.filter((r): r is string => typeof r === "string") : [],
+      relatedObligations: Array.isArray(v.relatedObligations) ? v.relatedObligations.filter((r): r is string => typeof r === "string") : [],
+    }));
+}
+
+export function toPolicyDefinitionSeedInput(content: Record<string, unknown>): PolicyDefinitionSeedInput {
+  return {
+    code: typeof content.code === "string" ? content.code : "",
+    name: typeof content.name === "string" ? content.name : "",
+    description: typeof content.description === "string" ? content.description : undefined,
+    category: typeof content.category === "string" ? content.category : "",
+    constraintType: content.constraintType === "Standard" ? "Standard" : "Policy",
+    applicabilityDeliverableNames: Array.isArray(content.applicabilityDeliverableNames) ? content.applicabilityDeliverableNames.filter((c): c is string => typeof c === "string") : [],
+    applicabilityEnvironments: Array.isArray(content.applicabilityEnvironments) ? content.applicabilityEnvironments.filter((c): c is string => typeof c === "string") : [],
+    applicabilityDeliverableLifecycle: toCommaSeparatedList(content.applicabilityDeliverableLifecycle),
+    conditions: toPolicyConditions(typeof content.conditions === "string" ? safeJsonParse(content.conditions) : content.conditions),
+    version: typeof content.version === "string" && content.version.trim() ? content.version.trim() : "1.0.0",
+  };
+}
+
+function safeJsonParse(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
 // Structural + referential validation, per kind.
 export async function validateAuthoredContent(kind: SchemaDefinitionEntityKind, content: Record<string, unknown>): Promise<{ ok: true } | { ok: false; errors: string[] }> {
   if (kind === "Pack") return validatePackSeed(toPackSeedInput(content));
   if (kind === "Template") return validateTemplateSeed(toTemplateSeedInput(content));
   if (kind === "Profile") return validateProfileSeed(toProfileSeedInput(content));
   if (kind === "Deliverable") return validateDeliverableDefinitionSeed(toDeliverableDefinitionSeedInput(content));
+  if (kind === "Service") return validateServiceDefinitionSeed(toServiceDefinitionSeedInput(content));
+  if (kind === "Policy") return validatePolicyDefinitionSeed(toPolicyDefinitionSeedInput(content));
   return { ok: false, errors: [`no validator wired for kind "${kind}"`] };
 }
 
@@ -215,10 +338,7 @@ function packRowToContent(pack: PackRow): Record<string, unknown> {
     contributionReviewGates: (c as Record<string, unknown[]>).reviewGates ?? [],
     contributionObligationDefinitions: (c as Record<string, unknown[]>).obligationDefinitions ?? [],
     contributionEngineeringCapital: (c as Record<string, unknown[]>).engineeringCapital ?? [],
-    contributionsCompliance: {
-      complianceFrameworks: (c as Record<string, unknown[]>).complianceFrameworks ?? [],
-      complianceRequirements: (c as Record<string, unknown[]>).complianceRequirements ?? [],
-    },
+    contributionComplianceCodes: (c.complianceCodes ?? []).map((complianceCode) => ({ complianceCode })),
     dependencies: pack.dependencies ?? [],
     // CR-067 — the referential-list widget shape ({packCode}), same as
     // dependencies above.
@@ -329,6 +449,14 @@ export async function listTenantAuthoringRows(kind: SchemaDefinitionEntityKind, 
   if (kind === "Deliverable") {
     const { data } = visible ? await deliverableDefinitionsDB.findAll() : await deliverableDefinitionsDB.findAllVisibleTo(viewer.tenantId as string);
     return (data ?? []).map((d) => toSummary({ id: d.id, code: d.code, name: d.code, status: d.status, created_at: d.created_at }));
+  }
+  if (kind === "Service") {
+    const { data } = visible ? await serviceDefinitionsDB.findAll() : await serviceDefinitionsDB.findAllVisibleTo(viewer.tenantId as string);
+    return (data ?? []).map((s) => toSummary({ id: s.id, code: s.code, name: s.name, status: s.status, created_at: s.created_at }));
+  }
+  if (kind === "Policy") {
+    const { data } = visible ? await policyDefinitionsDB.findAll() : await policyDefinitionsDB.findAllVisibleTo(viewer.tenantId as string);
+    return (data ?? []).map((p) => toSummary({ id: p.id, code: p.code, name: p.name, status: p.status, created_at: p.created_at }));
   }
   return [];
 }
@@ -486,7 +614,7 @@ export async function getAuthoringDraft(kind: SchemaDefinitionEntityKind, id: st
     const materialised = t.status === "Draft" ? {} : {
       ...packSelectionsToFormShape(await getPackSelectionsByCategory(t.id)),
       deliverableCatalogue: t.deliverable_catalogue,
-      dependencyGraph: await getDependencyGraphContent(t.id),
+      dependencyGraph: await getDependencyGraphContent(t.id, t.tenant_id),
     };
     return { id: t.id, code: t.code, name: t.name, status: t.status, content: { code: t.code, name: t.name, ...(t.draft_content ?? {}), ...materialised, templateVersion: t.template_version, tenantId: t.tenant_id, parentTemplateId: t.parent_template_id } };
   }
@@ -511,6 +639,39 @@ export async function getAuthoringDraft(kind: SchemaDefinitionEntityKind, id: st
     // Real columns always win, same "authoritative column over possibly-stale
     // draft_content" discipline getAuthoringDraft's Template branch uses.
     return { id: d.id, code: d.code, name: d.code, status: d.status, content: { ...(d.draft_content ?? {}), code: d.code, description: d.description ?? "", definitionVersion: d.version, tenantId: d.tenant_id, parentDeliverableDefinitionId: d.parent_deliverable_definition_id } };
+  }
+  if (kind === "Service") {
+    const { data: s } = await serviceDefinitionsDB.findById(id);
+    if (!s) return null;
+    // Same "real columns always win" discipline — every CSV-derived field is
+    // a real column on service_definitions, not draft_content-only.
+    return {
+      id: s.id, code: s.code, name: s.name, status: s.status,
+      content: {
+        ...(s.draft_content ?? {}), code: s.code, name: s.name, capabilityCode: s.capability_code,
+        purpose: s.purpose ?? "", inputs: s.inputs ?? "", outputs: s.outputs ?? "", serviceLevel: s.service_level,
+        governance: s.governance ?? "", success: s.success ?? "", consumers: s.consumers, version: s.version,
+        tenantId: s.tenant_id, parentServiceDefinitionId: s.parent_service_definition_id,
+      },
+    };
+  }
+  if (kind === "Policy") {
+    const { data: p } = await policyDefinitionsDB.findById(id);
+    if (!p) return null;
+    // Same "real columns always win" discipline — every field is a real
+    // column on policy_definitions, not draft_content-only.
+    // applicabilityDeliverableLifecycle/conditions round-trip through the
+    // same string representation the form/schema itself uses (comma list,
+    // JSON text) — see toPolicyDefinitionSeedInput's own comment for why.
+    return {
+      id: p.id, code: p.code, name: p.name, status: p.status,
+      content: {
+        ...(p.draft_content ?? {}), code: p.code, name: p.name, description: p.description ?? "", category: p.category, constraintType: p.constraint_type,
+        applicabilityDeliverableNames: p.applicability_deliverable_names, applicabilityEnvironments: p.applicability_environments,
+        applicabilityDeliverableLifecycle: p.applicability_deliverable_lifecycle.join(", "), conditions: p.conditions, version: p.version,
+        tenantId: p.tenant_id, parentPolicyDefinitionId: p.parent_policy_definition_id,
+      },
+    };
   }
   return null;
 }
@@ -656,10 +817,7 @@ export async function inheritedPackVersionContent(fromPackId: string, viewerTena
       contributionReviewGates: c.reviewGates ?? [],
       contributionObligationDefinitions: c.obligationDefinitions ?? [],
       contributionEngineeringCapital: c.engineeringCapital ?? [],
-      contributionsCompliance: {
-        complianceFrameworks: c.complianceFrameworks ?? [],
-        complianceRequirements: c.complianceRequirements ?? [],
-      },
+      contributionComplianceCodes: (c.complianceCodes ?? []).map((complianceCode) => ({ complianceCode })),
       dependencies: source.dependencies,
       compositionSources: source.composition_sources,
     },
@@ -786,7 +944,7 @@ async function emitConceptCreatedIfUnregistered(packId: string, code: string, ca
 // it's ignored for that kind. parentTemplateId (CR-026 Template Inheritance,
 // Template only) — set only when the author chose a parent via the "Inherit"
 // control; ignored for every other kind.
-export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntityKind; actorId: string; tenantId?: string; parentTemplateId?: string; parentProfileId?: string; parentDeliverableDefinitionId?: string; content: Record<string, unknown> }): Promise<AuthoringResult> {
+export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntityKind; actorId: string; tenantId?: string; parentTemplateId?: string; parentProfileId?: string; parentDeliverableDefinitionId?: string; parentServiceDefinitionId?: string; parentPolicyDefinitionId?: string; content: Record<string, unknown> }): Promise<AuthoringResult> {
   const authoredBy = Number(input.actorId);
   if (input.kind === "Pack") {
     // A Pack Draft is created directly (status Draft) from the authored content;
@@ -932,6 +1090,70 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     if (error || !d) return { ok: false, errors: [(error ?? new Error("failed to create Deliverable Definition draft")).message] };
     return { ok: true, draftId: d.id };
   }
+  if (input.kind === "Service") {
+    const seed = toServiceDefinitionSeedInput(input.content);
+    const tenantId = input.tenantId ?? PLATFORM_TENANT_ID;
+    if (input.parentServiceDefinitionId) {
+      const inherited = await inheritedServiceDefinitionContent(input.parentServiceDefinitionId);
+      if (!inherited.ok) return { ok: false, errors: [inherited.error] };
+      if (!seed.code) seed.code = inherited.content.code as string;
+      if (!seed.name) seed.name = inherited.content.name as string;
+      if (!seed.capabilityCode) seed.capabilityCode = inherited.content.capabilityCode as string;
+      if (!seed.purpose) seed.purpose = inherited.content.purpose as string;
+    }
+    const validation = await validateServiceDefinitionSeed({ ...seed, tenantId, parentServiceDefinitionId: input.parentServiceDefinitionId }, undefined);
+    if (!validation.ok) return { ok: false, errors: validation.errors };
+    const { data: s, error } = await serviceDefinitionsDB.createDraft({
+      code: seed.code,
+      name: seed.name,
+      capabilityCode: seed.capabilityCode,
+      purpose: seed.purpose ?? null,
+      inputs: seed.inputs ?? null,
+      outputs: seed.outputs ?? null,
+      serviceLevel: seed.serviceLevel ?? [],
+      governance: seed.governance ?? null,
+      success: seed.success ?? null,
+      consumers: seed.consumers ?? [],
+      version: seed.version,
+      authoredBy,
+      draftContent: input.content,
+      tenantId,
+      parentServiceDefinitionId: input.parentServiceDefinitionId ?? null,
+    });
+    if (error || !s) return { ok: false, errors: [(error ?? new Error("failed to create Service Definition draft")).message] };
+    return { ok: true, draftId: s.id };
+  }
+  if (input.kind === "Policy") {
+    const seed = toPolicyDefinitionSeedInput(input.content);
+    const tenantId = input.tenantId ?? PLATFORM_TENANT_ID;
+    if (input.parentPolicyDefinitionId) {
+      const inherited = await inheritedPolicyDefinitionContent(input.parentPolicyDefinitionId);
+      if (!inherited.ok) return { ok: false, errors: [inherited.error] };
+      if (!seed.code) seed.code = inherited.content.code as string;
+      if (!seed.name) seed.name = inherited.content.name as string;
+      if (!seed.category) seed.category = inherited.content.category as string;
+    }
+    const validation = await validatePolicyDefinitionSeed({ ...seed, tenantId, parentPolicyDefinitionId: input.parentPolicyDefinitionId }, undefined);
+    if (!validation.ok) return { ok: false, errors: validation.errors };
+    const { data: p, error } = await policyDefinitionsDB.createDraft({
+      code: seed.code,
+      name: seed.name,
+      description: seed.description ?? null,
+      category: seed.category,
+      constraintType: seed.constraintType,
+      applicabilityDeliverableNames: seed.applicabilityDeliverableNames ?? [],
+      applicabilityEnvironments: seed.applicabilityEnvironments ?? [],
+      applicabilityDeliverableLifecycle: seed.applicabilityDeliverableLifecycle ?? [],
+      conditions: seed.conditions ?? [],
+      version: seed.version,
+      authoredBy,
+      draftContent: input.content,
+      tenantId,
+      parentPolicyDefinitionId: input.parentPolicyDefinitionId ?? null,
+    });
+    if (error || !p) return { ok: false, errors: [(error ?? new Error("failed to create Policy Definition draft")).message] };
+    return { ok: true, draftId: p.id };
+  }
   return { ok: false, errors: [`kind "${input.kind}" is not authorable`] };
 }
 
@@ -1024,6 +1246,36 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     if (!data) return { ok: false, errors: ["draft not found or no longer editable (only Draft rows can be saved)"] };
     return { ok: true };
   }
+  if (input.kind === "Service") {
+    const { data: existing } = await serviceDefinitionsDB.findById(input.id);
+    if (!existing) return { ok: false, errors: ["draft not found or no longer editable (only Defined rows can be saved)"] };
+    const seed = toServiceDefinitionSeedInput({ ...input.content });
+    const validation = await validateServiceDefinitionSeed({ ...seed, tenantId: existing.tenant_id, parentServiceDefinitionId: existing.parent_service_definition_id ?? undefined }, input.id);
+    if (!validation.ok) return { ok: false, errors: validation.errors };
+    const { data, error } = await serviceDefinitionsDB.updateDraftContent(input.id, {
+      code: seed.code, name: seed.name, capabilityCode: seed.capabilityCode, purpose: seed.purpose ?? null, inputs: seed.inputs ?? null,
+      outputs: seed.outputs ?? null, serviceLevel: seed.serviceLevel ?? [], governance: seed.governance ?? null, success: seed.success ?? null,
+      consumers: seed.consumers ?? [], version: seed.version, draftContent: input.content,
+    });
+    if (error) return { ok: false, errors: [error.message] };
+    if (!data) return { ok: false, errors: ["draft not found or no longer editable (only Defined rows can be saved)"] };
+    return { ok: true };
+  }
+  if (input.kind === "Policy") {
+    const { data: existing } = await policyDefinitionsDB.findById(input.id);
+    if (!existing) return { ok: false, errors: ["draft not found or no longer editable (only Draft rows can be saved)"] };
+    const seed = toPolicyDefinitionSeedInput({ ...input.content });
+    const validation = await validatePolicyDefinitionSeed({ ...seed, tenantId: existing.tenant_id, parentPolicyDefinitionId: existing.parent_policy_definition_id ?? undefined }, input.id);
+    if (!validation.ok) return { ok: false, errors: validation.errors };
+    const { data, error } = await policyDefinitionsDB.updateDraftContent(input.id, {
+      code: seed.code, name: seed.name, description: seed.description ?? null, category: seed.category, constraintType: seed.constraintType,
+      applicabilityDeliverableNames: seed.applicabilityDeliverableNames ?? [], applicabilityEnvironments: seed.applicabilityEnvironments ?? [],
+      applicabilityDeliverableLifecycle: seed.applicabilityDeliverableLifecycle ?? [], conditions: seed.conditions ?? [], version: seed.version, draftContent: input.content,
+    });
+    if (error) return { ok: false, errors: [error.message] };
+    if (!data) return { ok: false, errors: ["draft not found or no longer editable (only Draft rows can be saved)"] };
+    return { ok: true };
+  }
   return { ok: false, errors: [`kind "${input.kind}" is not authorable`] };
 }
 
@@ -1107,6 +1359,39 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
     const advanced = await advanceDeliverableDefinitionOneStep(d, input.actorRole, input.actorId);
     if (!advanced.ok) return { ok: false, errors: [`${advanced.reason}${advanced.detail ? `: ${advanced.detail}` : ""}`] };
     return { ok: true, status: advanced.deliverableDefinition.status };
+  }
+  if (input.kind === "Service") {
+    const { data: s } = await serviceDefinitionsDB.findById(input.id);
+    if (!s) return { ok: false, errors: ["Service Definition draft not found"] };
+    if (s.status === "Defined") {
+      const seed = toServiceDefinitionSeedInput({
+        code: s.code, name: s.name, capabilityCode: s.capability_code, purpose: s.purpose ?? undefined, inputs: s.inputs ?? undefined,
+        outputs: s.outputs ?? undefined, serviceLevel: s.service_level, governance: s.governance ?? undefined, success: s.success ?? undefined,
+        consumers: s.consumers, version: s.version, ...(s.draft_content ?? {}),
+      });
+      const validation = await validateServiceDefinitionSeed({ ...seed, tenantId: s.tenant_id, parentServiceDefinitionId: s.parent_service_definition_id ?? undefined }, s.id);
+      if (!validation.ok) return { ok: false, errors: validation.errors };
+    }
+    const advanced = await advanceServiceDefinitionOneStep(s, input.actorRole, input.actorId);
+    if (!advanced.ok) return { ok: false, errors: [`${advanced.reason}${advanced.detail ? `: ${advanced.detail}` : ""}`] };
+    return { ok: true, status: advanced.serviceDefinition.status };
+  }
+  if (input.kind === "Policy") {
+    const { data: p } = await policyDefinitionsDB.findById(input.id);
+    if (!p) return { ok: false, errors: ["Policy Definition draft not found"] };
+    if (p.status === "Draft") {
+      const seed = toPolicyDefinitionSeedInput({
+        code: p.code, name: p.name, description: p.description ?? undefined, category: p.category, constraintType: p.constraint_type,
+        applicabilityDeliverableNames: p.applicability_deliverable_names, applicabilityEnvironments: p.applicability_environments,
+        applicabilityDeliverableLifecycle: p.applicability_deliverable_lifecycle.join(", "), conditions: JSON.stringify(p.conditions), version: p.version,
+        ...(p.draft_content ?? {}),
+      });
+      const validation = await validatePolicyDefinitionSeed({ ...seed, tenantId: p.tenant_id, parentPolicyDefinitionId: p.parent_policy_definition_id ?? undefined }, p.id);
+      if (!validation.ok) return { ok: false, errors: validation.errors };
+    }
+    const advanced = await advancePolicyDefinitionOneStep(p, input.actorRole, input.actorId);
+    if (!advanced.ok) return { ok: false, errors: [`${advanced.reason}${advanced.detail ? `: ${advanced.detail}` : ""}`] };
+    return { ok: true, status: advanced.policyDefinition.status };
   }
   return { ok: false, errors: [`kind "${input.kind}" is not authorable`] };
 }

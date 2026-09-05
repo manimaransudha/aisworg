@@ -1,0 +1,72 @@
+{
+  "code": "test-compliance-soc2",
+  "name": "SOC 2 Type II Trust Services Criteria Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for SOC 2 Type II audit readiness based on AICPA Trust Services Criteria (Security, Availability, Processing Integrity, Confidentiality, Privacy), covering continuous monitoring, vendor risk management, and independent CPA auditor evidence packages.",
+  "owner": "SOC 2 Program Management & Quality Assurance",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-soc2-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-soc2-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "SOC 2 Type II Trust Services Criteria Verification Checklist",
+        "description": "Validation checklist for AICPA SOC 2 Type II audit readiness across CC1-CC9 series controls.",
+        "items": [
+          {
+            "statement": "Tone at the Top and Code of Conduct are communicated annually and acknowledged by 100% of employees (CC1.1).",
+            "group": "Control Environment (CC1)"
+          },
+          {
+            "statement": "Background checks are completed for all employees and contractors prior to granting production access (CC1.4).",
+            "group": "Human Resources & Access (CC1)"
+          },
+          {
+            "statement": "Automated vulnerability scans are performed weekly and penetration tests conducted at least annually (CC7.1).",
+            "group": "Vulnerability Management (CC7)"
+          },
+          {
+            "statement": "Production changes follow documented CAB (Change Advisory Board) approval processes with rollback plans (CC8.1).",
+            "group": "Change Management (CC8)"
+          },
+          {
+            "statement": "Disaster recovery failover test is executed annually demonstrating RTO < 4 hours and RPO < 1 hour.",
+            "group": "Availability Criteria (A1.2)"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "soc2-type2-audit-readiness-gate",
+        "name": "SOC 2 Type II Audit Readiness Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Compliance Officer and Head of Quality Assurance attest that continuous control evidence packages demonstrate operating effectiveness for SOC 2 Type II audit.",
+        "prompt": "Does the SOC 2 evidence repository demonstrate continuous control operating effectiveness across CC1-CC9?",
+        "participant": "human",
+        "outputContract": "soc2-audit-readiness-attestation",
+        "checklistIds": [
+          "SOC 2 Type II Trust Services Criteria Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

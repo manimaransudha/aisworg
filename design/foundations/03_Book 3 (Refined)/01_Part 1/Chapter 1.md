@@ -11,7 +11,7 @@
 
 — an Objective is *why*, not *how much by when* (that's a Goal), not *what property the system must have* (a Requirement), and not *the approach chosen to pursue it* (a Strategy). That distinction is worth preserving exactly, because it's what stops Objective from becoming a dumping ground for everything upstream of engineering work. An Objective says why an SEU exists. It does not say how the SEU will get there — that's Template, Profile and Pack composition's job, downstream.
 
-- Objective should declare or allow derivation of required Capabilities, but it should not itself pick a Template or compose Packs. 
+- Objective should not declare or allow derivation of required Capabilities, but it should not itself pick a Template or compose Packs. 
 - Objective's job ends at "here is what must be achieved, and here is what ability that requires" — it hands off from there.
 ]
  
@@ -41,7 +41,7 @@ This chapter does not define:
 - Template selection or validation logic (Chapter 6);
 - Capability definitions (Chapter 10);
 - Pack composition mechanics (Chapter 4);
-- commissioning workflow (Chapter 8).
+- Commissioning workflow (Chapter 8).
  
 
 ## 3. Architectural Position

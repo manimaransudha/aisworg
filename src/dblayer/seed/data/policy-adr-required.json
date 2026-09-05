@@ -1,0 +1,48 @@
+{
+  "code": "adr-required",
+  "name": "ADR Required",
+  "description": "Every significant engineering decision must be recorded as an ADR, traceable to what it affects, and not left indefinitely in Draft.",
+  "category": "Documentation",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "The decision has a linked ADR record.",
+      "requiredEvidence": [
+        {
+          "type": "adr_record"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "The ADR references the Objective or Deliverable it affects.",
+      "requiredEvidence": [
+        {
+          "type": "adr_record",
+          "field": "affected_entity"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "The ADR's status is Published, not left in Draft beyond the declared grace period.",
+      "requiredEvidence": [
+        {
+          "type": "adr_record",
+          "field": "status"
+        }
+      ],
+      "severity": "Low",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

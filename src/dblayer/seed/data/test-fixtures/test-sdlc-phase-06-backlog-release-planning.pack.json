@@ -11,107 +11,14 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "backlog-release-planning",
+        "code": "requirements-prioritising",
         "name": "Backlog & Release Planning",
         "description": "Translates the product roadmap into a sequenced, dependency-aware backlog and release plan ready for execution."
       }
     ],
     "services": [
       {
-        "code": "outcome-based-product-roadmap",
-        "capabilityCode": "backlog-release-planning",
-        "name": "Outcome-Based Product Roadmap",
-        "contractDescription": "Strategic product roadmap mapping Now/Next/Later horizons to measurable business outcomes.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "executive-approved"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "feature-epic-backlog-acceptance-criteria",
-        "capabilityCode": "backlog-release-planning",
-        "name": "Feature/Epic Backlog & Acceptance Criteria",
-        "contractDescription": "Sequenced user story backlog with explicit Given/When/Then acceptance criteria and story point estimates.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "release-plan",
-        "capabilityCode": "backlog-release-planning",
-        "name": "Release Plan",
-        "contractDescription": "Release milestones, deployment train schedule, scope boundaries, and target release dates.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "feature-flag-rollout-strategy",
-        "capabilityCode": "backlog-release-planning",
-        "name": "Feature Flag & Rollout Strategy",
-        "contractDescription": "Canary deployment, targeted user cohort segmentation, and feature kill-switch rules.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "dependency-map",
-        "capabilityCode": "backlog-release-planning",
-        "name": "Dependency Map",
-        "contractDescription": "Cross-team, inter-service, and external API dependency graph mapping critical path bottlenecks.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "governance-raci-chart",
-        "capabilityCode": "backlog-release-planning",
-        "name": "Governance & RACI Chart",
-        "contractDescription": "Responsible, Accountable, Consulted, and Informed matrix for release decision-making.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
+        "code": "requirement-prioritisation-service"
       }
     ],
     "authorityRules": [
@@ -131,17 +38,7 @@
         "authorisedRole": "general"
       }
     ],
-    "policies": [
-      {
-        "code": "policy-backlog-readiness-standard",
-        "name": "Backlog Readiness Standard Policy",
-        "category": "Organisation",
-        "constraintType": "Standard",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "conditionType": "always_true",
-        "severity": "high"
-      }
-    ],
+    "policies": [],
     "checklists": [
       {
         "name": "Backlog & Release Planning (SDLC Phase 6) Checklist",

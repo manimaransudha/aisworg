@@ -1,0 +1,80 @@
+{
+  "code": "integration-sonarqube",
+  "name": "SonarQube & SonarCloud Integration",
+  "category": "Integration",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Integration pack for SonarQube and SonarCloud, providing connectivity to static code analysis, Quality Gate evaluation, SAST security vulnerability detection, code coverage reporting, and technical debt measurement.",
+  "owner": "Software Quality & Security Engineering Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "software-validation",
+        "name": "Quality Engineering & Hardening",
+        "description": "Integrates SonarQube Quality Gate status, code coverage metrics, and maintainability ratings."
+      },
+      {
+        "code": "protect-organisational-assets",
+        "name": "Security Engineering",
+        "description": "Integrates SonarQube SAST Security Hotspots, Security Vulnerabilities, and OWASP Top 10 compliance."
+      },
+      {
+        "code": "engineering-work-review",
+        "name": "Code Review",
+        "description": "Integrates automated Pull Request quality comments and inline code smell annotations."
+      }
+    ],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-sonarqube-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-sonarqube-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "SonarQube Integration Verification Checklist",
+        "description": "Validation checklist for SonarQube API user token, Quality Gate evaluation, and SCM PR decoration.",
+        "items": [
+          {
+            "statement": "SonarQube User Token authenticates scanner CLI and REST API calls.",
+            "group": "Sonar Token Auth"
+          },
+          {
+            "statement": "SonarQube Quality Gate conditions enforce zero new critical bugs and minimum 80% code coverage on new code.",
+            "group": "Quality Gate Rules"
+          },
+          {
+            "statement": "SonarQube Webhook reports Quality Gate pass/fail status back to CI build pipelines.",
+            "group": "Webhook Quality Gate"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "sonarqube-integration-review-gate",
+        "name": "SonarQube Quality Gate Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Quality Lead confirms that SonarQube Quality Gates and SAST security scans satisfy software quality standards.",
+        "prompt": "Does the SonarQube integration confirm Quality Gate enforcement and PR code decoration?",
+        "participant": "human",
+        "outputContract": "sonarqube-integration-attestation",
+        "checklistIds": [
+          "SonarQube Integration Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

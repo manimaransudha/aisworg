@@ -1,0 +1,72 @@
+{
+  "code": "compliance-iso-27001",
+  "name": "ISO/IEC 27001:2022 ISMS Information Security Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for ISO/IEC 27001:2022 Information Security Management System (ISMS), covering Statement of Applicability (SoA), Annex A controls, risk treatment plans, internal audits, and management review.",
+  "owner": "Information Security & ISMS Governance Committee",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-iso27001-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-iso27001-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "ISO/IEC 27001:2022 ISMS Control Verification Checklist",
+        "description": "Validation checklist for ISO 27001:2022 Clause 4-10 requirements and Annex A controls.",
+        "items": [
+          {
+            "statement": "Statement of Applicability (SoA) covers all 93 controls across Organizational (A.5), People (A.6), Physical (A.7), and Technological (A.8).",
+            "group": "ISMS Scope & SoA (Clause 6.1.3)"
+          },
+          {
+            "statement": "Information Security Risk Register identifies asset owners, threat scenarios, residual risks, and approved Risk Treatment Plans.",
+            "group": "Risk Assessment (Clause 6.1.2)"
+          },
+          {
+            "statement": "Internal audit program executes according to schedule, with independent auditors evaluating control effectiveness.",
+            "group": "Internal Audit (Clause 9.2)"
+          },
+          {
+            "statement": "Top Management conducts formal ISMS Management Reviews annually with recorded minutes and decisions.",
+            "group": "Management Review (Clause 9.3)"
+          },
+          {
+            "statement": "Incident Management procedures specify incident classification, root-cause analysis, and CAPA tracking.",
+            "group": "Incident Management (Annex A.5.24-A.5.28)"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "iso27001-isms-audit-review",
+        "name": "ISO 27001 ISMS Certification Readiness Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The ISMS Lead Auditor and CISO attest that SoA, risk treatment, internal audit results, and Annex A controls satisfy ISO 27001:2022 standards.",
+        "prompt": "Does the ISMS audit evidence demonstrate full readiness for ISO 27001 certification audit?",
+        "participant": "human",
+        "outputContract": "iso27001-isms-attestation",
+        "checklistIds": [
+          "ISO/IEC 27001:2022 ISMS Control Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

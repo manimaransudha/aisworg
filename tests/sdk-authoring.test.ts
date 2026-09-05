@@ -326,7 +326,7 @@ test("CR-081: creating a new Pack from an EXISTING code inherits its content (in
   // its DB column name (contributions.capabilities, nested) — so a check that
   // only re-asserted code/name/packVersion, like this test used to, could
   // never have noticed contributions being dropped.
-  const sourceContent = { ...validPackContent(REAL_PACK_CODE, sourceVersion), contributionCapabilities: [{ code: "code-review", name: "Code Review", description: "Ensures code changes are reviewed." }] };
+  const sourceContent = { ...validPackContent(REAL_PACK_CODE, sourceVersion), contributionCapabilities: [{ code: "engineering-work-review", name: "Code Review", description: "Ensures code changes are reviewed." }] };
   const sourceCreated = await createAuthoringDraft({ kind: "Pack", actorId: ROOT_ACTOR_ID, content: sourceContent });
   assert.equal(sourceCreated.ok, true, !sourceCreated.ok ? sourceCreated.errors.join("; ") : undefined);
   if (!sourceCreated.ok) return;
@@ -354,7 +354,7 @@ test("CR-081: creating a new Pack from an EXISTING code inherits its content (in
   // when rendering the New Pack form's own pre-filled fields.
   const inheritedCapabilities = inherited.content.contributionCapabilities as Array<{ code: string; name: string }>;
   assert.equal(inheritedCapabilities?.length, 1, "Capabilities tab content must survive branching, flattened to contributionCapabilities");
-  assert.equal(inheritedCapabilities?.[0]?.code, "code-review");
+  assert.equal(inheritedCapabilities?.[0]?.code, "engineering-work-review");
 
   const created = await createAuthoringDraft({ kind: "Pack", actorId: ROOT_ACTOR_ID, content: inherited.content });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
@@ -369,7 +369,7 @@ test("CR-081: creating a new Pack from an EXISTING code inherits its content (in
   // createAuthoringDraft's own toPackSeedInput — the saved Draft's real DB
   // column must still carry the same Capability, not have lost it a second
   // time on the way back to the nested shape.
-  assert.deepEqual(newDraft?.contributions?.capabilities, [{ code: "code-review", name: "Code Review", description: "Ensures code changes are reviewed." }]);
+  assert.deepEqual(newDraft?.contributions?.capabilities, [{ code: "engineering-work-review", name: "Code Review", description: "Ensures code changes are reviewed." }]);
 
   // The source itself is completely untouched by being branched from.
   const { data: sourceStillActive } = await packsDB.findById(sourceCreated.draftId);
@@ -422,7 +422,7 @@ function validTemplateContent(code: string, templateVersion: string): Record<str
     name: "SDK Test Template",
     engineeringPackCodes: [{ packCode: "requirements-analysis" }],
     deliverableCatalogue: [
-      { code: "requirements-spec", name: "Requirements Specification", category: "Documentation", producingCapabilityCode: "requirements-analysis" },
+      { code: "requirements-specification", category: "Documentation", producingCapabilityCode: "requirements-analysis" },
     ],
   };
 }
@@ -540,7 +540,18 @@ test("CR-026: publishing a Derived Template is rejected if it drops one of its p
   assert.equal(inherited.ok, true);
   if (!inherited.ok) return;
 
-  const created = await createAuthoringDraft({ kind: "Template", actorId: ROOT_ACTOR_ID, tenantId: ATHENS_TENANT_ID, parentTemplateId: parent.id, content: inherited.content });
+  // CR-087 — this test only cares about mandatoryPackCode preservation, never
+  // deliverableCatalogue content, but re-publishing now validates every
+  // entry's code against the real deliverable-name Ontology
+  // (validateTemplateSeed). No sanitising needed any more: the shared
+  // fixture's own catalogue now carries real, canonical deliverable-name
+  // codes throughout (web-application.template.json was renamed off its old
+  // "Architecture Document" display-text literal), so inherited content
+  // already validates as-is.
+  const inheritedContent = inherited.content as Record<string, unknown>;
+  const sanitisedContent = inheritedContent;
+
+  const created = await createAuthoringDraft({ kind: "Template", actorId: ROOT_ACTOR_ID, tenantId: ATHENS_TENANT_ID, parentTemplateId: parent.id, content: sanitisedContent });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
   if (!created.ok) return;
   createdTemplateIds.push(created.draftId);
@@ -551,7 +562,7 @@ test("CR-026: publishing a Derived Template is rejected if it drops one of its p
   // CR-038 — test-development (the fixture's own mandatory Pack, per the
   // comment above) is category Engineering, so dropping it means blanking
   // engineeringPackCodes specifically now, not a flat list.
-  const strippedContent = { ...inherited.content, templateVersion: "1.0.0", engineeringPackCodes: [] };
+  const strippedContent = { ...sanitisedContent, templateVersion: "1.0.0", engineeringPackCodes: [] };
   const savedStripped = await saveAuthoringDraft({ kind: "Template", id: created.draftId, content: strippedContent });
   assert.equal(savedStripped.ok, true, "WIP is allowed to be incomplete — Save itself must not block this");
 
@@ -561,7 +572,7 @@ test("CR-026: publishing a Derived Template is rejected if it drops one of its p
   const { data: stillDraft } = await templatesDB.findById(created.draftId);
   assert.equal(stillDraft?.status, "Draft", "a rejected publish leaves the Draft a Draft");
 
-  const restored = await saveAuthoringDraft({ kind: "Template", id: created.draftId, content: { ...inherited.content, templateVersion: "1.0.0" } });
+  const restored = await saveAuthoringDraft({ kind: "Template", id: created.draftId, content: { ...sanitisedContent, templateVersion: "1.0.0" } });
   assert.equal(restored.ok, true);
 
   const acceptedPublish = await advanceToActive("Template", created.draftId, ROOT_ACTOR_ID, "general");

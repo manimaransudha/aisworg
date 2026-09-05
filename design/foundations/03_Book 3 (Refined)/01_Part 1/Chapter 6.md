@@ -206,7 +206,6 @@ Templates are reusable across multiple SEUs.
 A Template defines:
 
 - SEU purpose;
-- engineering objectives;
 - default capabilities;
 - default roles;
 - default deliverable catalogue;
@@ -527,7 +526,7 @@ Implementation of this chapter shall produce:
 - Template versioning service.
 - Template inheritance model.
 - Deliverable catalogue model.
-- Capability catalogue model.
+~~- Capability catalogue model.~~
 - Template APIs.
 - Template lifecycle services.
 

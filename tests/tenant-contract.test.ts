@@ -15,10 +15,12 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 
 import pool from "../src/utils/db.js";
-import { commissionFromForm } from "../src/routes/seu/core/commissioning.js";
+import { commissionFromForm, commissionSeu } from "../src/routes/seu/core/commissioning.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
+import { createObjective, submitObjective, transitionObjective } from "../src/routes/seu/core/objectives.js";
+import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { tenantContractsDB } from "../src/dblayer/tenantContractsDB.js";
 import { executionTargetsDB } from "../src/dblayer/executionTargetsDB.js";
@@ -68,13 +70,23 @@ after(async () => {
 });
 
 async function commissionAndDispatch(prefix: string, tenantId: string) {
-  await ensureWebAppTemplateFixture();
-  const result = await commissionFromForm({
-    statement: `${prefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
-    actorRole: "super", actorId: "1001", requestedBy: 1001,
-    tenantId,
-  });
+  // CR-087 — pinned to the fixture Template directly (commissionSeu, not
+  // commissionFromForm's own auto-matching): test-enterprise-web-application
+  // gained a 4th required capability (requirements-validation, CR-087 Step
+  // 2d), which findCandidateTemplates' "smallest satisfying candidate wins"
+  // selection is sensitive to — a different (real) Template being picked has
+  // a much longer prerequisite chain ahead of "Requirements Analysis Model"
+  // than this test's own flow (fulfil requirements-analysis, transition
+  // Requirements Analysis Model directly) drives through.
+  const { template: fixtureTemplate } = await ensureWebAppTemplateFixture();
+  const { data: profile } = await profilesDB.upsert({ code: `tenant-contract-profile-${randomUUID()}`, name: "Tenant Contract Profile", baseTemplateId: fixtureTemplate.id, environment: "development", configParameters: {} });
+  const { objective: tcRoot } = await createObjective({ statement: `tenant-contract-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed" });
+  const { objective } = await createObjective({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], tier: "Engineering", parentObjectiveId: tcRoot.id, requestedBy: 1001, status: "Proposed" });
+  await submitObjective(objective.id, 1001);
+  const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: "1001" });
+  assert.equal(activated.ok, true);
+
+  const result = await commissionSeu({ objectiveId: objective.id, templateId: fixtureTemplate.id, profileId: profile!.id, actorRole: "super", actorId: "1001", requestedBy: 1001, tenantId });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
   const seuId = result.seu.id;
@@ -84,7 +96,7 @@ async function commissionAndDispatch(prefix: string, tenantId: string) {
   assert.equal(seuRow?.tenant_id, tenantId, "the commissioned SEU belongs to its tenant");
 
   const detail = await getSeuDetailView(seuId);
-  const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Specification");
+  const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
   assert.ok(deliverable && capability);
   await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantType: "AI", displayName: `${prefix} Agent` });
@@ -158,7 +170,7 @@ test("a SEU commissioned without a named tenant belongs to the seeded default te
   assert.ok(def, "a default tenant is seeded");
   const result = await commissionFromForm({
     statement: `tenant-default-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,
   });
   assert.equal(result.ok, true);

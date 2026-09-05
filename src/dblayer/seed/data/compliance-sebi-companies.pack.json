@@ -1,0 +1,68 @@
+{
+  "code": "compliance-sebi-companies",
+  "name": "India Companies Act & SEBI Regulatory Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for India Companies Act 2013, SEBI LODR (Listing Obligations and Disclosure Requirements), Prohibition of Insider Trading (PIT), and Insolvency and Bankruptcy Code (IBC).",
+  "owner": "India Secretarial & SEBI Governance Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-sebi-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-sebi-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "India Companies Act & SEBI Statutory Audit Checklist",
+        "description": "Validation checklist for Companies Act 2013 section compliance, SEBI LODR corporate governance, and PIT SDD rules.",
+        "items": [
+          {
+            "statement": "Structured Digital Database (SDD) logs all entries of UPSI sharing with non-editable timestamps and PAN numbers.",
+            "group": "SEBI PIT Regulations (Reg 3(5))"
+          },
+          {
+            "statement": "Material events under SEBI LODR Regulation 30 are disclosed to BSE/NSE within 24 hours of board determination.",
+            "group": "SEBI LODR Disclosure"
+          },
+          {
+            "statement": "Related Party Transactions (RPT) receive prior Audit Committee and Shareholder approvals per Companies Act Sec 188.",
+            "group": "Related Party Governance"
+          },
+          {
+            "statement": "Annual secretarial compliance report (Form MR-3) and MCA e-filings are verified by a practicing Company Secretary.",
+            "group": "MCA & Secretarial Filings"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "sebi-secretarial-compliance-gate",
+        "name": "SEBI & Secretarial Audit Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Company Secretary (CS) confirms that SDD logs, SEBI LODR filings, and Companies Act statutory records satisfy regulatory requirements.",
+        "prompt": "Does the secretarial audit evidence confirm full compliance with SEBI and Companies Act 2013 regulations?",
+        "participant": "human",
+        "outputContract": "sebi-cs-compliance-attestation",
+        "checklistIds": [
+          "India Companies Act & SEBI Statutory Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

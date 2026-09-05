@@ -11,7 +11,7 @@ import { eventBus } from "../../../domain/engine/eventBus.js";
 import { checkSustainedQualityGateBlocking } from "./telemetry.js";
 import { raiseAttentionItem } from "./attentionItems.js";
 import { AUTHORING_SCOPE_PACK_CODE } from "../../../domain/sdk/authoringScope.js";
-import { assertCanonicalCategory } from "./ontology.js";
+import { assertCanonicalCategory, resolveLabels } from "./ontology.js";
 import type { DeliverableRow, DependencyDefinitionRow } from "../../../dblayer/seuTypes.js";
 
 // Phase 10 (badge model) — §10's badge-switcher UI isn't built yet (§17.2,
@@ -61,7 +61,13 @@ export async function createDeliverable(input: { seuId: string; name: string; ca
   if (!seu) throw new Error("SEU not found");
   const { data: template } = await templatesDB.findById(seu.template_id);
   if (!template) throw new Error("template not found");
-  if (!template.deliverable_catalogue.some((entry) => entry.name === input.name)) {
+  // CR-087 — deliverable_catalogue entries carry a deliverable-name Ontology
+  // code now, not the display name input.name is (still matches
+  // deliverables.name, the runtime identity dependency_definitions gates
+  // against) — resolve each entry's code to its tenant-aware label before
+  // checking membership.
+  const catalogueLabels = await resolveLabels(template.tenant_id, "deliverable-name");
+  if (!template.deliverable_catalogue.some((entry) => (catalogueLabels[entry.code] ?? entry.code) === input.name)) {
     throw new Error(`"${input.name}" is not a Deliverable this SEU's Template declares — only names already in the Template's own catalogue can be added`);
   }
 

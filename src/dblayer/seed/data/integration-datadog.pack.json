@@ -1,0 +1,70 @@
+{
+  "code": "integration-datadog",
+  "name": "Datadog Observability Platform Integration",
+  "category": "Integration",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Integration pack for Datadog, providing connectivity to Datadog Agent metrics, APM distributed tracing, log management, synthetic uptime monitoring, and monitor alert routing.",
+  "owner": "SRE & Monitoring Operations Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "operating-production-systems",
+        "name": "Monitoring, Observability & SRE / Performance Engineering",
+        "description": "Integrates Datadog infrastructure agent metrics, APM flame graphs, log aggregation, and monitor alert webhooks. Integrates Datadog latency histograms, DB query performance profiling, and Synthetic browser tests."
+      }
+    ],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-datadog-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-datadog-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Datadog Integration Verification Checklist",
+        "description": "Validation checklist for Datadog API / Application keys, agent daemonsets, and monitor alert webhooks.",
+        "items": [
+          {
+            "statement": "Datadog API Key and Application Key authenticate REST API calls and Agent data ingest.",
+            "group": "Datadog Keys Auth"
+          },
+          {
+            "statement": "Datadog APM tracing libraries inject trace IDs across microservice HTTP/gRPC boundaries.",
+            "group": "APM Distributed Tracing"
+          },
+          {
+            "statement": "Datadog Monitors trigger automated webhook notifications on threshold breaches.",
+            "group": "Monitor Webhook Alerts"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "datadog-integration-review-gate",
+        "name": "Datadog Observability Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Site Reliability Engineer confirms that Datadog APM tracing and monitor alert webhooks function correctly.",
+        "prompt": "Does the Datadog integration confirm APM trace collection and monitor alert dispatch?",
+        "participant": "human",
+        "outputContract": "datadog-integration-attestation",
+        "checklistIds": [
+          "Datadog Integration Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

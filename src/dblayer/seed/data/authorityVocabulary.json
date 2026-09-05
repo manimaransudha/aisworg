@@ -76,6 +76,14 @@
     {
       "code": "QualityGate",
       "label": "Quality Gate"
+    },
+    {
+      "code": "Service",
+      "label": "Service"
+    },
+    {
+      "code": "Policy",
+      "label": "Policy"
     }
   ],
   "verbs": [
@@ -252,6 +260,21 @@
     {
       "code": "reject",
       "label": "Reject"
+    },
+    {
+      "code": "violate",
+      "label": "Violate",
+      "description": "Ch.24 §15 PolicyViolated — execution-dimension (a governed transition attempt found a Policy's condition unsatisfied), not a Policy definition's own lifecycle hop. Vocabulary only for now; not yet wired to any transition."
+    },
+    {
+      "code": "request_exception",
+      "label": "Request Exception",
+      "description": "Ch.24 §15 PolicyExceptionRequested — execution-dimension. Vocabulary only for now; not yet wired to any transition."
+    },
+    {
+      "code": "approve_exception",
+      "label": "Approve Exception",
+      "description": "Ch.24 §15 PolicyExceptionApproved — execution-dimension. Vocabulary only for now; not yet wired to any transition."
     }
   ],
   "transitions": [
@@ -914,6 +937,72 @@
       "fromState": "Archived",
       "toState": "Active",
       "verb": "activate"
+    },
+    {
+      "entityType": "Service",
+      "fromState": "Defined",
+      "toState": "Published",
+      "verb": "publish"
+    },
+    {
+      "entityType": "Service",
+      "fromState": "Published",
+      "toState": "Active",
+      "verb": "activate"
+    },
+    {
+      "entityType": "Service",
+      "fromState": "Active",
+      "toState": "Deprecated",
+      "verb": "deprecate"
+    },
+    {
+      "entityType": "Service",
+      "fromState": "Deprecated",
+      "toState": "Retired",
+      "verb": "retire"
+    },
+    {
+      "entityType": "Service",
+      "fromState": "Retired",
+      "toState": "Archived",
+      "verb": "archive"
+    },
+    {
+      "entityType": "Policy",
+      "fromState": "Draft",
+      "toState": "Validated",
+      "verb": "validate"
+    },
+    {
+      "entityType": "Policy",
+      "fromState": "Validated",
+      "toState": "Published",
+      "verb": "publish"
+    },
+    {
+      "entityType": "Policy",
+      "fromState": "Published",
+      "toState": "Active",
+      "verb": "activate"
+    },
+    {
+      "entityType": "Policy",
+      "fromState": "Active",
+      "toState": "Deprecated",
+      "verb": "deprecate"
+    },
+    {
+      "entityType": "Policy",
+      "fromState": "Deprecated",
+      "toState": "Retired",
+      "verb": "retire"
+    },
+    {
+      "entityType": "Policy",
+      "fromState": "Retired",
+      "toState": "Archived",
+      "verb": "archive"
     }
   ],
   "_authoringMappingsComment": "CR-014 \u2014 noun\u2192verb mappings that are NOT lifecycle transitions: the authoring authority for each SDK-authorable entity. `{noun}_define` = author (create/edit a draft), `{noun}_publish` = publisher (approve + materialise). Seeded into authority_noun_verbs alongside the transition-derived pairs. These gate the SDK authoring surfaces (replacing the retired sdk_creator/sdk_approver Platform badges).",
@@ -963,6 +1052,18 @@
       "noun": "QualityGate",
       "verbs": [
         "waive"
+      ]
+    },
+    {
+      "noun": "Service",
+      "verbs": [
+        "define"
+      ]
+    },
+    {
+      "noun": "Policy",
+      "verbs": [
+        "define"
       ]
     }
   ]

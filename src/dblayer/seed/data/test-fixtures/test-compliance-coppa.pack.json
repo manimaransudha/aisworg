@@ -1,0 +1,72 @@
+{
+  "code": "test-compliance-coppa",
+  "name": "COPPA Children's Privacy Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for the Children's Online Privacy Protection Act (COPPA, 16 CFR Part 312), covering verifiable parental consent (VPC), age gating, children's PII deletion, and third-party ad tracker blocking.",
+  "owner": "Children's Privacy Protection & Ethics Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-coppa-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-coppa-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "COPPA Children's Privacy Audit Checklist",
+        "description": "Validation checklist for COPPA §312.4 - §312.8 requirements.",
+        "items": [
+          {
+            "statement": "Neutral age-gating mechanism prevents users under 13 from circumventing age entry.",
+            "group": "Age Gating (§312.5)"
+          },
+          {
+            "statement": "Verifiable Parental Consent (VPC) is obtained prior to collecting any child PII (name, email, geolocation, voice/photo).",
+            "group": "Parental Consent (§312.5)"
+          },
+          {
+            "statement": "Direct notice to parents clearly explains data collection practices, retention, and deletion rights (§312.4).",
+            "group": "Parental Notice"
+          },
+          {
+            "statement": "Behavioral advertising, re-targeting pixels, and persistent identifier tracking are disabled for child accounts (§312.8).",
+            "group": "Ad Tracking Suppression"
+          },
+          {
+            "statement": "Parents are provided continuous access to review and request deletion of their child's PII (§312.6).",
+            "group": "Parental Access & Deletion"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "coppa-privacy-review-gate",
+        "name": "COPPA Children's Privacy Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Privacy Officer confirms that age gating, VPC verification, and ad tracker blocking meet COPPA requirements.",
+        "prompt": "Does the privacy audit evidence confirm full COPPA compliance for child user data?",
+        "participant": "human",
+        "outputContract": "coppa-compliance-attestation",
+        "checklistIds": [
+          "COPPA Children's Privacy Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

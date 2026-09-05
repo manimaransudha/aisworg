@@ -1,0 +1,68 @@
+{
+  "code": "compliance-psd2-psd3",
+  "name": "EU PSD2 / PSD3 Payment Services & Open Banking Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for the EU Payment Services Directive 2 (PSD2 - Directive 2015/2366), PSD3 proposals, and Payment Services Regulation (PSR), covering Strong Customer Authentication (SCA), Open Banking APIs (AISP/PISP), dynamic linking, and fraud reporting.",
+  "owner": "EU Payment Services & Open Banking Governance Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-psd2-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-psd2-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "EU PSD2 / PSD3 Payment Security Audit Checklist",
+        "description": "Validation checklist for EBA Regulatory Technical Standards (RTS) on SCA and CSC (Common and Secure Communication).",
+        "items": [
+          {
+            "statement": "Strong Customer Authentication (SCA) combines at least 2 independent elements from Knowledge, Possession, and Inherence.",
+            "group": "SCA 2-Factor Authentication"
+          },
+          {
+            "statement": "Electronic payment transactions dynamically link the authentication code to the specific payee and transaction amount.",
+            "group": "Dynamic Linking (RTS Art. 4)"
+          },
+          {
+            "statement": "Dedicated Open Banking APIs (AISP/PISP) achieve identical uptime and response performance as customer-facing channels.",
+            "group": "Open Banking APIs"
+          },
+          {
+            "statement": "EBA fraud rate reporting statistics are submitted quarterly to national competent authorities.",
+            "group": "EBA Fraud Reporting"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "psd2-payment-security-gate",
+        "name": "EU PSD2 / PSD3 Payment Security Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Head of Payment Security confirms that SCA 2-factor, dynamic linking, and Open Banking APIs comply with PSD2 RTS.",
+        "prompt": "Does the payment security audit evidence confirm full compliance with PSD2 / PSD3 RTS requirements?",
+        "participant": "human",
+        "outputContract": "psd2-compliance-attestation",
+        "checklistIds": [
+          "EU PSD2 / PSD3 Payment Security Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

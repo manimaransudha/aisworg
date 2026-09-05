@@ -1,0 +1,11 @@
+-- CR-087 follow-up (owner: "drop category... schema has to reflect the
+-- changes") — deliverables.category is no longer supplied by Template
+-- commissioning (core/commissioning.ts stops passing it; the Template's own
+-- Deliverable Catalogue no longer authors a category at all, migration 164).
+-- category is otherwise unread: deliverablesDB.findByCategory has no call
+-- site anywhere in the app, and neither dispatchEngine nor executionEngine
+-- ever branches on it — only the separate, still-required manual "add a
+-- Deliverable to a live SEU" path (core/deliverables.ts's own
+-- createDeliverable, its own API-supplied input.category) still sets it,
+-- unaffected by this change.
+ALTER TABLE deliverables ALTER COLUMN category DROP NOT NULL;

@@ -1,0 +1,72 @@
+{
+  "code": "compliance-sox",
+  "name": "SOX Financial IT General Controls (ITGC) Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for Sarbanes-Oxley Act (SOX) Section 404, covering IT General Controls (ITGC), change management, segregation of duties (SoD), financial reporting system access, and external audit evidence generation.",
+  "owner": "Internal Audit & SOX Compliance Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-sox-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-sox-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "SOX 404 IT General Controls (ITGC) Audit Checklist",
+        "description": "Validation checklist for SOX ITGC compliance across change control, security access, and system operations.",
+        "items": [
+          {
+            "statement": "Every production release affecting financial reporting applications is backed by an approved ticket and documented peer code review.",
+            "group": "Change Control (ITGC-CC)"
+          },
+          {
+            "statement": "Segregation of Duties (SoD) matrix verifies zero conflicting permissions between software developers and production release engineers.",
+            "group": "Segregation of Duties (ITGC-AC)"
+          },
+          {
+            "statement": "Quarterly privileged access reviews are conducted and signed off by application business owners.",
+            "group": "Access Control & Recertification"
+          },
+          {
+            "statement": "Database schema migrations on financial ledgers preserve complete audit history and prohibit direct manual updates.",
+            "group": "Data Integrity (ITGC-OP)"
+          },
+          {
+            "statement": "Disaster recovery failover and backup restoration tests are executed and documented annually.",
+            "group": "Computer Operations & DR"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "sox-internal-audit-signoff",
+        "name": "SOX ITGC Internal Audit Sign-Off Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The SOX Audit Lead confirms that change management, segregation of duties, and access control evidence satisfies SOX Section 404 ITGC standards.",
+        "prompt": "Has Internal Audit verified change records, SoD rules, and ITGC evidence for SOX 404 compliance?",
+        "participant": "human",
+        "outputContract": "sox-itgc-audit-signoff",
+        "checklistIds": [
+          "SOX 404 IT General Controls (ITGC) Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

@@ -115,7 +115,7 @@
           <tbody>
             <% detail.deliverables.forEach(function(d) { %>
               <tr>
-                <td class="small"><%= d.name %><br><span class="text-muted" style="font-size:0.72rem;"><%= d.category %> &middot; Acquisition Scope: <%= d.acquisitionScope %></span></td>
+                <td class="small"><%= d.name %><br><span class="text-muted" style="font-size:0.72rem;"><% if (d.category) { %><%= d.category %> &middot; <% } %>Acquisition Scope: <%= d.acquisitionScope %></span></td>
                 <td><span class="state-badge state-<%= d.lifecycleState.replace(/\s+/g, '-') %>"><%= d.lifecycleState %></span></td>
                 <td>
                   <% if (d.dependencyEdges.length === 0) { %>

@@ -37,10 +37,10 @@ test("dependencyDefinitionEngine: a target with no incoming rows is ready trivia
   const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id });
   assert.ok(seu);
 
-  // "Requirements Specification" is the catalogue's own root — nothing
+  // "Requirements Analysis Model" is the catalogue's own root — nothing
   // depends on anything to reach it, so the canonical graph has zero rows
   // targeting it.
-  const result = await dependencyDefinitionEngine.isTargetReady(seu!.id, "Deliverable", "Requirements Specification", "In Progress");
+  const result = await dependencyDefinitionEngine.isTargetReady(seu!.id, "Deliverable", "Requirements Analysis Model", "In Progress");
   assert.equal(result.ready, true);
   assert.equal(result.rows.length, 0);
 });
@@ -61,33 +61,33 @@ test("dependencyDefinitionEngine: a Deliverable-type AND a Capability-type row o
   const seuCapability = seuCapabilities?.[0];
   assert.ok(seuCapability);
 
-  // "Architecture Document" is gated by 4 rows (derived from the real
+  // "Architecture Decision Record" is gated by 4 rows (derived from the real
   // catalogue and materialiseDependencyGraph's "one row per Service a
-  // Capability provides" rule): Requirements Specification reaching Approved
+  // Capability provides" rule): Requirements Analysis Model reaching Approved
   // (Deliverable-type, 1 row), and the requirements-analysis Capability being
   // Fulfilled (Capability-type — 1 row per Service it provides:
   // vision/requirements-specification/glossary, openup-requirements.pack.json
   // — 3 rows) — all 4 must hold.
-  const { data: upstream } = await deliverablesDB.create({ seuId: seu!.id, name: "Requirements Specification", category: "Documentation" });
+  const { data: upstream } = await deliverablesDB.create({ seuId: seu!.id, name: "Requirements Analysis Model", category: "Documentation" });
   assert.ok(upstream);
 
-  const before = await dependencyDefinitionEngine.isTargetReady(seu!.id, "Deliverable", "Architecture Document", "In Progress");
+  const before = await dependencyDefinitionEngine.isTargetReady(seu!.id, "Deliverable", "Architecture Decision Record", "In Progress");
   assert.equal(before.ready, false);
   assert.equal(before.rows.length, 4);
 
   await deliverablesDB.updateLifecycleState(upstream!.id, "Approved");
-  const deliverableOnly = await dependencyDefinitionEngine.isTargetReady(seu!.id, "Deliverable", "Architecture Document", "In Progress");
+  const deliverableOnly = await dependencyDefinitionEngine.isTargetReady(seu!.id, "Deliverable", "Architecture Decision Record", "In Progress");
   assert.equal(deliverableOnly.ready, false, "the Capability-type row is still unsatisfied — both rows must hold, not just one");
 
   await seuCapabilitiesDB.markFulfilled(seuCapability!.id);
-  const bothSatisfied = await dependencyDefinitionEngine.isTargetReady(seu!.id, "Deliverable", "Architecture Document", "In Progress");
+  const bothSatisfied = await dependencyDefinitionEngine.isTargetReady(seu!.id, "Deliverable", "Architecture Decision Record", "In Progress");
   assert.equal(bothSatisfied.ready, true);
 
   // Regression parity with dependencyEngine's own fix (engine.test.ts): the
   // upstream Deliverable moving PAST the required state (Approved ->
   // Baselined) must not un-satisfy an already-satisfied row.
   await deliverablesDB.updateLifecycleState(upstream!.id, "Baselined");
-  const afterPassed = await dependencyDefinitionEngine.isTargetReady(seu!.id, "Deliverable", "Architecture Document", "In Progress");
+  const afterPassed = await dependencyDefinitionEngine.isTargetReady(seu!.id, "Deliverable", "Architecture Decision Record", "In Progress");
   assert.equal(afterPassed.ready, true, "an upstream Deliverable that has moved PAST the required state must still satisfy the dependency");
 });
 
@@ -105,8 +105,8 @@ test("dependencyDefinitionEngine.evaluateAndPublishFromTransition publishes Deli
   const { data: seuCapabilities } = await seuCapabilitiesDB.createMany(seu!.id, [requirementsCapability![0].id]);
   await seuCapabilitiesDB.markFulfilled(seuCapabilities![0].id);
 
-  const { data: upstream } = await deliverablesDB.create({ seuId: seu!.id, name: "Requirements Specification", category: "Documentation" });
-  const { data: downstream } = await deliverablesDB.create({ seuId: seu!.id, name: "Architecture Document", category: "Documentation" });
+  const { data: upstream } = await deliverablesDB.create({ seuId: seu!.id, name: "Requirements Analysis Model", category: "Documentation" });
+  const { data: downstream } = await deliverablesDB.create({ seuId: seu!.id, name: "Architecture Decision Record", category: "Documentation" });
   assert.ok(upstream && downstream);
 
   const { eventsDB } = await import("../src/dblayer/eventsDB.js");
@@ -127,12 +127,12 @@ test("dependencyDefinitionEngine.evaluateAndPublishFromTransition publishes Deli
   await dependencyDefinitionEngine.evaluateAndPublishFromTransition({
     seuId: seu!.id,
     entityType: "Deliverable",
-    name: "Requirements Specification",
+    name: "Requirements Analysis Model",
     newState: "Approved",
   });
 
   const { data: nowSatisfied } = await eventsDB.findByOriginatingObject("Deliverable", downstream!.id);
   const published = (nowSatisfied ?? []).filter((e) => e.event_type === "DeliverableReady");
   assert.equal(published.length, 1);
-  assert.equal((published[0].payload as { toName?: string }).toName, "Architecture Document");
+  assert.equal((published[0].payload as { toName?: string }).toName, "Architecture Decision Record");
 });

@@ -11,26 +11,23 @@
   "minSupportedPlatformVersion": "1.0",
   "maxSupportedPlatformVersion": "2.0",
   "dependencies": [
-    { "packCode": "architecture-solution-design", "version": "1.0.0", "type": "required" }
+    {
+      "packCode": "architecture-solution-design",
+      "version": "1.0.0",
+      "type": "required"
+    }
   ],
   "contributions": {
     "capabilities": [
       {
-        "code": "code-review",
+        "code": "engineering-work-review",
         "name": "Code Review",
         "description": "Ensures code changes are reviewed for quality and correctness before merging."
       }
     ],
     "services": [
       {
-        "code": "api-contracts",
-        "capabilityCode": "code-review",
-        "name": "API Contracts",
-        "contractDescription": "A versioned, reviewed contract describing this Pack's own API surface.",
-        "serviceLevel": [
-          { "label": "Review turnaround", "target": "1 business day" },
-          { "label": "Availability", "target": "99.9% uptime" }
-        ]
+        "code": "engineering-review-service"
       }
     ],
     "checklists": [
@@ -38,8 +35,14 @@
         "name": "Test: All Tabs Checklist",
         "description": "Verifies the fixture's own Checklist tab renders and saves correctly.",
         "items": [
-          { "statement": "Every generated-form tab renders its own saved content correctly.", "group": "Fixture" },
-          { "statement": "Nested checklist items round-trip as a real array, not a stringified blob.", "group": "Fixture" }
+          {
+            "statement": "Every generated-form tab renders its own saved content correctly.",
+            "group": "Fixture"
+          },
+          {
+            "statement": "Nested checklist items round-trip as a real array, not a stringified blob.",
+            "group": "Fixture"
+          }
         ]
       }
     ],
@@ -53,7 +56,9 @@
         "prompt": "Review the API specification for completeness and consistency.",
         "participant": "AI+human",
         "outputContract": "assessment-acceptance",
-        "checklistIds": ["Test: All Tabs Checklist"]
+        "checklistIds": [
+          "Test: All Tabs Checklist"
+        ]
       }
     ],
     "qualityGates": [
@@ -68,16 +73,7 @@
         "outputContract": "passed-failed-notes"
       }
     ],
-    "policies": [
-      {
-        "code": "no-hardcoded-secrets",
-        "name": "No Hardcoded Secrets",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "Pack|Draft|Validated",
-        "severity": "High"
-      }
-    ],
+    "policies": [],
     "obligationDefinitions": [
       {
         "code": "fixture-review-followup",
@@ -115,7 +111,9 @@
         "frameworkCode": "test-fixture-framework",
         "name": "Test Fixture Requirement",
         "description": "A synthetic requirement under the fixture framework.",
-        "criteria": { "type": "no_unresolved_obligations" },
+        "criteria": {
+          "type": "no_unresolved_obligations"
+        },
         "severity": "Low"
       }
     ]

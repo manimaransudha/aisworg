@@ -11,107 +11,14 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "scale-performance-optimization",
+        "code": "operating-production-systems",
         "name": "Scale & Performance Optimization",
         "description": "Validates and improves the system's ability to scale, remain resilient, and operate cost-efficiently under real-world load."
       }
     ],
     "services": [
       {
-        "code": "capacity-scaling-model",
-        "capabilityCode": "scale-performance-optimization",
-        "name": "Capacity & Scaling Model",
-        "contractDescription": "Compute, memory, database IOPS, and storage scaling projections mapped to traffic growth models.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "autoscaling-caching-strategy",
-        "capabilityCode": "scale-performance-optimization",
-        "name": "Autoscaling & Caching Strategy",
-        "contractDescription": "HPA / VPA autoscaling policies, Redis/Memcached invalidation rules, and multi-tier cache hit ratio targets.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "cdn-edge-strategy",
-        "capabilityCode": "scale-performance-optimization",
-        "name": "CDN & Edge Strategy",
-        "contractDescription": "Edge caching, static asset optimization, and origin shield routing policies.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "multi-region-disaster-recovery-plan",
-        "capabilityCode": "scale-performance-optimization",
-        "name": "Multi-Region & Disaster Recovery Plan",
-        "contractDescription": "Active-passive or active-active multi-region failover automation and data sync specs.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "executive-approved"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "chaos-engineering-report",
-        "capabilityCode": "scale-performance-optimization",
-        "name": "Chaos Engineering Report",
-        "contractDescription": "Chaos Mesh / Litmus fault injection experiments testing dependency failures and automatic failover.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "cost-optimization-finops-plan",
-        "capabilityCode": "scale-performance-optimization",
-        "name": "Cost Optimization & FinOps Plan",
-        "contractDescription": "Reserved instance / Savings Plan allocation, idle resource cleanup, and cost-per-transaction targets.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
+        "code": "availability-assurance-service"
       }
     ],
     "authorityRules": [
@@ -131,17 +38,7 @@
         "authorisedRole": "general"
       }
     ],
-    "policies": [
-      {
-        "code": "policy-high-availability-resilience-standard",
-        "name": "High Availability & Resilience Standard Policy",
-        "category": "Engineering",
-        "constraintType": "Standard",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "conditionType": "always_true",
-        "severity": "high"
-      }
-    ],
+    "policies": [],
     "checklists": [
       {
         "name": "Scale & Performance Optimization (SDLC Phase 9) Checklist",

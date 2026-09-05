@@ -8,41 +8,35 @@
   ],
   "deliverableCatalogue": [
     {
-      "name": "Requirements Specification",
-      "category": "Documentation",
-      "producingCapabilityCode": "requirements-analysis"
+      "code": "requirements-analysis-model"
     },
     {
-      "name": "Architecture Document",
-      "category": "Documentation",
-      "producingCapabilityCode": "architecture-solution-design"
+      "code": "architecture-decision-record"
     },
     {
-      "name": "Source Code",
-      "category": "Implementation",
-      "producingCapabilityCode": "development"
+      "code": "source-code"
     }
   ],
   "dependencyGraph": [
     {
-      "toName": "Architecture Document",
+      "toCode": "architecture-decision-record",
       "fromType": "Deliverable",
-      "fromName": "Requirements Specification"
+      "fromCode": "requirements-analysis-model"
     },
     {
-      "toName": "Architecture Document",
+      "toCode": "architecture-decision-record",
       "fromType": "Capability",
       "fromCapabilityCode": "requirements-analysis"
     },
     {
-      "toName": "Source Code",
+      "toCode": "source-code",
       "fromType": "Deliverable",
-      "fromName": "Architecture Document"
+      "fromCode": "architecture-decision-record"
     },
     {
-      "toName": "Source Code",
+      "toCode": "source-code",
       "fromType": "Capability",
-      "fromCapabilityCode": "architecture-solution-design"
+      "fromCapabilityCode": "architecture-design"
     }
   ]
 }

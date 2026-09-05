@@ -1,0 +1,72 @@
+{
+  "code": "test-compliance-fda-21cfr11",
+  "name": "FDA 21 CFR Part 11 & SaMD Medical Software Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for US FDA 21 CFR Part 11 (Electronic Records; Electronic Signatures) and Software as a Medical Device (SaMD) FDA guidance, covering system validation (IQ/OQ/PQ), dual-manifest electronic signatures, audit trails, and computer software assurance (CSA).",
+  "owner": "FDA Regulatory Affairs & Life Sciences Quality Assurance",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-fda-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-fda-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "FDA 21 CFR Part 11 & SaMD Validation Checklist",
+        "description": "Validation checklist for 21 CFR Part 11 Subparts B & C requirements and FDA SaMD guidelines.",
+        "items": [
+          {
+            "statement": "System validation (IQ/OQ/PQ) establishes that the computerized system fulfills its intended purpose (§11.10(a)).",
+            "group": "System Validation (§11.10(a))"
+          },
+          {
+            "statement": "Computer-generated audit trails record the date, time, user ID, and previous values for all electronic record modifications (§11.10(e)).",
+            "group": "Audit Trails (§11.10(e))"
+          },
+          {
+            "statement": "Electronic signatures bind two distinct components (e.g. password + token) and display printed name, timestamp, and intent (§11.50).",
+            "group": "Electronic Signatures (§11.50)"
+          },
+          {
+            "statement": "Access is restricted to authorized individuals using unique user IDs and strong authentication (§11.10(d)).",
+            "group": "System Access (§11.10(d))"
+          },
+          {
+            "statement": "Software as a Medical Device (SaMD) hazard analysis and IEC 62304 software lifecycle documentation are completed.",
+            "group": "SaMD Software Lifecycle (IEC 62304)"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "fda-part11-qa-attestation-gate",
+        "name": "FDA 21 CFR Part 11 Quality Assurance Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Regulatory Quality Assurance Director confirms that computer system validation, electronic signatures, and Part 11 audit trails meet FDA standards.",
+        "prompt": "Does the system validation package confirm full compliance with FDA 21 CFR Part 11 and SaMD requirements?",
+        "participant": "human",
+        "outputContract": "fda-part11-compliance-attestation",
+        "checklistIds": [
+          "FDA 21 CFR Part 11 & SaMD Validation Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

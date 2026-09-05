@@ -11,107 +11,14 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "growth-optimization",
+        "code": "adapting-business-needs",
         "name": "Growth & Optimization",
         "description": "Drives measurable product growth through analytics, structured experimentation, and retention optimization."
       }
     ],
     "services": [
       {
-        "code": "product-analytics-specification",
-        "capabilityCode": "growth-optimization",
-        "name": "Product Analytics Specification",
-        "contractDescription": "Funnel tracking, retention cohort specs, and product-led growth telemetry implementation.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "event-taxonomy-tracking-plan",
-        "capabilityCode": "growth-optimization",
-        "name": "Event Taxonomy & Tracking Plan",
-        "contractDescription": "Segment / Mixpanel event naming conventions, property schemas, and privacy consent rules.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "experimentation-framework",
-        "capabilityCode": "growth-optimization",
-        "name": "Experimentation Framework",
-        "contractDescription": "A/B testing methodology, sample size calculator rules, and statistical significance criteria.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "growth-experiments-backlog",
-        "capabilityCode": "growth-optimization",
-        "name": "Growth Experiments Backlog",
-        "contractDescription": "ICE / RICE prioritized growth experiment hypotheses targeting acquisition, activation, and referral loops.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "pricing-packaging-tests",
-        "capabilityCode": "growth-optimization",
-        "name": "Pricing & Packaging Tests",
-        "contractDescription": "Tiered packaging experiments, Van Westendorp price sensitivity tests, and feature paywall triggers.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "executive-approved"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "retention-engagement-dashboard",
-        "capabilityCode": "growth-optimization",
-        "name": "Retention & Engagement Dashboard",
-        "contractDescription": "Daily, weekly, and monthly retention curves, churn prediction models, and power user curve analysis.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
+        "code": "capability-realignment-service"
       }
     ],
     "authorityRules": [
@@ -131,17 +38,7 @@
         "authorisedRole": "general"
       }
     ],
-    "policies": [
-      {
-        "code": "policy-data-driven-growth-standard",
-        "name": "Data-Driven Growth Standard Policy",
-        "category": "Organisation",
-        "constraintType": "Standard",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "conditionType": "always_true",
-        "severity": "medium"
-      }
-    ],
+    "policies": [],
     "checklists": [
       {
         "name": "Growth & Optimization (SDLC Phase 13) Checklist",

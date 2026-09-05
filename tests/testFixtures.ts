@@ -31,7 +31,7 @@
 // (test-requirements-analysis/test-architecture-solution-design/
 // test-development, seedTestFixturePacks.ts / migration 119) after a live
 // collision was found: tests/sdk-authoring.test.ts reused the literal code
-// "development" for its own throwaway authored-Pack tests, and since only
+// "software-construction" for its own throwaway authored-Pack tests, and since only
 // one Pack version per code can be Active, every run of that file deprecated
 // this fixture's real dependency out from under every other test file.
 //
@@ -89,6 +89,7 @@ import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { seedAllTestFixturePacks } from "../src/dblayer/seed/seedTestFixturePacks.js";
+import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
 import type { DeliverableRow, ProfileRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../src/dblayer/seuTypes.js";
 
 // Test-only Pack twins (migration 119 / seedTestFixturePacks.ts) — every real
@@ -275,7 +276,7 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
   // codes core-engineering used to, just sourced from real Packs now.
   // CR-079 bug fix — findByCodes has no Pack scoping, and a capability code
   // is now a genuinely shared Ontology term (capability-name) multiple Packs
-  // can each independently contribute (e.g. "development" from
+  // can each independently contribute (e.g. "software-construction" from
   // openup-development AND every Technology pack) — de-dupe by code, same
   // treatment templates.ts's own materialisePackSelectionsAndCapabilities
   // got for the identical reason, so this fixture doesn't over-attribute
@@ -302,6 +303,7 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
       owningEntityId: template.id,
       deliverableCatalogue: templateSeed.deliverableCatalogue,
       dependencyGraph: templateSeed.dependencyGraph ?? [],
+      tenantId: PLATFORM_TENANT_ID,
     });
   }
 

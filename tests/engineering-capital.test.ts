@@ -24,7 +24,7 @@ async function commissionTestSeu(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
@@ -35,7 +35,7 @@ async function commissionTestSeu(statementPrefix: string) {
 async function commissionSeuWithPublishedKnowledge(statementPrefix: string) {
   const seuId = await commissionTestSeu(statementPrefix);
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Specification");
+  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec);
 
   const knowledgeItem = await createKnowledgeItem({
@@ -73,7 +73,7 @@ test("promoting a Published Knowledge Item's scope raises a visible Organisation
 test("Acquisition Scope promotion requires the Knowledge Item to be Published first", async () => {
   const seuId = await commissionTestSeu("phase6-not-published");
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Specification");
+  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec);
 
   const knowledgeItem = await createKnowledgeItem({ seuId, deliverableId: requirementsSpec.id, category: "Technical Knowledge", title: "Phase6 unpublished knowledge" });

@@ -1,0 +1,72 @@
+{
+  "code": "compliance-e-commerce-consumer-protection",
+  "name": "E-Commerce & Consumer Protection Compliance (FTC / EU / India)",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for US FTC Act Section 5 (Unfair/Deceptive Practices), EU Consumer Rights Directive (2011/83/EU), and India Consumer Protection (E-Commerce) Rules 2020, covering cancellation workflows, pricing transparency, fake review suppression, and grievance redressal officer publishing.",
+  "owner": "E-Commerce Regulatory & Consumer Protection Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-ecommerce-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-ecommerce-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "E-Commerce & Consumer Protection Audit Checklist",
+        "description": "Validation checklist for FTC Act, EU Consumer Rights Directive, and India E-Commerce Rules 2020.",
+        "items": [
+          {
+            "statement": "Total purchase price (including all taxes, mandatory fees, and shipping costs) is displayed prior to final payment checkout.",
+            "group": "Price Transparency"
+          },
+          {
+            "statement": "Online subscription cancellation is as easy to execute online as the initial sign-up ('Click to Cancel').",
+            "group": "Subscription Auto-Renewal"
+          },
+          {
+            "statement": "EU consumers are provided 14-day right of withdrawal (cooling-off period) with model cancellation forms.",
+            "group": "EU 14-Day Right of Withdrawal"
+          },
+          {
+            "statement": "Name, contact email, phone number, and physical address of the Grievance Officer are published on the website/app.",
+            "group": "Grievance Officer (India E-Commerce)"
+          },
+          {
+            "statement": "Product reviews are verified to originate from genuine purchasers and fake/incentivized reviews are suppressed.",
+            "group": "Review Integrity (FTC / EU)"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "ecommerce-compliance-gate",
+        "name": "E-Commerce Consumer Protection Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Consumer Legal Counsel confirms that price displays, cancellation mechanics, and grievance workflows satisfy FTC and EU consumer laws.",
+        "prompt": "Does the e-commerce audit evidence confirm full compliance with consumer protection and e-commerce regulations?",
+        "participant": "human",
+        "outputContract": "ecommerce-compliance-attestation",
+        "checklistIds": [
+          "E-Commerce & Consumer Protection Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

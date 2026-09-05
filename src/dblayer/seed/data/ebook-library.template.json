@@ -4,11 +4,11 @@
   "name": "E-Book Library Management System",
   "requiredCapabilityCodes": [
     "requirements-analysis",
-    "architecture-solution-design",
-    "catalog-management",
-    "circulation-management",
-    "development",
-    "code-review"
+    "architecture-design",
+    "understanding-business-domain",
+    "operating-production-systems",
+    "software-construction",
+    "engineering-work-review"
   ],
   "mandatoryPackCodes": [
     "development",
@@ -23,22 +23,22 @@
     {
       "name": "Architecture Document",
       "category": "Documentation",
-      "producingCapabilityCode": "architecture-solution-design"
+      "producingCapabilityCode": "architecture-design"
     },
     {
       "name": "Catalog Metadata Design",
       "category": "Documentation",
-      "producingCapabilityCode": "catalog-management"
+      "producingCapabilityCode": "understanding-business-domain"
     },
     {
       "name": "Circulation Rules Specification",
       "category": "Documentation",
-      "producingCapabilityCode": "circulation-management"
+      "producingCapabilityCode": "operating-production-systems"
     },
     {
       "name": "Source Code",
       "category": "Implementation",
-      "producingCapabilityCode": "development"
+      "producingCapabilityCode": "software-construction"
     }
   ],
   "dependencyGraph": [
@@ -60,7 +60,7 @@
     {
       "toName": "Catalog Metadata Design",
       "fromType": "Capability",
-      "fromCapabilityCode": "architecture-solution-design"
+      "fromCapabilityCode": "architecture-design"
     },
     {
       "toName": "Circulation Rules Specification",
@@ -70,7 +70,7 @@
     {
       "toName": "Circulation Rules Specification",
       "fromType": "Capability",
-      "fromCapabilityCode": "architecture-solution-design"
+      "fromCapabilityCode": "architecture-design"
     },
     {
       "toName": "Source Code",
@@ -85,17 +85,17 @@
     {
       "toName": "Source Code",
       "fromType": "Capability",
-      "fromCapabilityCode": "catalog-management"
+      "fromCapabilityCode": "understanding-business-domain"
     },
     {
       "toName": "Source Code",
       "fromType": "Capability",
-      "fromCapabilityCode": "circulation-management"
+      "fromCapabilityCode": "operating-production-systems"
     },
     {
       "toName": "Source Code",
       "fromType": "Capability",
-      "fromCapabilityCode": "code-review"
+      "fromCapabilityCode": "engineering-work-review"
     }
   ]
 }

@@ -1,0 +1,72 @@
+{
+  "code": "domain-real-estate-construction",
+  "name": "Real Estate, PropTech & Construction Management Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for Real Estate, PropTech, and Construction Management, covering MLS property listings, tenant lease management, digital rent collection, construction estimation, subcontractor bidding, progress payment certification, and change orders.",
+  "owner": "Real Estate & Construction Operations Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-realestate-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-realestate-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Real Estate & Construction Audit Checklist",
+        "description": "Validation checklist for property leases, tenant screening, construction estimates, change orders, and progress payments.",
+        "items": [
+          {
+            "statement": "Tenant lease agreements execute via legally binding e-signatures with security deposit escrow documentation.",
+            "group": "PropTech Leasing"
+          },
+          {
+            "statement": "Automated rent collection triggers late fee notices for delinquent tenant balances after grace period.",
+            "group": "Rent Collection"
+          },
+          {
+            "statement": "Construction cost estimates incorporate material takeoffs, labor rates, and subcontractor bids.",
+            "group": "Construction Bidding"
+          },
+          {
+            "statement": "Change Orders documenting scope modifications receive owner and general contractor signatures before work execution.",
+            "group": "Construction Change Orders"
+          },
+          {
+            "statement": "AIA G702/G703 progress payment certificates verify verified completion percentages before funds disbursement.",
+            "group": "Progress Payment Certification"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "construction-director-signoff-gate",
+        "name": "Construction & Real Estate Director Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Construction Director and Property Manager confirm that lease contracts, change orders, and progress payments comply with industry standards.",
+        "prompt": "Does the documentation confirm valid lease execution and certified construction progress billing?",
+        "participant": "human",
+        "outputContract": "real-estate-construction-attestation",
+        "checklistIds": [
+          "Real Estate & Construction Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

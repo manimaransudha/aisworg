@@ -1,0 +1,72 @@
+{
+  "code": "domain-project-portfolio",
+  "name": "Project & Portfolio Management (PPM) Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for Project & Portfolio Management (PPM), covering portfolio demand intake, business case evaluation, project chartering, WBS task scheduling, resource allocation, risk/issue management, change control, and benefits realization.",
+  "owner": "Global Enterprise PMO & Portfolio Governance Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-ppm-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-ppm-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Project & Portfolio Management Audit Checklist",
+        "description": "Validation checklist for portfolio prioritization, project chartering, RAID log tracking, and change control.",
+        "items": [
+          {
+            "statement": "Portfolio proposals undergo business case evaluation (NPV, ROI, strategic alignment) prior to funding allocation.",
+            "group": "Portfolio Prioritization"
+          },
+          {
+            "statement": "Project Charter defines clear scope boundaries, key deliverables, milestones, and executive sponsor sign-off.",
+            "group": "Project Initiation"
+          },
+          {
+            "statement": "Work Breakdown Structure (WBS) identifies task dependencies and critical path milestones.",
+            "group": "Scheduling & Planning"
+          },
+          {
+            "statement": "RAID log (Risks, Assumptions, Issues, Dependencies) is updated weekly with mitigation strategies.",
+            "group": "Risk & Issue Management"
+          },
+          {
+            "statement": "Scope or budget variances exceeding 5% require formal Change Request (CR) PMO approval.",
+            "group": "Change Control"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "pmo-director-signoff-gate",
+        "name": "Enterprise PMO Director Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The PMO Director confirms that project charters, milestone schedules, and RAID risk mitigations comply with PPM standards.",
+        "prompt": "Does the PPM documentation confirm project plan feasibility and risk mitigation effectiveness?",
+        "participant": "human",
+        "outputContract": "ppm-attestation",
+        "checklistIds": [
+          "Project & Portfolio Management Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

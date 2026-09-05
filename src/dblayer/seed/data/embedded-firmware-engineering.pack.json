@@ -1,0 +1,74 @@
+{
+  "code": "embedded-firmware-engineering",
+  "name": "Embedded Firmware Engineering",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Builds and verifies firmware against a hardware-constrained target — memory, timing, interrupt, and power budgets a general-purpose runtime doesn't have — the discipline generic software-construction doesn't cover.",
+  "owner": "Platform",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "engineering-embedded-firmware"
+      }
+    ],
+    "services": [
+      {
+        "code": "firmware-engineering-service"
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Embedded Firmware Engineering Checklist",
+        "description": "Validation checklist before firmware is accepted for integration.",
+        "items": [
+          {
+            "statement": "Firmware has been verified against the real target hardware, or a simulator faithful enough to substitute for it — not just compiled successfully."
+          },
+          {
+            "statement": "Timing, memory, and power budgets declared in the Hardware Interface Specification are met, not just planned for."
+          },
+          {
+            "statement": "The Hardware Compatibility Report identifies every target hardware revision the firmware was actually verified against."
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "hardware-compatibility-report",
+        "name": "Firmware Hardware Compatibility Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Hardware Compatibility Report has been reviewed and the firmware is accepted for integration.",
+        "prompt": "Does the verification evidence show this firmware behaves correctly on the real target hardware, within its declared constraints?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Embedded Firmware Engineering Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

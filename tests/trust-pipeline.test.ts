@@ -31,7 +31,7 @@ async function commissionTestSeu(statementPrefix: string) {
   await ensureCoreEngineeringQualityGates();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
@@ -39,14 +39,14 @@ async function commissionTestSeu(statementPrefix: string) {
   return result.seu.id;
 }
 
-// Fulfils the Capability and walks Requirements Specification from 'Defined'
+// Fulfils the Capability and walks Requirements Analysis Model from 'Defined'
 // all the way to 'Approved' — no Obligation is ever created, so Phase 4's
 // Quality Gate on "In Progress" -> "Approved" passes trivially, isolating
 // Phase 5's new "Approved" -> "Baselined" gate as the only thing under test.
 async function commissionAndApproveRequirementsSpec(statementPrefix: string) {
   const seuId = await commissionTestSeu(statementPrefix);
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Specification");
+  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
   assert.ok(requirementsSpec && reqAnalysisCapability);
 
@@ -220,7 +220,7 @@ test("Evidence can be linked to more than one object, findByRelatedObject finds 
 test("Evidence preserves its full provenance — originating Deliverable, Participant, Capability, Decision and activity", async () => {
   const seuId = await commissionTestSeu("phase5-evidence-provenance");
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Specification");
+  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
   assert.ok(requirementsSpec && reqAnalysisCapability);
 
@@ -252,7 +252,7 @@ test("Evidence preserves its full provenance — originating Deliverable, Partic
   const refreshed = await getSeuDetailView(seuId);
   const evidenceView = refreshed?.evidence.find((e) => e.evidence.id === evidence.id);
   assert.ok(evidenceView);
-  assert.equal(evidenceView.provenance.deliverableName, "Requirements Specification");
+  assert.equal(evidenceView.provenance.deliverableName, "Requirements Analysis Model");
   assert.equal(evidenceView.provenance.participantName, "Phase5 Provenance Analyst (AI)");
   assert.ok(evidenceView.provenance.capabilityName?.includes("requirements-analysis"));
   assert.equal(evidenceView.provenance.decisionTitle, "Phase5 provenance test decision");

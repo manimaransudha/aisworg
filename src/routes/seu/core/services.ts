@@ -1,12 +1,12 @@
 import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
-import type { ServiceLevelItem } from "../../../dblayer/seuTypes.js";
+import type { ServiceLevelExpectation } from "../../../dblayer/seuTypes.js";
 
 export interface ServiceListItem {
   id: string;
   name: string;
   contractDescription: string;
-  serviceLevel: ServiceLevelItem[];
+  serviceLevel: ServiceLevelExpectation[];
   status: string;
   version: string;
   providingCapabilityCode: string;

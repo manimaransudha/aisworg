@@ -35,7 +35,7 @@ async function commissionWebApp(prefix: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromForm({
     statement: `${prefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
@@ -46,7 +46,7 @@ async function commissionWebApp(prefix: string) {
 test("backward navigation + provenance (FR-20.4/20.6/20.7): a Deliverable can be navigated to the commit and Participant that produced each state", async () => {
   const seuId = await commissionWebApp("trace-explain");
   const detail = await getSeuDetailView(seuId);
-  const reqSpec = detail?.deliverables.find((d) => d.name === "Requirements Specification");
+  const reqSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   const reqCap = detail?.capabilities.find((c) => c.code === "requirements-analysis");
   assert.ok(reqSpec && reqCap);
   await fulfilCapability({ seuId, capabilityId: reqCap.capabilityId, participantType: "AI", displayName: "Trace Analyst" });
@@ -75,22 +75,22 @@ test("backward navigation + provenance (FR-20.4/20.6/20.7): a Deliverable can be
 test("forward navigation + impact analysis (FR-20.3/20.5): a Deliverable surfaces every downstream Deliverable it impacts", async () => {
   const seuId = await commissionWebApp("trace-impact");
   const detail = await getSeuDetailView(seuId);
-  const reqSpec = detail?.deliverables.find((d) => d.name === "Requirements Specification");
-  const archDoc = detail?.deliverables.find((d) => d.name === "Architecture Document");
-  assert.ok(reqSpec && archDoc, "web-application template seeds a downstream Architecture Document");
+  const reqSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  const archDoc = detail?.deliverables.find((d) => d.name === "Architecture Decision Record");
+  assert.ok(reqSpec && archDoc, "web-application template seeds a downstream Architecture Decision Record");
 
-  // Forward from the upstream Requirements Specification: the Architecture
+  // Forward from the upstream Requirements Analysis Model: the Architecture
   // Document depends on it, so it is impacted if Requirements changes.
   const impact = await impactOfDeliverable(reqSpec.id);
   assert.ok(impact);
   const impactedNames = impact!.impacted.map((i) => i.name);
-  assert.ok(impactedNames.includes("Architecture Document"), `expected Architecture Document downstream, got: ${impactedNames.join(", ")}`);
+  assert.ok(impactedNames.includes("Architecture Decision Record"), `expected Architecture Decision Record downstream, got: ${impactedNames.join(", ")}`);
 
-  // And the inverse (backward): the Architecture Document explains that it
-  // depends on the Requirements Specification reaching Approved.
+  // And the inverse (backward): the Architecture Decision Record explains that it
+  // depends on the Requirements Analysis Model reaching Approved.
   const archExplanation = await explainDeliverable(archDoc.id);
   const dep = archExplanation!.dependsOn.find((d) => d.targetId === reqSpec.id);
-  assert.ok(dep, "Architecture Document should declare its dependency on Requirements Specification");
+  assert.ok(dep, "Architecture Decision Record should declare its dependency on Requirements Analysis Model");
   assert.equal(dep!.type, "Deliverable");
   assert.equal(dep!.requiredState, "Approved");
 

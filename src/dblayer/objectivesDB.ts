@@ -1,6 +1,6 @@
 import pool, { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import type { CapabilityRow, DbResult, ObjectiveCommentRow, ObjectiveRow, ObjectiveStatus, ObjectiveTier, SponsoringAuthority } from "./seuTypes.js";
+import type { DbResult, ObjectiveCommentRow, ObjectiveRow, ObjectiveStatus, ObjectiveTier, SponsoringAuthority } from "./seuTypes.js";
 
 // version is "n.n.n" (migration 124); every edit bumps the patch segment
 // only — the exact same "every edit advances by one" behavior the old bare
@@ -333,14 +333,16 @@ export const objectivesDB = {
     }
   },
 
-  async addCapabilities(objectiveId: string, capabilityIds: string[]): Promise<DbResult<void>> {
+  // CR-086 step 2 — capabilityCodes are bare capability-name Ontology codes
+  // now, not capabilities.id (migration 150).
+  async addCapabilities(objectiveId: string, capabilityCodes: string[]): Promise<DbResult<void>> {
     try {
-      for (const capabilityId of capabilityIds) {
+      for (const code of capabilityCodes) {
         await query(
-          `INSERT INTO objective_capabilities (objective_id, capability_id)
+          `INSERT INTO objective_capabilities (objective_id, capability_code)
            VALUES ($1, $2)
-           ON CONFLICT (objective_id, capability_id) DO NOTHING`,
-          [objectiveId, capabilityId]
+           ON CONFLICT (objective_id, capability_code) DO NOTHING`,
+          [objectiveId, code]
         );
       }
       return { data: undefined };
@@ -353,15 +355,15 @@ export const objectivesDB = {
   // Replaces the full required-Capability set for an edit (owner: "Allow
   // edit of required capabilities") — delete-then-insert, same "set"
   // idiom as profilesDB.setPackSelection/templatesDB.setMandatoryPacks.
-  async setRequiredCapabilities(objectiveId: string, capabilityIds: string[]): Promise<DbResult<void>> {
+  async setRequiredCapabilities(objectiveId: string, capabilityCodes: string[]): Promise<DbResult<void>> {
     try {
       await query("DELETE FROM objective_capabilities WHERE objective_id = $1", [objectiveId]);
-      for (const capabilityId of capabilityIds) {
+      for (const code of capabilityCodes) {
         await query(
-          `INSERT INTO objective_capabilities (objective_id, capability_id)
+          `INSERT INTO objective_capabilities (objective_id, capability_code)
            VALUES ($1, $2)
-           ON CONFLICT (objective_id, capability_id) DO NOTHING`,
-          [objectiveId, capabilityId]
+           ON CONFLICT (objective_id, capability_code) DO NOTHING`,
+          [objectiveId, code]
         );
       }
       return { data: undefined };
@@ -386,13 +388,12 @@ export const objectivesDB = {
     }
   },
 
-  async getRequiredCapabilities(objectiveId: string): Promise<DbResult<CapabilityRow[]>> {
+  // Bare codes only — name/description are Ontology-resolved at the core
+  // layer (core/objectives.ts), not joined here (CR-086 step 2).
+  async getRequiredCapabilities(objectiveId: string): Promise<DbResult<{ code: string }[]>> {
     try {
-      const { rows } = await query<CapabilityRow>(
-        `SELECT c.* FROM capabilities c
-         JOIN objective_capabilities oc ON oc.capability_id = c.id
-         WHERE oc.objective_id = $1
-         ORDER BY c.code`,
+      const { rows } = await query<{ code: string }>(
+        `SELECT capability_code AS code FROM objective_capabilities WHERE objective_id = $1 ORDER BY capability_code`,
         [objectiveId]
       );
       return { data: rows };

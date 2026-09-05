@@ -11,107 +11,14 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "ongoing-operations-governance",
+        "code": "governing-engineering-decisions",
         "name": "Ongoing Operations & Governance",
         "description": "Sustains long-term operational reliability, compliance, and architectural health through recurring governance practices."
       }
     ],
     "services": [
       {
-        "code": "sre-playbook",
-        "capabilityCode": "ongoing-operations-governance",
-        "name": "SRE Playbook",
-        "contractDescription": "Site reliability engineering procedures, error budget management rules, and automated incident triage playbooks.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "incident-change-management-process",
-        "capabilityCode": "ongoing-operations-governance",
-        "name": "Incident & Change Management Process",
-        "contractDescription": "ITIL-aligned incident response workflow, Change Advisory Board (CAB) review protocol, and emergency change fast-path.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "audit-evidence-catalog",
-        "capabilityCode": "ongoing-operations-governance",
-        "name": "Audit Evidence Catalog",
-        "contractDescription": "Continuous compliance evidence collection, access control logs, and SOC2/ISO27001 audit artifact repository.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "executive-approved"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "business-continuity-dr-plan",
-        "capabilityCode": "ongoing-operations-governance",
-        "name": "Business Continuity & DR Plan",
-        "contractDescription": "Disaster recovery drill plan, backup verification schedule, and maximum tolerable downtime specs.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "executive-approved"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "tech-debt-register",
-        "capabilityCode": "ongoing-operations-governance",
-        "name": "Tech Debt Register",
-        "contractDescription": "Architectural refactoring backlog, deprecated API sunset timeline, and debt prioritization score.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "quarterly-architecture-review",
-        "capabilityCode": "ongoing-operations-governance",
-        "name": "Quarterly Architecture Review",
-        "contractDescription": "Quarterly system health check, dependency vulnerability audit, and capacity scaling review.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
+        "code": "decision-validation-service"
       }
     ],
     "authorityRules": [
@@ -131,17 +38,7 @@
         "authorisedRole": "general"
       }
     ],
-    "policies": [
-      {
-        "code": "policy-steady-state-governance-standard",
-        "name": "Steady-State Governance Standard Policy",
-        "category": "Engineering",
-        "constraintType": "Standard",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "conditionType": "always_true",
-        "severity": "high"
-      }
-    ],
+    "policies": [],
     "checklists": [
       {
         "name": "Ongoing Operations & Governance (SDLC Phase 15) Checklist",

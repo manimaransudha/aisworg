@@ -1,0 +1,72 @@
+{
+  "code": "domain-accounting-finance",
+  "name": "Accounting & Corporate Finance Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for accounting and corporate finance, covering general ledger (GL), accounts payable (AP), accounts receivable (AR), bank reconciliation, fixed assets depreciation, period close, ASC 606 revenue recognition, and financial consolidation.",
+  "owner": "Finance & Accounting Domain Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-finance-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-finance-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Accounting & Financial Close Audit Checklist",
+        "description": "Validation checklist for double-entry ledger balance, bank reconciliation, AP/AR aging, and period close financial statements.",
+        "items": [
+          {
+            "statement": "Every journal entry satisfies double-entry equality (Debits = Credits) with valid COA account dimensions.",
+            "group": "General Ledger Integrity"
+          },
+          {
+            "statement": "Accounts Payable invoices are matched against Purchase Orders and Receiving Slips (3-Way Matching).",
+            "group": "AP & Invoice Matching"
+          },
+          {
+            "statement": "Bank statement feeds are reconciled with cash ledger entries and outstanding items flagged.",
+            "group": "Bank Reconciliation"
+          },
+          {
+            "statement": "ASC 606 revenue recognition schedules accurately reflect performance obligation fulfillment.",
+            "group": "Revenue Recognition"
+          },
+          {
+            "statement": "Period-end trial balance is verified and intercompany balances eliminated prior to financial consolidation.",
+            "group": "Financial Close & Consolidation"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "financial-controller-signoff-gate",
+        "name": "Financial Controller Period Close Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Financial Controller confirms that trial balances, bank reconciliations, and ASC 606 revenue schedules satisfy GAAP/IFRS standards.",
+        "prompt": "Does the financial documentation confirm trial balance integrity and period close accuracy?",
+        "participant": "human",
+        "outputContract": "financial-close-attestation",
+        "checklistIds": [
+          "Accounting & Financial Close Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

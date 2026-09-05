@@ -1,0 +1,58 @@
+{
+  "code": "test-technology-db2",
+  "name": "IBM DB2 Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "software-construction",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "engineering-work-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "IBM DB2 Engineering Standards",
+        "description": "Validation checklist for DB2 SQL dialect, isolation levels, index optimization, and REORG/RUNSTATS maintenance.",
+        "items": [
+          {
+            "statement": "SQL queries explicitly specify necessary isolation levels (e.g. Cursor Stability CS, Read Stability RS) to prevent lock contention.",
+            "group": "DB2 Concurrency & Isolation"
+          },
+          {
+            "statement": "Index cardinality and column ordering are optimized to avoid DB2 lock escalation and table-level locks.",
+            "group": "Indexing & Lock Escalation"
+          },
+          {
+            "statement": "db2expln utility is run to inspect access paths and ensure index scan vs table scan choices align with volume expectations.",
+            "group": "Access Path Optimization"
+          },
+          {
+            "statement": "REORG and RUNSTATS maintenance schedules are defined for high-churn DB2 tablespaces.",
+            "group": "Maintenance Operations"
+          },
+          {
+            "statement": "Prepared statements with parameter markers are used for all dynamic SQL invocations.",
+            "group": "Security & Parameterization"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "code": "domain-customer-service",
+  "name": "Customer Support & Incident Service Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for customer support and service management, covering ticket intake, case triage, tier 1-3 assignment, SLA response/resolution tracking, escalation matrices, customer notifications, and CSAT feedback.",
+  "owner": "Customer Support & Service Operations Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-support-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-support-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Customer Support & SLA Audit Checklist",
+        "description": "Validation checklist for ticket intake, triage, SLA tracking, resolution verification, and CSAT collection.",
+        "items": [
+          {
+            "statement": "Support tickets are assigned severity levels (P1-P4) based on impacted user count and business operational effect.",
+            "group": "Ticket Intake & Triage"
+          },
+          {
+            "statement": "Response time SLAs (e.g. 15 mins for P1, 2 hours for P2) are tracked continuously.",
+            "group": "SLA Response Tracking"
+          },
+          {
+            "statement": "P1 critical incidents initiate war-room incident bridges and notify Duty Operations Managers.",
+            "group": "Escalation Matrix"
+          },
+          {
+            "statement": "Ticket resolution notes document root cause and steps taken before requesting customer closure confirmation.",
+            "group": "Resolution Verification"
+          },
+          {
+            "statement": "CSAT (Customer Satisfaction) feedback survey is triggered automatically upon case closure.",
+            "group": "CSAT Feedback"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "support-operations-signoff-gate",
+        "name": "Customer Support Operations Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Customer Support Operations Manager confirms that SLA response rates, escalation triggers, and CSAT scores meet operational standards.",
+        "prompt": "Does the support documentation confirm SLA adherence and resolution quality?",
+        "participant": "human",
+        "outputContract": "customer-support-attestation",
+        "checklistIds": [
+          "Customer Support & SLA Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

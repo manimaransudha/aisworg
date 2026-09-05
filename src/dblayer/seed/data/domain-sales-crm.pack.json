@@ -1,0 +1,72 @@
+{
+  "code": "domain-sales-crm",
+  "name": "Sales & CRM Customer Lifecycle Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for sales and customer relationship management (CRM), covering B2B lead qualification (BANT), opportunity stage progression, proposal generation, pricing approval, territory management, sales commissions, customer onboarding, and lifecycle management.",
+  "owner": "Global Sales & Revenue Operations Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-sales-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-sales-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Sales & CRM Audit Checklist",
+        "description": "Validation checklist for lead qualification, opportunity stage progression, CPQ pricing approval, and customer onboarding.",
+        "items": [
+          {
+            "statement": "Leads are qualified against BANT criteria (Budget, Authority, Need, Timeline) before converting to opportunities.",
+            "group": "Lead Qualification"
+          },
+          {
+            "statement": "Opportunity pipeline stages specify mandatory exit criteria and expected close dates.",
+            "group": "Opportunity Management"
+          },
+          {
+            "statement": "Non-standard pricing and margin discounts receive Vice President or RevOps approval.",
+            "group": "CPQ & Pricing Approval"
+          },
+          {
+            "statement": "Customer contracts are executed via verifiable electronic signatures prior to deal closure.",
+            "group": "Contract Closure"
+          },
+          {
+            "statement": "Post-sale customer onboarding kickoff is completed within 5 business days of contract execution.",
+            "group": "Customer Onboarding"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "revops-pipeline-signoff-gate",
+        "name": "Revenue Operations Pipeline Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Revenue Operations Manager confirms that sales forecasts, pricing approvals, and account onboarding workflows satisfy business rules.",
+        "prompt": "Does the sales pipeline documentation confirm forecast accuracy and pricing compliance?",
+        "participant": "human",
+        "outputContract": "sales-crm-attestation",
+        "checklistIds": [
+          "Sales & CRM Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

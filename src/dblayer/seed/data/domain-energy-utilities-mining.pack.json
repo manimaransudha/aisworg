@@ -1,0 +1,72 @@
+{
+  "code": "domain-energy-utilities-mining",
+  "name": "Energy, Utilities & Mining Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for Energy, Electric/Gas Utilities, Mining, and Oil & Gas, covering Smart Meter Data Management (MDM), utility tariff billing, Outage Management Systems (OMS), field service dispatch, energy trading, mine production planning, ore tracking, and pipeline asset management.",
+  "owner": "Global Energy, Utilities & Mining Operations Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-energy-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-energy-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Energy, Utilities & Mining Audit Checklist",
+        "description": "Validation checklist for smart meter data processing, TOU utility billing, OMS crew dispatch, and pipeline safety.",
+        "items": [
+          {
+            "statement": "Smart Meter Data Management (MDM) validates 15-minute interval consumption data for billing anomalies.",
+            "group": "AMI Meter Data"
+          },
+          {
+            "statement": "Utility billing engines calculate Time-Of-Use (TOU) rates, demand charges, and local regulatory taxes.",
+            "group": "Utility Billing"
+          },
+          {
+            "statement": "Outage Management Systems (OMS) pinpoint grid faults using smart meter ping responses and customer calls.",
+            "group": "Outage Management"
+          },
+          {
+            "statement": "Mining ore tracking measures grade quality and tonnage at processing plant intake points.",
+            "group": "Ore Extraction Tracking"
+          },
+          {
+            "statement": "SCADA pipeline sensors monitor pressure and temperature thresholds with automated emergency isolation valves.",
+            "group": "Pipeline SCADA Safety"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "energy-operations-signoff-gate",
+        "name": "Energy & Utilities Operations Director Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Utilities Operations Director confirms that AMI meter billing, OMS grid restoration, and SCADA safety controls comply with regulatory mandates.",
+        "prompt": "Does the utility documentation confirm meter billing accuracy and grid safety compliance?",
+        "participant": "human",
+        "outputContract": "energy-utilities-attestation",
+        "checklistIds": [
+          "Energy, Utilities & Mining Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

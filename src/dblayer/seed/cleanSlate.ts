@@ -26,9 +26,14 @@
 //    seedAuthorityVocabulary().
 //
 // 1a. compliance_frameworks/compliance_requirements are wiped
-//    unconditionally — no real seed data exists for either today (unlike
+//    unconditionally — no seed Pack (including the 33 real Compliance Packs,
+//    step 6c) declares anything in `contributionsCompliance`, the one field
+//    that would ever populate these two tables; those Packs express their
+//    requirements through the ordinary, already-materializing contribution
+//    kinds (Policies, Checklists, Quality Gates, ...) instead. So unlike
 //    capabilities/authority_rules, a NULL originating_pack_id here means
-//    "dry-run fixture," not "real migration-seeded vocabulary").
+//    "dry-run fixture," not "real migration-seeded vocabulary" — nothing
+//    real to protect.
 //
 // 2. dependency_edges and ebms are real usage data with NO ACTION FKs that
 //    block the seus/deliverables/templates/profiles wipe if left behind —
@@ -61,55 +66,16 @@ import { seedAuthorityVocabulary } from "./seedAuthorityVocabulary.js";
 import { seedEventSubscriptions } from "./seedEventSubscriptions.js";
 import { seedCapabilityPatternPacks } from "./seedCapabilityPatternPacks.js";
 import { seedDomainTechnologyPacks } from "./seedDomainTechnologyPacks.js";
+import { seedCompliancePacks } from "./seedCompliancePacks.js";
+import { seedDomainPacks } from "./seedDomainPacks.js";
+import { seedIntegrationPacks } from "./seedIntegrationPacks.js";
 import { seedSdlcPhasePacks } from "./seedSdlcPhasePacks.js";
+import { seedLegacyKnowledgeRecoveryPack } from "./seedLegacyKnowledgeRecoveryPack.js";
+import { seedDomainSpecialisationPacks } from "./seedDomainSpecialisationPacks.js";
 import { seedSdlcStandardTemplates } from "./seedSdlcStandardTemplates.js";
+import { seedPolicyDefinitions } from "./seedPolicyDefinitions.js";
 import { seedAllTestFixturePacks } from "./seedTestFixturePacks.js";
 import { seedAllTabsPackFixture } from "./seedAllTabsPackFixture.js";
-
-// Migration 119's own INSERT, duplicated here so clean-slate is
-// self-sufficient for these concepts regardless of migration-apply history —
-// same discipline step 1c below already uses for the root badge_grant row.
-// domain-ebook-library/technology-nodejs/technology-c/technology-cpp (real
-// Packs) plus one `test-<code>` twin per real seed Pack except the unloaded
-// core-engineering.pack.json — see seedTestFixturePacks.ts's own header.
-const TEST_FIXTURE_PACK_ONTOLOGY_CONCEPTS: Array<[code: string, label: string]> = [
-  ["domain-ebook-library", "E-Book Library Domain Practices"],
-  ["technology-nodejs", "Node.js Engineering Practices"],
-  ["technology-c", "C Engineering Practices"],
-  ["technology-cpp", "C++ Engineering Practices"],
-  ["technology-sass", "SASS Engineering Practices"],
-  ["technology-html", "HTML Engineering Practices"],
-  ["technology-git", "Git Engineering Practices"],
-  ["technology-css", "Cascading Style Sheets Engineering Practices"],
-  ["technology-react", "React Engineering Practices"],
-  ["technology-react-native", "React Native Engineering Practices"],
-  ["technology-js", "JavaScript Engineering Practices"],
-  ["technology-php", "PHP Engineering Practices"],
-  ["test-domain-ebook-library", "Test: E-Book Library Domain Practices"],
-  ["test-architecture-solution-design", "Test: Architecture (OpenUP Capability Pattern)"],
-  ["test-configuration-management", "Test: Configuration & Change Management (OpenUP Capability Pattern)"],
-  ["test-development", "Test: Development (OpenUP Capability Pattern)"],
-  ["test-project-management", "Test: Project Management (OpenUP Capability Pattern)"],
-  ["test-requirements-analysis", "Test: Requirements (OpenUP Capability Pattern)"],
-  ["test-testing-qa", "Test: Test (OpenUP Capability Pattern)"],
-  ["test-vision-opportunity-framing", "Test: Vision & Opportunity (SDLC Phase 0)"],
-  ["test-product-discovery", "Test: Product Discovery (SDLC Phase 1)"],
-  ["test-experience-design", "Test: Experience Design (SDLC Phase 2)"],
-  ["test-technical-architecture-discovery", "Test: Technical Discovery & Architecture (SDLC Phase 3)"],
-  ["test-security-privacy-compliance", "Test: Security, Privacy & Compliance (SDLC Phase 4)"],
-  ["test-platform-developer-experience", "Test: Platform & Developer Experience (SDLC Phase 5)"],
-  ["test-backlog-release-planning", "Test: Backlog & Release Planning (SDLC Phase 6)"],
-  ["test-implementation-engineering", "Test: Implementation (SDLC Phase 7)"],
-  ["test-quality-engineering-hardening", "Test: Quality Engineering & Hardening (SDLC Phase 8)"],
-  ["test-scale-performance-optimization", "Test: Scale & Performance Optimization (SDLC Phase 9)"],
-  ["test-beta-early-access-management", "Test: Beta / Early Access (SDLC Phase 10)"],
-  ["test-launch-management", "Test: Launch (SDLC Phase 11)"],
-  ["test-hypercare-stabilization", "Test: Hypercare & Stabilization (SDLC Phase 12)"],
-  ["test-growth-optimization", "Test: Growth & Optimization (SDLC Phase 13)"],
-  ["test-internationalization-localization", "Test: Internationalization & Localization (SDLC Phase 14)"],
-  ["test-ongoing-operations-governance", "Test: Ongoing Operations & Governance (SDLC Phase 15)"],
-  ["test-technology-nodejs", "Test: Node.js Engineering Practices"],
-];
 
 // template-categories (migration 053) is a fixed, real 9-value business
 // classification — every one of the 9 real codes is already claimed by a
@@ -345,22 +311,6 @@ async function run(): Promise<void> {
     `);
     logger.info("[db:clean-slate] step 1c — truncated badge_grants (RESTART IDENTITY) and restored the holder '1' root grant; fixture grants reseeded in step 4.");
 
-    // Step 1d — capability-name Ontology concepts for the test-fixture-pack
-    // system (migration 119). ontology_concepts is never wiped by clean-slate
-    // (additive vocabulary, same as every other migration-seeded concept), so
-    // this is a plain idempotent insert, not a wipe+reseed. Needed before
-    // step 7b below — Pack.code validation (assertCanonicalCategory) requires
-    // every one of these to already exist.
-    for (const [code, label] of TEST_FIXTURE_PACK_ONTOLOGY_CONCEPTS) {
-      await client.query(
-        `INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id)
-         VALUES ('capability-name', $1, $2, '11111111-1111-1111-1111-111111111111')
-         ON CONFLICT (concept_type, code, tenant_id) DO NOTHING`,
-        [code, label]
-      );
-    }
-    logger.info(`[db:clean-slate] step 1d — ensured ${TEST_FIXTURE_PACK_ONTOLOGY_CONCEPTS.length} test-fixture-pack Ontology concepts.`);
-
     // Step 1d-2 — CR-079 step (a): the six new category-scoped Pack-identity
     // concepts (migration 132), same idempotent-insert treatment as step 1d
     // above, needed before step (b)'s validatePackSeed rewiring can check a
@@ -464,11 +414,13 @@ async function run(): Promise<void> {
     const capabilitiesDeleted = await client.query("DELETE FROM capabilities WHERE originating_pack_id IS NOT NULL");
     const metricsDeleted = await client.query("DELETE FROM metric_definitions WHERE identifier != ALL($1::text[])", [REAL_METRIC_IDENTIFIERS]);
     // compliance_requirements/compliance_frameworks (Ch.27, Phase 15) — no
-    // seed file declares any real Compliance Framework today, so unlike
-    // capabilities/authority_rules a NULL originating_pack_id here means
-    // "dry-run fixture," not "real, migration-seeded" — nothing to protect.
-    // Wiped unconditionally; requirements before frameworks (FK). No reseed
-    // step exists for either; compliance_waivers/compliance_evaluations are
+    // seed Pack declares anything in `contributionsCompliance` (the 33 real
+    // Compliance Packs, step 6c, express their requirements through the
+    // ordinary contribution kinds instead), so unlike capabilities/
+    // authority_rules a NULL originating_pack_id here means "dry-run
+    // fixture," not "real, migration-seeded" — nothing to protect. Wiped
+    // unconditionally; requirements before frameworks (FK). No reseed step
+    // exists for either; compliance_waivers/compliance_evaluations are
     // already empty by this point (CASCADEd from step 1's own seus truncate).
     const complianceReqDeleted = await client.query("DELETE FROM compliance_requirements");
     const complianceFwDeleted = await client.query("DELETE FROM compliance_frameworks");
@@ -594,10 +546,37 @@ async function run(): Promise<void> {
   // so must run after step 6 above. Rerun-safe.
   await seedDomainTechnologyPacks();
 
+  // Step 6c — 33 real, standalone Compliance Packs (owner: "I added
+  // compliance packs. Wipe and seed them in clean-slate."). None declares
+  // any `dependencies` (confirmed directly), so — unlike step 6b — this
+  // doesn't need to run after anything specific; kept here for locality
+  // with the other standalone-Pack steps. Rerun-safe.
+  await seedCompliancePacks();
+
+  // Step 6d — 24 real, standalone Domain Packs (owner: "I added domain
+  // packs. These have to be seeded using cleanSlate."). Same as step 6c —
+  // no `dependencies`, no ordering requirement. Rerun-safe.
+  await seedDomainPacks();
+
+  // Step 6e — 20 real, standalone Integration Packs (owner: "added new
+  // integration-* packs"). Same as steps 6c/6d — no `dependencies`, no
+  // ordering requirement. Rerun-safe.
+  await seedIntegrationPacks();
+
   // Step 7 — SDLC-phase Packs. Same ordering reasoning as step 6 — needs
   // transition_definitions (step 4) and the back-filled verb (step 5) to
   // drive Draft -> Validated -> Published -> Active. Rerun-safe.
   await seedSdlcPhasePacks();
+
+  // Step 7a — Legacy Knowledge Recovery Pack (CR-087) — the `legacy-modernisation`
+  // capability's own Pack, no seeded Pack contributed it before. Same ordering
+  // reasoning as step 7. Rerun-safe.
+  await seedLegacyKnowledgeRecoveryPack();
+
+  // Step 7a2 — the 3 new domain-specialisation Packs CR-087's own capability
+  // call-out approved (AI Model Engineering / Embedded Firmware Engineering /
+  // Data Pipeline Engineering). Same ordering reasoning as step 7. Rerun-safe.
+  await seedDomainSpecialisationPacks();
 
   // Step 7b — test-fixture Pack twins (one per real seed Pack, `test-`
   // prefixed code — see seedTestFixturePacks.ts's own header). Same ordering
@@ -633,6 +612,19 @@ async function run(): Promise<void> {
   // on steps 4/5 themselves. Must run after step 7 (needs its Packs'
   // Capabilities to exist). Rerun-safe (upsert semantics).
   await seedSdlcStandardTemplates();
+
+  // Step 9 — CR-089's 34 canonical Policy Definitions (design/fragments/
+  // policies.md), one JSON file per Policy (src/dblayer/seed/data/policy-*.json).
+  // A standalone catalog table with no relationship to any other entity
+  // (owner: "there is no relationship with any other entity") — no
+  // dependency on any prior step's Packs/Templates; only real Ontology
+  // vocabulary (deliverable-name, category:environment, category:policy —
+  // all seeded by the base schema/earlier migrations, not by any step
+  // above). Upsert semantics (ON CONFLICT DO UPDATE), rerun-safe, and never
+  // wipes a real author's own in-progress Draft the way a blanket TRUNCATE
+  // would (same reasoning schema_definitions' own step 2e trims-back-rather-
+  // than-wipes for).
+  await seedPolicyDefinitions();
 
   logger.info("[db:clean-slate] done. Sanity-check next: hit /aisworg/seu/sdk/pack-authoring (Create starts a fresh Draft directly — no bootstrap Template needed) and /aisworg/seu/telemetry (zero Deliverables measured) as a real user.");
 }

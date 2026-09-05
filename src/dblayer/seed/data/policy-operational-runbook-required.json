@@ -1,0 +1,63 @@
+{
+  "code": "operational-runbook-required",
+  "name": "Operational Runbook Required",
+  "description": "A Release Package must be accompanied by a current Operational Guide covering incident response, rollback, and escalation.",
+  "category": "Documentation",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [
+    "runbook-operational-documentation"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Operational Guide covers incident response procedure.",
+      "requiredEvidence": [
+        {
+          "type": "documentation_artifact",
+          "field": "incident_response"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Operational Guide covers rollback procedure, consistent with O3's documented rollback plan.",
+      "requiredEvidence": [
+        {
+          "type": "documentation_artifact",
+          "field": "rollback"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Operational Guide includes current on-call escalation contacts.",
+      "requiredEvidence": [
+        {
+          "type": "documentation_artifact",
+          "field": "escalation_contacts"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Operational Guide was updated within the current release cycle.",
+      "requiredEvidence": [
+        {
+          "type": "documentation_artifact",
+          "field": "last_updated"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

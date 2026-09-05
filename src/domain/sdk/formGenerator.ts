@@ -30,7 +30,14 @@ export interface JsonSchemaProperty {
   // "textarea" generalised Template's `purpose`. Any semver-versioned kind
   // (Pack's `packVersion`, Template's `templateVersion`) marks its field this
   // way; the view dispatches on `kind === "version"`, never a field name.
-  "x-widget"?: "json" | "referential-list" | "referential-select" | "textarea" | "version";
+  // CR-086/Ch.11 follow-on — Service Definition's own `consumers` (a flat
+  // array of capability-name codes, zero-or-more, no per-row shape worth
+  // wrapping into objects the way Template's Pack-code lists do): the
+  // top-level counterpart to "referential-select" for a field that picks
+  // several values instead of one, same x-ontology/x-referential-source
+  // markers as that widget, rendered as a real <select multiple> instead of
+  // a repeatable-row widget.
+  "x-widget"?: "json" | "referential-list" | "referential-select" | "referential-multi-select" | "textarea" | "version";
   "x-referential"?: string;
   "x-referential-source"?: string;
   // CR-060 — Review/Quality Gate's own checklistIds: a referential-list
@@ -127,6 +134,12 @@ export interface ReferentialListItemField {
   // renderMarkdown call in _referentialListGroup.ejs; independent of `full`
   // (which only decides textarea-vs-input sizing).
   markdown?: boolean;
+  // True when a "referential" item field's schema also carries x-ontology —
+  // its options resolve through Ontology (code+label+description), the same
+  // way a top-level referential-select does, rather than the flat
+  // referentialOptions[] string list every other item-level referential
+  // field (governedTransition, checklistIds, ...) still uses.
+  ontology?: boolean;
   nestedItemFields?: ReferentialListItemField[];
 }
 
@@ -146,6 +159,10 @@ export type GeneratedField =
   // <input list>/<datalist> instead of a fixed <select> and swaps its
   // options client-side when the named driver field changes.
   | { kind: "referential-select"; name: string; label: string; required: boolean; value: string; referentialSource: string; ontology: boolean; help?: string; showWhen?: string; dynamicSourceField?: string; dynamicSourceSuffix?: string; dynamicSourceDriverConceptType?: string }
+  // CR-086/Ch.11 follow-on — Service Definition's `consumers`: same
+  // referential-source/ontology shape as "referential-select", but `value`
+  // is the array of every currently-selected code, not just one.
+  | { kind: "referential-multi-select"; name: string; label: string; required: boolean; value: string[]; referentialSource: string; ontology: boolean; help?: string; showWhen?: string }
   | { kind: "json"; name: string; label: string; required: boolean; value: string; help?: string; showWhen?: string }
   // Bug fix (UI redesign, owner: "extremely unfriendly"): `existingCount` marks
   // how many of `rows` are the content's OWN rows vs. blank ones offered so an
@@ -190,7 +207,7 @@ function buildItemFields(itemProps: Record<string, JsonSchemaProperty>, itemRequ
       return { name: fieldName, kind: "nested-list" as const, nestedItemFields, ...common };
     }
     if (fieldDef["x-referential"] && fieldDef["x-multi"]) return { name: fieldName, kind: "referential-multi" as const, referentialSource: fieldDef["x-referential"], ...common };
-    if (fieldDef["x-referential"]) return { name: fieldName, kind: "referential" as const, referentialSource: fieldDef["x-referential"], ...common };
+    if (fieldDef["x-referential"]) return { name: fieldName, kind: "referential" as const, referentialSource: fieldDef["x-referential"], ontology: fieldDef["x-ontology"] === true, ...common };
     if (fieldDef.enum) return { name: fieldName, kind: "enum" as const, options: fieldDef.enum, ...common };
     if (fieldDef.type === "boolean") return { name: fieldName, kind: "boolean" as const, ...common };
     return { name: fieldName, kind: "string" as const, ...common };
@@ -268,6 +285,17 @@ export function generateFields(schema: JsonSchemaDocument, content: Record<strin
       continue;
     }
 
+    if (def["x-widget"] === "referential-multi-select") {
+      fields.push({
+        kind: "referential-multi-select", name, label: labelize(name), required: isRequired,
+        value: Array.isArray(rawValue) ? rawValue.filter((v): v is string => typeof v === "string") : [],
+        referentialSource: def["x-referential-source"] ?? "",
+        ontology: def["x-ontology"] === true,
+        help: def["x-help"], showWhen: def["x-show-when"],
+      });
+      continue;
+    }
+
     if (def["x-widget"] === "referential-select") {
       const driverField = def["x-referential-source-by"];
       const driverSuffix = def["x-referential-source-suffix"] ?? "";
@@ -328,8 +356,22 @@ export function generateFields(schema: JsonSchemaDocument, content: Record<strin
 export function ontologyConceptTypesIn(schema: JsonSchemaDocument): string[] {
   const types = new Set<string>();
   for (const def of Object.values(schema.properties ?? {})) {
-    if (def["x-widget"] === "referential-select" && def["x-ontology"] === true && (def["x-referential-source"] ?? "").trim()) {
+    if ((def["x-widget"] === "referential-select" || def["x-widget"] === "referential-multi-select") && def["x-ontology"] === true && (def["x-referential-source"] ?? "").trim()) {
       types.add(def["x-referential-source"]!.trim());
+    }
+    // Owner: "capability code is from a dropdown of capability-name" (Pack's
+    // own contributionCapabilities) — a referential-list ITEM field can be
+    // Ontology-backed too (x-referential + x-ontology, mirrored one level
+    // down from the top-level marker pair above), needed so its options
+    // carry a real label/description instead of the bare code every other
+    // item-level referential field (governedTransition, checklistIds, ...)
+    // still shows.
+    if (def["x-widget"] === "referential-list" && def.items?.properties) {
+      for (const itemDef of Object.values(def.items.properties)) {
+        if (itemDef["x-referential"] && itemDef["x-ontology"] === true) {
+          types.add(itemDef["x-referential"].trim());
+        }
+      }
     }
   }
   return [...types];
@@ -387,6 +429,11 @@ const METADATA_FIELD_NAMES = new Set([
   "name", "owner", "category", "publisher", "description", "packVersion", "templateVersion", "installationClassification", "compositionStrategy", "compositionSources", "purpose",
   "code", "environment", "baseTemplateCode", "requiredCapabilityCodes", "mandatoryPackCodes", "optionalPackCodes", "configParameters",
   "profileVersion", "featureFlagCodes", "compositionOptions",
+  // CR-086/Ch.11 follow-on — Service Definition's own fields, bucketed here
+  // (rather than falling into the unsorted `other` catch-all) so
+  // FIELD_DISPLAY_ORDER below can actually control their order, the same way
+  // it already does for code/name/purpose.
+  "capabilityCode", "serviceLevel", "governance", "consumers", "success", "inputs", "outputs",
 ]);
 const COMPATIBILITY_FIELD_NAMES = new Set(["supportedPlatformVersion", "minSupportedPlatformVersion", "maxSupportedPlatformVersion", "incompatiblePackVersions", "migrationGuidance"]);
 // Bug fix in passing: engineeringPackCodes/organisationPackCodes/dependencyGraph
@@ -417,7 +464,13 @@ const DELIVERABLES_FIELD_NAMES = new Set(["deliverableCatalogue", "dependencyGra
 // `packVersion` — their own templateVersion/profileVersion stay exactly
 // where they already were in this same list, further down.
 const FIELD_DISPLAY_ORDER = [
-  "category", "code", "packVersion", "name", "purpose", "templateVersion", "profileVersion",
+  "category", "code", "packVersion", "name", "purpose",
+  // CR-086/Ch.11 follow-on — owner-specified order for Service Definition's
+  // own fields (Code/Name/Purpose above are shared with every other kind
+  // already). Harmless for Pack/Template/Profile/Deliverable, none of which
+  // have a field by any of these names.
+  "capabilityCode", "serviceLevel", "governance", "consumers", "success", "inputs", "outputs",
+  "templateVersion", "profileVersion",
   "owner", "publisher", "description", "environment", "baseTemplateCode",
   "installationClassification", "compositionStrategy", "compositionSources",
   "compliancePackCodes", "domainPackCodes", "engineeringPackCodes", "integrationPackCodes", "organisationPackCodes", "technologyPackCodes",
@@ -479,13 +532,19 @@ export const CONTRIBUTION_SECTION_HELP: Record<string, string> = {
   contributionCapabilities: "Abilities this Pack introduces (e.g. \"testing\", \"architecture\") — what a Participant needs to fulfil in order to do this kind of work.",
   contributionServices: "Work products this Pack's Capabilities produce, each tied to the Capability that provides it (must be declared in this same Pack, above).",
   contributionAuthorityRules: "Legacy per-transition role authorisations (pre-noun×verb). New Packs should generally rely on the platform's noun×verb badges instead.",
-  contributionPolicies: "Conditions checked on a governed transition — a blocking Policy or a non-blocking Standard (deviations are recorded, not blocked).",
+  // CR-089 follow-on — dead for contributionPolicies specifically since its
+  // own x-help (schema_definitions Pack, 168_pack_contribution_policies_from_definitions.sql)
+  // now carries the real explanation via the generic simple-field path
+  // (_generatedFieldGroups.ejs's own 'simple'-type tab dispatch, not this
+  // fallback banner) — left here only because CONTRIBUTION_SECTION_HELP is
+  // still consulted for other, still-referential-list contribution types.
+  contributionPolicies: "Which canonical Policy Definitions (Ch.24) this Pack adopts — check/uncheck, scoped to whichever ones govern a deliverable-name this Pack's own declared Capabilities produce.",
   contributionQualityGates: "Pass/fail criteria a specific transition (entity + from-state + to-state) must satisfy before it's allowed to proceed.",
   contributionChecklists: "Reusable Checklists (Ch.47) — a Name/Description plus its own ordered list of Items (just a Statement each). A Checklist carries no scope, participant, or required/advisory status of its own; Review Gates and Quality Gates reference it by id (checklistIds/recommendedChecklistIds) to say when it applies and whether it's required.",
   contributionReviewGates: "Verifiable review requirements — typically \"judgment\" or \"human-attested\" items that gate a review outcome.",
   contributionObligationDefinitions: "Verifiable obligations this Pack can raise — a commitment that must be resolved, of the Category given.",
   contributionEngineeringCapital: "Engineering Behaviour, Engineering Metrics, Reusable Components, or Engineering Templates this Pack contributes — a Type and a URL to where it actually lives.",
-  contributionsCompliance: "Compliance Frameworks and their Requirements this Pack declares (raw JSON — deeply nested, not yet a structured widget).",
+  contributionComplianceCodes: "Which existing Compliance Packs this Pack must satisfy — picked by their own compliance-name code, not a copy of their content.",
 };
 export const VERIFIABLE_ITEM_FIELD_HELP: Record<string, string> = {
   statement: "The claim being verified, in plain language — this is the core content; everything else describes how it gets checked.",

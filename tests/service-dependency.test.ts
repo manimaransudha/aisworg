@@ -25,7 +25,7 @@ async function commissionTestSeu(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
@@ -38,14 +38,14 @@ test("commissioning wires a named Capability-type edge alongside the Deliverable
   const detail = await getSeuDetailView(seuId);
   assert.ok(detail);
 
-  assert.equal(detail.deliverables.length, 3, "expected Requirements Specification, Architecture Document and Source Code");
-  const archDoc = detail.deliverables.find((d) => d.name === "Architecture Document");
+  assert.equal(detail.deliverables.length, 3, "expected Requirements Analysis Model, Architecture Decision Record and Source Code");
+  const archDoc = detail.deliverables.find((d) => d.name === "Architecture Decision Record");
   assert.ok(archDoc);
 
   const deliverableEdge = archDoc.dependencyEdges.find((e) => e.dependencyType === "Deliverable");
   const capabilityEdge = archDoc.dependencyEdges.find((e) => e.dependencyType === "Capability");
-  assert.ok(deliverableEdge, "expected a Deliverable-type edge to Requirements Specification");
-  assert.equal(deliverableEdge?.targetLabel, "Requirements Specification");
+  assert.ok(deliverableEdge, "expected a Deliverable-type edge to Requirements Analysis Model");
+  assert.equal(deliverableEdge?.targetLabel, "Requirements Analysis Model");
   assert.ok(capabilityEdge, "expected a Capability-type edge naming a Service");
   assert.ok(capabilityEdge?.targetLabel.startsWith("Service: "), `expected the Service to be named, got: ${capabilityEdge?.targetLabel}`);
   assert.equal(capabilityEdge?.readinessState, "Pending", "nobody has fulfilled requirements-analysis yet");
@@ -59,7 +59,7 @@ test("a Capability-type edge resolves Satisfied once the real SEU fulfils the up
   const seuId = await commissionTestSeu("phase2-fulfil");
 
   const before = await getSeuDetailView(seuId);
-  const archDocBefore = before?.deliverables.find((d) => d.name === "Architecture Document");
+  const archDocBefore = before?.deliverables.find((d) => d.name === "Architecture Decision Record");
   const capEdgeBefore = archDocBefore?.dependencyEdges.find((e) => e.dependencyType === "Capability");
   assert.equal(capEdgeBefore?.readinessState, "Pending");
 
@@ -73,7 +73,7 @@ test("a Capability-type edge resolves Satisfied once the real SEU fulfils the up
   });
 
   const after1 = await getSeuDetailView(seuId);
-  const archDocAfter = after1?.deliverables.find((d) => d.name === "Architecture Document");
+  const archDocAfter = after1?.deliverables.find((d) => d.name === "Architecture Decision Record");
   const capEdgeAfter = archDocAfter?.dependencyEdges.find((e) => e.dependencyType === "Capability");
   assert.equal(capEdgeAfter?.readinessState, "Satisfied");
 });
@@ -82,7 +82,7 @@ test("listServices exposes each Service's declared Service Level and providing C
   const services = await listServices();
   const catalogService = services.find((s) => s.name === "Approved Catalog Metadata Design");
   assert.ok(catalogService);
-  assert.equal(catalogService.providingCapabilityCode, "catalog-management");
+  assert.equal(catalogService.providingCapabilityCode, "understanding-business-domain");
   // CR-064 — service_level is a {label, target}[] list, not a flat object.
   assert.ok(Array.isArray(catalogService.serviceLevel) && catalogService.serviceLevel.length > 0);
   assert.ok(

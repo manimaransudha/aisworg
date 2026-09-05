@@ -1,0 +1,72 @@
+{
+  "code": "domain-telecom-media-publishing",
+  "name": "Telecom BSS, Media & Publishing Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for Telecommunications Business Support Systems (BSS), Media Streaming, and Publishing, covering SIM/subscriber provisioning, CDR usage rating, prepaid/postpaid billing, editorial workflows, digital rights management (DRM), and ad impression tracking.",
+  "owner": "Global Telecom BSS & Media Publishing Operations Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-telecom-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-telecom-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Telecom BSS & Media Publishing Audit Checklist",
+        "description": "Validation checklist for subscriber provisioning, CDR rating, editorial publishing, and DRM rights management.",
+        "items": [
+          {
+            "statement": "Subscriber SIM card activation provisions voice/data services across HLR/HSS/5G Core network nodes.",
+            "group": "Subscriber Provisioning"
+          },
+          {
+            "statement": "Call Detail Records (CDR) rate voice minutes, SMS counts, and data megabytes accurately without double-charging.",
+            "group": "CDR Usage Rating"
+          },
+          {
+            "statement": "Prepaid balance recharges update account balances instantaneously with electronic receipt delivery.",
+            "group": "Prepaid Recharge"
+          },
+          {
+            "statement": "Editorial workflow requires editorial review and copy-editing approval prior to digital publication.",
+            "group": "Editorial Workflow"
+          },
+          {
+            "statement": "Digital Rights Management (DRM) servers verify user entitlements before issuing playback decryption keys.",
+            "group": "DRM Rights Management"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "telecom-media-director-signoff-gate",
+        "name": "Telecom & Media Operations Director Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Telecom BSS & Media Operations Director confirms that CDR rating accuracy, subscriber billing, and DRM controls satisfy industry standards.",
+        "prompt": "Does the telecom & media documentation confirm rating accuracy and DRM protection?",
+        "participant": "human",
+        "outputContract": "telecom-media-attestation",
+        "checklistIds": [
+          "Telecom BSS & Media Publishing Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

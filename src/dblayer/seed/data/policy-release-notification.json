@@ -1,0 +1,51 @@
+{
+  "code": "release-notification",
+  "name": "Release Notification",
+  "description": "Stakeholders must be notified of a pending Release Package, with adequate lead time and support information.",
+  "category": "Customer",
+  "constraintType": "Standard",
+  "applicabilityDeliverableNames": [
+    "release-package"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "A notification record exists, sent to every declared stakeholder distribution list.",
+      "requiredEvidence": [
+        {
+          "type": "notification_record",
+          "field": "recipients"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Notification was sent at least the declared lead time before deployment.",
+      "requiredEvidence": [
+        {
+          "type": "notification_record",
+          "field": "sent_at"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Notification includes rollback status and support contact information.",
+      "requiredEvidence": [
+        {
+          "type": "notification_record",
+          "field": "content"
+        }
+      ],
+      "severity": "Low",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

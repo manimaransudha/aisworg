@@ -1,5 +1,5 @@
 {
-  "code": "architecture-solution-design",
+  "code": "test-architecture-solution-design",
   "name": "Architecture (OpenUP Capability Pattern)",
   "category": "Engineering",
   "packVersion": "1.0.0",
@@ -11,27 +11,14 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "architecture-solution-design",
+        "code": "architecture-design",
         "name": "Architecture Design",
         "description": "Designs the technical solution structure and key design decisions on behalf of the Architect role."
       }
     ],
     "services": [
       {
-        "code": "architecture-notebook",
-        "capabilityCode": "architecture-solution-design",
-        "name": "Architecture Notebook",
-        "contractDescription": "The candidate architecture, key design decisions, and rationale — sufficient to guide implementation.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
+        "code": "architectural-review-service"
       }
     ],
     "authorityRules": [
@@ -51,17 +38,7 @@
         "authorisedRole": "general"
       }
     ],
-    "policies": [
-      {
-        "code": "policy-openup-architectural-baseline-standard",
-        "name": "OpenUP Architectural Baseline Standard Policy",
-        "category": "Engineering",
-        "constraintType": "Standard",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "conditionType": "always_true",
-        "severity": "high"
-      }
-    ],
+    "policies": [],
     "checklists": [
       {
         "name": "Architecture (OpenUP Capability Pattern) Checklist",

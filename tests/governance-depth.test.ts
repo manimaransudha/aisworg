@@ -33,7 +33,7 @@ async function commissionTestSeu(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
@@ -55,15 +55,15 @@ test("Quality Gate blocks a Deliverable transition while an Obligation is unreso
   await ensureCoreEngineeringQualityGates();
   const seuId = await commissionTestSeu("phase4-quality-gate");
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Specification");
+  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
   assert.ok(requirementsSpec && reqAnalysisCapability);
 
-  // Requirements Specification has no dependsOnDeliverableCodes/
+  // Requirements Analysis Model has no dependsOnDeliverableCodes/
   // dependsOnCapabilityServiceCodes in the seeded Template — confirm the
   // Dependency Engine has nothing to say here at all, so any block that
   // follows can only be the Quality Gate/Obligation, not the dependency graph.
-  const readiness = await dependencyDefinitionEngine.isTargetReady(seuId, "Deliverable", "Requirements Specification", "In Progress");
+  const readiness = await dependencyDefinitionEngine.isTargetReady(seuId, "Deliverable", "Requirements Analysis Model", "In Progress");
   assert.equal(readiness.ready, true);
   assert.equal(readiness.rows.length, 0);
 
@@ -84,7 +84,7 @@ test("Quality Gate blocks a Deliverable transition while an Obligation is unreso
 
   // Dependency Engine still has nothing to say — re-confirm right before the
   // blocked attempt, not just at the start.
-  const readinessBeforeBlock = await dependencyDefinitionEngine.isTargetReady(seuId, "Deliverable", "Requirements Specification", "Approved");
+  const readinessBeforeBlock = await dependencyDefinitionEngine.isTargetReady(seuId, "Deliverable", "Requirements Analysis Model", "Approved");
   assert.equal(readinessBeforeBlock.ready, true);
 
   const blocked = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "Approved", actorRole: "super", actorId: "1" });
@@ -107,7 +107,7 @@ test("Quality Gate blocks a Deliverable transition while an Obligation is unreso
 test("Obligation lifecycle runs through the generic transitionEngine (Ch.23 §9) and rejects an undefined transition", async () => {
   const seuId = await commissionTestSeu("phase4-obligation-lifecycle");
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Specification");
+  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec);
 
   const obligation = await createObligation({ seuId, relatedObjectType: "Deliverable", relatedObjectId: requirementsSpec.id, category: "Compliance", title: "Phase4 test: lifecycle walk", severity: "Medium" });

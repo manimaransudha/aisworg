@@ -71,6 +71,16 @@ export interface CapabilityRow {
   created_at: string;
 }
 
+// CR-086 step 2 — an Objective's required Capabilities are bare
+// capability-name Ontology terms (code/name/description resolved from
+// ontology_concepts), not rows from the Pack-instance-scoped `capabilities`
+// table above. See migration 150.
+export interface RequiredCapability {
+  code: string;
+  name: string;
+  description: string | null;
+}
+
 export type ServiceStatus = "Defined" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
 
 // CR-064 — version is real, definition-side versioning (a new immutable row
@@ -80,28 +90,26 @@ export type ServiceStatus = "Defined" | "Published" | "Active" | "Deprecated" | 
 // version within its (originating_pack_id, code) slot; historical versions
 // stay is_active=false, never deleted (Ch.11 §13's own "historical Service
 // versions remain available").
+// CR-064's own free {label,target:string} pair (Ch.11 §8's open "may
+// specify" framing) is superseded by ServiceLevelExpectation — the richer
+// {code,label,target_level,target:number,units} shape service_definitions
+// (migration 155) uses, now shared here too: `services` is the Pack-composed
+// row FED FROM a Service Definition (CR-086 follow-on, core/packs.ts's
+// seedContributions), so it carries the exact same shape as its source,
+// targets merged with whatever this Pack's own contributionServices[]
+// overrides.
 export interface ServiceRow {
   id: string;
   code: string;
   providing_capability_id: string;
   name: string;
   contract_description: string;
-  service_level: ServiceLevelItem[];
+  service_level: ServiceLevelExpectation[];
   status: ServiceStatus;
   version: string;
   is_active: boolean;
   originating_pack_id: string | null;
   created_at: string;
-}
-
-// CR-064 — a Service Level entry, generic label/target pair (Ch.11 §8's own
-// open "may specify: target turnaround time; quality bar or acceptance
-// criteria; availability expectation; applicable exceptions or waivers" —
-// not four fixed fields, since not every Service needs all four and some
-// need more than one of the same kind, e.g. offshore vs onsite turnaround).
-export interface ServiceLevelItem {
-  label: string;
-  target: string;
 }
 
 // CR-020: category is Ontology-governed (concept_type category:pack) — a data
@@ -171,33 +179,41 @@ export interface ChecklistItem {
 }
 
 export interface PackContributions {
-  // CR-065 — category dropped entirely, not fixed.
-  capabilities?: Array<{ code: string; name: string; description?: string }>;
-  // CR-064 — code is now Ontology-backed (service-name, freely-extensible —
-  // deliberately reusable across Packs, e.g. the same "turn-around-time-high"
-  // code declared independently by both a Development and a Deployment Pack,
-  // each with its own serviceLevel content) and Pack-scoped, not globally
-  // unique. serviceLevel is the nested, repeatable declared Service Level.
-  services?: Array<{ code: string; capabilityCode: string; name: string; contractDescription: string; serviceLevel?: ServiceLevelItem[] }>;
+  // CR-065 — category dropped entirely, not fixed. Owner: "what is stored in
+  // contributionCapabilities[]? Just store only the code" — name/description
+  // are 100% derivable from the capability-name Ontology concept the code
+  // already resolves to (seedContributions looks them up there instead),
+  // so storing them redundantly per-Pack was pure duplication.
+  capabilities?: Array<{ code: string }>;
+  // CR-064, then CR-086 follow-on (owner: "the services form should show all
+  // services tied to the capabilities... Capability Code/Name/Contract
+  // Description... do not have to be stored in contributionServices[]") —
+  // code now picks a canonical Service Definition (service_definitions);
+  // capabilityCode/name/contractDescription are derived off it (read-only in
+  // the form, never submitted). serviceLevel carries ONLY this Pack's own
+  // target overrides ({code, target} — code identifies which of the
+  // Definition's own service_level rows is overridden); anything not listed
+  // here simply inherits the Definition's own target — the Definition
+  // itself is never mutated (owner: "the original service definition should
+  // not be overwritten"). seedContributions (core/packs.ts) resolves/merges
+  // at publish time, writing the merged result to the Pack-composed
+  // `services` table only.
+  services?: Array<{ code: string; serviceLevel?: Array<{ code: string; target: number }> }>;
   authorityRules?: Array<{ code: string; governedTransition: string; authorisedRole: string }>;
-  // CR-061 — real Ontology-backed category (category:policy), real
-  // transition-definition-backed governedTransition (definition-side only
-  // — not yet consulted by the evaluation engine, owner: "we are not
-  // addressing this here"). `condition`'s authored, flat, form-facing shape
-  // (conditionType/conditionField/conditionValues) is reassembled into
-  // condition's real nested JSONB shape at seedContributions time, the same
-  // pattern criteriaType/deliverableName already use for Quality Gate.
-  policies?: Array<{
-    code: string;
-    name: string;
-    category: string;
-    constraintType?: "Policy" | "Standard";
-    governedTransition: string;
-    conditionType?: "always_true" | "field_in";
-    conditionField?: string;
-    conditionValues?: string;
-    severity?: string;
-  }>;
+  // CR-089 follow-on (168_pack_contribution_policies_from_definitions.sql) —
+  // same architectural move CR-086 made for `services` above, but flatter
+  // still: a plain list of canonical Policy Definition codes this Pack
+  // adopts (check/uncheck, `x-widget: "referential-multi-select"` — no
+  // per-item sub-fields at all, unlike Service's own {code, serviceLevel}),
+  // scoped to whichever ones govern a deliverable-name this Pack's own
+  // declared Capabilities produce (via each Capability's own Service
+  // Definition outputs). Every other field (name/category/constraintType/
+  // governedTransition/conditionType/conditionField/conditionValues/severity)
+  // is derived off the Definition at seedContributions time — governedTransition
+  // specifically from the Definition's own applicability_deliverable_lifecycle
+  // (owner: "is not deliverable_lifecycle equivalent of that?") — never
+  // authored here.
+  policies?: string[];
   // Post-MVP Phase 4 (Ch.26 FR-26.2: "Quality Gates shall be contributed
   // through Packs"). CR-058 — the authored (form-facing) shape:
   // governedTransition replaces the old free-typed entityType/fromState/
@@ -300,20 +316,13 @@ export interface PackContributions {
   // (engineering-capital, freely-extensible); not a §20 verifiable item —
   // these are inputs/assets, not checks (tbi.md's own §9 classification note).
   engineeringCapital?: Array<{ type?: string; url?: string }>;
-  // Compliance Model — Plan (Phase 15, Ch.27 FR-27.1): a Pack contributes
-  // Compliance Frameworks and their declarative Requirements. Compliance
-  // composes existing primitives (§8), so a requirement's criteria reuses the
-  // same predicates as Quality Gates.
-  complianceFrameworks?: Array<{ code: string; name: string; description?: string }>;
-  complianceRequirements?: Array<{
-    code: string;
-    frameworkCode: string;
-    name: string;
-    description?: string;
-    criteria: Record<string, unknown>;
-    severity?: string;
-    conflictsWith?: string[];
-  }>;
+  // Owner (2026-09-01): "The compliance tab in pack model is just a
+  // placeholder. It has to be expanded to pick from one of the existing
+  // compliance codes." Replaces the old contributionsCompliance raw-JSON
+  // Framework/Requirement declaration entirely — a code-only reference to an
+  // existing Compliance Pack's own compliance-name code (migration 144), same
+  // shape as featureFlagCodes, not a copy of that Pack's content.
+  complianceCodes?: string[];
 }
 
 export interface PackRow {
@@ -344,19 +353,26 @@ export interface PackRow {
   created_at: string;
 }
 
-// CR-038 — `code` dropped outright: dependencyGraph moved to name-based
-// cross-references (bug fix, see TemplateDependencyGraphEntry's own
-// comment), and commissioning's own use of it was purely a report-list
-// convenience (initialDeliverables, now name-keyed instead) — nothing
-// functional ever needed a separate catalogue-local identifier once `name`
-// itself is Ontology-backed (deliverable-name concept) and therefore already
-// a stable, controlled value. `name` is the real identity throughout the
-// runtime system (deliverables.name, dependency_definitions' name-keyed
-// columns) — this just stops pretending there's a second one.
+// CR-087 — `name` renamed to `code`: the deliverable-name Ontology concept's
+// own CODE (e.g. "solution-architecture-document"), validated server-side
+// (validateTemplateSeed) via assertCanonicalCategory, the same discipline
+// every other Ontology-backed authoring field already has. Reverses CR-038's
+// own "code dropped outright" call — that call assumed `name` itself would
+// already hold a real, controlled Ontology value; CR-087 found it never did
+// in practice (every seeded Template's catalogue drifted to free text, see
+// CR-087 finding 1). Runtime storage is unaffected: dependency_definitions/
+// deliverables stay name(label)-keyed exactly as before — materialisation
+// (materialiseDependencyGraph.ts) and commissioning (core/commissioning.ts)
+// resolve this code to its tenant-aware label at the point they write to
+// those tables.
+// CR-087 follow-up — category and producingCapabilityCode both dropped
+// (owner: "drop category... schema has to reflect the changes"; migration
+// 164). category was descriptive-only, never operationally read.
+// producingCapabilityCode is now derived automatically at commissioning time
+// (core/commissioning.ts) off the SEU's required Capabilities' own Active
+// Service Definition outputs, rather than hand-authored here.
 export interface TemplateDeliverableSeed {
-  name: string;
-  category: string;
-  producingCapabilityCode?: string;
+  code: string;
 }
 
 // CR-041 — the dependency graph is authored explicitly, as its own top-level
@@ -364,14 +380,16 @@ export interface TemplateDeliverableSeed {
 // dependsOnCapabilityServiceCodes shape, retired — see migration that
 // converted every seed Template's data).
 //
-// toName/fromName reference deliverableCatalogue's own `name` values within
-// the same Template — NAME, not `code` (bug fix, found building CR-038: the
-// live widget's self-referential picker resolves against catalogue *names*
-// (migration 076's own toName/fromName field names, `x-referential:
-// "self:deliverableCatalogue"`, populated from each entry's `.name`), and
-// dependency_definitions itself is name-keyed throughout (matches
-// deliverables.name at runtime) — code was never the right shape here, only
-// ever a leftover from the pre-CR-041 embedded-code model). fromCapabilityCode
+// CR-087 — toCode/fromCode (renamed from toName/fromName) reference
+// deliverableCatalogue's own `code` values within the same Template — the
+// self-referential picker (`x-referential: "self:deliverableCatalogue"`,
+// web/sdkAuthoring.ts's loadSelfReferentialOptions) already auto-detects
+// `code` vs `name` as the identity key from the TARGET field's own item
+// schema, so this rename needed no resolver change, only the schema/type
+// update (migration 160). dependency_definitions itself stays name(label)-
+// keyed throughout (matches deliverables.name at runtime, unchanged) —
+// materialiseDependencyGraph.ts resolves toCode/fromCode to their Ontology
+// labels at the point it writes those rows. fromCapabilityCode
 // names a required Capability (resolved to that Capability's declared
 // Service(s) — Ch.9 §8/Ch.11 §9: a Capability edge asks "is anyone actually
 // assigned to this upstream Capability," distinct from a Deliverable edge's
@@ -391,9 +409,9 @@ export interface TemplateDeliverableSeed {
 export type DependencyRelationshipKind = "dependency" | "derivation" | "implementation" | "decomposition";
 
 export interface TemplateDependencyGraphEntry {
-  toName: string;
+  toCode: string;
   fromType: "Deliverable" | "Capability";
-  fromName?: string;
+  fromCode?: string;
   fromCapabilityCode?: string;
   requiredState?: string;
   relationshipKind?: DependencyRelationshipKind;
@@ -431,6 +449,100 @@ export interface DeliverableDefinitionRow {
   authored_by: number | null;
   tenant_id: string;
   parent_deliverable_definition_id: string | null;
+  created_at: string;
+}
+
+// CR-086 follow-on — Service Definition (Book 3 Ch.11 §13), the chapter's own
+// 6-state lifecycle verbatim — deliberately its own status union, not
+// PackStatus (Ch.11 has no Draft/Validated; "Defined" plays that role).
+export type ServiceDefinitionStatus = "Defined" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
+
+// CR-086/Ch.11 follow-on (migration 155) — one measurable expectation a
+// Service Level declares (Ch.11 §8), e.g. {code: "ambiguity-free", label:
+// "Percent unambiguous requirements", target_level: "minimum", target: 60,
+// units: "percent"}. Owner-specified shape.
+export interface ServiceLevelExpectation {
+  code: string;
+  label: string;
+  target_level: "minimum" | "maximum" | "exact";
+  target: number;
+  units: string;
+}
+
+// Mirrors DeliverableDefinitionRow's shape above — its own table (see
+// 153_service_definitions.sql's header). `capability_code` is the 1:1
+// alignment to a capability-name concept; `code` is this Service's OWN
+// identity, validated against the separate service-name concept type
+// (migration 152) — owner: "I do not want to reuse the capability-name...
+// makes future mutations easy if required."
+export interface ServiceDefinitionRow {
+  id: string;
+  code: string;
+  name: string;
+  capability_code: string;
+  purpose: string | null;
+  inputs: string | null;
+  outputs: string | null;
+  service_level: ServiceLevelExpectation[];
+  governance: string | null;
+  success: string | null;
+  consumers: string[];
+  version: string;
+  status: ServiceDefinitionStatus;
+  draft_content: Record<string, unknown>;
+  authored_by: number | null;
+  tenant_id: string;
+  parent_service_definition_id: string | null;
+  created_at: string;
+}
+
+// CR-089 — Policy Definition (Book 3 Ch.24 §13), the chapter's own 7-state
+// lifecycle verbatim — has a Validated step Service Definition's own leaner
+// 6-state lifecycle doesn't (owner: "Stick to the policy lifecycle defined
+// in chapter 24 for policy").
+export type PolicyDefinitionStatus = "Draft" | "Validated" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
+
+// One independently-checkable predicate a Policy declares (Ch.24 §8). Kept
+// as its own rich, nested shape (requiredEvidence/exceptionRules/
+// relatedObligations arrays) rather than flattened — `conditions` as a
+// whole is authored as raw JSON (`x-widget: "json"`, schema_definitions
+// Policy v1), not individual form fields, so nothing here needs to fit
+// formGenerator.ts's flat ItemField kinds.
+export interface PolicyCondition {
+  statement: string;
+  requiredEvidence: Array<Record<string, unknown>>;
+  severity: "Critical" | "High" | "Medium" | "Low";
+  exceptionRules: string[];
+  relatedObligations: string[];
+}
+
+// `policy_definitions` (167_policy_definitions.sql) — a new, standalone
+// canonical catalog, mirroring ServiceDefinitionRow's own shape, but with NO
+// relationship to any other entity (unlike Service Definition's 1:1 tie to
+// Capability) — owner: "there is no relationship with any other entity."
+// applicability_deliverable_names/applicability_environments/
+// applicability_deliverable_lifecycle are real Postgres TEXT[] columns; the
+// schema's own form-facing shape represents deliverable_lifecycle as a
+// comma-separated string (same convention contributionPolicies[].conditionValues
+// already uses, migration 109) since it has no Ontology backing to drive a
+// multi-select the way the other two do.
+export interface PolicyDefinitionRow {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  category: string;
+  constraint_type: "Policy" | "Standard";
+  applicability_deliverable_names: string[];
+  applicability_environments: string[];
+  applicability_deliverable_lifecycle: string[];
+  conditions: PolicyCondition[];
+  version: string;
+  status: PolicyDefinitionStatus;
+  draft_content: Record<string, unknown>;
+  authored_by: number | null;
+  tenant_id: string;
+  parent_policy_definition_id: string | null;
   created_at: string;
 }
 
@@ -559,7 +671,15 @@ export interface DeliverableRow {
   id: string;
   seu_id: string;
   name: string;
-  category: string;
+  // CR-087 follow-up — no longer authored on the Template's Deliverable
+  // Catalogue (owner: "producing capability code does not require an
+  // editable field... schema has to reflect the changes" — category dropped
+  // alongside it); nullable now (deliverables.category, migration 163) since
+  // a Template-commissioned Deliverable no longer supplies one. Still
+  // required on the separate manual "add a Deliverable to a live SEU" path
+  // (core/deliverables.ts's own createDeliverable, its own API-supplied
+  // input.category), which is unrelated to Template authoring.
+  category: string | null;
   lifecycle_state: string; // not a fixed union — see Build Plan §2.3, validated by transitionEngine, not the DB
   acceptance_criteria: unknown[];
   acquisition_scope: AcquisitionScope;
@@ -649,7 +769,17 @@ export type TransitionEntityType =
   // authored as Draft rows driven through their own governed Draft->Active
   // transition (verb `publish` → template_publish/profile_publish).
   | "Template"
-  | "Profile";
+  | "Profile"
+  // CR-086 follow-on — Service Definition (Ch.11 §13): the chapter's own
+  // 6-state lifecycle (Defined -> Published -> Active -> Deprecated ->
+  // Retired -> Archived) verbatim, entity-direct authoring same as
+  // Template/Profile above.
+  | "Service"
+  // CR-089 — Policy Definition (Ch.24 §13): the chapter's own 7-state
+  // lifecycle (Draft -> Validated -> Published -> Active -> Deprecated ->
+  // Retired -> Archived) verbatim, entity-direct authoring same as
+  // Template/Profile/Service above.
+  | "Policy";
 
 export interface TransitionDefinitionRow {
   id: string;
@@ -1303,7 +1433,7 @@ export interface BadgeGrantRow {
 // via their own bootstrap Template ("Core principle"), not a new
 // TransitionEntityType. These four support tables are what's actually new.
 
-export type SchemaDefinitionEntityKind = "Pack" | "Template" | "Profile" | "TransitionDefinition" | "Deliverable";
+export type SchemaDefinitionEntityKind = "Pack" | "Template" | "Profile" | "TransitionDefinition" | "Deliverable" | "Service" | "Policy";
 
 // One row per (entity kind, schema version) — the grammar and its validator
 // share one version (see the plan's versioning section); schema is a

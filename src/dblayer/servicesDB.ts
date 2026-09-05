@@ -1,6 +1,6 @@
 import pool, { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import type { DbResult, ServiceRow, ServiceLevelItem } from "./seuTypes.js";
+import type { DbResult, ServiceRow, ServiceLevelExpectation } from "./seuTypes.js";
 
 // CR-064 — real, definition-side versioning, same "major.minor" bump-on-
 // change mechanism as Quality Gate (qualityGatesDB.ts's own bumpVersion) —
@@ -25,7 +25,7 @@ export const servicesDB = {
     providingCapabilityId: string;
     name: string;
     contractDescription: string;
-    serviceLevel?: ServiceLevelItem[];
+    serviceLevel?: ServiceLevelExpectation[];
     originatingPackId: string;
   }): Promise<DbResult<ServiceRow>> {
     const client = await pool.connect();

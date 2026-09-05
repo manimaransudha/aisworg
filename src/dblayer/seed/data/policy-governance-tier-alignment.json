@@ -1,0 +1,37 @@
+{
+  "code": "governance-tier-alignment",
+  "name": "Governance Tier Alignment",
+  "description": "A Profile's governance tier must be consistent with its compliance-relevant Pack selections and, at the enterprise tier, with formal review practice.",
+  "category": "Organisation",
+  "constraintType": "Standard",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "If any selected Pack has category: compliance, the resolved governance_tier is not 'rapid'.",
+      "requiredEvidence": [
+        {
+          "type": "profile_definition",
+          "field": "selected_packs"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "If the resolved governance_tier is 'enterprise', at least one Architecture Review Board review (G1) exists per release.",
+      "requiredEvidence": [
+        {
+          "type": "review_result",
+          "board": "architecture_review_board"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

@@ -1,0 +1,72 @@
+{
+  "code": "test-compliance-accessibility-ada-508",
+  "name": "Digital Accessibility Compliance (ADA Title III / Sec 508 / EAA)",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for the Americans with Disabilities Act (ADA Title III), Rehabilitation Act Section 508, European Accessibility Act (EAA Directive (EU) 2019/882), and WCAG 2.1 AA / 2.2 AA standards, covering VPAT (Voluntary Product Accessibility Template) generation, screen reader testing, and keyboard navigation.",
+  "owner": "Digital Accessibility & Inclusion Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-accessibility-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-accessibility-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Digital Accessibility (ADA / Sec 508 / EAA) Verification Checklist",
+        "description": "Validation checklist for WCAG 2.1 AA success criteria, Section 508, and EAA requirements.",
+        "items": [
+          {
+            "statement": "All interactive elements, buttons, and form inputs are navigable using keyboard key events (Tab, Shift+Tab, Enter, Space) without keyboard traps (WCAG 2.1.1).",
+            "group": "Keyboard Accessibility (2.1.1)"
+          },
+          {
+            "statement": "Non-text content (images, icons) has descriptive alt text or aria-hidden='true' for decorative elements (WCAG 1.1.1).",
+            "group": "Text Alternatives (1.1.1)"
+          },
+          {
+            "statement": "Text and interactive controls meet 4.5:1 minimum color contrast ratio (3:1 for large text) against background colors (WCAG 1.4.3).",
+            "group": "Color Contrast (1.4.3)"
+          },
+          {
+            "statement": "Screen readers (NVDA, JAWS, VoiceOver) accurately announce page titles, headings (H1-H6 hierarchy), landmark roles, and live region updates (WCAG 1.3.1).",
+            "group": "Screen Reader Support (1.3.1)"
+          },
+          {
+            "statement": "Accessibility Conformance Report (VPAT 2.4) is completed, signed, and published for public procurement.",
+            "group": "VPAT & Section 508 ACR"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "accessibility-compliance-gate",
+        "name": "Digital Accessibility Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Accessibility Lead confirms that screen reader audits, keyboard navigation, and VPAT documents satisfy ADA Section 508 & EAA standards.",
+        "prompt": "Does the accessibility evaluation confirm full WCAG 2.1 AA and Section 508 VPAT compliance?",
+        "participant": "human",
+        "outputContract": "accessibility-compliance-attestation",
+        "checklistIds": [
+          "Digital Accessibility (ADA / Sec 508 / EAA) Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

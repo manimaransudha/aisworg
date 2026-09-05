@@ -1,0 +1,59 @@
+{
+  "code": "requirements-and-discovery-artifact-completeness",
+  "name": "Requirements and Discovery Artifact Completeness",
+  "description": "Vision, business analysis, and requirements artefacts each name a measurable objective and a recorded author before downstream work relies on them.",
+  "category": "Engineering",
+  "constraintType": "Standard",
+  "applicabilityDeliverableNames": [
+    "vision",
+    "business-case",
+    "business-analysis-plan",
+    "requirements-backlog",
+    "requirements-analysis-model",
+    "requirements-prioritisation-record",
+    "requirements-specification",
+    "solution-options-analysis",
+    "reuse-assessment",
+    "objective-alignment-report"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Every Vision or Business Case names at least one measurable business objective.",
+      "requiredEvidence": [
+        {
+          "type": "business_case_review"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Every Requirements artefact (Backlog, Analysis Model, Prioritisation Record, Specification) has a recorded author and last-review date.",
+      "requiredEvidence": [
+        {
+          "type": "artefact_metadata_check"
+        }
+      ],
+      "severity": "Low",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "A Solution Options Analysis or Reuse Assessment exists before Architecture work begins for a new capability, and an Objective Alignment Report confirms it traces back to a declared Objective.",
+      "requiredEvidence": [
+        {
+          "type": "solution_options_review"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [
+        "A single, mandated solution (regulatory or platform constraint) may document that constraint in place of a comparative options analysis."
+      ],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

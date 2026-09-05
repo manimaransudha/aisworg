@@ -27,13 +27,15 @@ import { packsDB } from "../../../dblayer/packsDB.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { profilesDB } from "../../../dblayer/profilesDB.js";
 import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
+import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
+import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
 import { badgeGrantsDB } from "../../../dblayer/badgeGrantsDB.js";
 import {
   generateFields, parseFormBody, validateAgainstSchema, groupFieldsForDisplay, ontologyConceptTypesIn, dynamicReferentialSourceFieldsIn,
   CONTRIBUTION_SECTION_HELP, VERIFIABLE_ITEM_FIELD_HELP, type JsonSchemaDocument,
 } from "../../../domain/sdk/formGenerator.js";
 import { renderMarkdown } from "../../../domain/sdk/markdownRender.js";
-import { listConceptsForType } from "../core/ontology.js";
+import { listConceptsForType, resolveLabels } from "../core/ontology.js";
 import {
   listTenantAuthoringRows, computeRowActions, requiredBadgeForRowAction, getAuthoringDraft, createAuthoringDraft, saveAuthoringDraft, publishAuthoringDraft, composeAuthoringDraft,
   listInheritableTemplates, inheritedTemplateContent, listInheritableProfiles, inheritedProfileContent, inheritedPackVersionContent,
@@ -47,6 +49,8 @@ import { transitionPack, packCodeVersionSummaries } from "../core/packs.js";
 import { transitionTemplate, PACK_SELECTION_SLOTS, deriveCapabilityCodesFromPackCodes, deriveCapabilityProducingPacksFromPackCodes } from "../core/templates.js";
 import { transitionProfile } from "../core/profiles.js";
 import { transitionDeliverableDefinition, listInheritableDeliverableDefinitions, inheritedDeliverableDefinitionContent } from "../core/deliverableDefinitions.js";
+import { transitionServiceDefinition, listInheritableServiceDefinitions, inheritedServiceDefinitionContent } from "../core/serviceDefinitions.js";
+import { transitionPolicyDefinition } from "../core/policyDefinitions.js";
 import { listCurrentTransitionDefinitions, getTransitionDefinitionDetail, addTransitionDefinition, retireTransitionDefinition, updateTransitionDefinition } from "../core/transitionDefinitions.js";
 import {
   listAuthorityNouns, listAuthorityVerbs, listAuthorityMapping,
@@ -54,7 +58,7 @@ import {
   addNoun, addVerb, addMapping, retireNoun, retireVerb, retireMapping, updateMappingTrigger,
 } from "../core/authorityVocabulary.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
-import type { SchemaDefinitionEntityKind } from "../../../dblayer/seuTypes.js";
+import type { SchemaDefinitionEntityKind, ServiceLevelExpectation } from "../../../dblayer/seuTypes.js";
 
 const KIND_BY_SLUG: Record<string, SchemaDefinitionEntityKind> = {
   "pack-authoring": "Pack",
@@ -62,6 +66,8 @@ const KIND_BY_SLUG: Record<string, SchemaDefinitionEntityKind> = {
   "profile-authoring": "Profile",
   "transition-definition-authoring": "TransitionDefinition",
   "deliverable-authoring": "Deliverable",
+  "service-authoring": "Service",
+  "policy-authoring": "Policy",
 };
 
 function resolveKind(slug: string): SchemaDefinitionEntityKind | null {
@@ -197,6 +203,8 @@ function requireDraftTenantScope() {
       kind === "Template" ? requireTenantScope.forParam("draftId", templatesDB.findById, (t) => t.tenant_id, opts) :
       kind === "Profile" ? requireTenantScope.forParam("draftId", profilesDB.findById, (p) => p.tenant_id, opts) :
       kind === "Deliverable" ? requireTenantScope.forParam("draftId", deliverableDefinitionsDB.findById, (d) => d.tenant_id, opts) :
+      kind === "Service" ? requireTenantScope.forParam("draftId", serviceDefinitionsDB.findById, (s) => s.tenant_id, opts) :
+      kind === "Policy" ? requireTenantScope.forParam("draftId", policyDefinitionsDB.findById, (p) => p.tenant_id, opts) :
       null;
     if (!gate) return next();
     return gate(req, res, next, String(req.params.draftId));
@@ -495,7 +503,7 @@ router.post("/authority/transition-definitions/:id/update", requireAuthorityAdmi
 const CANONICAL_EVIDENCE_CATEGORIES = new Set(["Analytical Evidence", "Validation Evidence", "Operational Evidence", "Review Evidence", "Decision Evidence", "External Evidence"]);
 
 async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: string | null }): Promise<Record<string, string[]>> {
-  const [{ data: packs }, { data: templates }, featureFlags, deliverableNames, deliverableCategories, evidenceCategories, policyCategories, obligationCategories, obligationOrigins, serviceNames, capabilityNames, engineeringCapitalTypes, { data: transitionDefinitions }] = await Promise.all([
+  const [{ data: packs }, { data: templates }, featureFlags, deliverableNames, deliverableCategories, evidenceCategories, policyCategories, obligationCategories, obligationOrigins, serviceNames, capabilityNames, engineeringCapitalTypes, complianceNames, { data: transitionDefinitions }] = await Promise.all([
     viewer.isRoot || !viewer.tenantId ? packsDB.findAll() : packsDB.findAllVisibleTo(viewer.tenantId),
     templatesDB.findAllActive(),
     listConceptsForType("feature-flag", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
@@ -534,6 +542,11 @@ async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: strin
     // Behaviour / Engineering Metrics / Reusable Components / Engineering
     // Templates), freely-extensible, same treatment as service-name/capability-name.
     listConceptsForType("engineering-capital", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
+    // Owner (2026-09-01): "The compliance tab in pack model is just a
+    // placeholder. It has to be expanded to pick from one of the existing
+    // compliance codes." compliance-name (migration 144), freely-extensible,
+    // same treatment as service-name/capability-name/engineering-capital.
+    listConceptsForType("compliance-name", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
     transitionDefinitionsDB.listAll(),
   ]);
   const activePacks = (packs ?? []).filter((p) => p.status === "Active");
@@ -567,6 +580,7 @@ async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: strin
     "service-name": [...new Set(serviceNames.map((c) => c.code))].sort(),
     "capability-name": [...new Set(capabilityNames.map((c) => c.code))].sort(),
     "engineering-capital": [...new Set(engineeringCapitalTypes.map((c) => c.code))].sort(),
+    "compliance-name": [...new Set(complianceNames.map((c) => c.code))].sort(),
     // CR-058 — a Quality Gate's Scope/Applicable Lifecycle Transition,
     // picked from real transition_definitions rows only (owner: "the pack
     // should not define something beyond what a transition definition
@@ -607,6 +621,71 @@ async function loadDerivedPackCapabilityOptions(content: Record<string, unknown>
 async function loadProducingCapabilityPacks(content: Record<string, unknown>): Promise<Record<string, unknown>> {
   const packCodes = [...new Set(PACK_SELECTION_SLOTS.flatMap((slot) => extractPackCodes(content[slot.field as string])))];
   return deriveCapabilityProducingPacksFromPackCodes(packCodes);
+}
+
+// Owner, 2026-09-04: "The form & the view should show read only
+// capability-names (deduped) from the deliverable catalog. The next section
+// should allow users to pick packs... If there are no packs contributing to
+// the capability, it has to be called out... If there are packs that are
+// contributing more than the deliverable led capabilities, they have to be
+// called out too." Pack Codes tab (packSelection group, formGenerator.ts) —
+// pure UI advisories (owner: "for now"), never validateTemplateSeed errors.
+// "Required" is derived straight off deliverableCatalogue[].code — for each
+// entry, every Active, viewer-visible Service Definition whose own `outputs`
+// (Ch.11, migration 159) names that deliverable-name code names a producing
+// Capability (owner: "Deliverables are tied to services which are tied to
+// capability"). Same contract commissioning.ts's own auto-derivation now
+// trusts (CR-087 follow-up — producingCapabilityCode is no longer authored),
+// just run against the FULL visible Service Definition catalog here rather
+// than one SEU's already-required Capabilities, since at authoring time no
+// Pack selection is settled yet — that's exactly what gaps/excess below
+// compare this "led by the catalogue" set against. A deliverable whose code
+// no Service Definition declares as an output contributes nothing here (same
+// "no producing Capability" case commissioning.ts already tolerates); a code
+// more than one Service Definition happens to produce contributes every one
+// of them — advisory, not a binding pick.
+function extractDeliverableCatalogueCodes(content: Record<string, unknown>): string[] {
+  const catalogue = Array.isArray(content.deliverableCatalogue) ? content.deliverableCatalogue : [];
+  const codes = new Set<string>();
+  for (const row of catalogue) {
+    const entry = row as Record<string, unknown> | null;
+    const code = entry?.code;
+    if (typeof code === "string" && code.trim() !== "") codes.add(code);
+  }
+  return [...codes];
+}
+
+interface CapabilityNameEntry { code: string; label: string }
+interface PackCodesCapabilityCoverage {
+  required: CapabilityNameEntry[];
+  gaps: CapabilityNameEntry[];
+  excess: CapabilityNameEntry[];
+}
+async function loadPackCodesCapabilityCoverage(content: Record<string, unknown>, viewerTenantId: string | null): Promise<PackCodesCapabilityCoverage> {
+  const deliverableCodes = extractDeliverableCatalogueCodes(content);
+  const { data: serviceDefinitions } = await serviceDefinitionsDB.findAllVisibleTo(viewerTenantId ?? PLATFORM_TENANT_ID);
+  const requiredSet = new Set<string>();
+  for (const def of serviceDefinitions ?? []) {
+    if (def.status !== "Active") continue;
+    // ServiceDefinitionRow.outputs is mistyped `string | null` (pre-existing
+    // — the column itself is a real Postgres TEXT[], migration 159); cast to
+    // the actual runtime shape rather than widen that shared type here.
+    const outputs = (def.outputs as unknown as string[] | null) ?? [];
+    if (outputs.some((code) => deliverableCodes.includes(code))) requiredSet.add(def.capability_code);
+  }
+  const requiredCodes = [...requiredSet].sort();
+
+  const packCodes = [...new Set(PACK_SELECTION_SLOTS.flatMap((slot) => extractPackCodes(content[slot.field as string])))];
+  const selectedCodes = await deriveCapabilityCodesFromPackCodes(packCodes);
+  const selectedSet = new Set(selectedCodes);
+
+  const labels = await resolveLabels(viewerTenantId, "capability-name");
+  const toEntry = (code: string): CapabilityNameEntry => ({ code, label: labels[code] || code });
+  return {
+    required: requiredCodes.map(toEntry),
+    gaps: requiredCodes.filter((code) => !selectedSet.has(code)).map(toEntry),
+    excess: selectedCodes.filter((code) => !requiredSet.has(code)).map(toEntry),
+  };
 }
 
 // CR-041 — self-referential referential-list options: "pick from the rows
@@ -723,6 +802,62 @@ async function loadActivePackDependencyOptions(viewer: { isRoot: boolean; tenant
     .filter((p) => p.status === "Active")
     .map((p) => ({ id: p.id, code: p.code, name: p.name, version: p.pack_version, category: p.category }))
     .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Owner: "The services form should show all services tied to the
+// capabilities that are in contributions.capability[]" — Pack's own
+// contributionServices[].code now picks a canonical Service Definition
+// (Ch.11) rather than a free service-name Ontology code; capabilityCode/
+// name/contractDescription are then read-only, derived off it client-side,
+// never independently authored (own x-help). serviceLevel travels here too
+// (full {code,label,target_level,target,units} array, straight off the
+// Definition) so referentialListGroup.js can rebuild the override rows
+// without a round trip whenever the author picks a different Service —
+// capability-code filtering (which options are even visible) is also purely
+// client-side, off the SAME data, against whichever Capabilities the author
+// currently has declared elsewhere on this same form.
+export interface ServiceDefinitionOption { code: string; name: string; capabilityCode: string; purpose: string; serviceLevel: ServiceLevelExpectation[] }
+async function loadServiceDefinitionOptions(viewer: { isRoot: boolean; tenantId: string | null }): Promise<ServiceDefinitionOption[]> {
+  const { data: definitions } = viewer.isRoot || !viewer.tenantId ? await serviceDefinitionsDB.findAll() : await serviceDefinitionsDB.findAllVisibleTo(viewer.tenantId);
+  return (definitions ?? [])
+    .filter((d) => d.status === "Active")
+    .map((d) => ({ code: d.code, name: d.name, capabilityCode: d.capability_code, purpose: d.purpose ?? "", serviceLevel: d.service_level }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// CR-089 follow-on — "Similar to services, pick the ones that are applicable
+// to the contributingCapabilities[]" — contributionPolicies' own checkbox
+// grid (_referentialListGroup.ejs's "isPolicies" branch), every Active
+// canonical Policy Definition visible to the viewer, with the applicability
+// data the client needs to grey out policies that don't govern anything this
+// Pack's own declared Capabilities currently produce.
+export interface PolicyDefinitionOption { code: string; name: string; description: string; applicabilityDeliverableNames: string[] }
+async function loadPolicyDefinitionOptions(viewer: { isRoot: boolean; tenantId: string | null }): Promise<PolicyDefinitionOption[]> {
+  const { data: definitions } = viewer.isRoot || !viewer.tenantId ? await policyDefinitionsDB.findAll() : await policyDefinitionsDB.findAllVisibleTo(viewer.tenantId);
+  return (definitions ?? [])
+    .filter((d) => d.status === "Active")
+    .map((d) => ({ code: d.code, name: d.name, description: d.description ?? "", applicabilityDeliverableNames: d.applicability_deliverable_names }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// A canonical Policy has no direct Capability tie (unlike Service Definition's
+// own capabilityCode) — its applicabilityDeliverableNames does, indirectly,
+// through each declared Capability's own Service Definition outputs. Same
+// walk core/packs.ts's own deliverableNamesFromCapabilityCodes runs
+// server-side at validate/publish time, computed here per-capability instead
+// of pre-unioned so the client can recompute the union live off whichever
+// Capabilities are CURRENTLY declared, without a round trip (mirrors
+// contributionServices' own live capability filter, referentialListGroup.js).
+async function loadCapabilityDeliverableNames(viewer: { isRoot: boolean; tenantId: string | null }): Promise<Record<string, string[]>> {
+  const { data: definitions } = viewer.isRoot || !viewer.tenantId ? await serviceDefinitionsDB.findAll() : await serviceDefinitionsDB.findAllVisibleTo(viewer.tenantId);
+  const byCapability: Record<string, Set<string>> = {};
+  for (const def of definitions ?? []) {
+    if (def.status !== "Active") continue;
+    const outputs = (def.outputs as unknown as string[] | null) ?? [];
+    if (!byCapability[def.capability_code]) byCapability[def.capability_code] = new Set();
+    for (const code of outputs) byCapability[def.capability_code].add(code);
+  }
+  return Object.fromEntries(Object.entries(byCapability).map(([k, v]) => [k, [...v]]));
 }
 
 // CR-060, corrected same day — checklistIds' own picker source, scoped to
@@ -892,6 +1027,23 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
     ...(await loadDerivedPackCapabilityOptions(contentForForm)),
   };
   req.vm.opt.producingCapabilityPacks = kind === "Template" ? await loadProducingCapabilityPacks(contentForForm) : {};
+  // Owner: the Deliverable Catalogue's view-mode row should show the
+  // deliverable-name concept's own human label, code muted alongside it —
+  // not the raw code as the only text. Same resolveLabels (core/ontology.ts)
+  // already used to write dependency_definitions/deliverables at
+  // materialisation/commissioning time, so the displayed label always
+  // matches what's actually stored downstream. Also used by the editable
+  // Dependency Graph card (self:deliverableCatalogue options), so it's
+  // computed regardless of canEdit.
+  req.vm.opt.deliverableLabels = kind === "Template" ? await resolveLabels(viewer.tenantId, "deliverable-name") : {};
+  // Owner, 2026-09-04 — Pack Codes tab's own new read-only "Required
+  // Capabilities" summary + gap/excess advisories (see
+  // loadPackCodesCapabilityCoverage's own header comment).
+  const packCodesCapabilityCoverage: PackCodesCapabilityCoverage =
+    kind === "Template" ? await loadPackCodesCapabilityCoverage(contentForForm, viewer.tenantId) : { required: [], gaps: [], excess: [] };
+  req.vm.opt.requiredCapabilityNames = packCodesCapabilityCoverage.required;
+  req.vm.opt.capabilityCoverageGaps = packCodesCapabilityCoverage.gaps;
+  req.vm.opt.capabilityCoverageExcess = packCodesCapabilityCoverage.excess;
   // CR-026 Template Inheritance (Ch.6 §9, owner: "There is no change to the
   // way template is created by a platform user... When a tenant wants to
   // define a template, show a dropdown of codes"): only offered on a brand
@@ -925,6 +1077,14 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   // CR-061 — requiredPolicyCodes' picker (Quality Gate only), same scoping
   // and empty-until-code-is-chosen behaviour as checklistOptions above.
   req.vm.opt.policyOptions = kind === "Pack" ? await loadPolicyOptions(String((contentForForm as Record<string, unknown>).code ?? "")) : [];
+  // Owner: "The services form should show all services tied to the
+  // capabilities that are in contributions.capability[]" — contributionServices'
+  // own code picker, Pack only.
+  req.vm.opt.serviceDefinitionOptions = kind === "Pack" ? await loadServiceDefinitionOptions(viewer) : [];
+  // CR-089 follow-on — contributionPolicies' own checkbox grid options +
+  // the capability->deliverable-names map it filters against.
+  req.vm.opt.policyDefinitionOptions = kind === "Pack" ? await loadPolicyDefinitionOptions(viewer) : [];
+  req.vm.opt.capabilityDeliverableNames = kind === "Pack" ? await loadCapabilityDeliverableNames(viewer) : {};
   req.vm.opt.ontologyOptions = await loadOntologyOptions(schema, viewer);
   req.vm.opt.contributionHelp = CONTRIBUTION_SECTION_HELP;
   req.vm.opt.verifiableFieldHelp = VERIFIABLE_ITEM_FIELD_HELP;
@@ -1200,6 +1360,16 @@ router.post("/sdk/:slug/:draftId/transition", requireDraftTenantScope(), require
       const result = await transitionDeliverableDefinition({ deliverableDefinitionId: draftId, targetState: targetState as never, actorRole, actorId });
       if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
       return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.deliverableDefinition.status}".`);
+    }
+    if (kind === "Service") {
+      const result = await transitionServiceDefinition({ serviceDefinitionId: draftId, targetState: targetState as never, actorRole, actorId });
+      if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
+      return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.serviceDefinition.status}".`);
+    }
+    if (kind === "Policy") {
+      const result = await transitionPolicyDefinition({ policyDefinitionId: draftId, targetState: targetState as never, actorRole, actorId });
+      if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
+      return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.policyDefinition.status}".`);
     }
     return next();
   } catch (err) {

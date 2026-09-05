@@ -1,0 +1,51 @@
+{
+  "code": "deployment-approval-required",
+  "name": "Deployment Approval Required",
+  "description": "A Release Package requires a current, unexpired approval with no outstanding Critical or High Obligation before production deployment.",
+  "category": "Operational",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [
+    "release-package"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Release Management Service has issued an approved release recommendation for this exact package version.",
+      "requiredEvidence": [
+        {
+          "type": "release_approval_record"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [
+        "Emergency rollback deployment may bypass approval, subject to retrospective review."
+      ],
+      "relatedObligations": []
+    },
+    {
+      "statement": "The approval was issued within its declared validity window (has not gone stale relative to the deployment attempt).",
+      "requiredEvidence": [
+        {
+          "type": "release_approval_record",
+          "field": "issued_at"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "No Critical or High severity Obligation remains open against this Release Package at deployment time.",
+      "requiredEvidence": [
+        {
+          "type": "obligation_register_snapshot"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

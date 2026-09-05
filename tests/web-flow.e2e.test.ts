@@ -143,7 +143,7 @@ async function commissionSeu(request: Session, statementPrefix: string): Promise
 
   const result = await postForm(request, "/seu/seus", csrf, {
     statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
   });
   assert.equal(result.status, 302, "expected a redirect to the new SEU's detail page");
   assert.ok(result.location?.startsWith("/aisworg/seu/seus/"), `expected a redirect to the SEU detail page, got: ${result.location}`);
@@ -246,7 +246,7 @@ test("Flow 3 — Deliverable transition, valid: a Participant-fulfilled Delivera
   const { seuId, csrf } = await commissionSeu(request, "webflow-valid-transition");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
-  const deliverableId = findDeliverableId(before1.html, "Requirements Specification");
+  const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
   await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, {
     participantType: "AI",
@@ -263,12 +263,12 @@ test("Flow 3 — Deliverable transition, valid: a Participant-fulfilled Delivera
   const afterDispatch = await getPage(request, `/seu/seus/${seuId}`);
   assert.match(afterDispatch.html, /alert-success/);
   assert.match(afterDispatch.html, /dispatched to a Participant/);
-  assert.match(afterDispatch.html, /Requirements Specification<br[\s\S]*?state-badge state-Defined">Defined/, "dispatched, not yet applied");
+  assert.match(afterDispatch.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-Defined">Defined/, "dispatched, not yet applied");
 
   // The Participant reports `done` -> the result-in callback drives the move.
   await completeOutstanding(request, seuId, deliverableId, "In Progress");
   const after1 = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(after1.html, /Requirements Specification<br[\s\S]*?state-badge state-In-Progress">In Progress/);
+  assert.match(after1.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-In-Progress">In Progress/);
 });
 
 test("Flow 4 — Deliverable transition, invalid: rejected with an explicit error, not silently accepted and not a 500", async () => {
@@ -276,7 +276,7 @@ test("Flow 4 — Deliverable transition, invalid: rejected with an explicit erro
   const { seuId, csrf } = await commissionSeu(request, "webflow-invalid-transition");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
-  const deliverableId = findDeliverableId(before1.html, "Requirements Specification");
+  const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
   await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, {
     participantType: "AI",
@@ -302,27 +302,27 @@ test("Flow 5 — Deliverable transition, dependency gating (regression: must nev
   const { seuId, csrf } = await commissionSeu(request, "webflow-dependency-gating");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const reqCapabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
-  const archCapabilityId = findUnfulfilledCapabilityId(before1.html, "architecture-solution-design");
-  const requirementsSpecId = findDeliverableId(before1.html, "Requirements Specification");
-  const architectureDocId = findDeliverableId(before1.html, "Architecture Document");
+  const archCapabilityId = findUnfulfilledCapabilityId(before1.html, "architecture-design");
+  const requirementsSpecId = findDeliverableId(before1.html, "Requirements Analysis Model");
+  const architectureDocId = findDeliverableId(before1.html, "Architecture Decision Record");
 
   // Fulfil both producing Capabilities up front so Dispatch (Phase 3, added
   // after this bug was originally found and fixed) is never what's blocking
-  // Architecture Document below — this test isolates the dependency gate
+  // Architecture Decision Record below — this test isolates the dependency gate
   // specifically, the one that actually broke before.
   await postForm(request, `/seu/seus/${seuId}/capabilities/${reqCapabilityId}/fulfil`, csrf, { participantType: "AI", displayName: "WebFlow Analyst" });
   await postForm(request, `/seu/seus/${seuId}/capabilities/${archCapabilityId}/fulfil`, csrf, { participantType: "AI", displayName: "WebFlow Architect" });
 
-  // B (Architecture Document) depends on A (Requirements Specification)
+  // B (Architecture Decision Record) depends on A (Requirements Analysis Model)
   // reaching 'Approved'. A is still 'Defined' — B must be blocked.
   const blocked = await postForm(request, `/seu/seus/${seuId}/deliverables/${architectureDocId}/transition`, csrf, { targetState: "In Progress" });
   assert.equal(blocked.status, 302);
   const afterBlocked = await getPage(request, `/seu/seus/${seuId}`);
   assert.match(afterBlocked.html, /alert-danger/);
   assert.match(afterBlocked.html, /one or more dependencies aren&#39;t Satisfied yet/);
-  // The regression itself: Architecture Document must still show 'Defined',
+  // The regression itself: Architecture Decision Record must still show 'Defined',
   // not have silently moved while displaying a blocked-looking dependency note.
-  assert.match(afterBlocked.html, /Architecture Document<br[\s\S]*?state-badge state-Defined">Defined/);
+  assert.match(afterBlocked.html, /Architecture Decision Record<br[\s\S]*?state-badge state-Defined">Defined/);
 
   // Move A all the way to 'Approved' (each transition dispatched + reported).
   await webTransitionAndComplete(request, seuId, csrf, requirementsSpecId, "In Progress");
@@ -332,7 +332,7 @@ test("Flow 5 — Deliverable transition, dependency gating (regression: must nev
   await webTransitionAndComplete(request, seuId, csrf, architectureDocId, "In Progress");
   const afterUnblocked = await getPage(request, `/seu/seus/${seuId}`);
   assert.match(afterUnblocked.html, /alert-success/);
-  assert.match(afterUnblocked.html, /Architecture Document<br[\s\S]*?state-badge state-In-Progress">In Progress/);
+  assert.match(afterUnblocked.html, /Architecture Decision Record<br[\s\S]*?state-badge state-In-Progress">In Progress/);
 });
 
 // Post-MVP Phase 3 addition, per the brief's "How this expands" section: the
@@ -344,14 +344,14 @@ test("Phase 3 — a dispatched web transition leaves a real Command and Work Ite
   const request = newSession();
   const { seuId, csrf } = await commissionSeu(request, "webflow-phase3");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
-  const deliverableId = findDeliverableId(before1.html, "Requirements Specification");
+  const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
   // Nobody fulfils the Capability yet — Dispatch must defer, not apply the transition.
   const deferred = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "In Progress" });
   assert.equal(deferred.status, 302);
   const afterDeferred = await getPage(request, `/seu/seus/${seuId}`);
   assert.match(afterDeferred.html, /no Participant currently fulfils this Deliverable&#39;s producing Capability/);
-  assert.match(afterDeferred.html, /Requirements Specification<br[\s\S]*?state-badge state-Defined">Defined/, "the Deliverable must not have moved while dispatch was deferred");
+  assert.match(afterDeferred.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-Defined">Defined/, "the Deliverable must not have moved while dispatch was deferred");
 
   const { data: deferredCommands } = await commandsDB.findBySeuId(seuId);
   assert.equal(deferredCommands?.length, 1);
@@ -387,7 +387,7 @@ test("Phase 3 — a dispatched web transition leaves a real Command and Work Ite
 // test that a Quality Gate actually blocks a transition until its criteria
 // are met, and one that an Obligation blocks a Deliverable independently of
 // the dependency graph — same pattern as the dependency-gating test."
-// Requirements Specification has no dependency edges at all (confirmed by
+// Requirements Analysis Model has no dependency edges at all (confirmed by
 // direct-function tests/governance-depth.test.ts), so any block seen here can
 // only be the Quality Gate/Obligation, not the Dependency Engine.
 test("Phase 4 — a Quality Gate blocks a Deliverable transition while an Obligation is unresolved, and allows it once Verified", async () => {
@@ -395,7 +395,7 @@ test("Phase 4 — a Quality Gate blocks a Deliverable transition while an Obliga
   const { seuId, csrf } = await commissionSeu(request, "webflow-phase4");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
-  const deliverableId = findDeliverableId(before1.html, "Requirements Specification");
+  const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
   await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantType: "AI", displayName: "WebFlow Analyst" });
   await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
@@ -417,7 +417,7 @@ test("Phase 4 — a Quality Gate blocks a Deliverable transition while an Obliga
   const afterBlocked = await getPage(request, `/seu/seus/${seuId}`);
   assert.match(afterBlocked.html, /alert-danger/);
   assert.match(afterBlocked.html, /Quality Gate &#34;No Unresolved Obligations&#34; blocked: 1 unresolved Obligation\(s\) \(WebFlow Phase4 obligation\)/);
-  assert.match(afterBlocked.html, /Requirements Specification<br[\s\S]*?state-badge state-In-Progress">In Progress/, "the Deliverable must not have moved while the Quality Gate blocked it");
+  assert.match(afterBlocked.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-In-Progress">In Progress/, "the Deliverable must not have moved while the Quality Gate blocked it");
 
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
     const step = await postForm(request, `/seu/seus/${seuId}/obligations/${obligationId}/transition`, csrf, { targetState });
@@ -428,7 +428,7 @@ test("Phase 4 — a Quality Gate blocks a Deliverable transition while an Obliga
 
   await webTransitionAndComplete(request, seuId, csrf, deliverableId, "Approved");
   const afterUnblocked = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterUnblocked.html, /Requirements Specification<br[\s\S]*?state-badge state-Approved">Approved/);
+  assert.match(afterUnblocked.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-Approved">Approved/);
 });
 
 // Post-MVP Phase 5 addition, per the brief's "How this expands" section: "a
@@ -440,7 +440,7 @@ test("Phase 5 — a Deliverable transition requiring accepted Evidence is blocke
   const { seuId, csrf } = await commissionSeu(request, "webflow-phase5");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
-  const deliverableId = findDeliverableId(before1.html, "Requirements Specification");
+  const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
   await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantType: "AI", displayName: "WebFlow Analyst" });
   await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
@@ -454,7 +454,7 @@ test("Phase 5 — a Deliverable transition requiring accepted Evidence is blocke
     afterBlocked.html,
     /Quality Gate &#34;Requires Accepted Evidence or Approved Decision&#34; blocked: no accepted Evidence of category &#34;Validation Evidence&#34; or approved Decision found for this entity/
   );
-  assert.match(afterBlocked.html, /Requirements Specification<br[\s\S]*?state-badge state-Approved">Approved/, "the Deliverable must not have moved while the Quality Gate blocked it");
+  assert.match(afterBlocked.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-Approved">Approved/, "the Deliverable must not have moved while the Quality Gate blocked it");
 
   const created = await postForm(request, `/seu/seus/${seuId}/evidence`, csrf, {
     deliverableId,
@@ -475,7 +475,7 @@ test("Phase 5 — a Deliverable transition requiring accepted Evidence is blocke
 
   await webTransitionAndComplete(request, seuId, csrf, deliverableId, "Baselined");
   const afterUnblocked = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterUnblocked.html, /Requirements Specification<br[\s\S]*?state-badge state-Baselined">Baselined/);
+  assert.match(afterUnblocked.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-Baselined">Baselined/);
 });
 
 // Post-MVP Phase 6 addition, per the brief's "How this expands" section: "a
@@ -485,7 +485,7 @@ test("Phase 6 — promoting a Published Knowledge Item's scope raises a visible 
   const request = newSession();
   const { seuId, csrf } = await commissionSeu(request, "webflow-phase6");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
-  const deliverableId = findDeliverableId(before1.html, "Requirements Specification");
+  const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
   const created = await postForm(request, `/seu/seus/${seuId}/knowledge`, csrf, {
     deliverableId,
@@ -531,7 +531,7 @@ test("Phase 7 — Flow and Governance Telemetry are real, and a sustained patter
   const { seuId, csrf } = await commissionSeu(request, "webflow-phase7");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
-  const deliverableId = findDeliverableId(before1.html, "Requirements Specification");
+  const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
   await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantType: "AI", displayName: "WebFlow Analyst" });
   await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
@@ -539,7 +539,7 @@ test("Phase 7 — Flow and Governance Telemetry are real, and a sustained patter
   // A real Flow metric: this Deliverable now has a measurable cycle time.
   const telemetryBefore = await getPage(request, "/seu/telemetry");
   assert.equal(telemetryBefore.status, 200);
-  assert.match(telemetryBefore.html, /Requirements Specification/);
+  assert.match(telemetryBefore.html, /Requirements Analysis Model/);
 
   const created = await postForm(request, `/seu/seus/${seuId}/obligations`, csrf, {
     deliverableId,
@@ -603,7 +603,7 @@ test("Phase 8 — a blocked Quality Gate and a failed External Interaction both 
   const { seuId, csrf } = await commissionSeu(request, "webflow-phase8");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
-  const deliverableId = findDeliverableId(before1.html, "Requirements Specification");
+  const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
   await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantType: "AI", displayName: "WebFlow Analyst" });
   await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
@@ -820,7 +820,7 @@ test("Objectives — Create and the Edit page's Save both redirect to the list, 
   const created = await postForm(request, "/seu/objectives", newCsrf, {
     statement: originalStatement,
     tier: "Strategic",
-    requiredCapabilityCodes: ["architecture-solution-design"],
+    requiredCapabilityCodes: ["architecture-design"],
   });
   assert.equal(created.status, 302);
   assert.equal(created.location, "/aisworg/seu/objectives", `expected Create to redirect to the list page, got: ${created.location}`);
@@ -845,7 +845,7 @@ test("Objectives — Create and the Edit page's Save both redirect to the list, 
   const saved = await postForm(request, `/seu/objectives/${objectiveId}/update`, editCsrf, {
     action: "save",
     statement: updatedStatement,
-    requiredCapabilityCodes: ["architecture-solution-design"],
+    requiredCapabilityCodes: ["architecture-design"],
   });
   assert.equal(saved.status, 302);
   assert.equal(saved.location, "/aisworg/seu/objectives", `expected Save to redirect to the list page, got: ${saved.location}`);
@@ -872,7 +872,7 @@ test("Objectives — the list hides Edit once locked; Comments still works; a di
   const created = await postForm(request, "/seu/objectives", newCsrf, {
     statement: originalStatement,
     tier: "Strategic",
-    requiredCapabilityCodes: ["architecture-solution-design"],
+    requiredCapabilityCodes: ["architecture-design"],
   });
   assert.equal(created.status, 302);
   assert.equal(created.location, "/aisworg/seu/objectives");
@@ -910,7 +910,7 @@ test("Objectives — the list hides Edit once locked; Comments still works; a di
   const saveAttempt = await postForm(request, `/seu/objectives/${objectiveId}/update`, commentCsrf, {
     action: "save",
     statement: "should-not-apply",
-    requiredCapabilityCodes: ["architecture-solution-design"],
+    requiredCapabilityCodes: ["architecture-design"],
   });
   assert.equal(saveAttempt.status, 302);
   assert.equal(saveAttempt.location, `/aisworg/seu/objectives/${objectiveId}/edit`);
@@ -951,7 +951,7 @@ test("Objectives — GET /new, a direct POST create, and GET /:id/edit all real-
   const blockedCreate = await postForm(request, "/seu/objectives", csrf, {
     statement: blockedStatement,
     tier: "Strategic",
-    requiredCapabilityCodes: ["architecture-solution-design"],
+    requiredCapabilityCodes: ["architecture-design"],
   });
   assert.equal(blockedCreate.status, 302);
   assert.equal(blockedCreate.location, "/aisworg/seu/objectives");
@@ -1026,7 +1026,7 @@ test("Objectives — the web layer's own tenant-reach gate blocks a real badge h
     statement: `webflow-tenant-reach-blocked-child-${randomUUID()}`,
     tier: "Engineering",
     parentObjectiveId: babylonObjective.id,
-    requiredCapabilityCodes: ["architecture-solution-design"],
+    requiredCapabilityCodes: ["architecture-design"],
   });
   assert.equal(blockedChild.status, 302);
   assert.equal(blockedChild.location, "/aisworg/seu/objectives", "refused back to the list, not created");

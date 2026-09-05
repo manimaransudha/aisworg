@@ -12,16 +12,24 @@
     sources "pack-code" — Template's mandatoryPackCodes, Profile's
     optionalPackCodes), renderMarkdown (CR-077 — (raw: string) => string,
     only called in read mode for an itemField/nestedItemField flagged
-    markdown:true). %>
+    markdown:true), deliverableLabels (Record<code, label> — Template's
+    deliverableCatalogue/dependencyGraph rows, both view and edit, resolveLabels
+    against deliverable-name).
+    %>
 <%
   function ilabel(n) { return n.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, function(c){ return c.toUpperCase(); }); }
   var isDependencies = field.name === 'dependencies';
   var isChecklists = field.name === 'contributionChecklists';
   var isQualityGates = field.name === 'contributionQualityGates';
   var isReviewGates = field.name === 'contributionReviewGates';
-  var isPolicies = field.name === 'contributionPolicies';
   var isObligationDefinitions = field.name === 'contributionObligationDefinitions';
   var isServices = field.name === 'contributionServices';
+  // Hoisted out of the view-only block below (var is function-scoped in a
+  // compiled EJS template, but only ASSIGNED where the code actually runs —
+  // the canEdit branch needs these too, for the isDependencyGraph edit card).
+  var isDeliverableCatalogue = field.name === 'deliverableCatalogue';
+  var isDependencyGraph = field.name === 'dependencyGraph';
+  var deliverableLabels = locals.deliverableLabels || {};
   // Owner: "the list is not correct for all the tabs. it has to depend on
   // the information carried in the tab" — these 5 kinds share the same
   // problem the flat table has: every possible field renders as a column
@@ -62,6 +70,13 @@
     </div>
   <% }
   var packOptions = locals.packDependencyOptions || [];
+  // Owner: "The services form should show all services tied to the
+  // capabilities that are in contributions.capability[]" — contributionServices'
+  // own picker source: every Active Service Definition (Ch.11) visible to
+  // this viewer, each carrying its own capabilityCode/name/purpose/
+  // serviceLevel for the isServices branches below (display-only fields,
+  // client-side filtering) to read off directly, no extra lookups needed.
+  var serviceDefOptions = locals.serviceDefinitionOptions || [];
   // Bug fix (owner: "In dependencies, there is a category tab. It is not
   // populated... It should be one of the ontology pack categories") — this
   // read from referentialOptions['pack-category'], a key loadReferentialOptions
@@ -98,38 +113,38 @@
     function packLink(matchedPack) {
       return matchedPack ? ('<a href="/aisworg/seu/sdk/pack-authoring/' + matchedPack.id + '" class="btn btn-sm btn-link p-0">View</a>') : '';
     }
-    // Owner: "Now there is item1, item2 etc. labels which is not relevant.
-    // Name, Category, Producing Capability Code as a link to the pack" —
+    // Owner: "Now there is item1, item2 etc. labels which is not relevant" —
     // same compact-list treatment as the solo-Pack-code case above, for
-    // Template's Deliverable Catalogue specifically. producingCapabilityPacks
-    // (web/sdkAuthoring.ts's loadProducingCapabilityPacks) maps a derived
-    // capability code to the real Pack that contributes it.
-    var isDeliverableCatalogue = field.name === 'deliverableCatalogue';
-    var producingCapabilityPacks = locals.producingCapabilityPacks || {};
+    // Template's Deliverable Catalogue specifically. Revised (owner): no
+    // category badge, no "Produced by" Pack link (a deliverable has no
+    // established relationship to a Pack — only to the deliverable-name
+    // concept itself) — show the concept's own human label as the primary
+    // text, its code muted alongside it. deliverableLabels
+    // (web/sdkAuthoring.ts, resolveLabels against deliverable-name) maps
+    // each stored code to its tenant-aware label. (isDeliverableCatalogue
+    // itself is declared above, shared with the canEdit branch.)
     // Owner: "Instead of showing the dependency graph as a list, is there a
     // better way of showing this?" — grouped-by-target (recommended over a
     // diagram: no new client-side library, consistent with the rest of this
     // view-mode redesign): each gated deliverable shown once, its
     // prerequisites listed underneath with relationship kind + required
     // state as badges, instead of one "Item N" card per edge.
-    var isDependencyGraph = field.name === 'dependencyGraph';
     function relationshipLabel(kind) {
       var k = kind || 'dependency';
       return k.charAt(0).toUpperCase() + k.slice(1);
     }
-    // Owner: "Can we show this under two sub headings? Deliverable
-    // dependency, Capability dependency" — the two fromType kinds answer
-    // structurally different questions (artefact state vs. Capability
-    // fulfilment/staffing, per CR-041's own design), so they're grouped and
-    // headed separately, not interleaved by target.
+    // Owner originally asked for this grouped by target under two sub
+    // headings (Deliverable dependency / Capability dependency, CR-041) —
+    // now just Deliverable-type edges (see isDependencyGraph below), so one
+    // heading-less group is enough; groupedByTarget itself is unchanged.
     function groupedByTarget(rows) {
       var groups = [];
       var indexByTarget = {};
       rows.forEach(function(row) {
-        var key = row.toName || '';
+        var key = row.toCode || '';
         if (!(key in indexByTarget)) {
           indexByTarget[key] = groups.length;
-          groups.push({ toName: key, prerequisites: [] });
+          groups.push({ toCode: key, prerequisites: [] });
         }
         groups[indexByTarget[key]].prerequisites.push(row);
       });
@@ -141,27 +156,23 @@
     <p class="text-muted small mb-0">None</p>
   <% } else if (isDependencyGraph) { %>
     <%
+      // Owner, 2026-09-04: "Capability Dependency will be part of the pack
+      // codes tab... it is not part of the deliverable catalog tab" — a
+      // Deliverable has no established relationship to a Pack (see
+      // isDeliverableCatalogue below); Capability-type edges stay real,
+      // materialised dependency_definitions rows underneath (Ch.9 §8) — this
+      // tab just isn't where they get shown. Filtered out here, not deleted:
+      // where they DO surface is Pack Codes' own future concern, not this one.
       var deliverableGroups = groupedByTarget(existingRows.filter(function(row) { return row.fromType !== 'Capability'; }));
-      var capabilityGroups = groupedByTarget(existingRows.filter(function(row) { return row.fromType === 'Capability'; }));
       function renderDependencyGroups(groups) { %>
         <ul class="list-group list-group-flush">
           <% groups.forEach(function(group) { %>
             <li class="list-group-item px-0 small">
-              <div><strong><%= group.toName || '—' %></strong></div>
+              <div><strong><%= group.toCode || '—' %></strong></div>
               <ul class="list-unstyled mt-1 mb-0 ps-3">
                 <% group.prerequisites.forEach(function(row) { %>
                   <li class="text-muted">
-                    <%# Owner-established quirk (getDependencyGraphContent, core/templates.ts):
-                        once materialised, a Capability-type row's real value —
-                        the resolved Service code(s) — lives in fromName, not
-                        fromCapabilityCode (that field only exists pre-materialisation,
-                        in a Draft's own freshly-authored form content). %>
-                    requires
-                    <% if (row.fromType === 'Capability') { %>
-                      Capability <code class="text-muted"><%= row.fromName || row.fromCapabilityCode || '—' %></code>
-                    <% } else { %>
-                      <%= row.fromName || '—' %>
-                    <% } %>
+                    requires <%= row.fromCode || '—' %>
                     (<%= row.requiredState || '—' %>)
                     <span class="badge bg-light text-dark border ms-1"><%= relationshipLabel(row.relationshipKind) %></span>
                   </li>
@@ -171,35 +182,18 @@
           <% }) %>
         </ul>
       <% } %>
-    <h6 class="text-uppercase text-muted small fw-bold mb-2">Deliverable dependency</h6>
     <% if (deliverableGroups.length === 0) { %>
-      <p class="text-muted small mb-3">None</p>
-    <% } else { %>
-      <div class="mb-3"><% renderDependencyGroups(deliverableGroups); %></div>
-    <% } %>
-    <h6 class="text-uppercase text-muted small fw-bold mb-2">Capability dependency</h6>
-    <% if (capabilityGroups.length === 0) { %>
       <p class="text-muted small mb-0">None</p>
     <% } else { %>
-      <% renderDependencyGroups(capabilityGroups); %>
+      <% renderDependencyGroups(deliverableGroups); %>
     <% } %>
   <% } else if (isDeliverableCatalogue) { %>
     <ul class="list-group list-group-flush">
       <% existingRows.forEach(function(row) { %>
-        <% var capCode = row.producingCapabilityCode || ''; %>
-        <% var producingPack = capCode ? producingCapabilityPacks[capCode] : null; %>
+        <% var label = row.code ? (deliverableLabels[row.code] || row.code) : '—'; %>
         <li class="list-group-item px-0 small">
-          <div class="d-flex justify-content-between align-items-center">
-            <span><strong><%= row.name || '—' %></strong> <span class="badge bg-light text-dark border ms-1"><%= row.category || '—' %></span></span>
-          </div>
-          <% if (capCode) { %>
-            <div class="text-muted mt-1">
-              Produced by: <code class="text-muted"><%= capCode %></code>
-              <% if (producingPack) { %> — <%= producingPack.name %> <%- packLink(producingPack) %>
-              <% } else { %> (Pack not currently Active)
-              <% } %>
-            </div>
-          <% } %>
+          <span><%= label %></span>
+          <% if (row.code) { %> <span class="text-muted"><%= row.code %></span> <% } %>
         </li>
       <% }) %>
     </ul>
@@ -278,44 +272,31 @@
       </div>
     <% }) %>
   <% } else if (isServices) { %>
-    <% var serviceLevelField = field.itemFields.find(function(f) { return f.name === 'serviceLevel'; }); %>
+    <%# Owner: "Capability Code will be a display only field. Name and
+        Contract Description are display only. these fields do not have to
+        be stored in contributionServices[]" — resolved here off the linked
+        Service Definition (serviceDefOptions), not off the row itself
+        (which only ever carries code + this Pack's own target overrides).
+        Service Level shows the Definition's FULL declared set, this Pack's
+        override applied wherever one exists, its own target otherwise. %>
     <% existingRows.forEach(function(row) { %>
+      <% var svcDef = serviceDefOptions.find(function(d) { return d.code === row.code; }); %>
+      <% var svcOverrides = Array.isArray(row.serviceLevel) ? row.serviceLevel : []; %>
       <div class="card mb-2">
         <div class="card-body">
-          <h6 class="mb-1"><%= row.name || '—' %> <code class="text-muted small"><%= row.code || '—' %></code></h6>
-          <% if (row.capabilityCode) { %><span class="badge bg-light text-dark border mb-2">Capability: <%= row.capabilityCode %></span><% } %>
-          <% if (row.contractDescription) { %><p class="text-muted small mb-2"><%= row.contractDescription %></p><% } %>
-          <%
-            var serviceLevelRows = Array.isArray(row.serviceLevel) ? row.serviceLevel.slice(0, Math.max(row.serviceLevel.length - 1, 0)) : [];
-          %>
-          <% if (serviceLevelRows.length) { %>
-            <div class="small">
-              <strong class="text-muted">Service Level</strong>
-              <ul class="list-unstyled mb-0 ps-0">
-                <% serviceLevelRows.forEach(function(sl) { %>
-                  <li><%= sl.label || '—' %>: <%= sl.target || '—' %></li>
-                <% }) %>
-              </ul>
+          <h6 class="mb-1"><%= svcDef ? svcDef.name : '—' %> <code class="text-muted small"><%= row.code || '—' %></code></h6>
+          <% if (svcDef) { %><span class="badge bg-light text-dark border mb-2">Capability: <%= svcDef.capabilityCode %></span><% } %>
+          <% if (svcDef && svcDef.purpose) { %><p class="text-muted small mb-2"><%= svcDef.purpose %></p><% } %>
+          <% if (svcDef && svcDef.serviceLevel && svcDef.serviceLevel.length) { %>
+            <div class="small d-flex flex-wrap gap-1">
+              <% svcDef.serviceLevel.forEach(function(base) {
+                   var ov = svcOverrides.find(function(o) { return o.code === base.code; });
+                   var effectiveTarget = ov ? ov.target : base.target;
+                   var op = base.target_level === 'maximum' ? '≤' : (base.target_level === 'exact' ? '=' : '≥');
+              %>
+                <span class="badge bg-light text-dark border" title="<%= base.code %>"><%= base.label %>: <%= op %><%= effectiveTarget %> <%= base.units %><% if (ov) { %> <span class="text-primary">(overridden)</span><% } %></span>
+              <% }) %>
             </div>
-          <% } %>
-        </div>
-      </div>
-    <% }) %>
-  <% } else if (isPolicies) { %>
-    <% existingRows.forEach(function(row) { %>
-      <div class="card mb-2">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start">
-            <h6 class="mb-1"><%= row.name || '—' %> <code class="text-muted small"><%= row.code || '—' %></code></h6>
-            <% if (row.constraintType) { %><span class="badge <%= row.constraintType === 'Policy' ? 'bg-danger-subtle text-danger' : 'bg-warning-subtle text-warning' %>"><%= row.constraintType %></span><% } %>
-          </div>
-          <div class="mb-1">
-            <% if (row.category) { %><span class="badge bg-light text-dark border me-1"><%= row.category %></span><% } %>
-            <% if (row.severity) { %><span class="badge bg-light text-dark border me-1"><%= row.severity %></span><% } %>
-          </div>
-          <% if (row.governedTransition) { %><div class="text-muted small mb-1"><%= formatGovernedTransition(row.governedTransition) %></div><% } %>
-          <% if (row.conditionType) { %>
-            <div class="small text-muted">Condition: <%= row.conditionType %><% if (row.conditionField) { %> on <code class="text-muted"><%= row.conditionField %></code><% } %><% if (row.conditionValues) { %> = <%= row.conditionValues %><% } %></div>
           <% } %>
         </div>
       </div>
@@ -522,6 +503,10 @@
                       <% } else { %>
                         <%= value ? ('⚠ ' + value + ' (not currently Active' + (_fixedCategory ? ' / not ' + _fixedCategory : '') + ')') : '—' %>
                       <% } %>
+                    <% } else if (itemField.kind === 'referential' && itemField.ontology) { %>
+                      <% var _ontItemOptsView = ((locals.ontologyOptions || {})[itemField.referentialSource] || []); %>
+                      <% var _matchedOntItem = _ontItemOptsView.find(function(o) { return o.code === value; }); %>
+                      <%= _matchedOntItem ? _matchedOntItem.label : (value ? ('⚠ ' + value + ' (not currently active)') : '—') %>
                     <% } else if (itemField.markdown && value) { %>
                       <%- renderMarkdown(value) %>
                     <% } else { %>
@@ -545,6 +530,19 @@
 <div class="referential-list-group" data-field-name="<%= field.name %>" data-next-index="<%= field.rows.length %>">
   <% field.rows.forEach(function(row, i) { %>
     <% var isExisting = i < field.existingCount; %>
+    <% if (isDependencyGraph && row.fromType === 'Capability') { %>
+      <%# Owner, 2026-09-04: "Capability Dependency will be part of the pack
+          codes tab... it is not part of the deliverable catalog tab" — an
+          existing Capability-type edge is preserved on save (real,
+          materialised dependency_definitions rows underneath, Ch.9 §8) but
+          gets no card, no badge, no Remove button here: it's not shown or
+          editable from this tab at all, not even as a disabled affordance. %>
+      <input type="hidden" name="<%= field.name %>[<%= i %>][toCode]" value="<%= row.toCode || '' %>">
+      <input type="hidden" name="<%= field.name %>[<%= i %>][fromType]" value="Capability">
+      <input type="hidden" name="<%= field.name %>[<%= i %>][fromCapabilityCode]" value="<%= row.fromCapabilityCode || '' %>">
+      <input type="hidden" name="<%= field.name %>[<%= i %>][requiredState]" value="<%= row.requiredState || '' %>">
+      <input type="hidden" name="<%= field.name %>[<%= i %>][relationshipKind]" value="<%= row.relationshipKind || '' %>">
+    <% } else { %>
     <div class="card card-body bg-light border-0 mb-2 referential-list-row">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <span class="badge <%= isExisting ? 'bg-secondary-subtle text-secondary' : 'bg-light text-muted border' %> small fw-normal"><%= isExisting ? ('Item ' + (i + 1)) : 'New item — fill in to add' %></span>
@@ -592,6 +590,127 @@
                 <option value="<%= opt %>" <%= (row.type || '') === opt ? 'selected' : '' %>><%= opt %></option>
               <% }) %>
             </select>
+          </div>
+        </div>
+      <% } else if (isServices) { %>
+        <%# Owner: "The services form should show all services tied to the
+            capabilities that are in contributions.capability[]. So
+            Capability Code will be a display only field. Name and Contract
+            Description are display only. these fields do not have to be
+            stored in contributionServices[]. The service level should show
+            the Service's service level and allow edits to the targets... The
+            original service definition should not be overwritten." — code
+            is the only referential field submitted; capabilityCode/name/
+            purpose are plain read-only text, never inputs, kept in sync by
+            referentialListGroup.js off the selected <option>'s own data
+            attributes (rlg-service-def-select). Which options are even
+            visible is ALSO client-side (same script), filtered to whichever
+            Capabilities this Pack currently declares elsewhere on this same
+            form. Service Level rows are rebuilt by that same script whenever
+            the Service changes — label/target_level/units/code always mirror
+            the Definition (a hidden input carries code through; label/
+            target_level/units are shown, never posted), only Target is a
+            real, editable, submitted field. %>
+        <% var svcCode = row.code || ''; %>
+        <% var svcDef = serviceDefOptions.find(function(d) { return d.code === svcCode; }); %>
+        <% var svcOverrides = Array.isArray(row.serviceLevel) ? row.serviceLevel : []; %>
+        <div class="row g-2">
+          <div class="col-12">
+            <label class="form-label small text-muted mb-1">Service</label>
+            <select name="<%= field.name %>[<%= i %>][code]" class="form-select form-select-sm rlg-service-def-select" <%- canEdit ? '' : 'disabled' %>>
+              <option value="">— Service —</option>
+              <% serviceDefOptions.forEach(function(d) { %>
+                <option value="<%= d.code %>" data-capability-code="<%= d.capabilityCode %>" data-name="<%= d.name %>" data-purpose="<%= d.purpose %>" data-service-level='<%- JSON.stringify(d.serviceLevel) %>' <%= svcCode === d.code ? 'selected' : '' %>><%= d.name %></option>
+              <% }) %>
+              <% if (svcCode && !svcDef) { %>
+                <option value="<%= svcCode %>" selected>&#9888; <%= svcCode %> (not currently an Active Service Definition)</option>
+              <% } %>
+            </select>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label small text-muted mb-1">Capability</label>
+            <div class="form-control-plaintext form-control-sm small rlg-svc-capability-code border-bottom"><%= svcDef ? svcDef.capabilityCode : '—' %></div>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label small text-muted mb-1">Name</label>
+            <div class="form-control-plaintext form-control-sm small rlg-svc-name border-bottom"><%= svcDef ? svcDef.name : '—' %></div>
+          </div>
+          <div class="col-12">
+            <label class="form-label small text-muted mb-1">Contract Description</label>
+            <div class="form-control-plaintext form-control-sm small rlg-svc-purpose border-bottom"><%= svcDef ? svcDef.purpose : '—' %></div>
+          </div>
+          <div class="col-12">
+            <label class="form-label small text-muted mb-1">Service Level <span class="text-muted fw-normal">— edit Target to override; leave unchanged to inherit the Definition's own value</span></label>
+            <div class="rlg-svc-service-level-rows">
+              <% if (!svcDef || !svcDef.serviceLevel.length) { %>
+                <p class="text-muted small mb-0"><%= svcDef ? 'This Service declares no Service Level.' : 'Pick a Service above to see its declared Service Level.' %></p>
+              <% } else { %>
+                <% svcDef.serviceLevel.forEach(function(base, si) {
+                     var ov = svcOverrides.find(function(o) { return o.code === base.code; });
+                     var op = base.target_level === 'maximum' ? '≤' : (base.target_level === 'exact' ? '=' : '≥');
+                %>
+                  <div class="row g-2 align-items-center mb-1 rlg-svc-service-level-row">
+                    <input type="hidden" name="<%= field.name %>[<%= i %>][serviceLevel][<%= si %>][code]" value="<%= base.code %>">
+                    <div class="col-sm-6 small"><%= base.label %> <span class="text-muted">(<%= op %> <%= base.units %>)</span></div>
+                    <div class="col-sm-6">
+                      <input type="number" step="any" name="<%= field.name %>[<%= i %>][serviceLevel][<%= si %>][target]" class="form-control form-control-sm" value="<%= ov ? ov.target : base.target %>" <%- canEdit ? '' : 'disabled' %>>
+                    </div>
+                  </div>
+                <% }) %>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      <% } else if (isDependencyGraph) { %>
+        <%# Owner, 2026-09-04: "Capability Dependency will be part of the pack
+            codes tab... it is not part of the deliverable catalog tab" — same
+            boundary as the view-mode rendering above (isDependencyGraph
+            there). Only ever reached for a Deliverable-type edge — a
+            Capability-type row (fromType: "Capability") never gets this far;
+            it's preserved via hidden inputs before the card wrapper even
+            opens (see field.rows.forEach above). So From Type itself isn't
+            offered as a choice here at all — it posts as a fixed hidden
+            value, not a dropdown, since a row added from this tab's own
+            "+ Add another" can only ever be a Deliverable-type edge. %>
+        <% var toCodeField = field.itemFields.find(function(f) { return f.name === 'toCode'; }); %>
+        <% var fromCodeField = field.itemFields.find(function(f) { return f.name === 'fromCode'; }); %>
+        <% var requiredStateField = field.itemFields.find(function(f) { return f.name === 'requiredState'; }); %>
+        <% var relationshipKindField = field.itemFields.find(function(f) { return f.name === 'relationshipKind'; }); %>
+        <% var selfDeliverableCodes = (locals.referentialOptions || {})['self:deliverableCatalogue'] || []; %>
+        <input type="hidden" name="<%= field.name %>[<%= i %>][fromType]" value="Deliverable">
+        <div class="row g-2">
+          <div class="col-sm-6">
+            <label class="form-label small text-muted mb-1"><%= (toCodeField && toCodeField.label) || ilabel('toCode') %></label>
+            <select name="<%= field.name %>[<%= i %>][toCode]" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %>>
+              <option value="">— Deliverable —</option>
+              <% selfDeliverableCodes.forEach(function(code) { %>
+                <option value="<%= code %>" <%= (row.toCode || '') === code ? 'selected' : '' %>><%= deliverableLabels[code] || code %></option>
+              <% }) %>
+            </select>
+            <% if (toCodeField && toCodeField.help) { %><div class="form-text small"><%= toCodeField.help %></div><% } %>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label small text-muted mb-1"><%= (fromCodeField && fromCodeField.label) || ilabel('fromCode') %></label>
+            <select name="<%= field.name %>[<%= i %>][fromCode]" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %>>
+              <option value="">— Deliverable —</option>
+              <% selfDeliverableCodes.forEach(function(code) { %>
+                <option value="<%= code %>" <%= (row.fromCode || '') === code ? 'selected' : '' %>><%= deliverableLabels[code] || code %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label small text-muted mb-1"><%= (requiredStateField && requiredStateField.label) || ilabel('requiredState') %></label>
+            <input name="<%= field.name %>[<%= i %>][requiredState]" class="form-control form-control-sm" value="<%= row.requiredState || '' %>" <%- canEdit ? '' : 'disabled' %>>
+            <% if (requiredStateField && requiredStateField.help) { %><div class="form-text small"><%= requiredStateField.help %></div><% } %>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label small text-muted mb-1"><%= (relationshipKindField && relationshipKindField.label) || ilabel('relationshipKind') %></label>
+            <select name="<%= field.name %>[<%= i %>][relationshipKind]" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %>>
+              <% (relationshipKindField ? (relationshipKindField.options || []) : []).forEach(function(opt) { %>
+                <option value="<%= opt %>" <%= (row.relationshipKind || 'dependency') === opt ? 'selected' : '' %>><%= opt %></option>
+              <% }) %>
+            </select>
+            <% if (relationshipKindField && relationshipKindField.help) { %><div class="form-text small"><%= relationshipKindField.help %></div><% } %>
           </div>
         </div>
       <% } else { %>
@@ -738,6 +857,32 @@
                     <option value="<%= value %>" selected>&#9888; <%= value %> (not currently Active<%= _fixedCategory ? (' / not ' + _fixedCategory) : '' %>)</option>
                   <% } %>
                 </select>
+              <% } else if (itemField.kind === 'referential' && itemField.ontology) { %>
+                <%# Owner: "capability code is from a dropdown of
+                    capability-name" (Pack's own contributionCapabilities) —
+                    same x-ontology marker a top-level referential-select
+                    already carries, one level down: options resolve to a
+                    real label (not the bare code) and carry their own
+                    description. Name/description no longer travel as their
+                    own stored fields at all (owner: "what is stored in
+                    contributionCapabilities[]? Just store only the code") —
+                    the option's own text already shows the name; the
+                    guidance line below (referentialListGroup.js, the same
+                    rlg-autofill-source + data-row-field convention CR-023's
+                    top-level guidance panel uses) is a read-only echo of the
+                    description, never a submitted field. %>
+                <% var _ontItemOpts = ((locals.ontologyOptions || {})[itemField.referentialSource] || []); %>
+                <select name="<%= inputName %>" class="form-select form-select-sm rlg-autofill-source" data-row-field="<%= itemField.name %>" <%- canEdit ? '' : 'disabled' %> <%- isRequiredField ? 'required' : '' %>>
+                  <option value="">— <%= itemLabel %> —</option>
+                  <% _ontItemOpts.forEach(function(opt) { %>
+                    <option value="<%= opt.code %>" data-label="<%= opt.label %>" data-description="<%= opt.description || '' %>" <%= value === opt.code ? 'selected' : '' %>><%= opt.label %></option>
+                  <% }) %>
+                  <% if (value && !_ontItemOpts.some(function(opt) { return opt.code === value; })) { %>
+                    <option value="<%= value %>" selected>&#9888; <%= value %> (not currently active)</option>
+                  <% } %>
+                </select>
+                <% var _selectedOntItem = _ontItemOpts.find(function(opt) { return opt.code === value; }); %>
+                <div class="form-text small fst-italic" data-autofill-from="<%= itemField.name %>" data-autofill-attr="description"><%= (_selectedOntItem && _selectedOntItem.description) || '' %></div>
               <% } else if (itemField.kind === 'referential') { %>
                 <%# Owner: "Review Gates form is pathetic... same feedback
                     for quality gates" — governedTransition's own option list
@@ -792,6 +937,7 @@
         </div>
       <% } %>
     </div>
+    <% } %>
   <% }) %>
   <% if (canEdit) { %>
     <button type="button" class="btn btn-sm btn-outline-secondary add-row-btn" data-field-name="<%= field.name %>">

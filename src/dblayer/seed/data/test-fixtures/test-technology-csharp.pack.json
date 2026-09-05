@@ -1,0 +1,58 @@
+{
+  "code": "test-technology-csharp",
+  "name": "C# .NET Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "software-construction",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "engineering-work-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "C# .NET Engineering Standards",
+        "description": "Validation checklist for C# 10/12 standards, ASP.NET Core API design, EF Core, and Roslyn analyzers.",
+        "items": [
+          {
+            "statement": "Modern C# features (nullable reference types, records, pattern matching, async/await Task) are enabled and enforced.",
+            "group": "Language Standards"
+          },
+          {
+            "statement": "ASP.NET Core dependency injection lifetimes (Transient, Scoped, Singleton) avoid captive dependencies.",
+            "group": "Dependency Injection"
+          },
+          {
+            "statement": "Entity Framework Core queries use AsNoTracking() for read-only queries and avoid client-side evaluation warnings.",
+            "group": "Data Access & EF Core"
+          },
+          {
+            "statement": "Roslyn analyzers and StyleCop rule sets enforce consistent naming conventions and code quality.",
+            "group": "Static Analysis & Formatting"
+          },
+          {
+            "statement": "xUnit / NUnit test suites execute against in-memory or Testcontainers databases with high code coverage.",
+            "group": "Testing & Verification"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

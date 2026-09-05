@@ -1,0 +1,68 @@
+{
+  "code": "compliance-eu-financial-reporting",
+  "name": "EU Financial Markets & Corporate Sustainability (CSRD / MiFID II)",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for EU financial market regulations including MiFID II / MiFIR, Market Abuse Regulation (MAR), Corporate Sustainability Reporting Directive (CSRD), and Sustainable Finance Disclosure Regulation (SFDR).",
+  "owner": "EU Regulatory Affairs & ESG Compliance Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-eu-fin-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-eu-fin-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "EU Financial Markets & CSRD Compliance Audit Checklist",
+        "description": "Validation checklist for EU MAR insider lists, MiFID II trade recording, and CSRD ESG reporting standards.",
+        "items": [
+          {
+            "statement": "Insider lists comply with MAR Article 18 layout and update immediately upon new inside information discovery.",
+            "group": "Market Abuse Regulation (MAR)"
+          },
+          {
+            "statement": "MiFID II transaction reports record trade execution details within T+1 to national competent authorities (NCAs).",
+            "group": "MiFID II / MiFIR Reporting"
+          },
+          {
+            "statement": "CSRD double materiality evaluation assesses both financial impacts and environmental/social impacts.",
+            "group": "CSRD Sustainability (ESRS)"
+          },
+          {
+            "statement": "SFDR disclosures for Article 8/9 funds publish PAI (Principal Adverse Impact) indicators on public web portals.",
+            "group": "SFDR ESG Disclosures"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "eu-fin-regulatory-gate",
+        "name": "EU Financial Markets Attestation Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Head of Regulatory Compliance confirms that MAR insider tracking, MiFID II reporting, and CSRD ESG data meet EU directives.",
+        "prompt": "Does the regulatory audit evidence verify full compliance with EU MAR, MiFID II, and CSRD directives?",
+        "participant": "human",
+        "outputContract": "eu-fin-compliance-attestation",
+        "checklistIds": [
+          "EU Financial Markets & CSRD Compliance Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

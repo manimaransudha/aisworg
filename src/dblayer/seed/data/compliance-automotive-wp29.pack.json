@@ -1,0 +1,72 @@
+{
+  "code": "compliance-automotive-wp29",
+  "name": "Automotive Cybersecurity & Software Update (UNECE R155 / R156)",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for automotive software embedded in vehicles under UNECE WP.29 Regulation No. 155 (Cybersecurity Management System CSMS), Regulation No. 156 (Software Update Management System SUMS), and ISO 26262 Functional Safety ASIL requirements.",
+  "owner": "Automotive Cyber Engineering & Type Approval Governance",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-automotive-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-automotive-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "UNECE WP.29 R155 / R156 Automotive Verification Checklist",
+        "description": "Validation checklist for UNECE R155 CSMS, R156 SUMS, and ISO/SAE 21434 automotive standards.",
+        "items": [
+          {
+            "statement": "Cybersecurity Management System (CSMS) processes are audited and certified by an accredited Technical Service (UNECE R155).",
+            "group": "CSMS Audit (UNECE R155)"
+          },
+          {
+            "statement": "Threat Analysis and Risk Assessment (TARA) is conducted according to ISO/SAE 21434 for all vehicle software components.",
+            "group": "TARA Threat Modeling"
+          },
+          {
+            "statement": "Software Update Management System (SUMS) tracks RXSWIN (Regulatory Software Identification Number) per vehicle variant (R156).",
+            "group": "SUMS RXSWIN Tracking (UNECE R156)"
+          },
+          {
+            "statement": "Over-The-Air (OTA) updates are cryptographically signed using HSM keys and verified by target ECUs prior to flashing.",
+            "group": "OTA Cryptographic Integrity"
+          },
+          {
+            "statement": "Functional safety hazard analysis (HARA) verifies ASIL A-D safety goals per ISO 26262.",
+            "group": "ISO 26262 Functional Safety"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "automotive-type-approval-gate",
+        "name": "Automotive Type-Approval Readiness Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Functional Safety & Automotive Cybersecurity Manager confirms that CSMS, SUMS, and TARA evidence satisfy UNECE WP.29 R155/R156.",
+        "prompt": "Does the automotive software release package satisfy UNECE R155 CSMS and R156 SUMS type-approval requirements?",
+        "participant": "human",
+        "outputContract": "automotive-type-approval-attestation",
+        "checklistIds": [
+          "UNECE WP.29 R155 / R156 Automotive Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

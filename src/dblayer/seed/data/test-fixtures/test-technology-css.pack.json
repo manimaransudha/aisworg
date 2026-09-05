@@ -1,0 +1,153 @@
+{
+  "code": "test-technology-css",
+  "name": "Cascading Style Sheet Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "software-construction",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "engineering-work-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "Cascading Style Sheets (css) Standards",
+        "description": "Cascading Style Sheets Standards",
+        "items": [
+          {
+            "statement": "The website is using responsive web design",
+            "group": "Formatting"
+          },
+          {
+            "statement": "If IDs are used, they are unique to a page.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "A CSS reset (reset, normalize or reboot) is used and up to date.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Avoid embedding CSS in <style> tags or using inline CSS.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "CSS files are concatenated in a single file.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "CSS files are minified.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "CSS files need to be non-blocking to prevent the DOM from taking time to load.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "All pages were tested with the correct breakpoints.",
+            "group": "Naming conventions"
+          },
+          {
+            "statement": "Use a CSS validator.",
+            "group": "Naming conventions"
+          },
+          {
+            "statement": "All pages were tested on all current desktop browsers (Safari, Firefox, Chrome, Internet Explorer, EDGE…).",
+            "group": "Naming conventions"
+          },
+          {
+            "statement": "All pages were tested on all current mobile browsers (Native browser, Chrome, Safari…).",
+            "group": "Conditionals"
+          },
+          {
+            "statement": "All pages were tested on all current OS (Windows, Android, iOS, Mac…).",
+            "group": "Conditionals"
+          },
+          {
+            "statement": "Use Hex color codes #000 unless using rgba().",
+            "group": "Conditionals"
+          },
+          {
+            "statement": "Avoid absolute positioning.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Do not animate width, height, top, left and others. Use transform instead.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Avoid !important.",
+            "group": "Functions"
+          },
+          {
+            "statement": "Only standard media queries should be used.",
+            "group": "Comments"
+          },
+          {
+            "statement": "Use 2 spaces for indentation, not tabs:\n\n```js\nfunction foo() {\n  return 1;\n}\n```"
+          },
+          {
+            "statement": "Give proper spaces between brace brackets, colon etc.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Use three value hex code wherever possible for eg. #000000 -> #000.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Avoid ID usage for css styling purpose if possible.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Use shorthand wherever applicable.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Try reusing css code whenever applicable.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Avoid unwanted decimal points usage for matching font-sizes.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Use vendor prefixes.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Add box commenting for difference between main sections(Header, main, footer, and media queries) and normal commenting between sections.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Avoid unnecessary increase in specificity. Do not use important to override. (Avoid more than 4 nesting elements).",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Avoid units for 0 such as 0px or 0% etc. Also avoid using trailing zero example 0.4, 0.9 etc.",
+            "group": "Formatting"
+          },
+          {
+            "statement": "Single line styling should be on the same line and should be merged i.e. there should be no spaces between them. Eg: .heading { color: red; }",
+            "group": "Formatting"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

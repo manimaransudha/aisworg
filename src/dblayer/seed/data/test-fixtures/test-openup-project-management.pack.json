@@ -11,29 +11,14 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "project-management",
+        "code": "adapting-business-needs",
         "name": "Project Management",
         "description": "Plans, coordinates, and monitors the engineering effort, on behalf of the Project Manager role."
       }
     ],
     "services": [
       {
-        "code": "project-plan",
-        "capabilityCode": "project-management",
-        "name": "Project Plan",
-        "contractDescription": "The overall approach, phases, and milestones for the engineering effort."
-      },
-      {
-        "code": "iteration-plan",
-        "capabilityCode": "project-management",
-        "name": "Iteration Plan",
-        "contractDescription": "The scope and objectives committed to for the current iteration."
-      },
-      {
-        "code": "risk-list",
-        "capabilityCode": "project-management",
-        "name": "Risk List",
-        "contractDescription": "Identified risks, their exposure, and their mitigation or contingency."
+        "code": "capability-realignment-service"
       }
     ],
     "checklists": [

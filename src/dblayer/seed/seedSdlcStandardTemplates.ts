@@ -56,6 +56,11 @@ interface ProfileSeed {
 // One (Template, Profile) file pair per real template-categories concept.
 const STANDARD_TEMPLATE_FILES: Array<{ template: string; profile: string }> = [
   { template: "saas-product.template.json", profile: "saas-product-development.profile.json" },
+  // CR-087 — re-enabled (owner, 2026-09-04): the diagnostic disable (see
+  // Step 2a) confirmed what broke; "enterprise-web-application" being also
+  // ebook-library.template.json's own code (CR-087 finding 4) stays a latent,
+  // not live, collision — ebook-library.template.json is still only loaded by
+  // the standalone, unwired seedEbookLibraryPilot.ts, never this array.
   { template: "enterprise-web-application-parent.template.json", profile: "enterprise-web-application-parent-development.profile.json" },
   { template: "api-platform.template.json", profile: "api-platform-development.profile.json" },
   { template: "data-platform.template.json", profile: "data-platform-development.profile.json" },

@@ -1,0 +1,72 @@
+{
+  "code": "compliance-itar-ear",
+  "name": "ITAR & EAR Defense Export & CMMC 2.0 Supply Chain Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for US International Traffic in Arms Regulations (ITAR - 22 CFR Parts 120-130), Export Administration Regulations (EAR - 15 CFR Parts 730-774), and Cybersecurity Maturity Model Certification (CMMC 2.0 Level 2/3), covering US Persons access control, technical data encryption, and DFARS 252.204-7012.",
+  "owner": "Defense Trade Controls & Export Compliance Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-itar-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-itar-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "ITAR, EAR & CMMC Defense Export Audit Checklist",
+        "description": "Validation checklist for ITAR 22 CFR §120.54 end-to-end encryption and CMMC 2.0 CUI controls.",
+        "items": [
+          {
+            "statement": "Access to ITAR controlled technical data is restricted exclusively to authenticated US Persons (Citizens or Green Card holders).",
+            "group": "ITAR US Person Access (§120.62)"
+          },
+          {
+            "statement": "Technical data in transit and at rest uses end-to-end FIPS 140-2/3 cryptography with keys unaccessible to foreign entities (§120.54).",
+            "group": "ITAR E2E Encryption (§120.54)"
+          },
+          {
+            "statement": "EAR Export Control Classification Numbers (ECCN) are assigned for all dual-use software modules.",
+            "group": "EAR ECCN Classification"
+          },
+          {
+            "statement": "CMMC 2.0 Level 2 / NIST SP 800-171 110 security controls are verified for CUI storage enclaves.",
+            "group": "CMMC 2.0 CUI Enclave"
+          },
+          {
+            "statement": "DFARS 252.204-7012 cyber incident reporting mechanism reports breaches to DoD Cyber Crime Center (DC3) within 72 hours.",
+            "group": "DFARS Cyber Incident Reporting"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "itar-emp-officer-gate",
+        "name": "ITAR Empowered Official (EO) & CMMC Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The ITAR Empowered Official and C3PAO Lead Assessor confirm that technical data controls and CUI enclaves meet ITAR, EAR, and CMMC 2.0 requirements.",
+        "prompt": "Does the export control audit package confirm full compliance with ITAR, EAR, and CMMC 2.0 standards?",
+        "participant": "human",
+        "outputContract": "itar-compliance-attestation",
+        "checklistIds": [
+          "ITAR, EAR & CMMC Defense Export Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

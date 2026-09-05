@@ -1,0 +1,68 @@
+{
+  "code": "compliance-glba",
+  "name": "GLBA Financial Privacy & FTC Safeguards Rule Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for the Gramm-Leach-Bliley Act (GLBA) and FTC Safeguards Rule (16 CFR Part 314), covering nonpublic personal information (NPI) encryption, multi-factor authentication, incident response, and annual CISO reports.",
+  "owner": "Financial Institution Information Security Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-glba-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-glba-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "GLBA FTC Safeguards Rule Verification Checklist",
+        "description": "Validation checklist for FTC Safeguards Rule §314.4 requirements covering NPI protection and risk assessment.",
+        "items": [
+          {
+            "statement": "Nonpublic Personal Information (NPI) is encrypted at rest (AES-256) and in transit (TLS 1.3) per §314.4(c)(3).",
+            "group": "NPI Cryptography"
+          },
+          {
+            "statement": "Multi-Factor Authentication (MFA) is enforced for any individual accessing NPI per §314.4(c)(5).",
+            "group": "Access Control & MFA"
+          },
+          {
+            "statement": "Service provider risk assessment and contractual security mandates are enforced for external vendors (§314.4(f)).",
+            "group": "Service Provider Monitoring"
+          },
+          {
+            "statement": "Annual CISO written report is presented to the Board detailing security posture and risk assessments (§314.4(i)).",
+            "group": "Board Reporting & Governance"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "glba-ciso-attestation-gate",
+        "name": "GLBA Safeguards Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The CISO attests that NPI technical safeguards, MFA enforcement, and vendor monitoring satisfy GLBA FTC Safeguards Rule standards.",
+        "prompt": "Does the security assessment confirm full compliance with GLBA FTC Safeguards Rule requirements?",
+        "participant": "human",
+        "outputContract": "glba-compliance-attestation",
+        "checklistIds": [
+          "GLBA FTC Safeguards Rule Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

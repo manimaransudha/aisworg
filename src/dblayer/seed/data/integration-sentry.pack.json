@@ -1,0 +1,70 @@
+{
+  "code": "integration-sentry",
+  "name": "Sentry Application Monitoring Integration",
+  "category": "Integration",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Integration pack for Sentry, providing connectivity to real-time application crash reporting, stack trace aggregation, performance APM transaction tracing, and issue assignment.",
+  "owner": "SRE & Monitoring Operations Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "operating-production-systems",
+        "name": "Monitoring, Observability & SRE / Production Support & Incident Management",
+        "description": "Integrates Sentry real-time exception tracking, release health telemetry, and APM transaction performance metrics. Integrates Sentry unhandled exception alerts, issue grouping, and automatic assignment to engineering owners."
+      }
+    ],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-sentry-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-sentry-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Sentry Integration Verification Checklist",
+        "description": "Validation checklist for Sentry DSN configuration, release source maps, and issue alert webhooks.",
+        "items": [
+          {
+            "statement": "Sentry DSN (Data Source Name) is configured in application SDK initialization.",
+            "group": "SDK DSN Setup"
+          },
+          {
+            "statement": "JavaScript source maps / symbol files upload automatically during CI build releases.",
+            "group": "Source Maps & Symbols"
+          },
+          {
+            "statement": "Sentry Alert rules route high-frequency new issues to team Slack/PagerDuty channels.",
+            "group": "Alert Routing"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "sentry-integration-review-gate",
+        "name": "Sentry Integration Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Site Reliability Engineer confirms that Sentry DSN tracking and release source maps operate properly.",
+        "prompt": "Does the Sentry integration verify crash reporting and symbol map resolution?",
+        "participant": "human",
+        "outputContract": "sentry-integration-attestation",
+        "checklistIds": [
+          "Sentry Integration Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

@@ -55,8 +55,10 @@
               <% if (slItems.length === 0) { %>
                 <span class="text-muted small">No Service Level declared.</span>
               <% } else { %>
-                <% slItems.forEach(function(item) { %>
-                  <span class="sl-badge"><%= item.label %>: <%= item.target %></span>
+                <% slItems.forEach(function(item) {
+                     var _op = item.target_level === 'maximum' ? '≤' : (item.target_level === 'exact' ? '=' : '≥');
+                %>
+                  <span class="sl-badge"><%= item.label %>: <%= _op %><%= item.target %> <%= item.units %></span>
                 <% }) %>
               <% } %>
             </div>

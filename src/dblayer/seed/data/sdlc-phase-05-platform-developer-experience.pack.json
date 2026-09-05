@@ -11,123 +11,14 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "platform-developer-experience",
+        "code": "software-construction",
         "name": "Platform & Developer Experience",
         "description": "Establishes the paved-road infrastructure, CI/CD automation, and observability foundation developers rely on to ship safely."
       }
     ],
     "services": [
       {
-        "code": "ci-cd-pipeline-specification",
-        "capabilityCode": "platform-developer-experience",
-        "name": "CI/CD Pipeline Specification",
-        "contractDescription": "Automated build, test, artifact publishing, and deployment pipeline workflow definition.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "infrastructure-as-code-plan",
-        "capabilityCode": "platform-developer-experience",
-        "name": "Infrastructure as Code Plan",
-        "contractDescription": "Terraform / CloudFormation / Pulumi modular infrastructure automation plan.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "environments-matrix",
-        "capabilityCode": "platform-developer-experience",
-        "name": "Environments Matrix",
-        "contractDescription": "Dev, Staging, QA, and Production environment configuration, parity rules, and data masking controls.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "secrets-management-access-control-plan",
-        "capabilityCode": "platform-developer-experience",
-        "name": "Secrets Management & Access Control Plan",
-        "contractDescription": "HashiCorp Vault / AWS Secrets Manager integration, secret rotation policies, and IAM access controls.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "observability-strategy",
-        "capabilityCode": "platform-developer-experience",
-        "name": "Observability Strategy",
-        "contractDescription": "Distributed tracing (OpenTelemetry), centralized log aggregation, and metric alerting architecture.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "slo-sla-sli-definitions",
-        "capabilityCode": "platform-developer-experience",
-        "name": "SLO/SLA/SLI Definitions",
-        "contractDescription": "Service Level Indicators (SLI), Service Level Objectives (SLO), and Error Budget policies.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "executive-approved"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "runbooks-playbooks",
-        "capabilityCode": "platform-developer-experience",
-        "name": "Runbooks & Playbooks",
-        "contractDescription": "Standard operating procedures for deployment, rollback, backup restoration, and incident triage.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
+        "code": "software-implementation-service"
       }
     ],
     "authorityRules": [
@@ -147,17 +38,7 @@
         "authorisedRole": "general"
       }
     ],
-    "policies": [
-      {
-        "code": "policy-paved-road-automation-standard",
-        "name": "Paved-Road Automation Standard Policy",
-        "category": "Engineering",
-        "constraintType": "Standard",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "conditionType": "always_true",
-        "severity": "high"
-      }
-    ],
+    "policies": [],
     "checklists": [
       {
         "name": "Platform & Developer Experience (SDLC Phase 5) Checklist",

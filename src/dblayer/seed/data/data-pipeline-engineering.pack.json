@@ -1,0 +1,74 @@
+{
+  "code": "data-pipeline-engineering",
+  "name": "Data Pipeline Engineering",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Designs, builds, and operates the ingestion, transformation, and quality-assurance pipelines that move and shape data reliably — the discipline generic software-construction doesn't cover.",
+  "owner": "Platform",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "engineering-data-pipelines"
+      }
+    ],
+    "services": [
+      {
+        "code": "data-pipeline-engineering-service"
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Data Pipeline Engineering Checklist",
+        "description": "Validation checklist before a data pipeline is trusted by downstream consumers.",
+        "items": [
+          {
+            "statement": "The Data Pipeline Specification documents every source, transformation, and destination the pipeline touches."
+          },
+          {
+            "statement": "The Data Quality Report covers completeness, accuracy, and freshness checks, not just that the pipeline ran without erroring."
+          },
+          {
+            "statement": "Failure and retry behaviour is defined for every stage, so a partial failure doesn't silently produce incomplete data."
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "data-quality-report",
+        "name": "Data Pipeline Quality Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Data Quality Report has been reviewed and the pipeline is accepted as trustworthy for downstream use.",
+        "prompt": "Does the data-quality evidence justify letting downstream consumers rely on this pipeline's output?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "Data Pipeline Engineering Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

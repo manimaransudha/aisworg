@@ -872,5 +872,82 @@
     "toState": "Active",
     "requiredAuthorityRuleCode": null,
     "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Service",
+    "fromState": "Defined",
+    "toState": "Published",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Service",
+    "fromState": "Published",
+    "toState": "Active",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Service",
+    "fromState": "Active",
+    "toState": "Deprecated",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Service",
+    "fromState": "Deprecated",
+    "toState": "Retired",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Service",
+    "fromState": "Retired",
+    "toState": "Archived",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Policy",
+    "fromState": "Draft",
+    "toState": "Validated",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Policy",
+    "fromState": "Validated",
+    "toState": "Published",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Policy",
+    "fromState": "Published",
+    "toState": "Active",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Policy",
+    "fromState": "Active",
+    "toState": "Deprecated",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Policy",
+    "fromState": "Deprecated",
+    "toState": "Retired",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Policy",
+    "fromState": "Retired",
+    "toState": "Archived",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
   }
 ]

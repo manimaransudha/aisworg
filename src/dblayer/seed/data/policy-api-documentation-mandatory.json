@@ -1,0 +1,50 @@
+{
+  "code": "api-documentation-mandatory",
+  "name": "API Documentation Mandatory",
+  "description": "Every public API endpoint must have current, example-bearing, contract-validated documentation before Release.",
+  "category": "Documentation",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [
+    "api-specification"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Every public endpoint has documented request and response schemas, including error responses.",
+      "requiredEvidence": [
+        {
+          "type": "documentation_artifact",
+          "field": "schema_coverage"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Every public endpoint has at least one worked example.",
+      "requiredEvidence": [
+        {
+          "type": "documentation_artifact",
+          "field": "examples"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "The documented contract (e.g. OpenAPI spec) validates against the live API's actual behaviour, with zero drift.",
+      "requiredEvidence": [
+        {
+          "type": "contract_validation_result"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

@@ -1,0 +1,57 @@
+{
+  "code": "design-completeness-and-review",
+  "name": "Design Completeness and Review",
+  "description": "Design artefacts trace to the requirement or capability they satisfy, security design is reviewed wherever sensitive data or external input is handled, and interface contracts don't conflict with each other.",
+  "category": "Engineering",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [
+    "solution-architecture-document",
+    "system-model",
+    "security-design",
+    "ux-ui-design-specification",
+    "detailed-design-specification",
+    "database-schema-data-model",
+    "integration-specification-interface-contracts",
+    "domain-model"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Every Design artefact declares the requirement or capability it satisfies, not left as free-standing content.",
+      "requiredEvidence": [
+        {
+          "type": "traceability_record"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "A Security Design exists, reviewed by a security-capable participant, for any component handling sensitive data or external input.",
+      "requiredEvidence": [
+        {
+          "type": "review_result"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [
+        "A component with no sensitive data and no external-facing surface may be exempted, logged with justification."
+      ],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Interface/integration contracts (API, database schema, integration specification) are internally consistent — no two Design artefacts declare conflicting contracts for the same interface.",
+      "requiredEvidence": [
+        {
+          "type": "contract_consistency_check"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

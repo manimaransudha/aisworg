@@ -9,6 +9,8 @@ import {seu_packs_indexVM} from "./seu_packs_index.js";
 import {seu_templates_indexVM} from "./seu_templates_index.js";
 import {seu_profiles_indexVM} from "./seu_profiles_index.js";
 import {seu_deliverable_definitions_indexVM} from "./seu_deliverable_definitions_index.js";
+import {seu_service_definitions_indexVM} from "./seu_service_definitions_index.js";
+import {seu_policy_definitions_indexVM} from "./seu_policy_definitions_index.js";
 import {seu_objectives_indexVM} from "./seu_objectives_index.js";
 import {seu_objectives_detailVM} from "./seu_objectives_detail.js";
 import {seu_objectives_newVM} from "./seu_objectives_new.js";
@@ -52,6 +54,8 @@ export const viewModels = {
   "seu/templates/index": seu_templates_indexVM,
   "seu/profiles/index": seu_profiles_indexVM,
   "seu/deliverable-definitions/index": seu_deliverable_definitions_indexVM,
+  "seu/service-definitions/index": seu_service_definitions_indexVM,
+  "seu/policy-definitions/index": seu_policy_definitions_indexVM,
   "seu/objectives/index": seu_objectives_indexVM,
   "seu/objectives/detail": seu_objectives_detailVM,
   "seu/objectives/new": seu_objectives_newVM,

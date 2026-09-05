@@ -7,7 +7,7 @@ import { eventBus } from "../../../domain/engine/eventBus.js";
 import { materialiseDependencyGraph, DEFAULT_DELIVERABLE_REQUIRED_STATE } from "../../../domain/engine/materialiseDependencyGraph.js";
 import { dependencyDefinitionsDB } from "../../../dblayer/dependencyDefinitionsDB.js";
 import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
-import { assertCanonicalCategory } from "./ontology.js";
+import { assertCanonicalCategory, resolveLabels } from "./ontology.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import type { CapabilityRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../../../dblayer/seuTypes.js";
 
@@ -203,6 +203,54 @@ async function isRenameOf(childName: string, parentName: string, tenantId: strin
   return false;
 }
 
+// Ch.9 §11 Constraint Detection — standard three-colour DFS cycle check over
+// the Deliverable-to-Deliverable subgraph (fromType: "Deliverable" edges
+// only; Capability-type edges have no toCode/fromCode pair to form a cycle
+// with). Returns the cycle as an ordered list of codes (the repeated node
+// first and last) for a readable error message, or null if the graph is
+// acyclic. Runs on the raw authored entries, not validated/deduped first —
+// safe either way, since an edge naming an unknown code just never matches
+// anything in the adjacency walk.
+function findDeliverableDependencyCycle(dependencyGraph: TemplateDependencyGraphEntry[]): string[] | null {
+  const adjacency = new Map<string, string[]>();
+  for (const entry of dependencyGraph) {
+    if (entry.fromType !== "Deliverable" || !entry.fromCode) continue;
+    const list = adjacency.get(entry.fromCode) ?? [];
+    list.push(entry.toCode);
+    adjacency.set(entry.fromCode, list);
+  }
+
+  const UNVISITED = 0, IN_PROGRESS = 1, DONE = 2;
+  const state = new Map<string, number>();
+  const path: string[] = [];
+
+  function visit(node: string): string[] | null {
+    state.set(node, IN_PROGRESS);
+    path.push(node);
+    for (const next of adjacency.get(node) ?? []) {
+      const nextState = state.get(next) ?? UNVISITED;
+      if (nextState === IN_PROGRESS) {
+        return path.slice(path.indexOf(next)).concat(next);
+      }
+      if (nextState === UNVISITED) {
+        const found = visit(next);
+        if (found) return found;
+      }
+    }
+    path.pop();
+    state.set(node, DONE);
+    return null;
+  }
+
+  for (const node of adjacency.keys()) {
+    if ((state.get(node) ?? UNVISITED) === UNVISITED) {
+      const found = visit(node);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 export async function validateTemplateSeed(seed: TemplateSeedInput): Promise<TemplateValidationResult> {
   const errors: string[] = [];
   if (!seed.name?.trim()) errors.push("name is required");
@@ -229,39 +277,54 @@ export async function validateTemplateSeed(seed: TemplateSeedInput): Promise<Tem
 
   const derivedCapabilityCodes = await deriveCapabilityCodesFromPackCodes(collectAllPackCodes(seed));
 
-  const seenDeliverableNames = new Set<string>();
+  // CR-087 — entry.code must be a real, active deliverable-name Ontology
+  // concept (assertCanonicalCategory, the same server-side discipline every
+  // other Ontology-backed authoring field already has — this field never had
+  // it before, despite migration 079's own widget wiring implying it did).
+  const seenDeliverableCodes = new Set<string>();
+  const tenantViewer = { isRoot: false, tenantId: seed.tenantId ?? PLATFORM_TENANT_ID };
   for (const entry of seed.deliverableCatalogue ?? []) {
-    if (!entry.name?.trim()) errors.push("deliverableCatalogue entry is missing a name");
-    if (!entry.category?.trim()) errors.push(`deliverableCatalogue entry "${entry.name}" is missing a category`);
-    if (entry.name && seenDeliverableNames.has(entry.name)) errors.push(`deliverableCatalogue entry "${entry.name}" is a duplicate — names must be unique within one Template's catalogue`);
-    if (entry.producingCapabilityCode && !derivedCapabilityCodes.includes(entry.producingCapabilityCode)) {
-      errors.push(`deliverableCatalogue entry "${entry.name}" producingCapabilityCode "${entry.producingCapabilityCode}" is not among the Capabilities the selected Packs contribute`);
+    if (!entry.code?.trim()) { errors.push("deliverableCatalogue entry is missing a code"); continue; }
+    if (seenDeliverableCodes.has(entry.code)) errors.push(`deliverableCatalogue entry "${entry.code}" is a duplicate — codes must be unique within one Template's catalogue`);
+    try {
+      await assertCanonicalCategory("deliverable-name", entry.code, tenantViewer);
+    } catch (err) {
+      errors.push(`deliverableCatalogue entry "${entry.code}": ${(err as Error).message}`);
     }
-    if (entry.name) seenDeliverableNames.add(entry.name);
+    seenDeliverableCodes.add(entry.code);
   }
 
-  // CR-041 — referential checks the schema itself can't express: toName/
-  // fromName must resolve to a real catalogue entry (by name — bug fix, see
-  // TemplateDependencyGraphEntry's own comment, seuTypes.ts); fromCapabilityCode
-  // must resolve to a real, derived Capability. Cycle detection (a
-  // dependencyGraph entry whose toName is transitively its own prerequisite)
-  // is deliberately not checked here — parked as CR-041's own authoring-time
-  // widget concern, not a structural/referential validation.
+  // CR-041 — referential checks the schema itself can't express: toCode/
+  // fromCode must resolve to a real catalogue entry (by code — CR-087
+  // renamed these off default_label text, see TemplateDependencyGraphEntry's
+  // own comment, seuTypes.ts); fromCapabilityCode must resolve to a real,
+  // derived Capability.
   for (const entry of seed.dependencyGraph ?? []) {
-    if (!seenDeliverableNames.has(entry.toName)) {
-      errors.push(`dependencyGraph entry toName "${entry.toName}" does not match a deliverableCatalogue entry`);
+    if (!seenDeliverableCodes.has(entry.toCode)) {
+      errors.push(`dependencyGraph entry toCode "${entry.toCode}" does not match a deliverableCatalogue entry`);
     }
     if (entry.fromType === "Deliverable") {
-      if (!entry.fromName || !seenDeliverableNames.has(entry.fromName)) {
-        errors.push(`dependencyGraph entry (toName "${entry.toName}") fromName "${entry.fromName}" does not match a deliverableCatalogue entry`);
+      if (!entry.fromCode || !seenDeliverableCodes.has(entry.fromCode)) {
+        errors.push(`dependencyGraph entry (toCode "${entry.toCode}") fromCode "${entry.fromCode}" does not match a deliverableCatalogue entry`);
       }
     } else if (entry.fromType === "Capability") {
       if (!entry.fromCapabilityCode || !derivedCapabilityCodes.includes(entry.fromCapabilityCode)) {
-        errors.push(`dependencyGraph entry (toName "${entry.toName}") fromCapabilityCode "${entry.fromCapabilityCode}" is not among the Capabilities the selected Packs contribute`);
+        errors.push(`dependencyGraph entry (toCode "${entry.toCode}") fromCapabilityCode "${entry.fromCapabilityCode}" is not among the Capabilities the selected Packs contribute`);
       }
     } else {
-      errors.push(`dependencyGraph entry (toName "${entry.toName}") has an unrecognised fromType "${entry.fromType}"`);
+      errors.push(`dependencyGraph entry (toCode "${entry.toCode}") has an unrecognised fromType "${entry.fromType}"`);
     }
+  }
+
+  // Ch.9 §11 Constraint Detection — a Deliverable-type edge chain that loops
+  // back on itself could never be satisfied (nothing could ever reach the
+  // gated state, since every candidate "first" step is itself waiting on
+  // something downstream). Capability-type edges never participate — they
+  // don't name another deliverableCatalogue entry, so they can't be part of
+  // a Deliverable-to-Deliverable cycle.
+  const cycle = findDeliverableDependencyCycle(seed.dependencyGraph ?? []);
+  if (cycle) {
+    errors.push(`dependencyGraph has a circular dependency: ${cycle.join(" → ")}`);
   }
 
   // CR-026 Template Inheritance (Ch.6 §9, owner: "All mandatory packs in the
@@ -296,7 +359,7 @@ export async function validateTemplateSeed(seed: TemplateSeedInput): Promise<Tem
       // CURRENT set — checked live, same discipline as the mandatory-Pack
       // check just above, not frozen at the moment of inheriting.
       const LOCKED_RELATIONSHIP_KINDS = new Set(["implementation", "decomposition"]);
-      const parentGraph = await getDependencyGraphContent(parent.id);
+      const parentGraph = await getDependencyGraphContent(parent.id, parent.tenant_id);
       const lockedParentEdges = parentGraph.filter((e) => LOCKED_RELATIONSHIP_KINDS.has(e.relationshipKind ?? "dependency"));
       if (lockedParentEdges.length > 0) {
         const tenantId = seed.tenantId ?? PLATFORM_TENANT_ID;
@@ -309,14 +372,14 @@ export async function validateTemplateSeed(seed: TemplateSeedInput): Promise<Tem
             const childEdge = candidateChildEdges[i];
             if (childEdge.relationshipKind !== parentEdge.relationshipKind) continue;
             if ((childEdge.requiredState ?? DEFAULT_DELIVERABLE_REQUIRED_STATE) !== parentEdge.requiredState) continue;
-            if (!childEdge.fromName || !(await isRenameOf(childEdge.fromName, parentEdge.fromName ?? "", tenantId))) continue;
-            if (!(await isRenameOf(childEdge.toName, parentEdge.toName, tenantId))) continue;
+            if (!childEdge.fromCode || !(await isRenameOf(childEdge.fromCode, parentEdge.fromCode ?? "", tenantId))) continue;
+            if (!(await isRenameOf(childEdge.toCode, parentEdge.toCode, tenantId))) continue;
             consumed.add(i);
             matched = true;
             break;
           }
           if (!matched) {
-            errors.push(`an inherited Template must keep its parent's "${parentEdge.relationshipKind}" edge ("${parentEdge.fromName}" → "${parentEdge.toName}") unaltered — either end may be renamed to your own specialised Deliverable Definition, but the edge itself cannot be dropped or restructured`);
+            errors.push(`an inherited Template must keep its parent's "${parentEdge.relationshipKind}" edge ("${parentEdge.fromCode}" → "${parentEdge.toCode}") unaltered — either end may be renamed to your own specialised Deliverable Definition, but the edge itself cannot be dropped or restructured`);
           }
         }
       }
@@ -364,15 +427,27 @@ export async function getPackSelectionsByCategory(templateId: string): Promise<P
 // AUTHORED seed shape: a Capability-type row's own fromCapabilityCode isn't
 // stored anywhere once materialised (dependency_definitions is Service-code
 // keyed, one row per Service that Capability provides — CR-042's own note on
-// the same expansion), so this surfaces the real Service code(s) in fromName
+// the same expansion), so this surfaces the real Service code(s) in fromCode
 // instead, which is accurate information, just not round-trippable back into
 // a single authored fromCapabilityCode row.
-export async function getDependencyGraphContent(templateId: string): Promise<TemplateDependencyGraphEntry[]> {
+//
+// CR-087 — dependency_definitions itself stays label-keyed (to_name/from_name
+// hold the deliverable-name concept's default_label, not its code — see
+// materialiseDependencyGraph.ts), but this function's own return shape is the
+// authoring one (toCode/fromCode), so a Deliverable-type row's to_name/
+// from_name get reverse-resolved back to their code here — the one place
+// that reversal needs to happen, for the edit-form round-trip and the
+// isRenameOf locked-edge check above. A Capability-type row's from_name is a
+// Service code, never a deliverable-name label — passed through unresolved.
+export async function getDependencyGraphContent(templateId: string, tenantId: string): Promise<TemplateDependencyGraphEntry[]> {
   const { data: rows } = await dependencyDefinitionsDB.findByOwner("Template", templateId);
+  const labelByCode = await resolveLabels(tenantId, "deliverable-name");
+  const codeByLabel = new Map(Object.entries(labelByCode).map(([code, label]) => [label, code]));
+  const toCode = (label: string) => codeByLabel.get(label) ?? label;
   return (rows ?? []).map((r) => ({
-    toName: r.to_name,
+    toCode: toCode(r.to_name),
     fromType: r.from_entity_type as "Deliverable" | "Capability",
-    fromName: r.from_name ?? "",
+    fromCode: r.from_entity_type === "Deliverable" ? toCode(r.from_name ?? "") : (r.from_name ?? ""),
     requiredState: r.from_state,
     relationshipKind: r.relationship_kind,
   }));
@@ -442,6 +517,7 @@ export async function publishTemplate(seed: TemplateSeedInput): Promise<PublishT
     owningEntityId: template.id,
     deliverableCatalogue: seed.deliverableCatalogue ?? [],
     dependencyGraph: seed.dependencyGraph ?? [],
+    tenantId: seed.tenantId ?? PLATFORM_TENANT_ID,
   });
 
   // CR-025 — real named events (Ch.6 §16), mirroring PackRegistered
@@ -693,6 +769,7 @@ export async function materialiseTemplateDraft(templateId: string, seed: Templat
     owningEntityId: templateId,
     deliverableCatalogue: seed.deliverableCatalogue ?? [],
     dependencyGraph: seed.dependencyGraph ?? [],
+    tenantId: seed.tenantId ?? PLATFORM_TENANT_ID,
   });
 }
 

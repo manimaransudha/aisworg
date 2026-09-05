@@ -1,0 +1,69 @@
+{
+  "code": "release-and-operations-artifact-completeness",
+  "name": "Release and Operations Artifact Completeness",
+  "description": "A deployment is accompanied by release notes and active monitoring before reaching production, and every incident produces a root cause analysis, with recurring causes logged as known errors.",
+  "category": "Operational",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [
+    "deployment-manifest",
+    "deployment-package",
+    "release-notes-change-log",
+    "app-store-submission-package",
+    "monitoring-alerting-configuration",
+    "incident-report-post-mortem",
+    "root-cause-analysis-report",
+    "known-error-record",
+    "operational-intelligence-report"
+  ],
+  "applicabilityEnvironments": [
+    "production"
+  ],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Every Deployment Manifest or Deployment Package is accompanied by Release Notes / Change Log naming what changed.",
+      "requiredEvidence": [
+        {
+          "type": "release_notes_review"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Monitoring & Alerting Configuration exists and is active before a Deployment Package reaches production.",
+      "requiredEvidence": [
+        {
+          "type": "monitoring_configuration_check"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Every Incident Report / Post-Mortem produces a Root Cause Analysis Report, and a recurring cause is logged as a Known Error Record rather than re-investigated from scratch each time.",
+      "requiredEvidence": [
+        {
+          "type": "root_cause_analysis_report"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "An App Store Submission Package includes the target platform's required metadata and passes automated store-compliance checks before submission.",
+      "requiredEvidence": [
+        {
+          "type": "store_compliance_check"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

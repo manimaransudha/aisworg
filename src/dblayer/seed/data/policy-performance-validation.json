@@ -1,0 +1,65 @@
+{
+  "code": "performance-validation",
+  "name": "Performance Validation",
+  "description": "Source Code must meet declared latency, throughput and resource targets under sustained load, with no detected memory leak, before Release.",
+  "category": "Quality",
+  "constraintType": "Standard",
+  "applicabilityDeliverableNames": [
+    "source-code"
+  ],
+  "applicabilityEnvironments": [
+    "production"
+  ],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "P95 latency under declared load is at or below the SLA target.",
+      "requiredEvidence": [
+        {
+          "type": "performance_report",
+          "metric": "p95_latency"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Throughput under declared load meets or exceeds the minimum requests-per-second target.",
+      "requiredEvidence": [
+        {
+          "type": "performance_report",
+          "metric": "throughput"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "No memory leak detected over a sustained load-test window (memory usage returns to baseline after load subsides).",
+      "requiredEvidence": [
+        {
+          "type": "performance_report",
+          "metric": "memory_profile"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "CPU and memory utilisation under peak declared load remain below the declared ceiling.",
+      "requiredEvidence": [
+        {
+          "type": "performance_report",
+          "metric": "resource_utilisation"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

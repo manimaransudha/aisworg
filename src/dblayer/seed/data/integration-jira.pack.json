@@ -1,0 +1,80 @@
+{
+  "code": "integration-jira",
+  "name": "Atlassian Jira Software Integration",
+  "category": "Integration",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Integration pack for Atlassian Jira Software, providing connectivity to Jira Cloud/Server REST APIs for issue synchronization, Agile sprint backlog planning, bug tracking, and release version mapping.",
+  "owner": "Agile Tooling & Delivery Integration Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "adapting-business-needs",
+        "name": "Project Management",
+        "description": "Integrates Jira issue tracking, status transitions, priority updates, and team assignment sync."
+      },
+      {
+        "code": "requirements-prioritising",
+        "name": "Backlog & Release Planning",
+        "description": "Integrates Jira Scrum/Kanban board backlogs, epic hierarchies, story points, and release fix versions."
+      },
+      {
+        "code": "requirements-analysis",
+        "name": "Requirements Analysis",
+        "description": "Integrates Jira User Story specifications, epic requirements, and acceptance criteria linkings."
+      }
+    ],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-jira-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-jira-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Jira Integration Verification Checklist",
+        "description": "Validation checklist for Jira REST API authentication, custom field mappings, and webhook issue update listeners.",
+        "items": [
+          {
+            "statement": "Jira API Service Account / OAuth 2.0 token validates read/write access to target Jira project keys.",
+            "group": "API Authentication"
+          },
+          {
+            "statement": "Jira Custom Fields (Story Points, Sprint ID, Acceptance Criteria) are mapped correctly.",
+            "group": "Field Mapping"
+          },
+          {
+            "statement": "Jira Webhooks trigger automated updates on issue created, updated, or deleted events.",
+            "group": "Webhook Sync"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "jira-integration-review-gate",
+        "name": "Jira Integration Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Agile Delivery Lead confirms that Jira API credentials and field mappings enable bi-directional issue sync.",
+        "prompt": "Does the Jira integration test confirm bi-directional issue synchronization and webhook delivery?",
+        "participant": "human",
+        "outputContract": "jira-integration-attestation",
+        "checklistIds": [
+          "Jira Integration Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

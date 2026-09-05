@@ -1,0 +1,58 @@
+{
+  "code": "test-technology-kubernetes",
+  "name": "Kubernetes Cloud-Native Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "software-construction",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "engineering-work-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "Kubernetes Cloud-Native Engineering Standards",
+        "description": "Validation checklist for Kubernetes manifests, resource limits, liveness/readiness probes, and Pod Security Standards.",
+        "items": [
+          {
+            "statement": "Deployment manifests specify explicit CPU and memory requests and limits for every container.",
+            "group": "Resource Management"
+          },
+          {
+            "statement": "Liveness, readiness, and startup probes are configured with realistic delay and timeout thresholds.",
+            "group": "Health Checks & Probes"
+          },
+          {
+            "statement": "Pods comply with Restricted Pod Security Admission (PSA) standards (allowPrivilegeEscalation: false, readOnlyRootFilesystem: true).",
+            "group": "Pod Security Standards"
+          },
+          {
+            "statement": "Kube-linter or Datree static analysis verifies YAML syntax, deprecated API versions, and manifest best practices.",
+            "group": "Manifest Linting & Analysis"
+          },
+          {
+            "statement": "Helm charts or Kustomize overlays parameterize environment differences without inline hardcoded configs.",
+            "group": "Templating & Environment Parity"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

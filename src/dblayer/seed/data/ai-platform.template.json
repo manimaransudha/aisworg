@@ -15,135 +15,56 @@
     "ongoing-operations-governance",
     "vision-opportunity-framing",
     "product-discovery",
-    "scale-performance-optimization"
+    "scale-performance-optimization",
+    "ai-model-engineering"
   ],
   "deliverableCatalogue": [
-    {
-      "name": "Requirements Specification",
-      "category": "Documentation",
-      "producingCapabilityCode": "requirements-analysis"
-    },
-    {
-      "name": "Architecture Document",
-      "category": "Documentation",
-      "producingCapabilityCode": "architecture-solution-design"
-    },
-    {
-      "name": "Technical Architecture & Discovery Document",
-      "category": "Documentation",
-      "producingCapabilityCode": "technical-architecture-discovery"
-    },
-    {
-      "name": "Security & Compliance Review",
-      "category": "Documentation",
-      "producingCapabilityCode": "security-privacy-compliance"
-    },
-    {
-      "name": "Platform & Developer Experience Setup",
-      "category": "Documentation",
-      "producingCapabilityCode": "platform-developer-experience"
-    },
-    {
-      "name": "Source Code",
-      "category": "Implementation",
-      "producingCapabilityCode": "development"
-    },
-    {
-      "name": "Quality Engineering Report",
-      "category": "Documentation",
-      "producingCapabilityCode": "quality-engineering-hardening"
-    },
-    {
-      "name": "Launch Readiness Review",
-      "category": "Documentation",
-      "producingCapabilityCode": "launch-management"
-    },
-    {
-      "name": "Operations Runbook",
-      "category": "Documentation",
-      "producingCapabilityCode": "ongoing-operations-governance"
-    }
+    { "code": "domain-model" },
+    { "code": "requirements-backlog" },
+    { "code": "requirements-analysis-model" },
+    { "code": "requirements-specification" },
+    { "code": "requirements-prioritisation-record" },
+    { "code": "architecture-decision-record" },
+    { "code": "training-data-specification" },
+    { "code": "model-card" },
+    { "code": "model-evaluation-report" },
+    { "code": "source-code" },
+    { "code": "test-report-results" },
+    { "code": "security-assessment-report" },
+    { "code": "decision-record" },
+    { "code": "deployment-manifest" },
+    { "code": "incident-report-post-mortem" }
   ],
   "dependencyGraph": [
-    {
-      "toName": "Architecture Document",
-      "fromType": "Deliverable",
-      "fromName": "Requirements Specification"
-    },
-    {
-      "toName": "Architecture Document",
-      "fromType": "Capability",
-      "fromCapabilityCode": "architecture-solution-design"
-    },
-    {
-      "toName": "Technical Architecture & Discovery Document",
-      "fromType": "Deliverable",
-      "fromName": "Architecture Document"
-    },
-    {
-      "toName": "Technical Architecture & Discovery Document",
-      "fromType": "Capability",
-      "fromCapabilityCode": "technical-architecture-discovery"
-    },
-    {
-      "toName": "Security & Compliance Review",
-      "fromType": "Deliverable",
-      "fromName": "Technical Architecture & Discovery Document"
-    },
-    {
-      "toName": "Security & Compliance Review",
-      "fromType": "Capability",
-      "fromCapabilityCode": "security-privacy-compliance"
-    },
-    {
-      "toName": "Platform & Developer Experience Setup",
-      "fromType": "Deliverable",
-      "fromName": "Security & Compliance Review"
-    },
-    {
-      "toName": "Platform & Developer Experience Setup",
-      "fromType": "Capability",
-      "fromCapabilityCode": "platform-developer-experience"
-    },
-    {
-      "toName": "Source Code",
-      "fromType": "Deliverable",
-      "fromName": "Platform & Developer Experience Setup"
-    },
-    {
-      "toName": "Source Code",
-      "fromType": "Capability",
-      "fromCapabilityCode": "development"
-    },
-    {
-      "toName": "Quality Engineering Report",
-      "fromType": "Deliverable",
-      "fromName": "Source Code"
-    },
-    {
-      "toName": "Quality Engineering Report",
-      "fromType": "Capability",
-      "fromCapabilityCode": "quality-engineering-hardening"
-    },
-    {
-      "toName": "Launch Readiness Review",
-      "fromType": "Deliverable",
-      "fromName": "Quality Engineering Report"
-    },
-    {
-      "toName": "Launch Readiness Review",
-      "fromType": "Capability",
-      "fromCapabilityCode": "launch-management"
-    },
-    {
-      "toName": "Operations Runbook",
-      "fromType": "Deliverable",
-      "fromName": "Launch Readiness Review"
-    },
-    {
-      "toName": "Operations Runbook",
-      "fromType": "Capability",
-      "fromCapabilityCode": "ongoing-operations-governance"
-    }
+    { "toCode": "domain-model", "fromType": "Capability", "fromCapabilityCode": "understanding-business-domain" },
+    { "toCode": "requirements-backlog", "fromType": "Deliverable", "fromCode": "domain-model" },
+    { "toCode": "requirements-backlog", "fromType": "Capability", "fromCapabilityCode": "requirements-elicitation" },
+    { "toCode": "requirements-analysis-model", "fromType": "Deliverable", "fromCode": "requirements-backlog" },
+    { "toCode": "requirements-analysis-model", "fromType": "Capability", "fromCapabilityCode": "requirements-analysis" },
+    { "toCode": "requirements-specification", "fromType": "Deliverable", "fromCode": "requirements-analysis-model" },
+    { "toCode": "requirements-specification", "fromType": "Capability", "fromCapabilityCode": "requirements-validation" },
+    { "toCode": "requirements-prioritisation-record", "fromType": "Deliverable", "fromCode": "requirements-specification" },
+    { "toCode": "requirements-prioritisation-record", "fromType": "Capability", "fromCapabilityCode": "requirements-prioritising" },
+    { "toCode": "architecture-decision-record", "fromType": "Deliverable", "fromCode": "requirements-specification" },
+    { "toCode": "architecture-decision-record", "fromType": "Capability", "fromCapabilityCode": "architecture-design" },
+    { "toCode": "training-data-specification", "fromType": "Deliverable", "fromCode": "requirements-analysis-model" },
+    { "toCode": "training-data-specification", "fromType": "Capability", "fromCapabilityCode": "training-and-evaluating-models" },
+    { "toCode": "model-card", "fromType": "Deliverable", "fromCode": "training-data-specification" },
+    { "toCode": "model-card", "fromType": "Capability", "fromCapabilityCode": "training-and-evaluating-models" },
+    { "toCode": "model-evaluation-report", "fromType": "Deliverable", "fromCode": "model-card" },
+    { "toCode": "model-evaluation-report", "fromType": "Capability", "fromCapabilityCode": "training-and-evaluating-models" },
+    { "toCode": "source-code", "fromType": "Deliverable", "fromCode": "architecture-decision-record" },
+    { "toCode": "source-code", "fromType": "Deliverable", "fromCode": "model-evaluation-report" },
+    { "toCode": "source-code", "fromType": "Capability", "fromCapabilityCode": "software-construction" },
+    { "toCode": "test-report-results", "fromType": "Deliverable", "fromCode": "source-code" },
+    { "toCode": "test-report-results", "fromType": "Capability", "fromCapabilityCode": "software-validation" },
+    { "toCode": "security-assessment-report", "fromType": "Deliverable", "fromCode": "source-code" },
+    { "toCode": "security-assessment-report", "fromType": "Capability", "fromCapabilityCode": "protect-organisational-assets" },
+    { "toCode": "decision-record", "fromType": "Deliverable", "fromCode": "security-assessment-report" },
+    { "toCode": "decision-record", "fromType": "Capability", "fromCapabilityCode": "governing-engineering-decisions" },
+    { "toCode": "deployment-manifest", "fromType": "Deliverable", "fromCode": "test-report-results" },
+    { "toCode": "deployment-manifest", "fromType": "Capability", "fromCapabilityCode": "software-release" },
+    { "toCode": "incident-report-post-mortem", "fromType": "Deliverable", "fromCode": "deployment-manifest" },
+    { "toCode": "incident-report-post-mortem", "fromType": "Capability", "fromCapabilityCode": "operating-production-systems" }
   ]
 }

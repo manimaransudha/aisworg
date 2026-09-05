@@ -1,0 +1,72 @@
+{
+  "code": "domain-supply-chain-wms",
+  "name": "Supply Chain, Inventory & Warehouse Management Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for Supply Chain, Inventory and Warehouse Management (WMS), covering demand forecasting, reorder point planning, stock receiving, put-away, bin management, picking/packing, cycle counting, inventory valuation (FIFO/LIFO/AVCO), and transportation planning.",
+  "owner": "Global Supply Chain & WMS Operations Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-scm-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-scm-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Supply Chain & WMS Audit Checklist",
+        "description": "Validation checklist for demand planning, dock receiving, bin tracking, wave picking, and cycle count reconciliation.",
+        "items": [
+          {
+            "statement": "Safety stock and reorder points (ROP) dynamically adjust based on seasonal demand trends and lead times.",
+            "group": "Demand Planning"
+          },
+          {
+            "statement": "Dock receiving inspects incoming shipments against PO delivery notes before generating GRNs.",
+            "group": "Dock Receiving"
+          },
+          {
+            "statement": "Directed put-away assigns items to designated warehouse bin locations based on SKU velocity and dimensions.",
+            "group": "WMS Bin Management"
+          },
+          {
+            "statement": "Wave picking and packing processes scan barcodes at item level to prevent shipping errors.",
+            "group": "Picking & Packing"
+          },
+          {
+            "statement": "Periodic cycle counting verifies physical stock against system balance with manager sign-off for variances.",
+            "group": "Cycle Counting & Reconciliation"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "scm-director-signoff-gate",
+        "name": "Supply Chain Operations Director Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Supply Chain Director confirms that inventory valuation, WMS bin accuracy, and order dispatch workflows satisfy operational benchmarks.",
+        "prompt": "Does the supply chain documentation confirm inventory accuracy and WMS fulfillment performance?",
+        "participant": "human",
+        "outputContract": "scm-wms-attestation",
+        "checklistIds": [
+          "Supply Chain & WMS Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

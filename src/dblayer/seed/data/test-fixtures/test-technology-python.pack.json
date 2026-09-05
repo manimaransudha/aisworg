@@ -1,0 +1,62 @@
+{
+  "code": "test-technology-python",
+  "name": "Python Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "software-construction",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "engineering-work-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "Python Engineering Standards",
+        "description": "Validation checklist for Python PEP 8 style, type hinting, async concurrency, security, and packaging.",
+        "items": [
+          {
+            "statement": "Python source code satisfies PEP 8 style guidelines enforced via Ruff, Flake8, or Black formatters.",
+            "group": "Code Style & Formatting"
+          },
+          {
+            "statement": "Function signatures and public APIs include type hints validated static type checking via mypy or pyright.",
+            "group": "Type Hints & Static Analysis"
+          },
+          {
+            "statement": "Pydantic / Dataclasses schemas are used for input validation and JSON serialization/deserialization.",
+            "group": "Data Validation & Schemas"
+          },
+          {
+            "statement": "Bandit security linter is executed to verify no hardcoded credentials, insecure subprocess calls, or unsafe eval/exec functions.",
+            "group": "Security & Code Auditing"
+          },
+          {
+            "statement": "Dependencies are managed via lockfiles (Poetry, Pipenv, or uv.lock) and audited for CVE vulnerabilities via safety / pip-audit.",
+            "group": "Dependency Management"
+          },
+          {
+            "statement": "Asyncio code manages loop execution, coroutine task cancellation, and avoids blocking IO calls in async functions.",
+            "group": "Async & Concurrency"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

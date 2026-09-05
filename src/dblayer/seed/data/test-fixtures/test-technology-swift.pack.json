@@ -1,0 +1,58 @@
+{
+  "code": "test-technology-swift",
+  "name": "Swift iOS Engineering Practices",
+  "category": "Technology",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "dependencies": [
+    {
+      "packCode": "development",
+      "version": "1.0.0",
+      "type": "required"
+    }
+  ],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "software-construction",
+        "name": "Source code generation",
+        "description": "Follow these practices during coding."
+      },
+      {
+        "code": "engineering-work-review",
+        "name": "Code Review",
+        "description": "Peer review of Source Code changes before merge."
+      }
+    ],
+    "services": [],
+    "checklists": [
+      {
+        "name": "Swift iOS Engineering Standards",
+        "description": "Validation checklist for Swift memory management (ARC), SwiftUI / UIKit state architecture, and iOS security.",
+        "items": [
+          {
+            "statement": "Automatic Reference Counting (ARC) memory cycles are prevented using [weak self] or [unowned self] in closures.",
+            "group": "Memory Management & ARC"
+          },
+          {
+            "statement": "SwiftUI / Combine state wrappers (@State, @StateObject, @ObservedObject) follow strict unidirectional data flow.",
+            "group": "UI Architecture & State"
+          },
+          {
+            "statement": "SwiftLint style rules are enforced with zero unhandled compiler or linter warnings.",
+            "group": "Code Formatting & Linting"
+          },
+          {
+            "statement": "Sensitive tokens and credentials use iOS Keychain storage with biometric (LocalAuthentication) protection.",
+            "group": "Security & Keychain"
+          },
+          {
+            "statement": "App Store privacy manifests (PrivacyInfo.xcprivacy) accurately declare data collection categories.",
+            "group": "App Store Compliance"
+          }
+        ]
+      }
+    ],
+    "policies": []
+  }
+}

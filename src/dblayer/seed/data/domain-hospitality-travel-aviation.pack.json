@@ -1,0 +1,72 @@
+{
+  "code": "domain-hospitality-travel-aviation",
+  "name": "Hospitality, Travel & Aviation Operations Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for Hospitality, Travel, and Aviation, covering Central Reservation Systems (CRS), GDS (Global Distribution System) integration, hotel check-in / room assignment, flight availability search, e-ticketing, baggage tracking, crew scheduling, and flight disruption management.",
+  "owner": "Global Travel & Aviation Operations Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-travel-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-travel-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Hospitality, Travel & Aviation Audit Checklist",
+        "description": "Validation checklist for hotel PMS reservations, GDS e-ticketing, baggage tracking, and flight disruption handling.",
+        "items": [
+          {
+            "statement": "Central Reservation System (CRS) synchronizes room/seat inventory across distribution channels without overbooking.",
+            "group": "Inventory Synchronization"
+          },
+          {
+            "statement": "Passenger Name Records (PNR) capture mandatory passenger contact info and passport details.",
+            "group": "GDS PNR Booking"
+          },
+          {
+            "statement": "Hotel guest check-in pre-authorizes credit cards for room charges and incidental deposits.",
+            "group": "PMS Check-In & Folio"
+          },
+          {
+            "statement": "Baggage handling system scans IATA barcode tags at airport checkpoints to prevent lost luggage.",
+            "group": "Baggage Tracking"
+          },
+          {
+            "statement": "Irregular Operations (IROP) flight cancellations automatically trigger passenger rebooking and hotel/meal voucher generation.",
+            "group": "Disruption Management"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "travel-operations-signoff-gate",
+        "name": "Travel & Aviation Operations Director Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Director of Travel & Aviation Operations confirms that GDS ticketing, PMS check-in, and flight operations satisfy industry standards.",
+        "prompt": "Does the travel & aviation documentation confirm reservation accuracy and flight operations compliance?",
+        "participant": "human",
+        "outputContract": "hospitality-travel-attestation",
+        "checklistIds": [
+          "Hospitality, Travel & Aviation Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "code": "baseline-integrity",
+  "name": "Baseline Integrity",
+  "description": "A Baselined Deliverable's content must match its last approved snapshot exactly, and every divergence must be attributable to an approved change.",
+  "category": "Engineering",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [
+    "Baselined"
+  ],
+  "conditions": [
+    {
+      "statement": "The Deliverable's current content hash matches its recorded baseline hash, or the divergence is attributed to exactly one approved Change record.",
+      "requiredEvidence": [
+        {
+          "type": "baseline_hash_comparison"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "No commit to the baselined branch lacks an associated Change ID.",
+      "requiredEvidence": [
+        {
+          "type": "change_approval_record"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

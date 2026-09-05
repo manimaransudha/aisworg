@@ -1,0 +1,53 @@
+{
+  "code": "build-and-configuration-artifact-integrity",
+  "name": "Build and Configuration Artifact Integrity",
+  "description": "Configuration, pipeline, and infrastructure-as-code artefacts are version-controlled and secret-free, the Test Suite runs as part of the pipeline rather than manually, and an Integration Build must pass before promotion.",
+  "category": "Engineering",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [
+    "configuration-files",
+    "ci-cd-pipeline-definition",
+    "infrastructure-as-code-environment-configuration",
+    "integration-build",
+    "test-suite",
+    "technical-notes"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Every Configuration File, CI/CD Pipeline Definition, and Infrastructure-as-Code artefact is version-controlled and free of embedded secrets.",
+      "requiredEvidence": [
+        {
+          "type": "secrets_scan_result"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "The Test Suite executes as part of the CI/CD Pipeline Definition, not run manually and separately from it.",
+      "requiredEvidence": [
+        {
+          "type": "pipeline_configuration_check"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "An Integration Build completes without error before being promoted beyond the environment it was built in.",
+      "requiredEvidence": [
+        {
+          "type": "build_result"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

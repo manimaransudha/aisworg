@@ -1,5 +1,5 @@
 {
-  "code": "development",
+  "code": "test-development",
   "name": "Development (OpenUP Capability Pattern)",
   "category": "Engineering",
   "packVersion": "1.0.0",
@@ -11,43 +11,14 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "development",
+        "code": "software-construction",
         "name": "Solution Development",
         "description": "Designs and implements solution increments against the approved architecture, on behalf of the Developer role."
       }
     ],
     "services": [
       {
-        "code": "implementation-elements",
-        "capabilityCode": "development",
-        "name": "Implementation Elements",
-        "contractDescription": "Working code implementing the design for this increment, ready for integration.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "integrated-build",
-        "capabilityCode": "development",
-        "name": "Integrated Build",
-        "contractDescription": "A build integrating this increment's implementation elements, ready for test.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
+        "code": "software-implementation-service"
       }
     ],
     "checklists": [
@@ -111,27 +82,68 @@
         "code": "authority-transition-objective",
         "governedTransition": "objective.transition",
         "authorisedRole": "general"
-      }
-    ],
-    "policies": [
-      {
-        "code": "policy-no-hardcoded-secrets",
-        "name": "No Hardcoded Secrets",
-        "category": "Security",
-        "constraintType": "Policy",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "conditionType": "always_true",
-        "severity": "High"
       },
       {
-        "code": "standard-small-single-purpose-commits",
-        "name": "Small, Single-Purpose Commits",
-        "category": "Quality",
-        "constraintType": "Standard",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "conditionType": "always_true",
-        "severity": "Low"
+        "code": "authority-transition-obligation",
+        "governedTransition": "obligation.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-evidence",
+        "governedTransition": "evidence.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-knowledge",
+        "governedTransition": "knowledge.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-decision",
+        "governedTransition": "decision.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-promote-knowledge-to-capability",
+        "governedTransition": "knowledgescope.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-promote-knowledge-to-enterprise",
+        "governedTransition": "knowledgescope.transition",
+        "authorisedRole": "power"
+      },
+      {
+        "code": "authority-promote-knowledge-to-platform",
+        "governedTransition": "knowledgescope.transition",
+        "authorisedRole": "super"
+      },
+      {
+        "code": "authority-transition-attentionitem",
+        "governedTransition": "attentionitem.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-externalinteraction",
+        "governedTransition": "externalinteraction.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-pack",
+        "governedTransition": "pack.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-pack-elevated",
+        "governedTransition": "pack.transition",
+        "authorisedRole": "power"
+      },
+      {
+        "code": "authority-transition-participant",
+        "governedTransition": "participant.transition",
+        "authorisedRole": "general"
       }
-    ]
+    ],
+    "policies": []
   }
 }

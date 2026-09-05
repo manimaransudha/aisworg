@@ -1,0 +1,72 @@
+{
+  "code": "domain-marketing-advertising",
+  "name": "Marketing Automation & Advertising Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for marketing automation and digital advertising, covering campaign strategy, audience segmentation, multi-channel email campaigns, creative approvals, media buying, ad serving, impression tracking, and multi-touch attribution.",
+  "owner": "Global Marketing & Digital Media Operations Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-marketing-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-marketing-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Marketing Automation & Advertising Audit Checklist",
+        "description": "Validation checklist for campaign planning, audience consent, ad creative safety, and attribution tracking.",
+        "items": [
+          {
+            "statement": "Target audience lists exclude unsubscribed users and enforce consent preferences per privacy laws.",
+            "group": "Audience Consent"
+          },
+          {
+            "statement": "Marketing email templates include valid physical sender addresses and one-click unsubscribe links.",
+            "group": "Email Compliance"
+          },
+          {
+            "statement": "Ad creative assets receive brand compliance and legal review prior to ad network distribution.",
+            "group": "Creative Approval"
+          },
+          {
+            "statement": "Programmatic ad placements filter out non-brand-safe publisher categories and invalid bot traffic.",
+            "group": "Brand Safety & Ad Verification"
+          },
+          {
+            "statement": "UTM parameters and conversion tracking pixels accurately measure multi-touch campaign attribution.",
+            "group": "Attribution Analytics"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "marketing-director-signoff-gate",
+        "name": "Marketing Director Campaign Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Marketing Director confirms that audience targeting, creative approvals, and media spend budgets satisfy marketing guidelines.",
+        "prompt": "Does the marketing campaign documentation confirm audience consent compliance and creative approval?",
+        "participant": "human",
+        "outputContract": "marketing-campaign-attestation",
+        "checklistIds": [
+          "Marketing Automation & Advertising Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

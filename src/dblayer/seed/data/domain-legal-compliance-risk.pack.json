@@ -1,0 +1,72 @@
+{
+  "code": "domain-legal-compliance-risk",
+  "name": "Legal Practice, Enterprise Risk & Audit Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for Legal Practice Management, Contract Lifecycle Management (CLM), Enterprise Risk Management (ERM), and Internal Audit, covering legal matter intake, conflict checks, contract negotiation, risk-to-remediation, audit testing, and legal hold management.",
+  "owner": "Global Legal Counsel & Enterprise Risk Governance Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-legal-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-legal-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Legal, Enterprise Risk & Audit Checklist",
+        "description": "Validation checklist for legal conflict checks, contract negotiations, risk assessments, and internal audit testing.",
+        "items": [
+          {
+            "statement": "Conflict-of-interest checks evaluate potential adverse parties prior to legal matter intake.",
+            "group": "Legal Matter Intake"
+          },
+          {
+            "statement": "Contract negotiations track redline changes and non-standard clause approvals (limitation of liability, indemnities).",
+            "group": "Contract Lifecycle (CLM)"
+          },
+          {
+            "statement": "Legal hold notices issue to custodians automatically upon notice of pending litigation.",
+            "group": "Litigation Legal Hold"
+          },
+          {
+            "statement": "Enterprise Risk Register evaluates risk impact and likelihood scores with defined risk owners.",
+            "group": "Risk Assessment (ERM)"
+          },
+          {
+            "statement": "Internal audit workpapers document sample selection, control testing evidence, and finding severities.",
+            "group": "Internal Audit Testing"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "general-counsel-signoff-gate",
+        "name": "General Counsel & Chief Risk Officer Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The General Counsel and Chief Risk Officer confirm that contract terms, litigation holds, and audit finding remediations satisfy legal requirements.",
+        "prompt": "Does the legal & risk documentation confirm contract compliance and risk control effectiveness?",
+        "participant": "human",
+        "outputContract": "legal-compliance-risk-attestation",
+        "checklistIds": [
+          "Legal, Enterprise Risk & Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

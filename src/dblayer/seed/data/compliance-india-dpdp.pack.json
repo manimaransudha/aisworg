@@ -1,0 +1,72 @@
+{
+  "code": "compliance-india-dpdp",
+  "name": "India Digital Personal Data Protection (DPDP Act 2023 / CERT-In)",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for India's Digital Personal Data Protection Act 2023 (DPDP Act), Information Technology Act 2000, IT Intermediary Rules 2021, and CERT-In 6-hour cybersecurity incident reporting directions.",
+  "owner": "India Data Protection & Cyber Governance Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-dpdp-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-dpdp-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "India DPDP Act & CERT-In Compliance Audit Checklist",
+        "description": "Validation checklist for DPDP Act 2023 sections, IT Act 2000, and CERT-In directions.",
+        "items": [
+          {
+            "statement": "Consent notices present itemized data processing details in English and Schedule 8 Indian languages (DPDP Sec 5).",
+            "group": "Multilingual Consent Notice"
+          },
+          {
+            "statement": "Data Principal consent withdrawal mechanisms are as easy as giving consent (DPDP Sec 6).",
+            "group": "Consent Withdrawal"
+          },
+          {
+            "statement": "Cybersecurity incidents (ransomware, data breaches, unauthorized access) are reported to CERT-In within 6 hours.",
+            "group": "CERT-In 6-Hour Reporting"
+          },
+          {
+            "statement": "System clocks across all ICT infrastructure are synchronized with National Physical Laboratory (NPL) NTP time servers.",
+            "group": "CERT-In NTP Time Sync"
+          },
+          {
+            "statement": "System logs are maintained immutably for a rolling period of 180 days within Indian jurisdiction.",
+            "group": "CERT-In 180-Day Log Retention"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "dpdp-data-protection-gate",
+        "name": "India DPDP Act & CERT-In Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Data Protection Officer and CISO confirm that DPDP consent flows, 180-day log retention, and CERT-In incident escalation satisfy Indian law.",
+        "prompt": "Does the compliance review confirm full alignment with DPDP Act 2023 and CERT-In directions?",
+        "participant": "human",
+        "outputContract": "dpdp-compliance-attestation",
+        "checklistIds": [
+          "India DPDP Act & CERT-In Compliance Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

@@ -111,16 +111,16 @@ async function atlas() {
     });
   });
 
-  await scenario("Atlas — Requirements Specification: async production, approval, attestation, baseline", async () => {
+  await scenario("Atlas — Requirements Analysis Model: async production, approval, attestation, baseline", async () => {
     const seu = Atlas.seu;
     if (!seu) return note("Atlas SEU not available (setup aborted)");
     const worker = Atlas.worker;
-    const reqSpec = del(seu.deliverables, "Requirements Specification");
-    const archDoc = del(seu.deliverables, "Architecture Document");
+    const reqSpec = del(seu.deliverables, "Requirements Analysis Model");
+    const archDoc = del(seu.deliverables, "Architecture Decision Record");
 
-    await must("Requirements Specification is Defined", () => assert.equal(reqSpec.lifecycleState, "Defined"));
+    await must("Requirements Analysis Model is Defined", () => assert.equal(reqSpec.lifecycleState, "Defined"));
 
-    await check("dependency gating: Architecture Document cannot start before Requirements is Approved", async () => {
+    await check("dependency gating: Architecture Decision Record cannot start before Requirements is Approved", async () => {
       const blocked = await P.dispatchTransition(archDoc.id, "In Progress");
       assert.equal(blocked.status, 409);
       assert.equal(blocked.body.reason, "dependency_not_satisfied");
@@ -171,12 +171,12 @@ async function atlas() {
       assert.ok(base && base.certified, "Baselining is an acceptance transition and mints an attestation");
     });
 
-    await check("forward traceability: Requirements Specification's change impacts the Architecture Document", async () => {
+    await check("forward traceability: Requirements Analysis Model's change impacts the Architecture Decision Record", async () => {
       const tr = await P.traceability(reqSpec.id);
-      assert.ok(tr.impact.impacted.some((n) => n.name === "Architecture Document"), "expected Architecture Document downstream");
+      assert.ok(tr.impact.impacted.some((n) => n.name === "Architecture Decision Record"), "expected Architecture Decision Record downstream");
     });
 
-    await check("downstream unblocks: Architecture Document can now start", async () => {
+    await check("downstream unblocks: Architecture Decision Record can now start", async () => {
       const r = await drive(archDoc.id, archDoc.name, "In Progress", worker);
       assert.equal(r.result?.status, 200, JSON.stringify(r.result?.body));
     });
@@ -221,7 +221,7 @@ async function babylon() {
     });
 
     await check("full lifecycle to Baselined runs identically on the same core", async () => {
-      const reqSpec = del(seu.deliverables, "Requirements Specification");
+      const reqSpec = del(seu.deliverables, "Requirements Analysis Model");
       await toBaselined(seu.seuId, reqSpec.id, reqSpec.name, Babylon.worker);
       const tr = await P.traceability(reqSpec.id);
       const states = tr.explanation.provenance.map((p) => `${p.fromState}->${p.toState}`);
@@ -258,7 +258,7 @@ async function decoupling() {
 async function edgeCases() {
   await scenario("Edge — empty-centre: an approval cannot certify nothing", async () => {
     const seu = await must("stand up a sandbox SEU", () => standUp(Atlas.tenantId, "Sandbox empty-centre"));
-    const reqSpec = del(seu.deliverables, "Requirements Specification");
+    const reqSpec = del(seu.deliverables, "Requirements Analysis Model");
     await must("produce with NO reference (empty centre)", async () => {
       const r = await drive(reqSpec.id, reqSpec.name, "In Progress", new SimParticipant({ vcs: Atlas.vcs, behaviour: "empty" }));
       assert.equal(r.result.status, 200, "an empty production still completes the Work Item");
@@ -272,7 +272,7 @@ async function edgeCases() {
     note("the empty Deliverable stays stuck at In Progress: there is no in-place rework transition to attach a reference (recovery would be a separate governed re-production, out of scope here).");
     await check("on a fresh Deliverable, a real produced reference lets approval through (the presence check clears)", async () => {
       const seu2 = await standUp(Atlas.tenantId, "Sandbox empty-centre cleared");
-      const rs2 = del(seu2.deliverables, "Requirements Specification");
+      const rs2 = del(seu2.deliverables, "Requirements Analysis Model");
       await drive(rs2.id, rs2.name, "In Progress", Atlas.worker); // a real reference this time
       const r = await drive(rs2.id, rs2.name, "Approved", Atlas.worker);
       assert.equal(r.result?.status, 200, JSON.stringify(r.result?.body));
@@ -283,13 +283,13 @@ async function edgeCases() {
   await scenario("Edge — failed & blocked results raise Attention, do not advance state", async () => {
     for (const outcome of ["failed", "blocked"]) {
       const seu = await must(`sandbox SEU for a ${outcome} result`, () => standUp(Atlas.tenantId, `Sandbox ${outcome}`));
-      const reqSpec = del(seu.deliverables, "Requirements Specification");
+      const reqSpec = del(seu.deliverables, "Requirements Analysis Model");
       await check(`a ${outcome} result is accepted (200), the Deliverable stays Defined, and an Attention Item is raised`, async () => {
         const r = await drive(reqSpec.id, reqSpec.name, "In Progress", Atlas.worker, { outcome });
         assert.equal(r.result.status, 200, JSON.stringify(r.result.body));
         assert.equal(r.result.body.outcome, outcome);
         const after = await P.getSeu(seu.seuId);
-        assert.equal(del(after.deliverables, "Requirements Specification").lifecycleState, "Defined", "a non-done result does not advance state");
+        assert.equal(del(after.deliverables, "Requirements Analysis Model").lifecycleState, "Defined", "a non-done result does not advance state");
         const items = await P.attentionItems(seu.seuId);
         assert.ok(items.length >= 1, `expected an Attention Item after a ${outcome} result`);
       });
@@ -298,7 +298,7 @@ async function edgeCases() {
 
   await scenario("Edge — the result-in callback's error surface (replay, unknown, malformed)", async () => {
     const seu = await must("sandbox SEU", () => standUp(Atlas.tenantId, "Sandbox callbacks"));
-    const reqSpec = del(seu.deliverables, "Requirements Specification");
+    const reqSpec = del(seu.deliverables, "Requirements Analysis Model");
     const first = await must("first done result succeeds", async () => {
       const r = await drive(reqSpec.id, reqSpec.name, "In Progress", Atlas.worker);
       assert.equal(r.result.status, 200);
@@ -321,7 +321,7 @@ async function edgeCases() {
 
   await scenario("Edge — stall/timeout escalation (deterministic via a past deadline)", async () => {
     const seu = await must("sandbox SEU for a stall", () => standUp(Atlas.tenantId, "Sandbox stall"));
-    const reqSpec = del(seu.deliverables, "Requirements Specification");
+    const reqSpec = del(seu.deliverables, "Requirements Analysis Model");
     await must("dispatch with a deadline already in the past, then never report a result", async () => {
       const d = await P.dispatchTransition(reqSpec.id, "In Progress", { targetCompletionAt: new Date(Date.now() - 3600_000).toISOString() });
       assert.equal(d.status, 202, JSON.stringify(d.body));
@@ -336,7 +336,7 @@ async function edgeCases() {
 
   await scenario("Edge — opaque reference round-trip (§0.1: the core never parses a VCS reference)", async () => {
     const seu = await must("sandbox SEU", () => standUp(Atlas.tenantId, "Sandbox opaque-ref"));
-    const reqSpec = del(seu.deliverables, "Requirements Specification");
+    const reqSpec = del(seu.deliverables, "Requirements Analysis Model");
     const weird = "weird-scheme://Ω/repo?rev=πλ#frag@deadBEEF spaces&sym=%%";
     await check("a bizarre provider-specific reference is stored and returned byte-for-byte", async () => {
       await drive(reqSpec.id, reqSpec.name, "In Progress", Atlas.worker, { reference: weird });
@@ -358,7 +358,7 @@ async function edgeCases() {
       assert.ok(html.includes("Replacement Analyst"), "expected the replacement participant to appear on the SEU detail page (redirect alone can be a flashed error)");
     });
     await check("replace mid-flight: while a Work Item is outstanding, the replacement takes over the Capability", async () => {
-      const reqSpec = del(seu.deliverables, "Requirements Specification");
+      const reqSpec = del(seu.deliverables, "Requirements Analysis Model");
       const d = await P.dispatchTransition(reqSpec.id, "In Progress");
       assert.equal(d.status, 202, "a Work Item must be outstanding for the mid-flight case");
       const current = d.body.participantId;
@@ -372,13 +372,13 @@ async function edgeCases() {
 
   await scenario("Edge — dispatch is deferred when no Participant fulfils the producing Capability", async () => {
     const seu = await must("commission a sandbox SEU but fulfil NOTHING", () => commissionOnly(Atlas.tenantId, "Sandbox deferred"));
-    const reqSpec = del(seu.deliverables, "Requirements Specification");
+    const reqSpec = del(seu.deliverables, "Requirements Analysis Model");
     await check("dispatching before a Participant exists is refused with reason dispatch_deferred (never silently applied)", async () => {
       const deferred = await P.dispatchTransition(reqSpec.id, "In Progress");
       assert.equal(deferred.status, 409, JSON.stringify(deferred.body));
       assert.equal(deferred.body.reason, "dispatch_deferred");
       const after = await P.getSeu(seu.seuId);
-      assert.equal(del(after.deliverables, "Requirements Specification").lifecycleState, "Defined", "a deferred dispatch must not move state");
+      assert.equal(del(after.deliverables, "Requirements Analysis Model").lifecycleState, "Defined", "a deferred dispatch must not move state");
     });
     await check("once an External participant fulfils the Capability, the same transition dispatches (202)", async () => {
       const reqCap = cap(seu.capabilities, "requirements-analysis");
@@ -391,13 +391,13 @@ async function edgeCases() {
 
   await scenario("Edge — an undefined transition is rejected (no_transition_definition), never silently applied", async () => {
     const seu = await must("stand up a sandbox SEU", () => standUp(Atlas.tenantId, "Sandbox invalid-transition"));
-    const reqSpec = del(seu.deliverables, "Requirements Specification");
+    const reqSpec = del(seu.deliverables, "Requirements Analysis Model");
     await check("Defined -> Baselined (skipping the graph) is refused; the Deliverable stays Defined", async () => {
       const bad = await P.dispatchTransition(reqSpec.id, "Baselined");
       assert.equal(bad.status, 409, JSON.stringify(bad.body));
       assert.equal(bad.body.reason, "no_transition_definition");
       const after = await P.getSeu(seu.seuId);
-      assert.equal(del(after.deliverables, "Requirements Specification").lifecycleState, "Defined");
+      assert.equal(del(after.deliverables, "Requirements Analysis Model").lifecycleState, "Defined");
     });
   });
 
@@ -410,7 +410,7 @@ async function edgeCases() {
       await must("point Babylon's requirements-analysis execution target at the simulated orchestrator", () =>
         P.setExecutionTarget({ tenantId: Babylon.tenantId, capabilityId: reqCap.capabilityId, mode: "external-orchestrator", adapterEndpoint: `${base}/hook`, adapterAuthRef: "sim-orch-token" })
       );
-      const reqSpec = del(seu.deliverables, "Requirements Specification");
+      const reqSpec = del(seu.deliverables, "Requirements Analysis Model");
 
       const dispatch = await must("dispatch Defined -> In Progress (202)", async () => {
         const d = await P.dispatchTransition(reqSpec.id, "In Progress");
@@ -442,9 +442,9 @@ async function edgeCases() {
 
   await scenario("Review Model (Ch.25) — governed evaluation, immutable outcome, Findings, traceability", async () => {
     const seu = await must("stand up a sandbox SEU", () => standUp(Atlas.tenantId, "Sandbox review-model"));
-    const reqSpec = del(seu.deliverables, "Requirements Specification");
+    const reqSpec = del(seu.deliverables, "Requirements Analysis Model");
 
-    const review = await must("plan a Requirements Review against the Requirements Specification", () =>
+    const review = await must("plan a Requirements Review against the Requirements Analysis Model", () =>
       P.createReview({ seuId: seu.seuId, relatedObjectType: "Deliverable", relatedObjectId: reqSpec.id, category: "Requirements", name: "Requirements Review" })
     );
 
@@ -462,7 +462,7 @@ async function edgeCases() {
       assert.equal(completed.body.review.outcome, "Passed with Recommendations");
       await P.transitionReview(review.id, "Accepted");
       const status = await P.getSeu(seu.seuId);
-      assert.equal(del(status.deliverables, "Requirements Specification").lifecycleState, "Defined", "a Review must not modify the reviewed object");
+      assert.equal(del(status.deliverables, "Requirements Analysis Model").lifecycleState, "Defined", "a Review must not modify the reviewed object");
     });
 
     await check("a High-severity Finding auto-surfaces an Attention Item and can be converted to an Obligation", async () => {
@@ -497,7 +497,7 @@ async function edgeCases() {
     });
 
     const seu = await must("stand up a sandbox SEU", () => standUp(Atlas.tenantId, "Sandbox compliance"));
-    const reqSpec = del(seu.deliverables, "Requirements Specification");
+    const reqSpec = del(seu.deliverables, "Requirements Analysis Model");
 
     await check("both requirements are unsatisfied initially, and evaluation never modifies engineering state (Ch.27 §9)", async () => {
       const evalResult = await P.evaluateCompliance(seu.seuId);
@@ -505,7 +505,7 @@ async function edgeCases() {
       assert.equal(evalResult.results.find((r) => r.requirementCode === reqReview)?.state, "unsatisfied");
       assert.equal(evalResult.results.find((r) => r.requirementCode === reqDecision)?.state, "unsatisfied");
       const after = await P.getSeu(seu.seuId);
-      assert.equal(del(after.deliverables, "Requirements Specification").lifecycleState, "Defined", "compliance evaluation is read-only");
+      assert.equal(del(after.deliverables, "Requirements Analysis Model").lifecycleState, "Defined", "compliance evaluation is read-only");
     });
 
     await check("satisfying a requirement via the real primitive it composes (an Accepted, passing Security Review) flips it to satisfied", async () => {
@@ -538,7 +538,7 @@ async function edgeCases() {
     });
 
     const seu = await must("stand up a sandbox SEU", () => standUp(Atlas.tenantId, "Sandbox ontology"));
-    const reqSpec = del(seu.deliverables, "Requirements Specification");
+    const reqSpec = del(seu.deliverables, "Requirements Analysis Model");
 
     await check("write-path enforcement: an off-canonical category is rejected (400); a canonical one is accepted (201)", async () => {
       const bad = await P.createEvidenceRaw({ seuId: seu.seuId, deliverableId: reqSpec.id, category: "Totally Made Up XYZ", title: "bad", source: "dry-run" });
@@ -587,7 +587,7 @@ async function edgeCases() {
 
     // Structural assertion (unchanged): each acceptance records WHICH authority
     // certified it — creator and approver are genuinely distinct rules.
-    const baselined = del(Atlas.seu.deliverables, "Requirements Specification");
+    const baselined = del(Atlas.seu.deliverables, "Requirements Analysis Model");
     await check("the platform records WHICH authority certified each acceptance (creator vs approver are distinct rules)", async () => {
       const tr = await P.traceability(baselined.id);
       const acc = tr.explanation.provenance.find((p) => p.toState === "Approved");
@@ -603,7 +603,7 @@ async function edgeCases() {
     // `deliverable_approve` instead must be denied that transition — and
     // root must not be.
     const sd = await commissionOnly(Atlas.tenantId, "SoD switcher check (no participants)");
-    const target = del(sd.deliverables, "Requirements Specification");
+    const target = del(sd.deliverables, "Requirements Analysis Model");
 
     await must("assume the deliverable_approve badge via the dev Act-As switcher", async () => {
       const r = await P.actAs(Atlas.tenantId, "deliverable_approve");

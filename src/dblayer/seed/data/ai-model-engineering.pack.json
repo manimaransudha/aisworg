@@ -1,0 +1,74 @@
+{
+  "code": "ai-model-engineering",
+  "name": "AI Model Engineering",
+  "category": "Engineering",
+  "packVersion": "1.0.0",
+  "installationClassification": "Recommended",
+  "description": "Prepares training/evaluation data, trains or fine-tunes a model against a defined objective, and evaluates its quality, bias, and performance before it is fit to serve — the discipline generic software-construction doesn't cover.",
+  "owner": "Platform",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "training-and-evaluating-models"
+      }
+    ],
+    "services": [
+      {
+        "code": "model-training-evaluation-service"
+      }
+    ],
+    "authorityRules": [
+      {
+        "code": "authority-commission-seu",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-deliverable",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-transition-objective",
+        "governedTransition": "objective.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "AI Model Engineering Checklist",
+        "description": "Validation checklist before a trained model is accepted as fit to serve.",
+        "items": [
+          {
+            "statement": "The training data's provenance, scope, and known gaps are documented in the Training Data Specification."
+          },
+          {
+            "statement": "The model has been evaluated against every quality, bias, and performance criterion the requirement baseline calls for, not a convenience subset."
+          },
+          {
+            "statement": "Known limitations and failure modes are disclosed in the Model Card, not just the metrics that passed."
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "model-evaluation-report",
+        "name": "Model Evaluation Review",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Model Evaluation Report has been reviewed and the model is accepted as fit to serve.",
+        "prompt": "Does the evaluation evidence — including disclosed bias and limitations — justify serving this model?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "checklistIds": [
+          "AI Model Engineering Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

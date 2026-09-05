@@ -1,0 +1,72 @@
+{
+  "code": "domain-research-lifesciences",
+  "name": "Research & Development & Life Sciences LIMS Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for R&D and Life Sciences Laboratory Information Management Systems (LIMS), covering idea management, lab notebook records (ELN), specimen sample tracking, study protocols, IP patent disclosures, and technology transfer commercialization.",
+  "owner": "Global R&D & Life Sciences Innovation Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-research-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-research-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Research & Life Sciences LIMS Audit Checklist",
+        "description": "Validation checklist for ELN lab notebooks, specimen sample tracking, invention disclosures, and IP filings.",
+        "items": [
+          {
+            "statement": "Electronic Lab Notebook (ELN) entries are timestamped and signed off by a witnessing researcher.",
+            "group": "ELN Lab Notebook"
+          },
+          {
+            "statement": "LIMS sample tracking maintains chain-of-custody barcode logs for all biological and chemical specimens.",
+            "group": "Sample Chain of Custody"
+          },
+          {
+            "statement": "Laboratory instruments (mass spectrometers, PCR machines) undergo periodic calibration verification.",
+            "group": "Instrument Calibration"
+          },
+          {
+            "statement": "Invention disclosures are submitted to IP Legal Counsel prior to public publication or conference presentations.",
+            "group": "IP Patent Disclosures"
+          },
+          {
+            "statement": "Technology transfer agreements specify royalty terms and commercialization milestone schedules.",
+            "group": "Technology Transfer"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "head-of-research-signoff-gate",
+        "name": "Head of R&D Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Head of R&D and Chief Patent Counsel confirm that ELN records, LIMS sample tracking, and IP disclosures satisfy research integrity standards.",
+        "prompt": "Does the R&D documentation confirm lab data integrity and patent protection clearance?",
+        "participant": "human",
+        "outputContract": "research-lifesciences-attestation",
+        "checklistIds": [
+          "Research & Life Sciences LIMS Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

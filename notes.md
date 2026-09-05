@@ -75,15 +75,10 @@ pack-define@athens.com
 pack_all@platform.com
 template-define@athens.com
 
+phase1-tenant-move-athens-child-a24dfa19-7784-47a7-95e2-9c5c398c0941 v1.0.1
+
 Vocabulary 
 https://www.iso.org/obp/ui/en/#iso:std:iso-iec:2382:ed-1:v2:en
-
-https://www.sotc.in/india-tour-packages/bhutan-tour-packages/bhutan-escape?pkgId=PKG012337&packageClassId=0&destination=PKG012337_bhutan_COUNTRY_1?pkgId=PKG012337
-
-https://www.trekpanda.in/tours/bhutan-tour-package-from-india
-
-https://www.flamingotravels.co.in/india-tour-packages/bhutan-holiday-tour-packages
-
 
 Capability Patterns (reusable process fragments)
 

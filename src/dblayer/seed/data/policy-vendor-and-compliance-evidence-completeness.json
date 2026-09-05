@@ -1,0 +1,52 @@
+{
+  "code": "vendor-and-compliance-evidence-completeness",
+  "name": "Vendor and Compliance Evidence Completeness",
+  "description": "Compliance audit evidence names the specific control it satisfies, a security assessment exists for any data-handling vendor, and vendor performance is reviewed against its own contracted SLA.",
+  "category": "Organisation",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [
+    "compliance-audit-evidence",
+    "security-assessment-report",
+    "vendor-assessment",
+    "vendor-contract",
+    "vendor-performance-record"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Every Compliance Audit Evidence item names the specific control or requirement it evidences, not submitted as undifferentiated supporting material.",
+      "requiredEvidence": [
+        {
+          "type": "compliance_audit_evidence"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "A Security Assessment Report exists for any Vendor Assessment covering a vendor with access to sensitive data.",
+      "requiredEvidence": [
+        {
+          "type": "security_assessment_report"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Vendor Performance Records are reviewed against the Vendor Contract's own declared SLA at least once per contract term.",
+      "requiredEvidence": [
+        {
+          "type": "vendor_performance_record"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

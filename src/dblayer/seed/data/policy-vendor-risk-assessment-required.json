@@ -1,0 +1,49 @@
+{
+  "code": "vendor-risk-assessment-required",
+  "name": "Vendor Risk Assessment Required",
+  "description": "A third-party vendor requires a current risk assessment, an acceptable or waived risk rating, and appropriate contractual data-protection terms.",
+  "category": "Organisation",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "The vendor has a risk assessment on record, completed within the declared validity period.",
+      "requiredEvidence": [
+        {
+          "type": "vendor_risk_assessment",
+          "field": "assessment_date"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "The assessed risk rating is below the declared acceptance threshold, or has been explicitly waived by an Authority holder.",
+      "requiredEvidence": [
+        {
+          "type": "vendor_risk_assessment",
+          "field": "risk_rating"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Where the vendor processes sensitive data, the contract includes a data-protection clause.",
+      "requiredEvidence": [
+        {
+          "type": "vendor_contract",
+          "field": "data_protection_clause"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

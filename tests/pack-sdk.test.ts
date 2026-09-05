@@ -50,15 +50,23 @@ async function freshPackSeed(overrides: Partial<PackSeedInput> = {}): Promise<Pa
     contributions: {
       // CR-079 step (c) — a Capability contribution's own code is now
       // Ontology-enforced too (capability-name); a real, shared term
-      // ("development") rather than a throwaway one — capability identity is
+      // ("software-construction") rather than a throwaway one — capability identity is
       // Pack-scoped, so reusing it across many unrelated test Packs is safe.
-      capabilities: [{ code: "development", name: "Test Capability" }],
+      capabilities: [{ code: "software-construction", name: "Test Capability" }],
     },
     ...overrides,
   };
 }
 
-test("validatePackSeed rejects a non-semver packVersion, duplicate contribution codes, an unresolved service->capability reference, and an unresolved dependency", async () => {
+test("validatePackSeed rejects a non-semver packVersion, duplicate contribution codes, duplicate services, and an unresolved dependency", async () => {
+  // CR-087 — services[] no longer carries capabilityCode/name/contractDescription
+  // (CR-086 Step 8 narrowed it to {code, serviceLevel}, code now a Service
+  // Definition catalog reference resolved at seedContributions/publish time,
+  // not validatePackSeed's own structural check). "references unknown
+  // capability" was that resolution step's own error, not validatePackSeed's
+  // — it isn't raised here at all any more; duplicate-service-code detection
+  // (checkDuplicates, still real in validatePackSeed) replaces it as this
+  // test's 3rd assertion.
   const seed = await freshPackSeed({
     packVersion: "not-semver",
     dependencies: [{ packCode: `nonexistent-${randomUUID()}`, version: "1.0.0", type: "required" }],
@@ -67,8 +75,8 @@ test("validatePackSeed rejects a non-semver packVersion, duplicate contribution 
       // duplicate-code check runs regardless of Ontology validity, and using
       // a real value keeps this test isolated to what it's actually testing
       // (duplicate detection), not incidentally also failing Ontology lookup.
-      capabilities: [{ code: "development", name: "A" }, { code: "development", name: "B" }],
-      services: [{ code: "svc-1", capabilityCode: "totally-unknown-capability", name: "Bad Service", contractDescription: "x" }],
+      capabilities: [{ code: "software-construction", name: "A" }, { code: "software-construction", name: "B" }],
+      services: [{ code: "requirements-analysis-service" }, { code: "requirements-analysis-service" }],
     },
   });
 
@@ -77,7 +85,7 @@ test("validatePackSeed rejects a non-semver packVersion, duplicate contribution 
   if (result.ok) throw new Error("unreachable");
   assert.ok(result.errors.some((e) => e.includes("semver")));
   assert.ok(result.errors.some((e) => e.includes("duplicate capability code")));
-  assert.ok(result.errors.some((e) => e.includes("references unknown capability")));
+  assert.ok(result.errors.some((e) => e.includes("duplicate service code")));
   assert.ok(result.errors.some((e) => e.includes("dependency not resolved")));
 });
 
@@ -98,7 +106,7 @@ test("publishPack without activate: true walks the Pack to Published but not Act
   assert.equal(result.alreadyPublished, false);
 
   // CR-079 bug fix — findByCodes is unscoped by Pack, and every test Pack in
-  // this file now contributes the same shared "development" capability code
+  // this file now contributes the same shared "software-construction" capability code
   // (real, curated term, no longer a per-call-unique throwaway) — [0] would
   // pick an arbitrary matching row, not necessarily this one. findByOriginatingPackIds
   // is the actually Pack-scoped query for "this Pack's own contributed Capability."

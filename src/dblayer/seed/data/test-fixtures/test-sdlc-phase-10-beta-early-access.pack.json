@@ -11,107 +11,14 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "beta-early-access-management",
+        "code": "software-release",
         "name": "Beta / Early Access Management",
         "description": "Runs a controlled early-access program that captures real user feedback and validates readiness before general availability."
       }
     ],
     "services": [
       {
-        "code": "beta-entry-exit-criteria",
-        "capabilityCode": "beta-early-access-management",
-        "name": "Beta Entry/Exit Criteria",
-        "contractDescription": "Cohort selection rules, entry prerequisites, exit gate thresholds, and feature flag access limits.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "executive-approved"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "feedback-capture-analysis-plan",
-        "capabilityCode": "beta-early-access-management",
-        "name": "Feedback Capture & Analysis Plan",
-        "contractDescription": "In-app feedback widgets, structured survey Cadence, and customer interview triage workflow.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "beta-success-metrics",
-        "capabilityCode": "beta-early-access-management",
-        "name": "Beta Success Metrics",
-        "contractDescription": "Daily Active Users (DAU), feature adoption rates, NPS / CSAT targets, and crash-free session metrics.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "support-playbook-beta-users",
-        "capabilityCode": "beta-early-access-management",
-        "name": "Support Playbook for Beta Users",
-        "contractDescription": "Dedicated support slack channel protocol, response SLA matrix, and escalation path for beta participants.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "known-issues-log",
-        "capabilityCode": "beta-early-access-management",
-        "name": "Known Issues Log",
-        "contractDescription": "Public/internal active bug log, workaround instructions, and scheduled fix milestones.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "risk-mitigation-plan",
-        "capabilityCode": "beta-early-access-management",
-        "name": "Risk Mitigation Plan",
-        "contractDescription": "Data rollback plan, cohort de-escalation steps, and incident communication protocol for beta regressions.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
+        "code": "deployment-governance-service"
       }
     ],
     "authorityRules": [
@@ -131,17 +38,7 @@
         "authorisedRole": "general"
       }
     ],
-    "policies": [
-      {
-        "code": "policy-beta-exit-criteria-fulfillment-standard",
-        "name": "Beta Exit Criteria Fulfillment Standard Policy",
-        "category": "Organisation",
-        "constraintType": "Standard",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "conditionType": "always_true",
-        "severity": "high"
-      }
-    ],
+    "policies": [],
     "checklists": [
       {
         "name": "Beta / Early Access (SDLC Phase 10) Checklist",

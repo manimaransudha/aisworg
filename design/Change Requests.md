@@ -4,6 +4,13 @@ A running register of change requests raised against the platform — feature ad
 
 | CR | Title | Status |
 |----|-------|--------|
+| [CR-090](change-requests/CR-090-schema-registry-manual-entity-kinds.md) | Schema Registry meta-form: allow manual schema authoring for any entity kind, not just the hardcoded `Pack`/`Template`/`Profile` (found via CR-089's Policy schema work) | 🟡 Proposed (not designed) |
+| [CR-089](change-requests/CR-089-canonical-policy-definitions.md) | New standalone `policy_definitions` catalog (canonical Policies, like Service Definition but with no entity relationship) — table, registry, authoring, 34 seeded policies, `contributionPolicies[]` rebuilt against it | ✅ Closed 2026-09-05 |
+| [CR-088](change-requests/CR-088-template-profile-configurable-parameters.md) | Template/Profile configurable parameters (Ch.6 §13) — Capability has none, Service Level cascades Definition→Pack→Template(exposes)→Profile(overrides), Checklist items get a filterable `configurable` tag, Policy's `constraintType`/applicability carry the same `x-configurable` marker (CR-089), all resolved only at commissioning | 🟡 Proposed (design settled for Capability/Service/Checklist/Policy; not built) |
+| [CR-087](change-requests/CR-087-template-json-cleanup.md) | Clean up the `*.template.json` seed files — deliverable-name Ontology rework, critical review of deliverables/dependency graph, Pack Codes tab advisory, Capability-type dependency edges retired | ✅ Closed 2026-09-05 |
+| [CR-086](change-requests/CR-086-ontology-capability-name-rework.md) | Rework the `capability-name` Ontology vocabulary; Service Definition introduced as a first-class 1:1-per-capability catalog; Pack's own Capabilities/Services contributions realigned to derive from it | ✅ Built 2026-09-03 |
+| [CR-085](change-requests/CR-085-capability-code-resolution-belongs-at-template-level.md) | Capability-code resolution belongs at Template level, not Objective level | 🟡 Proposed (design settled, not built) |
+| [CR-084](design/change-requests/CR-084-data-seed-upgrades.md) Data seed files Overhaul | ✅ Built 2026-09-01 |
 | [CR-083](design/change-requests/CR-083-styling-changes.md)| Styling changes | ✅ Built 2026-09-01 |
 | [CR-082](change-requests/CR-082-engineering-capital-contribution.md) | Pack contribution kind `EngineeringCapital` (unifies Ch.5 §9's Engineering Behaviour/Metrics/Reusable Components/Engineering Templates) — minimal stub | ✅ Built 2026-08-30 |
 | [CR-081](change-requests/CR-081-pack-new-version-sequence-and-branch-picker.md) | Pack "New" form: version is a computed sequence, existing-code branch picker (pre-fill from a prior version), Registry Copy removed | ✅ Built 2026-08-29 |

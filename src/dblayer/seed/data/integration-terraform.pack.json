@@ -1,0 +1,75 @@
+{
+  "code": "integration-terraform",
+  "name": "HashiCorp Terraform IaC Platform Integration",
+  "category": "Integration",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Integration pack for HashiCorp Terraform and Terraform Cloud / Enterprise, providing connectivity to HCL Infrastructure as Code (IaC) execution, remote state locking, speculative plan checks, drift detection, and Sentinel policy enforcement.",
+  "owner": "Infrastructure as Code & Platform Engineering Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "operating-production-systems",
+        "name": "Infrastructure Management",
+        "description": "Integrates Terraform plan/apply execution, workspace state management, and cloud provider resources."
+      },
+      {
+        "code": "engineering-configuration",
+        "name": "Configuration Management",
+        "description": "Integrates Terraform remote state locking, drift detection runs, and variable set definitions."
+      }
+    ],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-terraform-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-terraform-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Terraform Integration Verification Checklist",
+        "description": "Validation checklist for Terraform Cloud API tokens, remote state backend, and spec plan checks.",
+        "items": [
+          {
+            "statement": "Terraform Cloud User / Team API Token authenticates REST API calls to workspace endpoints.",
+            "group": "TFC Token Auth"
+          },
+          {
+            "statement": "Remote State storage uses encrypted backend (S3/GCS/TFC) with state locking enabled.",
+            "group": "State Storage & Locking"
+          },
+          {
+            "statement": "Speculative terraform plan runs trigger automatically on Pull Requests to validate IaC changes.",
+            "group": "Speculative Plan Checks"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "terraform-integration-review-gate",
+        "name": "Terraform IaC Integration Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Infrastructure Lead confirms that Terraform Cloud API tokens and speculative plan checks operate correctly.",
+        "prompt": "Does the Terraform integration verify remote state lock enforcement and speculative plan output?",
+        "participant": "human",
+        "outputContract": "terraform-integration-attestation",
+        "checklistIds": [
+          "Terraform Integration Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "code": "compliance-data-residency-localization",
+  "name": "Global Sovereign Data Residency & Localization Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for global sovereign data residency and localization mandates (China PIPL / Data Security Law CAC Security Assessment, Russia Federal Law No. 242-FZ, India RBI/IRDAI localization, and EU Sovereign Cloud mandates), covering in-country primary storage, cross-border security assessments, and sovereign encryption keys.",
+  "owner": "Global Data Sovereignty & Geopolitics Governance Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-data-sovereignty-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-data-sovereignty-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Global Sovereign Data Residency Audit Checklist",
+        "description": "Validation checklist for China PIPL/DSL, Russia 242-FZ, and sovereign cloud data residency laws.",
+        "items": [
+          {
+            "statement": "Personal information collected within the Russian Federation is initially recorded and stored in databases physically located in Russia (Law 242-FZ).",
+            "group": "Russia 242-FZ Primary Storage"
+          },
+          {
+            "statement": "Outbound transfers of Important Data or PII exceeding 100k individuals from China undergo formal CAC Security Assessment (PIPL Art. 38/40).",
+            "group": "China PIPL / CAC Assessment"
+          },
+          {
+            "statement": "Financial, payment, and healthcare customer data subject to national localization laws is pinned to local cloud data centers.",
+            "group": "Local Cloud Data Center Pinning"
+          },
+          {
+            "statement": "Encryption keys for sovereign data enclaves are held locally by domestic entities and excluded from foreign cloud provider access.",
+            "group": "Sovereign Key Management"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "data-sovereignty-attestation-gate",
+        "name": "Data Sovereignty & Localization Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Global Data Sovereignty Officer confirms that database pinning, CAC assessments, and local encryption keys meet national data residency laws.",
+        "prompt": "Does the data residency audit confirm full compliance with national data localization and sovereign storage mandates?",
+        "participant": "human",
+        "outputContract": "data-sovereignty-compliance-attestation",
+        "checklistIds": [
+          "Global Sovereign Data Residency Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "code": "change-and-decision-governance-artifact-completeness",
+  "name": "Change and Decision Governance Artifact Completeness",
+  "description": "A Change Request has an impact analysis before approval, a Decision Record cites the risk assessment it relied on, a Data Migration Plan has a documented rollback, and unresolved policy conflicts don't carry silently into the next release.",
+  "category": "Organisation",
+  "constraintType": "Standard",
+  "applicabilityDeliverableNames": [
+    "change-request",
+    "decision-record",
+    "configuration-baseline-record",
+    "impact-analysis-report",
+    "policy-conflict-report",
+    "risk-assessment-report",
+    "data-migration-plan"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Every Change Request has an Impact Analysis Report before a Change Approval decision (O4) is made against it.",
+      "requiredEvidence": [
+        {
+          "type": "impact_analysis_report"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "A Decision Record cites the Risk Assessment Report it relied on, wherever the decision carries identified risk.",
+      "requiredEvidence": [
+        {
+          "type": "decision_record_review"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "A Data Migration Plan includes a Configuration Baseline Record of the pre-migration state and a documented rollback path.",
+      "requiredEvidence": [
+        {
+          "type": "rollback_procedure_document"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Any Policy Conflict Report raised against this Policy set is resolved, or explicitly accepted by an Authority holder, before the next Release.",
+      "requiredEvidence": [
+        {
+          "type": "policy_conflict_report"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": [
+        "Obligation raised for any Policy Conflict Report still unresolved at Release."
+      ]
+    }
+  ],
+  "version": "1.0.0"
+}

@@ -26,7 +26,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
   await ensureCoreEngineeringQualityGates();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
@@ -34,7 +34,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
   const seuId = result.seu.id;
 
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Specification");
+  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
   assert.ok(requirementsSpec && reqAnalysisCapability);
   await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantType: "AI", displayName: "Quality telemetry test analyst" });
@@ -91,7 +91,7 @@ test("Quality Telemetry: Deliverable acceptance rate reflects the real lifecycle
   assert.equal(baselined.ok, true, !baselined.ok ? JSON.stringify(baselined) : undefined);
 
   // The Template's Deliverable Catalogue seeds more than just Requirements
-  // Specification (Architecture Document, Source Code, ...) — only the one
+  // Analysis Model (Architecture Decision Record, Source Code, ...) — only the one
   // this test explicitly transitions reaches Baselined, so acceptanceRate
   // is asserted as a real fraction of this SEU's total, not assumed to be 1.
   const scoped = await getQualityMetrics(seuId);

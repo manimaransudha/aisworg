@@ -1,0 +1,72 @@
+{
+  "code": "test-compliance-nydfs",
+  "name": "NYDFS 23 NYCRR 500 Financial Cybersecurity Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for the New York Department of Financial Services Cybersecurity Regulation (23 NYCRR 500), covering 72-hour incident reporting, 24-hour extortion payment reporting, MFA mandates, CISO annual certifications, and Class A business controls.",
+  "owner": "New York Financial Regulatory & Cybersecurity Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-nydfs-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-nydfs-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "NYDFS 23 NYCRR 500 Control Verification Checklist",
+        "description": "Validation checklist for NYDFS Part 500 sections 500.01 - 500.24.",
+        "items": [
+          {
+            "statement": "Cybersecurity policy is reviewed annually and approved by a Senior Officer or Board of Directors (§500.03).",
+            "group": "Cybersecurity Policy (§500.03)"
+          },
+          {
+            "statement": "Multi-Factor Authentication (MFA) is enforced for all individuals accessing nonpublic information (§500.12).",
+            "group": "MFA Mandatory (§500.12)"
+          },
+          {
+            "statement": "Cybersecurity events are reported to the NYDFS Superintendent within 72 hours of determination (§500.17(a)).",
+            "group": "72-Hour Reporting (§500.17)"
+          },
+          {
+            "statement": "Ransomware extortion payments are reported to NYDFS within 24 hours of payment (§500.17(c)).",
+            "group": "24-Hour Ransomware Reporting"
+          },
+          {
+            "statement": "Vulnerability assessments are performed at least bi-annually and penetration testing conducted annually (§500.05).",
+            "group": "Penetration Testing (§500.05)"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "nydfs-ciso-certification-gate",
+        "name": "NYDFS Section 500.17 CISO Certification Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The CISO confirms that MFA, penetration testing, and incident reporting comply with NYDFS 23 NYCRR 500 requirements.",
+        "prompt": "Does the cybersecurity audit package support full CISO certification under NYDFS Part 500?",
+        "participant": "human",
+        "outputContract": "nydfs-compliance-attestation",
+        "checklistIds": [
+          "NYDFS 23 NYCRR 500 Control Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

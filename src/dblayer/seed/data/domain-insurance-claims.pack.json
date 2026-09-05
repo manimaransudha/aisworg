@@ -1,0 +1,72 @@
+{
+  "code": "domain-insurance-claims",
+  "name": "Insurance Underwriting & Claims Adjudication Domain Practices",
+  "category": "Domain",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Exhaustive business-domain knowledge pack for Insurance Policy Underwriting and Claims Adjudication, covering policy onboarding, risk scoring, premium rating, policy endorsements, First Notice of Loss (FNOL), loss inspection estimation, Special Investigation Unit (SIU) fraud screening, and claim settlement.",
+  "owner": "Global Insurance Underwriting & Claims Operations Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-insurance-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-insurance-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Insurance Underwriting & Claims Audit Checklist",
+        "description": "Validation checklist for underwriting guidelines, policy rating, FNOL intake, SIU fraud screening, and claim payout settlement.",
+        "items": [
+          {
+            "statement": "Underwriting risk scoring evaluates applicant risk factors against approved actuarial rate filings.",
+            "group": "Underwriting & Rating"
+          },
+          {
+            "statement": "First Notice of Loss (FNOL) logs loss date, incident location, involved parties, and police reports.",
+            "group": "FNOL Intake"
+          },
+          {
+            "statement": "Coverage verification confirms policy was active on loss date and applicable deductibles apply.",
+            "group": "Coverage Verification"
+          },
+          {
+            "statement": "Special Investigation Unit (SIU) evaluates red-flagged claims for potential insurance fraud before approval.",
+            "group": "SIU Fraud Investigation"
+          },
+          {
+            "statement": "Claim settlement payouts require claims manager authorization for amounts exceeding adjuster limit.",
+            "group": "Claim Settlement"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "claims-director-signoff-gate",
+        "name": "Head of Claims Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Head of Claims confirms that underwriting guidelines, FNOL intake, and SIU fraud checks comply with insurance regulations.",
+        "prompt": "Does the insurance documentation confirm proper underwriting rating and claims adjudication accuracy?",
+        "participant": "human",
+        "outputContract": "insurance-claims-attestation",
+        "checklistIds": [
+          "Insurance Underwriting & Claims Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

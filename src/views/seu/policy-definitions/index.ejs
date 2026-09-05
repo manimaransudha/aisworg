@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+  <style>
+    .version-badge { font-size: 0.68rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 4px; background: #f1f5f9; color: #334155; }
+    .category-badge { font-size: 0.68rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 4px; background: #ede9fe; color: #5b21b6; }
+    .constraint-badge-policy { font-size: 0.68rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 4px; background: #fee2e2; color: #991b1b; }
+    .constraint-badge-standard { font-size: 0.68rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 4px; background: #dbeafe; color: #1e40af; }
+  </style>
+</head>
+<body>
+  <%- include('../../partials/helpers') %>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-1 text-dark fw-bold">Policy Definitions</h2>
+      <p class="text-muted small mb-0">
+        Policy Definition Registry (Ch.24 §8/§13) — the canonical, standalone catalog of governance Policies and
+        Standards, with no relationship to any other entity (unlike Service Definition's 1:1 tie to Capability).
+        Distinct from the Pack-level <code>policies</code> table — many Packs may each declare their own
+        Pack-scoped Policy independently; a canonical Policy Definition here exists to be referenced, not re-authored.
+      </p>
+    </div>
+
+    <% const _base = locals.listBasePath || '/aisworg/seu/policy-definitions'; %>
+    <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search code or name' }) %>
+    <div class="small text-muted mb-3">Sort:
+      <%- sortLink('Code', 'code', list, _base) %> &middot;
+      <%- sortLink('Version', 'version', list, _base) %> &middot;
+      <%- sortLink('Status', 'status', list, _base) %>
+    </div>
+
+    <%
+      var _states = locals.states || [];
+      var _activeStatus = locals.activeStatus || '';
+    %>
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      <a href="<%= _base + listQueryString(list, { status: '' }) %>" class="btn btn-sm <%= _activeStatus ? 'btn-outline-secondary' : 'btn-secondary' %>">All states</a>
+      <% _states.forEach(function(s) { %>
+        <a href="<%= _base + listQueryString(list, { status: s }) %>" class="btn btn-sm <%= _activeStatus === s ? 'btn-secondary' : 'btn-outline-secondary' %>"><%= s %></a>
+      <% }) %>
+    </div>
+
+    <% if (list.total === 0) { %>
+      <% if (list.q) { %>
+        <div class="alert alert-warning">No Policy Definitions match your search.</div>
+      <% } else if (_activeStatus) { %>
+        <div class="alert alert-warning">No Policy Definitions in state "<%= _activeStatus %>".</div>
+      <% } else { %>
+        <div class="alert alert-warning">No Policy Definitions published yet — author one via SDK / Authoring &rarr; Policy Authoring.</div>
+      <% } %>
+    <% } else { %>
+      <% list.items.forEach(function(r) { var p = r.policyDefinition; %>
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <h5 class="mb-1">
+                  <%= p.name %>
+                  <span class="version-badge ms-1">v<%= p.version %></span>
+                </h5>
+                <p class="text-muted small mb-2">
+                  <code class="text-muted small"><%= p.code %></code>
+                  <span class="state-badge state-<%= p.status %>"><%= p.status %></span>
+                  <span class="category-badge"><%= p.category %></span>
+                  <span class="<%= p.constraint_type === 'Policy' ? 'constraint-badge-policy' : 'constraint-badge-standard' %>"><%= p.constraint_type %></span>
+                  <% if (p.tenant_id === locals.platformTenantId) { %>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Platform</span>
+                  <% } else { %>
+                    <span class="badge bg-light text-dark border">Your tenant</span>
+                  <% } %>
+                  <% if (p.parent_policy_definition_id) { %>
+                    <span class="badge bg-secondary-subtle text-secondary border">Derived</span>
+                  <% } %>
+                </p>
+                <% if (p.description) { %><p class="small mb-2"><%= p.description %></p><% } %>
+                <% if (p.applicability_deliverable_names && p.applicability_deliverable_names.length > 0) { %>
+                  <p class="small text-muted mb-1">Applies to: <%= p.applicability_deliverable_names.join(', ') %></p>
+                <% } %>
+                <% if (p.conditions && p.conditions.length > 0) { %>
+                  <p class="small text-muted mb-0"><%= p.conditions.length %> condition<%= p.conditions.length === 1 ? '' : 's' %></p>
+                <% } %>
+              </div>
+            </div>
+            <div class="d-flex gap-2 mt-2">
+              <a href="/aisworg/seu/sdk/policy-authoring/<%= p.id %>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye me-1"></i>View</a>
+              <% if (locals.canCopy) { %>
+                <form method="POST" action="/aisworg/seu/policy-definitions/<%= p.id %>/copy">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-copy me-1"></i>Copy</button>
+                </form>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    <% } %>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

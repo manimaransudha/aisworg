@@ -1,0 +1,51 @@
+{
+  "code": "static-analysis-required",
+  "name": "Static Analysis Required",
+  "description": "Source Code must clear defect- and security-relevant static analysis, with technical debt held below a declared ratio.",
+  "category": "Quality",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [
+    "source-code"
+  ],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Zero Critical or High severity defects reported by static analysis.",
+      "requiredEvidence": [
+        {
+          "type": "static_analysis_result",
+          "severity_filter": "critical_high"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Zero security-relevant findings reported by static analysis (distinct from the dependency-level scan in S1-S3).",
+      "requiredEvidence": [
+        {
+          "type": "static_analysis_result",
+          "category": "security"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Technical debt ratio, as reported by the static analysis tool, does not exceed the threshold declared by the active governance tier.",
+      "requiredEvidence": [
+        {
+          "type": "static_analysis_result",
+          "metric": "technical_debt_ratio"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

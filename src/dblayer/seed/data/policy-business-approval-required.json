@@ -1,0 +1,49 @@
+{
+  "code": "business-approval-required",
+  "name": "Business Approval Required",
+  "description": "A recommended solution option requires business sponsor approval, naming the specific option, obtained before Architecture work begins.",
+  "category": "Customer",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "Business sponsor approval is recorded for the recommended option.",
+      "requiredEvidence": [
+        {
+          "type": "human_attestation",
+          "classification": "human-attested"
+        }
+      ],
+      "severity": "Critical",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "The approval record references the specific recommended option's comparative analysis, not the objective generally.",
+      "requiredEvidence": [
+        {
+          "type": "human_attestation",
+          "field": "approved_option"
+        }
+      ],
+      "severity": "High",
+      "exceptionRules": [],
+      "relatedObligations": []
+    },
+    {
+      "statement": "Approval was obtained before Architecture work began, not retroactively.",
+      "requiredEvidence": [
+        {
+          "type": "human_attestation",
+          "field": "timestamp"
+        }
+      ],
+      "severity": "Medium",
+      "exceptionRules": [],
+      "relatedObligations": []
+    }
+  ],
+  "version": "1.0.0"
+}

@@ -1,0 +1,84 @@
+{
+  "code": "integration-github",
+  "name": "GitHub Developer Platform Integration",
+  "category": "Integration",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Integration pack for GitHub, providing connectivity to Git repositories, Pull Request code reviews, GitHub Actions CI/CD workflows, Dependabot security alerts, and GitHub Enterprise governance.",
+  "owner": "Developer Platform Integration Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "engineering-work-review",
+        "name": "Code Review",
+        "description": "Integrates GitHub Pull Request review approvals, branch protection rules, and automated code review checks."
+      },
+      {
+        "code": "software-release",
+        "name": "DevOps & CI/CD Engineering",
+        "description": "Integrates GitHub Actions build matrix, workflow dispatch triggers, and runner execution tracking."
+      },
+      {
+        "code": "protect-organisational-assets",
+        "name": "Security Engineering",
+        "description": "Integrates GitHub Dependabot vulnerability alerts, Secret Scanning, and CodeQL static analysis."
+      }
+    ],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-github-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-github-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "GitHub Integration Verification Checklist",
+        "description": "Validation checklist for GitHub Webhook connectivity, OAuth / Personal Access Token scopes, and Action runners.",
+        "items": [
+          {
+            "statement": "GitHub Webhook secret is configured with HMAC-SHA256 signature verification.",
+            "group": "Webhook Connectivity"
+          },
+          {
+            "statement": "OAuth App / Personal Access Token permissions satisfy least-privilege repository access scope.",
+            "group": "Authentication & Scope"
+          },
+          {
+            "statement": "Branch protection rules enforce mandatory Pull Request approvals before merging to main.",
+            "group": "Branch Protection"
+          },
+          {
+            "statement": "GitHub Actions workflow status checks report build pass/fail status back to commits.",
+            "group": "CI/CD Actions Execution"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "github-integration-review-gate",
+        "name": "GitHub Integration Readiness Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The DevOps Engineer confirms that GitHub Webhook endpoints and API tokens satisfy security & connectivity standards.",
+        "prompt": "Does the GitHub integration setup confirm API token validity and webhook event delivery?",
+        "participant": "human",
+        "outputContract": "github-integration-attestation",
+        "checklistIds": [
+          "GitHub Integration Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "code": "test-compliance-india-rbi-pmla",
+  "name": "RBI Financial Cybersecurity & PMLA AML Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for Reserve Bank of India (RBI) Cyber Security Framework for Banks/NBFCs, Payment and Settlement Systems Act, Prevention of Money Laundering Act (PMLA), and CKYC / FIU-IND reporting.",
+  "owner": "India Banking & Financial Regulatory Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-rbi-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-rbi-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "RBI Cyber Security & PMLA AML Audit Checklist",
+        "description": "Validation checklist for RBI Master Directions on IT Framework, Payment Data Storage, and PMLA Rules.",
+        "items": [
+          {
+            "statement": "Payment system data (untruncated card data, transaction details) is stored exclusively on servers located within India.",
+            "group": "RBI Payment Data Localization"
+          },
+          {
+            "statement": "Central KYC (CKYC) registry integration verifies customer identity documents against CERSAI databases.",
+            "group": "KYC & CKYC Registry"
+          },
+          {
+            "statement": "Suspicious Transaction Reporting (STR) algorithms flag high-risk transaction patterns for FIU-IND escalation within 7 days.",
+            "group": "PMLA FIU-IND Reporting"
+          },
+          {
+            "statement": "SOC continuous security monitoring operates 24/7/365 with automated threat detection and incident containment.",
+            "group": "RBI SOC Operational Readiness"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "rbi-pmla-audit-gate",
+        "name": "RBI & PMLA Compliance Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Principal Officer (AML) and Chief Information Security Officer confirm that payment data localization, CKYC, and SOC monitoring meet RBI and PMLA standards.",
+        "prompt": "Does the audit evidence confirm full compliance with RBI Cyber Security directions and PMLA AML rules?",
+        "participant": "human",
+        "outputContract": "rbi-pmla-compliance-attestation",
+        "checklistIds": [
+          "RBI Cyber Security & PMLA AML Audit Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

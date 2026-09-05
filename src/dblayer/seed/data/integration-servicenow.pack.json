@@ -1,0 +1,80 @@
+{
+  "code": "integration-servicenow",
+  "name": "ServiceNow Enterprise ITSM Integration",
+  "category": "Integration",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Integration pack for ServiceNow, providing connectivity to ServiceNow Table APIs for Incident Management (INC), Change Request (CHG) CAB approvals, Problem Management (PRB), and CMDB Configuration Items (CI).",
+  "owner": "IT Service Management & Governance Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "operating-production-systems",
+        "name": "Production Support & Incident Management",
+        "description": "Integrates ServiceNow Incident intake (P1-P4), automated ticket assignment, and SLA tracking."
+      },
+      {
+        "code": "change-management",
+        "name": "Change Management",
+        "description": "Integrates ServiceNow Change Requests (Standard, Normal, Emergency), CAB approval workflows, and change risk scoring."
+      },
+      {
+        "code": "engineering-configuration",
+        "name": "Configuration Management",
+        "description": "Integrates ServiceNow CMDB Configuration Items (CIs), dependency relationship mapping, and asset attributes."
+      }
+    ],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-servicenow-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-servicenow-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "ServiceNow Integration Verification Checklist",
+        "description": "Validation checklist for ServiceNow OAuth 2.0 / Basic Auth API access, Incident creation, and Change Request state sync.",
+        "items": [
+          {
+            "statement": "ServiceNow Service Account authenticates with rest_service role for Table API endpoint access.",
+            "group": "ServiceNow REST Auth"
+          },
+          {
+            "statement": "Incident creation auto-populates Mandatory fields (Caller, Short Description, Impact, Urgency, Assignment Group).",
+            "group": "Incident Creation"
+          },
+          {
+            "statement": "Change Requests transition through State gates (Draft -> Assess -> Authorize -> Scheduled -> Implement) per CAB rules.",
+            "group": "Change Request State Machine"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "servicenow-integration-review-gate",
+        "name": "ServiceNow Integration Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The ITSM Administrator confirms that ServiceNow REST API connections and Change Request workflows operate properly.",
+        "prompt": "Does the ServiceNow integration verify Incident creation and Change Request CAB workflow synchronization?",
+        "participant": "human",
+        "outputContract": "servicenow-integration-attestation",
+        "checklistIds": [
+          "ServiceNow Integration Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

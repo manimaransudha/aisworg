@@ -1,0 +1,72 @@
+{
+  "code": "compliance-eu-ai-act",
+  "name": "EU AI Act & Algorithmic Impact Compliance",
+  "category": "Compliance",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Compliance framework for the EU Artificial Intelligence Act (Regulation (EU) 2024/1689), NYC Automated Employment Decision Tools (AEDT Local Law 144), and Colorado AI Act, covering High-Risk AI System risk management, bias audit testing, technical documentation, human oversight, and CE mark attestation.",
+  "owner": "AI Governance & Algorithmic Ethics Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-ai-compliance-approval",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-ai-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "EU AI Act & Algorithmic Ethics Verification Checklist",
+        "description": "Validation checklist for EU AI Act Articles 8-15 requirements and NYC Local Law 144.",
+        "items": [
+          {
+            "statement": "AI system is evaluated to verify it does NOT deploy cognitive behavioral manipulation, social scoring, or real-time remote biometric identification in public spaces (Art. 5).",
+            "group": "Prohibited Practices (Art. 5)"
+          },
+          {
+            "statement": "Risk Management System (Art. 9) is established, implemented, documented, and updated throughout the high-risk AI system lifecycle.",
+            "group": "Risk Management (Art. 9)"
+          },
+          {
+            "statement": "Training, validation, and testing datasets meet quality criteria regarding data governance, bias prevention, and relevance (Art. 10).",
+            "group": "Data Governance (Art. 10)"
+          },
+          {
+            "statement": "Human Oversight mechanisms enable human-in-the-loop operators to override or stop AI system outputs (Art. 14).",
+            "group": "Human Oversight (Art. 14)"
+          },
+          {
+            "statement": "Independent bias audit measures disparate impact ratios across protected groups prior to deployment (NYC LL144 / Art. 10).",
+            "group": "Algorithmic Bias Audit"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "eu-ai-ethics-review-gate",
+        "name": "EU AI Act Compliance Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The AI Officer and Ethics Committee attest that risk management, data governance, and human oversight controls satisfy the EU AI Act.",
+        "prompt": "Does the AI governance documentation confirm compliance with the EU AI Act and bias audit requirements?",
+        "participant": "human",
+        "outputContract": "eu-ai-act-compliance-attestation",
+        "checklistIds": [
+          "EU AI Act & Algorithmic Ethics Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

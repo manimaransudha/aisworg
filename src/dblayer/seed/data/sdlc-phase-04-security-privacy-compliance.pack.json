@@ -11,107 +11,14 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "security-privacy-compliance",
+        "code": "protect-organisational-assets",
         "name": "Security, Privacy & Compliance",
         "description": "Establishes the security controls, privacy safeguards, and compliance posture required before further platform investment."
       }
     ],
     "services": [
       {
-        "code": "threat-model-stride",
-        "capabilityCode": "security-privacy-compliance",
-        "name": "Threat Model (STRIDE)",
-        "contractDescription": "Security threat modeling covering Spoofing, Tampering, Repudiation, Info Disclosure, DoS, and Elevation of Privilege.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "executive-approved"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "security-controls-matrix",
-        "capabilityCode": "security-privacy-compliance",
-        "name": "Security Controls Matrix",
-        "contractDescription": "Security control implementation specifications mapping SOC2, ISO27001, and NIST controls.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "privacy-impact-assessment",
-        "capabilityCode": "security-privacy-compliance",
-        "name": "Privacy Impact Assessment",
-        "contractDescription": "GDPR / CCPA privacy risk evaluation, data flow mapping, and user consent mechanics.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "172800"
-          }
-        ]
-      },
-      {
-        "code": "data-protection-addendum-vendor-list",
-        "capabilityCode": "security-privacy-compliance",
-        "name": "Data Protection Addendum & Vendor List",
-        "contractDescription": "Third-party vendor risk assessment, sub-processor list, and DPA contract templates.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "compliance-readiness-checklist",
-        "capabilityCode": "security-privacy-compliance",
-        "name": "Compliance Readiness Checklist",
-        "contractDescription": "Regulatory compliance gap analysis and audit evidence mapping.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "secure-sdlc-guidelines",
-        "capabilityCode": "security-privacy-compliance",
-        "name": "Secure SDLC Guidelines",
-        "contractDescription": "OWASP Top 10 secure coding guidelines, SAST/DAST integration, and secret scanner rules.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
+        "code": "vulnerability-assessment-service"
       }
     ],
     "authorityRules": [
@@ -131,17 +38,7 @@
         "authorisedRole": "general"
       }
     ],
-    "policies": [
-      {
-        "code": "policy-zero-trust-security-baseline",
-        "name": "Zero-Trust Security Baseline Policy",
-        "category": "Security",
-        "constraintType": "Policy",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "conditionType": "always_true",
-        "severity": "high"
-      }
-    ],
+    "policies": [],
     "checklists": [
       {
         "name": "Security, Privacy & Compliance (SDLC Phase 4) Checklist",

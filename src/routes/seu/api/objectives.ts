@@ -55,7 +55,9 @@ router.post(
       status: objective.status,
       tier: objective.tier,
       version: objective.version,
-      requiredCapabilities: requiredCapabilities.map((c) => ({ id: c.id, code: c.code, name: c.name })),
+      // CR-086 step 2 — bare capability-name Ontology terms now (code +
+      // Ontology label), no more capabilities-row id to report.
+      requiredCapabilities: requiredCapabilities.map((c) => ({ code: c.code, name: c.name })),
     });
   } catch (err) {
     logger.error("[api/seu/objectives] POST error", err as Error);

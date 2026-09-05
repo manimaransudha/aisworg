@@ -1,0 +1,80 @@
+{
+  "code": "integration-confluence",
+  "name": "Atlassian Confluence Knowledge Base Integration",
+  "category": "Integration",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Integration pack for Atlassian Confluence Cloud and Data Center, providing connectivity to Confluence REST API v2 for technical documentation publishing, space page hierarchies, Architecture Decision Record (ADR) templates, and page sync.",
+  "owner": "Technical Documentation & Knowledge Management Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "engineering-documentation",
+        "name": "Documentation",
+        "description": "Integrates Confluence page creation, technical specifications publishing, and markdown-to-storage-format rendering."
+      },
+      {
+        "code": "recovering-organisational-knowledge",
+        "name": "Knowledge Management",
+        "description": "Integrates Confluence space hierarchies, page versioning, and engineering knowledge base search."
+      },
+      {
+        "code": "architecture-design",
+        "name": "Architecture & Solution Design",
+        "description": "Integrates Confluence Architecture Decision Records (ADRs) and system diagram attachments."
+      }
+    ],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-confluence-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-confluence-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Confluence Integration Verification Checklist",
+        "description": "Validation checklist for Confluence API token access, space key permissions, and page publishing rendering.",
+        "items": [
+          {
+            "statement": "Confluence API Service Account Token grants read/write permissions for target Confluence space keys.",
+            "group": "Confluence API Auth"
+          },
+          {
+            "statement": "Automated documentation builds convert markdown specs into Confluence Storage Format XHTML.",
+            "group": "Doc Publishing Format"
+          },
+          {
+            "statement": "Architecture Decision Records (ADRs) post under designated Confluence parent pages.",
+            "group": "ADR Publishing"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "confluence-integration-review-gate",
+        "name": "Confluence Knowledge Base Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The Technical Writer Lead confirms that Confluence API publishing and page rendering satisfy documentation standards.",
+        "prompt": "Does the Confluence integration verify page creation and Architecture Decision Record publishing?",
+        "participant": "human",
+        "outputContract": "confluence-integration-attestation",
+        "checklistIds": [
+          "Confluence Integration Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}

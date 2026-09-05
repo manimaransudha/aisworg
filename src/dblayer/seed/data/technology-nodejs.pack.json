@@ -14,12 +14,12 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "development",
+        "code": "software-construction",
         "name": "Source code generation",
         "description": "Follow these practices during coding."
       },
       {
-        "code": "code-review",
+        "code": "engineering-work-review",
         "name": "Code Review",
         "description": "Peer review of Source Code changes before merge."
       }
@@ -209,7 +209,7 @@
           {
             "statement": "Use of $match, $limit & $skip can filter out most of the documents if used on a early pipeline stage.",
             "group": "MongoDB Query & Aggregation"
-            }
+          }
         ]
       }
     ],

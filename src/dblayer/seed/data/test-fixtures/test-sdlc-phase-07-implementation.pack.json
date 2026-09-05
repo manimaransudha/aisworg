@@ -11,139 +11,14 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "implementation-engineering",
+        "code": "software-construction",
         "name": "Implementation",
         "description": "Delivers the working software, technical specifications, and engineering decisions that turn the backlog into a functioning product."
       }
     ],
     "services": [
       {
-        "code": "technical-specifications-per-feature",
-        "capabilityCode": "implementation-engineering",
-        "name": "Technical Specifications per Feature",
-        "contractDescription": "Detailed engineering implementation specifications, component diagrams, and data flow patterns.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "architecture-decision-records",
-        "capabilityCode": "implementation-engineering",
-        "name": "Architecture Decision Records",
-        "contractDescription": "ADR documents recording context, options evaluated, rationale, and consequences of key technical decisions.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "coding-standards-review-guidelines",
-        "capabilityCode": "implementation-engineering",
-        "name": "Coding Standards & Review Guidelines",
-        "contractDescription": "Language style guides, linter rules, code review criteria, and pull request template specs.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "api-contracts",
-        "capabilityCode": "implementation-engineering",
-        "name": "API Contracts",
-        "contractDescription": "Executable interface contracts (OpenAPI / gRPC / TypeScript definitions) between frontend and backend services.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "unit-integration-test-plans",
-        "capabilityCode": "implementation-engineering",
-        "name": "Unit & Integration Test Plans",
-        "contractDescription": "Test coverage targets, mock strategies, and integration test suite specifications.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "data-migration-plan",
-        "capabilityCode": "implementation-engineering",
-        "name": "Data Migration Plan",
-        "contractDescription": "Database migration scripts, backward-compatible schema changes, and rollback verification.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "localization-internationalization-strategy",
-        "capabilityCode": "implementation-engineering",
-        "name": "Localization & Internationalization Strategy",
-        "contractDescription": "i18n string extraction, translation key conventions, and date/currency formatting patterns.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
-      },
-      {
-        "code": "feature-flag-documentation",
-        "capabilityCode": "implementation-engineering",
-        "name": "Feature Flag Documentation",
-        "contractDescription": "Feature toggle names, default fallback states, and flag lifecycle cleanup tasks.",
-        "serviceLevel": [
-          {
-            "label": "Quality Bar",
-            "target": "peer-reviewed"
-          },
-          {
-            "label": "Turnaround Time",
-            "target": "86400"
-          }
-        ]
+        "code": "software-implementation-service"
       }
     ],
     "authorityRules": [
@@ -163,17 +38,7 @@
         "authorisedRole": "general"
       }
     ],
-    "policies": [
-      {
-        "code": "policy-code-review-peer-approval-standard",
-        "name": "Code Review Peer Approval Policy",
-        "category": "Engineering",
-        "constraintType": "Standard",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "conditionType": "always_true",
-        "severity": "high"
-      }
-    ],
+    "policies": [],
     "checklists": [
       {
         "name": "Implementation (SDLC Phase 7) Checklist",

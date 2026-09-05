@@ -32,7 +32,7 @@ async function commissionTestSeu(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromForm({
     statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-solution-design", "development"],
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
@@ -43,8 +43,8 @@ async function commissionTestSeu(statementPrefix: string) {
 test("transitionDeliverable defers the transition when nobody fulfils the producing Capability yet, then dispatches once a Participant does", async () => {
   const seuId = await commissionTestSeu("phase3-defer");
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Specification");
-  assert.ok(requirementsSpec, "expected a seeded Requirements Specification deliverable");
+  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  assert.ok(requirementsSpec, "expected a seeded Requirements Analysis Model deliverable");
   assert.equal(requirementsSpec.lifecycleState, "Defined");
 
   const deferred = await transitionDeliverable({
@@ -57,7 +57,7 @@ test("transitionDeliverable defers the transition when nobody fulfils the produc
   if (!deferred.ok) assert.equal(deferred.reason, "dispatch_deferred", "governance passed (no dependencies, authorised role) — only Dispatch should block this");
 
   const stillDefined = await getSeuDetailView(seuId);
-  assert.equal(stillDefined?.deliverables.find((d) => d.name === "Requirements Specification")?.lifecycleState, "Defined", "Deliverable must not move state while dispatch is deferred");
+  assert.equal(stillDefined?.deliverables.find((d) => d.name === "Requirements Analysis Model")?.lifecycleState, "Defined", "Deliverable must not move state while dispatch is deferred");
 
   const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
   assert.ok(reqAnalysisCapability);
@@ -81,19 +81,19 @@ test("transitionDeliverable defers the transition when nobody fulfils the produc
   // Deliverable — it stays Defined, outstanding, until the Participant reports
   // a result.
   const stillDefinedAfterDispatch = await getSeuDetailView(seuId);
-  assert.equal(stillDefinedAfterDispatch?.deliverables.find((d) => d.name === "Requirements Specification")?.lifecycleState, "Defined", "dispatched, not yet applied — the transition waits for the result callback");
+  assert.equal(stillDefinedAfterDispatch?.deliverables.find((d) => d.name === "Requirements Analysis Model")?.lifecycleState, "Defined", "dispatched, not yet applied — the transition waits for the result callback");
 
   const completed = await completeWorkItem({ workItemId: dispatched.workItemId, outcome: "done", reference: "vcs://phase3-defer/req-spec@abc123" });
   assert.equal(completed.ok, true, !completed.ok ? JSON.stringify(completed) : undefined);
 
   const moved = await getSeuDetailView(seuId);
-  assert.equal(moved?.deliverables.find((d) => d.name === "Requirements Specification")?.lifecycleState, "In Progress", "the result callback drives the governed transition");
+  assert.equal(moved?.deliverables.find((d) => d.name === "Requirements Analysis Model")?.lifecycleState, "In Progress", "the result callback drives the governed transition");
 });
 
 test("a dispatched transition leaves a traceable Command and a Completed/Disposed Work Item assigned to the fulfilling Participant", async () => {
   const seuId = await commissionTestSeu("phase3-trace");
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Specification");
+  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
   assert.ok(requirementsSpec && reqAnalysisCapability);
 
@@ -125,7 +125,7 @@ test("a dispatched transition leaves a traceable Command and a Completed/Dispose
   assert.equal(command?.fromState, "Defined");
   assert.equal(command?.toState, "In Progress");
   assert.equal(command?.status, "Completed");
-  assert.equal(command?.entityLabel, "Requirements Specification");
+  assert.equal(command?.entityLabel, "Requirements Analysis Model");
 
   assert.equal(command?.workItems.length, 1, "Ch.32 FR-32.1: exactly one Work Item per Command in this MVP instance");
   const workItem = command?.workItems[0];
@@ -137,7 +137,7 @@ test("a dispatched transition leaves a traceable Command and a Completed/Dispose
 test("executionEngine defers dispatch when no Participant fulfils the producing Capability, and reports the reason", async () => {
   const seuId = await commissionTestSeu("phase3-engine");
   const detail = await getSeuDetailView(seuId);
-  const architectureCapability = detail?.capabilities.find((c) => c.code === "architecture-solution-design");
+  const architectureCapability = detail?.capabilities.find((c) => c.code === "architecture-design");
   assert.ok(architectureCapability);
 
   const result = await executionEngine.execute({
@@ -183,7 +183,7 @@ test("executionEngine dispatches immediately when the entity has no producing Ca
 test("a Participant reporting 'blocked' fails the Work Item without applying the transition, and raises an Attention Item", async () => {
   const seuId = await commissionTestSeu("phase3-blocked");
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Specification");
+  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
   assert.ok(requirementsSpec && reqAnalysisCapability);
 
@@ -200,7 +200,7 @@ test("a Participant reporting 'blocked' fails the Work Item without applying the
 
   // The Deliverable must NOT have moved.
   const after = await getSeuDetailView(seuId);
-  assert.equal(after?.deliverables.find((d) => d.name === "Requirements Specification")?.lifecycleState, "Defined", "a blocked result must never apply the transition");
+  assert.equal(after?.deliverables.find((d) => d.name === "Requirements Analysis Model")?.lifecycleState, "Defined", "a blocked result must never apply the transition");
 
   // Work Item Failed, Command Failed, but the raw reference is still stored.
   const { data: workItem } = await workItemsDB.findById(dispatched.workItemId);
@@ -217,7 +217,7 @@ test("a Participant reporting 'blocked' fails the Work Item without applying the
 test("completeWorkItem is idempotent-safe: a second result on an already-completed Work Item is rejected, not re-applied", async () => {
   const seuId = await commissionTestSeu("phase3-double");
   const detail = await getSeuDetailView(seuId);
-  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Specification");
+  const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
   assert.ok(requirementsSpec && reqAnalysisCapability);
 

@@ -11,31 +11,14 @@
   "contributions": {
     "capabilities": [
       {
-        "code": "development",
+        "code": "software-construction",
         "name": "Solution Development",
         "description": "Designs and implements solution increments against the approved architecture, on behalf of the Developer role."
       }
     ],
     "services": [
       {
-        "code": "implementation-elements",
-        "capabilityCode": "development",
-        "name": "Implementation Elements",
-        "contractDescription": "Working code implementing the design for this increment, ready for integration.",
-        "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
-        ]
-      },
-      {
-        "code": "integrated-build",
-        "capabilityCode": "development",
-        "name": "Integrated Build",
-        "contractDescription": "A build integrating this increment's implementation elements, ready for test.",
-        "serviceLevel": [
-          { "label": "Quality Bar", "target": "peer-reviewed" },
-          { "label": "Turnaround Time", "target": "86400" }
-        ]
+        "code": "software-implementation-service"
       }
     ],
     "checklists": [
@@ -161,133 +144,6 @@
         "authorisedRole": "general"
       }
     ],
-    "policies": [
-      {
-        "code": "policy-no-hardcoded-secrets",
-        "name": "No Hardcoded Secrets",
-        "category": "Security",
-        "constraintType": "Policy",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "conditionType": "always_true",
-        "severity": "High"
-      },
-      {
-        "code": "standard-small-single-purpose-commits",
-        "name": "Small, Single-Purpose Commits",
-        "category": "Quality",
-        "constraintType": "Standard",
-        "governedTransition": "Deliverable|In Progress|Approved",
-        "conditionType": "always_true",
-        "severity": "Low"
-      },
-      {
-        "code": "policy-commission-baseline",
-        "name": "Commissioning baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "SEU|Pending|Commissioned",
-        "severity": "Medium",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-deliverable-transition-baseline",
-        "name": "Deliverable transition baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "Deliverable|Defined|In Progress",
-        "severity": "Low",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-objective-transition-baseline",
-        "name": "Objective transition baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "Objective|Proposed|Active",
-        "severity": "Low",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-obligation-transition-baseline",
-        "name": "Obligation transition baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "Obligation|Identified|Analysed",
-        "severity": "Low",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-evidence-transition-baseline",
-        "name": "Evidence transition baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "Evidence|Collected|Validated",
-        "severity": "Low",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-knowledge-transition-baseline",
-        "name": "Knowledge transition baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "Knowledge|Observed|Proposed",
-        "severity": "Low",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-decision-transition-baseline",
-        "name": "Decision transition baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "Decision|Identified|Analysed",
-        "severity": "Low",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-knowledgescope-transition-baseline",
-        "name": "Acquisition Scope promotion baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "KnowledgeScope|SEU|Capability",
-        "severity": "Medium",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-attentionitem-transition-baseline",
-        "name": "Attention Item transition baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "AttentionItem|Created|Delivered",
-        "severity": "Low",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-externalinteraction-transition-baseline",
-        "name": "External Interaction transition baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "ExternalInteraction|Created|Validated",
-        "severity": "Low",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-pack-transition-baseline",
-        "name": "Pack transition baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "Pack|Draft|Validated",
-        "severity": "Low",
-        "conditionType": "always_true"
-      },
-      {
-        "code": "policy-participant-transition-baseline",
-        "name": "Participant transition baseline check",
-        "category": "Engineering",
-        "constraintType": "Policy",
-        "governedTransition": "Participant|Created|Available",
-        "severity": "Low",
-        "conditionType": "always_true"
-      }
-    ]
+    "policies": []
   }
 }

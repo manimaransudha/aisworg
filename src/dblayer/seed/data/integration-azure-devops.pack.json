@@ -1,0 +1,80 @@
+{
+  "code": "integration-azure-devops",
+  "name": "Azure DevOps Services Integration",
+  "category": "Integration",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "Integration pack for Microsoft Azure DevOps Services and Server, providing connectivity to Azure Boards work items, Azure Repos Git, Azure Pipelines CI/CD, and Azure Test Plans.",
+  "owner": "Developer Platform Integration Office",
+  "publisher": "Platform",
+  "dependencies": [],
+  "contributions": {
+    "capabilities": [
+      {
+        "code": "adapting-business-needs",
+        "name": "Project Management",
+        "description": "Integrates Azure Boards work item tracking, epics, features, user stories, and bug states."
+      },
+      {
+        "code": "software-release",
+        "name": "DevOps & CI/CD Engineering",
+        "description": "Integrates Azure YAML Pipelines, build triggers, multi-stage release gates, and deployment environments."
+      },
+      {
+        "code": "software-validation",
+        "name": "Quality Engineering & Hardening",
+        "description": "Integrates Azure Test Plans, automated test run results, and bug logging from test failures."
+      }
+    ],
+    "services": [],
+    "authorityRules": [
+      {
+        "code": "authority-azure-devops-commission",
+        "governedTransition": "seu.commission",
+        "authorisedRole": "general"
+      },
+      {
+        "code": "authority-azure-devops-deliverable-transition",
+        "governedTransition": "deliverable.transition",
+        "authorisedRole": "general"
+      }
+    ],
+    "policies": [],
+    "checklists": [
+      {
+        "name": "Azure DevOps Integration Verification Checklist",
+        "description": "Validation checklist for Azure DevOps PAT authentication, Azure Pipeline service connections, and Board web hooks.",
+        "items": [
+          {
+            "statement": "Azure DevOps Personal Access Token (PAT) includes Code (Read & write) and Work Items (Read & write) scopes.",
+            "group": "PAT Authentication"
+          },
+          {
+            "statement": "Azure Service Connections are authorized for ARM deployment targets.",
+            "group": "Service Connections"
+          },
+          {
+            "statement": "Service Hooks notify external endpoints on build completed and work item updated events.",
+            "group": "Service Hooks"
+          }
+        ]
+      }
+    ],
+    "reviewGates": [
+      {
+        "code": "azure-devops-review-gate",
+        "name": "Azure DevOps Integration Review Gate",
+        "governedTransition": "Deliverable|In Progress|Approved",
+        "classification": "human-attested",
+        "statement": "The DevOps Engineer confirms that Azure DevOps PAT tokens and Service Hooks satisfy pipeline requirements.",
+        "prompt": "Does the Azure DevOps integration verify pipeline triggers and Azure Boards work item synchronization?",
+        "participant": "human",
+        "outputContract": "azure-devops-attestation",
+        "checklistIds": [
+          "Azure DevOps Integration Verification Checklist"
+        ]
+      }
+    ],
+    "qualityGates": []
+  }
+}
