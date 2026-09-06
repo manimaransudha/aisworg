@@ -454,7 +454,10 @@ test("Template authoring (entity-direct): the same pipeline as Pack produces a r
 test("Profile authoring (entity-direct): produces a real Active Profile row referencing a real Template by code", async () => {
   await ensureWebAppTemplateFixture();
   const code = `sdk-test-profile-${randomUUID()}`;
-  const content: Record<string, unknown> = { code, name: "SDK Test Profile", baseTemplateCode: "test-enterprise-web-application", environment: "development", category: "startup", configParameters: {}, optionalPackCodes: [] };
+  // CR-091 Part 2/3 — category/configParameters retired; developmentMethodology/
+  // primaryProgrammingLanguage/sourceControlProvider are mandatory on the
+  // Platform tenant (root authors here).
+  const content: Record<string, unknown> = { code, name: "SDK Test Profile", baseTemplateCode: "test-enterprise-web-application", environment: "development", developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github", optionalPackCodes: [] };
 
   const created = await createAuthoringDraft({ kind: "Profile", actorId: ROOT_ACTOR_ID, content });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
@@ -594,7 +597,9 @@ test("Profile Inheritance: a tenant author inheriting an Active Platform Profile
     kind: "Profile",
     actorId: ROOT_ACTOR_ID,
     tenantId: PLATFORM_TENANT_ID,
-    content: { code, name: "SDK Test Parent Profile", baseTemplateCode: "test-enterprise-web-application", environment: "development", category: "startup", optionalPackCodes: [] },
+    // CR-091 Part 2/3 — category retired; the three Platform-mandatory
+    // Configuration Parameters are required here (Platform tenant).
+    content: { code, name: "SDK Test Parent Profile", baseTemplateCode: "test-enterprise-web-application", environment: "development", developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github", optionalPackCodes: [] },
   });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
   if (!created.ok) return;

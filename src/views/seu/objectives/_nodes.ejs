@@ -45,12 +45,23 @@
         <% }) %>
       <% } %>
       <% if (node.commissioned) { %>
-        <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle">Commissioned</span>
+        <%# Bug fix (owner, 2026-09-06: "Link the seu id on the Commissioned
+             status on the Objectives page") — was inert text; now links
+             straight to the real SEU (node.commissionedSeuId, toListItem). %>
+        <a href="/aisworg/seu/seus/<%= node.commissionedSeuId %>" class="badge bg-success-subtle text-success-emphasis border border-success-subtle text-decoration-none">Commissioned</a>
       <% } else if (node.commissionable) { %>
-        <form method="POST" action="/aisworg/seu/objectives/<%= node.id %>/commission" class="d-inline">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <button type="submit" class="btn btn-sm btn-primary py-0"><i class="bi bi-diagram-3 me-1"></i>Commission SEU</button>
-        </form>
+        <%# Bug fix (owner: "The commission SEU should get onto the SEU
+             screen and the messages has to be on that screen. Not on the
+             objective screen.") — this used to submit straight from the row,
+             with no way to know beforehand whether any Template actually
+             covers every required Capability, and any failure landed back
+             here as a flat flash error. Checking Template-match per row
+             would mean one findCandidateTemplates call per node across the
+             whole tree, so this instead links to the SEU-area screen
+             (seus/new.ejs?objectiveId=..), which computes it once, for one
+             Objective, and shows either the real Commission form or the
+             full gap breakdown there. %>
+        <a href="/aisworg/seu/seus/new?objectiveId=<%= node.id %>" class="btn btn-sm btn-primary py-0"><i class="bi bi-diagram-3 me-1"></i>Commission SEU</a>
       <% } %>
       <%# The direct action a queue button unlocks, once submitted — a
            different kind of button (performs the transition), so it stays

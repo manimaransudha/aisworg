@@ -342,6 +342,21 @@ a:hover { color: var(--primary); text-decoration: underline; }
 .cap-badge { background: #ede9fe; color: #5b21b6; border-radius: 6px; }
 .version-badge { border-radius: 4px; font-size: .68rem; }
 
+/* Objective display-id pill — used across objectives/index, /new, /edit,
+   /detail and _nodes.ejs; centralised here (was duplicated per-view, and
+   dropped entirely without migration on objectives/detail.ejs, leaving its
+   own display_id pills unstyled). */
+.display-id-pill {
+  display: inline-block;
+  font-family: var(--bs-font-monospace, monospace);
+  font-size: .72rem;
+  font-weight: 700;
+  padding: .18rem .55rem;
+  border-radius: 999px;
+  background: var(--border-subtle);
+  color: #334155;
+}
+
 /* ---------- Auth pages ---------- *
  * login/forgot-password/reset-password/verify/disabled all hand-roll the
  * same centered white card on a soft-gray background — consolidated once. */

@@ -3,6 +3,8 @@
   "name": "Mobile Application — Default Development Profile",
   "baseTemplateCode": "mobile-application",
   "environment": "development",
-  "configParameters": {},
+  "developmentMethodology": "scrum",
+  "primaryProgrammingLanguage": "typescript",
+  "sourceControlProvider": "github",
   "optionalPackCodes": ["testing-qa"]
 }

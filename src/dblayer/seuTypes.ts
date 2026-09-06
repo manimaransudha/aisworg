@@ -173,9 +173,19 @@ export interface VerifiableItemFields {
 // "Formatting", "Naming conventions"), not a gate-specific concern like the
 // fields migration 104 deliberately dropped, so it doesn't reopen that
 // simplification (migration 120).
+// 2026-09-05 (CR-088 prerequisite) — configurableKey/configurableValue added:
+// the Ontology-backed dimension/value pair Template's own "Exposable
+// Parameters" tab reads to expose this item as a filterable configurable
+// parameter, and a Profile filters items by. Flat fields, not a nested
+// `configurable: {}` envelope — formGenerator.ts's item-field kinds have no
+// "object" kind, and this is already the second level of nesting inside
+// contributionChecklists[].items[]. Both optional: absence means the item is
+// always included, unconditionally (CR-088's settled default).
 export interface ChecklistItem {
   statement: string;
   group?: string;
+  configurableKey?: string;
+  configurableValue?: string;
 }
 
 export interface PackContributions {
@@ -316,13 +326,6 @@ export interface PackContributions {
   // (engineering-capital, freely-extensible); not a §20 verifiable item —
   // these are inputs/assets, not checks (tbi.md's own §9 classification note).
   engineeringCapital?: Array<{ type?: string; url?: string }>;
-  // Owner (2026-09-01): "The compliance tab in pack model is just a
-  // placeholder. It has to be expanded to pick from one of the existing
-  // compliance codes." Replaces the old contributionsCompliance raw-JSON
-  // Framework/Requirement declaration entirely — a code-only reference to an
-  // existing Compliance Pack's own compliance-name code (migration 144), same
-  // shape as featureFlagCodes, not a copy of that Pack's content.
-  complianceCodes?: string[];
 }
 
 export interface PackRow {
@@ -579,9 +582,41 @@ export interface EbmComposedPack {
   packVersion: string;
 }
 
+// CR-092 Part 6 (owner: "The composition engine should not resolve the
+// conflicts automatically... the human resolves it by picking which
+// source's value wins, right on the validation page") — a value-level
+// disagreement across two-or-more selected Profiles overriding the same
+// exposed parameter (Commissioning Parameter, CR-088) to different values.
+// Structured (not a flat string, unlike `conflicts` below) specifically so
+// the validation page can render a real per-conflict choice — one radio per
+// option — rather than just displaying the disagreement as dead-end text.
+export interface ParameterConflictOption {
+  profileId: string;
+  profileCode: string;
+  profileName: string;
+  value: string;
+}
+export interface ParameterConflict {
+  key: string; // "sourceType::sourceCode::parameterName"
+  sourceType: "service" | "policy" | "checklist" | "dependency";
+  sourceCode: string;
+  parameterName: string;
+  options: ParameterConflictOption[];
+}
+
 export interface EbmCompositionReport {
   warnings: string[];
+  // Governance/Quality-Gate conflicts across the composed Packs
+  // (detectGovernanceConflicts, compositionEngine.ts) — unchanged, still a
+  // flat human-readable list; not yet given the same per-conflict
+  // resolution treatment as parameterConflicts below.
   conflicts: string[];
+  // Resolved by the human on the validation page (key -> the value they
+  // picked, one of that conflict's own ParameterConflictOption.value
+  // choices) before commissioning is allowed to proceed — a key present
+  // here is no longer reported as a live conflict (compositionEngine.compose
+  // excludes it, given the same map back).
+  parameterConflicts: ParameterConflict[];
   resolutions: string[];
 }
 
@@ -608,7 +643,12 @@ export type SeuLifecycleState =
   | "Archived";
 
 export interface CommissioningReport {
-  identity: { seuId: string; templateCode: string; profileCode: string; ebmId: string };
+  // CR-092 Part 6 — templateCode/profileCode stay the single "primary"
+  // (seus.template_id/profile_id can only ever hold one each);
+  // templateCodes/profileCodes record the full set actually composed
+  // together, since a commissioning request may now name one or more of
+  // each (owner: "Multiple profiles are very much possible").
+  identity: { seuId: string; templateCode: string; profileCode: string; templateCodes: string[]; profileCodes: string[]; ebmId: string };
   composition: { packsUsed: string[]; warnings: string[]; conflicts: string[] };
   validation: { errors: string[] };
   runtime: { initialCapabilities: string[]; initialDeliverables: string[] };
@@ -898,6 +938,15 @@ export interface OntologyConceptRow {
   // tenant_id for their own vocabulary.
   tenant_id: string;
   created_at: string;
+  // CR-091 — generic, nullable, meaningful only for `profile-configuration`
+  // concepts today (same "generic column, not special-cased" discipline
+  // description/is_active already established): whether the Configuration
+  // Parameter this concept names is mandatory on a Profile. A tenant
+  // overrides it by inserting their own (concept_type, code, tenant_id) row
+  // with the opposite value — no separate override mechanism, the same
+  // "tenant's own row wins" resolution every other Ontology concept already
+  // has (see ontologyDB.findConcept's own tenant-preference ordering).
+  is_mandatory: boolean | null;
 }
 
 export interface TenantConceptAliasRow {

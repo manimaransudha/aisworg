@@ -158,7 +158,11 @@ async function validateChecklistIds(checklistIds: string[] | undefined, seed: Pa
 async function validatePolicyCodes(policyRefs: string[] | undefined, seed: PackSeedInput, context: string): Promise<string[]> {
   const errors: string[] = [];
   for (const ref of policyRefs ?? []) {
-    const samePackMatch = (seed.contributions.policies ?? []).some((p) => p.code === ref);
+    // CR-089 follow-on — contributions.policies is now a flat string[] of
+    // adopted Policy Definition codes (not locally-named {code} rows), so
+    // "this same Pack's own declared policy code" is just a plain membership
+    // check now.
+    const samePackMatch = (seed.contributions.policies ?? []).includes(ref);
     if (samePackMatch) continue;
     const { data: existing } = await policiesDB.findByIds([ref]);
     const policy = existing?.[0];
@@ -482,6 +486,12 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
       // recommendedChecklistIds, see validateChecklistIds below).
       cl.items.forEach((item, i) => {
         if (!item.statement?.trim()) errors.push(`checklist "${cl.name}" item ${i + 1} is missing a statement`);
+        // CR-088 prerequisite — configurableKey/configurableValue are a pair:
+        // a dimension with no value can't be filtered on, and a value with no
+        // named dimension has nothing to attach to.
+        if (!!item.configurableKey?.trim() !== !!item.configurableValue?.trim()) {
+          errors.push(`checklist "${cl.name}" item ${i + 1} has ${item.configurableKey?.trim() ? "a Configurable Dimension but no Configurable Value" : "a Configurable Value but no Configurable Dimension"}`);
+        }
       });
     }
   }
@@ -548,19 +558,6 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
       errors.push((err as Error).message);
     }
     if (!ec.url?.trim()) errors.push("engineering capital entry is missing a url");
-  }
-
-  // Owner (2026-09-01): "The compliance tab in pack model is just a
-  // placeholder. It has to be expanded to pick from one of the existing
-  // compliance codes." A code-only reference to an existing Compliance
-  // Pack's own compliance-name code (migration 144) — same shape as
-  // featureFlagCodes, on every Pack regardless of its own category.
-  for (const code of seed.contributions.complianceCodes ?? []) {
-    try {
-      await assertCanonicalCategory("compliance-name", code, ontologyViewer);
-    } catch (err) {
-      errors.push((err as Error).message);
-    }
   }
 
   // CR-086 follow-on (owner: "the services form should show all services

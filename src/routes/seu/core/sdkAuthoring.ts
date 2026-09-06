@@ -29,7 +29,7 @@ import {
   type PackSeedInput,
 } from "./packs.js";
 import { advanceTemplateOneStep, materialiseTemplateDraft, validateTemplateSeed, getPackSelectionsByCategory, getDependencyGraphContent, PACK_SELECTION_SLOTS, type TemplateSeedInput, type PackSelectionsByCategory } from "./templates.js";
-import { advanceProfileOneStep, materialiseProfileDraft, validateProfileSeed, getProfilePackSelections, type ProfileSeedInput } from "./profiles.js";
+import { advanceProfileOneStep, materialiseProfileDraft, validateProfileSeed, getProfilePackSelections, CONFIGURATION_PARAMETER_FIELDS, type ProfileSeedInput } from "./profiles.js";
 import {
   advanceDeliverableDefinitionOneStep, validateDeliverableDefinitionSeed,
   inheritedDeliverableDefinitionContent,
@@ -79,7 +79,6 @@ export function toPackSeedInput(content: Record<string, unknown>): PackSeedInput
     reviewGates: arr("contributionReviewGates", "reviewGates"),
     obligationDefinitions: arr("contributionObligationDefinitions", "obligationDefinitions"),
     engineeringCapital: arr("contributionEngineeringCapital", "engineeringCapital"),
-    complianceCodes: normalizeReferentialCodes(arr("contributionComplianceCodes", "complianceCodes"), "complianceCode"),
   } as unknown as PackSeedInput["contributions"];
   return {
     ...(content as unknown as PackSeedInput),
@@ -180,6 +179,8 @@ export function toTemplateSeedInput(content: Record<string, unknown>): TemplateS
     // CR-041 — the dependency graph, authored as its own field (not embedded
     // per deliverableCatalogue entry).
     dependencyGraph: Array.isArray(content.dependencyGraph) ? (content.dependencyGraph as TemplateSeedInput["dependencyGraph"]) : [],
+    // CR-088 — Exposable Parameters tab, same defensive shape.
+    exposedParameters: Array.isArray(content.exposedParameters) ? (content.exposedParameters as TemplateSeedInput["exposedParameters"]) : [],
   };
 }
 
@@ -194,15 +195,32 @@ export function toProfileSeedInput(content: Record<string, unknown>): ProfileSee
     ...(content as unknown as ProfileSeedInput),
     code: typeof content.code === "string" && content.code.trim() ? (content.code as string) : randomUUID(),
     profileVersion: typeof content.profileVersion === "string" && content.profileVersion.trim() ? (content.profileVersion as string) : "0.1.0",
-    category: typeof content.category === "string" ? content.category : "",
-    configParameters: (content.configParameters as Record<string, unknown>) ?? {},
     compositionOptions: (content.compositionOptions as Record<string, unknown>) ?? {},
     optionalPackCodes: normalizePackCodes(content.optionalPackCodes),
     technologyPackCodes: normalizePackCodes(content.technologyPackCodes),
     domainPackCodes: normalizePackCodes(content.domainPackCodes),
     compliancePackCodes: normalizePackCodes(content.compliancePackCodes),
     integrationPackCodes: normalizePackCodes(content.integrationPackCodes),
+    // CR-091 — the other two of Pack's six real category:pack values.
+    engineeringPackCodes: normalizePackCodes(content.engineeringPackCodes),
+    organisationPackCodes: normalizePackCodes(content.organisationPackCodes),
     featureFlagCodes: normalizeFeatureFlagCodes(content.featureFlagCodes),
+    // CR-091 — same referential-list normalisation as featureFlagCodes, keyed
+    // off additionalCapabilityCodes[].capabilityCode.
+    additionalCapabilityCodes: normalizeReferentialCodes(content.additionalCapabilityCodes, "capabilityCode"),
+    deploymentTargets: (content.deploymentTargets as Record<string, unknown>) ?? {},
+    // CR-091 Part 2 — Ch.7 §10 Configuration Parameters. The eight
+    // single-value referential-select fields (targetCloudProvider, ...)
+    // need no individual normalisation here — they're plain strings, already
+    // carried through correctly by the initial spread above, same as
+    // environment/baseTemplateCode/description.
+    participatingOrganisationCodes: normalizeReferentialCodes(content.participatingOrganisationCodes, "organisationCode"),
+    environmentConfiguration: (content.environmentConfiguration as Record<string, unknown>) ?? {},
+    // CR-088 Profile-side completion — reconstructProfileParameterOverrides
+    // (web/sdkAuthoring.ts) already reassembles this into a real array before
+    // parseFormBody runs, same treatment as Template's own exposedParameters
+    // (toTemplateSeedInput).
+    exposedParameterOverrides: Array.isArray(content.exposedParameterOverrides) ? (content.exposedParameterOverrides as ProfileSeedInput["exposedParameterOverrides"]) : [],
   };
 }
 
@@ -225,7 +243,11 @@ function toServiceLevelExpectations(value: unknown): ServiceLevelExpectation[] {
   if (!Array.isArray(value)) return [];
   return value
     .filter((v): v is Record<string, unknown> => typeof v === "object" && v !== null)
-    .map((v) => ({
+    // Explicit per-element return type — without it, target_level's ternary
+    // (each branch a string literal) gets widened to plain `string` by the
+    // object-literal-in-.map() inference TS applies here, which no longer
+    // satisfies ServiceLevelExpectation's own literal union.
+    .map((v): ServiceLevelExpectation => ({
       code: typeof v.code === "string" ? v.code : "",
       label: typeof v.label === "string" ? v.label : "",
       target_level: v.target_level === "maximum" || v.target_level === "exact" ? v.target_level : "minimum",
@@ -338,7 +360,6 @@ function packRowToContent(pack: PackRow): Record<string, unknown> {
     contributionReviewGates: (c as Record<string, unknown[]>).reviewGates ?? [],
     contributionObligationDefinitions: (c as Record<string, unknown[]>).obligationDefinitions ?? [],
     contributionEngineeringCapital: (c as Record<string, unknown[]>).engineeringCapital ?? [],
-    contributionComplianceCodes: (c.complianceCodes ?? []).map((complianceCode) => ({ complianceCode })),
     dependencies: pack.dependencies ?? [],
     // CR-067 — the referential-list widget shape ({packCode}), same as
     // dependencies above.
@@ -631,7 +652,7 @@ export async function getAuthoringDraft(kind: SchemaDefinitionEntityKind, id: st
     // regardless (description/featureFlagCodes/compositionOptions have no
     // real-table equivalent, so those stay draft_content-only either way).
     const materialised = p.status === "Draft" ? {} : packSelectionsToFormShape(await getProfilePackSelections(p.id));
-    return { id: p.id, code: p.code, name: p.name, status: p.status, content: { code: p.code, name: p.name, ...(p.draft_content ?? {}), ...materialised, profileVersion: p.profile_version, category: p.category, tenantId: p.tenant_id, parentProfileId: p.parent_profile_id } };
+    return { id: p.id, code: p.code, name: p.name, status: p.status, content: { code: p.code, name: p.name, ...(p.draft_content ?? {}), ...materialised, profileVersion: p.profile_version, tenantId: p.tenant_id, parentProfileId: p.parent_profile_id } };
   }
   if (kind === "Deliverable") {
     const { data: d } = await deliverableDefinitionsDB.findById(id);
@@ -817,7 +838,6 @@ export async function inheritedPackVersionContent(fromPackId: string, viewerTena
       contributionReviewGates: c.reviewGates ?? [],
       contributionObligationDefinitions: c.obligationDefinitions ?? [],
       contributionEngineeringCapital: c.engineeringCapital ?? [],
-      contributionComplianceCodes: (c.complianceCodes ?? []).map((complianceCode) => ({ complianceCode })),
       dependencies: source.dependencies,
       compositionSources: source.composition_sources,
     },
@@ -858,33 +878,56 @@ export async function inheritedProfileContent(parentProfileId: string, viewerTen
     return { ok: false, error: "parent Profile is not visible to this tenant" };
   }
   const { data: template } = await templatesDB.findById(parent.base_template_id);
-  const [optionalPackCodes, technologyPackCodes, domainPackCodes, compliancePackCodes, integrationPackCodes] = await Promise.all([
+  // CR-091 — engineeringPackCodes/organisationPackCodes were added to
+  // Profile in Part 1 but never wired into inheritance here; fixed in the
+  // same pass as Part 2's own fields below (a Derived Profile silently
+  // dropped its parent's Engineering/Organisation Pack selections until now).
+  const [optionalPackCodes, technologyPackCodes, domainPackCodes, compliancePackCodes, integrationPackCodes, engineeringPackCodes, organisationPackCodes] = await Promise.all([
     profilesDB.getPackSelection(parent.id, "optional"),
     profilesDB.getPackSelection(parent.id, "technology"),
     profilesDB.getPackSelection(parent.id, "domain"),
     profilesDB.getPackSelection(parent.id, "compliance"),
     profilesDB.getPackSelection(parent.id, "integration"),
+    profilesDB.getPackSelection(parent.id, "engineering"),
+    profilesDB.getPackSelection(parent.id, "organisation"),
   ]);
   const priorContent = (parent.draft_content ?? {}) as Record<string, unknown>;
-  return {
-    ok: true,
-    content: {
-      code: parent.code,
-      name: parent.name,
-      baseTemplateCode: template?.code ?? "",
-      environment: parent.environment,
-      category: parent.category ?? "",
-      configParameters: parent.config_parameters,
-      description: typeof priorContent.description === "string" ? priorContent.description : "",
-      compositionOptions: typeof priorContent.compositionOptions === "object" && priorContent.compositionOptions ? priorContent.compositionOptions : {},
-      featureFlagCodes: Array.isArray(priorContent.featureFlagCodes) ? priorContent.featureFlagCodes : [],
-      optionalPackCodes: (optionalPackCodes.data ?? []).map((packCode) => ({ packCode })),
-      technologyPackCodes: (technologyPackCodes.data ?? []).map((packCode) => ({ packCode })),
-      domainPackCodes: (domainPackCodes.data ?? []).map((packCode) => ({ packCode })),
-      compliancePackCodes: (compliancePackCodes.data ?? []).map((packCode) => ({ packCode })),
-      integrationPackCodes: (integrationPackCodes.data ?? []).map((packCode) => ({ packCode })),
-    },
+  const content: Record<string, unknown> = {
+    code: parent.code,
+    name: parent.name,
+    baseTemplateCode: template?.code ?? "",
+    environment: parent.environment,
+    description: typeof priorContent.description === "string" ? priorContent.description : "",
+    compositionOptions: typeof priorContent.compositionOptions === "object" && priorContent.compositionOptions ? priorContent.compositionOptions : {},
+    featureFlagCodes: Array.isArray(priorContent.featureFlagCodes) ? priorContent.featureFlagCodes : [],
+    // CR-091 Part 1 — additionalCapabilityCodes/deploymentTargets, same
+    // draft_content-only inheritance treatment as featureFlagCodes/
+    // compositionOptions above (also missing until this same pass).
+    additionalCapabilityCodes: Array.isArray(priorContent.additionalCapabilityCodes) ? priorContent.additionalCapabilityCodes : [],
+    deploymentTargets: typeof priorContent.deploymentTargets === "object" && priorContent.deploymentTargets ? priorContent.deploymentTargets : {},
+    // CR-091 Part 2 — Configuration Parameters, same draft_content-only
+    // inheritance treatment.
+    participatingOrganisationCodes: Array.isArray(priorContent.participatingOrganisationCodes) ? priorContent.participatingOrganisationCodes : [],
+    environmentConfiguration: typeof priorContent.environmentConfiguration === "object" && priorContent.environmentConfiguration ? priorContent.environmentConfiguration : {},
+    optionalPackCodes: (optionalPackCodes.data ?? []).map((packCode) => ({ packCode })),
+    technologyPackCodes: (technologyPackCodes.data ?? []).map((packCode) => ({ packCode })),
+    domainPackCodes: (domainPackCodes.data ?? []).map((packCode) => ({ packCode })),
+    compliancePackCodes: (compliancePackCodes.data ?? []).map((packCode) => ({ packCode })),
+    integrationPackCodes: (integrationPackCodes.data ?? []).map((packCode) => ({ packCode })),
+    engineeringPackCodes: (engineeringPackCodes.data ?? []).map((packCode) => ({ packCode })),
+    organisationPackCodes: (organisationPackCodes.data ?? []).map((packCode) => ({ packCode })),
   };
+  for (const cp of CONFIGURATION_PARAMETER_FIELDS) {
+    const priorValue = priorContent[cp.field as string];
+    if (typeof priorValue === "string") content[cp.field as string] = priorValue;
+  }
+  // CR-088 Profile-side completion — exposedParameterOverrides, same
+  // draft_content-only inheritance treatment. Still validated fresh at save
+  // time (validateProfileSeed) against whichever base Template the Derived
+  // Profile ends up with — normally the same one, since Profile Inheritance
+  // doesn't offer a way to change it.
+  content.exposedParameterOverrides = Array.isArray(priorContent.exposedParameterOverrides) ? priorContent.exposedParameterOverrides : [];
+  return { ok: true, content };
 }
 
 // CR-023 (owner: "Seed for the templates should populate this field"): a new
@@ -1049,7 +1092,6 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     const collision = await assertProfileCodeVersionFree(code, profileVersion, tenantId);
     if (collision) return { ok: false, errors: [collision] };
 
-    const category = typeof input.content.category === "string" ? input.content.category : null;
     const { data: p, error } = await profilesDB.createDraft({
       code,
       name: (input.content.name as string) || "(untitled Profile)",
@@ -1060,7 +1102,6 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       profileVersion,
       tenantId,
       parentProfileId: input.parentProfileId ?? null,
-      category,
     });
     if (error || !p) return { ok: false, errors: [(error ?? new Error("failed to create Profile draft")).message] };
     return { ok: true, draftId: p.id };
@@ -1221,15 +1262,12 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     const collision = await assertProfileCodeVersionFree(seed.code, seed.profileVersion, existingProfile.tenant_id, input.id);
     if (collision) return { ok: false, errors: [collision] };
 
-    const category = typeof input.content.category === "string" ? input.content.category : null;
     const { data, error } = await profilesDB.updateDraftContent(input.id, {
       name: (input.content.name as string) || "(untitled Profile)",
       baseTemplateId: template.id,
       environment: (input.content.environment as string) || "development",
-      configParameters: (input.content.configParameters as Record<string, unknown>) ?? {},
       draftContent: { ...input.content, code: seed.code },
       profileVersion: seed.profileVersion,
-      category,
     });
     if (error) return { ok: false, errors: [error.message] };
     if (!data) return { ok: false, errors: ["draft not found or no longer editable"] };
@@ -1336,10 +1374,10 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
     const { data: p } = await profilesDB.findById(input.id);
     if (!p) return { ok: false, errors: ["Profile draft not found"] };
     if (p.status === "Draft") {
-      // profileVersion/tenantId/parentProfileId/category pulled from the real
+      // profileVersion/tenantId/parentProfileId pulled from the real
       // columns, same reasoning as getAuthoringDraft's Profile branch above
       // and Template's own publishAuthoringDraft treatment.
-      const seed = toProfileSeedInput({ code: p.code, name: p.name, ...(p.draft_content ?? {}), profileVersion: p.profile_version, category: p.category, tenantId: p.tenant_id, parentProfileId: p.parent_profile_id });
+      const seed = toProfileSeedInput({ code: p.code, name: p.name, ...(p.draft_content ?? {}), profileVersion: p.profile_version, tenantId: p.tenant_id, parentProfileId: p.parent_profile_id });
       const validation = await validateProfileSeed(seed);
       if (!validation.ok) return { ok: false, errors: validation.errors };
       await materialiseProfileDraft(p.id, seed);

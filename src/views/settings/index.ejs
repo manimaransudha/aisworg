@@ -2,63 +2,14 @@
 <html lang="en">
 <head>
   <%- include('../partials/head') %>
-  <%# 
+  <%# CR-083 — .category-card/.category-header/.setting-item/.setting-title/
+       .setting-key/.setting-desc/.setting-type all now come from the
+       canonical stylesheet (public/css/style.css), which already covers
+       this page's own category/setting rows. .save-btn and .input-control
+       are page-only sizing tweaks (no border/header treatment of their
+       own to conflict with CR-083), kept live below rather than
+       centralised for one page's use. %>
   <style>
-    body { background: #f8fafc; }
-    .category-card {
-      border: none;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-      background: #fff;
-      margin-bottom: 2rem;
-      overflow: hidden;
-    }
-    .category-header {
-      background: linear-gradient(135deg, #4f46e5, #6366f1);
-      color: #fff;
-      font-weight: 600;
-      font-size: 1rem;
-      padding: 1rem 1.5rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    .setting-item {
-      padding: 1.5rem;
-      border-bottom: 1px solid #f1f5f9;
-      transition: background 0.15s;
-    }
-    .setting-item:last-child {
-      border-bottom: none;
-    }
-    .setting-item:hover {
-      background: #fafafa;
-    }
-    .setting-title {
-      font-weight: 600;
-      color: #1e293b;
-      font-size: 0.95rem;
-    }
-    .setting-key {
-      font-family: monospace;
-      color: #6366f1;
-      font-size: 0.75rem;
-      background: #e0e7ff;
-      padding: 2px 6px;
-      border-radius: 4px;
-      display: inline-block;
-      margin-top: 2px;
-    }
-    .setting-desc {
-      color: #64748b;
-      font-size: 0.8rem;
-      margin-top: 0.5rem;
-    }
-    .setting-type {
-      font-size: 0.7rem;
-      color: #94a3b8;
-      text-transform: uppercase;
-      font-weight: 700;
-    }
     .save-btn {
       border-radius: 6px;
       padding: 0.4rem 1.2rem;
@@ -70,7 +21,6 @@
       font-size: 0.9rem;
     }
   </style>
-  %>
 </head>
 <body>
   <header><%- include('../partials/navbar') %></header>

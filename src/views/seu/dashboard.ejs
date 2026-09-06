@@ -2,28 +2,20 @@
 <html lang="en">
 <head>
   <%- include('../partials/head') %>
-  <%# Commented out local per-view style overrides in favor of central style.css per rule:
+  <%# CR-083 — .principle-card/.layer-card/.layer-header/.component-row/
+       .component-name/.component-note/.status-badge (base)/.stat-tile/
+       .stat-value/.stat-label all now come from the canonical stylesheet.
+       .intro-lead and the .status-live/-partial/-deferred colour variants
+       are this page's own (only used here) and were dropped along with
+       everything else above without being restored anywhere — genuinely
+       unstyled until now. Kept live, not centralised, since nothing else
+       uses them. %>
   <style>
     .intro-lead { font-size: 1.05rem; color: #334155; line-height: 1.6; max-width: 760px; }
-    .principle-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); background: #fff; padding: 1.1rem 1.25rem; height: 100%; }
-    .principle-card i { color: #4f46e5; font-size: 1.1rem; }
-    .principle-title { font-weight: 700; color: #1e293b; font-size: 0.88rem; margin-bottom: 0.3rem; }
-    .principle-note { color: #64748b; font-size: 0.8rem; line-height: 1.5; }
-    .layer-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); background: #fff; margin-bottom: 1.5rem; overflow: hidden; }
-    .layer-header { background: linear-gradient(135deg, #4f46e5, #6366f1); color: #fff; font-weight: 600; font-size: 0.95rem; padding: 0.85rem 1.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
-    .component-row { padding: 0.9rem 1.25rem; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-    .component-row:last-child { border-bottom: none; }
-    .component-name { font-weight: 600; color: #1e293b; font-size: 0.9rem; }
-    .component-note { color: #64748b; font-size: 0.78rem; margin-top: 0.15rem; }
-    .status-badge { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.22rem 0.55rem; border-radius: 999px; white-space: nowrap; }
     .status-live { background: #dcfce7; color: #166534; }
     .status-partial { background: #fef9c3; color: #854d0e; }
     .status-deferred { background: #f1f5f9; color: #64748b; }
-    .stat-tile { border-radius: 12px; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.03); padding: 1.25rem; text-align: center; }
-    .stat-value { font-size: 2rem; font-weight: 700; color: #4f46e5; }
-    .stat-label { font-size: 0.8rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
   </style>
-  %>
 </head>
 <body>
   <header><%- include('../partials/navbar') %></header>

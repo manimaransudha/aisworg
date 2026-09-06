@@ -12,7 +12,7 @@
     .tier-badge { font-size: 0.68rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 6px; background: #ede9fe; color: #5b21b6; }
     .tree-node:hover { background: #f8fafc; }
     .breadcrumb-path { font-size: 0.72rem; color: #94a3b8; }
-    .display-id-pill { display: inline-block; font-family: var(--bs-font-monospace, monospace); font-size: 0.72rem; font-weight: 700; padding: 0.18rem 0.55rem; border-radius: 999px; background: #e2e8f0; color: #334155; }
+    /* CR-083 — .display-id-pill centralised into public/css/style.css. */
   </style>
 </head>
 <body>
@@ -108,12 +108,18 @@
                 <a href="/aisworg/seu/objectives/<%= o.id %>" class="small text-dark text-decoration-none fw-semibold flex-grow-1"><% if (o.displayId) { %><span class="display-id-pill me-1"><%= o.displayId %></span><% } %><%= o.statement %></a>
                 <span class="state-badge state-<%= o.status %>"><%= o.status %></span>
                 <% if (o.commissioned) { %>
-                  <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle">Commissioned</span>
+                  <%# Bug fix (owner, 2026-09-06: "Link the seu id on the
+                       Commissioned status on the Objectives page") — was
+                       inert text; now links straight to the real SEU
+                       (o.commissionedSeuId, toListItem). %>
+                  <a href="/aisworg/seu/seus/<%= o.commissionedSeuId %>" class="badge bg-success-subtle text-success-emphasis border border-success-subtle text-decoration-none">Commissioned</a>
                 <% } else if (o.commissionable) { %>
-                  <form method="POST" action="/aisworg/seu/objectives/<%= o.id %>/commission" class="d-inline">
-                    <input type="hidden" name="_csrf" value="<%= locals.csrfToken %>">
-                    <button type="submit" class="btn btn-sm btn-primary py-0"><i class="bi bi-diagram-3 me-1"></i>Commission SEU</button>
-                  </form>
+                  <%# Bug fix — same treatment as _nodes.ejs's own tree rows:
+                       routed through the SEU-area screen
+                       (seus/new.ejs?objectiveId=..), which now shows either
+                       the real Commission form or the full Template-gap
+                       diagnostic, rather than submitting blind from here. %>
+                  <a href="/aisworg/seu/seus/new?objectiveId=<%= o.id %>" class="btn btn-sm btn-primary py-0"><i class="bi bi-diagram-3 me-1"></i>Commission SEU</a>
                 <% } %>
                 <%# CR-075 — Edit reachable directly from search results too. %>
                 <% if (locals.canProposeObjective && !o.editLocked) { %>

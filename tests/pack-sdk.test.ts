@@ -206,7 +206,17 @@ test("Pack Registry (listPacksWithNextStates) reports the correct possibleNextSt
 // strategy (later composition wins) still fires and still warns — it's
 // just deduping two resolutions of the *same* row now, not two different
 // rows — because both sides do genuinely name this code.
-test("compositionEngine.compose resolves the same code referenced by both a Template and a Profile to one Version, and still warns about the duplicate reference", async () => {
+// CR-092 Part 6 (owner: "later behavior wins is not correct. it was built
+// in legacy as mvp") — the same Pack code contributed by more than one
+// source (a Template's mandatory set and a Profile's optional set, or two
+// Profiles) was never a real disagreement: resolveActivePack always
+// resolves a given code to the exact same Active row regardless of who
+// asked for it, so there's nothing to warn about — pure deduplication, no
+// "later overrides earlier" decision was ever actually made. The warning
+// this test used to assert on was removed for that reason; this test still
+// covers the real, load-bearing behaviour (one code, resolved once) minus
+// the now-retired warning assertion.
+test("compositionEngine.compose resolves the same code referenced by both a Template and a Profile to one Version, silently deduplicated (no warning — there was never a real conflict)", async () => {
   const code = "test-conflict";
   const versionA = uniqueTestPackVersion();
   const versionB = uniqueTestPackVersion();
@@ -231,16 +241,15 @@ test("compositionEngine.compose resolves the same code referenced by both a Temp
   assert.ok(template);
   await templatesDB.setMandatoryPacks(template!.id, [code]);
 
-  const { data: profile } = await profilesDB.upsert({ code: `test-conflict-profile-${randomUUID()}`, name: "Conflict Test Profile", baseTemplateId: template!.id, environment: "development", configParameters: {} });
+  const { data: profile } = await profilesDB.upsert({ code: `test-conflict-profile-${randomUUID()}`, name: "Conflict Test Profile", baseTemplateId: template!.id, environment: "development" });
   assert.ok(profile);
   await profilesDB.setOptionalPacks(profile!.id, [code]); // same code as the Template's mandatory set, on purpose
 
-  const result = await compositionEngine.compose({ templateId: template!.id, profileId: profile!.id });
+  const result = await compositionEngine.compose({ templateIds: [template!.id], profileIds: [profile!.id] });
   assert.equal(result.composedPacks.length, 1, "one code, resolved once, regardless of how many places reference it");
   assert.equal(result.composedPacks[0]?.packCode, code);
   assert.equal(result.composedPacks[0]?.packVersion, versionB, "findActiveByCode's own tie-break (most recently created) picks the newer Version");
-  assert.equal(result.compositionReport.warnings.length, 1);
-  assert.match(result.compositionReport.warnings[0]!, /contributed more than once/);
+  assert.equal(result.compositionReport.warnings.length, 0, "plain code overlap across sources is silent dedup now, not a warned decision");
 });
 
 // The original bug this covered: composition resolved template_packs/
@@ -286,11 +295,11 @@ test("compositionEngine.compose excludes a Pack code with no Active Version and 
   assert.ok(template);
   await templatesDB.setMandatoryPacks(template!.id, [finalArchived.pack.code]);
 
-  const { data: profile } = await profilesDB.upsert({ code: `test-archived-profile-${randomUUID()}`, name: "Archived Pack Test Profile", baseTemplateId: template!.id, environment: "development", configParameters: {} });
+  const { data: profile } = await profilesDB.upsert({ code: `test-archived-profile-${randomUUID()}`, name: "Archived Pack Test Profile", baseTemplateId: template!.id, environment: "development" });
   assert.ok(profile);
   await profilesDB.setOptionalPacks(profile!.id, [stillActiveOptional.pack!.code]);
 
-  const result = await compositionEngine.compose({ templateId: template!.id, profileId: profile!.id });
+  const result = await compositionEngine.compose({ templateIds: [template!.id], profileIds: [profile!.id] });
   assert.equal(result.composedPacks.length, 1, "the code with no Active Version must not compose");
   assert.equal(result.composedPacks[0]?.packCode, stillActiveOptional.pack!.code);
   assert.equal(result.compositionReport.warnings.length, 1);
@@ -316,10 +325,10 @@ test("a Template automatically composes a newer Active Version of its mandatory 
   const { data: template } = await templatesDB.upsert({ code: `test-live-code-template-${randomUUID()}`, name: "Live Code Test Template" });
   assert.ok(template);
   await templatesDB.setMandatoryPacks(template!.id, [code]);
-  const { data: profile } = await profilesDB.upsert({ code: `test-live-code-profile-${randomUUID()}`, name: "Live Code Test Profile", baseTemplateId: template!.id, environment: "development", configParameters: {} });
+  const { data: profile } = await profilesDB.upsert({ code: `test-live-code-profile-${randomUUID()}`, name: "Live Code Test Profile", baseTemplateId: template!.id, environment: "development" });
   assert.ok(profile);
 
-  const firstComposition = await compositionEngine.compose({ templateId: template!.id, profileId: profile!.id });
+  const firstComposition = await compositionEngine.compose({ templateIds: [template!.id], profileIds: [profile!.id] });
   assert.equal(firstComposition.composedPacks.length, 1);
   assert.equal(firstComposition.composedPacks[0]?.packVersion, versionA);
 
@@ -335,7 +344,7 @@ test("a Template automatically composes a newer Active Version of its mandatory 
   assert.equal(v1Reloaded?.status, "Retired", "publishing+activating v2 must supersede v1, the scenario this test needs");
 
   // No change to the Template/Profile at all — same ids, same stored code.
-  const secondComposition = await compositionEngine.compose({ templateId: template!.id, profileId: profile!.id });
+  const secondComposition = await compositionEngine.compose({ templateIds: [template!.id], profileIds: [profile!.id] });
   assert.equal(secondComposition.composedPacks.length, 1);
   assert.equal(secondComposition.composedPacks[0]?.packCode, code);
   assert.equal(secondComposition.composedPacks[0]?.packVersion, versionB, "the newer Active Version composes automatically — this is the bug fix");

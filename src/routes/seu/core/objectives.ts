@@ -17,6 +17,22 @@ import type { ObjectiveCommentRow, ObjectiveRow, ObjectiveStatus, ObjectiveTier,
 // A child's tier must not be "more strategic" than its parent's.
 const TIER_RANK: Record<ObjectiveTier, number> = { Strategic: 0, Operational: 1, Engineering: 2 };
 
+// Bug fix (owner, 2026-09-06: "That check makes it impossible to make a
+// strategic objective be an umbrella... allow children to be created if a
+// parent is in a proposed or active state. It will become a setup overhead
+// otherwise every time we want to introduce some new feature or request") —
+// CR-075's own "adding a child is an edit of the parent, only allowed while
+// Proposed" rule was too narrow: a Strategic (or Operational) Objective is
+// meant to stay Active as a long-lived umbrella, with new children proposed
+// under it over time as work is identified — not fully decomposed once,
+// up front, before it can ever be activated. Achieved/Superseded/Retired/
+// Archived remain closed to new decomposition (those are genuinely done).
+// Shared by createObjective (adding a new child), reParentObjective (moving
+// an existing one under a new parent), and listReParentCandidates (so the
+// "Move to" picker doesn't offer a status the check itself would then
+// refuse).
+const DECOMPOSABLE_PARENT_STATUSES: ObjectiveStatus[] = ["Proposed", "Active"];
+
 // CR-086 step 2 (settling CR-085's own deferred question — owner: "The
 // ontology for capability-name in CR086 overrides any previous definition"):
 // an Objective's requiredCapabilityCodes are bare capability-name Ontology
@@ -51,8 +67,10 @@ export async function createObjective(input: {
   // container REUSED ACROSS EVERY TENANT (commissionFromForm), not minted per
   // tenant, permanently Active, its own sponsoring_authority fixed to
   // whichever tenant happened to create it first — so it can never pass the
-  // parent tenant-reach check, nor the "parent must be Proposed" edit-scope
-  // check, below. Set only by that one caller.
+  // parent tenant-reach check below (its own status, Active, is no longer a
+  // problem on its own now that DECOMPOSABLE_PARENT_STATUSES includes
+  // Active — this flag's status-check skip is now only a no-op safety net
+  // for that root, not load-bearing). Set only by that one caller.
   skipParentValidation?: boolean;
 }): Promise<{ objective: ObjectiveRow; requiredCapabilities: RequiredCapability[] }> {
   const tier = input.tier ?? "Engineering";
@@ -82,15 +100,15 @@ export async function createObjective(input: {
       throw new Error(`child Objective tier (${tier}) cannot be more strategic than its parent's tier (${parent.tier})`);
     }
 
-    // CR-075 (owner: "Only propose can edit every field... adding moving is
-    // all editing") — adding a child is an edit of the parent, so it's only
-    // allowed while the parent's own status is Proposed, same as statement/
-    // Capabilities/Move.
-    if (!input.skipParentValidation && parent.status !== "Proposed") {
-      throw new Error(`parent Objective is not Proposed (status: ${parent.status}) — adding children is only allowed while Proposed`);
+    // Bug fix — see DECOMPOSABLE_PARENT_STATUSES' own comment: a parent stays
+    // open to new children while Proposed OR Active (a long-lived umbrella,
+    // not a one-shot decomposition window); Achieved/Superseded/Retired/
+    // Archived are genuinely closed.
+    if (!input.skipParentValidation && !DECOMPOSABLE_PARENT_STATUSES.includes(parent.status)) {
+      throw new Error(`parent Objective is not Proposed or Active (status: ${parent.status}) — adding children is only allowed while it is still Proposed or Active`);
     }
 
-    // A Proposed parent can still be locked via an ANCESTOR further up
+    // An eligible (Proposed/Active) parent can still be locked via an ANCESTOR further up
     // (isObjectiveEditLocked walks the whole chain, not just this parent's
     // own status) — the check above alone doesn't catch that case.
     if (await isObjectiveEditLocked(input.parentObjectiveId)) {
@@ -176,6 +194,11 @@ export interface ObjectiveListItem {
   // leaf, Active, not already assigned (supersedes CR-002's Engineering-only
   // rule). Drives the Objectives "Commission SEU" action.
   commissioned: boolean;
+  // Bug fix (owner, 2026-09-06: "Link the seu id on the Commissioned status
+  // on the Objectives page") — the real SEU's own id when commissioned is
+  // true, so the tree/list rows' "Commissioned" badge can link straight to
+  // it instead of being inert text; null otherwise.
+  commissionedSeuId: string | null;
   commissionable: boolean;
   // CR-012: which removal action the node offers. `deletable` — a Proposed leaf
   // with no SEU (hard delete). `retirable` — an Active objective (governed
@@ -200,7 +223,12 @@ export interface ObjectiveListItem {
 function toListItem(
   o: ObjectiveRow,
   opts: {
-    commissioned?: boolean;
+    // Bug fix (owner, 2026-09-06: "Link the seu id on the Commissioned
+    // status on the Objectives page") — replaces the old plain `commissioned`
+    // boolean; `commissioned` itself is now derived from this (non-null =
+    // commissioned), so there's one source of truth instead of two flags a
+    // caller could pass inconsistently.
+    commissionedSeuId?: string | null;
     hasChildren?: boolean;
     submitVerb?: string | null;
     alreadySubmitted?: boolean;
@@ -213,7 +241,8 @@ function toListItem(
     editLocked?: boolean;
   } = {}
 ): ObjectiveListItem {
-  const commissioned = opts.commissioned ?? false;
+  const commissionedSeuId = opts.commissionedSeuId ?? null;
+  const commissioned = commissionedSeuId !== null;
   const hasChildren = opts.hasChildren ?? false;
   const isLeaf = !hasChildren;
   const editLocked = opts.editLocked ?? (opts.alreadySubmitted ?? false);
@@ -229,6 +258,7 @@ function toListItem(
     hasChildren,
     isLeaf,
     commissioned,
+    commissionedSeuId,
     commissionable: !commissioned && o.tier !== "Strategic" && isLeaf && o.status === "Active",
     // CR-075 — not deletable once submitted for activation, itself or via an
     // ancestor (same real check, enforced in deleteObjective).
@@ -316,15 +346,34 @@ async function computeSubmitInfo(
 // tenant); a provided value (including null, for a viewer with no resolved
 // tenant) filters and fails closed, same convention objectivesDB.findAll
 // itself already documents.
+// Bug fix (owner, 2026-09-06: "Link the seu id on the Commissioned status on
+// the Objectives page") — shared by every list-building function below,
+// same batched-not-per-row discipline computeEditLockedIds already uses.
+async function commissionedSeuIdByObjectiveId(): Promise<Map<string, string>> {
+  const { data: pairs } = await seusDB.commissionedObjectiveSeuIds();
+  return new Map((pairs ?? []).map((p) => [p.objectiveId, p.seuId]));
+}
+
 export async function listObjectives(tenantId?: string | null): Promise<ObjectiveListItem[]> {
   const { data } = await objectivesDB.findAll(tenantId);
   const rows = data ?? [];
-  const { data: committedIds } = await seusDB.commissionedObjectiveIds();
-  const commissioned = new Set(committedIds ?? []);
+  const commissionedSeuIds = await commissionedSeuIdByObjectiveId();
   // Leaf detection in-memory: a node has children iff some other row names it as
   // parent. One pass over the full set, no extra query.
   const parentsWithChildren = new Set(rows.map((o) => o.parent_objective_id).filter((p): p is string => !!p));
-  return rows.map((o) => toListItem(o, { commissioned: commissioned.has(o.id), hasChildren: parentsWithChildren.has(o.id) }));
+  return rows.map((o) => toListItem(o, { commissionedSeuId: commissionedSeuIds.get(o.id) ?? null, hasChildren: parentsWithChildren.has(o.id) }));
+}
+
+// Owner, 2026-09-06: "the SEU is commissioned against an objective... If the
+// commissioning happens from SEU, then Objective also has to be picked" —
+// the "Commission a new SEU" screen (no ?objectiveId= yet) needs a real list
+// of Objectives eligible to commission against, the same predicate
+// listObjectives' own `commissionable` flag already computes per row (Active,
+// non-Strategic, leaf, not already commissioned) — just pre-filtered here
+// instead of left to the caller.
+export async function listCommissionableObjectives(tenantId?: string | null): Promise<ObjectiveListItem[]> {
+  const all = await listObjectives(tenantId);
+  return all.filter((o) => o.commissionable);
 }
 
 // Parent-picker and "commission from an existing Objective" both need this —
@@ -338,16 +387,44 @@ export async function listSelectableObjectives(): Promise<ObjectiveListItem[]> {
 // Ebook Library — Full Demo Walkthrough.md, real finding #3, closed properly
 // this time: findOrCreateDefaultProfile's own comment flagged "no UI to
 // choose between multiple real Profiles for a Template if that ever
-// happens" as a known gap — this is that UI's data. Computed only when the
-// Objective is Active (the only state "Commission an SEU" is even offered),
-// and only meaningful when a Template actually satisfies every required
-// Capability — a null preview means the commission button, if shown at all,
-// falls back to the no-choice-available path (0 or 1 real Profile).
-export interface CommissioningPreview {
+// happens" as a known gap — this is that UI's data.
+//
+// Redesigned (owner, 2026-09-05: "Objectives only propose capabilities. They
+// do not take the final call. The correct way to show this information is
+// like a tree. capability-name -> templates -> profile And allow the user to
+// choose a profile. If an additional capability is required, profiles have
+// provision for that.") — replaces the earlier strict-match preview/
+// diagnostic pair entirely. That model treated the Objective's declared
+// Capabilities as a hard filter (one Template must cover every one of them,
+// or commissioning is refused outright); this one treats them as what the
+// owner says they actually are — a proposal a human weighs while browsing,
+// never a computed final answer. One branch per required Capability, each
+// listing every currently-visible Template that carries it (independently —
+// a Template need not cover every OTHER branch too, unlike the old
+// superset-only match) and, under each Template, its own real Profiles to
+// choose from. A Profile's own additionalCapabilityCodes (CR-091 §5) is how
+// a gap a chosen Template leaves gets covered, not this function refusing to
+// let the human proceed.
+export interface ObjectiveCommissioningCapabilityRef {
+  code: string;
+  label: string;
+}
+// CR-092 Part 6 inversion (owner: "The whole selection of template+profile is
+// messed up. It has to be inverted. Show the list of all applicable profiles
+// first - which template they correspond to and the capability name as a
+// list... no duplication of profiles") — was Capability -> Template ->
+// Profile (one branch per Capability, so a Template covering 2 required
+// Capabilities, and each of its Profiles, appeared twice). Now one row per
+// real Profile, never repeated, carrying every required Capability its own
+// Template covers as a list. A Template with no real Profile yet (owner:
+// "template + no profile - i agree with your approach") gets its own row —
+// profile: null, still deduplicated once per Template, not per Capability.
+export interface ObjectiveCommissioningRow {
   templateId: string;
   templateCode: string;
   templateName: string;
-  candidateProfiles: Array<{ id: string; code: string; name: string; environment: string }>;
+  profile: { id: string; code: string; name: string; environment: string } | null;
+  capabilities: ObjectiveCommissioningCapabilityRef[];
 }
 
 export interface ObjectiveDetailView {
@@ -391,7 +468,23 @@ export interface ObjectiveDetailView {
   // meaningful when submitVerb is non-null. Drives whether Submit or the
   // gated next-transition option is what's actually available.
   alreadySubmitted: boolean;
-  commissioningPreview: CommissioningPreview | null;
+  // See ObjectiveCommissioningRow's own comment. null unless this
+  // Objective is otherwise eligible (Active, non-Strategic, leaf, no SEU
+  // request already made against it — commissionedSeuId below); an empty
+  // array means eligible but genuinely nothing to pick from (no required
+  // Capabilities declared and no Template currently visible at all).
+  commissioningOptions: ObjectiveCommissioningRow[] | null;
+  // Bug fix (owner, 2026-09-06: "The corresponding objective should not
+  // allow any more commissioning requests against the same objective") —
+  // commissionSeu itself already refuses a second attempt once an SEU row
+  // exists for this Objective (seusDB.findByObjectiveId, checked before the
+  // CommissionRequested event even fires) — that row is created, and the
+  // event published, on the FIRST attempt regardless of whether it goes on
+  // to succeed or fail, so a stuck/failed Pending row already blocks retries
+  // at the backend. This surfaces that same fact to the UI, which had no way
+  // to know: null means no SEU has ever been requested against this
+  // Objective; non-null is that SEU's own id, whatever its own status.
+  commissionedSeuId: string | null;
 }
 
 export async function getObjectiveDetail(id: string): Promise<ObjectiveDetailView | null> {
@@ -450,20 +543,53 @@ export async function getObjectiveDetail(id: string): Promise<ObjectiveDetailVie
     description: null,
   }));
 
-  let commissioningPreview: CommissioningPreview | null = null;
-  // CR-009: commissionable only if a non-Strategic leaf (and Active).
-  if (objective.status === "Active" && objective.tier !== "Strategic" && isLeaf) {
+  // CR-092 Part 6 inversion — see ObjectiveCommissioningRow's own comment.
+  // findCandidateTemplates' own missingCapabilities is reused to answer
+  // "does this Template carry code X" (not in the list = covered) without a
+  // second query per Capability.
+  // Bug fix — see commissionedSeuId's own comment: mirrors commissionSeu's
+  // own "at most one SEU per Objective" check (seusDB.findByObjectiveId),
+  // not filtered by status — a Pending row from a failed first attempt
+  // blocks a retry exactly the same way a real Commissioned one does.
+  const { data: existingSeu } = await seusDB.findByObjectiveId(id);
+  const commissionedSeuId = existingSeu?.id ?? null;
+
+  let commissioningOptions: ObjectiveCommissioningRow[] | null = null;
+  // CR-009: commissionable only if a non-Strategic leaf (and Active), and —
+  // bug fix — only while no SEU has been requested against it yet.
+  if (objective.status === "Active" && objective.tier !== "Strategic" && isLeaf && !commissionedSeuId) {
     const candidates = await findCandidateTemplates(capabilityCodes, tenantId);
-    const template = candidates.find((c) => c.satisfies);
-    if (template) {
-      const realProfiles = await listRealProfilesForTemplate(template.id);
-      commissioningPreview = {
-        templateId: template.id,
-        templateCode: template.code,
-        templateName: template.name,
-        candidateProfiles: realProfiles.map((p) => ({ id: p.id, code: p.code, name: p.name, environment: p.environment })),
-      };
-    }
+    const coveredCapabilities = (c: (typeof candidates)[number]): ObjectiveCommissioningCapabilityRef[] =>
+      capabilityCodes.filter((code) => !c.missingCapabilities.includes(code)).map((code) => ({ code, label: capabilityLabels[code] ?? code }));
+
+    // A Template covering none of the required Capabilities never appears
+    // (same exclusion the old per-Capability branch filter already applied —
+    // it just never showed up under any branch). No Capability declared at
+    // all means nothing to filter by — every visible Template is relevant,
+    // each with an empty capabilities list.
+    const relevant = capabilityCodes.length > 0 ? candidates.filter((c) => coveredCapabilities(c).length > 0) : candidates;
+
+    // Real Profiles, fetched once per relevant Template.
+    const profilesByTemplateId = new Map<string, Array<{ id: string; code: string; name: string; environment: string }>>();
+    await Promise.all(
+      relevant.map(async (c) => {
+        const realProfiles = await listRealProfilesForTemplate(c.id);
+        profilesByTemplateId.set(
+          c.id,
+          realProfiles.map((p) => ({ id: p.id, code: p.code, name: p.name, environment: p.environment }))
+        );
+      })
+    );
+
+    // One row per real Profile (never repeated across Capabilities); a
+    // Template with no real Profile yet gets its own single row instead
+    // (profile: null — "a default will be created" on commission).
+    commissioningOptions = relevant.flatMap((c): ObjectiveCommissioningRow[] => {
+      const capabilities = coveredCapabilities(c);
+      const profiles = profilesByTemplateId.get(c.id) ?? [];
+      const base = { templateId: c.id, templateCode: c.code, templateName: c.name, capabilities };
+      return profiles.length > 0 ? profiles.map((profile) => ({ ...base, profile })) : [{ ...base, profile: null }];
+    });
   }
 
   // Not just this node's own alreadySubmitted (Proposed -> Active's own
@@ -491,7 +617,8 @@ export async function getObjectiveDetail(id: string): Promise<ObjectiveDetailVie
     submitVerb,
     submitToState,
     alreadySubmitted,
-    commissioningPreview,
+    commissioningOptions,
+    commissionedSeuId,
   };
 }
 
@@ -619,6 +746,21 @@ export async function reParentObjective(id: string, newParentId: string | null):
       throw new Error(`Objective tier (${node.tier}) cannot be more strategic than its new parent's tier (${parent.tier})`);
     }
 
+    // Bug fix (owner, 2026-09-06: "A child Objective can be created even if
+    // the parent is in an active state") — createObjective's own parent
+    // status gate (DECOMPOSABLE_PARENT_STATUSES, above) was never mirrored
+    // here: moving an existing Proposed Objective under a new parent is
+    // exactly as much "adding a child" as creating one fresh is, but this
+    // function only ever checked the MOVED node's own status (line 660),
+    // never the new parent's — so Move was a second, unguarded door to the
+    // same outcome createObjective already gates.
+    if (!DECOMPOSABLE_PARENT_STATUSES.includes(parent.status)) {
+      throw new Error(`new parent Objective is not Proposed or Active (status: ${parent.status}) — adding children is only allowed while it is still Proposed or Active`);
+    }
+    if (await isObjectiveEditLocked(newParentId)) {
+      throw new Error(`new parent Objective has already been submitted for activation — adding children is locked until the activate badge holder acts on it`);
+    }
+
     // Tenant reach (owner: "It should not move beyond the tenant scope") —
     // objectivesDB.updateParent only ever changes parent_objective_id, never
     // sponsoring_authority, so a move across a tenant boundary would leave
@@ -717,8 +859,11 @@ export async function listReParentCandidates(movingId: string): Promise<Objectiv
   const { data: node } = await objectivesDB.findById(movingId);
   if (!node) return [];
   if (node.tier === "Strategic") return []; // a root has no parent to pick
+  // Matches reParentObjective's own DECOMPOSABLE_PARENT_STATUSES gate — a
+  // candidate offered here that the check itself would then refuse is worse
+  // than not offering it at all.
   const [{ data: selectable }, { data: descendantIds }] = await Promise.all([
-    objectivesDB.findByStatuses(["Proposed", "Active"]),
+    objectivesDB.findByStatuses(DECOMPOSABLE_PARENT_STATUSES),
     objectivesDB.findDescendantIds(movingId),
   ]);
   const blocked = new Set([movingId, ...(descendantIds ?? [])]);
@@ -744,16 +889,15 @@ export async function listReParentCandidates(movingId: string): Promise<Objectiv
 export async function getObjectiveRootsPage(opts: { limit: number; offset: number; tenantId?: string | null }): Promise<{ items: ObjectiveListItem[]; total: number }> {
   const { data } = await objectivesDB.findRootsPage(opts);
   const rows = data?.items ?? [];
-  const [{ data: counts }, { data: committedIds }, submitInfo, lockedIds] = await Promise.all([
+  const [{ data: counts }, commissionedSeuIds, submitInfo, lockedIds] = await Promise.all([
     objectivesDB.childCounts(rows.map((o) => o.id)),
-    seusDB.commissionedObjectiveIds(),
+    commissionedSeuIdByObjectiveId(),
     computeSubmitInfo(rows),
     computeEditLockedIds(),
   ]);
-  const commissioned = new Set(committedIds ?? []);
   return {
     items: rows.map((o) =>
-      toListItem(o, { hasChildren: (counts?.get(o.id) ?? 0) > 0, commissioned: commissioned.has(o.id), editLocked: lockedIds.has(o.id), ...submitInfo.get(o.id) })
+      toListItem(o, { hasChildren: (counts?.get(o.id) ?? 0) > 0, commissionedSeuId: commissionedSeuIds.get(o.id) ?? null, editLocked: lockedIds.has(o.id), ...submitInfo.get(o.id) })
     ),
     total: data?.total ?? 0,
   };
@@ -791,15 +935,14 @@ export async function getRejectedObjectivesPage(opts: { limit: number; offset: n
 export async function getObjectiveChildren(parentId: string): Promise<ObjectiveListItem[]> {
   const { data: children } = await objectivesDB.findChildren(parentId);
   const rows = children ?? [];
-  const [{ data: counts }, { data: committedIds }, submitInfo, lockedIds] = await Promise.all([
+  const [{ data: counts }, commissionedSeuIds, submitInfo, lockedIds] = await Promise.all([
     objectivesDB.childCounts(rows.map((o) => o.id)),
-    seusDB.commissionedObjectiveIds(),
+    commissionedSeuIdByObjectiveId(),
     computeSubmitInfo(rows),
     computeEditLockedIds(),
   ]);
-  const commissioned = new Set(committedIds ?? []);
   return rows.map((o) =>
-    toListItem(o, { hasChildren: (counts?.get(o.id) ?? 0) > 0, commissioned: commissioned.has(o.id), editLocked: lockedIds.has(o.id), ...submitInfo.get(o.id) })
+    toListItem(o, { hasChildren: (counts?.get(o.id) ?? 0) > 0, commissionedSeuId: commissionedSeuIds.get(o.id) ?? null, editLocked: lockedIds.has(o.id), ...submitInfo.get(o.id) })
   );
 }
 
@@ -814,8 +957,7 @@ export interface ObjectiveSearchHit extends ObjectiveListItem {
 export async function searchObjectives(tenantId?: string | null): Promise<ObjectiveSearchHit[]> {
   const { data } = await objectivesDB.findAll(tenantId);
   const rows = data ?? [];
-  const [{ data: committedIds }, lockedIds] = await Promise.all([seusDB.commissionedObjectiveIds(), computeEditLockedIds()]);
-  const commissioned = new Set(committedIds ?? []);
+  const [commissionedSeuIds, lockedIds] = await Promise.all([commissionedSeuIdByObjectiveId(), computeEditLockedIds()]);
   const parentsWithChildren = new Set(rows.map((o) => o.parent_objective_id).filter((p): p is string => !!p));
   const byId = new Map(rows.map((o) => [o.id, o]));
   return rows.map((o) => {
@@ -830,7 +972,7 @@ export async function searchObjectives(tenantId?: string | null): Promise<Object
       cursor = p.parent_objective_id;
     }
     return {
-      ...toListItem(o, { commissioned: commissioned.has(o.id), hasChildren: parentsWithChildren.has(o.id), editLocked: lockedIds.has(o.id) }),
+      ...toListItem(o, { commissionedSeuId: commissionedSeuIds.get(o.id) ?? null, hasChildren: parentsWithChildren.has(o.id), editLocked: lockedIds.has(o.id) }),
       path,
     };
   });

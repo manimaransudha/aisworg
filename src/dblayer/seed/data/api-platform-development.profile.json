@@ -3,6 +3,17 @@
   "name": "API Platform — Default Development Profile",
   "baseTemplateCode": "api-platform",
   "environment": "development",
-  "configParameters": {},
-  "optionalPackCodes": ["testing-qa"]
+  "description": "Default development-environment configuration for API Platform commissioning — same core toolchain as SaaS Product, deployed on AWS with blue-green releases for zero-downtime API versioning.",
+  "developmentMethodology": "scrum",
+  "primaryProgrammingLanguage": "typescript",
+  "sourceControlProvider": "github",
+  "targetCloudProvider": "aws",
+  "deploymentStrategy": "blue-green",
+  "aiProviderPreference": "openai",
+  "defaultRepositoryStructure": "polyrepo",
+  "documentationLevel": "comprehensive",
+  "optionalPackCodes": ["testing-qa", "integration-github", "integration-sonarqube", "integration-aws", "integration-jira"],
+  "exposedParameterOverrides": [
+    { "sourceType": "dependency", "sourceCode": "source-code::Deliverable::architecture-decision-record", "parameterName": "requiredState", "value": "Validated" }
+  ]
 }

@@ -24,7 +24,7 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { tenantContractsDB } from "../src/dblayer/tenantContractsDB.js";
 import { executionTargetsDB } from "../src/dblayer/executionTargetsDB.js";
-import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
+import { deriveDedupedCapabilitiesFromPackCodes } from "../src/routes/seu/core/templates.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
 import { ensureWebAppTemplateFixture } from "./testFixtures.js";
@@ -79,14 +79,14 @@ async function commissionAndDispatch(prefix: string, tenantId: string) {
   // than this test's own flow (fulfil requirements-analysis, transition
   // Requirements Analysis Model directly) drives through.
   const { template: fixtureTemplate } = await ensureWebAppTemplateFixture();
-  const { data: profile } = await profilesDB.upsert({ code: `tenant-contract-profile-${randomUUID()}`, name: "Tenant Contract Profile", baseTemplateId: fixtureTemplate.id, environment: "development", configParameters: {} });
+  const { data: profile } = await profilesDB.upsert({ code: `tenant-contract-profile-${randomUUID()}`, name: "Tenant Contract Profile", baseTemplateId: fixtureTemplate.id, environment: "development" });
   const { objective: tcRoot } = await createObjective({ statement: `tenant-contract-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed" });
   const { objective } = await createObjective({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], tier: "Engineering", parentObjectiveId: tcRoot.id, requestedBy: 1001, status: "Proposed" });
   await submitObjective(objective.id, 1001);
   const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: "1001" });
   assert.equal(activated.ok, true);
 
-  const result = await commissionSeu({ objectiveId: objective.id, templateId: fixtureTemplate.id, profileId: profile!.id, actorRole: "super", actorId: "1001", requestedBy: 1001, tenantId });
+  const result = await commissionSeu({ objectiveId: objective.id, templateIds: [fixtureTemplate.id], profileIds: [profile!.id], actorRole: "super", actorId: "1001", requestedBy: 1001, tenantId });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
   const seuId = result.seu.id;
@@ -109,8 +109,14 @@ async function commissionAndDispatch(prefix: string, tenantId: string) {
 
 test("two tenants sharing no edge choice run on the same core; each Work Item routes to its own tenant's edge", async () => {
   // The one pack-global Capability every SEU here produces against.
-  const { data: caps } = await capabilitiesDB.findByCodes(["requirements-analysis"]);
-  const reqAnalysisCapId = (caps ?? [])[0]?.id;
+  // Bug fix (owner: "fix the tests. Do not change the scenario") — see
+  // dependency-definition-engine.test.ts's own comment: findByCodes is
+  // unscoped by originating Pack, and integration-jira.pack.json genuinely
+  // also contributes a "requirements-analysis" capability of its own (no
+  // Service attached) — deriveDedupedCapabilitiesFromPackCodes resolves the
+  // one from this fixture's own Pack, deterministically.
+  const caps = await deriveDedupedCapabilitiesFromPackCodes(["requirements-analysis"]);
+  const reqAnalysisCapId = caps[0]?.id;
   assert.ok(reqAnalysisCapId);
 
   // Tenant A: GitHub, HMAC callback auth, query-only attestation, orchestrator /a.

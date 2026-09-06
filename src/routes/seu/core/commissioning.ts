@@ -18,9 +18,10 @@ import { eventBus } from "../../../domain/engine/eventBus.js";
 import { logger } from "../../../utils/logger.js";
 import { createObjective, ensureOneShotContainer } from "./objectives.js";
 import { findCandidateTemplates } from "./templates.js";
-import { findOrCreateDefaultProfile } from "./profiles.js";
+import { findOrCreateDefaultProfile, extractProfileDetails } from "./profiles.js";
+import type { ProfileDetail } from "./profiles.js";
 import { resolveLabels } from "./ontology.js";
-import type { CommissioningReport, SeuLifecycleState, SeuRow } from "../../../dblayer/seuTypes.js";
+import type { CommissioningReport, SeuLifecycleState, SeuRow, TemplateRow, ProfileRow, CapabilityRow, TemplateDeliverableSeed, EbmCompositionReport, EbmComposedPack } from "../../../dblayer/seuTypes.js";
 
 export type CommissionResult =
   | { ok: true; seu: SeuRow; report: CommissioningReport }
@@ -34,8 +35,24 @@ const AUTOMATIC_STEPS: Array<[SeuLifecycleState, SeuLifecycleState]> = [
 
 export async function commissionSeu(input: {
   objectiveId: string;
-  templateId: string;
-  profileId: string;
+  // CR-092 Part 6 (owner: "Multiple profiles are very much possible. That is
+  // why composition exists. That is why validation is required") — one or
+  // more of each now, not exactly one; templateIds[0]/profileIds[0] is the
+  // "primary" recorded on seus.template_id/profile_id and ebms.template_id/
+  // profile_id (still NOT NULL single FKs, unchanged — see this CR's own
+  // "no schema migration" decision), while the full set is what actually
+  // drives composition and is recorded in the Commissioning Report's own
+  // identity.templateCodes/profileCodes.
+  templateIds: string[];
+  profileIds: string[];
+  // CR-092 Part 6 (owner: "the human resolves it by picking which source's
+  // value wins, right on the validation page") — a human's own prior picks
+  // from the validate view, keyed the same way as
+  // ParameterConflict.key ("sourceType::sourceCode::parameterName"). Passed
+  // straight through to compositionEngine.compose() so an already-resolved
+  // key is excluded from the blocking parameterConflicts check below; never
+  // computed or guessed by this function itself.
+  resolvedParameterOverrides?: Record<string, string>;
   actorRole: string;
   actorId?: string;
   requestedBy?: number | null;
@@ -45,14 +62,39 @@ export async function commissionSeu(input: {
   tenantId?: string | null;
 }): Promise<CommissionResult> {
   const { data: objective } = await objectivesDB.findById(input.objectiveId);
-  const { data: template } = await templatesDB.findById(input.templateId);
-  const { data: profile } = await profilesDB.findById(input.profileId);
   if (!objective) return { ok: false, stage: "validate_request", reason: `objective not found: ${input.objectiveId}` };
-  if (!template) return { ok: false, stage: "validate_request", reason: `template not found: ${input.templateId}` };
-  if (!profile) return { ok: false, stage: "validate_request", reason: `profile not found: ${input.profileId}` };
-  if (profile.base_template_id !== template.id) {
-    return { ok: false, stage: "validate_request", reason: "profile does not target the given template" };
+  if (input.templateIds.length === 0) return { ok: false, stage: "validate_request", reason: "at least one Template is required" };
+  if (input.profileIds.length === 0) return { ok: false, stage: "validate_request", reason: "at least one Profile is required" };
+  // Bug fix (owner, 2026-09-06: "Let us impose the condition that only one
+  // profile can be chosen. Now it is a multi-select") — CR-092 Part 6's own
+  // "allow multiple Profiles, surface the conflicts" policy is retired;
+  // exactly one Profile per commissioning now, enforced here so every
+  // caller (the web picker, commissionFromExistingObjective, any future
+  // API caller) is bound by the same rule, not just the form UI.
+  if (input.profileIds.length > 1) return { ok: false, stage: "validate_request", reason: "only one Profile may be selected for commissioning" };
+
+  const templates: TemplateRow[] = [];
+  for (const templateId of input.templateIds) {
+    const { data: template } = await templatesDB.findById(templateId);
+    if (!template) return { ok: false, stage: "validate_request", reason: `template not found: ${templateId}` };
+    templates.push(template);
   }
+  const profiles: ProfileRow[] = [];
+  for (const profileId of input.profileIds) {
+    const { data: profile } = await profilesDB.findById(profileId);
+    if (!profile) return { ok: false, stage: "validate_request", reason: `profile not found: ${profileId}` };
+    profiles.push(profile);
+  }
+  // Every given Profile must target one of the given Templates — the
+  // set-membership generalisation of the old single-Template equality check.
+  const templateIdSet = new Set(input.templateIds);
+  for (const profile of profiles) {
+    if (!templateIdSet.has(profile.base_template_id)) {
+      return { ok: false, stage: "validate_request", reason: `profile "${profile.code}" does not target any of the given Templates` };
+    }
+  }
+  const template = templates[0];
+  const profile = profiles[0];
   // Ch.1: an Objective must be Active to justify commissioning against it.
   // Real now that Objective has a governed lifecycle (Post-MVP Phase 1) — a
   // no-op for callers that create-and-commission an Objective in one shot,
@@ -120,7 +162,7 @@ export async function commissionSeu(input: {
     originatingObjectId: seu.id,
     seuId: seu.id,
     correlationId,
-    payload: { objectiveId: objective.id, templateId: template.id, profileId: profile.id },
+    payload: { objectiveId: objective.id, templateIds: input.templateIds, profileIds: input.profileIds },
   });
 
   // Ch.8 §9 Validate Request — the minimal, real Authority + Policy check
@@ -147,13 +189,27 @@ export async function commissionSeu(input: {
   }
 
   // Ch.4 Composition Engine
-  const { composedPacks, compositionReport } = await compositionEngine.compose({ templateId: template.id, profileId: profile.id });
+  const { composedPacks, compositionReport } = await compositionEngine.compose({
+    templateIds: input.templateIds,
+    profileIds: input.profileIds,
+    resolvedParameterOverrides: input.resolvedParameterOverrides,
+  });
 
   // FR-3.6/3.7 & FR-21.7: behavioural/governance conflicts requiring human
   // judgement prevent commissioning until resolved. Detected at composition;
   // the SEU never reaches Operational (it stays the pre-commissioned Pending
   // row, same shape as the Authority rejection above).
-  if (compositionReport.conflicts.length > 0) {
+  // CR-092 Part 6 — parameterConflicts is a second, independent conflict
+  // list (owner: "the human resolves it by picking which source's value
+  // wins, right on the validation page"); a key already resolved by the
+  // human (input.resolvedParameterOverrides, threaded into compose() above)
+  // is excluded there, so anything still present here genuinely was never
+  // resolved — this function itself never picks a winner on its own.
+  if (compositionReport.conflicts.length > 0 || compositionReport.parameterConflicts.length > 0) {
+    const allConflictMessages = [
+      ...compositionReport.conflicts,
+      ...compositionReport.parameterConflicts.map((c) => `Parameter conflict on "${c.key}": ${c.options.map((o) => `${o.profileCode} sets "${o.value}"`).join(", ")}.`),
+    ];
     await eventBus.publish({
       eventType: "SEUCommissionRejected",
       originatingObjectType: "SEU",
@@ -161,9 +217,9 @@ export async function commissionSeu(input: {
       seuId: seu.id,
       correlationId,
       causationId: requestedEvent.id,
-      payload: { reason: "composition_conflict", conflicts: compositionReport.conflicts },
+      payload: { reason: "composition_conflict", conflicts: allConflictMessages },
     });
-    return { ok: false, stage: "compose_ebm", reason: `composition conflicts must be resolved before commissioning: ${compositionReport.conflicts.join(" | ")}`, seuId: seu.id };
+    return { ok: false, stage: "compose_ebm", reason: `composition conflicts must be resolved before commissioning: ${allConflictMessages.join(" | ")}`, seuId: seu.id };
   }
 
   const { data: ebm, error: ebmErr } = await ebmsDB.create({
@@ -184,8 +240,16 @@ export async function commissionSeu(input: {
 
   // Ch.8 §12 Create Engineering Assets — required Capabilities + the
   // Template's Deliverable Catalogue, wired into the Dependency Graph.
-  const { data: requiredCapabilities } = await templatesDB.getRequiredCapabilities(template.id);
-  await seuCapabilitiesDB.createMany(seu.id, (requiredCapabilities ?? []).map((c) => c.id));
+  // CR-092 Part 6 — unioned across every given Template (dedup by id), not
+  // just the primary one, same "compose across everything selected"
+  // discipline the Composition Engine itself already applies to Packs.
+  const requiredCapabilitiesById = new Map<string, CapabilityRow>();
+  for (const t of templates) {
+    const { data: caps } = await templatesDB.getRequiredCapabilities(t.id);
+    for (const c of caps ?? []) requiredCapabilitiesById.set(c.id, c);
+  }
+  const requiredCapabilities = [...requiredCapabilitiesById.values()];
+  await seuCapabilitiesDB.createMany(seu.id, requiredCapabilities.map((c) => c.id));
 
   // CR-039/CR-041 — the dependency graph itself is not created here. It's
   // owner-scoped (dependency_definitions, CR-043's polymorphic owner),
@@ -226,8 +290,15 @@ export async function commissionSeu(input: {
       }
     }
   }
+  // CR-092 Part 6 — unioned across every given Template's own Deliverable
+  // Catalogue (dedup by code — the same identity a single Template's own
+  // catalogue is already keyed by), not just the primary Template's.
+  const deliverableCatalogueByCode = new Map<string, TemplateDeliverableSeed>();
+  for (const t of templates) {
+    for (const seed of t.deliverable_catalogue) deliverableCatalogueByCode.set(seed.code, seed);
+  }
   const deliverableIdByName = new Map<string, string>();
-  for (const seed of template.deliverable_catalogue) {
+  for (const seed of deliverableCatalogueByCode.values()) {
     const producingCapability = producingCapabilityByDeliverableCode.get(seed.code);
     const name = deliverableLabelByCode[seed.code] ?? seed.code;
     const { data: deliverable } = await deliverablesDB.create({
@@ -259,7 +330,11 @@ export async function commissionSeu(input: {
   }
 
   const report: CommissioningReport = {
-    identity: { seuId: seu.id, templateCode: template.code, profileCode: profile.code, ebmId: ebm.id },
+    // CR-092 Part 6 — templateCode/profileCode stay the primary (backward
+    // compat for anything reading the singular fields); templateCodes/
+    // profileCodes record the full set that actually participated, since
+    // seus.template_id/profile_id can only ever hold the one primary each.
+    identity: { seuId: seu.id, templateCode: template.code, profileCode: profile.code, templateCodes: templates.map((t) => t.code), profileCodes: profiles.map((p) => p.code), ebmId: ebm.id },
     composition: { packsUsed: composedPacks.map((p) => p.packCode), warnings: compositionReport.warnings, conflicts: compositionReport.conflicts },
     validation: { errors: [] },
     runtime: {
@@ -342,10 +417,15 @@ export async function commissionFromForm(input: {
     tenantId = defaultTenant?.id ?? null;
   }
 
+  // CR-092 Part 6 — commissionSeu itself now takes arrays; this one-shot
+  // freeform path always resolves exactly one Template/Profile, so it just
+  // wraps them. External signature/behaviour of commissionFromForm is
+  // otherwise unchanged — ~35 test files call it directly as a fixture
+  // helper and none of them need to change for this.
   return commissionSeu({
     objectiveId: objective.id,
-    templateId: template.id,
-    profileId: profile.id,
+    templateIds: [template.id],
+    profileIds: [profile.id],
     actorRole: input.actorRole,
     actorId: input.actorId,
     requestedBy: input.requestedBy,
@@ -353,58 +433,107 @@ export async function commissionFromForm(input: {
   });
 }
 
-export type CommissionFromObjectiveResult =
-  | CommissionResult
-  | { ok: false; stage: "select_template"; reason: string };
-
 // The Objective-first path (Post-MVP Phase 1): commission against an
 // Objective that already exists — and is Active — instead of creating one
-// inline. Required Capabilities come from the Objective's own declared set,
-// not re-picked via checkboxes.
+// inline.
+//
+// Bug fix (owner, 2026-09-05: "Objectives only propose capabilities. They do
+// not take the final call... capability-name -> templates -> profile And
+// allow the user to choose a profile. If an additional capability is
+// required, profiles have provision for that.") — this used to auto-derive
+// the Template itself (findCandidateTemplates + the first full superset
+// match), hard-failing whenever no single Template covered every declared
+// Capability. That made the Objective's own Capability list a strict gate,
+// which the owner says is backwards: it's a proposal the human weighs when
+// picking a Template, not a filter this function enforces — and any gap a
+// chosen Template leaves is exactly what a Profile's own
+// additionalCapabilityCodes (CR-091 §5) exists to cover. templateId is now a
+// real, required, human choice (the web route's own capability -> templates
+// -> profile tree, fed by getObjectiveDetail's own commissioningOptions,
+// core/objectives.ts) — this function no longer computes or second-guesses
+// it, so there is no more "select_template" failure stage at all; whatever
+// commissionSeu itself would reject (wrong Profile for the Template,
+// Objective not eligible, ...) is the only way this can still fail.
+// CR-092 Part 6 (owner: "Multiple profiles are very much possible. That is
+// why composition exists. That is why validation is required") — one or
+// more (Template, Profile) selections now, not exactly one. Each selection
+// is its own pair rather than a flat templateIds[]/profileIds[] so a
+// per-pair omitted profileId can fall back to findOrCreateDefaultProfile for
+// THAT specific Template (the same fallback this function already had for
+// the single-selection case) — a flat pair of arrays would lose which
+// omitted profileId belonged to which Template.
 export async function commissionFromExistingObjective(input: {
   objectiveId: string;
+  selections: Array<{
+    templateId: string;
+    // Real choice, not a heuristic override: findOrCreateDefaultProfile's
+    // own comment flagged this as unsolved — this is the caller (the web
+    // route's own picker, sourced from getObjectiveDetail's
+    // commissioningOptions) closing it, per pair. commissionSeu's own
+    // base_template_id set-membership check catches a mismatched pairing,
+    // so this doesn't re-validate it belongs to the chosen Template.
+    profileId?: string;
+  }>;
+  // CR-092 Part 6 — the human's own picks from the validate view, forwarded
+  // straight through to commissionSeu (which forwards them to
+  // compositionEngine.compose()). See commissionSeu's own field comment.
+  resolvedParameterOverrides?: Record<string, string>;
   actorRole: string;
   actorId?: string;
   requestedBy?: number | null;
-  // Real choice, not a heuristic override: findOrCreateDefaultProfile's own
-  // comment flagged this as unsolved — this is the caller (the web route's
-  // real dropdown, sourced from listRealProfilesForTemplate) closing it.
-  // commissionSeu's own base_template_id check catches a mismatched id, so
-  // this doesn't re-validate it belongs to the matched Template.
-  profileId?: string;
-  // Scopes findCandidateTemplates to Platform + this tenant (see its own
-  // header comment) — the acting user's tenant, kept separate from Template
-  // candidate search on purpose (this stays as the caller's own tenant, not
-  // the Objective's). The SEU's own tenant is a different question: since
-  // CR-071 Objectives ARE tenant-owned (sponsoring_authority), and this
-  // function deliberately does NOT forward tenantId into its commissionSeu
-  // call below — commissionSeu derives the SEU's tenant from the Objective
-  // itself (§18.11), which is correct here (unlike commissionFromForm's
-  // one-shot path, this Objective's sponsoring_authority is real, not
-  // inherited from a shared cross-tenant container).
-  tenantId?: string | null;
-}): Promise<CommissionFromObjectiveResult> {
-  const { data: requiredCapabilities } = await objectivesDB.getRequiredCapabilities(input.objectiveId);
-  const capabilityCodes = (requiredCapabilities ?? []).map((c) => c.code);
-
-  const candidates = await findCandidateTemplates(capabilityCodes, input.tenantId);
-  const template = candidates.find((c) => c.satisfies);
-  if (!template) {
-    return {
-      ok: false,
-      stage: "select_template",
-      reason: `no Template satisfies every required Capability (candidates checked: ${candidates.map((c) => c.code).join(", ") || "none"})`,
-    };
+}): Promise<CommissionResult> {
+  const templateIds = [...new Set(input.selections.map((s) => s.templateId))];
+  const profileIds: string[] = [];
+  for (const s of input.selections) {
+    const profileId = s.profileId ?? (await findOrCreateDefaultProfile(s.templateId)).id;
+    profileIds.push(profileId);
   }
-
-  const profileId = input.profileId ?? (await findOrCreateDefaultProfile(template.id)).id;
 
   return commissionSeu({
     objectiveId: input.objectiveId,
-    templateId: template.id,
-    profileId,
+    templateIds,
+    profileIds: [...new Set(profileIds)],
+    resolvedParameterOverrides: input.resolvedParameterOverrides,
     actorRole: input.actorRole,
     actorId: input.actorId,
     requestedBy: input.requestedBy,
   });
+}
+
+// CR-092 Part 6 — the "Queue to validate" action's own backend (owner: "has
+// to queue to validate. The validation view/form is what should show all
+// the conflicting packs / parameters / instructions"). A read-only preview
+// of what commissioning this exact selection would compose, run BEFORE any
+// SEU row exists — there's nothing to roll back if conflicts are found,
+// unlike commissionSeu's own Pending row (already created before its
+// equivalent check runs today). Selections with no explicit profileId are
+// included for their Template's own mandatory Packs only — a
+// not-yet-created default Profile has no optional Packs or
+// exposedParameterOverrides to conflict with anything, so there is nothing
+// meaningful to preview for it beyond that. Same conflict list
+// commissionSeu itself will block on (compositionEngine.compose is the one
+// shared implementation, not a parallel check).
+export async function previewCommissioningValidation(input: {
+  selections: Array<{ templateId: string; profileId?: string }>;
+  // CR-092 Part 6 — re-previewing after the human picks a winning value per
+  // conflict on the validate page should reflect those picks (so the
+  // re-rendered report shows the conflict as resolved), without ever
+  // computing a pick itself. Same field shape as commissionSeu's own.
+  resolvedParameterOverrides?: Record<string, string>;
+}): Promise<{ compositionReport: EbmCompositionReport; composedPacks: EbmComposedPack[]; profileDetails: ProfileDetail[] }> {
+  const templateIds = [...new Set(input.selections.map((s) => s.templateId))];
+  const profileIds = [...new Set(input.selections.map((s) => s.profileId).filter((id): id is string => !!id))];
+  const { compositionReport, composedPacks } = await compositionEngine.compose({ templateIds, profileIds, resolvedParameterOverrides: input.resolvedParameterOverrides });
+  // CR-092 Part 6 (owner: "On the Validation page, list all the profile
+  // details. Not the heading or meta data. ALL THE DETAILS.") — every
+  // selected Profile's own full content, surfaced regardless of whether any
+  // conflict was found; "no conflicts" was hiding the substance of what's
+  // actually being commissioned, not just the disagreements.
+  const profiles: ProfileRow[] = [];
+  for (const profileId of profileIds) {
+    const { data: profile } = await profilesDB.findById(profileId);
+    if (profile) profiles.push(profile);
+  }
+  const profileDetails = await Promise.all(profiles.map(extractProfileDetails));
+  return { compositionReport, composedPacks, profileDetails };
 }

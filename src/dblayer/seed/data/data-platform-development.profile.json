@@ -3,6 +3,17 @@
   "name": "Data Platform — Default Development Profile",
   "baseTemplateCode": "data-platform",
   "environment": "development",
-  "configParameters": {},
-  "optionalPackCodes": ["testing-qa"]
+  "description": "Default development-environment configuration for Data Platform commissioning — Python-first toolchain, deployed on GCP for its native data-warehouse/pipeline integration, canary rollouts for pipeline changes.",
+  "developmentMethodology": "scrum",
+  "primaryProgrammingLanguage": "python",
+  "sourceControlProvider": "github",
+  "targetCloudProvider": "gcp",
+  "deploymentStrategy": "canary",
+  "aiProviderPreference": "google",
+  "defaultRepositoryStructure": "monorepo",
+  "documentationLevel": "standard",
+  "optionalPackCodes": ["testing-qa", "integration-github", "integration-gcp"],
+  "exposedParameterOverrides": [
+    { "sourceType": "service", "sourceCode": "architectural-review-service", "parameterName": "compliance-with-architecture-principle", "value": "75" }
+  ]
 }

@@ -80,10 +80,9 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
-import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
 import { dependencyDefinitionsDB } from "../src/dblayer/dependencyDefinitionsDB.js";
 import { materialiseDependencyGraph } from "../src/domain/engine/materialiseDependencyGraph.js";
-import { deriveCapabilityCodesFromPackCodes } from "../src/routes/seu/core/templates.js";
+import { deriveDedupedCapabilitiesFromPackCodes } from "../src/routes/seu/core/templates.js";
 import { transitionDeliverable, type TransitionDeliverableResult } from "../src/routes/seu/core/deliverables.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
@@ -166,7 +165,6 @@ interface ProfileSeed {
   name: string;
   baseTemplateCode: string;
   environment: string;
-  configParameters: Record<string, unknown>;
   optionalPackCodes?: string[];
 }
 
@@ -274,17 +272,22 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
   // the tests, since Capability.code is free text with no Ontology
   // constraint blocking the rename). Reproduces the exact same 3 capability
   // codes core-engineering used to, just sourced from real Packs now.
-  // CR-079 bug fix — findByCodes has no Pack scoping, and a capability code
-  // is now a genuinely shared Ontology term (capability-name) multiple Packs
-  // can each independently contribute (e.g. "software-construction" from
-  // openup-development AND every Technology pack) — de-dupe by code, same
-  // treatment templates.ts's own materialisePackSelectionsAndCapabilities
-  // got for the identical reason, so this fixture doesn't over-attribute
-  // capabilities from Packs outside its own mandatoryPackCodes selection.
-  const derivedCapabilityCodes = await deriveCapabilityCodesFromPackCodes(templateSeed.mandatoryPackCodes);
-  const { data: capabilities } = await capabilitiesDB.findByCodes(derivedCapabilityCodes);
-  const dedupedCapabilities = new Map((capabilities ?? []).map((c) => [c.code, c]));
-  const requiredCapabilityIds = [...dedupedCapabilities.values()].map((c) => c.id);
+  // Bug fix (owner: "fix the tests. Do not change the scenario") —
+  // capability-name is a genuinely shared Ontology term multiple Packs can
+  // each independently contribute (e.g. "requirements-analysis" from this
+  // fixture's own Pack AND, separately, from integration-jira.pack.json —
+  // real, deliberate, not a data bug). The previous fix here
+  // (deriveCapabilityCodesFromPackCodes for codes, then a second, UNSCOPED
+  // capabilitiesDB.findByCodes(codes) pass to get rows) reintroduced exactly
+  // the ambiguity it meant to close — that second lookup sees every Pack
+  // sharing the code, not just this fixture's own mandatoryPackCodes, so
+  // which Pack's row (and which Pack's own Services) ends up as this
+  // Template's "required capability" depended on query return order.
+  // deriveDedupedCapabilitiesFromPackCodes (core/templates.ts's own
+  // resolution, same one materialisePackSelectionsAndCapabilities uses) goes
+  // straight from Pack codes to rows, scoped correctly the first time.
+  const capabilities = await deriveDedupedCapabilitiesFromPackCodes(templateSeed.mandatoryPackCodes);
+  const requiredCapabilityIds = capabilities.map((c) => c.id);
 
   const { data: existingRequired } = await templatesDB.getRequiredCapabilities(template.id);
   if (!sameSet((existingRequired ?? []).map((c) => c.id), requiredCapabilityIds)) {
@@ -312,7 +315,6 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
     name: profileSeed.name,
     baseTemplateId: template.id,
     environment: profileSeed.environment,
-    configParameters: profileSeed.configParameters,
   });
   if (profileErr || !profile) throw profileErr ?? new Error(`profile upsert failed: ${profileSeed.code}`);
 

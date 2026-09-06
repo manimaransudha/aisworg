@@ -3,6 +3,8 @@
   "name": "Legacy Modernisation — Default Development Profile",
   "baseTemplateCode": "legacy-modernisation",
   "environment": "development",
-  "configParameters": {},
+  "developmentMethodology": "scrum",
+  "primaryProgrammingLanguage": "typescript",
+  "sourceControlProvider": "github",
   "optionalPackCodes": ["testing-qa"]
 }

@@ -23,13 +23,24 @@ function visibleTenantIds(viewer: OntologyViewer): string[] | null {
 }
 
 export const ontologyDB = {
+  // Bug fix (CR-091) — when a Platform row and a tenant's own shadow row both
+  // exist for the same (concept_type, code), this used to have no ORDER BY
+  // at all: which one "LIMIT 1" returned was whatever order Postgres
+  // happened to produce, not reliably the tenant's own. That's silently
+  // fine for every caller that only ever reads default_label/description
+  // (Platform's and a tenant's rarely differ in practice) — but CR-091's own
+  // tenant-overridable `is_mandatory` flag depends on the tenant's row
+  // actually winning every time, the same explicit preference
+  // policyDefinitionsDB.findActiveByCodeVisibleTo already has. Ordering by
+  // "this row's tenant_id is the viewer's own" first fixes it for every
+  // caller, not just the new one.
   async findConcept(conceptType: string, code: string, viewer: OntologyViewer): Promise<DbResult<OntologyConceptRow | null>> {
     try {
       const tenantIds = visibleTenantIds(viewer);
       const { rows } = tenantIds
         ? await query<OntologyConceptRow>(
-            "SELECT * FROM ontology_concepts WHERE concept_type = $1 AND code = $2 AND tenant_id = ANY($3::uuid[]) LIMIT 1",
-            [conceptType, code, tenantIds]
+            "SELECT * FROM ontology_concepts WHERE concept_type = $1 AND code = $2 AND tenant_id = ANY($3::uuid[]) ORDER BY (tenant_id = $4) DESC LIMIT 1",
+            [conceptType, code, tenantIds, viewer.tenantId ?? PLATFORM_TENANT_ID]
           )
         : await query<OntologyConceptRow>("SELECT * FROM ontology_concepts WHERE concept_type = $1 AND code = $2 LIMIT 1", [conceptType, code]);
       return { data: rows[0] ?? null };

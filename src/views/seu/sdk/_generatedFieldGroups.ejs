@@ -24,7 +24,7 @@
     schema-registry's own meta-schema form still uses unchanged, so this
     redesign carries zero risk to that page. %>
 <%
-  var sections = locals.sections || ['metadata', 'packSelection', 'deliverables', 'compatibility', 'dependencies', 'contributions'];
+  var sections = locals.sections || ['metadata', 'packSelection', 'deliverables', 'exposableParameters', 'parameterOverrides', 'configurationParameters', 'compatibility', 'dependencies', 'contributions'];
   var wantSection = function(key) { return sections.indexOf(key) !== -1; };
   var idPrefix = locals.idPrefix || 'sec';
   var simpleFields = (locals.groups.other || []).concat(locals.groups.metadata || []);
@@ -58,6 +58,27 @@
   }
   if (wantSection('deliverables') && (locals.groups.deliverables || []).length) {
     tabs.push({ id: 'deliverables', label: 'Deliverable Catalogue', type: 'simple', fields: locals.groups.deliverables, hasContent: false });
+  }
+  if (wantSection('exposableParameters') && (locals.groups.exposableParameters || []).length) {
+    tabs.push({ id: 'exposableParameters', label: 'Exposable Parameters', type: 'exposableParameters', hasContent: false });
+  }
+  // CR-088 Profile-side completion (owner, 2026-09-05: "the overrides have to
+  // be saved in the profile") — Profile's own tab, mirroring Exposable
+  // Parameters above exactly (candidate-driven, computed server-side, no
+  // author-typed rows), one level down: Template decides WHICH parameters
+  // may be overridden at all; this tab is where a Profile actually sets the
+  // overriding value for the ones it chooses to.
+  if (wantSection('parameterOverrides') && (locals.groups.parameterOverrides || []).length) {
+    tabs.push({ id: 'parameterOverrides', label: 'Parameter Overrides', type: 'parameterOverrides', hasContent: false });
+  }
+  // CR-091 Part 2 — Profile's own Ch.7 §10 Configuration Parameters. Unlike
+  // Exposable Parameters above (a bespoke candidate-driven grid), these are
+  // ordinary generated fields — 'simple' renders them exactly like
+  // Identity & Metadata/Compatibility already do, just under their own
+  // tab (owner: "Yes Exposed parameters in one tab and Configuration
+  // parameters in another").
+  if (wantSection('configurationParameters') && (locals.groups.configurationParameters || []).length) {
+    tabs.push({ id: 'configurationParameters', label: 'Configuration Parameters', type: 'simple', fields: locals.groups.configurationParameters, hasContent: false });
   }
   if (wantSection('compatibility') && (locals.groups.compatibility || []).length) {
     tabs.push({ id: 'compatibility', label: 'Compatibility', type: 'simple', fields: locals.groups.compatibility, hasContent: false });
@@ -503,6 +524,152 @@
           </div>
           <% if (t.id === 'compatibility') { %>
             <p class="text-muted small mt-3 mb-0">Declared for documentation today — composition doesn't yet enforce these (Ch.5 §19.9).</p>
+          <% } %>
+
+        <% } else if (t.type === 'exposableParameters') { %>
+          <%# CR-088 — candidate-driven, not author-added: one row per
+              configurable parameter the Template's currently-selected Packs
+              actually carry (deriveExposableParameterCandidates,
+              core/templates.ts — recomputed on every render, never trusted
+              from stale saved content). Owner's own settled mechanism:
+              value-bearing candidates (Service Level metrics, Policy's
+              constraintType) get an editable value plus a checkbox; list/
+              filter candidates (Policy's three applicability dimensions,
+              Checklist's configurableKey) get a checkbox only. Checked =
+              "a Profile may override this" — every candidate starts checked.
+              Submitted as indexed exposedParamRows[i][...], reassembled into
+              the real exposedParameters[] by the web route
+              (reconstructExposedParameters, sdkAuthoring.ts) before
+              parseFormBody ever runs — this field has no author-typed rows
+              for that generic machinery to parse in the first place. %>
+          <p class="text-muted small mb-2">Which of this Template's configurable parameters a Profile may override, and this Template's own value for the ones it sets. Recomputed from the Pack Codes tab's current selections — a parameter whose Pack was deselected drops off automatically.</p>
+          <% var epRows = locals.exposableParameterRows || []; %>
+          <% if (!epRows.length) { %>
+            <p class="text-muted small mb-0">None yet — the currently-selected Packs (Pack Codes tab) don't carry any Service Level targets, Policies, or configurable Checklist items.</p>
+          <% } else { %>
+            <% var epGroups = [
+              { sourceType: 'service', label: 'Service Level' },
+              { sourceType: 'policy', label: 'Policy' },
+              { sourceType: 'checklist', label: 'Checklist' },
+            ]; %>
+            <% epGroups.forEach(function(g) { %>
+              <% var groupRows = []; epRows.forEach(function(row, idx) { if (row.sourceType === g.sourceType) groupRows.push({ row: row, idx: idx }); }); %>
+              <% if (groupRows.length) { %>
+                <div class="mb-3">
+                  <div class="text-uppercase text-muted small fw-semibold mb-1"><%= g.label %></div>
+                  <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                      <tbody>
+                        <% groupRows.forEach(function(entry) { %>
+                          <% var row = entry.row, i = entry.idx; %>
+                          <tr>
+                            <td class="small text-nowrap"><%= row.sourceName %></td>
+                            <td class="small text-nowrap text-muted"><%= row.parameterLabel %></td>
+                            <td class="small">
+                              <% if (canEdit) { %>
+                                <input type="hidden" name="exposedParamRows[<%= i %>][sourceType]" value="<%= row.sourceType %>">
+                                <input type="hidden" name="exposedParamRows[<%= i %>][sourceCode]" value="<%= row.sourceCode %>">
+                                <input type="hidden" name="exposedParamRows[<%= i %>][parameterName]" value="<%= row.parameterName %>">
+                              <% } %>
+                              <% if (row.valueBearing) { %>
+                                <% if (row.valueOptions && row.valueOptions.length) { %>
+                                  <% if (!canEdit) { %><%= row.value || '—' %><% } else { %>
+                                  <select name="exposedParamRows[<%= i %>][value]" class="form-select form-select-sm" style="max-width: 12rem;">
+                                    <% row.valueOptions.forEach(function(opt) { %>
+                                      <option value="<%= opt %>" <%= row.value === opt ? 'selected' : '' %>><%= opt %></option>
+                                    <% }) %>
+                                  </select>
+                                  <% } %>
+                                <% } else { %>
+                                  <% if (!canEdit) { %><%= row.value || '—' %><% } else { %>
+                                  <input type="text" name="exposedParamRows[<%= i %>][value]" class="form-control form-control-sm" style="max-width: 10rem;" value="<%= row.value %>">
+                                  <% } %>
+                                <% } %>
+                              <% } else { %>
+                                <span class="text-muted">—</span>
+                              <% } %>
+                            </td>
+                            <td class="small text-nowrap">
+                              <div class="form-check mb-0">
+                                <input type="checkbox" class="form-check-input" name="exposedParamRows[<%= i %>][overridable]" value="true" <%= row.overridable ? 'checked' : '' %> <%- canEdit ? '' : 'disabled' %>>
+                                <label class="form-check-label small text-muted">Profile may override</label>
+                              </div>
+                            </td>
+                          </tr>
+                        <% }) %>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              <% } %>
+            <% }) %>
+          <% } %>
+
+        <% } else if (t.type === 'parameterOverrides') { %>
+          <%# CR-088 Profile-side completion — candidate-driven, same
+              discipline as the Exposable Parameters tab above: one row per
+              parameter this Profile's base Template flagged overridable
+              (deriveOverridableParameterCandidates, core/templates.ts —
+              recomputed fresh on every render off baseTemplateCode). Blank
+              means "no override, use the Template's own value" — never
+              pre-filled with that value, so a blank input can't be mistaken
+              for an applied override. Submitted as indexed
+              exposedParamOverrideRows[i][...], reassembled into the real
+              exposedParameterOverrides[] by the web route
+              (reconstructProfileParameterOverrides, sdkAuthoring.ts) before
+              parseFormBody ever runs, same as Template's own tab. %>
+          <p class="text-muted small mb-2">This Profile's own value for whichever of its base Template's configurable parameters the Template allows a Profile to override. Leave blank to keep the Template's own value.</p>
+          <% var poRows = locals.exposedParameterOverrideRows || []; %>
+          <% if (!poRows.length) { %>
+            <p class="text-muted small mb-0">None yet — the base Template (Identity &amp; Metadata tab) hasn't flagged any of its configurable parameters as overridable.</p>
+          <% } else { %>
+            <% var poGroups = [
+              { sourceType: 'service', label: 'Service Level' },
+              { sourceType: 'policy', label: 'Policy' },
+            ]; %>
+            <% poGroups.forEach(function(g) { %>
+              <% var groupRows = []; poRows.forEach(function(row, idx) { if (row.sourceType === g.sourceType) groupRows.push({ row: row, idx: idx }); }); %>
+              <% if (groupRows.length) { %>
+                <div class="mb-3">
+                  <div class="text-uppercase text-muted small fw-semibold mb-1"><%= g.label %></div>
+                  <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                      <tbody>
+                        <% groupRows.forEach(function(entry) { %>
+                          <% var row = entry.row, i = entry.idx; %>
+                          <tr>
+                            <td class="small text-nowrap"><%= row.sourceName %></td>
+                            <td class="small text-nowrap text-muted"><%= row.parameterLabel %></td>
+                            <td class="small text-nowrap text-muted">Template default: <%= row.defaultValue || '—' %></td>
+                            <td class="small">
+                              <% if (canEdit) { %>
+                                <input type="hidden" name="exposedParamOverrideRows[<%= i %>][sourceType]" value="<%= row.sourceType %>">
+                                <input type="hidden" name="exposedParamOverrideRows[<%= i %>][sourceCode]" value="<%= row.sourceCode %>">
+                                <input type="hidden" name="exposedParamOverrideRows[<%= i %>][parameterName]" value="<%= row.parameterName %>">
+                              <% } %>
+                              <% if (row.valueOptions && row.valueOptions.length) { %>
+                                <% if (!canEdit) { %><%= row.value || '—' %><% } else { %>
+                                <select name="exposedParamOverrideRows[<%= i %>][value]" class="form-select form-select-sm" style="max-width: 12rem;">
+                                  <option value="">— use Template default —</option>
+                                  <% row.valueOptions.forEach(function(opt) { %>
+                                    <option value="<%= opt %>" <%= row.value === opt ? 'selected' : '' %>><%= opt %></option>
+                                  <% }) %>
+                                </select>
+                                <% } %>
+                              <% } else { %>
+                                <% if (!canEdit) { %><%= row.value || '—' %><% } else { %>
+                                <input type="text" name="exposedParamOverrideRows[<%= i %>][value]" class="form-control form-control-sm" style="max-width: 10rem;" value="<%= row.value %>" placeholder="<%= row.defaultValue || '' %>">
+                                <% } %>
+                              <% } %>
+                            </td>
+                          </tr>
+                        <% }) %>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              <% } %>
+            <% }) %>
           <% } %>
 
         <% } else { %>

@@ -47,5 +47,9 @@
     { "toCode": "deployment-manifest", "fromType": "Capability", "fromCapabilityCode": "software-release" },
     { "toCode": "incident-report-post-mortem", "fromType": "Deliverable", "fromCode": "deployment-manifest" },
     { "toCode": "incident-report-post-mortem", "fromType": "Capability", "fromCapabilityCode": "operating-production-systems" }
+  ],
+  "exposedParameters": [
+    { "sourceType": "service", "sourceCode": "architectural-review-service", "parameterName": "compliance-with-architecture-principle", "value": "90", "overridable": true },
+    { "sourceType": "dependency", "sourceCode": "source-code::Deliverable::architecture-decision-record", "parameterName": "requiredState", "value": "Approved", "overridable": true }
   ]
 }

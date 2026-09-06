@@ -3,6 +3,5 @@
   "name": "E-Book Library Development Profile",
   "baseTemplateCode": "enterprise-web-application",
   "environment": "development",
-  "configParameters": {},
   "optionalPackCodes": ["testing-qa"]
 }

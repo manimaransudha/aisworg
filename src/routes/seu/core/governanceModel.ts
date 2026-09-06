@@ -7,6 +7,7 @@
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
+import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 
 export interface EffectiveGovernanceModel {
@@ -40,10 +41,18 @@ export async function getEffectiveGovernanceModel(seuId: string): Promise<Effect
       seenAuth.add(r.code);
       authorityRules.push({ code: r.code, governedTransition: r.governedTransition, authorisedRole: r.authorisedRole, fromPack: pack.code });
     }
-    for (const p of pack.contributions?.policies ?? []) {
+    // CR-089 follow-on — pack.contributions.policies is now a flat string[]
+    // of adopted Policy Definition codes (the name/governedTransition this
+    // projection needs no longer travel on the Pack's own authored content
+    // at all — they live on the real materialised Policy row, resolved from
+    // the canonical Policy Definition at publish time). Read from there,
+    // same policiesDB.findByPackCode lookup CR-088's Exposable Parameters
+    // candidate derivation (core/templates.ts) already uses for this reason.
+    const { data: packPolicies } = await policiesDB.findByPackCode(pack.code);
+    for (const p of packPolicies ?? []) {
       if (seenPolicy.has(p.code)) continue;
       seenPolicy.add(p.code);
-      policies.push({ code: p.code, name: p.name, governedTransition: p.governedTransition, fromPack: pack.code });
+      policies.push({ code: p.code, name: p.name, governedTransition: p.governed_transition, fromPack: pack.code });
     }
     for (const g of pack.contributions?.qualityGates ?? []) {
       // CR-058 follow-up — a gate's real identity is (governedTransition,

@@ -66,5 +66,8 @@
     { "toCode": "incident-report-post-mortem", "fromType": "Capability", "fromCapabilityCode": "operating-production-systems" },
     { "toCode": "capability-maturity-assessment", "fromType": "Deliverable", "fromCode": "incident-report-post-mortem" },
     { "toCode": "capability-maturity-assessment", "fromType": "Capability", "fromCapabilityCode": "adapting-business-needs" }
+  ],
+  "exposedParameters": [
+    { "sourceType": "service", "sourceCode": "architectural-review-service", "parameterName": "compliance-with-architecture-principle", "value": "90", "overridable": true }
   ]
 }

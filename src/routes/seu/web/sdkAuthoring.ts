@@ -46,8 +46,9 @@ import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsD
 import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { checklistsDB } from "../../../dblayer/checklistsDB.js";
 import { transitionPack, packCodeVersionSummaries } from "../core/packs.js";
-import { transitionTemplate, PACK_SELECTION_SLOTS, deriveCapabilityCodesFromPackCodes, deriveCapabilityProducingPacksFromPackCodes } from "../core/templates.js";
-import { transitionProfile } from "../core/profiles.js";
+import { transitionTemplate, PACK_SELECTION_SLOTS, deriveCapabilityCodesFromPackCodes, deriveCapabilityProducingPacksFromPackCodes, deriveExposableParameterCandidates, deriveOverridableParameterCandidates, getPackSelectionsByCategory, type ExposableParameterCandidate, type ExposedParameter, type PackSelectionsByCategory } from "../core/templates.js";
+import { transitionProfile, CONFIGURATION_PARAMETER_FIELDS, type ExposedParameterOverride } from "../core/profiles.js";
+import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 import { transitionDeliverableDefinition, listInheritableDeliverableDefinitions, inheritedDeliverableDefinitionContent } from "../core/deliverableDefinitions.js";
 import { transitionServiceDefinition, listInheritableServiceDefinitions, inheritedServiceDefinitionContent } from "../core/serviceDefinitions.js";
 import { transitionPolicyDefinition } from "../core/policyDefinitions.js";
@@ -58,7 +59,7 @@ import {
   addNoun, addVerb, addMapping, retireNoun, retireVerb, retireMapping, updateMappingTrigger,
 } from "../core/authorityVocabulary.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
-import type { SchemaDefinitionEntityKind, ServiceLevelExpectation } from "../../../dblayer/seuTypes.js";
+import type { SchemaDefinitionEntityKind, ServiceLevelExpectation, TemplateDependencyGraphEntry } from "../../../dblayer/seuTypes.js";
 
 const KIND_BY_SLUG: Record<string, SchemaDefinitionEntityKind> = {
   "pack-authoring": "Pack",
@@ -688,6 +689,55 @@ async function loadPackCodesCapabilityCoverage(content: Record<string, unknown>,
   };
 }
 
+// CR-088 — one row per candidate the Exposable Parameters tab renders,
+// merging the fresh candidate list (deriveExposableParameterCandidates,
+// core/templates.ts — recomputed on every render from the Template's
+// CURRENT Pack selections, never trusted from stale saved content) with
+// whatever this Draft already has saved for that exact (sourceType,
+// sourceCode, parameterName) — falling back to the candidate's own current
+// default value and "overridable" (default true, "by default all of the
+// parameters are checked").
+export interface ExposableParameterRow extends ExposableParameterCandidate {
+  value: string;
+  overridable: boolean;
+}
+
+async function loadExposableParameterRows(content: Record<string, unknown>, viewerTenantId: string | null): Promise<ExposableParameterRow[]> {
+  const packCodes = [...new Set(PACK_SELECTION_SLOTS.flatMap((slot) => extractPackCodes(content[slot.field as string])))];
+  const dependencyGraph = Array.isArray(content.dependencyGraph) ? (content.dependencyGraph as TemplateDependencyGraphEntry[]) : [];
+  const candidates = await deriveExposableParameterCandidates(packCodes, viewerTenantId ?? PLATFORM_TENANT_ID, dependencyGraph);
+  const existing = Array.isArray(content.exposedParameters) ? (content.exposedParameters as ExposedParameter[]) : [];
+  const existingByKey = new Map(existing.map((e) => [`${e.sourceType}::${e.sourceCode}::${e.parameterName}`, e]));
+  return candidates.map((c) => {
+    const saved = existingByKey.get(`${c.sourceType}::${c.sourceCode}::${c.parameterName}`);
+    return { ...c, value: saved?.value ?? c.defaultValue ?? "", overridable: saved ? saved.overridable : true };
+  });
+}
+
+// CR-088 Profile-side completion — Profile's own "Parameter Overrides" tab
+// candidate rows: whichever of the Profile's base Template's exposed
+// parameters the Template flagged overridable, recomputed fresh from
+// baseTemplateCode on every render (same "never trust stale saved content"
+// discipline as loadExposableParameterRows above). Unlike that function, a
+// saved row's absence means "no override" — `value` starts blank, not
+// defaulted to the candidate's own defaultValue, so a blank input never reads
+// as a silently-applied override.
+interface ProfileParameterOverrideRow extends ExposableParameterCandidate {
+  value: string;
+}
+
+async function loadProfileParameterOverrideRows(content: Record<string, unknown>, viewerTenantId: string | null): Promise<ProfileParameterOverrideRow[]> {
+  const baseTemplateCode = typeof content.baseTemplateCode === "string" ? content.baseTemplateCode.trim() : "";
+  if (!baseTemplateCode) return [];
+  const candidates = await deriveOverridableParameterCandidates(baseTemplateCode, viewerTenantId ?? PLATFORM_TENANT_ID);
+  const existing = Array.isArray(content.exposedParameterOverrides) ? (content.exposedParameterOverrides as ExposedParameterOverride[]) : [];
+  const existingByKey = new Map(existing.map((e) => [`${e.sourceType}::${e.sourceCode}::${e.parameterName}`, e]));
+  return candidates.map((c) => {
+    const saved = existingByKey.get(`${c.sourceType}::${c.sourceCode}::${c.parameterName}`);
+    return { ...c, value: saved?.value ?? "" };
+  });
+}
+
 // CR-041 — self-referential referential-list options: "pick from the rows
 // already entered in another field of this same Draft," not an external
 // registry. Schema-driven and entity-kind-agnostic by construction (any
@@ -1006,7 +1056,23 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
     ...(kind !== "Pack" ? { packVersion: "1.0.0" } : {}),
     ...(draft?.content ?? prefill?.content ?? {}),
   };
-  req.vm.req.groups = groupFieldsForDisplay(generateFields(schema, contentForForm));
+  const viewer = { isRoot, tenantId: req.session?.user?.tenant_id ?? null };
+  const generatedFields = generateFields(schema, contentForForm);
+  // CR-091 Part 2 — required-ness for a Configuration Parameter isn't in
+  // schema.required at all (it's tenant-overridable, not fixed) — override
+  // each matching field's own `.required` here, off the profile-configuration
+  // concept's own is_mandatory flag for THIS viewer's tenant, before the
+  // asterisk ever renders. Owner: "let Ontology specify if a parameter is
+  // mandatory or otherwise. So a tenant can override it."
+  if (kind === "Profile") {
+    for (const cp of CONFIGURATION_PARAMETER_FIELDS) {
+      const field = generatedFields.find((f) => f.name === (cp.field as string));
+      if (!field) continue;
+      const { data: parameterConcept } = await ontologyDB.findConcept("profile-configuration", cp.parameterCode, viewer);
+      field.required = parameterConcept?.is_mandatory === true;
+    }
+  }
+  req.vm.req.groups = groupFieldsForDisplay(generatedFields);
   req.vm.req.contentJson = JSON.stringify(draft?.content ?? {}, null, 2);
   req.vm.req.canEdit = canDefine && isDraft;
   req.vm.req.canPublish = canAdvance;
@@ -1020,7 +1086,6 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   req.vm.req.inheritingFromTemplateId = prefill?.parentTemplateId ?? null;
   req.vm.req.inheritingFromProfileId = prefill?.parentProfileId ?? null;
   req.vm.req.inheritingFromDeliverableDefinitionId = prefill?.parentDeliverableDefinitionId ?? null;
-  const viewer = { isRoot, tenantId: req.session?.user?.tenant_id ?? null };
   req.vm.opt.referentialOptions = {
     ...(await loadReferentialOptions(viewer)),
     ...loadSelfReferentialOptions(schema, contentForForm),
@@ -1044,6 +1109,14 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   req.vm.opt.requiredCapabilityNames = packCodesCapabilityCoverage.required;
   req.vm.opt.capabilityCoverageGaps = packCodesCapabilityCoverage.gaps;
   req.vm.opt.capabilityCoverageExcess = packCodesCapabilityCoverage.excess;
+  // CR-088 — the Exposable Parameters tab's own candidate rows (Service Level
+  // metrics, Policy constraintType/applicability, Checklist configurableKey),
+  // recomputed fresh from this Draft's current Pack selections on every
+  // render.
+  req.vm.opt.exposableParameterRows = kind === "Template" ? await loadExposableParameterRows(contentForForm, viewer.tenantId) : [];
+  // CR-088 Profile-side completion — Profile's own "Parameter Overrides" tab,
+  // mirroring Template's Exposable Parameters tab above exactly.
+  req.vm.opt.exposedParameterOverrideRows = kind === "Profile" ? await loadProfileParameterOverrideRows(contentForForm, viewer.tenantId) : [];
   // CR-026 Template Inheritance (Ch.6 §9, owner: "There is no change to the
   // way template is created by a platform user... When a tenant wants to
   // define a template, show a dropdown of codes"): only offered on a brand
@@ -1085,7 +1158,27 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   // the capability->deliverable-names map it filters against.
   req.vm.opt.policyDefinitionOptions = kind === "Pack" ? await loadPolicyDefinitionOptions(viewer) : [];
   req.vm.opt.capabilityDeliverableNames = kind === "Pack" ? await loadCapabilityDeliverableNames(viewer) : {};
-  req.vm.opt.ontologyOptions = await loadOntologyOptions(schema, viewer);
+  const ontologyOptions = await loadOntologyOptions(schema, viewer);
+  // CR-091 — Ch.7 §5 Optional Capability Enablement, owner: "just a list of
+  // capability-names from ontology not already there coming from the
+  // templates." Narrows the offered capability-name options for Profile's
+  // own additionalCapabilityCodes picker only, excluding whatever the chosen
+  // base Template's own selected Packs already require — the same
+  // deriveCapabilityCodesFromPackCodes resolution Template's own Pack Codes
+  // tab coverage advisory uses. A redundant selection isn't blocked
+  // server-side (validateProfileSeed, core/profiles.ts) if it still arrives
+  // some other way (e.g. JSON import); this only curates what's offered.
+  if (kind === "Profile") {
+    const baseTemplateCode = (contentForForm as Record<string, unknown>).baseTemplateCode;
+    const baseTemplate = typeof baseTemplateCode === "string" && baseTemplateCode.trim() ? (await templatesDB.findByCode(baseTemplateCode)).data : null;
+    if (baseTemplate) {
+      const templatePackSelections: PackSelectionsByCategory = await getPackSelectionsByCategory(baseTemplate.id);
+      const templatePackCodes = Object.values(templatePackSelections).flatMap((codes) => codes ?? []);
+      const templateCapabilityCodes = new Set(await deriveCapabilityCodesFromPackCodes(templatePackCodes));
+      ontologyOptions["capability-name"] = (ontologyOptions["capability-name"] || []).filter((opt) => !templateCapabilityCodes.has(opt.code));
+    }
+  }
+  req.vm.opt.ontologyOptions = ontologyOptions;
   req.vm.opt.contributionHelp = CONTRIBUTION_SECTION_HELP;
   req.vm.opt.verifiableFieldHelp = VERIFIABLE_ITEM_FIELD_HELP;
   // CR-077 — passed through so _referentialListGroup.ejs's read-mode branches
@@ -1155,6 +1248,58 @@ router.get("/sdk/:slug/new", requireDefineBadge(), attachVM("seu/sdk/authoring/e
   }
 });
 
+// CR-088 — Template's own "Exposable Parameters" tab isn't a generic
+// referential-list: its rows aren't authored, they're candidate rows the
+// server computes fresh from the Template's own currently-selected Packs
+// (deriveExposableParameterCandidates, core/templates.ts) — the author only
+// toggles a checkbox and, for value-bearing ones, edits a value. Submitted
+// as indexed bracket-notation rows (exposedParamRows[i][...]), one per
+// rendered candidate, rather than through parseFormBody's own
+// referential-list machinery (which expects author-addable rows with no
+// server-computed identity). Reassembled here into the plain array the
+// schema's own x-widget:"json" `exposedParameters` field expects
+// (parseFormBody's json branch just JSON.parses a string) — mutates
+// req.body directly, the same way parentTemplateId/parentProfileId are read
+// off it rather than through parseFormBody.
+function reconstructExposedParameters(body: Record<string, unknown>): void {
+  const rows = body.exposedParamRows;
+  if (!rows || typeof rows !== "object") return;
+  const rowList = Array.isArray(rows) ? rows : Object.values(rows as Record<string, unknown>);
+  const exposedParameters: ExposedParameter[] = rowList
+    .filter((r): r is Record<string, unknown> => typeof r === "object" && r !== null)
+    .map((r) => ({
+      sourceType: r.sourceType as ExposedParameter["sourceType"],
+      sourceCode: String(r.sourceCode ?? ""),
+      parameterName: String(r.parameterName ?? ""),
+      value: typeof r.value === "string" && r.value.trim() ? r.value : undefined,
+      overridable: r.overridable === "true" || r.overridable === true,
+    }))
+    .filter((r) => r.sourceCode && r.parameterName);
+  body.exposedParameters = JSON.stringify(exposedParameters);
+}
+
+// CR-088 Profile-side completion — same indexed-rows reassembly as
+// reconstructExposedParameters above, for Profile's own Parameter Overrides
+// tab. Sparse by construction: a row left blank (no value typed) is dropped
+// rather than saved as an empty override, since an omitted candidate already
+// means "use the Template's own value" — there's nothing for an empty string
+// to mean beyond that.
+function reconstructProfileParameterOverrides(body: Record<string, unknown>): void {
+  const rows = body.exposedParamOverrideRows;
+  if (!rows || typeof rows !== "object") return;
+  const rowList = Array.isArray(rows) ? rows : Object.values(rows as Record<string, unknown>);
+  const overrides: ExposedParameterOverride[] = rowList
+    .filter((r): r is Record<string, unknown> => typeof r === "object" && r !== null)
+    .map((r) => ({
+      sourceType: r.sourceType as ExposedParameterOverride["sourceType"],
+      sourceCode: String(r.sourceCode ?? ""),
+      parameterName: String(r.parameterName ?? ""),
+      value: typeof r.value === "string" ? r.value.trim() : "",
+    }))
+    .filter((r) => r.sourceCode && r.parameterName && r.value);
+  body.exposedParameterOverrides = JSON.stringify(overrides);
+}
+
 /** POST /aisworg/seu/sdk/:slug — create a Draft entity from the authored content (real author). */
 router.post("/sdk/:slug", requireDefineBadge(), async (req: Request, res: Response, next: NextFunction) => {
   const slug = String(req.params.slug);
@@ -1168,6 +1313,8 @@ router.post("/sdk/:slug", requireDefineBadge(), async (req: Request, res: Respon
   try {
     const schema = await latestSchemaFor(kind);
     if (!schema) return flashError(req, res, backToIndex(slug), `No schema_definitions grammar for ${kind}.`);
+    if (kind === "Template") reconstructExposedParameters(req.body ?? {});
+    if (kind === "Profile") reconstructProfileParameterOverrides(req.body ?? {});
     const content = parseFormBody(schema, req.body ?? {});
     // Pack/Template/Profile ownership (owner: "Packs will have ownership" /
     // CR-026 / 2026-08-19): a fresh Draft is owned by its real author's own
@@ -1226,6 +1373,8 @@ router.post("/sdk/:slug/:draftId/save", requireDraftTenantScope(), requireDefine
   try {
     const schema = await latestSchemaFor(kind);
     if (!schema) return flashError(req, res, backTo(slug, draftId), `No schema_definitions grammar for ${kind}.`);
+    if (kind === "Template") reconstructExposedParameters(req.body ?? {});
+    if (kind === "Profile") reconstructProfileParameterOverrides(req.body ?? {});
     const content = parseFormBody(schema, req.body ?? {});
     const saved = await saveAuthoringDraft({ kind, id: draftId, content });
     if (!saved.ok) return flashError(req, res, backTo(slug, draftId), saved.errors.join("; "));

@@ -135,15 +135,59 @@ async function postForm(
   return { status: res.status, location: res.headers.get("location") };
 }
 
+// Bug fix (owner, 2026-09-06: "the SEU is commissioned against an
+// objective... If the commissioning happens from SEU, then Objective also
+// has to be picked") — the old freeform POST /seu/seus (statement +
+// Capability checklist, auto-creating an Objective and auto-matching a
+// Template inline) is retired; the web UI now always requires a real
+// Objective first. This fixture helper mirrors that: creates a real,
+// immediately-Active Engineering Objective directly (bypassing HTTP, same
+// "status omitted -> Active" one-shot convention every other direct
+// createObjective fixture in the suite already relies on — no submit/
+// activate dance needed for a pure test fixture), then drives the actual
+// commissioning through the real two real HTTP hops the redesigned UI now
+// requires: GET the picker (?objectiveId=), then POST this fixture's own
+// Template+Profile.
+// Bug fix (owner: "fix the tests") — this used to grab whichever
+// templateProfile radio the picker offered FIRST, on the assumption
+// ensureWebAppTemplateFixture's own Template was the only thing satisfying
+// these 3 Capabilities. That stopped being true: the picker is a real,
+// inverted Profile-first list now (one row per real Profile, not
+// deduplicated to one per Template), and this shared dev database
+// accumulates other test files' own disposable fixtures (e.g.
+// commission-profile-choice.test.ts's "Verify Profile Choice Template")
+// that legitimately satisfy the same Capability codes — confirmed directly,
+// the picker now offers 36 rows for this exact requirement, and the first
+// one is one of those unrelated fixtures, not this file's own. Targeting
+// this fixture's own known Template/Profile ids directly is both correct
+// and robust to however many other rows the picker happens to offer.
 async function commissionSeu(request: Session, statementPrefix: string): Promise<{ seuId: string; csrf: string }> {
-  await ensureWebAppTemplateFixture();
-  const form = await getPage(request, "/seu/seus/new");
-  assert.equal(form.status, 200);
-  const csrf = extractCsrf(form.html);
-
-  const result = await postForm(request, "/seu/seus", csrf, {
+  const { template: fixtureTemplate, profile: fixtureProfile } = await ensureWebAppTemplateFixture();
+  const { objective: root } = await createObjective({
+    statement: `${statementPrefix}-root-${randomUUID()}`,
+    requiredCapabilityCodes: [],
+    tier: "Strategic",
+    requestedBy: TEST_USER_ALL_BADGES,
+  });
+  const { objective } = await createObjective({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
+    tier: "Engineering",
+    parentObjectiveId: root.id,
+    requestedBy: TEST_USER_ALL_BADGES,
+  });
+
+  const picker = await getPage(request, `/seu/seus/new?objectiveId=${objective.id}`);
+  assert.equal(picker.status, 200);
+  const csrf = extractCsrf(picker.html);
+  const templateProfileValue = `${fixtureTemplate.id}|${fixtureProfile.id}`;
+  assert.ok(
+    picker.html.includes(`value="${templateProfileValue}"`),
+    "expected the picker to offer this fixture's own Template+Profile — page markup may have changed since this test was written"
+  );
+
+  const result = await postForm(request, `/seu/objectives/${objective.id}/commission`, csrf, {
+    templateProfile: templateProfileValue,
   });
   assert.equal(result.status, 302, "expected a redirect to the new SEU's detail page");
   assert.ok(result.location?.startsWith("/aisworg/seu/seus/"), `expected a redirect to the SEU detail page, got: ${result.location}`);

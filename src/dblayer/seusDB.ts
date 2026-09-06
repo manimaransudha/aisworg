@@ -39,14 +39,18 @@ export const seusDB = {
     }
   },
 
-  // CR-003: the set of Objective ids that already have an SEU — lets the
-  // Objectives list mark which are commissioned (and hide the Commission action).
-  async commissionedObjectiveIds(): Promise<DbResult<string[]>> {
+  // CR-003: which Objectives already have an SEU, and which one — lets the
+  // Objectives list mark which are commissioned (hide the Commission action)
+  // AND link straight to the real SEU (owner, 2026-09-06: "Link the seu id
+  // on the Commissioned status on the Objectives page"). One row per
+  // Objective — the UNIQUE constraint on seus.objective_id guarantees at
+  // most one SEU each, so no DISTINCT/grouping is needed.
+  async commissionedObjectiveSeuIds(): Promise<DbResult<Array<{ objectiveId: string; seuId: string }>>> {
     try {
-      const { rows } = await query<{ objective_id: string }>("SELECT DISTINCT objective_id FROM seus");
-      return { data: rows.map((r) => r.objective_id) };
+      const { rows } = await query<{ objective_id: string; id: string }>("SELECT objective_id, id FROM seus");
+      return { data: rows.map((r) => ({ objectiveId: r.objective_id, seuId: r.id })) };
     } catch (err) {
-      logger.error("[seusDB] commissionedObjectiveIds error", err as Error);
+      logger.error("[seusDB] commissionedObjectiveSeuIds error", err as Error);
       return { error: err as Error };
     }
   },

@@ -10,7 +10,9 @@ import { isDeepStrictEqual } from "node:util";
 import { templatesDB } from "../../dblayer/templatesDB.js";
 import { profilesDB } from "../../dblayer/profilesDB.js";
 import { packsDB } from "../../dblayer/packsDB.js";
-import type { EbmComposedPack, EbmCompositionReport, PackRow } from "../../dblayer/seuTypes.js";
+import { extractExposedParameterOverrides, getProfilePackSelections } from "../../routes/seu/core/profiles.js";
+import type { ExposedParameterOverride } from "../../routes/seu/core/profiles.js";
+import type { EbmComposedPack, EbmCompositionReport, PackRow, ProfileRow, ParameterConflict, ParameterConflictOption } from "../../dblayer/seuTypes.js";
 
 // Bug fix (Open Design Questions.md #2) — a Template/Profile used to pin a
 // specific Pack *row*, resolved once when authored. Archiving that row and
@@ -166,7 +168,19 @@ function combineFields(sources: Array<{ id: string; code: string; entries: Recor
     if (allArrays) {
       const arrays = values as unknown[][];
       const identityField = arrayIdentityField(arrays);
-      if (identityField && arrays.every((v) => v.length > 0)) {
+      // Bug fix (CR-092 Part 6, found while giving compositionEngine.union() a
+      // second real caller beyond Pack authoring) — this used to also require
+      // every source's array to be non-empty before trusting the identity
+      // match, so a source contributing ZERO items of some kind (a Profile
+      // with no optional Packs in some category, a Pack authoring zero of
+      // some contribution type — both entirely normal) fell through to the
+      // positional fallback below, which then also failed (different
+      // lengths), producing a spurious "conflict" on a field where nothing
+      // actually disagreed. arrayIdentityField's own every()-over-every()
+      // check is already vacuously true for an empty array, so identity
+      // matching is safe here regardless of any one source being empty —
+      // it simply contributes no items to byIdentity below.
+      if (identityField) {
         // Match array items by identity field across sources (reordering-
         // safe), recurse per matched item.
         const byIdentity = new Map<string, Array<{ id: string; code: string; entries: Record<string, unknown> }>>();
@@ -327,38 +341,90 @@ export const compositionEngine = {
     return { ok: true, fields: { ...base.fields, ...additions }, parentIds: [base.id, ...supplements.map((s) => s.id)], rejected: [...new Set(rejected)] };
   },
 
-  async compose(input: { templateId: string; profileId: string }): Promise<{
+  // CR-092 Part 6 (owner: "Multiple profiles are very much possible. That is
+  // why composition exists. That is why validation is required") — accepts
+  // one-or-more Templates/Profiles now, not exactly one of each. Mandatory
+  // Packs are unioned across every given Template, optional Packs across
+  // every given Profile; the existing Override-by-code resolution and
+  // detectGovernanceConflicts below already operate on a flat PackRow[]
+  // regardless of how many distinct Templates/Profiles contributed each
+  // code, so multi-source Pack conflicts already fall out of that same,
+  // unchanged logic once the input union is bigger than one-and-one.
+  //
+  // Bug fix, same pass (owner: "later behavior wins is not correct... the
+  // composition engine should not resolve the conflicts automatically") —
+  // the same Pack CODE contributed by more than one source (a Template's
+  // mandatory set and a Profile's optional set, or two different Profiles)
+  // is not actually a conflict at all: resolveActivePack always resolves a
+  // given code to the exact same Active row regardless of who asked for it,
+  // so there is nothing to "override" — it's pure deduplication. The old
+  // "later composition overrides earlier" wording implied a real decision
+  // was being made here; there never was one. Silently deduplicated now, no
+  // warning implying a choice occurred.
+  //
+  // resolvedParameterOverrides: the human's own picks from a PRIOR
+  // "Queue to Validate" pass (validation page's own resolution form,
+  // web/objectives.ts) — a key present here is honoured as that value and
+  // excluded from parameterConflicts below; this function itself never
+  // guesses a winner on its own.
+  async compose(input: { templateIds: string[]; profileIds: string[]; resolvedParameterOverrides?: Record<string, string> }): Promise<{
     composedPacks: EbmComposedPack[];
     compositionReport: EbmCompositionReport;
   }> {
-    const { data: mandatoryCodes } = await templatesDB.getMandatoryPackCodes(input.templateId);
-    const { data: optionalCodes } = await profilesDB.getOptionalPackCodes(input.profileId);
-
     const warnings: string[] = [];
     const resolvedPacks: PackRow[] = [];
 
-    for (const code of mandatoryCodes ?? []) {
-      const { pack, warning } = await resolveActivePack(code, "the Template's mandatory set");
-      if (warning) warnings.push(warning);
-      if (pack) resolvedPacks.push(pack);
-    }
-    for (const code of optionalCodes ?? []) {
-      const { pack, warning } = await resolveActivePack(code, "the Profile's optional set");
-      if (warning) warnings.push(warning);
-      if (pack) resolvedPacks.push(pack);
+    for (const templateId of input.templateIds) {
+      const { data: mandatoryCodes } = await templatesDB.getMandatoryPackCodes(templateId);
+      for (const code of mandatoryCodes ?? []) {
+        const { pack, warning } = await resolveActivePack(code, "a Template's mandatory set");
+        if (warning) warnings.push(warning);
+        if (pack) resolvedPacks.push(pack);
+      }
     }
 
-    // Override strategy (Architecture Catalogue §11): later-composed Pack (Profile's
-    // optional set) wins over an earlier one (Template's mandatory set) contributing
-    // the same code. Every resolved row here is already Active by construction
-    // (findActiveByCode's own WHERE clause) — no separate status filter needed.
-    const byCode = new Map<string, PackRow>();
-    for (const pack of resolvedPacks) {
-      if (byCode.has(pack.code)) {
-        warnings.push(`Pack ${pack.code} contributed more than once for this commissioning — later composition overrides earlier (Override strategy).`);
+    // Profile rows themselves (not just their optional Pack codes) are kept
+    // for detectParameterOverrideConflicts below — a genuinely new conflict
+    // class, cross-Profile rather than cross-Pack.
+    //
+    // Bug fix (owner, 2026-09-06: "Pack categories are [used]... they should
+    // be persisted... packs mean all the underlying checklist, qualitygates,
+    // policy, services etc.") — this used to read ONLY the "optional"
+    // list_kind (profilesDB.getOptionalPackCodes), silently ignoring every
+    // Pack a Profile selected through its other six category-scoped slots
+    // (technologyPackCodes/domainPackCodes/compliancePackCodes/
+    // integrationPackCodes/engineeringPackCodes/organisationPackCodes) —
+    // real rows in profile_packs, validated at publish time, just never
+    // read back into composition. A Pack skipped this way doesn't just lose
+    // a code on a list; every Checklist/Quality Gate/Policy/Service it
+    // contributes never reaches the SEU at all. getProfilePackSelections
+    // (core/profiles.ts) already reads all seven category buckets — reused
+    // here instead of duplicating that fan-out.
+    const profiles: ProfileRow[] = [];
+    for (const profileId of input.profileIds) {
+      const selections = await getProfilePackSelections(profileId);
+      const allSelectedCodes = [
+        ...(selections.optionalPackCodes ?? []),
+        ...(selections.technologyPackCodes ?? []),
+        ...(selections.domainPackCodes ?? []),
+        ...(selections.compliancePackCodes ?? []),
+        ...(selections.integrationPackCodes ?? []),
+        ...(selections.engineeringPackCodes ?? []),
+        ...(selections.organisationPackCodes ?? []),
+      ];
+      for (const code of allSelectedCodes) {
+        const { pack, warning } = await resolveActivePack(code, "a Profile's optional set");
+        if (warning) warnings.push(warning);
+        if (pack) resolvedPacks.push(pack);
       }
-      byCode.set(pack.code, pack);
+      const { data: profile } = await profilesDB.findById(profileId);
+      if (profile) profiles.push(profile);
     }
+
+    // Plain deduplication by code — see this function's own header comment
+    // on why this was never a real "override" decision to begin with.
+    const byCode = new Map<string, PackRow>();
+    for (const pack of resolvedPacks) byCode.set(pack.code, pack);
 
     const packs = [...byCode.values()];
     const composedPacks: EbmComposedPack[] = packs.map((pack) => ({
@@ -370,18 +436,54 @@ export const compositionEngine = {
     // FR-3.6 / FR-21.7: detect governance conflicts across the composed Packs
     // from their declarative contributions (read unmasked from packs.contributions,
     // before the global upsert-by-code/triple collapses them). A conflict is an
-    // *incompatible* contribution from different Packs that no Override rule
-    // resolves — it requires human judgement. Same-code duplicates are the
-    // Override case above (a warning), and multiple policies co-apply (not a
-    // conflict).
+    // *incompatible* contribution from different Packs — it requires human
+    // judgement (not yet given the same per-conflict resolution UI as
+    // parameterConflicts below; still a flat, blocking list).
     const conflicts = detectGovernanceConflicts(packs);
+    // CR-092 Part 6 — a second, independent conflict class: two Profiles
+    // overriding the same exposed Commissioning Parameter to different
+    // values (owner's own worked example). Structured, not a flat string —
+    // the validation page renders one option per disagreeing Profile and the
+    // human picks the winner; a key already present in
+    // resolvedParameterOverrides is honoured as resolved, not re-flagged.
+    const parameterConflicts = detectParameterOverrideConflicts(profiles).filter((c) => !(input.resolvedParameterOverrides && c.key in input.resolvedParameterOverrides));
 
     return {
       composedPacks,
-      compositionReport: { warnings, conflicts, resolutions: [] },
+      compositionReport: { warnings, conflicts, parameterConflicts, resolutions: [] },
     };
   },
 };
+
+// A conflict here is a CROSS-PROFILE disagreement on the SAME exposed
+// parameter (sourceType/sourceCode/parameterName — the same key
+// deriveOverridableParameterCandidates/validateProfileSeed already key
+// ExposedParameterOverride rows by, core/profiles.ts) — every Profile that
+// overrides it agreeing on the same value is not a conflict, only a genuine
+// value disagreement is. A Profile that doesn't override a given parameter
+// at all contributes nothing to that key (an omitted override already means
+// "keep the Template's own value," not a competing value to disagree with).
+// Structured (ParameterConflict, not a string) so the validation page can
+// offer the human a real per-conflict choice, per the owner's own
+// correction: "the human resolves it by picking which source's value wins,
+// right on the validation page."
+function detectParameterOverrideConflicts(profiles: ProfileRow[]): ParameterConflict[] {
+  const byKey = new Map<string, { sourceType: ExposedParameterOverride["sourceType"]; sourceCode: string; parameterName: string; options: ParameterConflictOption[] }>();
+  for (const profile of profiles) {
+    for (const o of extractExposedParameterOverrides(profile.draft_content)) {
+      const key = `${o.sourceType}::${o.sourceCode}::${o.parameterName}`;
+      const entry = byKey.get(key) ?? { sourceType: o.sourceType, sourceCode: o.sourceCode, parameterName: o.parameterName, options: [] };
+      entry.options.push({ profileId: profile.id, profileCode: profile.code, profileName: profile.name, value: o.value });
+      byKey.set(key, entry);
+    }
+  }
+  const conflicts: ParameterConflict[] = [];
+  for (const [key, entry] of byKey) {
+    if (new Set(entry.options.map((o) => o.value)).size < 2) continue; // every Profile overriding this key agrees on the same value
+    conflicts.push({ key, sourceType: entry.sourceType, sourceCode: entry.sourceCode, parameterName: entry.parameterName, options: entry.options });
+  }
+  return conflicts;
+}
 
 // A conflict is a CROSS-PACK disagreement — two DIFFERENT Packs contributing
 // incompatible governance for the same target. Multiplicity WITHIN one Pack is

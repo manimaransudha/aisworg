@@ -177,6 +177,22 @@ const PACK_USER_TENANTS = [
   { label: "Athens", tenantId: ATHENS_TENANT_ID, baseId: 2101, domain: "athens.com" },
 ];
 
+// Owner (2026-09-06: "Add 5 user ids in the seed files, participant1@athens.com,
+// participant1@babylon.com etc.") — plain Participant-eligible fixture
+// identities, 5 per tenant, Athens and Babylon. Unlike the Objective/Pack/
+// authoring users above, these hold no noun_verb badges at all (owner: "5
+// each" — a flat headcount, not an authority fixture) — they're for
+// exercising fulfilCapability/replaceParticipant (Ch.12/Ch.13) as ordinary
+// tenant members, not for badge-authority testing. Local login, password
+// "password", same as every other named test persona in this file. Reserved
+// id ranges 2401–2405 (Athens) / 2411–2415 (Babylon), clear of every range
+// above (2001–2017, 2101–2108, 2201–2232, 2301).
+const PARTICIPANT_USER_TENANTS = [
+  { label: "Athens", tenantId: ATHENS_TENANT_ID, baseId: 2401, domain: "athens.com" },
+  { label: "Babylon", tenantId: BABYLON_TENANT_ID, baseId: 2411, domain: "babylon.com" },
+];
+const PARTICIPANTS_PER_TENANT = 5;
+
 // Owner (2026-08-17): a PLATFORM (not Tenant) pack_all holder — same badge set
 // as pack-all@athens.com, but a Platform-type identity, so pack authority can
 // be exercised/tested from the Platform tenant too, not just Athens. Reserved
@@ -290,6 +306,15 @@ export async function seedIdentityBaseline(): Promise<void> {
       authoringUsers.push({ id: n.baseId + n.verbs.length, email: `${n.slug}-all@athens.com`, name: `Athens — ${n.noun}_all`, tenantId: ATHENS_TENANT_ID, badges: n.verbs.map((v) => `${n.noun}_${v}`) });
     }
 
+    // Participant fixture users — 5 per tenant (Athens, Babylon), no badges
+    // (see PARTICIPANT_USER_TENANTS' own comment above).
+    const participantUsers: Array<{ id: number; email: string; name: string; tenantId: string; badges: string[] }> = [];
+    for (const t of PARTICIPANT_USER_TENANTS) {
+      for (let i = 1; i <= PARTICIPANTS_PER_TENANT; i++) {
+        participantUsers.push({ id: t.baseId + i - 1, email: `participant${i}@${t.domain}`, name: `${t.label} — Participant ${i}`, tenantId: t.tenantId, badges: [] });
+      }
+    }
+
     // Owner (2026-08-17): a Platform-type pack_all holder — same 7-badge set as
     // pack-all@athens.com (validate/publish/activate/deprecate/retire/archive/
     // define), but type "Platform" with tenant_id the reserved Platform tenant,
@@ -304,6 +329,7 @@ export async function seedIdentityBaseline(): Promise<void> {
       ...objectiveUsers.map((u) => ({ ...u, type: "Tenant" as const })),
       ...packUsers.map((u) => ({ ...u, type: "Tenant" as const })),
       ...authoringUsers.map((u) => ({ ...u, type: "Tenant" as const })),
+      ...participantUsers.map((u) => ({ ...u, type: "Tenant" as const })),
       platformPackAllUser,
     ];
     for (const u of authorityUsers) {
@@ -315,7 +341,7 @@ export async function seedIdentityBaseline(): Promise<void> {
         [u.id, u.email, u.name, u.type, u.tenantId, passwordHash]
       );
     }
-    logger.info(`[seed:identity-baseline] upserted ${objectiveUsers.length} Objective-authority + ${packUsers.length} Pack-authority (Tenant) + 1 Pack-authority (Platform) users (password "password").`);
+    logger.info(`[seed:identity-baseline] upserted ${objectiveUsers.length} Objective-authority + ${packUsers.length} Pack-authority (Tenant) + 1 Pack-authority (Platform) + ${participantUsers.length} Participant fixture users (password "password").`);
 
     // CR-006 — fixture noun_verb grants for the test users. badge_grants.badge_type
     // is free TEXT (no FK), so a grant of "deliverable_approve" needs no badge_types

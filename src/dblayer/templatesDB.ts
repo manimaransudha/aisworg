@@ -90,6 +90,24 @@ export const templatesDB = {
     }
   },
 
+  // Bug fix (same root cause as profilesDB.setDraftContent, found the same
+  // way: publishTemplate()'s own upsert() never writes draft_content, and
+  // updateDraftContent above is scoped to `WHERE status = 'Draft'` (upsert's
+  // INSERT defaults status to 'Active' per its own DDL default) — so
+  // exposedParameters (and anything else draft_content-only, e.g. `purpose`)
+  // set through the seed pipeline never actually persisted. Status-agnostic
+  // for the same reason materialisePackSelectionsAndCapabilities's join-table
+  // writes already are.
+  async setDraftContent(id: string, draftContent: Record<string, unknown>): Promise<DbResult<TemplateRow>> {
+    try {
+      const { rows } = await query<TemplateRow>(`UPDATE templates SET draft_content = $2 WHERE id = $1 RETURNING *`, [id, JSON.stringify(draftContent)]);
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[templatesDB] setDraftContent error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   // Publish-time materialisation of a Draft's authored deliverable catalogue
   // onto its real column (the join tables are set separately). Status-agnostic:
   // called while the row is still Draft, just before the governed Draft->Active

@@ -6,12 +6,12 @@ const router = express.Router();
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
-import { getFlash, flashError, flashSuccess, stashFormInput, takeFormInput } from "../../../utils/flash.js";
+import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
 import { listSeusPaginated, getSeuDetailView } from "../core/seus.js";
 import { parseListParams } from "../../../utils/listQuery.js";
-import { commissionFromForm } from "../core/commissioning.js";
-import { devActAsAvailable, currentActAs } from "../../../dev/actAs.js";
+import { getObjectiveDetail, listCommissionableObjectives } from "../core/objectives.js";
+import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
 import { fulfilCapability } from "../core/capabilities.js";
 import { replaceParticipant } from "../core/participants.js";
 import { transitionDeliverable } from "../core/deliverables.js";
@@ -20,7 +20,6 @@ import { createEvidence, transitionEvidence, linkEvidenceToObject } from "../cor
 import { createKnowledgeItem, promoteKnowledgeItemScope, transitionKnowledgeItem } from "../core/knowledge.js";
 import { createDecision, transitionDecision } from "../core/decisions.js";
 import { createExternalInteraction, transitionExternalInteraction } from "../core/externalInteractions.js";
-import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
 import type { AcquisitionScope, InteractionDirection, ParticipantType } from "../../../dblayer/seuTypes.js";
 
 /** GET /aisworg/seu/seus — SEU Runtime: every commissioned SEU. */
@@ -42,59 +41,55 @@ router.get("/seus", attachVM("seu/seus/index"), async (req: Request, res: Respon
   }
 });
 
-/** GET /aisworg/seu/seus/new — commissioning form (Objective statement + required Capabilities). */
+/** GET /aisworg/seu/seus/new — commissioning entry point.
+ * Bug fix (owner: "The commission SEU should get onto the SEU screen and the
+ * messages has to be on that screen. Not on the objective screen.") — an
+ * optional ?objectiveId= switches this into "commission against an existing
+ * Objective" mode. Previously this diagnostic lived on the Objective detail
+ * page itself, and the Objective tree/list rows posted the commission action
+ * directly from the row — both moved here, onto the SEU screen.
+ * Redesigned (owner, 2026-09-05: "Objectives only propose capabilities...
+ * capability-name -> templates -> profile And allow the user to choose a
+ * profile") — the content is getObjectiveDetail's own commissioningOptions,
+ * a capability -> Templates -> Profiles tree to browse and pick from, not an
+ * auto-derived single match.
+ * Redesigned again (owner, 2026-09-06: "the SEU is commissioned against an
+ * objective... If the commissioning happens from SEU, then Objective also
+ * has to be picked") — the old freeform path (no ?objectiveId=: type a
+ * statement + check Capability boxes, auto-creating an Objective inline via
+ * commissionFromForm) is retired from this screen entirely. Arriving here
+ * with no Objective chosen yet now shows a picker over
+ * listCommissionableObjectives — the same real, already-decomposed
+ * Objectives the Objectives tree itself offers a "Commission SEU" action
+ * on — rather than minting a new one from a bare statement. Choosing one
+ * just links to this same route WITH ?objectiveId=, converging onto the
+ * identical tree below. commissionFromForm itself is untouched — it's still
+ * real, load-bearing test fixture infrastructure (~35 test files call it
+ * directly as a one-shot "give me a commissioned SEU" helper) — only this
+ * web page stopped using it. */
 router.get("/seus/new", attachVM("seu/seus/new"), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { data: capabilities } = await capabilitiesDB.findAll();
+    const objectiveId = typeof req.query.objectiveId === "string" && req.query.objectiveId.trim() ? req.query.objectiveId.trim() : null;
+    if (objectiveId) {
+      const fromObjective = await getObjectiveDetail(objectiveId);
+      if (!fromObjective) {
+        return flashError(req, res, "/aisworg/seu/objectives", "Objective not found.");
+      }
+      req.vm.req.title = "Commission SEU from Objective";
+      req.vm.req.fromObjective = fromObjective;
+      req.vm.opt.flash = getFlash(req);
+      return renderView(req, res, "seu/seus/new", req.vm);
+    }
+
+    const held = await resolveHeldBadges(req);
+    const tenantId = held.isRoot ? undefined : req.session?.user?.tenant_id ?? null;
     req.vm.req.title = "Commission a new SEU";
-    req.vm.req.capabilities = capabilities ?? [];
-    // Re-populate after a failed submit so the user doesn't retype. `selectedCodes`
-    // is null on a fresh load (view then defaults all Capabilities checked) and an
-    // array on a bounce-back (reflects exactly what they had selected).
-    const prior = takeFormInput(req);
-    req.vm.req.statement = typeof prior?.statement === "string" ? prior.statement : "";
-    req.vm.req.selectedCodes = prior ? (Array.isArray(prior.requiredCapabilityCodes) ? prior.requiredCapabilityCodes : []) : null;
+    req.vm.req.commissionableObjectives = await listCommissionableObjectives(tenantId);
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/seus/new", req.vm);
   } catch (err) {
     logger.error("[web/seu/seus] GET /seus/new error", err as Error);
     next(err);
-  }
-});
-
-/** POST /aisworg/seu/seus — runs the full Ch.8 pipeline (Objective → Template → Profile → commission) from one form submit. */
-router.post("/seus", async (req: Request, res: Response) => {
-  const { statement, requiredCapabilityCodes } = req.body ?? {};
-  const codes = Array.isArray(requiredCapabilityCodes) ? requiredCapabilityCodes : requiredCapabilityCodes ? [requiredCapabilityCodes] : [];
-
-  if (typeof statement !== "string" || !statement.trim() || codes.length === 0) {
-    stashFormInput(req, { statement: typeof statement === "string" ? statement : "", requiredCapabilityCodes: codes });
-    return flashError(req, res, "/aisworg/seu/seus/new", "Statement and at least one required Capability are required.");
-  }
-
-  try {
-    const result = await commissionFromForm({
-      statement,
-      requiredCapabilityCodes: codes,
-      actorRole: req.session?.user?.role ?? "general",
-      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
-      requestedBy: req.session?.user?.id ?? null,
-      // CR-001 — when the god user is acting-as a tenant, commission into it by
-      // default (explicit form value still wins). No-op unless the switcher is live.
-      tenantId:
-        (typeof req.body?.tenantId === "string" && req.body.tenantId.trim() !== "" ? req.body.tenantId : null) ??
-        (devActAsAvailable(req) ? currentActAs(req)?.tenantId ?? null : null),
-    });
-
-    if (!result.ok) {
-      stashFormInput(req, { statement, requiredCapabilityCodes: codes });
-      return flashError(req, res, "/aisworg/seu/seus/new", `Commissioning failed at "${result.stage}": ${result.reason}`);
-    }
-    return flashSuccess(req, res, `/aisworg/seu/seus/${result.seu.id}`, `SEU commissioned — lifecycle state: ${result.seu.lifecycle_state}.`);
-  } catch (err) {
-    logger.error("[web/seu/seus] POST /seus error", err as Error);
-    stashFormInput(req, { statement, requiredCapabilityCodes: codes });
-    return flashError(req, res, "/aisworg/seu/seus/new", (err as Error).message);
   }
 });
 

@@ -27,6 +27,7 @@ import { packsDB } from "../packsDB.js";
 import { publishTemplate, PACK_SELECTION_SLOTS } from "../../routes/seu/core/templates.js";
 import { publishProfile } from "../../routes/seu/core/profiles.js";
 import type { TemplateDeliverableSeed, TemplateDependencyGraphEntry } from "../seuTypes.js";
+import type { ExposedParameter } from "../../routes/seu/core/templates.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "data");
@@ -42,6 +43,14 @@ interface TemplateSeed {
   mandatoryPackCodes: string[];
   deliverableCatalogue: TemplateDeliverableSeed[];
   dependencyGraph?: TemplateDependencyGraphEntry[];
+  // CR-088's own Template-side mechanism (owner, 2026-09-06, the TCS
+  // analogy: "org standard says 100% milestone meet, project can relax it
+  // to 90%") — which of this Template's own selected Packs' configurable
+  // parameters (Service Level metric / Policy constraintType / Checklist
+  // configurableKey) a Profile may go on to override. Never wired through
+  // from these seed files before now — same gap as Profile's own
+  // Configuration Parameters had.
+  exposedParameters?: ExposedParameter[];
 }
 
 interface ProfileSeed {
@@ -49,8 +58,41 @@ interface ProfileSeed {
   name: string;
   baseTemplateCode: string;
   environment: string;
-  configParameters: Record<string, unknown>;
   optionalPackCodes?: string[];
+  // Bug fix (owner, 2026-09-06: "Pack categories are [used]... they should
+  // be persisted") — compositionEngine.compose() now reads all six of
+  // these (getProfilePackSelections, core/profiles.ts), not just
+  // optionalPackCodes; wired through here so a *.profile.json can actually
+  // populate them, not just optionalPackCodes.
+  technologyPackCodes?: string[];
+  domainPackCodes?: string[];
+  compliancePackCodes?: string[];
+  integrationPackCodes?: string[];
+  engineeringPackCodes?: string[];
+  organisationPackCodes?: string[];
+  description?: string;
+  // CR-091 Part 2 — mandatory on the Platform tenant (development-methodology/
+  // primary-programming-language/source-control-provider); every one of
+  // these *.profile.json files needs a real value or publishProfile's own
+  // validateProfileSeed rejects it. The other five are optional but real,
+  // Ontology-validated Configuration Parameters too (owner: "There has to be
+  // real prod grade data") — previously only the three mandatory ones were
+  // ever wired through from these seed files, even when a *.profile.json set
+  // more.
+  developmentMethodology?: string;
+  primaryProgrammingLanguage?: string;
+  sourceControlProvider?: string;
+  targetCloudProvider?: string;
+  deploymentStrategy?: string;
+  aiProviderPreference?: string;
+  defaultRepositoryStructure?: string;
+  documentationLevel?: string;
+  // CR-088's own Profile-side completion (owner, 2026-09-06, the TCS
+  // analogy: "org standard says 100% milestone meet, project can relax it
+  // to 90%") — this Profile's own override value for whichever of its base
+  // Template's exposedParameters it chooses to override. Never wired
+  // through from these seed files before now.
+  exposedParameterOverrides?: Array<{ sourceType: "service" | "policy" | "checklist" | "dependency"; sourceCode: string; parameterName: string; value: string }>;
 }
 
 // One (Template, Profile) file pair per real template-categories concept.
@@ -102,24 +144,38 @@ async function seedOne(templateFile: string, profileFile: string): Promise<void>
     templateVersion: templateSeed.templateVersion ?? "1.0.0",
     deliverableCatalogue: templateSeed.deliverableCatalogue,
     dependencyGraph: templateSeed.dependencyGraph,
+    exposedParameters: templateSeed.exposedParameters,
     ...packSelections,
   });
   if (!templateResult.ok) throw new Error(`[seed:sdlc-standard-templates] failed to publish template "${templateSeed.code}": ${templateResult.errors.join("; ")}`);
   logger.info(`[seed:sdlc-standard-templates] template ${templateSeed.code} -> ${templateResult.templateId}`);
 
-  // publishProfile (profiles.ts) — same treatment. category is Ontology-backed
-  // (profile-categories, migration 065); none of the 9 *.profile.json files
-  // set it today — "startup" ("Minimal governance, rapid delivery, default
-  // Platform Packs") fits a generic default-development Profile best.
+  // publishProfile (profiles.ts) — same treatment. CR-091 Part 3 retired
+  // `category` (and Part 2 retired `configParameters`) from Profile
+  // entirely — neither is a real field any more.
   const profileResult = await publishProfile({
     code: profileSeed.code,
     name: profileSeed.name,
     baseTemplateCode: profileSeed.baseTemplateCode,
     environment: profileSeed.environment,
-    configParameters: profileSeed.configParameters,
     optionalPackCodes: profileSeed.optionalPackCodes ?? [],
+    technologyPackCodes: profileSeed.technologyPackCodes ?? [],
+    domainPackCodes: profileSeed.domainPackCodes ?? [],
+    compliancePackCodes: profileSeed.compliancePackCodes ?? [],
+    integrationPackCodes: profileSeed.integrationPackCodes ?? [],
+    engineeringPackCodes: profileSeed.engineeringPackCodes ?? [],
+    organisationPackCodes: profileSeed.organisationPackCodes ?? [],
     profileVersion: "1.0.0",
-    category: "startup",
+    description: profileSeed.description,
+    developmentMethodology: profileSeed.developmentMethodology,
+    primaryProgrammingLanguage: profileSeed.primaryProgrammingLanguage,
+    sourceControlProvider: profileSeed.sourceControlProvider,
+    targetCloudProvider: profileSeed.targetCloudProvider,
+    deploymentStrategy: profileSeed.deploymentStrategy,
+    aiProviderPreference: profileSeed.aiProviderPreference,
+    defaultRepositoryStructure: profileSeed.defaultRepositoryStructure,
+    documentationLevel: profileSeed.documentationLevel,
+    exposedParameterOverrides: profileSeed.exposedParameterOverrides,
   });
   if (!profileResult.ok) throw new Error(`[seed:sdlc-standard-templates] failed to publish profile "${profileSeed.code}": ${profileResult.errors.join("; ")}`);
   logger.info(`[seed:sdlc-standard-templates] profile ${profileSeed.code} -> ${profileResult.profileId}`);

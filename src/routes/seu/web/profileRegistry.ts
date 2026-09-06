@@ -14,6 +14,7 @@ import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
 import { listProfilesWithNextStates, copyProfileAsNewDraft } from "../core/profiles.js";
+import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
@@ -24,27 +25,44 @@ const PROFILE_STATES = ["Draft", "Validated", "Published", "Active", "Deprecated
 router.get("/profiles", attachVM("seu/profiles/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Profiles";
-    const params = parseListParams(req.query, { sortable: ["name", "version", "status", "category"], defaultSort: "name", defaultDir: "asc" });
+    const params = parseListParams(req.query, { sortable: ["name", "version", "status"], defaultSort: "name", defaultDir: "asc" });
     const isRoot = (req.session?.user?.platformBadges ?? []).includes("root");
     const viewerTenantId = req.session?.user?.tenant_id ?? null;
     const profiles = await listProfilesWithNextStates(viewerTenantId ? { isRoot, tenantId: viewerTenantId } : null);
-    // Ch.7 §8 Profile Categories — a real, distinct field (unlike Template's
-    // code-as-category shortcut).
-    const categories = [...new Set(profiles.map((p) => p.profile.category).filter((c): c is string => !!c))].sort();
-    const activeCategory = typeof req.query.category === "string" && categories.includes(req.query.category) ? req.query.category : "";
+    // CR-091 Part 3 — Registry now groups by base Template's code instead of
+    // the now-retired `category` field (owner: "Restricting the profiles to
+    // categories should not be present"), labelling each group with
+    // whichever Template Version is currently Active for that code (owner:
+    // "whatever is active") — not the specific, possibly older version an
+    // individual Profile happens to be pinned to (§19.8's frozen-reference
+    // design).
+    const templateCodeById = new Map<string, string>();
+    const activeTemplateNameByCode = new Map<string, string>();
+    for (const templateId of new Set(profiles.map((p) => p.profile.base_template_id))) {
+      const { data: template } = await templatesDB.findById(templateId);
+      if (!template) continue;
+      templateCodeById.set(templateId, template.code);
+      if (!activeTemplateNameByCode.has(template.code)) {
+        const { data: activeTemplate } = await templatesDB.findActiveByCode(template.code, viewerTenantId ?? undefined);
+        activeTemplateNameByCode.set(template.code, activeTemplate?.name ?? template.name);
+      }
+    }
+    const templateCodeFor = (p: { profile: { base_template_id: string } }) => templateCodeById.get(p.profile.base_template_id) ?? "";
+    const templateCodes = [...new Set(profiles.map(templateCodeFor).filter(Boolean))].sort();
+    const activeTemplateCode = typeof req.query.templateCode === "string" && templateCodes.includes(req.query.templateCode) ? req.query.templateCode : "";
     const activeStatus = typeof req.query.status === "string" && PROFILE_STATES.includes(req.query.status) ? req.query.status : "";
-    let scoped = activeCategory ? profiles.filter((p) => p.profile.category === activeCategory) : profiles;
+    let scoped = activeTemplateCode ? profiles.filter((p) => templateCodeFor(p) === activeTemplateCode) : profiles;
     if (activeStatus) scoped = scoped.filter((p) => p.profile.status === activeStatus);
     const list = paginateList(scoped, params, {
-      searchFields: [(p) => p.profile.name, (p) => p.profile.code, (p) => p.profile.category],
-      sortFields: { name: (p) => p.profile.name, version: (p) => p.profile.profile_version, status: (p) => p.profile.status, category: (p) => p.profile.category },
+      searchFields: [(p) => p.profile.name, (p) => p.profile.code],
+      sortFields: { name: (p) => p.profile.name, version: (p) => p.profile.profile_version, status: (p) => p.profile.status },
     });
-    list.category = activeCategory || undefined;
+    list.templateCode = activeTemplateCode || undefined;
     list.status = activeStatus || undefined;
     req.vm.req.list = list;
     req.vm.opt.listBasePath = "/aisworg/seu/profiles";
-    req.vm.opt.categories = categories;
-    req.vm.opt.activeCategory = activeCategory;
+    req.vm.opt.templateCodes = templateCodes.map((code) => ({ code, label: activeTemplateNameByCode.get(code) ?? code }));
+    req.vm.opt.activeTemplateCode = activeTemplateCode;
     req.vm.opt.states = PROFILE_STATES;
     req.vm.opt.activeStatus = activeStatus;
     req.vm.opt.platformTenantId = PLATFORM_TENANT_ID;

@@ -13,34 +13,34 @@ import type { DbResult, ProfileRow } from "./seuTypes.js";
 // own §8 field, kept separate from `code` (see the migration's own comment
 // on why) — not part of identity, just another authored column.
 export const profilesDB = {
+  // CR-091 Part 2/Part 3 — configParameters/category both dropped from every
+  // write path below. Neither the profiles.config_parameters nor
+  // profiles.category DATABASE COLUMN is touched by this (owner: "do not
+  // delete. But do not use them") — they simply stop being written to by any
+  // new row from here on; existing historical values sit there untouched.
   async upsert(input: {
     code: string;
     name: string;
     baseTemplateId: string;
-    configParameters?: Record<string, unknown>;
     environment?: string;
     profileVersion?: string;
     tenantId?: string;
-    category?: string | null;
   }): Promise<DbResult<ProfileRow>> {
     try {
       const { rows } = await query<ProfileRow>(
-        `INSERT INTO profiles (code, name, base_template_id, config_parameters, environment, profile_version, tenant_id, category)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `INSERT INTO profiles (code, name, base_template_id, environment, profile_version, tenant_id)
+         VALUES ($1, $2, $3, $4, $5, $6)
          ON CONFLICT (code, profile_version, tenant_id) DO UPDATE
            SET name = EXCLUDED.name, base_template_id = EXCLUDED.base_template_id,
-               config_parameters = EXCLUDED.config_parameters, environment = EXCLUDED.environment,
-               category = EXCLUDED.category
+               environment = EXCLUDED.environment
          RETURNING *`,
         [
           input.code,
           input.name,
           input.baseTemplateId,
-          JSON.stringify(input.configParameters ?? {}),
           input.environment ?? "development",
           input.profileVersion ?? "1.0.0",
           input.tenantId ?? PLATFORM_TENANT_ID,
-          input.category ?? null,
         ]
       );
       return { data: rows[0] };
@@ -53,15 +53,14 @@ export const profilesDB = {
   async create(input: {
     baseTemplateId: string;
     environment?: string;
-    configParameters?: Record<string, unknown>;
   }): Promise<DbResult<ProfileRow>> {
     try {
       const code = `profile-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const { rows } = await query<ProfileRow>(
-        `INSERT INTO profiles (code, name, base_template_id, config_parameters, environment)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO profiles (code, name, base_template_id, environment)
+         VALUES ($1, $2, $3, $4)
          RETURNING *`,
-        [code, `Custom profile for ${input.baseTemplateId}`, input.baseTemplateId, JSON.stringify(input.configParameters ?? {}), input.environment ?? "development"]
+        [code, `Custom profile for ${input.baseTemplateId}`, input.baseTemplateId, input.environment ?? "development"]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -88,12 +87,11 @@ export const profilesDB = {
     profileVersion?: string;
     tenantId?: string;
     parentProfileId?: string | null;
-    category?: string | null;
   }): Promise<DbResult<ProfileRow>> {
     try {
       const { rows } = await query<ProfileRow>(
-        `INSERT INTO profiles (code, name, base_template_id, environment, status, authored_by, draft_content, profile_version, tenant_id, parent_profile_id, category)
-         VALUES ($1, $2, $3, $4, 'Draft', $5, $6, $7, $8, $9, $10)
+        `INSERT INTO profiles (code, name, base_template_id, environment, status, authored_by, draft_content, profile_version, tenant_id, parent_profile_id)
+         VALUES ($1, $2, $3, $4, 'Draft', $5, $6, $7, $8, $9)
          RETURNING *`,
         [
           input.code,
@@ -105,7 +103,6 @@ export const profilesDB = {
           input.profileVersion ?? "1.0.0",
           input.tenantId ?? PLATFORM_TENANT_ID,
           input.parentProfileId ?? null,
-          input.category ?? null,
         ]
       );
       return { data: rows[0] };
@@ -115,12 +112,37 @@ export const profilesDB = {
     }
   },
 
-  async updateDraftContent(id: string, input: { name: string; baseTemplateId: string; environment?: string; configParameters?: Record<string, unknown>; draftContent: Record<string, unknown>; profileVersion: string; category?: string | null }): Promise<DbResult<ProfileRow>> {
+  // Bug fix (owner, 2026-09-06: "every seeded Profile in the current DB has
+  // empty draft_content — this will not be useful. There has to be real
+  // prod grade data") — publishProfile's own upsert() never writes
+  // draft_content at all (only code/name/baseTemplateId/environment/
+  // profileVersion/tenantId), so nothing passed to publishProfile beyond
+  // those — description, the 8 Configuration Parameters, Pack-selection
+  // slots as their own authored arrays, exposedParameterOverrides, etc. —
+  // ever reached the row, regardless of what a seed file actually declared.
+  // updateDraftContent above is scoped to `WHERE status = 'Draft'`
+  // (interactive authoring's own save-while-editing case) and upsert's own
+  // INSERT defaults status to 'Active' (migration 002), so it never matches
+  // a seeded row — a genuinely different write path is needed here, not a
+  // reuse of that one. No status restriction: materialiseProfileDraft (the
+  // one caller) runs after both upsert (Active) and createDraft (Draft), so
+  // this has to work regardless of which state the row is actually in.
+  async setDraftContent(id: string, draftContent: Record<string, unknown>): Promise<DbResult<ProfileRow>> {
+    try {
+      const { rows } = await query<ProfileRow>(`UPDATE profiles SET draft_content = $2 WHERE id = $1 RETURNING *`, [id, JSON.stringify(draftContent)]);
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[profilesDB] setDraftContent error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async updateDraftContent(id: string, input: { name: string; baseTemplateId: string; environment?: string; draftContent: Record<string, unknown>; profileVersion: string }): Promise<DbResult<ProfileRow>> {
     try {
       const { rows } = await query<ProfileRow>(
-        `UPDATE profiles SET name = $2, base_template_id = $3, environment = $4, config_parameters = $5, draft_content = $6, profile_version = $7, category = $8
+        `UPDATE profiles SET name = $2, base_template_id = $3, environment = $4, draft_content = $5, profile_version = $6
          WHERE id = $1 AND status = 'Draft' RETURNING *`,
-        [id, input.name, input.baseTemplateId, input.environment ?? "development", JSON.stringify(input.configParameters ?? {}), JSON.stringify(input.draftContent), input.profileVersion, input.category ?? null]
+        [id, input.name, input.baseTemplateId, input.environment ?? "development", JSON.stringify(input.draftContent), input.profileVersion]
       );
       return { data: rows[0] };
     } catch (err) {

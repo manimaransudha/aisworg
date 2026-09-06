@@ -29,17 +29,20 @@
 
     <% const _base = locals.listBasePath || '/aisworg/seu/profiles'; %>
     <%
-      var _categories = locals.categories || [];
-      var _activeCategory = locals.activeCategory || '';
-      var _categoryTabs = [{ key: '', label: 'All categories', href: _base }].concat(
-        _categories.map(function (c) { return { key: c, label: c, href: _base + '?category=' + encodeURIComponent(c) }; })
+      // CR-091 Part 3 — grouped by base Template's code (labelled with
+      // whichever Template Version is currently Active for that code), not
+      // the now-retired `category` field.
+      var _templateCodes = locals.templateCodes || [];
+      var _activeTemplateCode = locals.activeTemplateCode || '';
+      var _templateCodeTabs = [{ key: '', label: 'All Templates', href: _base }].concat(
+        _templateCodes.map(function (t) { return { key: t.code, label: t.label, href: _base + '?templateCode=' + encodeURIComponent(t.code) }; })
       );
     %>
     <div class="d-flex flex-column flex-md-row gap-4 align-items-start">
-    <%- include('../../partials/verticalTabs', { tabs: _categoryTabs, active: _activeCategory }) %>
+    <%- include('../../partials/verticalTabs', { tabs: _templateCodeTabs, active: _activeTemplateCode }) %>
     <div class="flex-grow-1" style="min-width: 0;">
 
-    <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search name / code / category' }) %>
+    <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search name / code' }) %>
     <div class="small text-muted mb-3">Sort:
       <%- sortLink('Name', 'name', list, _base) %> &middot;
       <%- sortLink('Version', 'version', list, _base) %> &middot;
@@ -60,8 +63,8 @@
     <% if (list.total === 0) { %>
       <% if (list.q) { %>
         <div class="alert alert-warning">No Profiles match your search.</div>
-      <% } else if (_activeStatus || _activeCategory) { %>
-        <div class="alert alert-warning">No Profiles<%= _activeStatus ? (' in state "' + _activeStatus + '"') : '' %><%= _activeCategory ? (' in category "' + _activeCategory + '"') : '' %>.</div>
+      <% } else if (_activeStatus || _activeTemplateCode) { %>
+        <div class="alert alert-warning">No Profiles<%= _activeStatus ? (' in state "' + _activeStatus + '"') : '' %><%= _activeTemplateCode ? (' for Template "' + _activeTemplateCode + '"') : '' %>.</div>
       <% } else { %>
         <div class="alert alert-warning">No Profiles published yet — author one via SDK / Authoring &rarr; Profile Authoring.</div>
       <% } %>
@@ -77,7 +80,6 @@
                 </h5>
                 <p class="text-muted small mb-2">
                   <span class="state-badge state-<%= p.profile.status %>"><%= p.profile.status %></span>
-                  <% if (p.profile.category) { %><span class="badge bg-light text-dark border"><%= p.profile.category %></span><% } %>
                   <span class="badge bg-info-subtle text-info-emphasis border"><%= p.profile.environment %></span>
                   <% if (p.profile.tenant_id === locals.platformTenantId) { %>
                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Platform</span>

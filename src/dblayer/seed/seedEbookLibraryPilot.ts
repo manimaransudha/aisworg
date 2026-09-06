@@ -41,7 +41,6 @@ interface ProfileSeed {
   name: string;
   baseTemplateCode: string;
   environment: string;
-  configParameters: Record<string, unknown>;
   optionalPackCodes?: string[];
 }
 
@@ -65,6 +64,7 @@ async function run(): Promise<void> {
       owningEntityId: template.id,
       deliverableCatalogue: templateSeed.deliverableCatalogue,
       dependencyGraph: templateSeed.dependencyGraph ?? [],
+      tenantId: template.tenant_id,
     });
 
     const { data: capabilities } = await capabilitiesDB.findByCodes(templateSeed.requiredCapabilityCodes);
@@ -101,7 +101,6 @@ async function run(): Promise<void> {
       name: profileSeed.name,
       baseTemplateId: template.id,
       environment: profileSeed.environment,
-      configParameters: profileSeed.configParameters,
     });
     if (profileErr || !profile) throw profileErr ?? new Error(`profile upsert failed: ${profileSeed.code}`);
 

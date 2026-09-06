@@ -1,11 +1,13 @@
 // Real fix, not just documented: findOrCreateDefaultProfile's own comment
 // used to flag "no UI to choose between multiple real Profiles for a
-// Template" as a known, unsolved gap. Closed via getObjectiveDetail's new
-// commissioningPreview (core/objectives.ts) + a real dropdown on the
-// Objective detail page + commissionFromExistingObjective accepting an
-// explicit profileId. Proves, against real dev data:
+// Template" as a known, unsolved gap. Closed via getObjectiveDetail's
+// commissioningOptions (core/objectives.ts, a capability -> Templates ->
+// Profiles tree — commissionFromExistingObjective itself no longer derives a
+// Template at all; templateId is now the caller's own explicit choice, same
+// as profileId already was) + a real picker on the SEU screen
+// (seu/seus/new.ejs?objectiveId=..). Proves, against real dev data:
 //   1. getObjectiveDetail surfaces every real (non-throwaway) Profile for
-//      the matched Template when more than one exists.
+//      the Template under the branch(es) it actually covers.
 //   2. Passing an explicit profileId actually composes that Profile's own
 //      optional Packs, not whichever the auto-pick heuristic would have
 //      chosen.
@@ -87,6 +89,12 @@ async function cleanupPriorRuns(): Promise<void> {
     // information_schema query; a later full migration replay correctly
     // dropped it, making this line reference a table that no longer exists.
     await pool.query("DELETE FROM commands WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    // Bug fix (owner: "let us fix the test suite") — capability_fulfilments
+    // has no seu_id of its own (only seu_capability_id -> seu_capabilities,
+    // participant_id -> participants), so it was never cleared here at all;
+    // once enough accumulated fixture rows existed, the participants delete
+    // below started hitting capability_fulfilments_participant_id_fkey.
+    await pool.query("DELETE FROM capability_fulfilments WHERE seu_capability_id IN (SELECT id FROM seu_capabilities WHERE seu_id = ANY($1::uuid[]))", [seuIds]);
     await pool.query("DELETE FROM participants WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM deliverables WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM seu_capabilities WHERE seu_id = ANY($1::uuid[])", [seuIds]);
@@ -121,9 +129,13 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   // technology-nodejs as optional, so composing it is directly observable.
   const plainCode = `verify-profile-choice-plain-${randomUUID()}`;
   const nodejsCode = `verify-profile-choice-nodejs-${randomUUID()}`;
-  const plainPublished = await publishProfile({ code: plainCode, name: "Plain Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: [], profileVersion: "1.0.0", category: "startup" });
+  // CR-091 Part 2 — development-methodology/primary-programming-language/
+  // source-control-provider are mandatory on the Platform tenant; publishProfile
+  // runs validateProfileSeed, so these need real values or it rejects both.
+  const mandatoryConfigParams = { developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github" };
+  const plainPublished = await publishProfile({ code: plainCode, name: "Plain Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: [], profileVersion: "1.0.0", ...mandatoryConfigParams });
   assert.equal(plainPublished.ok, true, !plainPublished.ok ? plainPublished.errors.join("; ") : undefined);
-  const nodejsPublished = await publishProfile({ code: nodejsCode, name: "Nodejs Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: ["technology-nodejs"], profileVersion: "1.0.0", category: "startup" });
+  const nodejsPublished = await publishProfile({ code: nodejsCode, name: "Nodejs Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: ["technology-nodejs"], profileVersion: "1.0.0", ...mandatoryConfigParams });
   assert.equal(nodejsPublished.ok, true, !nodejsPublished.ok ? nodejsPublished.errors.join("; ") : undefined);
   if (!nodejsPublished.ok || !plainPublished.ok) return;
 
@@ -133,15 +145,23 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   const { objective } = await createObjective({ statement: `verify-profile-choice-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design"], tier: "Engineering", parentObjectiveId: pcRoot.id, requestedBy: 1001,});
   assert.equal(objective.status, "Active");
 
-  // 1. getObjectiveDetail surfaces both real Profiles as real candidates.
+  // 1. getObjectiveDetail surfaces both real Profiles as real candidates,
+  // each exactly once (CR-092 Part 6 inversion — one row per Profile, not
+  // one per Capability branch, even though this Template covers both
+  // Capabilities this Objective declares — it's the only Template requiring
+  // either, in this test's own isolated fixture), each row naming both
+  // required Capabilities its own Template covers.
   const detail = await getObjectiveDetail(objective.id);
-  assert.ok(detail?.commissioningPreview);
-  assert.equal(detail!.commissioningPreview!.templateCode, templateCode);
-  const candidateIds = detail!.commissioningPreview!.candidateProfiles.map((p) => p.id).sort();
+  assert.ok(detail?.commissioningOptions?.length);
+  const rowsForTemplate = detail!.commissioningOptions!.filter((r) => r.templateCode === templateCode);
+  const candidateIds = rowsForTemplate.map((r) => r.profile?.id).filter((id): id is string => !!id).sort();
   assert.deepEqual(candidateIds, [plainPublished.profileId, nodejsPublished.profileId].sort());
+  for (const row of rowsForTemplate) {
+    assert.deepEqual(row.capabilities.map((c) => c.code).sort(), ["architecture-design", "requirements-analysis"]);
+  }
 
-  // 2. Explicitly choosing the nodejs Profile actually composes it.
-  const chosen = await commissionFromExistingObjective({ objectiveId: objective.id, actorRole: "super", actorId: "1001", profileId: nodejsPublished.profileId });
+  // 2. Explicitly choosing the Template + nodejs Profile actually composes it.
+  const chosen = await commissionFromExistingObjective({ objectiveId: objective.id, selections: [{ templateId: template!.id, profileId: nodejsPublished.profileId }], actorRole: "super", actorId: "1001" });
   assert.equal(chosen.ok, true, !chosen.ok ? JSON.stringify(chosen) : undefined);
   if (!chosen.ok) return;
   const chosenDetail = await getSeuDetailView(chosen.seu.id);
@@ -149,8 +169,10 @@ test("Objective-first commissioning offers a real Profile choice when more than 
 
   // 3. Omitting profileId still works via the existing auto-pick fallback
   // (development-environment preference, else first real match) — doesn't
-  // throw, still produces a real SEU.
+  // throw, still produces a real SEU. templateId is still required — it's
+  // the human's own choice now, never auto-derived — but is the one thing
+  // this path never asked the human to pick before either.
   const { objective: objective2 } = await createObjective({ statement: `verify-profile-choice-fallback-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design"], tier: "Engineering", parentObjectiveId: pcRoot.id, requestedBy: 1001,});
-  const autoPicked = await commissionFromExistingObjective({ objectiveId: objective2.id, actorRole: "super", actorId: "1001" });
+  const autoPicked = await commissionFromExistingObjective({ objectiveId: objective2.id, selections: [{ templateId: template!.id }], actorRole: "super", actorId: "1001" });
   assert.equal(autoPicked.ok, true, !autoPicked.ok ? JSON.stringify(autoPicked) : undefined);
 });

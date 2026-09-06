@@ -163,11 +163,20 @@ test("a submitted Proposed Objective locks both Edit and Delete until the activa
 
 // CR-075 (owner: "Only propose can edit every field based on rules wherever
 // applicable. All other states can only add comments in their edit form" /
-// "adding moving is all editing") — statement, required Capabilities, Add
-// child and Move are only allowed while status is Proposed; every other
-// status can still be commented on (a separate, status-independent rule),
-// just nothing else.
-test("only a Proposed Objective can have its fields/decomposition edited — every other status is Comments-only", async () => {
+// "adding moving is all editing") — statement, required Capabilities and
+// Move are only allowed while status is Proposed; every other status can
+// still be commented on (a separate, status-independent rule), just nothing
+// else.
+//
+// Bug fix (owner, 2026-09-06: "That check makes it impossible to make a
+// strategic objective be an umbrella... allow children to be created if a
+// parent is in a proposed or active state") — Add-child is deliberately NOT
+// in that same-as-everything-else list any more: an Objective (Strategic
+// most of all, but the rule is tier-agnostic — DECOMPOSABLE_PARENT_STATUSES,
+// core/objectives.ts) is meant to stay Active as a long-lived umbrella, with
+// new children proposed under it over time, not fully decomposed once, up
+// front, before it can ever be activated.
+test("only a Proposed Objective can have its own fields/lineage edited — Active still accepts new children, every other status is Comments-only", async () => {
   const { objective: root } = await createObjective({
     statement: `phase1-proposed-only-root-${randomUUID()}`,
     requiredCapabilityCodes: [],
@@ -195,21 +204,21 @@ test("only a Proposed Objective can have its fields/decomposition edited — eve
   const activated = await transitionObjective({ objectiveId: child.id, targetState: "Active", actorRole: "general", actorId: "1001" });
   assert.equal(activated.ok, true);
 
-  // Now Active: statement/Capabilities/Move/Add-child must all be refused —
-  // real enforcement, the same rule everywhere it applies.
+  // Now Active: this Objective's OWN statement/Capabilities/Move are still
+  // refused — editing itself is unaffected by today's fix.
   await assert.rejects(() => updateObjective(child.id, { statement: "should-not-apply" }), /is not Proposed/);
   await assert.rejects(() => reParentObjective(child.id, otherRoot.id), /is not Proposed/);
-  await assert.rejects(
-    () =>
-      createObjective({
-        statement: `phase1-proposed-only-grandchild-${randomUUID()}`,
-        requiredCapabilityCodes: ["architecture-design"],
-        tier: "Engineering",
-        parentObjectiveId: child.id,
-        requestedBy: 1001,
-      }),
-    /parent Objective is not Proposed/
-  );
+
+  // But adding a NEW child under it now succeeds — the actual point of the
+  // fix: an Active Objective stays open to further decomposition.
+  const { objective: grandchild } = await createObjective({
+    statement: `phase1-proposed-only-grandchild-${randomUUID()}`,
+    requiredCapabilityCodes: ["architecture-design"],
+    tier: "Engineering",
+    parentObjectiveId: child.id,
+    requestedBy: 1001,
+  });
+  assert.equal(grandchild.parent_objective_id, child.id);
 
   // Comments are a separate, status-independent rule — still work.
   const { error: commentErr } = await objectivesDB.addComment(child.id, 1001, "still commentable while Active");
@@ -435,7 +444,7 @@ test("commissionSeu requires the Objective to be Active — blocks Proposed, suc
   assert.ok(template);
   const profile = await createProfile({ templateId: template.id, environment: "development" });
 
-  const blocked = await commissionSeu({ objectiveId: objective.id, templateId: template.id, profileId: profile.id, actorRole: "super", actorId: "1001" });
+  const blocked = await commissionSeu({ objectiveId: objective.id, templateIds: [template.id], profileIds: [profile.id], actorRole: "super", actorId: "1001" });
   assert.equal(blocked.ok, false);
   if (!blocked.ok) assert.ok(blocked.reason.includes("not Active"), `expected reason to mention "not Active", got: ${blocked.reason}`);
 
@@ -443,23 +452,38 @@ test("commissionSeu requires the Objective to be Active — blocks Proposed, suc
   const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: "1001" });
   assert.equal(activated.ok, true);
 
-  const allowed = await commissionSeu({ objectiveId: objective.id, templateId: template.id, profileId: profile.id, actorRole: "super", actorId: "1001" });
+  const allowed = await commissionSeu({ objectiveId: objective.id, templateIds: [template.id], profileIds: [profile.id], actorRole: "super", actorId: "1001" });
   assert.equal(allowed.ok, true);
   if (allowed.ok) assert.equal(allowed.seu.lifecycle_state, "Operational");
 });
 
-test("commissionFromExistingObjective reuses the Objective's own declared Capabilities, no re-picking", async () => {
+// Redesigned (owner, 2026-09-05: "Objectives only propose capabilities. They
+// do not take the final call... allow the user to choose a profile") —
+// commissionFromExistingObjective no longer auto-derives a Template from the
+// Objective's own declared Capabilities at all (that used to hard-fail
+// whenever no single Template covered every one of them); templateId is now
+// the caller's own explicit choice, exactly like profileId already was. This
+// test now proves the opposite of its old name: a Template that DOESN'T
+// cover every declared Capability is still a valid, successful choice — the
+// gap is something a Profile's own Additional Capabilities can cover, not a
+// reason for this function to refuse.
+test("commissionFromExistingObjective takes an explicit Template choice — a partial-coverage match still commissions", async () => {
+  const { template, profile } = await ensureWebAppTemplateFixture();
   const { objective } = await createObjective({
     statement: `phase1-existing-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
+    // engineering-data-pipelines is real (capability-name) but has nothing
+    // to do with the web-app fixture Template's own required set — proposed
+    // by the Objective, not satisfied by the chosen Template, and that's
+    // fine now.
+    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "engineering-data-pipelines"],
     tier: "Engineering",
     parentObjectiveId: await strategicRoot(),
     requestedBy: 1001,
     // status omitted — defaults Active, matching the one-shot quick-commission path
   });
 
-  const result = await commissionFromExistingObjective({ objectiveId: objective.id, actorRole: "super", actorId: "1001" });
-  assert.equal(result.ok, true);
+  const result = await commissionFromExistingObjective({ objectiveId: objective.id, selections: [{ templateId: template.id, profileId: profile.id }], actorRole: "super", actorId: "1001" });
+  assert.equal(result.ok, true, !result.ok ? JSON.stringify(result) : undefined);
   if (result.ok) assert.equal(result.seu.lifecycle_state, "Operational");
 });
 

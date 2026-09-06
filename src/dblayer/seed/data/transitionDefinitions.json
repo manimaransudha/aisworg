@@ -8,6 +8,48 @@
   },
   {
     "entityType": "SEU",
+    "fromState": "Pending",
+    "toState": "Validated",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Validated",
+    "toState": "Composed",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Composed",
+    "toState": "RuntimeAllocated",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "RuntimeAllocated",
+    "toState": "KnowledgeInitialised",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "KnowledgeInitialised",
+    "toState": "ParticipantsRecruited",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "ParticipantsRecruited",
+    "toState": "Commissioned",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "SEU",
     "fromState": "Commissioned",
     "toState": "Configured",
     "requiredAuthorityRuleCode": null,

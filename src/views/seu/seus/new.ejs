@@ -2,11 +2,26 @@
 <html lang="en">
 <head>
   <%- include('../../partials/head') %>
+  <%# UX fix (owner, 2026-09-06: "show each profile as a card and the action
+       buttons have to sticky at the top. If there are 100 profiles, it is
+       not desirable to scroll all the way down") — .profile-tile is
+       .card-tile (CR-083's own card family: crisp border, hover accent)
+       plus a persistent "selected" highlight once its checkbox is checked,
+       not just on hover. Page-only enhancement, doesn't touch any shared
+       CR-083 rule. %>
+  <style>
+    .profile-tile:has(input:checked) {
+      border-color: var(--primary-dark) !important;
+      background: var(--primary-light);
+      box-shadow: var(--shadow-md);
+    }
+  </style>
 </head>
 <body>
   <header><%- include('../../partials/navbar') %></header>
 
-  <main class="container py-5" style="max-width: 700px;">
+  <% var wide = locals.fromObjective && fromObjective.commissioningOptions && fromObjective.commissioningOptions.length && !fromObjective.commissionedSeuId; %>
+  <main class="container py-5" style="max-width: <%= wide ? '1100px' : '700px' %>;">
     <% if (locals.flash) { %>
       <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
         <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
@@ -14,47 +29,152 @@
       </div>
     <% } %>
 
-    <h2 class="h3 mb-1 text-dark fw-bold">Commission a new SEU</h2>
-    <p class="text-muted small mb-4">
-      One submit runs the full pipeline: create the Objective, find a Template that satisfies every
-      required Capability, apply a default Profile, then commission — the Composition Engine runs and
-      the SEU walks its lifecycle through to Operational.
-    </p>
+    <% if (locals.fromObjective) { %>
+      <%# Bug fix (owner: "The commission SEU should get onto the SEU screen
+           and the messages has to be on that screen. Not on the objective
+           screen.") — commissioning against an existing Objective now lands
+           here instead of being decided inline on the Objective's own detail
+           page.
+           Redesigned (owner, 2026-09-05: "Objectives only propose
+           capabilities. They do not take the final call... capability-name
+           -> templates -> profile And allow the user to choose a profile. If
+           an additional capability is required, profiles have provision for
+           that.") — no more auto-matched single Template/hard failure;
+           fromObjective.commissioningOptions (getObjectiveDetail,
+           core/objectives.ts) is browsed and picked here rather than
+           computed.
+           Inverted (owner, 2026-09-06: "The whole selection of
+           template+profile is messed up. It has to be inverted. Show the
+           list of all applicable profiles first - which template they
+           correspond to and the capability name as a list... no
+           duplication of profiles") — one row per real Profile (never
+           repeated even when its Template covers several required
+           Capabilities), each row naming its own Template and listing
+           every required Capability that Template covers. A Template with
+           no real Profile yet ("template + no profile - i agree with your
+           approach") gets its own single row instead (profile: null, "a
+           default will be created"). A chosen Template missing something
+           else the Objective proposed isn't a blocker — its Profile's own
+           Additional Capabilities (Ch.7 §5) is where that gets covered, not
+           here. %>
+      <h2 class="h3 mb-1 text-dark fw-bold">Commission SEU from Objective</h2>
+      <p class="mb-4"><%= fromObjective.objective.statement %></p>
 
-    <% if (capabilities.length === 0) { %>
+      <%# Bug fix (owner, 2026-09-06: "The corresponding objective should not
+           allow any more commissioning requests against the same
+           objective") — a direct/stale link to this Objective (e.g. from a
+           bookmark, or before a tree row's own "Commissioned" badge
+           refreshes) must not fall through to the generic "no Template
+           available" message below — that reads as a Template gap, not as
+           "already done." %>
+      <% if (fromObjective.commissionedSeuId) { %>
+        <div class="alert alert-success mb-0">
+          This Objective has already been commissioned. <a href="/aisworg/seu/seus/<%= fromObjective.commissionedSeuId %>">View the SEU</a>.
+        </div>
+      <% } else if (!fromObjective.commissioningOptions || !fromObjective.commissioningOptions.length) { %>
+        <div class="alert alert-warning mb-0">No Template is currently available to commission against.</div>
+      <% } else { %>
+        <%# Redesigned (owner, 2026-09-06: "Multiple profiles are very much
+             possible. That is why composition exists. That is why
+             validation is required... choose one or more profiles. And has
+             to queue to validate") — was a single radio (one Template +
+             Profile pair); now checkboxes, one-or-more selections, posted to
+             validate-commission (not directly to commission) so every
+             selection passes through a real conflict check first. %>
+        <%# CR-083 (Modern Light Theme & Crisp UI Boundary Overhaul) — this
+             picker previously used plain Bootstrap card/shadow/list-group
+             utility classes, matching this file's own pre-CR-083 pattern
+             rather than the app's own .section-card/.section-header/
+             .component-row design-system classes (public/css/style.css)
+             every sibling SEU-area page (e.g. objectives/detail.ejs) is
+             built from. Aligned now.
+             UX fix (owner, 2026-09-06: "show each profile as a card and
+             the action buttons have to sticky at the top. If there are
+             100 profiles, it is not desirable to scroll all the way
+             down") — rows became a card grid (.card-tile, same
+             CR-083-governed card family, one Profile per card), and the
+             submit/cancel actions moved out of a footer below however
+             many cards there are into their own toolbar, sticky at the
+             top of the viewport as the grid scrolls underneath it.
+             Bug fix (owner, 2026-09-06: "Let us impose the condition that
+             only one profile can be chosen. Now it is a multi-select") —
+             CR-092 Part 6's own "allow multiple Profiles" policy is
+             retired; back to a single choice — checkboxes reverted to a
+             radio group (same shared name="templateProfile" already
+             enforced mutual exclusivity for a radio, no other markup
+             change needed). commissionSeu's own guard
+             (core/commissioning.ts) is the real backstop; this is just the
+             form matching that rule. %>
+        <form method="POST" action="/aisworg/seu/objectives/<%= fromObjective.objective.id %>/validate-commission">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <div class="d-flex align-items-center justify-content-between gap-3 mb-3" style="position: sticky; top: 0; z-index: 10; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); padding: .85rem 1.25rem;">
+            <span class="small text-muted">Choose one Profile below, then Queue to Validate.</span>
+            <div class="d-flex gap-2 flex-shrink-0">
+              <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-clipboard-check me-1"></i>Queue to Validate</button>
+              <a href="/aisworg/seu/objectives/<%= fromObjective.objective.id %>" class="btn btn-link text-muted btn-sm">Cancel</a>
+            </div>
+          </div>
+
+          <div class="section-card">
+            <div class="section-header">Available Profiles</div>
+            <p class="text-muted small mb-0 px-3 pt-3">Every Profile currently available for this Objective's proposed Capabilities, and which Template it belongs to — a Profile's own Template need not cover every Capability listed on its card; anything it doesn't, the Profile can add via Additional Capabilities.</p>
+            <div class="row row-cols-1 row-cols-md-2 g-3 p-3">
+              <% fromObjective.commissioningOptions.forEach(function(row) { %>
+                <div class="col">
+                  <label class="card-tile profile-tile d-flex gap-2 h-100 mb-0" for="tp-<%= row.templateId %>-<%= row.profile ? row.profile.id : 'none' %>" style="cursor: pointer;">
+                    <input class="form-check-input mt-1 flex-shrink-0" type="radio" name="templateProfile" value="<%= row.templateId %>|<%= row.profile ? row.profile.id : '' %>" id="tp-<%= row.templateId %>-<%= row.profile ? row.profile.id : 'none' %>">
+                    <span class="small">
+                      <% if (row.profile) { %>
+                        <span class="component-name"><%= row.profile.name %></span> <code class="text-muted small"><%= row.profile.code %></code> (<%= row.profile.environment %>)
+                      <% } else { %>
+                        <span class="component-name">No Profile yet</span> <span class="component-note">— a default will be created</span>
+                      <% } %>
+                      <div class="component-note">Template: <%= row.templateName %> <code class="text-muted"><%= row.templateCode %></code></div>
+                      <% if (row.capabilities.length) { %>
+                        <div class="component-note">Capabilities: <%= row.capabilities.map(function(c) { return c.label; }).join(', ') %></div>
+                      <% } %>
+                    </span>
+                  </label>
+                </div>
+              <% }) %>
+            </div>
+          </div>
+        </form>
+      <% } %>
+    <% } else { %>
+    <%# Redesigned (owner, 2026-09-06: "the SEU is commissioned against an
+         objective... If the commissioning happens from SEU, then Objective
+         also has to be picked") — replaces the old freeform statement +
+         Capability-checklist form (which auto-created an Objective inline
+         and auto-matched a Template, no real choice offered). An SEU is
+         always commissioned against a real Objective, so starting from the
+         SEU side now means picking one of those, same as arriving via the
+         Objective's own "Commission SEU" action — both converge on this
+         same route with ?objectiveId= set, and the identical Template/
+         Profile tree above. %>
+    <h2 class="h3 mb-1 text-dark fw-bold">Commission a new SEU</h2>
+    <p class="text-muted small mb-4">Pick which Objective to commission against.</p>
+
+    <% var objs = locals.commissionableObjectives || []; %>
+    <% if (!objs.length) { %>
       <div class="alert alert-warning">
-        No Capabilities are loaded yet — run <code>pnpm db:clean-slate</code> (base Packs must already exist) or author a Pack via the SDK Authoring UI before commissioning an SEU.
+        No Objective is currently eligible to commission against (Active, non-Strategic, a leaf, not already commissioned). <a href="/aisworg/seu/objectives">Decompose and activate one first</a>.
       </div>
     <% } else { %>
-      <form method="POST" action="/aisworg/seu/seus" class="card border-0 shadow-sm p-4">
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-
-        <div class="mb-3">
-          <label for="statement" class="form-label fw-semibold">Objective statement</label>
-          <textarea id="statement" name="statement" rows="3" class="form-control" required
-                    placeholder="e.g. Stand up a customer web portal"><%= locals.statement || '' %></textarea>
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Required Capabilities</label>
-          <p class="text-muted small mb-2">Only Templates supporting every Capability checked below will be considered.</p>
-          <%# selectedCodes: null on a fresh load (default all checked), an array on a
-              bounce-back from a failed submit (reflect exactly what was selected). %>
-          <% var _sel = locals.selectedCodes; %>
-          <% capabilities.forEach(function(c) { %>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" name="requiredCapabilityCodes" value="<%= c.code %>"
-                     id="cap-<%= c.code %>" <%= (_sel == null ? true : _sel.includes(c.code)) ? 'checked' : '' %>>
-              <label class="form-check-label" for="cap-<%= c.code %>">
-                <%= c.name %> <code class="text-muted small"><%= c.code %></code>
-              </label>
-            </div>
-          <% }) %>
-        </div>
-
-        <button type="submit" class="btn btn-primary"><i class="bi bi-rocket-takeoff me-1"></i>Commission</button>
-        <a href="/aisworg/seu/seus" class="btn btn-link text-muted">Cancel</a>
-      </form>
+      <%# CR-083 — aligned to the same .section-card/.component-row system
+           as the picker above, replacing the plain Bootstrap card/list-group
+           markup this used before. %>
+      <div class="section-card">
+        <div class="section-header">Eligible Objectives</div>
+        <% objs.forEach(function(o) { %>
+          <div class="component-row d-flex align-items-center gap-2">
+            <span class="tier-badge"><%= o.tier %></span>
+            <span class="flex-grow-1 small"><% if (o.displayId) { %><span class="display-id-pill me-1"><%= o.displayId %></span><% } %><%= o.statement %></span>
+            <a href="/aisworg/seu/seus/new?objectiveId=<%= o.id %>" class="btn btn-sm btn-primary"><i class="bi bi-rocket-takeoff me-1"></i>Commission</a>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
     <% } %>
   </main>
 

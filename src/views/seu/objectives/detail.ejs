@@ -107,26 +107,32 @@
         <% } %>
 
         <% if (detail.objective.status === 'Active' && detail.objective.tier !== 'Strategic' && detail.isLeaf) { %>
-          <form method="POST" action="/aisworg/seu/objectives/<%= detail.objective.id %>/commission" class="mt-3 d-flex align-items-center gap-2 flex-wrap">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <% if (detail.commissioningPreview && detail.commissioningPreview.candidateProfiles.length > 1) { %>
-              <!-- A real choice: more than one Profile already published against
-                   the matched Template (findOrCreateDefaultProfile's own known-
-                   limitation note — closed here, not just documented). -->
-              <select name="profileId" class="form-select form-select-sm" style="width: auto;">
-                <% detail.commissioningPreview.candidateProfiles.forEach(function(p) { %>
-                  <option value="<%= p.id %>"><%= p.name %> (<%= p.code %>, <%= p.environment %>)</option>
-                <% }) %>
-              </select>
-            <% } else if (detail.commissioningPreview && detail.commissioningPreview.candidateProfiles.length === 1) { %>
-              <span class="text-muted small">
-                Profile: <%= detail.commissioningPreview.candidateProfiles[0].name %> (<%= detail.commissioningPreview.candidateProfiles[0].code %>)
-              </span>
-            <% } %>
-            <button type="submit" class="btn btn-primary btn-sm">
+          <%# Bug fix (owner: "The commission SEU should get onto the SEU
+               screen and the messages has to be on that screen. Not on the
+               objective screen.") — this used to decide inline, here, which
+               Template to commission against; that whole capability ->
+               Templates -> Profiles browse/pick tree now lives on
+               /aisworg/seu/seus/new?objectiveId=.. instead (seus/new.ejs,
+               fed by getObjectiveDetail's own commissioningOptions,
+               core/objectives.ts) — this page just links there now.
+               Bug fix (owner, 2026-09-06: "The corresponding objective
+               should not allow any more commissioning requests against the
+               same objective") — this button used to show regardless of
+               whether an SEU had already been requested against this
+               Objective; detail.commissionedSeuId (set the moment
+               commissionSeu creates its SEU row, before CommissionRequested
+               even fires — never cleared, even on a failed attempt) now
+               gates it, mirroring the tree/list rows' own long-standing
+               "Commissioned" badge (toListItem's commissioned flag). %>
+          <% if (detail.commissionedSeuId) { %>
+            <a href="/aisworg/seu/seus/<%= detail.commissionedSeuId %>" class="btn btn-outline-secondary btn-sm mt-3">
+              <i class="bi bi-check-circle me-1"></i>Already commissioned — view SEU
+            </a>
+          <% } else { %>
+            <a href="/aisworg/seu/seus/new?objectiveId=<%= detail.objective.id %>" class="btn btn-primary btn-sm mt-3">
               <i class="bi bi-rocket-takeoff me-1"></i>Commission an SEU from this Objective
-            </button>
-          </form>
+            </a>
+          <% } %>
         <% } %>
 
         <%# Edit is not a transition — no lifecycle-state gating, same badge as

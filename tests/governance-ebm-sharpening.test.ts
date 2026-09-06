@@ -47,14 +47,14 @@ test("FR-21.1: an SEU exposes one effective Governance Model derived from its EB
   // sensitive to — a different Template being picked broke this test's own
   // assumptions about exactly which Packs get composed.
   const { template: fixtureTemplate } = await ensureWebAppTemplateFixture();
-  const { data: profile } = await profilesDB.upsert({ code: `gov-model-profile-${randomUUID()}`, name: "Gov Model Profile", baseTemplateId: fixtureTemplate.id, environment: "development", configParameters: {} });
+  const { data: profile } = await profilesDB.upsert({ code: `gov-model-profile-${randomUUID()}`, name: "Gov Model Profile", baseTemplateId: fixtureTemplate.id, environment: "development" });
   const { objective: govRoot } = await createObjective({ statement: `gov-model-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed" });
   const { objective } = await createObjective({ statement: `gov-model-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], tier: "Engineering", parentObjectiveId: govRoot.id, requestedBy: 1001, status: "Proposed" });
   await submitObjective(objective.id, 1001);
   const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: "1001" });
   assert.equal(activated.ok, true);
 
-  const result = await commissionSeu({ objectiveId: objective.id, templateId: fixtureTemplate.id, profileId: profile!.id, actorRole: "super", actorId: "1001", requestedBy: 1001 });
+  const result = await commissionSeu({ objectiveId: objective.id, templateIds: [fixtureTemplate.id], profileIds: [profile!.id], actorRole: "super", actorId: "1001", requestedBy: 1001 });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
 
@@ -87,13 +87,13 @@ test("FR-3.6/3.7: a composition conflict hard-blocks commissioning; the SEU neve
   const { data: template } = await templatesDB.upsert({ code: `conflict-tpl-${run}`, name: "Conflict Template", deliverableCatalogue: [] });
   await templatesDB.setMandatoryPacks(template!.id, [packA.code, packB.code]);
   await templatesDB.setRequiredCapabilities(template!.id, []);
-  const { data: profile } = await profilesDB.upsert({ code: `conflict-prof-${run}`, name: "Conflict Profile", baseTemplateId: template!.id, environment: "development", configParameters: {} });
+  const { data: profile } = await profilesDB.upsert({ code: `conflict-prof-${run}`, name: "Conflict Profile", baseTemplateId: template!.id, environment: "development" });
   // CR-009: Engineering Objectives need a Strategic parent (only Strategic may be a root).
   // CR-075 — createObjective now requires the parent to be Proposed when adding a child under it.
   const { objective: conflictRoot } = await createObjective({ statement: `conflict-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed",});
   const { objective } = await createObjective({ statement: `conflict-obj-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: conflictRoot.id, requestedBy: 1001,});
 
-  const result = await commissionSeu({ objectiveId: objective.id, templateId: template!.id, profileId: profile!.id, actorRole: "super", actorId: "1001" });
+  const result = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: "1001" });
   assert.equal(result.ok, false, "commissioning must be blocked by the conflict");
   if (!result.ok) {
     assert.match(result.reason, /conflict/i, "the reason names the conflict");

@@ -26,6 +26,12 @@ listQueryString = function(list, overrides = {}) {
     // Registries), so sort/page links keep preserving it the same way they
     // already preserve `q`.
     category: overrides.category !== undefined ? overrides.category : (list ? list.category : ""),
+    // CR-091 Part 3 — the Profile Registry's own tab, grouping by base
+    // Template code instead of the now-retired `category` field (Pack's and
+    // Template's own Registries still use `category` above, unaffected — a
+    // separate key rather than repurposing theirs). Same no-op-elsewhere
+    // treatment.
+    templateCode: overrides.templateCode !== undefined ? overrides.templateCode : (list ? list.templateCode : ""),
     // Registry state filter — same no-op-elsewhere treatment as category above.
     status: overrides.status !== undefined ? overrides.status : (list ? list.status : ""),
   };
@@ -36,6 +42,7 @@ listQueryString = function(list, overrides = {}) {
   if (state.page && Number(state.page) > 1) p.set("page", String(state.page));
   if (state.pageSize) p.set("pageSize", String(state.pageSize));
   if (state.category) p.set("category", state.category);
+  if (state.templateCode) p.set("templateCode", state.templateCode);
   if (state.status) p.set("status", state.status);
   const s = p.toString();
   return s ? ("?" + s) : "";

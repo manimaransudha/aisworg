@@ -3,6 +3,15 @@
   "name": "SaaS Product — Default Development Profile",
   "baseTemplateCode": "saas-product",
   "environment": "development",
-  "configParameters": {},
-  "optionalPackCodes": ["testing-qa"]
+  "description": "Default development-environment configuration for SaaS Product commissioning — Node.js/TypeScript stack, GitHub-hosted, deployed on AWS with rolling releases.",
+  "developmentMethodology": "scrum",
+  "primaryProgrammingLanguage": "typescript",
+  "sourceControlProvider": "github",
+  "targetCloudProvider": "aws",
+  "deploymentStrategy": "rolling",
+  "aiProviderPreference": "openai",
+  "defaultRepositoryStructure": "monorepo",
+  "documentationLevel": "standard",
+  "optionalPackCodes": ["testing-qa", "integration-github", "integration-sonarqube", "technology-nodejs"],
+  "technologyPackCodes": ["technology-react"]
 }

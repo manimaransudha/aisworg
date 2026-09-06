@@ -463,6 +463,16 @@
                                   <span class="badge <%= nestedRow.mandatory === 'Mandatory' ? 'bg-danger-subtle text-danger' : 'bg-secondary-subtle text-secondary' %> small fw-normal me-1"><%= nestedRow.mandatory || '—' %></span>
                                   <% if (nestedStatementMarkdown && nestedRow.statement) { %><%- renderMarkdown(nestedRow.statement) %><% } else { %><%= nestedRow.statement || '—' %><% } %>
                                   <% if (nestedRow.participant) { %><span class="text-muted">(<%= nestedRow.participant %>)</span><% } %>
+                                  <%# CR-088 prerequisite — configurableKey/
+                                      configurableValue, resolved to their own
+                                      Ontology labels the same way the
+                                      itemField-level 'referential'+ontology
+                                      view branch above does. %>
+                                  <% if (nestedRow.configurableKey) { %>
+                                    <% var _cfgKeyOpt = (((locals.ontologyOptions || {})['checklist-configurable-dimension'] || []).find(function(o) { return o.code === nestedRow.configurableKey; })); %>
+                                    <% var _cfgValOpt = (((locals.ontologyOptions || {})['checklist-configurable-value'] || []).find(function(o) { return o.code === nestedRow.configurableValue; })); %>
+                                    <span class="badge bg-info-subtle text-info-emphasis small fw-normal ms-1"><%= _cfgKeyOpt ? _cfgKeyOpt.label : nestedRow.configurableKey %><% if (nestedRow.configurableValue) { %>: <%= _cfgValOpt ? _cfgValOpt.label : nestedRow.configurableValue %><% } %></span>
+                                  <% } %>
                                 </li>
                               <% }) %>
                             </ul>
@@ -781,6 +791,26 @@
                                 <% (nestedField.options || []).forEach(function(opt) { %>
                                   <option value="<%= opt %>" <%= nestedValue === opt ? 'selected' : '' %>><%= opt %></option>
                                 <% }) %>
+                              </select>
+                            <% } else if (nestedField.kind === 'referential' && nestedField.ontology) { %>
+                              <%# CR-088 prerequisite — Checklist item's own
+                                  configurableKey/configurableValue, the first
+                                  Ontology-backed referential field one level
+                                  BELOW a nested-list's own sub-items (every
+                                  earlier x-ontology item field sits directly
+                                  under a top-level referential-list, handled
+                                  by the itemField-level branch further below;
+                                  this mirrors it one level deeper, keyed off
+                                  ontologyOptions the same generic way). %>
+                              <% var _nestedOntOpts = ((locals.ontologyOptions || {})[nestedField.referentialSource] || []); %>
+                              <select name="<%= nestedInputName %>" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %> <%- nestedRequired ? 'required' : '' %>>
+                                <option value="">— <%= nestedLabel %> —</option>
+                                <% _nestedOntOpts.forEach(function(opt) { %>
+                                  <option value="<%= opt.code %>" <%= nestedValue === opt.code ? 'selected' : '' %>><%= opt.label %></option>
+                                <% }) %>
+                                <% if (nestedValue && !_nestedOntOpts.some(function(opt) { return opt.code === nestedValue; })) { %>
+                                  <option value="<%= nestedValue %>" selected>&#9888; <%= nestedValue %> (not currently active)</option>
+                                <% } %>
                               </select>
                             <% } else if (nestedField.kind === 'boolean') { %>
                               <div class="form-check mt-1">

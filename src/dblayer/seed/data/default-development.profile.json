@@ -3,6 +3,5 @@
   "name": "Default Development Profile",
   "baseTemplateCode": "test-enterprise-web-application",
   "environment": "development",
-  "configParameters": {},
   "optionalPackCodes": ["testing-qa"]
 }

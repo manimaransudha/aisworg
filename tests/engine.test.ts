@@ -58,12 +58,12 @@ test("compositionEngine.compose resolves a Template's mandatory Pack plus a Prof
   assert.ok(template);
   await templatesDB.setMandatoryPacks(template!.id, [mandatory.pack!.code]);
 
-  const { data: profile } = await profilesDB.upsert({ code: `test-compose-profile-${randomUUID()}`, name: "Compose Test Profile", baseTemplateId: template!.id, environment: "development", configParameters: {} });
+  const { data: profile } = await profilesDB.upsert({ code: `test-compose-profile-${randomUUID()}`, name: "Compose Test Profile", baseTemplateId: template!.id, environment: "development" });
   assert.ok(profile);
   await profilesDB.setOptionalPacks(profile!.id, [optional.pack!.code]);
 
-  const first = await compositionEngine.compose({ templateId: template!.id, profileId: profile!.id });
-  const second = await compositionEngine.compose({ templateId: template!.id, profileId: profile!.id });
+  const first = await compositionEngine.compose({ templateIds: [template!.id], profileIds: [profile!.id] });
+  const second = await compositionEngine.compose({ templateIds: [template!.id], profileIds: [profile!.id] });
 
   assert.equal(first.composedPacks.length, 2);
   const packCodes = first.composedPacks.map((p) => p.packCode).sort();

@@ -477,25 +477,27 @@ Implementation of this chapter shall produce:
 
 ---
 
-# 19. Implementation Status & Gaps
+# 19. Implementation Specifics
 
-Code-verified audit (2026-08-25), not from memory — every claim below carries a file:line citation, cross-checked against a live query against the running Postgres instance (`aisworg` DB). Core files: `src/dblayer/seusDB.ts`, `SeuRow` (`src/dblayer/seuTypes.ts`), `src/routes/seu/core/commissioning.ts`, `seus.ts`, `deliverables.ts`, `workItems.ts`, `src/domain/engine/dependencyDefinitionEngine.ts`, `dispatchEngine.ts`. Live `seus` schema: `id, objective_id, template_id, profile_id, active_ebm_id, lifecycle_state, requested_by, commissioning_report, created_at, updated_at, tenant_id`. This chapter sits above several already-audited ones (EBM Ch.3, Composition Engine Ch.4, Obligation Ch.23) — findings that duplicate those are cross-referenced, not re-derived.
+*Code-verified audit (2026-08-25), not from memory — every claim below carries a file:line citation, cross-checked against a live query against the running Postgres instance (`aisworg` DB). This section documents how the SEU Model is realised in the current build, the same convention Chapter 5 §19 uses. It does not change the requirements above (FR-2.1–12, §§1–18); it records what is built, what is partial, and what is still open. Status markers: ✅ built · ⚠️ partial · 🚩 not built.*
+
+Core files: `src/dblayer/seusDB.ts`, `SeuRow` (`src/dblayer/seuTypes.ts`), `src/routes/seu/core/commissioning.ts`, `seus.ts`, `deliverables.ts`, `workItems.ts`, `src/domain/engine/dependencyDefinitionEngine.ts`, `dispatchEngine.ts`. Live `seus` schema: `id, objective_id, template_id, profile_id, active_ebm_id, lifecycle_state, requested_by, commissioning_report, created_at, updated_at, tenant_id`. This chapter sits above several already-audited ones (EBM Ch.3, Composition Engine Ch.4, Obligation Ch.23) — findings that duplicate those are cross-referenced, not re-derived.
 
 **The single strongest finding**: `idx_seus_objective_id_unique` — a real, enforced `UNIQUE` constraint on `seus.objective_id` — confirms an SEU has exactly one Objective *and* an Objective can be commissioned into at most one SEU, a strict 1:1. Directly closes the earlier open question about Ch.1's own "a specific stream of Deliverables within one [SEU]" phrasing (Ch.1 §1) — there is no mechanism for one SEU to be justified by more than one Objective, so that alternative reading has zero support in the schema, confirmed at the strongest possible level (a DB constraint, not just an absent code path).
 
-## 19.1 Purpose / Definition (§1)
+## 19.1 ✅ Purpose / Definition (§1)
 
 Matches closely for what's built: an SEU is commissioned against an Objective (real FK, 1:1 as above), executes against a composed EBM (real, Ch.3), and supports AI/Human/External participants (real, `participants.type CHECK`). "Required Capabilities derive from the Objective(s)" — real via `objectivesDB.getRequiredCapabilities` (Ch.10 §18.7), though templates.ts's own `getRequiredCapabilities` (used at commissioning, `commissioning.ts:176`) actually derives from the *Template's* Deliverable Catalogue producing-capability references, not from the Objective directly — a subtly different derivation path than this section implies, worth noting precisely.
 
-## 19.2 Architectural Position (§3)
+## 19.2 ✅ Architectural Position (§3)
 
 "The SEU shall not interact directly with Packs" and "all engineering behaviour shall be inherited through the EBM" — both hold, confirmed by Chapter 3's own audit (§19.10): every real runtime consumer (`governanceModel.ts`, `compliance.ts`, `dependencyDefinitionEngine.ts`, `traceability.ts`) reaches Pack-contributed governance exclusively via `seu.active_ebm_id` → `ebms.composed_packs`, never a direct Pack reference on the SEU itself.
 
-## 19.3 Responsibilities (§4)
+## 19.3 ✅ Responsibilities (§4)
 
 The "responsible for" list (execute work, maintain governance, coordinate participants, maintain dependency graphs, manage obligations, preserve knowledge, maintain traceability, report state) each map onto real, separately-audited subsystems (Dependency Engine, Obligation Ch.23, Knowledge Ch.16, Events/traceability) rather than SEU-owned logic itself — consistent with the chapter's own framing that these are "elaborated in later chapters." The "not responsible for" list holds: `seus.ts` never composes engineering practices, loads Packs, authenticates, or manages infrastructure.
 
-## 19.4 Functional Requirements (FR-2.1–12) (§5)
+## 19.4 ⚠️ Functional Requirements — 7 of 12 clean, 4 partial (§5)
 
 | FR | Verdict | Note |
 |---|---|---|
@@ -512,7 +514,7 @@ The "responsible for" list (execute work, maintain governance, coordinate partic
 | FR-2.11 manage engineering obligations | ⚠️ | Real lifecycle exists (Ch.23), but "manage" overstates it slightly — no owner/priority/completion-criteria fields exist yet (Ch.23 §19.5, unresolved by CR-062, which deliberately left those execution-side). |
 | FR-2.12 complete audit history | ⚠️ | Same basis as FR-2.6 — real via `events`, not a dedicated audit-history service. |
 
-## 19.5 SEU Lifecycle — a real, governed 8-state machine, but only 2 of the chapter's own 8 named states match it (§6)
+## 19.5 ⚠️ SEU Lifecycle — a real, governed 8-state machine, but only 2 of the chapter's own 8 named states match it (§6)
 
 Live `transition_definitions WHERE entity_type='SEU'` confirms a real, governed graph: `Pending → Commissioned → Configured → Activated → Operational → {Suspended ⇄ Operational, Retired} → Archived` (9 real edges, `lifecycle_state CHECK` enforces the same 8 states). This is genuinely real, not aspirational — but it names and orders things differently from the chapter's own 8 stages (Requested → Engineering Behavior Composition → Commissioned → Executing → Monitoring → Completing → Knowledge Preservation → Archived):
 
@@ -529,7 +531,7 @@ Live `transition_definitions WHERE entity_type='SEU'` confirms a real, governed 
 
 Real, extra states the chapter never names: `Configured`, `Suspended` (a genuine round-trip state, `Operational ⇄ Suspended`, absent from the chapter entirely). The chapter's own vision reads as **work-progress-oriented** (request → build → monitor → finish → preserve); the real, built lifecycle is **infrastructure-readiness-oriented** (commission → configure → activate → run → suspend/retire). Both are real 8-state machines; they're just not the same 8 states.
 
-## 19.6 SEU Composition — 15 named components, most real elsewhere, 3 genuinely absent (§7)
+## 19.6 ⚠️ SEU Composition — 15 named components, most real elsewhere, one genuinely absent (§7)
 
 | Component | Real? |
 |---|---|
@@ -537,7 +539,7 @@ Real, extra states the chapter never names: `Configured`, `Suspended` (a genuine
 | Participants | ✅ `participants` table |
 | Capabilities | ✅ `seu_capabilities` |
 | Services | ✅ `services` (Ch.11, CR-064 built) |
-| Roles | ❌ absent — no `Role`/`roles` entity anywhere in the codebase, confirmed by direct search |
+| Roles | 🚩 absent — no `Role`/`roles` entity anywhere in the codebase, confirmed by direct search |
 | Deliverables | ✅ `deliverables` |
 | Work Items | ✅ `work_items` |
 | Dependency Graph | ✅ `dependency_definitions` |
@@ -549,43 +551,43 @@ Real, extra states the chapter never names: `Configured`, `Suspended` (a genuine
 | Metrics | ✅ `metric_registry`/`metric_definitions` (migration `017_metric_registry.sql`) — though not SEU-scoped specifically |
 | Runtime State | ⚠️ `seus.lifecycle_state` is the closest real equivalent — no separate "Runtime State" entity beyond the SEU row's own status field |
 
-## 19.7 Execution Model (§8)
+## 19.7 ✅ Execution Model (§8)
 
 Real and matches closely: `dispatchEngine.ts` gates dispatch on `dependencyDefinitionEngine`'s own readiness evaluation, not elapsed time — confirmed, no polling/timer-based readiness check exists anywhere in the dispatch path. Named dependency sources (deliverables, decisions, approvals, evidence, obligations, external systems, human input) are each real, individually-governed entities.
 
-## 19.8 Engineering Behavior Model inheritance (§9)
+## 19.8 ⚠️ Engineering Behavior Model inheritance (§9)
 
 Identical finding to Chapter 3's own audit (§19.10) — real, but indirect: the SEU never modifies its EBM directly (holds trivially, no update path exists, Ch.3 §19.3 FR-3.8), and "changes require recomposition" is aspirational in the same way Ch.3/Ch.4 both found (recomposition is never actually triggered by anything, Ch.4 §21.12).
 
-## 19.9 Participants (§10)
+## 19.9 ✅ Participants (§10)
 
 Real — `participants.type CHECK IN ('AI','Human','External')`; replacement doesn't cascade-invalidate anything (19.4 FR-2.7's own basis extends here too — no FK from `knowledge_items`/`evidence`/`deliverables` to a specific Participant that would need cleanup on replacement).
 
-## 19.10 Deliverables / Work Items / Dependency Graph (§11–13)
+## 19.10 ⚠️ Deliverables / Work Items / Dependency Graph (§11–13)
 
 Each has its own governing chapter not yet audited this session (Deliverable, Work Item) — flagged here only for what's directly checkable against this chapter's own claims: "Work Items shall not exist independently of Deliverables" holds (`work_items` FK to a Deliverable is real and required); Deliverable's own named required fields (dependencies, producing capabilities, required evidence, acceptance criteria, completion status) are a mix of real columns and Dependency-Engine-derived relationships, not something this audit re-verifies field-by-field — deserves its own chapter-3-style pass if wanted.
 
-## 19.11 Engineering Obligations (§14)
+## 19.11 ⚠️ Engineering Obligations (§14)
 
-Cross-references Chapter 23's own extensive audit (CR-062). Of this section's own named required fields: `severity` ✅, `status` ✅ real columns; `owner` ❌ absent (no `assigned_to` column, Ch.23 §18.4 confirmed, and CR-062 deliberately left this execution-side); `priority` ❌ absent (same CR-062 deferral); `required evidence` ❌ (Ch.23's own "Related Evidence" field never built); `blocking conditions` ⚠️ real in spirit — an unresolved Obligation genuinely blocks a gated Deliverable transition via the real `no_unresolved_obligations` Quality Gate criteria (Ch.23 §18.8), just not as its own named field on the Obligation row.
+Cross-references Chapter 23's own extensive audit (CR-062). Of this section's own named required fields: `severity` ✅, `status` ✅ real columns; `owner` 🚩 absent (no `assigned_to` column, Ch.23 §18.4 confirmed, and CR-062 deliberately left this execution-side); `priority` 🚩 absent (same CR-062 deferral); `required evidence` 🚩 (Ch.23's own "Related Evidence" field never built); `blocking conditions` ⚠️ real in spirit — an unresolved Obligation genuinely blocks a gated Deliverable transition via the real `no_unresolved_obligations` Quality Gate criteria (Ch.23 §18.8), just not as its own named field on the Obligation row.
 
-## 19.12 Events — 5 of 11 named events real, several under different names (§15)
+## 19.12 ⚠️ Events — 5 of 11 named events real, several under different names (§15)
 
 | Chapter name | Real? |
 |---|---|
 | SEUCommissioned | ✅ exact (`commissioning.ts:170`) |
 | DeliverableReady | ✅ exact (`dependencyDefinitionEngine.ts:194`) |
 | DependencyBlocked | ⚠️ real, but as `DeliverableBlocked` (`deliverables.ts:145`), not `DependencyBlocked` |
-| DependencySatisfied | ❌ no event by this name — `DeliverableReady` is the real aggregate-satisfaction signal instead (same finding CR-040's own earlier audit made for the Dependency Engine generally) |
-| WorkItemStarted | ❌ no event by this name — real equivalent is `WorkItemDispatched` (`dispatchEngine.ts:77,147`) |
+| DependencySatisfied | 🚩 no event by this name — `DeliverableReady` is the real aggregate-satisfaction signal instead (same finding CR-040's own earlier audit made for the Dependency Engine generally) |
+| WorkItemStarted | 🚩 no event by this name — real equivalent is `WorkItemDispatched` (`dispatchEngine.ts:77,147`) |
 | WorkItemCompleted | ✅ exact (`workItems.ts:187`) |
-| ObligationRaised | ❌ — real is `ObligationCreated` (Ch.23 §19.12/CR-063) |
-| ObligationResolved | ❌ — Obligation only has `ObligationCreated` + a generic `ObligationTransitioned`, neither named this; CR-063 (raised, not built) would close this |
-| KnowledgeAccepted | ❌ not found |
-| KnowledgeArchived | ❌ not found |
-| SEUArchived | ❌ not found — no event publishes when an SEU reaches `Archived` |
+| ObligationRaised | 🚩 — real is `ObligationCreated` (Ch.23 §19.12/CR-063) |
+| ObligationResolved | 🚩 — Obligation only has `ObligationCreated` + a generic `ObligationTransitioned`, neither named this; CR-063 (raised, not built) would close this |
+| KnowledgeAccepted | 🚩 not found |
+| KnowledgeArchived | 🚩 not found |
+| SEUArchived | 🚩 not found — no event publishes when an SEU reaches `Archived` |
 
-## 19.13 Non-Functional Requirements (§16)
+## 19.13 ⚠️ Non-Functional Requirements (§16)
 
 | NFR | Verdict | Basis |
 |---|---|---|
@@ -596,7 +598,7 @@ Cross-references Chapter 23's own extensive audit (CR-062). Of this section's ow
 | all execution externally observable | ⚠️ | Via `events`/HTTP reads; no dedicated observability service |
 | independent of specific AI providers | ✅ | No AI-provider coupling anywhere in `seus.ts`/`participants` |
 
-## 19.14 Acceptance Criteria (§17)
+## 19.14 ⚠️ Acceptance Criteria (§17)
 
 | Criterion | Verdict |
 |---|---|
@@ -608,7 +610,7 @@ Cross-references Chapter 23's own extensive audit (CR-062). Of this section's ow
 | Knowledge survives SEU archival | ⚠️ untested — no code path deletes `knowledge_items` on archival, but "survives" as a deliberate guarantee isn't separately verified |
 | Traceability remains complete | ⚠️ (19.4 FR-2.6) |
 
-## 19.15 Deliverables (§18)
+## 19.15 ⚠️ Deliverables (§18)
 
 | Named Deliverable | Real artifact | Verdict |
 |---|---|---|

@@ -3,6 +3,8 @@
   "name": "Package Implementation — Default Development Profile",
   "baseTemplateCode": "package-implementation",
   "environment": "development",
-  "configParameters": {},
+  "developmentMethodology": "scrum",
+  "primaryProgrammingLanguage": "typescript",
+  "sourceControlProvider": "github",
   "optionalPackCodes": ["testing-qa"]
 }

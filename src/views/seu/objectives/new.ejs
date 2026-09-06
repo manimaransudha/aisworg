@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <%- include('../../partials/head') %>
-  <style>
-    .display-id-pill { display: inline-block; font-family: var(--bs-font-monospace, monospace); font-size: 0.72rem; font-weight: 700; padding: 0.18rem 0.55rem; border-radius: 999px; background: #e2e8f0; color: #334155; }
-  </style>
+  <%# CR-083 — .display-id-pill centralised into public/css/style.css
+       (was duplicated per-view; dropped without migration on
+       objectives/detail.ejs, leaving it unstyled there). %>
 </head>
 <body>
   <header><%- include('../../partials/navbar') %></header>

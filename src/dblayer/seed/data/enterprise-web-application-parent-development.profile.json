@@ -3,6 +3,8 @@
   "name": "Enterprise Web Application (Standard) — Default Development Profile",
   "baseTemplateCode": "enterprise-web-application",
   "environment": "development",
-  "configParameters": {},
+  "developmentMethodology": "scrum",
+  "primaryProgrammingLanguage": "typescript",
+  "sourceControlProvider": "github",
   "optionalPackCodes": ["testing-qa"]
 }

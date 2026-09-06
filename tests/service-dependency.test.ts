@@ -1,10 +1,21 @@
 // Post-MVP Phase 2 (Wire Service into the Dependency Engine) — automated
 // coverage for what the Phase 2 audit checked by hand: a real commissioning
-// run actually creates a Capability-type edge naming a Service (not just the
-// isolated engine-level unit test in tests/engine.test.ts, which only proved
-// the mechanism, never that commissioning uses it), that edge resolves
-// Pending -> Satisfied against a real fulfilled Capability, and Service Level
-// is readable. Run against the real dev database, no mocking.
+// run actually creates the dependency graph the Template authored (not just
+// the isolated engine-level unit test in tests/engine.test.ts, which only
+// proved the mechanism, never that commissioning uses it), that a Deliverable-
+// type edge resolves Pending -> Satisfied against a real SEU's own Deliverable
+// progressing, and Service Level is readable.
+// Rewritten (owner, 2026-09-06: "rewrite tests to assert the new
+// Deliverable-only model instead") — this file used to prove Capability-type
+// edges (naming a Service) alongside Deliverable-type ones. Capability-type
+// edges were retired outright before this session (materialiseDependencyGraph.ts,
+// owner, 2026-09-04: "there is no Capability-type edge... deliverable
+// dependency is what is real") — a dependencyGraph entry with fromType
+// "Capability" is now silently skipped at materialisation time. Every
+// dependency edge a real commissioning run creates is Deliverable-type now;
+// Service Level itself is still real and still readable (last test below),
+// just no longer wired through a dependency edge of its own.
+// Run against the real dev database, no mocking.
 import "dotenv/config";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -13,7 +24,7 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { commissionFromForm } from "../src/routes/seu/core/commissioning.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
-import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
+import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { listServices } from "../src/routes/seu/core/services.js";
 import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 
@@ -33,7 +44,7 @@ async function commissionTestSeu(statementPrefix: string) {
   return result.seu.id;
 }
 
-test("commissioning wires a named Capability-type edge alongside the Deliverable-type edge, and seeds the Source Code deliverable", async () => {
+test("commissioning wires the Deliverable-type dependency graph, and seeds the Source Code deliverable", async () => {
   const seuId = await commissionTestSeu("phase2-wiring");
   const detail = await getSeuDetailView(seuId);
   assert.ok(detail);
@@ -43,50 +54,49 @@ test("commissioning wires a named Capability-type edge alongside the Deliverable
   assert.ok(archDoc);
 
   const deliverableEdge = archDoc.dependencyEdges.find((e) => e.dependencyType === "Deliverable");
-  const capabilityEdge = archDoc.dependencyEdges.find((e) => e.dependencyType === "Capability");
   assert.ok(deliverableEdge, "expected a Deliverable-type edge to Requirements Analysis Model");
   assert.equal(deliverableEdge?.targetLabel, "Requirements Analysis Model");
-  assert.ok(capabilityEdge, "expected a Capability-type edge naming a Service");
-  assert.ok(capabilityEdge?.targetLabel.startsWith("Service: "), `expected the Service to be named, got: ${capabilityEdge?.targetLabel}`);
-  assert.equal(capabilityEdge?.readinessState, "Pending", "nobody has fulfilled requirements-analysis yet");
+  assert.equal(deliverableEdge?.readinessState, "Pending", "Requirements Analysis Model hasn't reached Approved yet");
+  assert.equal(archDoc.dependencyEdges.length, 1, "Capability-type edges are retired — only the one Deliverable-type edge gates this target now");
 
   const sourceCode = detail.deliverables.find((d) => d.name === "Source Code");
   assert.ok(sourceCode, "expected Source Code, produced by development, per the extended Template catalogue");
-  assert.ok(sourceCode?.dependencyEdges.some((e) => e.dependencyType === "Capability" && e.targetLabel.includes("Architecture Notebook")));
+  const sourceCodeEdge = sourceCode?.dependencyEdges.find((e) => e.dependencyType === "Deliverable");
+  assert.ok(sourceCodeEdge, "expected a Deliverable-type edge to Architecture Decision Record");
+  assert.equal(sourceCodeEdge?.targetLabel, "Architecture Decision Record");
 });
 
-test("a Capability-type edge resolves Satisfied once the real SEU fulfils the upstream Capability", async () => {
+test("a Deliverable-type edge resolves Satisfied once the real SEU's upstream Deliverable reaches the required state", async () => {
   const seuId = await commissionTestSeu("phase2-fulfil");
 
   const before = await getSeuDetailView(seuId);
   const archDocBefore = before?.deliverables.find((d) => d.name === "Architecture Decision Record");
-  const capEdgeBefore = archDocBefore?.dependencyEdges.find((e) => e.dependencyType === "Capability");
-  assert.equal(capEdgeBefore?.readinessState, "Pending");
+  const edgeBefore = archDocBefore?.dependencyEdges.find((e) => e.dependencyType === "Deliverable");
+  assert.equal(edgeBefore?.readinessState, "Pending");
 
-  const reqAnalysisCapability = before?.capabilities.find((c) => c.code === "requirements-analysis");
-  assert.ok(reqAnalysisCapability);
-  await fulfilCapability({
-    seuId,
-    capabilityId: reqAnalysisCapability.capabilityId,
-    participantType: "AI",
-    displayName: "Phase2 Test Analyst",
-  });
+  const upstream = before?.deliverables.find((d) => d.name === "Requirements Analysis Model");
+  assert.ok(upstream);
+  await deliverablesDB.updateLifecycleState(upstream!.id, "Approved");
 
   const after1 = await getSeuDetailView(seuId);
   const archDocAfter = after1?.deliverables.find((d) => d.name === "Architecture Decision Record");
-  const capEdgeAfter = archDocAfter?.dependencyEdges.find((e) => e.dependencyType === "Capability");
-  assert.equal(capEdgeAfter?.readinessState, "Satisfied");
+  const edgeAfter = archDocAfter?.dependencyEdges.find((e) => e.dependencyType === "Deliverable");
+  assert.equal(edgeAfter?.readinessState, "Satisfied");
 });
 
 test("listServices exposes each Service's declared Service Level and providing Capability (Ch.11 §7-§8)", async () => {
   const services = await listServices();
-  const catalogService = services.find((s) => s.name === "Approved Catalog Metadata Design");
-  assert.ok(catalogService);
-  assert.equal(catalogService.providingCapabilityCode, "understanding-business-domain");
+  // Bug fix (owner: "check service-dependency.test.ts as well") — this
+  // Service was renamed to "Domain Model Service" at some point (a seed-data
+  // rename, unrelated to the Capability-edge retirement above); "Approved
+  // Catalog Metadata Design" no longer exists under any name.
+  const domainModelService = services.find((s) => s.name === "Domain Model Service");
+  assert.ok(domainModelService);
+  assert.equal(domainModelService.providingCapabilityCode, "understanding-business-domain");
   // CR-064 — service_level is a {label, target}[] list, not a flat object.
-  assert.ok(Array.isArray(catalogService.serviceLevel) && catalogService.serviceLevel.length > 0);
+  assert.ok(Array.isArray(domainModelService.serviceLevel) && domainModelService.serviceLevel.length > 0);
   assert.ok(
-    catalogService.serviceLevel.some((item) => item.label === "Quality Bar"),
-    `expected a "Quality Bar" entry in Service Level, got: ${JSON.stringify(catalogService.serviceLevel)}`
+    domainModelService.serviceLevel.some((item) => item.label === "Consistency"),
+    `expected a "Consistency" entry in Service Level, got: ${JSON.stringify(domainModelService.serviceLevel)}`
   );
 });

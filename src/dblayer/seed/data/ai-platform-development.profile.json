@@ -3,6 +3,8 @@
   "name": "AI Platform — Default Development Profile",
   "baseTemplateCode": "ai-platform",
   "environment": "development",
-  "configParameters": {},
+  "developmentMethodology": "scrum",
+  "primaryProgrammingLanguage": "typescript",
+  "sourceControlProvider": "github",
   "optionalPackCodes": ["testing-qa"]
 }

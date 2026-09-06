@@ -34,6 +34,11 @@ export interface ListResult<T> {
   // undefined everywhere else. Read by helpers.ejs/listControls.ejs's own
   // querystring builders so sort/page/search links keep the active tab.
   category?: string;
+  // CR-091 Part 3 — the Profile Registry's own tab, grouping by base
+  // Template code instead of the now-retired `category` field (Pack's/
+  // Template's own Registries still use `category` above, unaffected).
+  // Same no-op-elsewhere treatment.
+  templateCode?: string;
   // Registry state filter (owner, 2026-08-19: "Include filters to filter by
   // state: Active, Deprecated etc.") — same no-op-elsewhere treatment as
   // category above.

@@ -61,6 +61,7 @@ import "dotenv/config";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { seedIdentityBaseline } from "./seedIdentityBaseline.js";
+import { seedEbookLibraryObjectives } from "./seedEbookLibraryObjectives.js";
 import { seedTransitionDefinitions } from "./seedTransitionDefinitions.js";
 import { seedAuthorityVocabulary } from "./seedAuthorityVocabulary.js";
 import { seedEventSubscriptions } from "./seedEventSubscriptions.js";
@@ -507,6 +508,15 @@ async function run(): Promise<void> {
   // auth table. Idempotent upserts; advances the users serial past the seeded
   // ids. Runs after the wipe (step 1b truncated users, step 2d the tenants).
   await seedIdentityBaseline();
+
+  // Step 3b — owner-provided worked example (example.md): an ebook library
+  // management system's Objective decomposition (owner: "Create a seed file
+  // for the objective so i do not have to create it every time. Let it stay
+  // in the proposed phase."), seeded once here rather than hand-created on
+  // every reset. Depends only on step 3's users (createObjective's own
+  // requestedBy attribution) — no Capability/Pack/Template dependency, since
+  // none of these nodes declare a required Capability.
+  await seedEbookLibraryObjectives();
 
   // Step 4 — CR-006 transition definitions: wipe the accumulated graph
   // (incl. test-fixture pollution) and reseed fresh from

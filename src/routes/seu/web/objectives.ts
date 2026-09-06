@@ -25,9 +25,10 @@ import {
 } from "../core/objectives.js";
 import { objectivesDB } from "../../../dblayer/objectivesDB.js";
 import { parseListParams, paginateList, listResult } from "../../../utils/listQuery.js";
-import { commissionFromExistingObjective } from "../core/commissioning.js";
+import { commissionFromExistingObjective, previewCommissioningValidation } from "../core/commissioning.js";
+import type { ProfileDetail } from "../core/profiles.js";
 import { listConceptsForType } from "../core/ontology.js";
-import type { ObjectiveStatus, ObjectiveTier } from "../../../dblayer/seuTypes.js";
+import type { ObjectiveStatus, ObjectiveTier, EbmCompositionReport, EbmComposedPack } from "../../../dblayer/seuTypes.js";
 import { requireBadge } from "../../../middleware/requireBadge.js";
 import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
 import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
@@ -532,20 +533,151 @@ router.post("/objectives/:id/transition/archive", requireBadge(["objective_archi
 /** Reject requires a genuinely new, non-empty comment every time — enforced in transitionObjective itself, not here. */
 router.post("/objectives/:id/transition/reject", requireBadge(["objective_reject"], { redirectTo: toDetailPage }), postObjectiveTransition("Reject"));
 
-/** POST /aisworg/seu/objectives/:id/commission — commission an SEU directly against this (Active, non-Strategic leaf) Objective. Same badge SEU's own Pending -> Commissioned transition requires (transitionEngine.evaluate, called inside commissionFromExistingObjective). */
+// CR-092 Part 6 (owner: "Multiple profiles are very much possible... allow
+// multiple profiles and surface the conflicts") — the picker
+// (seus/new.ejs's own templateProfile checkboxes, "<templateId>|
+// <profileId-or-empty>") now submits one-or-more selections, not a single
+// radio choice. Shared by both the validate-preview route and the real
+// commission route below so the two can never parse the same form
+// differently.
+function parseTemplateProfileSelections(body: Record<string, unknown>): Array<{ templateId: string; profileId?: string }> {
+  const raw = body.templateProfile;
+  const values = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  return values
+    .filter((v): v is string => typeof v === "string" && v.includes("|"))
+    .map((v) => {
+      const [templateId, rawProfileId] = v.split("|");
+      return { templateId, profileId: rawProfileId && rawProfileId.trim() ? rawProfileId : undefined };
+    })
+    .filter((s) => s.templateId);
+}
+
+/** CR-092 Part 6 (owner: "the human resolves it by picking which source's
+ * value wins, right on the validation page") — reads the validate view's own
+ * per-conflict radio group, submitted as resolution[<ParameterConflict.key>]
+ * = <the chosen option's value>. Since a ParameterConflict only exists where
+ * its options already have >=2 *distinct* values, a value alone
+ * unambiguously identifies which option the human picked — no need to also
+ * submit a profileId. Shared by both POST routes below so a resolution
+ * always means the same thing whether re-validating or actually
+ * commissioning. */
+function parseResolvedParameterOverrides(body: Record<string, unknown>): Record<string, string> | undefined {
+  const raw = body.resolution;
+  if (!raw || typeof raw !== "object") return undefined;
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === "string" && value) result[key] = value;
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+/** POST /aisworg/seu/objectives/:id/validate-commission — CR-092 Part 6's
+ * "Queue to validate" action (owner: "has to queue to validate. The
+ * validation view/form is what should show all the conflicting packs /
+ * parameters / instructions"). Read-only: previewCommissioningValidation
+ * creates no SEU/EBM row — it's the same compositionEngine.compose() the
+ * real commission route below will re-run and actually block on, just
+ * surfaced here before anything is created. Post/redirect/get, same
+ * stashFormInput bounce-back convention GET /seus/new's own freeform-form
+ * repopulation already uses — the report is computed here, then handed to
+ * the GET route below via the session stash rather than rendered directly
+ * from this POST (every other view in this router renders from a GET). */
+router.post("/objectives/:id/validate-commission", requireBadge(["seu_commission"], { redirectTo: toDetailPage }), async (req: Request, res: Response) => {
+  const objectiveId = String(req.params.id);
+  const backTo = `/aisworg/seu/seus/new?objectiveId=${objectiveId}`;
+  const selections = parseTemplateProfileSelections(req.body ?? {});
+  const resolvedParameterOverrides = parseResolvedParameterOverrides(req.body ?? {});
+
+  if (selections.length === 0) {
+    return flashError(req, res, backTo, "Choose at least one Template/Profile to validate.");
+  }
+  // Bug fix (owner, 2026-09-06: "Let us impose the condition that only one
+  // profile can be chosen") — fail fast here rather than waste a
+  // composition round-trip; commissionSeu's own guard (core/commissioning.ts)
+  // still backstops this for any other caller.
+  if (selections.length > 1) {
+    return flashError(req, res, backTo, "Only one Profile may be selected.");
+  }
+
+  try {
+    const { compositionReport, composedPacks, profileDetails } = await previewCommissioningValidation({ selections, resolvedParameterOverrides });
+    stashFormInput(req, { selections, compositionReport, composedPacks, profileDetails, resolvedParameterOverrides });
+    return res.redirect(`/aisworg/seu/objectives/${objectiveId}/validate-commission`);
+  } catch (err) {
+    logger.error("[web/seu/objectives] POST /objectives/:id/validate-commission error", err as Error);
+    return flashError(req, res, backTo, (err as Error).message);
+  }
+});
+
+/** GET /aisworg/seu/objectives/:id/validate-commission — renders the report
+ * the POST above just stashed. A direct GET with nothing stashed (no prior
+ * POST this session) bounces back to the picker rather than showing an
+ * empty/broken report. */
+router.get("/objectives/:id/validate-commission", requireBadge(["seu_commission"], { redirectTo: toDetailPage }), attachVM("seu/seus/validate"), async (req: Request, res: Response) => {
+  const objectiveId = String(req.params.id);
+  const stashed = takeFormInput(req) as {
+    selections: Array<{ templateId: string; profileId?: string }>;
+    compositionReport: EbmCompositionReport;
+    composedPacks?: EbmComposedPack[];
+    profileDetails?: ProfileDetail[];
+    resolvedParameterOverrides?: Record<string, string>;
+  } | null;
+  if (!stashed) {
+    return flashError(req, res, `/aisworg/seu/seus/new?objectiveId=${objectiveId}`, "Nothing to validate — choose a Template/Profile selection first.");
+  }
+  req.vm.req.title = "Commissioning Validation";
+  req.vm.req.objectiveId = objectiveId;
+  req.vm.req.selections = stashed.selections;
+  req.vm.req.compositionReport = stashed.compositionReport;
+  req.vm.req.composedPacks = stashed.composedPacks ?? [];
+  req.vm.req.profileDetails = stashed.profileDetails ?? [];
+  req.vm.req.resolvedParameterOverrides = stashed.resolvedParameterOverrides ?? {};
+  req.vm.opt.flash = getFlash(req);
+  return renderView(req, res, "seu/seus/validate", req.vm);
+});
+
+/** POST /aisworg/seu/objectives/:id/commission — commission an SEU directly against this (Active, non-Strategic leaf) Objective. Same badge SEU's own Pending -> Commissioned transition requires (transitionEngine.evaluate, called inside commissionFromExistingObjective).
+ * Bug fix (owner: "The commission SEU should get onto the SEU screen and the
+ * messages has to be on that screen. Not on the objective screen.") — this
+ * form is now only ever reached from /aisworg/seu/seus/new?objectiveId=..
+ * (seus/new.ejs) or the new validate-commission view above, so every outcome
+ * — success and failure alike — lands back on the SEU screen, not the
+ * Objective's own detail page. Success already redirected to the new SEU's
+ * own page; only the failure/catch paths change, from the Objective detail
+ * page to this same SEU-area screen.
+ * Bug fix (owner, 2026-09-05: "capability-name -> templates -> profile And
+ * allow the user to choose a profile") — templateId is now a real, required
+ * choice submitted from that tree, not auto-derived here; a Template no
+ * longer needs to cover every one of the Objective's declared Capabilities
+ * to be chosen.
+ * Bug fix (owner, 2026-09-06: "Multiple profiles are very much possible")
+ * — one-or-more selections via the same parseTemplateProfileSelections the
+ * validate route above uses.
+ * Bug fix (owner, 2026-09-06: "Let us impose the condition that only one
+ * profile can be chosen") — that policy is retired; at most one selection
+ * now (commissionSeu's own guard, core/commissioning.ts, is the real
+ * backstop — the check just below fails fast on this specific form). */
 router.post("/objectives/:id/commission", requireBadge(["seu_commission"], { redirectTo: toDetailPage }), async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
-  const backTo = `/aisworg/seu/objectives/${objectiveId}`;
-  const { profileId } = req.body ?? {};
+  const backTo = `/aisworg/seu/seus/new?objectiveId=${objectiveId}`;
+  const selections = parseTemplateProfileSelections(req.body ?? {});
+  const resolvedParameterOverrides = parseResolvedParameterOverrides(req.body ?? {});
+
+  if (selections.length === 0) {
+    return flashError(req, res, backTo, "Choose at least one Template/Profile to commission against.");
+  }
+  if (selections.length > 1) {
+    return flashError(req, res, backTo, "Only one Profile may be selected.");
+  }
 
   try {
     const result = await commissionFromExistingObjective({
       objectiveId,
+      selections,
+      resolvedParameterOverrides,
       actorRole: req.session?.user?.role ?? "general",
       actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
       requestedBy: req.session?.user?.id ?? null,
-      profileId: typeof profileId === "string" && profileId.trim() ? profileId : undefined,
-      tenantId: req.session?.user?.tenant_id ?? null,
     });
     if (!result.ok) {
       return flashError(req, res, backTo, `Commissioning failed at "${result.stage}": ${result.reason}`);

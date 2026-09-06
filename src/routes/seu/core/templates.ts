@@ -7,6 +7,10 @@ import { eventBus } from "../../../domain/engine/eventBus.js";
 import { materialiseDependencyGraph, DEFAULT_DELIVERABLE_REQUIRED_STATE } from "../../../domain/engine/materialiseDependencyGraph.js";
 import { dependencyDefinitionsDB } from "../../../dblayer/dependencyDefinitionsDB.js";
 import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
+import { servicesDB } from "../../../dblayer/servicesDB.js";
+import { policiesDB } from "../../../dblayer/policiesDB.js";
+import { checklistsDB } from "../../../dblayer/checklistsDB.js";
+import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
 import { assertCanonicalCategory, resolveLabels } from "./ontology.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import type { CapabilityRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../../../dblayer/seuTypes.js";
@@ -113,6 +117,191 @@ export interface TemplateSeedInput {
   // creation — core/sdkAuthoring.ts — not re-checked on every save, since
   // code becomes read-only once a parent is chosen).
   parentTemplateId?: string | null;
+  // CR-088 — Template's own "Exposable Parameters" tab: for each configurable
+  // parameter its selected Packs actually carry (see
+  // deriveExposableParameterCandidates below), whether a Profile may
+  // override it, and — for the value-bearing ones (Service Level metrics,
+  // Policy's constraintType) — Template's own overriding value. Non-sparse:
+  // one row per candidate at time of save, always, defaulted server-side
+  // (materialiseTemplateDraft) from whatever the underlying Service/Policy
+  // Definition/Checklist already carries when the author never touched a
+  // row — "by default all of the parameters are checked" (overridable=true).
+  exposedParameters?: ExposedParameter[];
+}
+
+export interface ExposedParameter {
+  sourceType: "service" | "policy" | "checklist" | "dependency";
+  sourceCode: string;
+  parameterName: string;
+  value?: string;
+  overridable: boolean;
+}
+
+// CR-088 — every configurable parameter a Template's currently-selected Packs
+// actually carry, across the three owners that have one: Service Level
+// metrics, Policy's constraintType + three applicability dimensions (both
+// live on the canonical Policy Definition, not the per-Pack materialised row
+// — a Pack only adopts a Definition by code), and Checklist's own
+// configurableKey tag (CR-088 prerequisite, migration 171). Capability/Review
+// Gate/Quality Gate/Authority Rules need nothing here — CR-088's own settled
+// design. Deduplicated by (sourceType, sourceCode, parameterName): the same
+// Service/Policy/Checklist reached through more than one selected Pack (a
+// shared Capability, or the same canonical Policy adopted by two Packs)
+// appears once, not once per Pack.
+//
+// Extension (owner, 2026-09-06: "this is exposable and a profile should be
+// able to modify it") — Template's own dependencyGraph (CR-041, §the
+// Deliverable Catalogue tab) is a fourth source, added the same way: one
+// candidate per edge, keyed by (toCode, fromType, fromCode/fromCapabilityCode)
+// since an edge has no code of its own, with `requiredState` as its one
+// Service-Level-shaped tunable value (default "Approved", same schema
+// default the authoring widget already shows) — the TCS analogy applies
+// here exactly as it did for Service Level: the Template's own baseline gate
+// ("must reach Approved") is what a specific Profile may relax or tighten
+// for its own project, same override-or-default resolution
+// (resolveEffectiveParameters, core/profiles.ts). Unlike Service/Policy/
+// Checklist, this source is NOT Pack-derived — it's the Template's own
+// authored content — so it's threaded through as its own parameter rather
+// than resolved from packCodes.
+export interface ExposableParameterCandidate {
+  sourceType: "service" | "policy" | "checklist" | "dependency";
+  sourceCode: string; // service code / policy-definition code / checklist id / dependency edge key
+  sourceName: string;
+  parameterName: string; // metric code / "constraintType" | one of the three applicability field names / configurableKey
+  parameterLabel: string;
+  // Service Level metrics and Policy's constraintType are single-value
+  // parameters — Template may both set the value AND flag whether a Profile
+  // may override it (CR-088's "Service-Level-shaped" case). Policy's three
+  // applicability dimensions and Checklist's configurableKey are list/filter
+  // parameters — Template only flags whether a Profile may filter by them at
+  // all, never sets a value itself ("Checklist-shaped").
+  valueBearing: boolean;
+  defaultValue?: string; // only present when valueBearing
+  valueOptions?: string[]; // only present when valueBearing and a closed enum (constraintType)
+}
+
+// CR-088 — exposedParameters lives only in draft_content (same non-column
+// treatment as `purpose`); reactivateAsNewVersion and copyTemplateAsNewDraft
+// both need to carry it forward explicitly the same way they already do for
+// purpose, or it would silently vanish on Version bump / Copy. Exported —
+// Profile's own override mechanism (deriveOverridableParameterCandidates,
+// below) reads it off an arbitrary (possibly Active, not Draft) Template row.
+export function extractExposedParameters(draftContent: Record<string, unknown> | null): ExposedParameter[] | undefined {
+  return Array.isArray(draftContent?.exposedParameters) ? (draftContent!.exposedParameters as ExposedParameter[]) : undefined;
+}
+
+const POLICY_APPLICABILITY_PARAMETERS: Array<{ name: string; label: string }> = [
+  { name: "applicabilityDeliverableNames", label: "Applicable Deliverable Names" },
+  { name: "applicabilityEnvironments", label: "Applicable Environments" },
+  { name: "applicabilityDeliverableLifecycle", label: "Applicable Deliverable Lifecycle States" },
+];
+
+// dependencyGraph is Template's OWN authored content (CR-041), not derived
+// from packCodes the way Service/Policy/Checklist are — passed in directly
+// by each caller from whichever source has the right one at hand (a Draft's
+// own seed.dependencyGraph while authoring/validating; the Template's own
+// materialised dependency_definitions, via getDependencyGraphContent, once
+// resolving against an already-published Template for Profile's own side).
+export async function deriveExposableParameterCandidates(
+  packCodes: string[],
+  viewerTenantId: string,
+  dependencyGraph: TemplateDependencyGraphEntry[] = []
+): Promise<ExposableParameterCandidate[]> {
+  const candidates: ExposableParameterCandidate[] = [];
+  const seen = new Set<string>();
+  const add = (c: ExposableParameterCandidate) => {
+    const key = `${c.sourceType}::${c.sourceCode}::${c.parameterName}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    candidates.push(c);
+  };
+
+  // Deliverable dependency graph (owner, 2026-09-06: "this is exposable and
+  // a profile should be able to modify it") — one candidate per edge, keyed
+  // by the edge itself (no code of its own): requiredState is the one
+  // Service-Level-shaped tunable value, same "Template sets the baseline,
+  // Profile may relax/tighten it" cascade.
+  for (const entry of dependencyGraph) {
+    const fromName = entry.fromType === "Capability" ? entry.fromCapabilityCode : entry.fromCode;
+    const sourceCode = `${entry.toCode}::${entry.fromType}::${fromName ?? ""}`;
+    add({
+      sourceType: "dependency",
+      sourceCode,
+      sourceName: `"${entry.toCode}" requires ${entry.fromType} "${fromName ?? ""}"`,
+      parameterName: "requiredState",
+      parameterLabel: "Required State",
+      valueBearing: true,
+      defaultValue: entry.requiredState ?? "Approved",
+    });
+  }
+
+  // Service Level metrics — reached the same way Template's own required
+  // Capabilities are (deriveDedupedCapabilitiesFromPackCodes above), then
+  // every Service that Capability realises.
+  const capabilities = await deriveDedupedCapabilitiesFromPackCodes(packCodes);
+  for (const capability of capabilities) {
+    const { data: services } = await servicesDB.findByCapabilityId(capability.id);
+    for (const service of services ?? []) {
+      for (const metric of service.service_level ?? []) {
+        add({ sourceType: "service", sourceCode: service.code, sourceName: service.name, parameterName: metric.code, parameterLabel: metric.label, valueBearing: true, defaultValue: String(metric.target) });
+      }
+    }
+  }
+
+  // Policy — policiesDB.findByPackCode gives the set of codes this Pack
+  // actually adopted (the per-Pack materialised row shares the Definition's
+  // own code, CR-089); the configurable fields themselves are read off the
+  // Definition, since that's where they're actually authored.
+  for (const packCode of packCodes) {
+    const { data: policyRows } = await policiesDB.findByPackCode(packCode);
+    for (const policyRow of policyRows ?? []) {
+      const { data: definition } = await policyDefinitionsDB.findActiveByCodeVisibleTo(policyRow.code, viewerTenantId);
+      if (!definition) continue;
+      add({ sourceType: "policy", sourceCode: definition.code, sourceName: definition.name, parameterName: "constraintType", parameterLabel: "Constraint Type", valueBearing: true, defaultValue: definition.constraint_type, valueOptions: ["Policy", "Standard"] });
+      for (const dim of POLICY_APPLICABILITY_PARAMETERS) {
+        add({ sourceType: "policy", sourceCode: definition.code, sourceName: definition.name, parameterName: dim.name, parameterLabel: dim.label, valueBearing: false });
+      }
+    }
+  }
+
+  // Checklist — one exposable parameter per distinct configurableKey
+  // dimension actually used across a Checklist's own items (most Checklists
+  // tag nothing at all, contributing no candidates).
+  const dimensionLabelByCode = await resolveLabels(viewerTenantId, "checklist-configurable-dimension");
+  for (const packCode of packCodes) {
+    const { data: checklistRows } = await checklistsDB.findByPackCode(packCode);
+    for (const checklist of checklistRows ?? []) {
+      const keys = new Set((checklist.items ?? []).map((item) => item.configurableKey).filter((k): k is string => !!k?.trim()));
+      for (const key of keys) {
+        add({ sourceType: "checklist", sourceCode: checklist.id, sourceName: checklist.name, parameterName: key, parameterLabel: dimensionLabelByCode[key] ?? key, valueBearing: false });
+      }
+    }
+  }
+
+  return candidates;
+}
+
+// CR-088 Profile-side completion (owner, 2026-09-05: "the overrides have to
+// be saved in the profile" — deferred at CR-088's own Template-only pass,
+// picked up here rather than on the Profile CR that should have caught it).
+// A Profile's own "Parameter Overrides" tab candidates: whichever of its base
+// Template's SAVED exposedParameters rows are flagged overridable, resolved
+// against the Template's own currently-materialised Pack selections (not the
+// Profile's own — the candidate universe is whatever the Template computed
+// it against at Template-save time) for label/valueOptions, restricted to
+// valueBearing (Service Level metric, Policy constraintType) — the only
+// shapes that carry a value at all for a Profile to override.
+export async function deriveOverridableParameterCandidates(baseTemplateCode: string, viewerTenantId: string): Promise<ExposableParameterCandidate[]> {
+  const { data: template } = await templatesDB.findActiveByCode(baseTemplateCode, viewerTenantId);
+  if (!template) return [];
+  const exposed = extractExposedParameters(template.draft_content as Record<string, unknown> | null) ?? [];
+  const overridableKeys = new Set(exposed.filter((e) => e.overridable).map((e) => `${e.sourceType}::${e.sourceCode}::${e.parameterName}`));
+  if (overridableKeys.size === 0) return [];
+  const packSelections = await getPackSelectionsByCategory(template.id);
+  const packCodes = [...new Set(PACK_SELECTION_SLOTS.flatMap((slot) => (packSelections[slot.field as keyof PackSelectionsByCategory] as string[] | undefined) ?? []))];
+  const dependencyGraph = await getDependencyGraphContent(template.id, viewerTenantId);
+  const candidates = await deriveExposableParameterCandidates(packCodes, viewerTenantId, dependencyGraph);
+  return candidates.filter((c) => c.valueBearing && overridableKeys.has(`${c.sourceType}::${c.sourceCode}::${c.parameterName}`));
 }
 
 export type TemplateValidationResult = { ok: true } | { ok: false; errors: string[] };
@@ -276,6 +465,26 @@ export async function validateTemplateSeed(seed: TemplateSeedInput): Promise<Tem
   }
 
   const derivedCapabilityCodes = await deriveCapabilityCodesFromPackCodes(collectAllPackCodes(seed));
+
+  // CR-088 — each exposedParameters row must resolve against a real
+  // candidate the selected Packs actually carry today (same "must intersect
+  // what's actually there" discipline validatePolicyCodes/validateChecklistIds
+  // already established) — a row surviving from a Pack selection that's
+  // since changed (the Pack that carried it was deselected, or the
+  // underlying Service/Policy/Checklist changed shape) is stale, not silently
+  // kept. A value-bearing row's own value is checked against valueOptions
+  // when the candidate declares a closed enum (constraintType); otherwise any
+  // non-blank value is accepted (a Service Level metric's target has no
+  // fixed vocabulary).
+  const exposableCandidates = await deriveExposableParameterCandidates(collectAllPackCodes(seed), seed.tenantId ?? PLATFORM_TENANT_ID, seed.dependencyGraph ?? []);
+  for (const row of seed.exposedParameters ?? []) {
+    const candidate = exposableCandidates.find((c) => c.sourceType === row.sourceType && c.sourceCode === row.sourceCode && c.parameterName === row.parameterName);
+    if (!candidate) {
+      errors.push(`exposedParameters references "${row.parameterName}" on ${row.sourceType} "${row.sourceCode}" — not a configurable parameter this Template currently carries`);
+    } else if (candidate.valueOptions && row.value && !candidate.valueOptions.includes(row.value)) {
+      errors.push(`exposedParameters "${row.parameterName}" on ${row.sourceType} "${row.sourceCode}" has value "${row.value}" — must be one of ${candidate.valueOptions.join(", ")}`);
+    }
+  }
 
   // CR-087 — entry.code must be a real, active deliverable-name Ontology
   // concept (assertCanonicalCategory, the same server-side discipline every
@@ -469,7 +678,7 @@ export async function getDependencyGraphContent(templateId: string, tenantId: st
 // code (the same competency, not a duplicate requirement). This keeps the
 // real rows from the same Pack-scoped resolution instead of round-tripping
 // through codes at all.
-async function deriveDedupedCapabilitiesFromPackCodes(packCodes: string[]): Promise<CapabilityRow[]> {
+export async function deriveDedupedCapabilitiesFromPackCodes(packCodes: string[]): Promise<CapabilityRow[]> {
   const packIds: string[] = [];
   for (const code of packCodes) {
     const { data: pack } = await packsDB.findActiveByCode(code);
@@ -494,6 +703,11 @@ async function materialisePackSelectionsAndCapabilities(templateId: string, seed
   }
   const capabilities = await deriveDedupedCapabilitiesFromPackCodes(collectAllPackCodes(seed));
   await templatesDB.setRequiredCapabilities(templateId, capabilities.map((c) => c.id));
+  // Bug fix (owner, 2026-09-06: same root cause as Profile's own — "publishTemplate's
+  // own upsert() never writes draft_content") — exposedParameters (and `purpose`)
+  // never persisted through publishTemplate/seedSdlcStandardTemplates.ts, only
+  // through interactive authoring's createDraft/updateDraftContent.
+  await templatesDB.setDraftContent(templateId, { ...seed });
 }
 
 export type PublishTemplateResult = { ok: true; templateId: string } | { ok: false; errors: string[] };
@@ -641,6 +855,11 @@ async function reactivateAsNewVersion(template: TemplateRow, actorRole: string, 
     // own tenantId treatment exactly.
     tenantId: template.tenant_id,
     parentTemplateId: template.parent_template_id,
+    // CR-088 — exposedParameters lives only in draft_content (same as
+    // purpose, just below); carried forward explicitly the same way, or a
+    // reactivated Version would silently lose every Exposable Parameters
+    // override the previous Version had.
+    exposedParameters: extractExposedParameters(template.draft_content as Record<string, unknown> | null),
   };
   const purpose = typeof (template.draft_content as Record<string, unknown> | null)?.purpose === "string" ? (template.draft_content as Record<string, unknown>).purpose : undefined;
 
@@ -693,6 +912,8 @@ export async function copyTemplateAsNewDraft(templateId: string, actorId: string
     code: source.code,
     name: source.name,
     purpose,
+    // CR-088 — same carry-forward as reactivateAsNewVersion above.
+    exposedParameters: extractExposedParameters(source.draft_content as Record<string, unknown> | null),
     // CR-038 — form-posted row shape ({packCode} objects), matching how
     // parseFormBody reconstructs a referential-list field from a real POST —
     // this draftContent is what re-opening the copied Draft in the form

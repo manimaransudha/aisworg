@@ -353,6 +353,26 @@ export function generateFields(schema: JsonSchemaDocument, content: Record<strin
 // use a generic function so this is still driven by the schema"). One
 // function for Pack, Template, and Profile alike — a new ontology-backed
 // field on any of them is a schema change only, never a new loader.
+// 2026-09-05 (CR-088 prerequisite) — walks item properties to unbounded
+// depth, not just one level down. Checklist's own new configurableKey/
+// configurableValue (contributionChecklists[].items[].configurableKey) sit
+// TWO levels below schema.properties — contributionChecklists is itself a
+// referential-list whose own item field `items` is ANOTHER referential-list
+// (CR-060's "first two-level referential-list") — so the single-level scan
+// this replaces would silently never find them, leaving their dropdown
+// empty despite buildItemFields (which already recurses fully) rendering
+// the field itself correctly.
+function collectOntologyTypesFromItemProps(itemProps: Record<string, JsonSchemaProperty>, types: Set<string>): void {
+  for (const itemDef of Object.values(itemProps)) {
+    if (itemDef["x-referential"] && itemDef["x-ontology"] === true) {
+      types.add(itemDef["x-referential"].trim());
+    }
+    if (itemDef.type === "array" && itemDef.items?.properties) {
+      collectOntologyTypesFromItemProps(itemDef.items.properties, types);
+    }
+  }
+}
+
 export function ontologyConceptTypesIn(schema: JsonSchemaDocument): string[] {
   const types = new Set<string>();
   for (const def of Object.values(schema.properties ?? {})) {
@@ -367,11 +387,7 @@ export function ontologyConceptTypesIn(schema: JsonSchemaDocument): string[] {
     // item-level referential field (governedTransition, checklistIds, ...)
     // still shows.
     if (def["x-widget"] === "referential-list" && def.items?.properties) {
-      for (const itemDef of Object.values(def.items.properties)) {
-        if (itemDef["x-referential"] && itemDef["x-ontology"] === true) {
-          types.add(itemDef["x-referential"].trim());
-        }
-      }
+      collectOntologyTypesFromItemProps(def.items.properties, types);
     }
   }
   return [...types];
@@ -421,14 +437,46 @@ export interface FieldGroups {
   // against the catalogue's own rows (owner: "A tab for deliverable
   // catalogue. This is where the dependency graph should be").
   deliverables: GeneratedField[];
+  // CR-088 — Template's own exposedParameters (a single x-widget:"json"
+  // field; the real per-candidate authoring UI is bespoke, built directly in
+  // _generatedFieldGroups.ejs off req.vm.opt.exposableParameterRows, not
+  // generated from this field's own schema shape the way every other group
+  // is) — its own tab, not lumped into `other`, so it gets the "Exposable
+  // Parameters" label the owner asked for rather than a generic one.
+  exposableParameters: GeneratedField[];
+  // CR-091 Part 2 — Profile's own Ch.7 §10 Configuration Parameters (ten
+  // named fields — eight Ontology-backed referential-selects,
+  // participatingOrganisationCodes, environmentConfiguration) — unlike
+  // exposableParameters above, these ARE generated normally from their own
+  // schema shape (each is a plain field, not a bespoke candidate-driven
+  // grid); just their own tab instead of Identity & Metadata, per the owner:
+  // "Yes Exposed parameters in one tab and Configuration parameters in
+  // another."
+  configurationParameters: GeneratedField[];
+  // CR-088 Profile-side completion — Profile's own exposedParameterOverrides
+  // (a single x-widget:"json" field, same non-generated-UI treatment as
+  // Template's own exposableParameters above — the real per-candidate grid is
+  // bespoke, built off req.vm.opt.exposedParameterOverrideRows).
+  parameterOverrides: GeneratedField[];
   contributions: FieldGroup[];
   other: GeneratedField[];
 }
 
 const METADATA_FIELD_NAMES = new Set([
   "name", "owner", "category", "publisher", "description", "packVersion", "templateVersion", "installationClassification", "compositionStrategy", "compositionSources", "purpose",
-  "code", "environment", "baseTemplateCode", "requiredCapabilityCodes", "mandatoryPackCodes", "optionalPackCodes", "configParameters",
+  // CR-091 Part 2 — `configParameters` retired (replaced by
+  // CONFIGURATION_PARAMETER_FIELD_NAMES's own ten named fields, their own
+  // "Configuration Parameters" tab, below); `category` stays — it's still
+  // Pack's own real field (category:pack Ontology), unaffected by Part 3
+  // retiring Profile's unrelated same-named field (Profile's schema simply
+  // no longer declares one, so this entry is just inert for Profile now).
+  "code", "environment", "baseTemplateCode", "requiredCapabilityCodes", "mandatoryPackCodes", "optionalPackCodes",
   "profileVersion", "featureFlagCodes", "compositionOptions",
+  // CR-091 — Ch.7 §5/§7 completion: Deployment Targets (distinct from
+  // `environment`) and Optional Capability Enablement, same
+  // declared-alongside-their-siblings bucketing as featureFlagCodes/
+  // compositionOptions just above.
+  "deploymentTargets", "additionalCapabilityCodes",
   // CR-086/Ch.11 follow-on — Service Definition's own fields, bucketed here
   // (rather than falling into the unsorted `other` catch-all) so
   // FIELD_DISPLAY_ORDER below can actually control their order, the same way
@@ -443,6 +491,13 @@ const COMPATIBILITY_FIELD_NAMES = new Set(["supportedPlatformVersion", "minSuppo
 // them explicitly here, in their own dedicated groups, fixes that too.
 const PACK_SELECTION_FIELD_NAMES = new Set(["compliancePackCodes", "domainPackCodes", "engineeringPackCodes", "integrationPackCodes", "organisationPackCodes", "technologyPackCodes"]);
 const DELIVERABLES_FIELD_NAMES = new Set(["deliverableCatalogue", "dependencyGraph"]);
+const EXPOSABLE_PARAMETERS_FIELD_NAMES = new Set(["exposedParameters"]);
+const PARAMETER_OVERRIDES_FIELD_NAMES = new Set(["exposedParameterOverrides"]);
+const CONFIGURATION_PARAMETER_FIELD_NAMES = new Set([
+  "targetCloudProvider", "primaryProgrammingLanguage", "sourceControlProvider", "deploymentStrategy",
+  "aiProviderPreference", "defaultRepositoryStructure", "documentationLevel", "developmentMethodology",
+  "participatingOrganisationCodes", "environmentConfiguration",
+]);
 
 // Owner: "Code, Name, Purpose, Template version" — the display order within
 // a group, independent of schema.properties' own key order (jsonb doesn't
@@ -491,13 +546,16 @@ function labelizeContribution(name: string): string {
 }
 
 export function groupFieldsForDisplay(fields: GeneratedField[]): FieldGroups {
-  const groups: FieldGroups = { metadata: [], compatibility: [], dependencies: null, packSelection: [], deliverables: [], contributions: [], other: [] };
+  const groups: FieldGroups = { metadata: [], compatibility: [], dependencies: null, packSelection: [], deliverables: [], exposableParameters: [], configurationParameters: [], parameterOverrides: [], contributions: [], other: [] };
   for (const f of fields) {
     if (f.name === "dependencies") { groups.dependencies = f; continue; }
     if (/^contributions?[A-Z]/.test(f.name)) { groups.contributions.push({ key: f.name, label: labelizeContribution(f.name), field: f }); continue; }
     if (COMPATIBILITY_FIELD_NAMES.has(f.name)) { groups.compatibility.push(f); continue; }
     if (PACK_SELECTION_FIELD_NAMES.has(f.name)) { groups.packSelection.push(f); continue; }
     if (DELIVERABLES_FIELD_NAMES.has(f.name)) { groups.deliverables.push(f); continue; }
+    if (EXPOSABLE_PARAMETERS_FIELD_NAMES.has(f.name)) { groups.exposableParameters.push(f); continue; }
+    if (PARAMETER_OVERRIDES_FIELD_NAMES.has(f.name)) { groups.parameterOverrides.push(f); continue; }
+    if (CONFIGURATION_PARAMETER_FIELD_NAMES.has(f.name)) { groups.configurationParameters.push(f); continue; }
     if (METADATA_FIELD_NAMES.has(f.name)) { groups.metadata.push(f); continue; }
     groups.other.push(f);
   }
@@ -540,11 +598,10 @@ export const CONTRIBUTION_SECTION_HELP: Record<string, string> = {
   // still consulted for other, still-referential-list contribution types.
   contributionPolicies: "Which canonical Policy Definitions (Ch.24) this Pack adopts — check/uncheck, scoped to whichever ones govern a deliverable-name this Pack's own declared Capabilities produce.",
   contributionQualityGates: "Pass/fail criteria a specific transition (entity + from-state + to-state) must satisfy before it's allowed to proceed.",
-  contributionChecklists: "Reusable Checklists (Ch.47) — a Name/Description plus its own ordered list of Items (just a Statement each). A Checklist carries no scope, participant, or required/advisory status of its own; Review Gates and Quality Gates reference it by id (checklistIds/recommendedChecklistIds) to say when it applies and whether it's required.",
+  contributionChecklists: "Reusable Checklists (Ch.47) — a Name/Description plus its own ordered list of Items (a Statement, optionally tagged with a Configurable Dimension/Value pair — CR-088 — so a Template can expose that dimension for a Profile to filter by). A Checklist carries no scope, participant, or required/advisory status of its own; Review Gates and Quality Gates reference it by id (checklistIds/recommendedChecklistIds) to say when it applies and whether it's required.",
   contributionReviewGates: "Verifiable review requirements — typically \"judgment\" or \"human-attested\" items that gate a review outcome.",
   contributionObligationDefinitions: "Verifiable obligations this Pack can raise — a commitment that must be resolved, of the Category given.",
   contributionEngineeringCapital: "Engineering Behaviour, Engineering Metrics, Reusable Components, or Engineering Templates this Pack contributes — a Type and a URL to where it actually lives.",
-  contributionComplianceCodes: "Which existing Compliance Packs this Pack must satisfy — picked by their own compliance-name code, not a copy of their content.",
 };
 export const VERIFIABLE_ITEM_FIELD_HELP: Record<string, string> = {
   statement: "The claim being verified, in plain language — this is the core content; everything else describes how it gets checked.",
@@ -658,7 +715,18 @@ function isFieldFilled(v: unknown): boolean {
 
 function parseReferentialListField(def: JsonSchemaProperty, rawValue: unknown): Record<string, unknown>[] {
   const itemFieldNames = Object.keys(def.items?.properties ?? {});
-  const identifyingFieldNames = itemFieldNames.filter((fn) => def.items?.properties?.[fn]?.["x-referential"]);
+  // 2026-09-05 (CR-088 prerequisite) — also require `required`, not
+  // x-referential alone. Checklist's own items[] just gained an OPTIONAL
+  // x-referential pair (configurableKey/configurableValue) sitting alongside
+  // its actual identifying field, `statement` (required, but freeform text,
+  // never x-referential) — without this, identifyingFieldNames would become
+  // [configurableKey, configurableValue] instead of falling through to the
+  // "every field empty" fallback below, so every ordinary item (the
+  // overwhelming majority, which tag neither) would look blank and vanish on
+  // save despite having a real statement. Every existing identifying field
+  // (packCode, category, code, ...) is already both x-referential AND
+  // required, so this narrows nothing for them.
+  const identifyingFieldNames = itemFieldNames.filter((fn) => def.items?.properties?.[fn]?.["x-referential"] && def.items?.required?.includes(fn));
   const rowsArray = Array.isArray(rawValue) ? rawValue : rawValue ? [rawValue] : [];
   return rowsArray
     .map((row) => {

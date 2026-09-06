@@ -19,8 +19,6 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { objectivesDB } from "../src/dblayer/objectivesDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
-import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
-import { seuCapabilitiesDB } from "../src/dblayer/seuCapabilitiesDB.js";
 import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 
 after(async () => {
@@ -45,7 +43,19 @@ test("dependencyDefinitionEngine: a target with no incoming rows is ready trivia
   assert.equal(result.rows.length, 0);
 });
 
-test("dependencyDefinitionEngine: a Deliverable-type AND a Capability-type row on the same target both gate it, and reach-or-passed holds once satisfied", async () => {
+// Rewritten (owner, 2026-09-06: "rewrite tests to assert the new
+// Deliverable-only model instead") — this test used to prove a Deliverable-
+// type row AND a Capability-type row both gating the same target. Capability-
+// type edges were retired outright before this session (materialiseDependencyGraph.ts,
+// owner, 2026-09-04: "there is no Capability-type edge... Canonical
+// Capabilities do not depend on each other... What has dependency is the
+// deliverable... deliverable dependency is what is real") — a
+// dependencyGraph entry with fromType "Capability" is now silently skipped
+// at materialisation time, so "Architecture Decision Record" is gated by
+// exactly the one Deliverable-type row (Requirements Analysis Model reaching
+// Approved), not four. The reach-or-passed regression this test also covers
+// is still real and still worth proving on the model that's actually live.
+test("dependencyDefinitionEngine: a Deliverable-type row gates its target, and reach-or-passed holds once satisfied", async () => {
   await ensureWebAppTemplateFixture();
   const { data: template } = await templatesDB.findByCode("test-enterprise-web-application");
   assert.ok(template);
@@ -55,33 +65,16 @@ test("dependencyDefinitionEngine: a Deliverable-type AND a Capability-type row o
   const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id });
   assert.ok(seu);
 
-  const { data: requirementsCapability } = await capabilitiesDB.findByCodes(["requirements-analysis"]);
-  assert.ok(requirementsCapability?.[0]);
-  const { data: seuCapabilities } = await seuCapabilitiesDB.createMany(seu!.id, [requirementsCapability![0].id]);
-  const seuCapability = seuCapabilities?.[0];
-  assert.ok(seuCapability);
-
-  // "Architecture Decision Record" is gated by 4 rows (derived from the real
-  // catalogue and materialiseDependencyGraph's "one row per Service a
-  // Capability provides" rule): Requirements Analysis Model reaching Approved
-  // (Deliverable-type, 1 row), and the requirements-analysis Capability being
-  // Fulfilled (Capability-type — 1 row per Service it provides:
-  // vision/requirements-specification/glossary, openup-requirements.pack.json
-  // — 3 rows) — all 4 must hold.
   const { data: upstream } = await deliverablesDB.create({ seuId: seu!.id, name: "Requirements Analysis Model", category: "Documentation" });
   assert.ok(upstream);
 
   const before = await dependencyDefinitionEngine.isTargetReady(seu!.id, "Deliverable", "Architecture Decision Record", "In Progress");
   assert.equal(before.ready, false);
-  assert.equal(before.rows.length, 4);
+  assert.equal(before.rows.length, 1, "only the Deliverable-type row gates this target now — Capability-type edges are retired");
 
   await deliverablesDB.updateLifecycleState(upstream!.id, "Approved");
-  const deliverableOnly = await dependencyDefinitionEngine.isTargetReady(seu!.id, "Deliverable", "Architecture Decision Record", "In Progress");
-  assert.equal(deliverableOnly.ready, false, "the Capability-type row is still unsatisfied — both rows must hold, not just one");
-
-  await seuCapabilitiesDB.markFulfilled(seuCapability!.id);
-  const bothSatisfied = await dependencyDefinitionEngine.isTargetReady(seu!.id, "Deliverable", "Architecture Decision Record", "In Progress");
-  assert.equal(bothSatisfied.ready, true);
+  const satisfied = await dependencyDefinitionEngine.isTargetReady(seu!.id, "Deliverable", "Architecture Decision Record", "In Progress");
+  assert.equal(satisfied.ready, true);
 
   // Regression parity with dependencyEngine's own fix (engine.test.ts): the
   // upstream Deliverable moving PAST the required state (Approved ->
@@ -101,24 +94,22 @@ test("dependencyDefinitionEngine.evaluateAndPublishFromTransition publishes Deli
   const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id });
   assert.ok(seu);
 
-  const { data: requirementsCapability } = await capabilitiesDB.findByCodes(["requirements-analysis"]);
-  const { data: seuCapabilities } = await seuCapabilitiesDB.createMany(seu!.id, [requirementsCapability![0].id]);
-  await seuCapabilitiesDB.markFulfilled(seuCapabilities![0].id);
-
   const { data: upstream } = await deliverablesDB.create({ seuId: seu!.id, name: "Requirements Analysis Model", category: "Documentation" });
   const { data: downstream } = await deliverablesDB.create({ seuId: seu!.id, name: "Architecture Decision Record", category: "Documentation" });
   assert.ok(upstream && downstream);
 
   const { eventsDB } = await import("../src/dblayer/eventsDB.js");
 
-  // The Capability side is already Fulfilled (set up above), but Requirements
-  // Specification hasn't reached Approved yet — pushing from the Capability
-  // side alone must not publish, since isTargetReady still needs both rows.
+  // Rewritten (owner, 2026-09-06: "rewrite tests to assert the new
+  // Deliverable-only model instead") — Capability-type edges are retired
+  // (see this file's other test); the only row gating "Architecture Decision
+  // Record" is the Deliverable-type one. Pushing a transition on the
+  // upstream Deliverable BEFORE it reaches Approved must not publish.
   await dependencyDefinitionEngine.evaluateAndPublishFromTransition({
     seuId: seu!.id,
-    entityType: "Capability",
-    name: "approved-requirements-specification",
-    newState: "Fulfilled",
+    entityType: "Deliverable",
+    name: "Requirements Analysis Model",
+    newState: "In Progress",
   });
   const { data: tooEarly } = await eventsDB.findByOriginatingObject("Deliverable", downstream!.id);
   assert.equal((tooEarly ?? []).filter((e) => e.event_type === "DeliverableReady").length, 0, "must not publish while the Deliverable-type row is still unsatisfied");

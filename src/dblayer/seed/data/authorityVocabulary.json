@@ -114,6 +114,26 @@
       "label": "Commission"
     },
     {
+      "code": "compose",
+      "label": "Compose",
+      "description": "Ch.8 §18 CompositionStarted/CompositionCompleted — SEU Validated -> Composed. Vocabulary only for now; not yet wired into commissionSeu (owner, 2026-09-06: transition-definition layer first, actual wiring reviewed separately)."
+    },
+    {
+      "code": "allocate_runtime",
+      "label": "Allocate Runtime",
+      "description": "Ch.8 §18 RuntimeAllocated — SEU Composed -> RuntimeAllocated. Vocabulary only for now; not yet wired into commissionSeu."
+    },
+    {
+      "code": "initialise_knowledge",
+      "label": "Initialise Knowledge",
+      "description": "Ch.8 §18 KnowledgeInitialised — SEU RuntimeAllocated -> KnowledgeInitialised. Vocabulary only for now; not yet wired into commissionSeu."
+    },
+    {
+      "code": "recruit_participants",
+      "label": "Recruit Participants",
+      "description": "Ch.8 §18 ParticipantsRecruited — SEU KnowledgeInitialised -> ParticipantsRecruited. Vocabulary only for now; not yet wired into commissionSeu."
+    },
+    {
       "code": "configure",
       "label": "Configure"
     },
@@ -281,6 +301,42 @@
     {
       "entityType": "SEU",
       "fromState": "Pending",
+      "toState": "Commissioned",
+      "verb": "commission"
+    },
+    {
+      "entityType": "SEU",
+      "fromState": "Pending",
+      "toState": "Validated",
+      "verb": "validate"
+    },
+    {
+      "entityType": "SEU",
+      "fromState": "Validated",
+      "toState": "Composed",
+      "verb": "compose"
+    },
+    {
+      "entityType": "SEU",
+      "fromState": "Composed",
+      "toState": "RuntimeAllocated",
+      "verb": "allocate_runtime"
+    },
+    {
+      "entityType": "SEU",
+      "fromState": "RuntimeAllocated",
+      "toState": "KnowledgeInitialised",
+      "verb": "initialise_knowledge"
+    },
+    {
+      "entityType": "SEU",
+      "fromState": "KnowledgeInitialised",
+      "toState": "ParticipantsRecruited",
+      "verb": "recruit_participants"
+    },
+    {
+      "entityType": "SEU",
+      "fromState": "ParticipantsRecruited",
       "toState": "Commissioned",
       "verb": "commission"
     },
