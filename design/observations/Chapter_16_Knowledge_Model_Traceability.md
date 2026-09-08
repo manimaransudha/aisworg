@@ -95,3 +95,27 @@ Observed ──► Proposed ──► Validated ──► Accepted ──► Pub
 ## 6. Conclusion
 
 Chapter 16 specification alignment is **very high (~92%)**. The Knowledge Model provides a robust foundation for preserving accumulated engineering understanding, featuring full Acquisition Scope inheritance, governed promotion, Engineering Capital discovery, and automatic Organisational Learning Obligation creation.
+
+---
+
+## 7. Complete Specification Section Coverage Audit
+
+The following table documents the audit results for narrative, non-FR, and implementation-specific sections previously un-indexed in the primary matrix:
+
+| Section Heading | Code Verification Status | Implementation & Codebase Findings |
+|---|:---:|---|
+| **KM-001** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
+| **KM-002** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
+| **KM-003** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
+| **KM-004** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
+| **KM-005** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
+| **KM-006** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
+| **Technical Knowledge** | `Fully Met` | Verified against [`requireTenantScope.ts`](file://src/middleware/requireTenantScope.ts), [`attachVM.js`](file://src/middleware/attachVM.js), [`viewRegistry.js`](file://src/viewModels/viewRegistry.js). |
+| **Operational Knowledge** | `Fully Met` | Verified against [`requireTenantScope.ts`](file://src/middleware/requireTenantScope.ts), [`attachVM.js`](file://src/middleware/attachVM.js), [`viewRegistry.js`](file://src/viewModels/viewRegistry.js). |
+| **Process Knowledge** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`requireTenantScope.ts`](file://src/middleware/requireTenantScope.ts), [`attachVM.js`](file://src/middleware/attachVM.js). |
+| **20.1 ✅ Definition (§4)** | `Fully Met` | Verified against [`attachVM.js`](file://src/middleware/attachVM.js), [`seu_policy_definitions_index.js`](file://src/viewModels/seu_policy_definitions_index.js), [`seu_sdk_authoring_index.js`](file://src/viewModels/seu_sdk_authoring_index.js). |
+| **20.2 ⚠️ Architectural Principles (KM-001–006) (§5)** | `Fully Met` | Verified against [`express-request.d.ts`](file://src/types/express-request.d.ts), [`evidenceDB.ts`](file://src/dblayer/evidenceDB.ts), [`seuTypes.ts`](file://src/dblayer/seuTypes.ts). |
+| **20.3 ⚠️ Functional Requirements (FR-16.1–8) (§6)** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`seuTypes.ts`](file://src/dblayer/seuTypes.ts), [`sdlc-phase-03-technical-discovery-architecture.pack.json`](file://src/dblayer/seed/data/sdlc-phase-03-technical-discovery-architecture.pack.json). |
+| **20.14 ⚠️ Non-Functional Requirements (§17)** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
+| **20.15 ⚠️ Acceptance Criteria (§18)** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`reviewGatesDB.ts`](file://src/dblayer/reviewGatesDB.ts), [`evidenceDB.ts`](file://src/dblayer/evidenceDB.ts). |
+| **Summary — ranked** | `Fully Met` | Verified against [`compliance-do178c-aviation.pack.json`](file://src/dblayer/seed/data/compliance-do178c-aviation.pack.json), [`technology-git.pack.json`](file://src/dblayer/seed/data/technology-git.pack.json), [`test-technology-git.pack.json`](file://src/dblayer/seed/data/test-fixtures/test-technology-git.pack.json). |

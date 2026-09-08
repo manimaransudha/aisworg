@@ -106,9 +106,11 @@ The codebase exhibits **exceptional architectural fidelity**, rigorously realizi
 1. **Commissioning Execution Drivers**: Implement runtime execution listeners for Checklist Item execution and external AI provider invocation.
 2. **Automated Obligation Escalation Service**: Implement a background scheduler task to periodically evaluate `obligationsDB` breach conditions and fire automated notification events.
 3. **Telemetry Analytical Dashboard**: Expand UI telemetry views to display real-time Theory of Constraints (ToC) bottleneck heatmaps derived from `telemetryEngine.ts`.
+4. **Objective-Rooted Knowledge Graph Traversal**: Extend `traceability.ts` with an `ObjectiveTraceabilityService` to enable top-down graph traversal from an Objective root down through SEUs, Deliverables, Decisions, Evidence, and Obligations (Ch. 1 §13).
 
 ---
 
 ## 5. Conclusion
 
 The audit confirms that the implementation in `src/` represents a **faithful, production-grade realization** of the architecture specified in Book 3 (Refined). All 47 chapters have been thoroughly cross-examined and documented in individual chapter observation reports in `design/observations/`.
+

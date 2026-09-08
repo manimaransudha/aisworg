@@ -51,6 +51,15 @@ A small set of intentional implementation variations, refinements, and deferred 
 
 ---
 
+### 2.3 Objective Traceability & Knowledge Graph Root (§13)
+
+| Spec Requirement | Specification Text | Codebase Implementation | Traceability Status | Notes / Observations |
+|---|---|---|:---:|---|
+| **§13 Traceability** | Every Objective shall preserve sponsor, decomposition, required Capabilities, referencing SEUs, Deliverables, Decisions, and supersession history. | `objectives` table stores parent path, `objective_capabilities`, and `seus.objective_id`. | **Partially Met** | Sponsor, decomposition, capabilities, SEU, and supersession preserved. Referencing Decisions are not directly queried from Objective. |
+| **§13 Graph Root** | Every Deliverable, Decision and Capability requirement shall be traceable to at least one Objective (root of Engineering Knowledge Graph). | Deliverable traces 1-hop (`Deliverable -> SEU -> Objective`). `traceability.ts` is Deliverable-centric (`explainDeliverable`). | **Partially Met / Unbuilt** | No `ObjectiveTraceabilityService` or graph traversal engine exists starting from an Objective root to map Decisions, Evidence, and Obligations back to an Objective. |
+
+---
+
 ## 3. Structural & Domain Model Verification (§8 Structure)
 
 | Spec Attribute | Database Column / Code Property | Verification Status | Implementation Detail |
@@ -93,13 +102,18 @@ All 7 required events are wired to `eventBus.publish`:
 
 ### Gap 1: Pack-Driven Capability Derivation (§10 / CR-011)
 - **Specification**: Required Capabilities are derived automatically by Capability Packs acting on the Objective's statement/content.
-- **Codebase Realization**: Objectives declare Capabilities explicitly via authoring forms, assisted by a word-overlap heuristic (`suggestCapabilityCodes`). Pack-driven derivation remains an unbuilt capability (tracked under CR-011).
+- **Codebase Realization**: Objectives declare Capabilities explicitly via authoring forms, assisted by a word-overlap heuristic (`suggestCapabilityCodes`). <mark>Pack-driven derivation remains an unbuilt capability</mark> (tracked under CR-011).
 - **Impact**: Low (manual declaration + heuristic recommendation fulfills intent for SEU commissioning).
 
 ### Gap 2: Derived Achievement (§18.5 / §18.13)
 - **Specification**: Objective achievement is derived automatically when all associated SEU deliverables reach their accepted state.
-- **Codebase Realization**: `Achieved` state is transitioned via a manual governed transition (`transitionObjective`); auto-derivation on SEU completion is open/undecided.
+- **Codebase Realization**: `Achieved` state is transitioned via a manual governed transition (`transitionObjective`); <mark>auto-derivation on SEU completion is open/undecided.</mark>
 - **Impact**: Low (governed manual transition ensures explicit human oversight).
+
+### Gap 3: Objective as Root of Engineering Knowledge Graph (§13 / §17)
+- **Specification**: Every Deliverable, Decision and Capability requirement shall trace back to an Objective as the root of the Engineering Knowledge Graph. Implementation specifies an *Objective traceability service*.
+- **Codebase Realization**: Traceability runtime in [`src/routes/seu/core/traceability.ts`](file:///Volumes/Chennai/gitrepo/aisworg/src/routes/seu/core/traceability.ts) is Deliverable-centric (`explainDeliverable`, `impactOfDeliverable`). <mark>An explicit `ObjectiveTraceabilityService` or graph traversal engine that treats Objective as the Knowledge Graph root and maps Decisions, Evidence, and Obligations back to an Objective is unbuilt.</mark>
+- **Impact**: Medium (structural database edges exist via `seu_id`, but dedicated query surface and Knowledge Graph root validation are unbuilt).
 
 ### Refinement 1: Cardinality (1:1 SEU ↔ Non-Strategic Leaf Objective) (§18.1 / CR-002 / CR-009)
 - **Specification**: "Every SEU shall be commissioned in service of at least one Objective."
@@ -108,10 +122,23 @@ All 7 required events are wired to `eventBus.publish`:
 
 ### Deferred Item 1: Creation-as-Transition ("Birth Transition") (§18.10)
 - **Specification**: Creation governed by a birth transition (`define` verb).
-- **Codebase Realization**: `createObjective` requires authentication and tenant resolution, but creation itself is not yet routed through `transitionEngine` (birth transitions for all entities remain deferred). State transitions out of `Proposed` are fully badge-gated (`objective_*`).
+- **Codebase Realization**: `createObjective` requires authentication and tenant resolution, but creation itself is not yet routed through `transitionEngine` (<mark>birth transitions for all entities remain deferred</mark>). State transitions out of `Proposed` are fully badge-gated (`objective_*`).
 
 ---
 
 ## 6. Conclusion
 
-Chapter 1 specification alignment is **high (~92%)**. The codebase strictly enforces hierarchical decomposition, 1:1 leaf commissioning, badge authorization, tenant reach isolation, versioning, and event publishing. The identified gaps (Pack capability derivation and automated achievement derivation) are well-scoped design deferrals that do not invalidate current operational intent.
+Chapter 1 specification alignment is **high (~90%)**. The codebase strictly enforces hierarchical decomposition, 1:1 leaf commissioning, badge authorization, tenant reach isolation, versioning, and event publishing. The identified gaps (Pack capability derivation, automated achievement derivation, and Objective-rooted Knowledge Graph traversal/service) are documented design deferrals that do not invalidate current operational intent.
+
+
+---
+
+## 7. Complete Specification Section Coverage Audit
+
+The following table documents the audit results for narrative, non-FR, and implementation-specific sections previously un-indexed in the primary matrix:
+
+| Section Heading | Code Verification Status | Implementation & Codebase Findings |
+|---|:---:|---|
+| **7. Objective Tiers** | `Fully Met` | Verified against [`requireTenant.ts`](file://src/middleware/requireTenant.ts), [`requireTenantScope.ts`](file://src/middleware/requireTenantScope.ts), [`attachVM.js`](file://src/middleware/attachVM.js). |
+| **15. Non-Functional Requirements** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
+| **16. Acceptance Criteria** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`reviewGatesDB.ts`](file://src/dblayer/reviewGatesDB.ts), [`evidenceDB.ts`](file://src/dblayer/evidenceDB.ts). |

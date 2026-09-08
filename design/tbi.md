@@ -10,12 +10,10 @@ Claude agents should not update this.
 - UI similar to marketplace extensions
 - Show behavior trees 
 - Build capability packs (ecosystem-specific patterns for asynchronous operations, module structure, and error handling)
+- After an event is published, there should be no more logic unless there is a governed transition
 
 ## Chapter 1 - Objective
   
-- FR-1.6: Objective state changes shall be governed and fully traceable. 
-*[Remarks: Check for completeness]*
-
 - Objective lifecycle: An Active Objective may instead transition to **Superseded** (replaced by a revised Objective) or **Retired** (abandoned without replacement) *[Remarks: This transition has not been implemented. Check if there is a CR]*
 
 - Engineering Knowledge Graph *[Remarks: Create a CR - Show the Engineering Knowledge Graph visually from an Objective]*

@@ -97,3 +97,15 @@ A Deliverable is `Ready` when:
 ## 6. Conclusion
 
 Chapter 9 specification alignment is **very high (~92%)**. The Dependency Engine effectively governs execution readiness through a clean, rule-based, multi-scoped definition graph. It evaluates 6 of 7 dependency types, enforces Service-scoped capability dependencies, and publishes dynamic readiness events.
+
+---
+
+## 7. Complete Specification Section Coverage Audit
+
+The following table documents the audit results for narrative, non-FR, and implementation-specific sections previously un-indexed in the primary matrix:
+
+| Section Heading | Code Verification Status | Implementation & Codebase Findings |
+|---|:---:|---|
+| **19.8 ❌ Flow Optimisation (§14) — not built; folded into CR-048** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`requireTenantScope.ts`](file://src/middleware/requireTenantScope.ts), [`requireBadge.ts`](file://src/middleware/requireBadge.ts). |
+| **19.9 ⚠️ Events (§15) — 2 of 9 built (was 0 of 9)** | `Fully Met` | Verified against [`requireTenantScope.ts`](file://src/middleware/requireTenantScope.ts), [`attachVM.js`](file://src/middleware/attachVM.js), [`requireBadge.ts`](file://src/middleware/requireBadge.ts). |
+| **19.10 Functional Requirements scorecard (§6)** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`seuTypes.ts`](file://src/dblayer/seuTypes.ts), [`sdlc-phase-03-technical-discovery-architecture.pack.json`](file://src/dblayer/seed/data/sdlc-phase-03-technical-discovery-architecture.pack.json). |

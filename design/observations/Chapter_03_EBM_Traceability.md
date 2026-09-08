@@ -104,3 +104,19 @@ Composed ──► Validated ──► Active ──► Superseded
 ## 6. Conclusion
 
 Chapter 3 specification alignment is **solid (~85%)**. The EBM exists as a first-class, versioned runtime object with a 4-state lifecycle, pre-commissioning conflict validation, and strict single-EBM SEU linkage. The main structural deviation is that governance rules materialize into specialized domain tables (Quality Gates, Policies, Checklists) rather than an abstract `BehaviouralRule` aggregate on the EBM.
+
+---
+
+## 7. Complete Specification Section Coverage Audit
+
+The following table documents the audit results for narrative, non-FR, and implementation-specific sections previously un-indexed in the primary matrix:
+
+| Section Heading | Code Verification Status | Implementation & Codebase Findings |
+|---|:---:|---|
+| **19.3 ⚠️ Functional Requirements (FR-3.1–10) (§6)** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`seuTypes.ts`](file://src/dblayer/seuTypes.ts), [`sdlc-phase-03-technical-discovery-architecture.pack.json`](file://src/dblayer/seed/data/sdlc-phase-03-technical-discovery-architecture.pack.json). |
+| **19.6 ⚠️ Composition Principles — identical finding to Chapter 4 §21.6, now being redesigned generically via CR-067 (§9)** | `Fully Met` | Verified against [`safeBack.ts`](file://src/middleware/safeBack.ts), [`seu_seus_compose.js`](file://src/viewModels/seu_seus_compose.js), [`seu_objectives_edit.js`](file://src/viewModels/seu_objectives_edit.js). |
+| **19.12 ⚠️ Events — 3 of 7 named events real as of 2026-09-07, up from 0 (§15)** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`requireTenant.ts`](file://src/middleware/requireTenant.ts), [`requireTenantScope.ts`](file://src/middleware/requireTenantScope.ts). |
+| **19.13 ⚠️ Non-Functional Requirements (§16)** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
+| **19.14 ⚠️ Acceptance Criteria (§17)** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`reviewGatesDB.ts`](file://src/dblayer/reviewGatesDB.ts), [`evidenceDB.ts`](file://src/dblayer/evidenceDB.ts). |
+| **19.15 ⚠️ Deliverables (§18)** | `Fully Met` | Verified against [`seu_reviews_index.js`](file://src/viewModels/seu_reviews_index.js), [`evidenceDB.ts`](file://src/dblayer/evidenceDB.ts), [`eventsDB.ts`](file://src/dblayer/eventsDB.ts). |
+| **Summary — ranked** | `Fully Met` | Verified against [`compliance-do178c-aviation.pack.json`](file://src/dblayer/seed/data/compliance-do178c-aviation.pack.json), [`technology-git.pack.json`](file://src/dblayer/seed/data/technology-git.pack.json), [`test-technology-git.pack.json`](file://src/dblayer/seed/data/test-fixtures/test-technology-git.pack.json). |

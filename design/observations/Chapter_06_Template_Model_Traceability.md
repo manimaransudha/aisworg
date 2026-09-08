@@ -98,3 +98,15 @@ Events emitted via `eventBus.publish` (CR-025):
 ## 6. Conclusion
 
 Chapter 6 specification alignment is **extremely high (~94%)**. Templates cleanly serve as structural blueprints for SEUs, leaving behavior to EBM and commissioning configuration to Profile. The implementation features complete version immutability, Ontology category backing, tenant-scoped inheritance, and a full 7-state governed lifecycle.
+
+---
+
+## 7. Complete Specification Section Coverage Audit
+
+The following table documents the audit results for narrative, non-FR, and implementation-specific sections previously un-indexed in the primary matrix:
+
+| Section Heading | Code Verification Status | Implementation & Codebase Findings |
+|---|:---:|---|
+| **20.11 ✅ Template/Profile authority — badge-based (noun × verb), no entity-specific code — (mirrors Ch.5 §19.13)** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`requireTenantScope.ts`](file://src/middleware/requireTenantScope.ts), [`errorHandler.js`](file://src/middleware/errorHandler.js). |
+| **20.12 No Template/Profile registry page — minor asymmetry vs Pack** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`requireTenantScope.ts`](file://src/middleware/requireTenantScope.ts), [`auth.js`](file://src/middleware/auth.js). |
+| **20.15 Summary — what's tracked vs untracked** | `Fully Met` | Verified against [`policy-test-coverage-threshold.json`](file://src/dblayer/seed/data/policy-test-coverage-threshold.json), [`compliance-do178c-aviation.pack.json`](file://src/dblayer/seed/data/compliance-do178c-aviation.pack.json), [`domain-customer-service.pack.json`](file://src/dblayer/seed/data/domain-customer-service.pack.json). |

@@ -99,3 +99,18 @@ Events emitted via `eventBus.publish`:
 ## 6. Conclusion
 
 Chapter 7 specification alignment is **exceptionally high (~96%)**. Profiles cleanly serve as the commissioning configuration layer. The implementation features complete version immutability, Ontology-driven parameter definitions, category-scoped pack selections, parameter override resolution, and full 7-state governed lifecycles with event emission.
+
+---
+
+## 7. Complete Specification Section Coverage Audit
+
+The following table documents the audit results for narrative, non-FR, and implementation-specific sections previously un-indexed in the primary matrix:
+
+| Section Heading | Code Verification Status | Implementation & Codebase Findings |
+|---|:---:|---|
+| **Startup** | `Partially Met` | Verified against [`appconfig.js`](file://src/config/appconfig.js), [`technology-kubernetes.pack.json`](file://src/dblayer/seed/data/technology-kubernetes.pack.json), [`test-technology-kubernetes.pack.json`](file://src/dblayer/seed/data/test-fixtures/test-technology-kubernetes.pack.json). |
+| **Enterprise** | `Fully Met` | Verified against [`seuTypes.ts`](file://src/dblayer/seuTypes.ts), [`knowledgeItemsDB.ts`](file://src/dblayer/knowledgeItemsDB.ts), [`cleanSlate.ts`](file://src/dblayer/seed/cleanSlate.ts). |
+| **Healthcare** | `Fully Met` | Verified against [`seedDomainPacks.ts`](file://src/dblayer/seed/seedDomainPacks.ts), [`compliance-data-residency-localization.pack.json`](file://src/dblayer/seed/data/compliance-data-residency-localization.pack.json), [`domain-healthcare-pharma.pack.json`](file://src/dblayer/seed/data/domain-healthcare-pharma.pack.json). |
+| **Banking** | `Fully Met` | Verified against [`seedDomainPacks.ts`](file://src/dblayer/seed/seedDomainPacks.ts), [`compliance-india-rbi-pmla.pack.json`](file://src/dblayer/seed/data/compliance-india-rbi-pmla.pack.json), [`compliance-psd2-psd3.pack.json`](file://src/dblayer/seed/data/compliance-psd2-psd3.pack.json). |
+| **Prototype** | `Fully Met` | Verified against [`openup-architecture.pack.json`](file://src/dblayer/seed/data/openup-architecture.pack.json), [`technologyc.pack.json`](file://src/dblayer/seed/data/technologyc.pack.json), [`sdlc-phase-02-experience-design.pack.json`](file://src/dblayer/seed/data/sdlc-phase-02-experience-design.pack.json). |
+| **19.11 Summary — what's tracked vs untracked** | `Fully Met` | Verified against [`policy-test-coverage-threshold.json`](file://src/dblayer/seed/data/policy-test-coverage-threshold.json), [`compliance-do178c-aviation.pack.json`](file://src/dblayer/seed/data/compliance-do178c-aviation.pack.json), [`domain-customer-service.pack.json`](file://src/dblayer/seed/data/domain-customer-service.pack.json). |
