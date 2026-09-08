@@ -394,6 +394,14 @@ body:has(.login-card, .auth-card, .verify-card, .card-center) { background: var(
      instead of silently breaking once a list grows past what fits. */
   max-height: calc(100vh - 2rem);
   overflow-y: auto;
+  /* Bug fix (owner: "the vertical tabs... seem to appear in 2 columns") —
+     Bootstrap's own .nav sets flex-wrap: wrap by default; combined with
+     flex-direction: column (from .flex-column) and the max-height above,
+     a tab list taller than the viewport wrapped sideways into a second
+     column instead of scrolling. First hit by seus/detail.ejs's own 14
+     tabs — every other .vertical-tabs user had too few tabs to ever
+     overflow max-height and trigger it. */
+  flex-wrap: nowrap;
 }
 .vertical-tabs .nav-link {
   color: #495057; font-weight: 500; border-radius: .4rem;

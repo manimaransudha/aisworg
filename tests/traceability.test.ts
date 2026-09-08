@@ -11,13 +11,12 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
-import { commissionFromForm } from "../src/routes/seu/core/commissioning.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { explainDeliverable, impactOfDeliverable } from "../src/routes/seu/core/traceability.js";
-import { ensureWebAppTemplateFixture } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
 
 after(async () => {
   await pool.end();
@@ -33,7 +32,7 @@ async function dispatchAndComplete(deliverableId: string, targetState: string, r
 
 async function commissionWebApp(prefix: string) {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromForm({
+  const result = await commissionFromFormSync({
     statement: `${prefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,

@@ -5,33 +5,154 @@
 import { objectivesDB } from "../../../dblayer/objectivesDB.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { profilesDB } from "../../../dblayer/profilesDB.js";
+import { packsDB } from "../../../dblayer/packsDB.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
+import { eventsDB } from "../../../dblayer/eventsDB.js";
 import { seuCapabilitiesDB } from "../../../dblayer/seuCapabilitiesDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
+import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
+import type { CompositionSource } from "../../../domain/engine/compositionEngine.js";
+import { unravelComposition, detectCompositionConflicts, formatCompositionConflict } from "../../../domain/engine/profileCompositionUnravel.js";
+import type { UnraveledComposition, CompositionConflict, CompositionConflictOption } from "../../../domain/engine/profileCompositionUnravel.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { logger } from "../../../utils/logger.js";
 import { createObjective, ensureOneShotContainer } from "./objectives.js";
+import { raiseAttentionItem } from "./attentionItems.js";
 import { findCandidateTemplates } from "./templates.js";
-import { findOrCreateDefaultProfile, extractProfileDetails } from "./profiles.js";
+import { findOrCreateDefaultProfile, extractProfileDetails, getProfilePackSelections, extractExposedParameterOverrides } from "./profiles.js";
 import type { ProfileDetail } from "./profiles.js";
 import { resolveLabels } from "./ontology.js";
-import type { CommissioningReport, SeuLifecycleState, SeuRow, TemplateRow, ProfileRow, CapabilityRow, TemplateDeliverableSeed, EbmCompositionReport, EbmComposedPack } from "../../../dblayer/seuTypes.js";
+import type { CommissioningReport, SeuLifecycleState, SeuRow, TemplateRow, ProfileRow, ObjectiveRow, CapabilityRow, TemplateDeliverableSeed, EbmCompositionReport, EbmComposedPack, EbmRow } from "../../../dblayer/seuTypes.js";
 
+// commissionSeu itself can no longer produce a full CommissioningReport
+// synchronously (design/mvp-build-plan/SEU Composition.md, "Structural
+// consequence" — a real, human-in-the-loop manual gate means the pipeline
+// can't finish inside one HTTP request). A successful "Validate Request"
+// means the SEU row exists and CommissionValidated has been published — not
+// that commissioning is complete. finalizeCommissioning (below) produces the
+// real CommissioningReport once "Activate" actually happens.
 export type CommissionResult =
-  | { ok: true; seu: SeuRow; report: CommissioningReport }
+  | { ok: true; seu: SeuRow }
   | { ok: false; stage: string; reason: string; seuId?: string };
 
-const AUTOMATIC_STEPS: Array<[SeuLifecycleState, SeuLifecycleState]> = [
-  ["Commissioned", "Configured"],
-  ["Configured", "Activated"],
-  ["Activated", "Operational"],
+// Owner: "let us stick to the order I gave. Chapter 2 is for something else
+// not for definition" — Configured before Commissioned, deliberately not
+// Chapter 2's own documented SEU state graph. Split in two: PRE_ASSETS_STEPS
+// runs before Create Engineering Assets, Activated -> Operational after (Ch.8
+// §12 — Create Engineering Assets is the step right before "Ready for
+// Execution").
+const PRE_ASSETS_STEPS: Array<[SeuLifecycleState, SeuLifecycleState]> = [
+  ["Pending", "Configured"],
+  ["Configured", "Commissioned"],
+  ["Commissioned", "Activated"],
 ];
+
+// Chapter 8 §9 "Validate Request" — real new logic, not pure event-wrapping
+// (design/mvp-build-plan/SEU Composition.md, "Validate Request does need
+// real new logic"). A Profile's own status = 'Active' says nothing about
+// whether what it references still is — Pack codes, capability-name/service
+// Ontology codes can be retired independently, long after the Profile was
+// authored, with nothing re-checking it since (assertCanonicalCategory,
+// ontology.ts, is write-path only). Owner: "am I working off a current live
+// abstraction?" — iterates over exactly what the owner named: template id,
+// Pack codes, capability codes, service codes. Extended 2026-09-07 (owner:
+// "1. Check the Objective is still active... 2. Check if Profile id is
+// active") — this is what validateRequestHandler runs off
+// CommissionRequested, so the Objective/Profile's own liveness (not just
+// what they reference) is now checked here too, not left implicit.
+// Owner: "Show details of what was checked and what passed the check and
+// failed the check if it is failed" — every individual check this function
+// runs, not just the failures; the Validate page renders the full list.
+export interface LivenessCheck {
+  item: string;
+  status: "live" | "dead";
+  detail?: string;
+}
+
+export async function checkRequestLiveness(input: { objective: ObjectiveRow; templates: TemplateRow[]; profile: ProfileRow; viewerTenantId: string }): Promise<LivenessCheck[]> {
+  const checks: LivenessCheck[] = [];
+  const viewer = { isRoot: false, tenantId: input.viewerTenantId };
+
+  checks.push({ item: "Objective", status: input.objective.status === "Active" ? "live" : "dead", detail: `status: ${input.objective.status}` });
+  checks.push({ item: `Profile "${input.profile.code}"`, status: input.profile.status === "Active" ? "live" : "dead", detail: `status: ${input.profile.status}` });
+
+  for (const template of input.templates) {
+    checks.push({ item: `Template "${template.code}"`, status: template.status === "Active" ? "live" : "dead", detail: `status: ${template.status}` });
+  }
+
+  const packCodes = new Set<string>();
+  for (const template of input.templates) {
+    const { data: mandatoryCodes } = await templatesDB.getMandatoryPackCodes(template.id);
+    for (const code of mandatoryCodes ?? []) packCodes.add(code);
+  }
+  const selections = await getProfilePackSelections(input.profile.id);
+  for (const code of [
+    ...(selections.optionalPackCodes ?? []),
+    ...(selections.technologyPackCodes ?? []),
+    ...(selections.domainPackCodes ?? []),
+    ...(selections.compliancePackCodes ?? []),
+    ...(selections.integrationPackCodes ?? []),
+    ...(selections.engineeringPackCodes ?? []),
+    ...(selections.organisationPackCodes ?? []),
+  ]) packCodes.add(code);
+  for (const code of packCodes) {
+    const { data: pack } = await packsDB.findActiveByCode(code);
+    checks.push(pack ? { item: `Pack "${code}"`, status: "live", detail: `Active version ${pack.pack_version}` } : { item: `Pack "${code}"`, status: "dead", detail: "has no Active version" });
+  }
+
+  const draft = (input.profile.draft_content ?? {}) as Record<string, unknown>;
+  for (const code of (draft.additionalCapabilityCodes as string[] | undefined) ?? []) {
+    const { data: concept } = await ontologyDB.findConcept("capability-name", code, viewer);
+    checks.push(
+      concept && concept.is_active
+        ? { item: `Capability "${code}"`, status: "live", detail: "active capability-name concept" }
+        : { item: `Capability "${code}"`, status: "dead", detail: "not a live capability-name concept" }
+    );
+  }
+
+  for (const override of extractExposedParameterOverrides(input.profile.draft_content)) {
+    if (override.sourceType !== "service") continue;
+    const { data: service } = await serviceDefinitionsDB.findActiveByCodeVisibleTo(override.sourceCode, input.viewerTenantId);
+    checks.push(
+      service ? { item: `Service "${override.sourceCode}"`, status: "live", detail: `Active version ${service.version}` } : { item: `Service "${override.sourceCode}"`, status: "dead", detail: "has no Active version" }
+    );
+  }
+
+  return checks;
+}
+
+// Chapter 3 §15 "Validate Engineering Model" liveness gate — design/mvp-build-plan/
+// SEU Composition.md, 2026-09-07. Owner: "There is a possibility that packs,
+// profiles etc could have been retired. So when EBMValidation happens, do a
+// checkliveness." Time has passed since this EBM was composed; unlike
+// checkRequestLiveness (which re-derives what a Template/Profile *would*
+// select), this checks what the EBM actually *did* compose — its own
+// composed_packs, template_id, profile_id — since retirement since then
+// wouldn't change what a fresh selection derives, only whether what's
+// already fixed on this row is still live.
+export async function checkEbmLiveness(ebm: EbmRow): Promise<string[]> {
+  const dead: string[] = [];
+  const { data: template } = await templatesDB.findById(ebm.template_id);
+  if (!template) dead.push(`Template referenced by this EBM no longer exists`);
+  else if (template.status !== "Active") dead.push(`Template "${template.code}" is not Active (status: ${template.status})`);
+
+  const { data: profile } = await profilesDB.findById(ebm.profile_id);
+  if (!profile) dead.push(`Profile referenced by this EBM no longer exists`);
+  else if (profile.status !== "Active") dead.push(`Profile "${profile.code}" is not Active (status: ${profile.status})`);
+
+  for (const p of ebm.composed_packs) {
+    const { data: pack } = await packsDB.findActiveByCode(p.packCode);
+    if (!pack) dead.push(`Pack "${p.packCode}" has no Active version`);
+  }
+
+  return dead;
+}
 
 export async function commissionSeu(input: {
   objectiveId: string;
@@ -45,14 +166,16 @@ export async function commissionSeu(input: {
   // identity.templateCodes/profileCodes.
   templateIds: string[];
   profileIds: string[];
-  // CR-092 Part 6 (owner: "the human resolves it by picking which source's
-  // value wins, right on the validation page") — a human's own prior picks
-  // from the validate view, keyed the same way as
-  // ParameterConflict.key ("sourceType::sourceCode::parameterName"). Passed
-  // straight through to compositionEngine.compose() so an already-resolved
-  // key is excluded from the blocking parameterConflicts check below; never
-  // computed or guessed by this function itself.
+  // Structurally dead since the single-Profile reversal (parameterConflicts
+  // can only ever fire with 2+ Profiles) — kept only for caller signature
+  // compatibility; no longer read anywhere in this function.
   resolvedParameterOverrides?: Record<string, string>;
+  // The human's own prior picks from the "Queue to Validate" preview page,
+  // carried straight into CommissionValidated's own payload for the EBM
+  // Composer to re-run detectCompositionConflicts against — never computed
+  // or guessed by this function itself (design/mvp-build-plan/
+  // SEU Composition.md, "Whatever we validated is what should go into the SEU").
+  resolvedCompositionConflicts?: Record<string, unknown>;
   actorRole: string;
   actorId?: string;
   requestedBy?: number | null;
@@ -117,11 +240,19 @@ export async function commissionSeu(input: {
     return { ok: false, stage: "validate_request", reason: `objective has been decomposed further — commission an SEU against its leaf objectives, not this parent` };
   }
 
-  // CR-002 (Ch.1 §18.2/§18.8): at most one SEU per Objective. A friendly
-  // rejection ahead of the UNIQUE index, so "already assigned" reads clearly
-  // (the index is the race-free backstop).
+  // CR-002 (Ch.1 §18.2/§18.8): at most one *active* SEU per Objective.
+  // design/mvp-build-plan/SEU Composition.md, 2026-09-07 — "Queue to
+  // Validate" now creates the Pending SEU row itself and publishes
+  // CommissionRequested there (web/objectives.ts's own validate-commission
+  // route); by the time this function runs (the "Commission" click), that
+  // row already exists for the normal case. An existing SEU matching this
+  // same Template/Profile, still Pending, is expected here and reused — not
+  // a second row, not a second CommissionRequested. Anything else (a
+  // different Template/Profile, or a SEU already past Pending) is still a
+  // real "already assigned" conflict, rejected exactly as before.
   const { data: existingSeu } = await seusDB.findByObjectiveId(objective.id);
-  if (existingSeu) {
+  const reusingExisting = !!existingSeu && existingSeu.lifecycle_state === "Pending" && existingSeu.profile_id === profile.id && existingSeu.template_id === template.id;
+  if (existingSeu && !reusingExisting) {
     return { ok: false, stage: "validate_request", reason: `this Objective is already assigned to an SEU (${existingSeu.id})` };
   }
 
@@ -143,100 +274,106 @@ export async function commissionSeu(input: {
     const { data: defaultTenant } = await tenantsDB.findDefault();
     tenantId = defaultTenant?.id ?? null;
   }
+  const viewerTenantId = tenantId ?? PLATFORM_TENANT_ID;
 
-  const { data: seu, error: seuErr } = await seusDB.create({
-    objectiveId: objective.id,
-    templateId: template.id,
-    profileId: profile.id,
-    requestedBy: input.requestedBy,
-    tenantId,
-  });
-  if (seuErr || !seu) return { ok: false, stage: "allocate_runtime", reason: (seuErr ?? new Error("failed to create SEU")).message };
-
-  const correlationId = eventBus.newCorrelationId();
-  // Ch.30 causation fix — first event in this activity; nothing on the Bus
-  // caused it (an HTTP request did), so causationId is deliberately absent.
-  const requestedEvent = await eventBus.publish({
-    eventType: "SEUCommissionRequested",
-    originatingObjectType: "SEU",
-    originatingObjectId: seu.id,
-    seuId: seu.id,
-    correlationId,
-    payload: { objectiveId: objective.id, templateIds: input.templateIds, profileIds: input.profileIds },
-  });
-
-  // Ch.8 §9 Validate Request — the minimal, real Authority + Policy check
-  // (Build Plan §1: "who can commission").
-  const gate = await transitionEngine.evaluate({
-    entityType: "SEU",
-    fromState: "Pending",
-    toState: "Commissioned",
-    actorRole: input.actorRole,
-    actorId: input.actorId,
-    context: { profile, objective },
-  });
-  if (!gate.allowed) {
-    await eventBus.publish({
-      eventType: "SEUCommissionRejected",
+  let seu: SeuRow;
+  let correlationId: string;
+  let causationId: string | undefined;
+  if (reusingExisting) {
+    seu = existingSeu!;
+    const { data: priorEvents } = await eventsDB.findByOriginatingObject("SEU", seu.id);
+    const priorRequested = (priorEvents ?? []).find((e) => e.event_type === "CommissionRequested");
+    correlationId = priorRequested?.correlation_id ?? eventBus.newCorrelationId();
+    causationId = priorRequested?.id;
+  } else {
+    const { data: created, error: seuErr } = await seusDB.create({
+      objectiveId: objective.id,
+      templateId: template.id,
+      profileId: profile.id,
+      requestedBy: input.requestedBy,
+      tenantId,
+    });
+    if (seuErr || !created) return { ok: false, stage: "allocate_runtime", reason: (seuErr ?? new Error("failed to create SEU")).message };
+    seu = created;
+    correlationId = eventBus.newCorrelationId();
+    // Ch.30 causation fix — first event in this activity; nothing on the Bus
+    // caused it (an HTTP request did), so causationId is deliberately absent.
+    // Chapter 8 §18 "CommissionRequested" — was SEUCommissionRequested.
+    const requestedEvent = await eventBus.publish({
+      eventType: "CommissionRequested",
       originatingObjectType: "SEU",
       originatingObjectId: seu.id,
       seuId: seu.id,
       correlationId,
-      causationId: requestedEvent.id,
-      payload: gate,
+      actorId: input.actorId ?? null,
+      payload: { seuId: seu.id },
     });
-    return { ok: false, stage: "validate_request", reason: describeRejection(gate), seuId: seu.id };
+    causationId = requestedEvent.id;
   }
 
-  // Ch.4 Composition Engine
-  const { composedPacks, compositionReport } = await compositionEngine.compose({
-    templateIds: input.templateIds,
-    profileIds: input.profileIds,
-    resolvedParameterOverrides: input.resolvedParameterOverrides,
-  });
+  // design/mvp-build-plan/SEU Composition.md, 2026-09-07 — validateRequestHandler
+  // (subscribed to CommissionRequested) is now the one real place Validate
+  // Request runs (Authority/Policy gate + checkRequestLiveness, both moved
+  // there verbatim). commissionSeu used to run this same logic inline, then
+  // ALSO publish CommissionRequested — every fresh call ran Validate Request
+  // twice, racing (found via a real test run: validateRequestHandler logging
+  // "SEU not found: undefined" because this function's own CommissionRequested
+  // payload didn't even match {seuId} yet). commissionSeu's job ends at
+  // creating the SEU and publishing that event, same contract the web
+  // route's own "Queue to Validate" already has — a caller wanting to know
+  // whether Validate Request/Compose EBM actually succeeded polls for it
+  // (driveCommissioningToActive already does).
+  return { ok: true, seu };
+}
 
-  // FR-3.6/3.7 & FR-21.7: behavioural/governance conflicts requiring human
-  // judgement prevent commissioning until resolved. Detected at composition;
-  // the SEU never reaches Operational (it stays the pre-commissioned Pending
-  // row, same shape as the Authority rejection above).
-  // CR-092 Part 6 — parameterConflicts is a second, independent conflict
-  // list (owner: "the human resolves it by picking which source's value
-  // wins, right on the validation page"); a key already resolved by the
-  // human (input.resolvedParameterOverrides, threaded into compose() above)
-  // is excluded there, so anything still present here genuinely was never
-  // resolved — this function itself never picks a winner on its own.
-  if (compositionReport.conflicts.length > 0 || compositionReport.parameterConflicts.length > 0) {
-    const allConflictMessages = [
-      ...compositionReport.conflicts,
-      ...compositionReport.parameterConflicts.map((c) => `Parameter conflict on "${c.key}": ${c.options.map((o) => `${o.profileCode} sets "${o.value}"`).join(", ")}.`),
-    ];
-    await eventBus.publish({
-      eventType: "SEUCommissionRejected",
-      originatingObjectType: "SEU",
-      originatingObjectId: seu.id,
-      seuId: seu.id,
-      correlationId,
-      causationId: requestedEvent.id,
-      payload: { reason: "composition_conflict", conflicts: allConflictMessages },
+// commissionSeu's old tail, extracted rather than deleted (design/mvp-build-plan/
+// SEU Composition.md, plan step 6): once a human Activates a Validated EBM
+// (the SEU detail page's own real "Activate" action, transitionEbm's Active
+// branch below), this is what actually finishes commissioning — Pending ->
+// Configured -> Commissioned -> Activated (PRE_ASSETS_STEPS), Create
+// Engineering Assets (Ch.8 §12), then Activated -> Operational. Called
+// synchronously, inside that one real manual request — not off an async
+// event subscription (ebmVersioningHandler/seuActivationHandler/
+// createEngineeringAssetsHandler, deleted: "Subscription to an event and
+// manual trigger of transition definition are 2 different things").
+export type FinalizeCommissioningResult =
+  | { ok: true; seu: SeuRow; report: CommissioningReport }
+  | { ok: false; stage: string; reason: string; seuId?: string };
+
+export async function finalizeCommissioning(input: {
+  seu: SeuRow;
+  ebm: EbmRow;
+  templates: TemplateRow[];
+  profiles: ProfileRow[];
+  tenantId: string | null;
+  actorRole: string;
+  actorId?: string;
+  correlationId: string;
+  causationId: string;
+}): Promise<FinalizeCommissioningResult> {
+  const { seu, ebm, templates, profiles, tenantId, correlationId } = input;
+  const template = templates[0];
+  const profile = profiles[0];
+  const composedPacks = ebm.composed_packs;
+  const compositionReport = ebm.composition_report;
+
+  // Ch.37 — Pending -> Configured -> Commissioned -> Activated, in that
+  // deliberately reordered sequence (see PRE_ASSETS_STEPS's own comment).
+  // Ungoverned for MVP (no Authority/Policy declared on these rows in the
+  // seed data), but still routed through transitionEngine so the mechanism
+  // is real, not bypassed for convenience.
+  let previousStepEvent = { id: input.causationId };
+  for (const [from, to] of PRE_ASSETS_STEPS) {
+    const step = await transitionEngine.evaluate({ entityType: "SEU", fromState: from, toState: to, actorRole: input.actorRole, actorId: input.actorId, context: {} });
+    if (!step.allowed) {
+      return { ok: false, stage: `transition_${from}_to_${to}`, reason: describeRejection(step), seuId: seu.id };
+    }
+    await seusDB.updateLifecycleState(seu.id, to);
+    previousStepEvent = await eventBus.publish({
+      eventType: `SEU${to}`, originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id, correlationId,
+      causationId: previousStepEvent.id, actorId: input.actorId ?? null, authorityBadge: step.authorityBadge,
     });
-    return { ok: false, stage: "compose_ebm", reason: `composition conflicts must be resolved before commissioning: ${allConflictMessages.join(" | ")}`, seuId: seu.id };
   }
-
-  const { data: ebm, error: ebmErr } = await ebmsDB.create({
-    seuId: seu.id,
-    templateId: template.id,
-    profileId: profile.id,
-    composedPacks,
-    compositionReport,
-  });
-  if (ebmErr || !ebm) return { ok: false, stage: "compose_ebm", reason: (ebmErr ?? new Error("failed to compose EBM")).message, seuId: seu.id };
-  await seusDB.setActiveEbm(seu.id, ebm.id);
-
-  await seusDB.updateLifecycleState(seu.id, "Commissioned");
-  let previousStepEvent = await eventBus.publish({
-    eventType: "SEUCommissioned", originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id, correlationId,
-    causationId: requestedEvent.id, actorId: input.actorId ?? null, authorityBadge: gate.authorityBadge,
-  });
 
   // Ch.8 §12 Create Engineering Assets — required Capabilities + the
   // Template's Deliverable Catalogue, wired into the Dependency Graph.
@@ -309,25 +446,19 @@ export async function commissionSeu(input: {
     if (deliverable) deliverableIdByName.set(name, deliverable.id);
   }
 
-  // Ch.37 — remaining transitions are system-internal for MVP (no Authority/
-  // Policy declared on them in the seed data), but still routed through
-  // transitionEngine so the mechanism is real, not bypassed for convenience.
-  for (const [from, to] of AUTOMATIC_STEPS) {
-    const step = await transitionEngine.evaluate({ entityType: "SEU", fromState: from, toState: to, actorRole: input.actorRole,
-    actorId: input.actorId, context: {} });
-    if (!step.allowed) {
-      return { ok: false, stage: `transition_${from}_to_${to}`, reason: describeRejection(step), seuId: seu.id };
-    }
-    await seusDB.updateLifecycleState(seu.id, to);
-    // Ch.30 causation fix — each cascade step is caused by the previous
-    // step's own event (SEUCommissioned causes SEUConfigured causes
-    // SEUActivated causes SEUOperational), a real chain, not a repeat of
-    // correlationId.
-    previousStepEvent = await eventBus.publish({
-      eventType: `SEU${to}`, originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id, correlationId,
-      causationId: previousStepEvent.id, actorId: input.actorId ?? null, authorityBadge: step.authorityBadge,
-    });
+  // Ch.8 §12's own last hop — Activated -> Operational, only after Create
+  // Engineering Assets has actually run (Ch.30 causation fix: caused by the
+  // previous cascade step's own event, a real chain, not a repeat of
+  // correlationId).
+  const finalStep = await transitionEngine.evaluate({ entityType: "SEU", fromState: "Activated", toState: "Operational", actorRole: input.actorRole, actorId: input.actorId, context: {} });
+  if (!finalStep.allowed) {
+    return { ok: false, stage: "transition_Activated_to_Operational", reason: describeRejection(finalStep), seuId: seu.id };
   }
+  await seusDB.updateLifecycleState(seu.id, "Operational");
+  await eventBus.publish({
+    eventType: "SEUOperational", originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id, correlationId,
+    causationId: previousStepEvent.id, actorId: input.actorId ?? null, authorityBadge: finalStep.authorityBadge,
+  });
 
   const report: CommissioningReport = {
     // CR-092 Part 6 — templateCode/profileCode stay the primary (backward
@@ -359,6 +490,139 @@ function describeRejection(outcome: { reason: string } & Record<string, unknown>
     .map(([k, v]) => `${k}=${String(v)}`)
     .join(" ");
   return detail ? `${reason} (${detail})` : reason;
+}
+
+// Chapter 3 §15 "Validate Engineering Model"/"Activate" (design/mvp-build-plan/
+// SEU Composition.md, plan step 6) — the SEU detail page's own EBM transition
+// route, identical shape to the existing Deliverable/Obligation/Evidence/
+// Knowledge/Decision/External-Interaction ones (transitionObligation is the
+// closest precedent: a direct entity transition, no async dispatch). Manual,
+// ungoverned by design (owner: "That is how the transitions work today...
+// manual and not governed") — same as PRE_ASSETS_STEPS, no Authority Rule
+// required, but still routed through transitionEngine for a real, attributed
+// record.
+export type TransitionEbmResult =
+  | { ok: true; ebm: EbmRow; appliedTransition: { fromState: string; toState: string } }
+  | { ok: false; reason: "not_found" }
+  | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string }
+  | { ok: false; reason: "finalize_failed"; detail: string }
+  | { ok: false; reason: "ebm_retired"; detail: string };
+
+export async function transitionEbm(input: { ebmId: string; targetState: string; actorRole: string; actorId?: string }): Promise<TransitionEbmResult> {
+  const { data: ebm } = await ebmsDB.findById(input.ebmId);
+  if (!ebm) return { ok: false, reason: "not_found" };
+
+  const fromState = ebm.status;
+  const gate = await transitionEngine.evaluate({
+    entityType: "EBM",
+    fromState,
+    toState: input.targetState,
+    actorRole: input.actorRole,
+    actorId: input.actorId,
+    context: { ebm },
+  });
+  if (!gate.allowed) {
+    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for EBM ${fromState} -> ${input.targetState}` };
+    if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
+    if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
+    if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "policy_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
+    return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
+  }
+
+  // Owner: "There is a possibility that packs, profiles etc could have been
+  // retired. So when EBMValidation happens, do a checkliveness. If it is
+  // all still valid, then EBMValidation is emitted. If not, emit EBMRetired"
+  // — time has passed since this EBM was composed; re-check what it
+  // actually references, not just re-derive a fresh selection.
+  if (input.targetState === "Validated") {
+    const deadReferences = await checkEbmLiveness(ebm);
+    if (deadReferences.length > 0) {
+      const { data: retired, error: retireErr } = await ebmsDB.updateStatus(ebm.id, "Retired");
+      if (retireErr || !retired) throw retireErr ?? new Error("failed to set EBM to Retired");
+      const retiredCorrelationId = eventBus.newCorrelationId();
+      const retiredEvent = await eventBus.publish({
+        eventType: "EBMRetired",
+        originatingObjectType: "EBM",
+        originatingObjectId: ebm.id,
+        seuId: ebm.seu_id,
+        correlationId: retiredCorrelationId,
+        payload: { references: deadReferences },
+        actorId: input.actorId ?? null,
+      });
+      // Owner: "the user has to be notified" — raiseAttentionItem (Ch.34),
+      // the same deduplication-aware mechanism other core modules already
+      // exist to call, just never had a live caller until now.
+      await raiseAttentionItem({
+        seuId: ebm.seu_id,
+        category: "EBM Retired",
+        priority: "High",
+        title: `EBM for this SEU was retired — references no longer live`,
+        description: deadReferences.join("; "),
+        relatedObjectType: "EBM",
+        relatedObjectId: ebm.id,
+        triggeringEventId: retiredEvent.id,
+      });
+      return { ok: false, reason: "ebm_retired", detail: `references no longer live: ${deadReferences.join("; ")}` };
+    }
+  }
+
+  // Owner: "did i not say version is not part of validation" — versioning
+  // (a new ebms row) is EBMVersioned's own concern, not EBMValidated's;
+  // Validate updates this row's status in place, same as every other
+  // transition here.
+  const { data: updated, error } = await ebmsDB.updateStatus(ebm.id, input.targetState as EbmRow["status"]);
+  if (error || !updated) throw error ?? new Error("failed to update EBM status");
+
+  const correlationId = eventBus.newCorrelationId();
+  await eventBus.publish({
+    eventType: input.targetState === "Validated" ? "EBMValidated" : input.targetState === "Active" ? "EBMActivated" : "EBMTransitioned",
+    originatingObjectType: "EBM",
+    originatingObjectId: ebm.id,
+    seuId: ebm.seu_id,
+    correlationId,
+    payload: { fromState, toState: input.targetState },
+    actorId: input.actorId ?? null,
+    authorityBadge: gate.authorityBadge,
+  });
+
+  // Activate is the one transition with a real consequence beyond the EBM's
+  // own status (design/mvp-build-plan/SEU Composition.md — "indirectly the
+  // SEU"): it's what hands off to finalizeCommissioning (Create Engineering
+  // Assets through PRE_ASSETS_STEPS, commissionSeu's own old tail). Does NOT
+  // publish CompositionCompleted — that event means Compose EBM itself
+  // finished (owner: "The conflicts if resolved emits Composition
+  // completed. composition completes here"), published from
+  // ebmComposerHandler/compose-ebm's own conflict-resolution path, both
+  // consumed by compositionCompletedHandler to create the ebms row.
+  // Publishing it again here, after the row already exists, would trigger a
+  // second, duplicate ebmsDB.create() for the same SEU. EBMActivated (above)
+  // is this transition's own real event. Superseding a prior Active version
+  // (recomposition) is deliberately not handled here — that loop is a
+  // later, execution-time concern (owner: "we have not reached there yet"),
+  // and this pass never produces a second EBM version for the same SEU to
+  // begin with.
+  if (input.targetState === "Active") {
+    const { data: seu } = await seusDB.findById(ebm.seu_id);
+    if (!seu) return { ok: false, reason: "finalize_failed", detail: "owning SEU not found" };
+    const { data: template } = await templatesDB.findById(ebm.template_id);
+    const { data: profile } = await profilesDB.findById(ebm.profile_id);
+    if (!template || !profile) return { ok: false, reason: "finalize_failed", detail: "Template/Profile referenced by this EBM not found" };
+
+    const finalizeResult = await finalizeCommissioning({
+      seu,
+      ebm: updated,
+      templates: [template],
+      profiles: [profile],
+      tenantId: seu.tenant_id,
+      actorRole: input.actorRole,
+      actorId: input.actorId,
+      correlationId,
+      causationId: ebm.id,
+    });
+    if (!finalizeResult.ok) return { ok: false, reason: "finalize_failed", detail: finalizeResult.reason };
+  }
+
+  return { ok: true, ebm: updated, appliedTransition: { fromState, toState: input.targetState } };
 }
 
 export type CommissionFromFormResult =
@@ -474,10 +738,13 @@ export async function commissionFromExistingObjective(input: {
     // so this doesn't re-validate it belongs to the chosen Template.
     profileId?: string;
   }>;
-  // CR-092 Part 6 — the human's own picks from the validate view, forwarded
-  // straight through to commissionSeu (which forwards them to
-  // compositionEngine.compose()). See commissionSeu's own field comment.
+  // Structurally dead since the single-Profile reversal — kept only for
+  // caller signature compatibility. See commissionSeu's own field comment.
   resolvedParameterOverrides?: Record<string, string>;
+  // The human's own prior picks from the "Queue to Validate" preview page —
+  // forwarded straight through to commissionSeu's own CommissionValidated
+  // payload for the EBM Composer. See commissionSeu's own field comment.
+  resolvedCompositionConflicts?: Record<string, unknown>;
   actorRole: string;
   actorId?: string;
   requestedBy?: number | null;
@@ -494,6 +761,7 @@ export async function commissionFromExistingObjective(input: {
     templateIds,
     profileIds: [...new Set(profileIds)],
     resolvedParameterOverrides: input.resolvedParameterOverrides,
+    resolvedCompositionConflicts: input.resolvedCompositionConflicts,
     actorRole: input.actorRole,
     actorId: input.actorId,
     requestedBy: input.requestedBy,
@@ -520,10 +788,20 @@ export async function previewCommissioningValidation(input: {
   // re-rendered report shows the conflict as resolved), without ever
   // computing a pick itself. Same field shape as commissionSeu's own.
   resolvedParameterOverrides?: Record<string, string>;
-}): Promise<{ compositionReport: EbmCompositionReport; composedPacks: EbmComposedPack[]; profileDetails: ProfileDetail[] }> {
+  // Same idea, for compositionConflicts below: a key already resolved (the
+  // human already picked a composition strategy for it on a prior
+  // "Re-validate" round) is honoured and excluded, not re-flagged.
+  resolvedCompositionConflicts?: Record<string, unknown>;
+  viewerTenantId: string;
+}): Promise<{ compositionReport: EbmCompositionReport; composedPacks: EbmComposedPack[]; profileDetails: ProfileDetail[]; unraveled: UnraveledComposition; compositionConflicts: CompositionConflict[] }> {
   const templateIds = [...new Set(input.selections.map((s) => s.templateId))];
   const profileIds = [...new Set(input.selections.map((s) => s.profileId).filter((id): id is string => !!id))];
-  const { compositionReport, composedPacks } = await compositionEngine.compose({ templateIds, profileIds, resolvedParameterOverrides: input.resolvedParameterOverrides });
+  // Owner, 2026-09-07: "I want compose() commented out as the very first
+  // step" — compositionEngine.compose() must not be called anywhere in this
+  // flow (design/mvp-build-plan/SEU Composition.md). composedPacks/warnings
+  // now come from unravelComposition's own extended return shape (plan step
+  // 5), computed below — not a second, independent computation.
+  // const { compositionReport, composedPacks } = await compositionEngine.compose({ templateIds, profileIds, resolvedParameterOverrides: input.resolvedParameterOverrides });
   // CR-092 Part 6 (owner: "On the Validation page, list all the profile
   // details. Not the heading or meta data. ALL THE DETAILS.") — every
   // selected Profile's own full content, surfaced regardless of whether any
@@ -535,5 +813,138 @@ export async function previewCommissioningValidation(input: {
     if (profile) profiles.push(profile);
   }
   const profileDetails = await Promise.all(profiles.map(extractProfileDetails));
-  return { compositionReport, composedPacks, profileDetails };
+
+  // Unravel the full composition and detect real cross-source conflicts
+  // against it — a separate feature entirely (owner: "build the conflict
+  // detection from scratch as a separate feature"), independent of
+  // compositionEngine.compose(); it resolves the Pack set itself, on its own,
+  // and never calls into compose()'s own logic. composedPacks/warnings are
+  // sourced from here directly now, not from compose().
+  const unraveled = await unravelComposition({ templateIds, profileIds }, input.viewerTenantId);
+  const compositionConflicts = detectCompositionConflicts(unraveled, input.resolvedCompositionConflicts);
+  const composedPacks = unraveled.composedPacks;
+  // TODO(ebmComposer): compositionReport.conflicts/parameterConflicts are
+  // retired in favour of compositionConflicts above (plan step 7 removes the
+  // old alert/section from validate.ejs entirely) — kept as an empty stub
+  // only until that view cleanup lands, so the return type stays unchanged
+  // in the meantime.
+  const compositionReport: EbmCompositionReport = { warnings: unraveled.warnings, conflicts: [], parameterConflicts: [], resolutions: [] };
+
+  return { compositionReport, composedPacks, profileDetails, unraveled, compositionConflicts };
+}
+
+// The one piece of existing machinery this whole feature reuses (owner:
+// "Only resolution will use the composestrategy mechanism already built for
+// packs") — applying a chosen composition strategy to just the disagreeing
+// sub-field of one conflict (owner: "for now just the disagreeing
+// subfield"), never the whole containing object. Returns the resolved value
+// for that one property, to carry forward the same way
+// resolvedParameterOverrides already does (re-submitted as a hidden field
+// through "Re-validate" until commissioning).
+//
+// `strategy` is a raw code from the real Ontology `composition-strategy`
+// vocabulary (migration 069: override/merge/supplement/union/intersection/
+// alias — the same 6 values Pack's own authoring page picks from), not
+// compositionEngine.ts's own CompositionStrategyCode type — the two
+// vocabularies don't line up 1:1 ("alias" has no dedicated function here,
+// "specialization" isn't an Ontology code at all). Only merge/union/
+// intersection/supplement have a real, dedicated function; "override"/
+// "alias"/anything else falls back to Specialization (an exact copy of one
+// chosen source) — the same "falls to override" default
+// strategyRequirements() itself already applies to an unrecognised code.
+//
+// Owner, correcting an earlier version of this function that refused to run
+// merge/union/intersection at all here: "that is not for you to decide. If
+// the user says union, there is a union." Every strategy the human picks
+// actually runs, for real, against the real function — whatever it
+// genuinely produces is what's returned, including an empty value when that
+// IS the honest answer (union/merge exclude a field neither side agrees on
+// from `fields` by their own real design, same as they would for any other
+// caller of these functions; that's not a failure to hide, it's the true
+// result of running union on values that disagree). `note` carries the
+// underlying function's own explanation when the value comes back empty, so
+// the human sees why, rather than a bare blank.
+//
+// Owner, on which sources actually participate: "you dont assume any base.
+// i have been repeating this saying user has to choose." No positional
+// defaults anywhere here — `selection.checkedSourceIds` (a checkbox per
+// option, "include this source") and `selection.baseSourceId` (a radio, "the
+// base/chosen source" — supplement's own base, specialize/override/alias's
+// one copy-from source) are both explicit human input from the view, never
+// inferred from array order. merge/union/intersection use exactly the
+// checked set and lean on those functions' own real, existing
+// STRATEGY_REQUIREMENTS-based arity check (owner: verified this already
+// exists, mirroring composeAuthoringDraft's identical use of
+// strategyRequirements() — not re-implemented here, just reached the same
+// way) — too few checked sources surfaces as that function's own real error.
+// supplement/specialize require the radio explicitly; an HTML radio group
+// can only ever yield at most one value, so "too many for specialization"
+// is structurally impossible here, not something to separately validate —
+// "none chosen" is the one real gap left to check for it.
+export function applyConflictStrategy(
+  conflict: CompositionConflict,
+  strategy: string,
+  selection: { checkedSourceIds: string[]; baseSourceId?: string }
+): { ok: true; value: unknown; note?: string } | { ok: false; error: string } {
+  const toSource = (o: CompositionConflictOption): CompositionSource => ({ id: o.source.id, code: o.source.code, fields: { value: o.value } });
+  const checked = conflict.options.filter((o) => selection.checkedSourceIds.includes(o.source.id)).map(toSource);
+  const baseOption = selection.baseSourceId ? conflict.options.find((o) => o.source.id === selection.baseSourceId) : undefined;
+
+  if (strategy === "merge") {
+    const result = compositionEngine.merge(checked);
+    if (!result.ok) return { ok: false, error: result.error };
+    return { ok: true, value: result.fields.value, note: result.conflicts[0] };
+  }
+  // Owner: "So what is your suggestion?... I agree with union. intersection
+  // of scalars also will take the same route." Union/intersection are pure
+  // set operations with a real, self-computable answer even when scalars
+  // disagree — unlike merge ("reconciled into one"), which genuinely has
+  // none. Matches the platform's own Ontology definition (migration 069):
+  // union is "every item... treated as equal peers, nothing dropped" (both
+  // disagreeing scalars survive); intersection is "only what both agree on
+  // survives" (nothing survives when they don't). compositionEngine.union()/
+  // intersection() themselves are left untouched — this is a shape-specific
+  // shortcut only for plain scalars, computed directly rather than through
+  // combineFields (which is the right tool for combining whole OBJECTS with
+  // mostly-agreeing fields, e.g. a Service's own contribution, not two bare
+  // disagreeing strings) — objects/arrays still delegate to the real
+  // function, which recurses into them correctly.
+  const isScalar = (v: unknown): boolean => v === null || typeof v === "string" || typeof v === "number" || typeof v === "boolean";
+  if ((strategy === "union" || strategy === "intersection") && checked.every((s) => isScalar(s.fields.value))) {
+    // Same real arity check the delegated-to functions themselves would
+    // apply (compositionEngine.strategyRequirements) — the scalar shortcut
+    // bypasses those functions entirely, so it must not also bypass their
+    // own "at least 2 sources" precondition.
+    const req = compositionEngine.strategyRequirements(strategy);
+    if (checked.length < req.minSources) return { ok: false, error: `${strategy === "union" ? "Union" : "Intersection"} requires at least ${req.minSources} sources, got ${checked.length}.` };
+    const distinct = [...new Set(checked.map((s) => s.fields.value))];
+    if (strategy === "union") return { ok: true, value: distinct };
+    if (distinct.length === 1) return { ok: true, value: distinct[0] };
+    return { ok: true, value: undefined, note: `Intersection: the checked sources don't all agree (${distinct.map((v) => JSON.stringify(v)).join(", ")}), so nothing survived for this field.` };
+  }
+  if (strategy === "union") {
+    const result = compositionEngine.union(checked);
+    if (!result.ok) return { ok: false, error: result.error };
+    return { ok: true, value: result.fields.value, note: result.conflicts[0] };
+  }
+  if (strategy === "intersection") {
+    const result = compositionEngine.intersection(checked);
+    if (!result.ok) return { ok: false, error: result.error };
+    return { ok: true, value: result.fields.value, note: "value" in result.fields ? undefined : "Intersection: the sources are not unanimous, so nothing survived for this field." };
+  }
+  if (strategy === "supplement") {
+    if (!baseOption) return { ok: false, error: `Supplement needs a base source — mark one as the base before applying.` };
+    const rest = checked.filter((s) => s.id !== baseOption.source.id);
+    const result = compositionEngine.supplement(toSource(baseOption), rest);
+    if (!result.ok) return { ok: false, error: result.error };
+    return { ok: true, value: result.fields.value };
+  }
+  // "override"/"alias"/"specialization" (and anything unrecognised) fall back
+  // to Specialization's own shape — an exact copy of the human's own chosen
+  // (radio-marked) source, matching compositionEngine.strategyRequirements's
+  // own "falls to override" default for a strategy code it doesn't
+  // otherwise define.
+  if (!baseOption) return { ok: false, error: `Choose a source (mark it as the base) before applying "${strategy}".` };
+  const result = compositionEngine.specialize(toSource(baseOption));
+  return { ok: true, value: result.fields.value };
 }

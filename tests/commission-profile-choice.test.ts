@@ -14,7 +14,7 @@
 //   3. Omitting profileId still falls back to the same heuristic as before
 //      (regression safety — the quick-commission path is unaffected).
 import "dotenv/config";
-import { test, after } from "node:test";
+import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
@@ -25,7 +25,15 @@ import { createObjective } from "../src/routes/seu/core/objectives.js";
 import { getObjectiveDetail } from "../src/routes/seu/core/objectives.js";
 import { commissionFromExistingObjective } from "../src/routes/seu/core/commissioning.js";
 import { publishProfile } from "../src/routes/seu/core/profiles.js";
-import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
+import { getSeuEbmView } from "../src/routes/seu/core/seus.js";
+import { ensureEventSubscriptionsLoaded, driveCommissioningToActive } from "./testFixtures.js";
+
+before(async () => {
+  // Must run before this file's own first commissionFromExistingObjective
+  // call — see ensureEventSubscriptionsLoaded's own header comment
+  // (testFixtures.ts).
+  await ensureEventSubscriptionsLoaded();
+});
 
 after(async () => {
   await pool.end();
@@ -124,6 +132,12 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   assert.equal(templateErr, undefined);
   const { data: capabilities } = await capabilitiesDB.findByCodes(["requirements-analysis", "architecture-design"]);
   await templatesDB.setRequiredCapabilities(template!.id, (capabilities ?? []).map((c) => c.id));
+  // technology-nodejs.pack.json declares a real `required` dependency on
+  // "development" — never checked as a blocking concern before this session's
+  // own detectCompositionConflicts (design/mvp-build-plan/SEU Composition.md);
+  // this test's own Template must mandate it too, or selecting the nodejs
+  // Pack as optional leaves that dependency genuinely unsatisfied.
+  await templatesDB.setMandatoryPacks(template!.id, ["development"]);
 
   // Two real Profiles for the same Template — one plain, one declaring
   // technology-nodejs as optional, so composing it is directly observable.
@@ -161,11 +175,17 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   }
 
   // 2. Explicitly choosing the Template + nodejs Profile actually composes it.
-  const chosen = await commissionFromExistingObjective({ objectiveId: objective.id, selections: [{ templateId: template!.id, profileId: nodejsPublished.profileId }], actorRole: "super", actorId: "1001" });
-  assert.equal(chosen.ok, true, !chosen.ok ? JSON.stringify(chosen) : undefined);
+  const requestedChoice = await commissionFromExistingObjective({ objectiveId: objective.id, selections: [{ templateId: template!.id, profileId: nodejsPublished.profileId }], actorRole: "super", actorId: "1001" });
+  assert.equal(requestedChoice.ok, true, !requestedChoice.ok ? JSON.stringify(requestedChoice) : undefined);
+  if (!requestedChoice.ok) return;
+  const chosen = await driveCommissioningToActive({ seuId: requestedChoice.seu.id, actorRole: "super", actorId: "1001" });
+  assert.equal(chosen.ok, true, !chosen.ok ? `commissioning failed: ${chosen.reason}` : undefined);
   if (!chosen.ok) return;
-  const chosenDetail = await getSeuDetailView(chosen.seu.id);
-  assert.ok(chosenDetail!.composedPacks.some((p) => p.packCode === "technology-nodejs"), "expected the explicitly-chosen Profile's optional Pack to be composed");
+  // composedPacks moved off SeuDetailView onto its own EBM page/read model
+  // (design/mvp-build-plan/SEU Composition.md — "create a new one. EBM
+  // page.") — getSeuDetailView is SEU-runtime only now.
+  const chosenEbmView = await getSeuEbmView(chosen.seu.id);
+  assert.ok(chosenEbmView!.composedPacks.some((p) => p.packCode === "technology-nodejs"), "expected the explicitly-chosen Profile's optional Pack to be composed");
 
   // 3. Omitting profileId still works via the existing auto-pick fallback
   // (development-environment preference, else first real match) — doesn't

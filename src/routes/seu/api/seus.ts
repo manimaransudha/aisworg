@@ -27,7 +27,13 @@ router.post("/commission", async (req: Request, res: Response) => {
     if (!result.ok) {
       return res.status(422).json({ stage: result.stage, reason: result.reason, seuId: result.seuId });
     }
-    res.status(201).json({ seuId: result.seu.id, lifecycleState: result.seu.lifecycle_state, ebmId: result.seu.active_ebm_id, commissioningReport: result.report });
+    // Design/mvp-build-plan/SEU Composition.md — commissionSeu itself only
+    // gets through the shallow "Validate Request" gate now; Compose EBM runs
+    // asynchronously off the CommissionValidated event it just published, and
+    // "Validate Engineering Model"/Activate are separate, later manual
+    // actions (see the SEU detail page). No CommissioningReport exists yet at
+    // this point — lifecycleState stays 'Pending' until Activate succeeds.
+    res.status(201).json({ seuId: result.seu.id, lifecycleState: result.seu.lifecycle_state, ebmId: result.seu.active_ebm_id });
   } catch (err) {
     logger.error("[api/seu/seus] POST /commission error", err as Error);
     res.status(400).json({ error: (err as Error).message });

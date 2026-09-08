@@ -6,7 +6,7 @@
 // tests/engine.test.ts — no mocking, unique statements per test so fixtures
 // never collide with seed data or each other.
 import "dotenv/config";
-import { test, after } from "node:test";
+import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
@@ -17,7 +17,13 @@ import { commissionSeu, commissionFromExistingObjective } from "../src/routes/se
 import { findCandidateTemplates } from "../src/routes/seu/core/templates.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { objectivesDB } from "../src/dblayer/objectivesDB.js";
-import { ensureWebAppTemplateFixture } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded } from "./testFixtures.js";
+
+before(async () => {
+  // Must run before this file's own first commissionSeu call — see
+  // ensureEventSubscriptionsLoaded's own header comment (testFixtures.ts).
+  await ensureEventSubscriptionsLoaded();
+});
 
 after(async () => {
   await pool.end();
@@ -452,9 +458,17 @@ test("commissionSeu requires the Objective to be Active — blocks Proposed, suc
   const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: "1001" });
   assert.equal(activated.ok, true);
 
+  // design/mvp-build-plan/SEU Composition.md — commissionSeu itself only
+  // gets through the shallow "Validate Request" gate now (the Objective-
+  // Active check this test is actually about), so its own lifecycle_state
+  // stays 'Pending' here; driveCommissioningToActive runs the rest (Compose
+  // EBM, Validate, Activate) to confirm it genuinely completes.
   const allowed = await commissionSeu({ objectiveId: objective.id, templateIds: [template.id], profileIds: [profile.id], actorRole: "super", actorId: "1001" });
   assert.equal(allowed.ok, true);
-  if (allowed.ok) assert.equal(allowed.seu.lifecycle_state, "Operational");
+  if (!allowed.ok) throw new Error("unreachable");
+  const completed = await driveCommissioningToActive({ seuId: allowed.seu.id, actorRole: "super", actorId: "1001" });
+  assert.equal(completed.ok, true, !completed.ok ? `commissioning failed: ${completed.reason}` : undefined);
+  if (completed.ok) assert.equal(completed.seu.lifecycle_state, "Operational");
 });
 
 // Redesigned (owner, 2026-09-05: "Objectives only propose capabilities. They
@@ -482,8 +496,11 @@ test("commissionFromExistingObjective takes an explicit Template choice — a pa
     // status omitted — defaults Active, matching the one-shot quick-commission path
   });
 
-  const result = await commissionFromExistingObjective({ objectiveId: objective.id, selections: [{ templateId: template.id, profileId: profile.id }], actorRole: "super", actorId: "1001" });
-  assert.equal(result.ok, true, !result.ok ? JSON.stringify(result) : undefined);
+  const requested = await commissionFromExistingObjective({ objectiveId: objective.id, selections: [{ templateId: template.id, profileId: profile.id }], actorRole: "super", actorId: "1001" });
+  assert.equal(requested.ok, true, !requested.ok ? JSON.stringify(requested) : undefined);
+  if (!requested.ok) throw new Error("unreachable");
+  const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: "1001" });
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (result.ok) assert.equal(result.seu.lifecycle_state, "Operational");
 });
 

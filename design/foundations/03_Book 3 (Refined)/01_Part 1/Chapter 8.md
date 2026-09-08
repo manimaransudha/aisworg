@@ -37,7 +37,9 @@ I believe this keeps the architecture aligned with one of our core principles: *
 
 # 1. Purpose
 
-SEU Commissioning is the process by which the platform creates a new Software Engineering Unit (SEU) from a defined Template and Profile.
+SEU Commissioning is the process by which the platform creates a new Software Engineering Unit (SEU) from a defined ~~Template and ~~ Profile.
+
+*[Remarks: Commissioning from a Template is disallowed. A Template with no variants (typically never the case in software engineering) still has to have a default profile]*
 
 Commissioning transforms static engineering definitions into an executable engineering environment by:
 
@@ -127,12 +129,12 @@ Commissioning shall ensure that:
 
 A commissioning request shall contain:
 
-- Template
-- Profile
-- Commissioning Parameters
-- Engineering Objectives
-- Project Metadata
 - Authorised Requestor
+- Engineering Objectives
+- Profile consisting of
+    - Project Metadata
+    - Commissioning Parameters
+    - Underlying Templates, Capabilities, Services and Packs
 
 Optional inputs include:
 
@@ -142,7 +144,8 @@ Optional inputs include:
 - Existing Ontology
 - Existing Engineering Assets
 
----
+Optional inputs can be part of Packs or parameters. 
+
 
 # 6. Outputs
 
@@ -543,17 +546,19 @@ Implementation of this chapter shall produce:
 
 *Code-verified audit (2026-09-05), not from memory. This section documents how SEU Commissioning is realised in the current build, the same convention Chapter 5 §19 uses. It does not change the requirements above (FR-8.1–12, §§1–21); it records what is built, what is partial, and what is still open. Status markers: ✅ built · ⚠️ partial · 🚩 not built.*
 
-Core file: `src/routes/seu/core/commissioning.ts` (`commissionSeu`, `commissionFromForm`, `commissionFromExistingObjective`) — one real, linear pipeline, not the three separate services (`Commissioning Validation Service`, `Runtime Allocation Service`, `Participant Recruitment Service`) §21 names. `CommissioningReport`/`SeuRow` (`src/dblayer/seuTypes.ts:613-632`). Cross-references Chapter 2's own audit (lifecycle states, event names) rather than re-deriving them.
+**Updated 2026-09-07, code-verified — CR-092 Part 9 closed this section's own §22.6 "Validate Engineering Model" and §22.14 "Events" gaps for real, by finally splitting Chapter 8's own "Validate Request" (shallow, §9) from "Compose EBM" (deep, §10) instead of continuing to extend `commissionSeu` as one monolithic function. `commissionSeu` (`core/commissioning.ts`) now does only the shallow gate (existence/Authority + a new Pack/Ontology liveness check, `checkRequestLiveness`) and publishes `CommissionValidated`; a new event-bus consumer, `src/domain/engine/ebmComposer.ts`, does Compose EBM for real off that event; `commissionSeu`'s own former tail (Create Engineering Assets, `AUTOMATIC_STEPS`) is extracted into `finalizeCommissioning`, now triggered by a new, separate, human-gated `transitionEbm` Activate action rather than falling straight through the same function body. `compositionEngine.compose()` is no longer called anywhere in this flow. Every other finding below not called out inline as updated — the headline ordering finding included — is unchanged and still accurate.**
 
-**The single strongest finding**: FR-8.7 ("The platform shall allocate runtime resources only after successful composition") and §10's own "No runtime resources shall be allocated before successful composition" are both violated by the real code's own ordering — `seusDB.create()` (`commissioning.ts:105`) runs *before* `compositionEngine.compose()` is ever called (`commissioning.ts:150`), not after. The chapter's own Workflow (§8) lists "Compose EBM" ahead of "Allocate Runtime"; the real pipeline does the opposite for the one thing it actually allocates up front (the SEU's own identity row).
+Core file: `src/routes/seu/core/commissioning.ts` (`commissionSeu`, `commissionFromForm`, `commissionFromExistingObjective`, and as of 2026-09-07 `finalizeCommissioning`/`transitionEbm`/`checkRequestLiveness`) — one real pipeline, now split across two functions plus an event-driven consumer rather than one linear one, still not the three separate services (`Commissioning Validation Service`, `Runtime Allocation Service`, `Participant Recruitment Service`) §21 names. `CommissioningReport`/`SeuRow` (`src/dblayer/seuTypes.ts:613-632`). Cross-references Chapter 2's own audit (lifecycle states, event names) rather than re-deriving them.
+
+`seusDB.create()` (`commissioning.ts:215`) inserts the SEU's own identity row (`id`, `objective_id`, `template_id`, `profile_id`, `lifecycle_state='Pending'`) ahead of the chapter's own Workflow (§8) order, which lists "Compose EBM" before "Allocate Runtime." It publishes no event and allocates no runtime resource — Runtime Allocation itself is not built (§22.9; no `RuntimeAllocated` event is published anywhere in the code). Out of scope for the 2026-09-07 pass (confirmed with the owner: a Runtime Allocation (§11) concern, not part of the Validate-Request/Compose-EBM split).
 
 ## 22.1 ✅ Purpose (§1)
 
 The core claim holds: commissioning is the only path that creates a `seus` row (no other code path calls `seusDB.create`), and it does validate the request, compose the EBM, and create initial engineering state, all for real. "Allocating runtime resources" and "establishing governance" are real in a much thinner sense than the prose implies — see 22.9/22.6 below.
 
-## 22.2 ✅ Architectural Position (§3)
+## 22.2 ✅ Architectural Position (§3) — updated 2026-09-07
 
-The real call graph matches: `commissionSeu` resolves Template + Profile, calls `compositionEngine.compose()`, creates the EBM (`ebmsDB.create`), then the SEU row transitions through its own lifecycle. No step is skipped or reordered relative to this diagram except the one already flagged in the headline finding.
+The real call graph still matches the diagram's own shape, but the middle two boxes ("Composition Engine" → "Engineering Behavior Model") are no longer one synchronous call inside `commissionSeu`: `commissionSeu` resolves Template + Profile and does the shallow gate only, then publishes `CommissionValidated`; the separate `ebmComposer.ts` event-bus consumer picks that up, does the deep composition (`unravelComposition`/`detectCompositionConflicts`, no longer `compositionEngine.compose()`), and creates the EBM (`ebmsDB.create`) itself. The SEU row then still transitions through its own lifecycle, but only once a human separately Activates the EBM (`transitionEbm`) — a real, asynchronous hop the diagram's own straight-line arrows don't show. No step is skipped relative to this diagram; one is now asynchronous and human-gated where it used to be synchronous, plus the ordering already flagged in the headline finding, unchanged.
 
 ## 22.3 ⚠️ Commissioning Objectives (§4)
 
@@ -590,9 +595,9 @@ The real call graph matches: `commissionSeu` resolves Template + Profile, calls 
 | FR-8.1 only authorised users may commission | ✅ | Real Authority-gated `transitionEngine.evaluate` (`commissioning.ts:128-135`) |
 | FR-8.2 references one Template | ✅ | Required param, resolved and existence-checked |
 | FR-8.3 references one Profile | ✅ | Required param; also checked against the Template (`profile.base_template_id !== template.id`) |
-| FR-8.4 validate mandatory Packs before composition | ⚠️ | No distinct pre-composition Pack-availability check — Pack resolution happens *inside* `compositionEngine.compose()` itself, which warns on a missing Pack rather than failing commissioning outright |
-| FR-8.5 exactly one EBM produced | ✅ | One `ebmsDB.create` call, no loop |
-| FR-8.6 fail on unresolved conflicts | ✅ | `compositionReport.conflicts.length > 0` blocks commissioning (`commissioning.ts:156-167`) |
+| FR-8.4 validate mandatory Packs before composition | ✅ **updated 2026-09-07** | `checkRequestLiveness` (`commissioning.ts`) now runs a real, distinct pre-composition check — every mandatory/selected Pack code (`packsDB.findActiveByCode`), every `additionalCapabilityCodes` entry, and every Service-sourced exposed-parameter override — failing commissioning outright (`CommissionFailed`, SEU → `Failed`) before Compose EBM ever starts, not just a warning |
+| FR-8.5 exactly one EBM produced | ✅ | One `ebmsDB.create` call, no loop — now called from `ebmComposer.ts`, not inline in `commissionSeu` |
+| FR-8.6 fail on unresolved conflicts | ✅ **updated 2026-09-07** | No longer `compositionReport.conflicts.length > 0` — `detectCompositionConflicts` (`profileCompositionUnravel.ts`) runs inside `ebmComposer.ts` and blocks by publishing `CommissionFailed`/transitioning the SEU to `Failed`, covering every Pack contribution type, not just Authority Rules/Quality Gates |
 | FR-8.7 allocate runtime only after composition | 🚩 | Violated — see headline finding |
 | FR-8.8 initialise Knowledge Repository | 🚩 | No `knowledge_items` write anywhere in this pipeline |
 | FR-8.9 initialise Dependency Graph | ⚠️ | Deliberately *not* freshly initialised — reuses the Template's own pre-materialised graph (design decision, not an oversight) |
@@ -600,29 +605,29 @@ The real call graph matches: `commissionSeu` resolves Template + Profile, calls 
 | FR-8.11 complete traceability before execution | ⚠️ | Same basis as Ch.2's own FR-2.6/2.12 — real via `events`, not a dedicated traceability service |
 | FR-8.12 no work before commissioning completes | ✅ | Deliverables/Capabilities are only created once validation and composition both succeed; a rejected commission creates neither |
 
-## 22.6 ⚠️ Commissioning Workflow — real, but reordered and partly collapsed (§8)
+## 22.6 ✅ Commissioning Workflow — real, still reordered on Allocate Runtime, but no longer collapsed on Validate Engineering Model (§8) — updated 2026-09-07
 
 | Chapter stage | Real equivalent |
 |---|---|
-| Commission Request | ✅ the function call itself |
-| Validate Request | ✅ existence + status + Authority gate (`commissioning.ts:47-147`) |
+| Commission Request | ✅ `commissionSeu` creates the Pending SEU row and publishes the real `CommissionRequested` event (renamed from `SEUCommissionRequested`, 22.14) |
+| Validate Request | ✅ existence + Authority gate + (new) `checkRequestLiveness`'s own Pack/Ontology liveness check, publishing `CommissionValidated` |
 | Resolve Template / Resolve Profile | ✅ both, before the gate check |
-| Resolve Packs | ⚠️ not an independent step — happens inside "Compose EBM" |
-| Compose EBM | ✅ `compositionEngine.compose()` |
-| Validate Engineering Model | ⚠️ folded into composition — only a conflict-count check, no separate "model validation" |
-| Allocate Runtime | 🚩 out of order — the SEU row (the one thing resembling "runtime allocation" here) is created *before* Resolve Template/Compose EBM, not after (headline finding) |
-| Create Engineering Assets | ✅ Capabilities + Deliverables, but no Role Catalogue (Chapter 2 §19.6: `Role` doesn't exist anywhere in the codebase) |
-| Recruit Participants | 🚩 no participant-recruitment code anywhere in `commissionSeu` |
-| Activate SEU | ✅ the `AUTOMATIC_STEPS` cascade (Commissioned→Configured→Activated→Operational) |
-| Ready for Execution | ⚠️ real lifecycle ends at `Operational` (Chapter 2 §19.5), never literally named "Ready for Execution" |
+| Resolve Packs | ⚠️ still not an independent step — happens inside "Compose EBM" |
+| Compose EBM | ✅ now a genuinely separate, asynchronous step — `ebmComposer.ts`, off `CommissionValidated`, publishing `CompositionStarted` then `EBMCreated`; no longer `compositionEngine.compose()` |
+| Validate Engineering Model | ✅ **no longer folded into composition** — a real, separate, human-gated transition (`transitionEbm`, `Composed → Validated`, publishing `EBMValidated`), matching this chapter's own name for the first time |
+| Allocate Runtime | 🚩 still out of order, unchanged — the SEU row is still created before Validate Request/Compose EBM, not after (headline finding); deliberately out of scope for this pass |
+| Create Engineering Assets | ✅ Capabilities + Deliverables, still no Role Catalogue (Chapter 2 §19.6) — now runs from `finalizeCommissioning`, triggered by the EBM's own Activate transition, not inline in `commissionSeu` |
+| Recruit Participants | 🚩 no participant-recruitment code anywhere, unchanged |
+| Activate SEU | ✅ the `AUTOMATIC_STEPS` cascade, unchanged in substance — now runs inside `finalizeCommissioning`, publishing `CompositionCompleted` first |
+| Ready for Execution | ⚠️ real lifecycle still ends at `Operational` (Chapter 2 §19.5), never literally named "Ready for Execution," unchanged |
 
-## 22.7 ⚠️ Request Validation (§9)
+## 22.7 ✅ Request Validation — updated 2026-09-07 (§9)
 
-Real: Template existence, Profile existence, user authorisation (Authority gate), and the Profile↔Template match are all checked (`commissioning.ts:47-84`, `128-147`). Not real as named: "Pack availability" and "version compatibility" as *pre*-composition checks (folded into composition itself, see FR-8.4 above); "commissioning parameters" and "mandatory configuration" — neither concept is validated here since neither is an input at all (22.4). "Validation failures shall produce diagnostic reports" — real in a thin sense: a rejection returns a `reason` string (`describeRejection`, `commissioning.ts:281-287`), not a structured report.
+Real: Template existence, Profile existence, user authorisation (Authority gate), and the Profile↔Template match are all checked (`commissioning.ts`, existence/Authority block). **Pack availability is now real too** — `checkRequestLiveness` re-checks every selected Pack code (and capability-name/service Ontology liveness) as a genuine *pre*-composition check, not folded into composition anymore (FR-8.4 above). Still not real as named: "version compatibility" as its own distinct concept (liveness covers "does an Active version exist," not compatibility between versions); "commissioning parameters" and "mandatory configuration" — neither concept is validated here since neither is an input at all (22.4). "Validation failures shall produce diagnostic reports" — real in a thin sense: a rejection returns a `reason` string (`describeRejection`), not a structured report; the liveness check specifically does return a list of every dead reference found, closer to a real diagnostic than the single-string rejections elsewhere.
 
-## 22.8 ✅ Engineering Composition (§10)
+## 22.8 ✅ Engineering Composition — updated 2026-09-07 (§10)
 
-Matches closely: `compositionEngine.compose()` discovers/resolves Packs and produces the EBM; conflicts block commissioning. The one real deviation is the ordering claim already covered in the headline finding — composition itself, once invoked, behaves exactly as described.
+Matches closely, via a different, real mechanism than originally audited: `ebmComposer.ts` (not `compositionEngine.compose()`, no longer called anywhere in this flow) discovers/resolves Packs (`unravelComposition`) and produces the EBM; conflicts (`detectCompositionConflicts`, now covering every Pack contribution type this chapter's §7 sibling chapter names, not just 2) block commissioning. The real deviations: the ordering claim already covered in the headline finding, and this step is now genuinely asynchronous (an event-bus consumer, not an inline call) — composition itself, once invoked, behaves exactly as described.
 
 ## 22.9 🚩 Runtime Allocation — mostly not built as named (§11)
 
@@ -668,20 +673,22 @@ Entirely unbuilt within commissioning — `commissionSeu` never creates a `parti
 | Initial Obligations | 🚩 no such field (consistent with 22.12) |
 | Commissioning decisions, Composition traceability, Behaviour provenance (Traceability) | 🚩 the whole section is absent from the real type |
 
-## 22.14 🚩 Events — 2 of 10 named events real, most entirely missing (§18)
+## 22.14 ⚠️ Events — 6 of 10 named events real as of 2026-09-07, up from 2 of 10 (§18)
+
+CR-092 Part 9 renamed the two events that already existed under an `SEU`-prefixed name to their exact chapter names, and built four genuinely new ones for real, publishing from `commissionSeu`, `ebmComposer.ts`, and `transitionEbm`:
 
 | Chapter name | Real? |
 |---|---|
-| CommissionRequested | ⚠️ real as `SEUCommissionRequested` (`commissioning.ts:118`) — differently prefixed |
-| CommissionValidated | 🚩 no event — validation is inline, never announced |
-| CompositionStarted | 🚩 no event |
-| CompositionCompleted | 🚩 no event |
-| RuntimeAllocated | 🚩 no event |
-| KnowledgeInitialised | 🚩 no event (consistent with 22.12 — nothing to announce) |
-| ParticipantsRecruited | 🚩 no event (consistent with 22.11) |
-| SEUActivated | ✅ exact match — fired from the `AUTOMATIC_STEPS` cascade (`commissioning.ts:255-258`) |
-| CommissionCompleted | 🚩 no distinct terminal event — the pipeline just returns `{ok:true}`; the last event actually published is `SEUOperational` |
-| CommissionFailed | ⚠️ real as `SEUCommissionRejected` (`commissioning.ts:138`, `158`) — differently named, and only covers the Authority-rejection and composition-conflict paths; a failure in the `AUTOMATIC_STEPS` loop or the final reload (`commissioning.ts:247-249`, `272-276`) publishes nothing at all |
+| CommissionRequested | ✅ **exact match now** (`commissioning.ts`) — renamed from `SEUCommissionRequested` |
+| CommissionValidated | ✅ **new** — published once the shallow "Validate Request" gate (existence, Authority, Pack/Ontology liveness) passes |
+| CompositionStarted | ✅ **new** — published by `ebmComposer.ts` on consuming `CommissionValidated`, before the deep composition/conflict pass runs |
+| CompositionCompleted | ✅ **new** — published by `transitionEbm` once a human Activates a Validated EBM, immediately before handing off to `finalizeCommissioning` |
+| RuntimeAllocated | 🚩 no event, unchanged — Runtime Allocation itself stays out of scope (headline finding) |
+| KnowledgeInitialised | 🚩 no event, unchanged (consistent with 22.12) |
+| ParticipantsRecruited | 🚩 no event, unchanged (consistent with 22.11) |
+| SEUActivated | ✅ exact match, unchanged — still fired from the `AUTOMATIC_STEPS` cascade, now inside `finalizeCommissioning` rather than `commissionSeu` directly |
+| CommissionCompleted | 🚩 **still no distinct terminal event, unchanged** — not to be confused with the new `CompositionCompleted` above, a different, earlier-firing event this chapter also names; the pipeline's own last event is still `SEUOperational` |
+| CommissionFailed | ✅ **exact match now** (`commissioning.ts`, `ebmComposer.ts`) — renamed from `SEUCommissionRejected`, and now covers three real rejection points instead of two: the Authority gate, the new Pack/Ontology liveness check, and Compose EBM's own conflict detection (all three transition the SEU to a real terminal `Failed` state, migration 177). A failure in the `AUTOMATIC_STEPS` loop still publishes nothing, unchanged. |
 
 ## 22.15 ⚠️ Non-Functional Requirements (§19)
 
@@ -710,11 +717,11 @@ Entirely unbuilt within commissioning — `commissionSeu` never creates a `parti
 
 | Named Deliverable | Real artifact | Verdict |
 |---|---|---|
-| Commissioning Service | `commissioning.ts` (`commissionSeu` + two entry-point wrappers) | ✅ |
-| Commissioning Workflow | The linear pipeline itself (22.6) | ⚠️ real, reordered relative to spec |
-| Commissioning Validation Service | Inline checks in `commissionSeu`, not a separate service | ⚠️ |
+| Commissioning Service | `commissioning.ts` (`commissionSeu` + two entry-point wrappers +, as of 2026-09-07, `finalizeCommissioning`/`transitionEbm`) | ✅ |
+| Commissioning Workflow | No longer one linear pipeline (22.6) — **updated 2026-09-07**: split across `commissionSeu` (shallow gate), the event-driven `ebmComposer.ts` (Compose EBM), and `transitionEbm` (Validate/Activate) | ⚠️ real, still reordered on Allocate Runtime; Validate Engineering Model no longer collapsed |
+| Commissioning Validation Service | `checkRequestLiveness` (`commissioning.ts`) — **updated 2026-09-07**: a real, named, distinct function now, not just inline checks, though still not a standalone service/module | ⚠️ |
 | Runtime Allocation Service | `seusDB.create` only | 🚩 (22.9) |
 | Participant Recruitment Service | Does not exist | 🚩 (22.11) |
 | Commissioning Report Generator | `CommissioningReport` construction, `commissioning.ts:261-270` | ⚠️ (22.13) |
 | Commissioning APIs | `src/routes/seu/api/*` (objectives/commission endpoints) | ✅ |
-| Commissioning Events | 2 of 10 named events real (22.14) | 🚩
+| Commissioning Events | 6 of 10 named events real, up from 2 (22.14) — **updated 2026-09-07** | ⚠️

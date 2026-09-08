@@ -1,8 +1,24 @@
 {
   "eventTypes": [
-    { "eventType": "WorkItemDispatched", "description": "A Work Item has been dispatched to a Participant for execution.", "category": "Runtime" }
+    { "eventType": "WorkItemDispatched", "description": "A Work Item has been dispatched to a Participant for execution.", "category": "Runtime" },
+    { "eventType": "CommissionRequested", "description": "Chapter 8 §18 — a commissioning attempt has begun; the SEU's Pending row now exists." },
+    { "eventType": "CommissionValidated", "description": "Chapter 8 §18/§9 — the shallow \"Validate Request\" gate passed (existence, authorisation, live Pack/Ontology references). No subscriber — Compose EBM is a manual transition; a human must click \"Compose\" on the Compose EBM page to begin it." },
+    { "eventType": "CommissionFailed", "description": "Chapter 8 §18 — commissioning failed, either at the shallow Validate Request gate or with unresolved conflicts during Compose EBM." },
+    { "eventType": "CompositionStarted", "description": "Chapter 8 §18/§10 — Compose EBM has begun. Currently unpublished: the manual \"Compose\"/\"Apply & re-validate\" routes (web/objectives.ts) don't emit it; only CompositionCompleted marks the real outcome." },
+    { "eventType": "EBMCreated", "description": "Chapter 3 §15 — a new EBM has been persisted (status Composed), pending manual Validate Engineering Model review." },
+    { "eventType": "EBMValidated", "description": "Chapter 3 §15/Chapter 8 §8 — a human has manually confirmed a composed EBM is still live (transitionEbm, targetState Validated). No subscriber — Activate is a separate, independently human-triggered transition; a human must click \"Activate\" on the SEU detail page to begin it." },
+    { "eventType": "EBMVersioned", "description": "Chapter 3 §15 — a later, execution-time recomposition producing a new EBM version off a Behaviour Conflict (owner: \"we have not reached there yet\"). Currently unpublished — this pass never produces a second EBM version for the same SEU." },
+    { "eventType": "EBMActivated", "description": "Chapter 3 §15 — a human manually confirmed the Validated EBM should take effect (transitionEbm, targetState Active). No subscriber — this same manual request's own transitionEbm call finishes commissioning inline (finalizeCommissioning), not an async cascade." },
+    { "eventType": "CompositionCompleted", "description": "Chapter 8 §18 — Compose EBM finished with zero composition conflicts (either on the first pass, or after a human resolved every conflict); the ebms row may now be created." },
+    { "eventType": "EBMRetired", "description": "Chapter 3 §15 — a Validate attempt found this EBM's own Template/Profile/composed Packs are no longer all live (checkEbmLiveness); status set to Retired instead of Validated." },
+    { "eventType": "SEUConfigured", "description": "Chapter 2/8 — seus.lifecycle_state set to Configured. Published by finalizeCommissioning (transitionEbm's own Active branch), deliberately ahead of SEUCommissioned (owner: \"let us stick to the order I gave\")." },
+    { "eventType": "SEUCommissioned", "description": "Chapter 2/8 — seus.lifecycle_state set to Commissioned. Published by finalizeCommissioning, on the way to Activated." },
+    { "eventType": "SEUActivated", "description": "Chapter 2/8 — seus.lifecycle_state set to Activated. Published by finalizeCommissioning, right before Create Engineering Assets runs. No subscriber — Create Engineering Assets and the final Activated -> Operational hop are the same synchronous call, not a separate async step." },
+    { "eventType": "SEUOperational", "description": "Chapter 2/8 — seus.lifecycle_state set to Operational, the final hop. Published by finalizeCommissioning, after creating the SEU's Deliverable Catalogue/Capability instances." }
   ],
   "subscriptions": [
-    { "eventType": "WorkItemDispatched", "handlerName": "assignmentDelivery" }
+    { "eventType": "WorkItemDispatched", "handlerName": "assignmentDelivery" },
+    { "eventType": "CommissionRequested", "handlerName": "validateRequest" },
+    { "eventType": "CompositionCompleted", "handlerName": "compositionCompleted" }
   ]
 }

@@ -14,6 +14,17 @@
 <body>
   <header><%- include('../../partials/navbar') %></header>
 
+  <%# design/mvp-build-plan/SEU Composition.md — owner: "There should be a
+       viewEBM button... create a new one. EBM page." This page is SEU
+       runtime content only now — Deliverable instances (with lifecycle
+       state/transition forms), Capability fulfilment, Obligations, Evidence,
+       Decisions, Knowledge, Command/Work Item/Dispatch, External
+       Interactions, Events. Everything sourced from the EBM's own
+       composition (Metadata/Parameters/Engineering Practices/Quality Gates/
+       Services/Capability codes/Governance/declared Deliverable Catalogue)
+       moved to its own page (seus/ebm.ejs), reached via the "View EBM"
+       button on the All SEUs list — same CR-027 shared vertical-tab shell
+       (partials/verticalTabs, paneMode). %>
   <main class="container py-5">
     <% if (locals.flash) { %>
       <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
@@ -24,626 +35,674 @@
 
     <div class="d-flex justify-content-between align-items-start mb-4">
       <div>
-        <p class="text-muted small mb-1"><a href="/aisworg/seu/seus">&larr; All SEUs</a></p>
+        <p class="text-muted small mb-1">
+          <a href="/aisworg/seu/seus">&larr; All SEUs</a>
+          <% if (detail.seu.active_ebm_id) { %> &middot; <a href="/aisworg/seu/seus/<%= detail.seu.id %>/ebm">View EBM</a><% } %>
+        </p>
         <h2 class="h4 text-dark fw-bold mb-1"><%= detail.objectiveStatement %></h2>
         <p class="text-muted small mb-0 font-monospace"><%= detail.seu.id %></p>
       </div>
       <span class="state-badge state-<%= detail.seu.lifecycle_state %> fs-6"><%= detail.seu.lifecycle_state %></span>
     </div>
 
-    <div class="section-card">
-      <div class="section-header">Engineering Behavior Model — Composed Packs</div>
-      <div class="table-responsive">
-        <table class="table table-sm mb-0">
-          <thead class="table-light"><tr><th>Pack</th><th>Version</th></tr></thead>
-          <tbody>
-            <% detail.composedPacks.forEach(function(p) { %>
-              <tr><td class="small"><%= p.packCode %></td><td class="small text-muted"><%= p.packVersion %></td></tr>
-            <% }) %>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <%
+      var tabs = [
+        { key: 'deliverables', label: 'Deliverables', sub: detail.deliverables.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.deliverables.length + '</span>' : '' },
+        { key: 'capabilities', label: 'Capability Fulfilment', sub: detail.capabilities.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.capabilities.length + '</span>' : '' },
+        { key: 'obligations', label: 'Obligations', sub: detail.obligations.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.obligations.length + '</span>' : '' },
+        { key: 'evidence', label: 'Evidence', sub: detail.evidence.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.evidence.length + '</span>' : '' },
+        { key: 'decisions', label: 'Decisions', sub: detail.decisions.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.decisions.length + '</span>' : '' },
+        { key: 'knowledge', label: 'Knowledge', sub: detail.knowledgeItems.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.knowledgeItems.length + '</span>' : '' },
+        { key: 'commands', label: 'Command / Work Item / Dispatch', sub: detail.commands.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.commands.length + '</span>' : '' },
+        { key: 'external-interactions', label: 'External Interactions', sub: detail.externalInteractions.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.externalInteractions.length + '</span>' : '' },
+        { key: 'events', label: 'Events', sub: detail.events.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.events.length + '</span>' : '' },
+      ];
+    %>
 
-    <div class="section-card">
-      <div class="section-header">Capabilities</div>
-      <div class="table-responsive">
-        <table class="table mb-0 align-middle">
-          <thead class="table-light"><tr><th>Capability</th><th>Status</th><th>Participant</th><th>Fulfil / Replace</th></tr></thead>
-          <tbody>
-            <% detail.capabilities.forEach(function(c) { %>
-              <tr>
-                <td class="small"><%= c.name %> <code class="text-muted small"><%= c.code %></code></td>
-                <td><span class="state-badge state-<%= c.status %>"><%= c.status %></span></td>
-                <td>
-                  <% if (c.participant) { %>
-                    <span class="small"><%= c.participant.displayName %> <span class="text-muted">(<%= c.participant.type %>)</span></span>
-                    <span class="state-badge state-<%= c.participant.state %>"><%= c.participant.state %></span>
-                  <% } else { %>
-                    <span class="text-muted small">&mdash;</span>
-                  <% } %>
-                </td>
-                <td>
-                  <% if (c.status === 'Unfulfilled') { %>
-                    <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/capabilities/<%= c.capabilityId %>/fulfil"
-                          class="d-flex align-items-center gap-2">
-                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                      <select name="participantType" class="form-select form-select-sm" style="width: auto;">
-                        <option value="AI">AI</option>
-                        <option value="Human">Human</option>
-                        <option value="External">External</option>
-                      </select>
-                      <input type="text" name="displayName" class="form-control form-control-sm" style="width: 220px;"
-                             placeholder="Participant name" required>
-                      <button type="submit" class="btn btn-sm btn-primary">Assign</button>
-                    </form>
-                  <% } else if (c.participant) { %>
-                    <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/capabilities/<%= c.capabilityId %>/participant/<%= c.participant.id %>/replace"
-                          class="d-flex align-items-center gap-2">
-                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                      <select name="participantType" class="form-select form-select-sm" style="width: auto;">
-                        <option value="AI">AI</option>
-                        <option value="Human">Human</option>
-                        <option value="External">External</option>
-                      </select>
-                      <input type="text" name="displayName" class="form-control form-control-sm" style="width: 220px;"
-                             placeholder="Replacement name" required>
-                      <button type="submit" class="btn btn-sm btn-outline-secondary">Replace</button>
-                    </form>
-                  <% } else { %>
-                    <span class="text-muted small">&mdash;</span>
-                  <% } %>
-                </td>
-              </tr>
-            <% }) %>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <div class="d-flex flex-column flex-md-row gap-4 align-items-start mb-4">
+      <%- include('../../partials/verticalTabs', { tabs: tabs, paneMode: true, paneIdPrefix: 'seu-detail', activePaneIndex: 0 }) %>
 
-    <div class="section-card">
-      <div class="section-header">Deliverables</div>
-      <div class="table-responsive">
-        <table class="table mb-0 align-middle">
-          <thead class="table-light"><tr><th>Deliverable</th><th>State</th><th>Dependencies</th><th>Transition</th></tr></thead>
-          <tbody>
-            <% detail.deliverables.forEach(function(d) { %>
-              <tr>
-                <td class="small"><%= d.name %><br><span class="text-muted" style="font-size:0.72rem;"><% if (d.category) { %><%= d.category %> &middot; <% } %>Acquisition Scope: <%= d.acquisitionScope %></span></td>
-                <td><span class="state-badge state-<%= d.lifecycleState.replace(/\s+/g, '-') %>"><%= d.lifecycleState %></span></td>
-                <td>
-                  <% if (d.dependencyEdges.length === 0) { %>
-                    <span class="text-muted small">none</span>
-                  <% } else { %>
-                    <% d.dependencyEdges.forEach(function(e) { %>
-                      <div class="edge-note">
-                        <%= e.targetLabel %><% if (e.requiredState) { %> &rarr; <%= e.requiredState %><% } %>:
-                        <span class="state-badge state-<%= e.readinessState %>"><%= e.readinessState %></span>
-                      </div>
+      <div class="tab-content flex-grow-1" style="min-width: 0;">
+
+        <%# ---------------------------------------------------------------- Deliverables %>
+        <div class="tab-pane fade show active" id="seu-detail-deliverables" role="tabpanel">
+          <div class="section-card">
+            <div class="section-header">Deliverables</div>
+            <div class="table-responsive">
+              <table class="table mb-0 align-middle">
+                <thead class="table-light"><tr><th>Deliverable</th><th>State</th><th>Dependencies</th><th>Transition</th></tr></thead>
+                <tbody>
+                  <% if (detail.deliverables.length === 0) { %>
+                    <tr><td colspan="4" class="text-muted small">No Deliverable instances yet — created once commissioning reaches Create Engineering Assets.</td></tr>
+                  <% } %>
+                  <% detail.deliverables.forEach(function(d) { %>
+                    <tr>
+                      <td class="small"><%= d.name %><br><span class="text-muted" style="font-size:0.72rem;"><% if (d.category) { %><%= d.category %> &middot; <% } %>Acquisition Scope: <%= d.acquisitionScope %></span></td>
+                      <td><span class="state-badge state-<%= d.lifecycleState.replace(/\s+/g, '-') %>"><%= d.lifecycleState %></span></td>
+                      <td>
+                        <% if (d.dependencyEdges.length === 0) { %>
+                          <span class="text-muted small">none</span>
+                        <% } else { %>
+                          <% d.dependencyEdges.forEach(function(e) { %>
+                            <div class="edge-note">
+                              <%= e.targetLabel %><% if (e.requiredState) { %> &rarr; <%= e.requiredState %><% } %>:
+                              <span class="state-badge state-<%= e.readinessState %>"><%= e.readinessState %></span>
+                            </div>
+                          <% }) %>
+                        <% } %>
+                      </td>
+                      <td>
+                        <%# Bug fix (owner: "The styling is so bad. Validate
+                             looks like a button" — a select+Apply pair reads
+                             as a row of pills, and a closed <select> showing
+                             its own single option's text LOOKS like a
+                             button but isn't one). A real, unambiguous
+                             button when there's only one real target state
+                             (the overwhelmingly common case); the
+                             select+submit shape stays for the genuine
+                             multi-option case. %>
+                        <% if (d.possibleNextStates.length === 0) { %>
+                          <span class="text-muted small">no further transitions defined</span>
+                        <% } else if (d.possibleNextStates.length === 1) { %>
+                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/deliverables/<%= d.id %>/transition" class="mb-0">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <input type="hidden" name="targetState" value="<%= d.possibleNextStates[0] %>">
+                            <button type="submit" class="btn btn-sm btn-primary"><%= d.possibleNextStates[0] %></button>
+                          </form>
+                        <% } else { %>
+                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/deliverables/<%= d.id %>/transition"
+                                class="d-flex align-items-center gap-2">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <select name="targetState" class="form-select form-select-sm" style="width: auto;">
+                              <% d.possibleNextStates.forEach(function(s) { %>
+                                <option value="<%= s %>"><%= s %></option>
+                              <% }) %>
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
+                          </form>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <%# ---------------------------------------------------------------- Capability Fulfilment %>
+        <div class="tab-pane fade" id="seu-detail-capabilities" role="tabpanel">
+          <div class="section-card">
+            <div class="table-responsive">
+              <table class="table mb-0 align-middle">
+                <thead class="table-light"><tr><th>Capability</th><th>Status</th><th>Participant</th><th>Fulfil / Replace</th></tr></thead>
+                <tbody>
+                  <% detail.capabilities.forEach(function(c) { %>
+                    <tr>
+                      <td class="small"><%= c.name %> <code class="text-muted small"><%= c.code %></code></td>
+                      <td><span class="state-badge state-<%= c.status %>"><%= c.status %></span></td>
+                      <td>
+                        <% if (c.participant) { %>
+                          <span class="small"><%= c.participant.displayName %> <span class="text-muted">(<%= c.participant.type %>)</span></span>
+                          <span class="state-badge state-<%= c.participant.state %>"><%= c.participant.state %></span>
+                        <% } else { %>
+                          <span class="text-muted small">&mdash;</span>
+                        <% } %>
+                      </td>
+                      <td>
+                        <% if (c.status === 'Unfulfilled') { %>
+                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/capabilities/<%= c.capabilityId %>/fulfil"
+                                class="d-flex align-items-center gap-2">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <select name="participantType" class="form-select form-select-sm" style="width: auto;">
+                              <option value="AI">AI</option>
+                              <option value="Human">Human</option>
+                              <option value="External">External</option>
+                            </select>
+                            <input type="text" name="displayName" class="form-control form-control-sm" style="width: 220px;"
+                                   placeholder="Participant name" required>
+                            <button type="submit" class="btn btn-sm btn-primary">Assign</button>
+                          </form>
+                        <% } else if (c.participant) { %>
+                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/capabilities/<%= c.capabilityId %>/participant/<%= c.participant.id %>/replace"
+                                class="d-flex align-items-center gap-2">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <select name="participantType" class="form-select form-select-sm" style="width: auto;">
+                              <option value="AI">AI</option>
+                              <option value="Human">Human</option>
+                              <option value="External">External</option>
+                            </select>
+                            <input type="text" name="displayName" class="form-control form-control-sm" style="width: 220px;"
+                                   placeholder="Replacement name" required>
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">Replace</button>
+                          </form>
+                        <% } else { %>
+                          <span class="text-muted small">&mdash;</span>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <%# ---------------------------------------------------------------- Obligations %>
+        <div class="tab-pane fade" id="seu-detail-obligations" role="tabpanel">
+          <div class="section-card">
+            <div class="p-3 border-bottom">
+              <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/obligations" class="row g-2 align-items-center">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <div class="col-auto">
+                  <select name="deliverableId" class="form-select form-select-sm" required>
+                    <option value="" disabled selected>Deliverable&hellip;</option>
+                    <% detail.deliverables.forEach(function(d) { %>
+                      <option value="<%= d.id %>"><%= d.name %></option>
                     <% }) %>
-                  <% } %>
-                </td>
-                <td>
-                  <% if (d.possibleNextStates.length === 0) { %>
-                    <span class="text-muted small">no further transitions defined</span>
-                  <% } else { %>
-                    <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/deliverables/<%= d.id %>/transition"
-                          class="d-flex align-items-center gap-2">
-                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                      <select name="targetState" class="form-select form-select-sm" style="width: auto;">
-                        <% d.possibleNextStates.forEach(function(s) { %>
-                          <option value="<%= s %>"><%= s %></option>
-                        <% }) %>
-                      </select>
-                      <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
-                    </form>
-                  <% } %>
-                </td>
-              </tr>
-            <% }) %>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="section-card">
-      <div class="section-header">Command / Work Item / Dispatch Pipeline</div>
-      <div class="table-responsive">
-        <table class="table table-sm mb-0 align-middle">
-          <thead class="table-light"><tr><th>Command</th><th>Transition</th><th>Status</th><th>Work Item</th></tr></thead>
-          <tbody>
-            <% if (detail.commands.length === 0) { %>
-              <tr><td colspan="4" class="text-muted small">No Commands generated yet — every Deliverable transition above generates one.</td></tr>
-            <% } %>
-            <% detail.commands.forEach(function(cmd) { %>
-              <tr>
-                <td class="small"><%= cmd.entityLabel %><br><span class="text-muted" style="font-size:0.72rem;"><%= cmd.commandType %></span></td>
-                <td class="small"><%= cmd.fromState %> &rarr; <%= cmd.toState %></td>
-                <td><span class="state-badge state-<%= cmd.status %>"><%= cmd.status %></span></td>
-                <td class="small">
-                  <% if (cmd.workItems.length === 0) { %>
-                    <span class="text-muted">none</span>
-                  <% } else { %>
-                    <% cmd.workItems.forEach(function(wi) { %>
-                      <div>
-                        <span class="state-badge state-<%= wi.status %>"><%= wi.status %></span>
-                        <% if (wi.participantLabel) { %> &rarr; <%= wi.participantLabel %><% } %>
-                        <% if (wi.dispatchStrategy) { %> <span class="text-muted" style="font-size:0.7rem;">(<%= wi.dispatchStrategy %>)</span><% } %>
-                      </div>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <select name="category" class="form-select form-select-sm">
+                    <% ['Engineering','Risk','Compliance','Audit','Security','Operational','Customer','Organisational Learning'].forEach(function(cat) { %>
+                      <option value="<%= cat %>"><%= cat %></option>
                     <% }) %>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <input type="text" name="title" class="form-control form-control-sm" placeholder="Title" required style="width: 220px;">
+                </div>
+                <div class="col-auto">
+                  <select name="severity" class="form-select form-select-sm">
+                    <% ['Low','Medium','High','Critical'].forEach(function(sev) { %>
+                      <option value="<%= sev %>" <%= sev === 'Medium' ? 'selected' : '' %>><%= sev %></option>
+                    <% }) %>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <button type="submit" class="btn btn-sm btn-primary">Create Obligation</button>
+                </div>
+              </form>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light"><tr><th>Deliverable</th><th>Title</th><th>Category / Severity</th><th>Status</th><th>Transition</th></tr></thead>
+                <tbody>
+                  <% if (detail.obligations.length === 0) { %>
+                    <tr><td colspan="5" class="text-muted small">No Obligations — the Quality Gate on Deliverable "In Progress" &rarr; "Approved" will only block once one exists and isn't yet Verified/Closed/Archived.</td></tr>
                   <% } %>
-                </td>
-              </tr>
-            <% }) %>
-          </tbody>
-        </table>
-      </div>
-    </div>
+                  <% detail.obligations.forEach(function(o) { %>
+                    <tr>
+                      <td class="small"><%= o.deliverableName %></td>
+                      <td class="small"><%= o.obligation.title %></td>
+                      <td class="small"><%= o.obligation.category %> &middot; <%= o.obligation.severity %></td>
+                      <td><span class="state-badge state-<%= o.obligation.status.replace(/\s+/g, '-') %>"><%= o.obligation.status %></span></td>
+                      <td>
+                        <% if (o.possibleNextStates.length === 0) { %>
+                          <span class="text-muted small">no further transitions defined</span>
+                        <% } else { %>
+                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/obligations/<%= o.obligation.id %>/transition"
+                                class="d-flex align-items-center gap-2">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <select name="targetState" class="form-select form-select-sm" style="width: auto;">
+                              <% o.possibleNextStates.forEach(function(s) { %>
+                                <option value="<%= s %>"><%= s %></option>
+                              <% }) %>
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
+                          </form>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
 
-    <div class="section-card">
-      <div class="section-header">Obligations</div>
-      <div class="p-3 border-bottom">
-        <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/obligations" class="row g-2 align-items-center">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <div class="col-auto">
-            <select name="deliverableId" class="form-select form-select-sm" required>
-              <option value="" disabled selected>Deliverable&hellip;</option>
-              <% detail.deliverables.forEach(function(d) { %>
-                <option value="<%= d.id %>"><%= d.name %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="col-auto">
-            <select name="category" class="form-select form-select-sm">
-              <% ['Engineering','Risk','Compliance','Audit','Security','Operational','Customer','Organisational Learning'].forEach(function(cat) { %>
-                <option value="<%= cat %>"><%= cat %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="col-auto">
-            <input type="text" name="title" class="form-control form-control-sm" placeholder="Title" required style="width: 220px;">
-          </div>
-          <div class="col-auto">
-            <select name="severity" class="form-select form-select-sm">
-              <% ['Low','Medium','High','Critical'].forEach(function(sev) { %>
-                <option value="<%= sev %>" <%= sev === 'Medium' ? 'selected' : '' %>><%= sev %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="col-auto">
-            <button type="submit" class="btn btn-sm btn-primary">Create Obligation</button>
-          </div>
-        </form>
-      </div>
-      <div class="table-responsive">
-        <table class="table table-sm mb-0 align-middle">
-          <thead class="table-light"><tr><th>Deliverable</th><th>Title</th><th>Category / Severity</th><th>Status</th><th>Transition</th></tr></thead>
-          <tbody>
-            <% if (detail.obligations.length === 0) { %>
-              <tr><td colspan="5" class="text-muted small">No Obligations — the Quality Gate on Deliverable "In Progress" &rarr; "Approved" will only block once one exists and isn't yet Verified/Closed/Archived.</td></tr>
-            <% } %>
-            <% detail.obligations.forEach(function(o) { %>
-              <tr>
-                <td class="small"><%= o.deliverableName %></td>
-                <td class="small"><%= o.obligation.title %></td>
-                <td class="small"><%= o.obligation.category %> &middot; <%= o.obligation.severity %></td>
-                <td><span class="state-badge state-<%= o.obligation.status.replace(/\s+/g, '-') %>"><%= o.obligation.status %></span></td>
-                <td>
-                  <% if (o.possibleNextStates.length === 0) { %>
-                    <span class="text-muted small">no further transitions defined</span>
-                  <% } else { %>
-                    <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/obligations/<%= o.obligation.id %>/transition"
-                          class="d-flex align-items-center gap-2">
-                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                      <select name="targetState" class="form-select form-select-sm" style="width: auto;">
-                        <% o.possibleNextStates.forEach(function(s) { %>
-                          <option value="<%= s %>"><%= s %></option>
-                        <% }) %>
-                      </select>
-                      <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
-                    </form>
+        <%# ---------------------------------------------------------------- Evidence %>
+        <div class="tab-pane fade" id="seu-detail-evidence" role="tabpanel">
+          <div class="section-card">
+            <div class="p-3 border-bottom">
+              <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/evidence" class="row g-2 align-items-center">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <div class="col-auto">
+                  <select name="deliverableId" class="form-select form-select-sm" required>
+                    <option value="" disabled selected>Deliverable&hellip;</option>
+                    <% detail.deliverables.forEach(function(d) { %>
+                      <option value="<%= d.id %>"><%= d.name %></option>
+                    <% }) %>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <select name="category" class="form-select form-select-sm">
+                    <% ['Analytical Evidence','Validation Evidence','Operational Evidence','Review Evidence','Decision Evidence','External Evidence'].forEach(function(cat) { %>
+                      <option value="<%= cat %>"><%= cat %></option>
+                    <% }) %>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <input type="text" name="title" class="form-control form-control-sm" placeholder="Title" required style="width: 200px;">
+                </div>
+                <div class="col-auto">
+                  <input type="text" name="source" class="form-control form-control-sm" placeholder="Source" style="width: 140px;">
+                </div>
+                <div class="col-auto">
+                  <select name="confidenceLevel" class="form-select form-select-sm">
+                    <% ['Low','Medium','High'].forEach(function(c) { %>
+                      <option value="<%= c %>" <%= c === 'Medium' ? 'selected' : '' %>><%= c %></option>
+                    <% }) %>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <button type="submit" class="btn btn-sm btn-primary">Collect Evidence</button>
+                </div>
+                <%# CR-051 item 3 (Ch.17 §12/§20.10) — provenance, all optional:
+                    who/what produced this Evidence. %>
+                <div class="col-auto">
+                  <select name="participantId" class="form-select form-select-sm">
+                    <option value="">Participant&hellip;</option>
+                    <% detail.participants.forEach(function(p) { %>
+                      <option value="<%= p.id %>"><%= p.displayName %> (<%= p.type %>)</option>
+                    <% }) %>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <select name="capabilityId" class="form-select form-select-sm">
+                    <option value="">Capability&hellip;</option>
+                    <% detail.capabilities.forEach(function(c) { %>
+                      <option value="<%= c.capabilityId %>"><%= c.name %> (<%= c.code %>)</option>
+                    <% }) %>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <select name="decisionId" class="form-select form-select-sm">
+                    <option value="">Decision&hellip;</option>
+                    <% detail.decisions.forEach(function(d) { %>
+                      <option value="<%= d.decision.id %>"><%= d.decision.title %></option>
+                    <% }) %>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <input type="text" name="activity" class="form-control form-control-sm" placeholder="Engineering activity" style="width: 160px;">
+                </div>
+                <%# CR-051 item 4 (Ch.17 §15/§20.13) — versioning: this new Evidence
+                    Item corrects an earlier one. Includes cross-SEU-shared
+                    candidates, not just this SEU's own Evidence. %>
+                <div class="col-auto">
+                  <select name="predecessorEvidenceId" class="form-select form-select-sm">
+                    <option value="">Corrects&hellip;</option>
+                    <% detail.evidenceSupersedeCandidates.forEach(function(ev) { %>
+                      <option value="<%= ev.id %>"><%= ev.title %></option>
+                    <% }) %>
+                  </select>
+                </div>
+              </form>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light"><tr><th>Supports</th><th>Title</th><th>Category / Confidence</th><th>Provenance</th><th>Status</th><th>Transition</th><th>Link another</th></tr></thead>
+                <tbody>
+                  <% if (detail.evidence.length === 0) { %>
+                    <tr><td colspan="7" class="text-muted small">No Evidence collected yet — the "Approved" &rarr; "Baselined" Quality Gate needs at least one Accepted Evidence Item or an approved Decision.</td></tr>
                   <% } %>
-                </td>
-              </tr>
-            <% }) %>
-          </tbody>
-        </table>
-      </div>
-    </div>
+                  <% detail.evidence.forEach(function(e) { %>
+                    <tr>
+                      <%# CR-051 item 1 (Ch.17 §20.2/§20.8) — one Evidence Item may
+                          support many artefacts; relatedObjectLabels lists all of
+                          them, not just the first. %>
+                      <td class="small"><%= e.relatedObjectLabels.join(', ') || '—' %></td>
+                      <%# CR-051 item 4 (Ch.17 §15/§20.13) — shown only on the
+                          correcting row itself; nothing added to the predecessor's
+                          own row (no cross-SEU signal, deliberately). %>
+                      <td class="small"><%= e.evidence.title %><% if (e.predecessorTitle) { %> <span class="text-muted">(corrects: <%= e.predecessorTitle %>)</span><% } %></td>
+                      <td class="small"><%= e.evidence.category %> &middot; <%= e.evidence.confidence_level %></td>
+                      <%# CR-051 item 3 (Ch.17 §12/§20.10) — provenance, whichever
+                          fields were captured; a bare '—' when none were. %>
+                      <td class="small">
+                        <% var prov = [e.provenance.deliverableName, e.provenance.participantName, e.provenance.capabilityName, e.provenance.decisionTitle, e.provenance.activity].filter(function(x) { return x; }); %>
+                        <%= prov.join(', ') || '—' %>
+                      </td>
+                      <td><span class="state-badge state-<%= e.evidence.status %>"><%= e.evidence.status %></span></td>
+                      <td>
+                        <% if (e.possibleNextStates.length === 0) { %>
+                          <span class="text-muted small">no further transitions defined</span>
+                        <% } else { %>
+                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/evidence/<%= e.evidence.id %>/transition"
+                                class="d-flex align-items-center gap-2">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <select name="targetState" class="form-select form-select-sm" style="width: auto;">
+                              <% e.possibleNextStates.forEach(function(s) { %>
+                                <option value="<%= s %>"><%= s %></option>
+                              <% }) %>
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
+                          </form>
+                        <% } %>
+                      </td>
+                      <td>
+                        <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/evidence/<%= e.evidence.id %>/link"
+                              class="d-flex align-items-center gap-2">
+                          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                          <select name="deliverableId" class="form-select form-select-sm" style="width: auto;" required>
+                            <option value="" disabled selected>Deliverable&hellip;</option>
+                            <% detail.deliverables.forEach(function(d) { %>
+                              <option value="<%= d.id %>"><%= d.name %></option>
+                            <% }) %>
+                          </select>
+                          <button type="submit" class="btn btn-sm btn-outline-secondary">Link</button>
+                        </form>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
 
-    <div class="section-card">
-      <div class="section-header">Evidence</div>
-      <div class="p-3 border-bottom">
-        <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/evidence" class="row g-2 align-items-center">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <div class="col-auto">
-            <select name="deliverableId" class="form-select form-select-sm" required>
-              <option value="" disabled selected>Deliverable&hellip;</option>
-              <% detail.deliverables.forEach(function(d) { %>
-                <option value="<%= d.id %>"><%= d.name %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="col-auto">
-            <select name="category" class="form-select form-select-sm">
-              <% ['Analytical Evidence','Validation Evidence','Operational Evidence','Review Evidence','Decision Evidence','External Evidence'].forEach(function(cat) { %>
-                <option value="<%= cat %>"><%= cat %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="col-auto">
-            <input type="text" name="title" class="form-control form-control-sm" placeholder="Title" required style="width: 200px;">
-          </div>
-          <div class="col-auto">
-            <input type="text" name="source" class="form-control form-control-sm" placeholder="Source" style="width: 140px;">
-          </div>
-          <div class="col-auto">
-            <select name="confidenceLevel" class="form-select form-select-sm">
-              <% ['Low','Medium','High'].forEach(function(c) { %>
-                <option value="<%= c %>" <%= c === 'Medium' ? 'selected' : '' %>><%= c %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="col-auto">
-            <button type="submit" class="btn btn-sm btn-primary">Collect Evidence</button>
-          </div>
-          <%# CR-051 item 3 (Ch.17 §12/§20.10) — provenance, all optional:
-              who/what produced this Evidence. %>
-          <div class="col-auto">
-            <select name="participantId" class="form-select form-select-sm">
-              <option value="">Participant&hellip;</option>
-              <% detail.participants.forEach(function(p) { %>
-                <option value="<%= p.id %>"><%= p.displayName %> (<%= p.type %>)</option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="col-auto">
-            <select name="capabilityId" class="form-select form-select-sm">
-              <option value="">Capability&hellip;</option>
-              <% detail.capabilities.forEach(function(c) { %>
-                <option value="<%= c.capabilityId %>"><%= c.name %> (<%= c.code %>)</option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="col-auto">
-            <select name="decisionId" class="form-select form-select-sm">
-              <option value="">Decision&hellip;</option>
-              <% detail.decisions.forEach(function(d) { %>
-                <option value="<%= d.decision.id %>"><%= d.decision.title %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="col-auto">
-            <input type="text" name="activity" class="form-control form-control-sm" placeholder="Engineering activity" style="width: 160px;">
-          </div>
-          <%# CR-051 item 4 (Ch.17 §15/§20.13) — versioning: this new Evidence
-              Item corrects an earlier one. Includes cross-SEU-shared
-              candidates, not just this SEU's own Evidence. %>
-          <div class="col-auto">
-            <select name="predecessorEvidenceId" class="form-select form-select-sm">
-              <option value="">Corrects&hellip;</option>
-              <% detail.evidenceSupersedeCandidates.forEach(function(ev) { %>
-                <option value="<%= ev.id %>"><%= ev.title %></option>
-              <% }) %>
-            </select>
-          </div>
-        </form>
-      </div>
-      <div class="table-responsive">
-        <table class="table table-sm mb-0 align-middle">
-          <thead class="table-light"><tr><th>Supports</th><th>Title</th><th>Category / Confidence</th><th>Provenance</th><th>Status</th><th>Transition</th><th>Link another</th></tr></thead>
-          <tbody>
-            <% if (detail.evidence.length === 0) { %>
-              <tr><td colspan="7" class="text-muted small">No Evidence collected yet — the "Approved" &rarr; "Baselined" Quality Gate needs at least one Accepted Evidence Item or an approved Decision.</td></tr>
-            <% } %>
-            <% detail.evidence.forEach(function(e) { %>
-              <tr>
-                <%# CR-051 item 1 (Ch.17 §20.2/§20.8) — one Evidence Item may
-                    support many artefacts; relatedObjectLabels lists all of
-                    them, not just the first. %>
-                <td class="small"><%= e.relatedObjectLabels.join(', ') || '—' %></td>
-                <%# CR-051 item 4 (Ch.17 §15/§20.13) — shown only on the
-                    correcting row itself; nothing added to the predecessor's
-                    own row (no cross-SEU signal, deliberately). %>
-                <td class="small"><%= e.evidence.title %><% if (e.predecessorTitle) { %> <span class="text-muted">(corrects: <%= e.predecessorTitle %>)</span><% } %></td>
-                <td class="small"><%= e.evidence.category %> &middot; <%= e.evidence.confidence_level %></td>
-                <%# CR-051 item 3 (Ch.17 §12/§20.10) — provenance, whichever
-                    fields were captured; a bare '—' when none were. %>
-                <td class="small">
-                  <% var prov = [e.provenance.deliverableName, e.provenance.participantName, e.provenance.capabilityName, e.provenance.decisionTitle, e.provenance.activity].filter(function(x) { return x; }); %>
-                  <%= prov.join(', ') || '—' %>
-                </td>
-                <td><span class="state-badge state-<%= e.evidence.status %>"><%= e.evidence.status %></span></td>
-                <td>
-                  <% if (e.possibleNextStates.length === 0) { %>
-                    <span class="text-muted small">no further transitions defined</span>
-                  <% } else { %>
-                    <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/evidence/<%= e.evidence.id %>/transition"
-                          class="d-flex align-items-center gap-2">
-                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                      <select name="targetState" class="form-select form-select-sm" style="width: auto;">
-                        <% e.possibleNextStates.forEach(function(s) { %>
-                          <option value="<%= s %>"><%= s %></option>
-                        <% }) %>
-                      </select>
-                      <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
-                    </form>
+        <%# ---------------------------------------------------------------- Decisions %>
+        <div class="tab-pane fade" id="seu-detail-decisions" role="tabpanel">
+          <div class="section-card">
+            <div class="p-3 border-bottom">
+              <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/decisions" class="row g-2 align-items-center">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <div class="col-auto">
+                  <select name="deliverableId" class="form-select form-select-sm" required>
+                    <option value="" disabled selected>Deliverable&hellip;</option>
+                    <% detail.deliverables.forEach(function(d) { %>
+                      <option value="<%= d.id %>"><%= d.name %></option>
+                    <% }) %>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <select name="knowledgeId" class="form-select form-select-sm">
+                    <option value="">(no supporting Knowledge)</option>
+                    <% detail.knowledgeItems.forEach(function(k) { %>
+                      <option value="<%= k.knowledgeItem.id %>"><%= k.knowledgeItem.title %></option>
+                    <% }) %>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <select name="category" class="form-select form-select-sm">
+                    <% ['Architecture Decisions','Design Decisions','Engineering Decisions','Operational Decisions','Governance Decisions'].forEach(function(cat) { %>
+                      <option value="<%= cat %>"><%= cat %></option>
+                    <% }) %>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <input type="text" name="title" class="form-control form-control-sm" placeholder="Title" required style="width: 200px;">
+                </div>
+                <div class="col-auto">
+                  <input type="text" name="selectedAlternative" class="form-control form-control-sm" placeholder="Selected alternative" style="width: 180px;">
+                </div>
+                <div class="col-auto">
+                  <button type="submit" class="btn btn-sm btn-primary">Identify Decision</button>
+                </div>
+              </form>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light"><tr><th>Deliverable</th><th>Title</th><th>Category</th><th>Status</th><th>Transition</th></tr></thead>
+                <tbody>
+                  <% if (detail.decisions.length === 0) { %>
+                    <tr><td colspan="5" class="text-muted small">No Decisions yet — the "Approved" &rarr; "Baselined" Quality Gate needs at least one Approved/Applied Decision or an Accepted Evidence Item.</td></tr>
                   <% } %>
-                </td>
-                <td>
-                  <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/evidence/<%= e.evidence.id %>/link"
-                        class="d-flex align-items-center gap-2">
-                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                    <select name="deliverableId" class="form-select form-select-sm" style="width: auto;" required>
-                      <option value="" disabled selected>Deliverable&hellip;</option>
-                      <% detail.deliverables.forEach(function(d) { %>
-                        <option value="<%= d.id %>"><%= d.name %></option>
-                      <% }) %>
-                    </select>
-                    <button type="submit" class="btn btn-sm btn-outline-secondary">Link</button>
-                  </form>
-                </td>
-              </tr>
-            <% }) %>
-          </tbody>
-        </table>
-      </div>
-    </div>
+                  <% detail.decisions.forEach(function(dec) { %>
+                    <tr>
+                      <td class="small"><%= dec.deliverableName %></td>
+                      <td class="small"><%= dec.decision.title %><% if (dec.decision.selected_alternative) { %><br><span class="text-muted" style="font-size:0.72rem;">&rarr; <%= dec.decision.selected_alternative %></span><% } %></td>
+                      <td class="small"><%= dec.decision.category %></td>
+                      <td><span class="state-badge state-<%= dec.decision.status %>"><%= dec.decision.status %></span></td>
+                      <td>
+                        <% if (dec.possibleNextStates.length === 0) { %>
+                          <span class="text-muted small">no further transitions defined</span>
+                        <% } else { %>
+                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/decisions/<%= dec.decision.id %>/transition"
+                                class="d-flex align-items-center gap-2">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <select name="targetState" class="form-select form-select-sm" style="width: auto;">
+                              <% dec.possibleNextStates.forEach(function(s) { %>
+                                <option value="<%= s %>"><%= s %></option>
+                              <% }) %>
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
+                          </form>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
 
-    <div class="section-card">
-      <div class="section-header">Knowledge</div>
-      <div class="p-3 border-bottom">
-        <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/knowledge" class="row g-2 align-items-center">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <div class="col-auto">
-            <select name="deliverableId" class="form-select form-select-sm" required>
-              <option value="" disabled selected>Deliverable&hellip;</option>
-              <% detail.deliverables.forEach(function(d) { %>
-                <option value="<%= d.id %>"><%= d.name %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="col-auto">
-            <select name="evidenceId" class="form-select form-select-sm">
-              <option value="">(no supporting Evidence)</option>
-              <% detail.evidence.forEach(function(e) { %>
-                <option value="<%= e.evidence.id %>"><%= e.evidence.title %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="col-auto">
-            <select name="category" class="form-select form-select-sm">
-              <% ['Architectural Knowledge','Domain Knowledge','Technical Knowledge','Operational Knowledge','Governance Knowledge','Process Knowledge'].forEach(function(cat) { %>
-                <option value="<%= cat %>"><%= cat %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="col-auto">
-            <input type="text" name="title" class="form-control form-control-sm" placeholder="Title" required style="width: 200px;">
-          </div>
-          <div class="col-auto">
-            <select name="acquisitionScope" class="form-select form-select-sm">
-              <% ['SEU','Capability','Enterprise','Platform'].forEach(function(s) { %>
-                <option value="<%= s %>"><%= s %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="col-auto">
-            <button type="submit" class="btn btn-sm btn-primary">Observe Knowledge</button>
-          </div>
-        </form>
-      </div>
-      <div class="table-responsive">
-        <table class="table table-sm mb-0 align-middle">
-          <thead class="table-light"><tr><th>Deliverable</th><th>Title</th><th>Category / Scope</th><th>Status</th><th>Transition</th><th>Promote Scope</th></tr></thead>
-          <tbody>
-            <% if (detail.knowledgeItems.length === 0) { %>
-              <tr><td colspan="6" class="text-muted small">No Knowledge Items yet.</td></tr>
-            <% } %>
-            <% detail.knowledgeItems.forEach(function(k) { %>
-              <tr>
-                <td class="small"><%= k.deliverableName %></td>
-                <td class="small"><%= k.knowledgeItem.title %></td>
-                <td class="small"><%= k.knowledgeItem.category %> &middot; <%= k.knowledgeItem.acquisition_scope %></td>
-                <td><span class="state-badge state-<%= k.knowledgeItem.status %>"><%= k.knowledgeItem.status %></span></td>
-                <td>
-                  <% if (k.possibleNextStates.length === 0) { %>
-                    <span class="text-muted small">no further transitions defined</span>
-                  <% } else { %>
-                    <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/knowledge/<%= k.knowledgeItem.id %>/transition"
-                          class="d-flex align-items-center gap-2">
-                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                      <select name="targetState" class="form-select form-select-sm" style="width: auto;">
-                        <% k.possibleNextStates.forEach(function(s) { %>
-                          <option value="<%= s %>"><%= s %></option>
-                        <% }) %>
-                      </select>
-                      <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
-                    </form>
+        <%# ---------------------------------------------------------------- Knowledge %>
+        <div class="tab-pane fade" id="seu-detail-knowledge" role="tabpanel">
+          <div class="section-card">
+            <div class="p-3 border-bottom">
+              <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/knowledge" class="row g-2 align-items-center">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <div class="col-auto">
+                  <select name="deliverableId" class="form-select form-select-sm" required>
+                    <option value="" disabled selected>Deliverable&hellip;</option>
+                    <% detail.deliverables.forEach(function(d) { %>
+                      <option value="<%= d.id %>"><%= d.name %></option>
+                    <% }) %>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <select name="evidenceId" class="form-select form-select-sm">
+                    <option value="">(no supporting Evidence)</option>
+                    <% detail.evidence.forEach(function(e) { %>
+                      <option value="<%= e.evidence.id %>"><%= e.evidence.title %></option>
+                    <% }) %>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <select name="category" class="form-select form-select-sm">
+                    <% ['Architectural Knowledge','Domain Knowledge','Technical Knowledge','Operational Knowledge','Governance Knowledge','Process Knowledge'].forEach(function(cat) { %>
+                      <option value="<%= cat %>"><%= cat %></option>
+                    <% }) %>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <input type="text" name="title" class="form-control form-control-sm" placeholder="Title" required style="width: 200px;">
+                </div>
+                <div class="col-auto">
+                  <select name="acquisitionScope" class="form-select form-select-sm">
+                    <% ['SEU','Capability','Enterprise','Platform'].forEach(function(s) { %>
+                      <option value="<%= s %>"><%= s %></option>
+                    <% }) %>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <button type="submit" class="btn btn-sm btn-primary">Observe Knowledge</button>
+                </div>
+              </form>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light"><tr><th>Deliverable</th><th>Title</th><th>Category / Scope</th><th>Status</th><th>Transition</th><th>Promote Scope</th></tr></thead>
+                <tbody>
+                  <% if (detail.knowledgeItems.length === 0) { %>
+                    <tr><td colspan="6" class="text-muted small">No Knowledge Items yet.</td></tr>
                   <% } %>
-                </td>
-                <td>
-                  <% if (k.possibleNextScopes.length === 0) { %>
-                    <span class="text-muted small"><%= k.knowledgeItem.acquisition_scope === 'Platform' ? 'already Platform' : 'no further promotion defined' %></span>
-                  <% } else { %>
-                    <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/knowledge/<%= k.knowledgeItem.id %>/promote-scope"
-                          class="d-flex align-items-center gap-2">
-                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                      <select name="targetScope" class="form-select form-select-sm" style="width: auto;">
-                        <% k.possibleNextScopes.forEach(function(s) { %>
-                          <option value="<%= s %>"><%= s %></option>
-                        <% }) %>
-                      </select>
-                      <button type="submit" class="btn btn-sm btn-outline-secondary">Promote</button>
-                    </form>
-                  <% } %>
-                </td>
-              </tr>
-            <% }) %>
-          </tbody>
-        </table>
-      </div>
-    </div>
+                  <% detail.knowledgeItems.forEach(function(k) { %>
+                    <tr>
+                      <td class="small"><%= k.deliverableName %></td>
+                      <td class="small"><%= k.knowledgeItem.title %></td>
+                      <td class="small"><%= k.knowledgeItem.category %> &middot; <%= k.knowledgeItem.acquisition_scope %></td>
+                      <td><span class="state-badge state-<%= k.knowledgeItem.status %>"><%= k.knowledgeItem.status %></span></td>
+                      <td>
+                        <% if (k.possibleNextStates.length === 0) { %>
+                          <span class="text-muted small">no further transitions defined</span>
+                        <% } else { %>
+                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/knowledge/<%= k.knowledgeItem.id %>/transition"
+                                class="d-flex align-items-center gap-2">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <select name="targetState" class="form-select form-select-sm" style="width: auto;">
+                              <% k.possibleNextStates.forEach(function(s) { %>
+                                <option value="<%= s %>"><%= s %></option>
+                              <% }) %>
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
+                          </form>
+                        <% } %>
+                      </td>
+                      <td>
+                        <% if (k.possibleNextScopes.length === 0) { %>
+                          <span class="text-muted small"><%= k.knowledgeItem.acquisition_scope === 'Platform' ? 'already Platform' : 'no further promotion defined' %></span>
+                        <% } else { %>
+                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/knowledge/<%= k.knowledgeItem.id %>/promote-scope"
+                                class="d-flex align-items-center gap-2">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <select name="targetScope" class="form-select form-select-sm" style="width: auto;">
+                              <% k.possibleNextScopes.forEach(function(s) { %>
+                                <option value="<%= s %>"><%= s %></option>
+                              <% }) %>
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">Promote</button>
+                          </form>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
 
-    <div class="section-card">
-      <div class="section-header">Decisions</div>
-      <div class="p-3 border-bottom">
-        <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/decisions" class="row g-2 align-items-center">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <div class="col-auto">
-            <select name="deliverableId" class="form-select form-select-sm" required>
-              <option value="" disabled selected>Deliverable&hellip;</option>
-              <% detail.deliverables.forEach(function(d) { %>
-                <option value="<%= d.id %>"><%= d.name %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="col-auto">
-            <select name="knowledgeId" class="form-select form-select-sm">
-              <option value="">(no supporting Knowledge)</option>
-              <% detail.knowledgeItems.forEach(function(k) { %>
-                <option value="<%= k.knowledgeItem.id %>"><%= k.knowledgeItem.title %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="col-auto">
-            <select name="category" class="form-select form-select-sm">
-              <% ['Architecture Decisions','Design Decisions','Engineering Decisions','Operational Decisions','Governance Decisions'].forEach(function(cat) { %>
-                <option value="<%= cat %>"><%= cat %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="col-auto">
-            <input type="text" name="title" class="form-control form-control-sm" placeholder="Title" required style="width: 200px;">
-          </div>
-          <div class="col-auto">
-            <input type="text" name="selectedAlternative" class="form-control form-control-sm" placeholder="Selected alternative" style="width: 180px;">
-          </div>
-          <div class="col-auto">
-            <button type="submit" class="btn btn-sm btn-primary">Identify Decision</button>
-          </div>
-        </form>
-      </div>
-      <div class="table-responsive">
-        <table class="table table-sm mb-0 align-middle">
-          <thead class="table-light"><tr><th>Deliverable</th><th>Title</th><th>Category</th><th>Status</th><th>Transition</th></tr></thead>
-          <tbody>
-            <% if (detail.decisions.length === 0) { %>
-              <tr><td colspan="5" class="text-muted small">No Decisions yet — the "Approved" &rarr; "Baselined" Quality Gate needs at least one Approved/Applied Decision or an Accepted Evidence Item.</td></tr>
-            <% } %>
-            <% detail.decisions.forEach(function(dec) { %>
-              <tr>
-                <td class="small"><%= dec.deliverableName %></td>
-                <td class="small"><%= dec.decision.title %><% if (dec.decision.selected_alternative) { %><br><span class="text-muted" style="font-size:0.72rem;">&rarr; <%= dec.decision.selected_alternative %></span><% } %></td>
-                <td class="small"><%= dec.decision.category %></td>
-                <td><span class="state-badge state-<%= dec.decision.status %>"><%= dec.decision.status %></span></td>
-                <td>
-                  <% if (dec.possibleNextStates.length === 0) { %>
-                    <span class="text-muted small">no further transitions defined</span>
-                  <% } else { %>
-                    <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/decisions/<%= dec.decision.id %>/transition"
-                          class="d-flex align-items-center gap-2">
-                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                      <select name="targetState" class="form-select form-select-sm" style="width: auto;">
-                        <% dec.possibleNextStates.forEach(function(s) { %>
-                          <option value="<%= s %>"><%= s %></option>
-                        <% }) %>
-                      </select>
-                      <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
-                    </form>
+        <%# ---------------------------------------------------------------- Command / Work Item / Dispatch %>
+        <div class="tab-pane fade" id="seu-detail-commands" role="tabpanel">
+          <div class="section-card">
+            <div class="table-responsive">
+              <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light"><tr><th>Command</th><th>Transition</th><th>Status</th><th>Work Item</th></tr></thead>
+                <tbody>
+                  <% if (detail.commands.length === 0) { %>
+                    <tr><td colspan="4" class="text-muted small">No Commands generated yet — every Deliverable transition on the Deliverables tab generates one.</td></tr>
                   <% } %>
-                </td>
-              </tr>
-            <% }) %>
-          </tbody>
-        </table>
-      </div>
-    </div>
+                  <% detail.commands.forEach(function(cmd) { %>
+                    <tr>
+                      <td class="small"><%= cmd.entityLabel %><br><span class="text-muted" style="font-size:0.72rem;"><%= cmd.commandType %></span></td>
+                      <td class="small"><%= cmd.fromState %> &rarr; <%= cmd.toState %></td>
+                      <td><span class="state-badge state-<%= cmd.status %>"><%= cmd.status %></span></td>
+                      <td class="small">
+                        <% if (cmd.workItems.length === 0) { %>
+                          <span class="text-muted">none</span>
+                        <% } else { %>
+                          <% cmd.workItems.forEach(function(wi) { %>
+                            <div>
+                              <span class="state-badge state-<%= wi.status %>"><%= wi.status %></span>
+                              <% if (wi.participantLabel) { %> &rarr; <%= wi.participantLabel %><% } %>
+                              <% if (wi.dispatchStrategy) { %> <span class="text-muted" style="font-size:0.7rem;">(<%= wi.dispatchStrategy %>)</span><% } %>
+                            </div>
+                          <% }) %>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
 
-    <div class="section-card">
-      <div class="section-header">External Interactions</div>
-      <div class="p-3 border-bottom">
-        <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/external-interactions" class="row g-2 align-items-center">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <div class="col-auto">
-            <select name="deliverableId" class="form-select form-select-sm">
-              <option value="">(not tied to a Deliverable)</option>
-              <% detail.deliverables.forEach(function(d) { %>
-                <option value="<%= d.id %>"><%= d.name %></option>
-              <% }) %>
-            </select>
-          </div>
-          <div class="col-auto">
-            <select name="direction" class="form-select form-select-sm">
-              <option value="Outbound">Outbound</option>
-              <option value="Inbound">Inbound</option>
-            </select>
-          </div>
-          <div class="col-auto">
-            <input type="text" name="interactionType" class="form-control form-control-sm" placeholder="Interaction type" required style="width: 160px;">
-          </div>
-          <div class="col-auto">
-            <input type="text" name="targetSystem" class="form-control form-control-sm" placeholder="Target system" required style="width: 160px;">
-          </div>
-          <div class="col-auto">
-            <input type="text" name="purpose" class="form-control form-control-sm" placeholder="Purpose" style="width: 200px;">
-          </div>
-          <div class="col-auto">
-            <button type="submit" class="btn btn-sm btn-primary">Record Interaction</button>
-          </div>
-        </form>
-      </div>
-      <div class="table-responsive">
-        <table class="table table-sm mb-0 align-middle">
-          <thead class="table-light"><tr><th>Deliverable</th><th>Type / Direction</th><th>Target System</th><th>Status</th><th>Transition</th></tr></thead>
-          <tbody>
-            <% if (detail.externalInteractions.length === 0) { %>
-              <tr><td colspan="5" class="text-muted small">No External Interactions recorded yet — Ch.36: a transition to "Failed" automatically raises an Attention Item.</td></tr>
-            <% } %>
-            <% detail.externalInteractions.forEach(function(ei) { %>
-              <tr>
-                <td class="small"><%= ei.deliverableName || '—' %></td>
-                <td class="small"><%= ei.interaction.interaction_type %> &middot; <%= ei.interaction.direction %></td>
-                <td class="small"><%= ei.interaction.target_system %><% if (ei.interaction.purpose) { %><br><span class="text-muted" style="font-size:0.72rem;"><%= ei.interaction.purpose %></span><% } %></td>
-                <td><span class="state-badge state-<%= ei.interaction.status.replace(/\s+/g, '-') %>"><%= ei.interaction.status %></span></td>
-                <td>
-                  <% if (ei.possibleNextStates.length === 0) { %>
-                    <span class="text-muted small">no further transitions defined</span>
-                  <% } else { %>
-                    <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/external-interactions/<%= ei.interaction.id %>/transition"
-                          class="d-flex align-items-center gap-2">
-                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                      <select name="targetState" class="form-select form-select-sm" style="width: auto;">
-                        <% ei.possibleNextStates.forEach(function(s) { %>
-                          <option value="<%= s %>"><%= s %></option>
-                        <% }) %>
-                      </select>
-                      <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
-                    </form>
+        <%# ---------------------------------------------------------------- External Interactions %>
+        <div class="tab-pane fade" id="seu-detail-external-interactions" role="tabpanel">
+          <div class="section-card">
+            <div class="p-3 border-bottom">
+              <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/external-interactions" class="row g-2 align-items-center">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <div class="col-auto">
+                  <select name="deliverableId" class="form-select form-select-sm">
+                    <option value="">(not tied to a Deliverable)</option>
+                    <% detail.deliverables.forEach(function(d) { %>
+                      <option value="<%= d.id %>"><%= d.name %></option>
+                    <% }) %>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <select name="direction" class="form-select form-select-sm">
+                    <option value="Outbound">Outbound</option>
+                    <option value="Inbound">Inbound</option>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <input type="text" name="interactionType" class="form-control form-control-sm" placeholder="Interaction type" required style="width: 160px;">
+                </div>
+                <div class="col-auto">
+                  <input type="text" name="targetSystem" class="form-control form-control-sm" placeholder="Target system" required style="width: 160px;">
+                </div>
+                <div class="col-auto">
+                  <input type="text" name="purpose" class="form-control form-control-sm" placeholder="Purpose" style="width: 200px;">
+                </div>
+                <div class="col-auto">
+                  <button type="submit" class="btn btn-sm btn-primary">Record Interaction</button>
+                </div>
+              </form>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light"><tr><th>Deliverable</th><th>Type / Direction</th><th>Target System</th><th>Status</th><th>Transition</th></tr></thead>
+                <tbody>
+                  <% if (detail.externalInteractions.length === 0) { %>
+                    <tr><td colspan="5" class="text-muted small">No External Interactions recorded yet — Ch.36: a transition to "Failed" automatically raises an Attention Item.</td></tr>
                   <% } %>
-                </td>
-              </tr>
-            <% }) %>
-          </tbody>
-        </table>
-      </div>
-    </div>
+                  <% detail.externalInteractions.forEach(function(ei) { %>
+                    <tr>
+                      <td class="small"><%= ei.deliverableName || '—' %></td>
+                      <td class="small"><%= ei.interaction.interaction_type %> &middot; <%= ei.interaction.direction %></td>
+                      <td class="small"><%= ei.interaction.target_system %><% if (ei.interaction.purpose) { %><br><span class="text-muted" style="font-size:0.72rem;"><%= ei.interaction.purpose %></span><% } %></td>
+                      <td><span class="state-badge state-<%= ei.interaction.status.replace(/\s+/g, '-') %>"><%= ei.interaction.status %></span></td>
+                      <td>
+                        <% if (ei.possibleNextStates.length === 0) { %>
+                          <span class="text-muted small">no further transitions defined</span>
+                        <% } else { %>
+                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/external-interactions/<%= ei.interaction.id %>/transition"
+                                class="d-flex align-items-center gap-2">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <select name="targetState" class="form-select form-select-sm" style="width: auto;">
+                              <% ei.possibleNextStates.forEach(function(s) { %>
+                                <option value="<%= s %>"><%= s %></option>
+                              <% }) %>
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
+                          </form>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
 
-    <div class="section-card">
-      <div class="section-header">Events</div>
-      <div class="table-responsive">
-        <table class="table table-sm mb-0">
-          <thead class="table-light"><tr><th>Type</th><th>Object</th><th>When</th></tr></thead>
-          <tbody>
-            <% detail.events.forEach(function(e) { %>
-              <tr>
-                <td class="small"><code><%= e.event_type %></code></td>
-                <td class="small text-muted"><%= e.originating_object_type %></td>
-                <td class="small text-muted"><%= new Date(e.occurred_at).toLocaleString() %></td>
-              </tr>
-            <% }) %>
-          </tbody>
-        </table>
+        <%# ---------------------------------------------------------------- Events %>
+        <div class="tab-pane fade" id="seu-detail-events" role="tabpanel">
+          <div class="section-card">
+            <div class="table-responsive">
+              <table class="table table-sm mb-0">
+                <thead class="table-light"><tr><th>Type</th><th>Object</th><th>When</th></tr></thead>
+                <tbody>
+                  <% detail.events.forEach(function(e) { %>
+                    <tr>
+                      <td class="small"><code><%= e.event_type %></code></td>
+                      <td class="small text-muted"><%= e.originating_object_type %></td>
+                      <td class="small text-muted"><%= new Date(e.occurred_at).toLocaleString() %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </main>

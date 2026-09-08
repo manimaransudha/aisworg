@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+</head>
+<body>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <%# design/mvp-build-plan/SEU Composition.md, 2026-09-07 — split out of
+       validate.ejs (owner: "That was supposed to only show the liveness of
+       the information... is n't it that decoupling is also going to need
+       new pages"). This page is Compose EBM's own output only — the real
+       unravelComposition/detectCompositionConflicts result, persisted to
+       seus.composition_report (migration 180) by the manual "Compose"
+       button below (POST .../compose-ebm) — never Validate Request's own
+       liveness output, which stays on validate.ejs. %>
+  <main class="container py-5" style="max-width: 900px;">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <h2 class="h3 mb-1 text-dark fw-bold">Compose EBM</h2>
+    <p class="text-muted small mb-4">What composing this SEU's Template/Profile together produces.</p>
+
+    <%# design/mvp-build-plan/SEU Composition.md, 2026-09-07 — owner: "handler
+         have to check for the manual transition definition" — Compose EBM is
+         a manual transition; nothing runs it automatically off
+         CommissionValidated any more (ebmComposerHandler's own subscription
+         is gone). A human has to click this. %>
+    <% if (locals.pending) { %>
+      <div class="section-card">
+        <div class="p-3 text-center">
+          <p class="text-muted small mb-3">Validate Request passed. Nothing has been composed yet.</p>
+          <form method="POST" action="/aisworg/seu/objectives/<%= objectiveId %>/compose-ebm">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <% (typeof selections !== 'undefined' ? selections : []).forEach(function(s) { %>
+              <input type="hidden" name="templateProfile" value="<%= s.templateId %>|<%= s.profileId || '' %>">
+            <% }) %>
+            <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-play-fill me-1"></i>Compose</button>
+          </form>
+        </div>
+      </div>
+    <% } %>
+
+    <% var report = compositionReport; %>
+    <% var resolved = (typeof resolvedParameterOverrides !== 'undefined' && resolvedParameterOverrides) ? resolvedParameterOverrides : {}; %>
+    <% var profileDetails = (typeof locals.profileDetails !== 'undefined' && locals.profileDetails) ? locals.profileDetails : []; %>
+    <% var pool = (typeof locals.unraveled !== 'undefined' && locals.unraveled && locals.unraveled.pool) ? locals.unraveled.pool : []; %>
+    <% var compositionConflicts = (typeof locals.compositionConflicts !== 'undefined' && locals.compositionConflicts) ? locals.compositionConflicts : []; %>
+    <% var resolvedCompositionConflicts = (typeof locals.resolvedCompositionConflicts !== 'undefined' && locals.resolvedCompositionConflicts) ? locals.resolvedCompositionConflicts : {}; %>
+    <% var isReady = !compositionConflicts.length; %>
+    <% var conflictingPropertyNames = compositionConflicts.map(function(c) { return c.propertyName; }); %>
+    <% function poolEntryHasConflict(propertyName) {
+         return conflictingPropertyNames.some(function(cp) { return cp === propertyName || cp.indexOf(propertyName + '.') === 0 || cp.indexOf(propertyName + '[') === 0; });
+       } %>
+    <% var cleanPool = pool.filter(function(entry) { return !poolEntryHasConflict(entry.propertyName); }); %>
+    <% function sourceLabel(source) { return (source.kind === 'pack' ? 'Pack ' : source.kind === 'template' ? 'Template ' : 'Profile ') + source.label; } %>
+    <% function formatPoolValue(value) {
+         if (value === null || value === undefined) return '—';
+         if (typeof value === 'object') return JSON.stringify(value);
+         return String(value);
+       } %>
+    <% var COMPOSITION_STRATEGIES = [
+         { code: 'supplement', label: 'Supplement — keep one side\'s value' },
+         { code: 'override', label: 'Override — replace with one side\'s value' },
+         { code: 'alias', label: 'Alias — treat one side as equivalent' },
+         { code: 'union', label: 'Union' },
+         { code: 'intersection', label: 'Intersection' },
+       ]; %>
+
+    <% function humanizeDetailKey(key) { return key.replace(/([A-Z])/g, ' $1').replace(/^./, function(s) { return s.toUpperCase(); }); } %>
+    <% function formatDetailValue(key, value) {
+         if (key === 'exposedParameterOverrides' && Array.isArray(value)) {
+           return value.map(function(o) { return o.sourceType + ' "' + o.sourceCode + '" — ' + o.parameterName + ': ' + o.value; }).join('; ');
+         }
+         if (Array.isArray(value)) {
+           return value.map(function(v) { return (typeof v === 'object' && v !== null) ? JSON.stringify(v) : String(v); }).join(', ');
+         }
+         if (typeof value === 'object' && value !== null) {
+           return Object.entries(value).map(function(e) { return e[0] + ': ' + (typeof e[1] === 'object' ? JSON.stringify(e[1]) : e[1]); }).join(', ');
+         }
+         return String(value);
+       } %>
+
+    <%# Bug fix (owner: "in addition to the Compose button, the
+         Composition — everything this selection resolves to, success flash
+         etc are visible by default") — isReady is derived purely from
+         compositionConflicts.length === 0, which is ALSO true on a genuinely
+         blank pending page (nothing composed yet means zero conflicts too,
+         not because it succeeded). Every results card below (profile
+         details, the resolved pool, warnings, the conflicts-resolution
+         form, and the isReady success alert) now only renders once there's
+         real content to show — i.e. NOT pending. %>
+    <% if (!locals.pending) { %>
+    <% profileDetails.forEach(function(pd) { %>
+      <div class="section-card">
+        <div class="section-header"><i class="bi bi-person-badge me-1"></i><%= pd.profileName %> <code class="text-muted small"><%= pd.profileCode %></code></div>
+        <% var keys = Object.keys(pd.fields); %>
+        <% if (!keys.length) { %>
+          <div class="p-3 text-muted small">No content set on this Profile beyond its identity.</div>
+        <% } else { %>
+          <div class="pt-2">
+            <% keys.forEach(function(key) { %>
+              <div class="component-row">
+                <div class="component-name"><%= humanizeDetailKey(key) %></div>
+                <div class="component-note"><%= formatDetailValue(key, pd.fields[key]) %></div>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+        <div class="component-row">
+          <div class="component-name">Effective Parameters (Template default, or Profile override where set)</div>
+          <% if (!pd.effectiveParameters.length) { %>
+            <div class="component-note">None — this Profile's base Template does not currently expose any parameter.</div>
+          <% } else { %>
+            <% pd.effectiveParameters.forEach(function(p) { %>
+              <div class="component-note">
+                <%= p.sourceType %> "<%= p.sourceCode %>" — <%= p.parameterName %>: <span class="fw-semibold"><%= p.effectiveValue %></span>
+                <%= p.overriddenByProfile ? '(overridden by this Profile)' : '(Template default)' %>
+              </div>
+            <% }) %>
+          <% } %>
+        </div>
+      </div>
+    <% }) %>
+
+    <div class="section-card">
+      <div class="section-header"><i class="bi bi-diagram-3 me-1"></i>Composition — everything this selection resolves to</div>
+      <% if (!cleanPool.length) { %>
+        <div class="p-3 text-muted small">Nothing resolved yet.</div>
+      <% } else { %>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead><tr><th class="small text-muted">Property</th><th class="small text-muted">Value</th><th class="small text-muted">Source</th></tr></thead>
+            <tbody>
+              <% cleanPool.forEach(function(entry) { %>
+                <tr>
+                  <td class="small text-nowrap"><code><%= entry.propertyName %></code></td>
+                  <td class="small"><%= formatPoolValue(entry.value) %></td>
+                  <td class="small text-nowrap text-muted"><%= sourceLabel(entry.source) %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+
+    <% if (report.warnings && report.warnings.length) { %>
+      <div class="alert alert-warning">
+        <div class="fw-semibold mb-1"><i class="bi bi-exclamation-triangle me-1"></i>Warnings (non-blocking)</div>
+        <ul class="small mb-0 ps-3">
+          <% report.warnings.forEach(function(w) { %><li><%= w %></li><% }) %>
+        </ul>
+      </div>
+    <% } %>
+
+    <% if (compositionConflicts.length) { %>
+      <div class="section-card">
+        <div class="section-header"><i class="bi bi-exclamation-diamond me-1"></i>Composition conflicts — properties two or more sources disagree on</div>
+        <form method="POST" action="/aisworg/seu/objectives/<%= objectiveId %>/compose-ebm">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <% selections.forEach(function(s) { %>
+            <input type="hidden" name="templateProfile" value="<%= s.templateId %>|<%= s.profileId || '' %>">
+          <% }) %>
+          <% Object.keys(resolved).forEach(function(key) { %>
+            <input type="hidden" name="resolution[<%= key %>]" value="<%= resolved[key] %>">
+          <% }) %>
+          <% Object.keys(resolvedCompositionConflicts).forEach(function(key) { %>
+            <input type="hidden" name="compositionResolution[<%= key %>]" value="<%= JSON.stringify(resolvedCompositionConflicts[key]) %>">
+          <% }) %>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead><tr><th class="small text-muted">Property</th><th class="small text-muted">Source(s) &amp; values</th><th class="small text-muted">Action</th></tr></thead>
+              <tbody>
+                <% compositionConflicts.forEach(function(conflict, i) { %>
+                  <tr>
+                    <td class="small text-nowrap"><code><%= conflict.propertyName %></code></td>
+                    <td class="small">
+                      <% if (conflict.hasAction) { %>
+                        <% conflict.options.forEach(function(opt, j) { %>
+                          <div class="d-flex align-items-center gap-2 mb-1">
+                            <input class="form-check-input mt-0" type="checkbox" name="compositionSourceChecked[<%= conflict.propertyName %>][]" id="csc-<%= i %>-<%= j %>" value="<%= opt.source.id %>">
+                            <input class="form-check-input mt-0" type="radio" name="compositionSourceBase[<%= conflict.propertyName %>]" id="csb-<%= i %>-<%= j %>" value="<%= opt.source.id %>">
+                            <label class="small mb-0" for="csc-<%= i %>-<%= j %>"><%= sourceLabel(opt.source) %>: <span class="fw-semibold"><%= formatPoolValue(opt.value) %></span></label>
+                          </div>
+                        <% }) %>
+                        <div class="text-muted" style="font-size: 0.75rem;">Checkbox = include in the operation. Radio = base/chosen source (needed for Supplement/Override/Alias/Specialization).</div>
+                      <% } else { %>
+                        <% conflict.options.forEach(function(opt) { %>
+                          <div><%= sourceLabel(opt.source) %>: <span class="fw-semibold"><%= formatPoolValue(opt.value) %></span></div>
+                        <% }) %>
+                      <% } %>
+                    </td>
+                    <td class="small">
+                      <% if (conflict.hasAction) { %>
+                        <select name="compositionStrategy[<%= conflict.propertyName %>]" class="form-select form-select-sm" style="max-width: 14rem;">
+                          <option value="">— choose a strategy —</option>
+                          <% COMPOSITION_STRATEGIES.forEach(function(s) { %>
+                            <option value="<%= s.code %>"><%= s.label %></option>
+                          <% }) %>
+                        </select>
+                      <% } else { %>
+                        <span class="text-muted">No action — adjust the Pack selection instead.</span>
+                      <% } %>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+          <div class="p-3 border-top" style="border-color: var(--border) !important;">
+            <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Apply &amp; re-validate</button>
+            <a href="/aisworg/seu/seus/new?objectiveId=<%= objectiveId %>" class="btn btn-link text-muted btn-sm">Back to selection</a>
+          </div>
+        </form>
+      </div>
+    <% } %>
+
+    <% if (!isReady) { %>
+      <a href="/aisworg/seu/seus/new?objectiveId=<%= objectiveId %>" class="btn btn-outline-secondary btn-sm">Back to selection</a>
+    <% } %>
+
+    <% if (isReady) { %>
+      <% var composedPacks = (typeof locals.composedPacks !== 'undefined' && locals.composedPacks) ? locals.composedPacks : []; %>
+      <% var resolvedKeys = Object.keys(resolved); %>
+      <div class="alert alert-success">
+        <i class="bi bi-check-circle me-1"></i>No conflicts — <%= locals.ebmComposed ? 'the EBM has been composed.' : 'composing…' %>
+      </div>
+
+      <% if (resolvedKeys.length) { %>
+        <div class="section-card">
+          <div class="section-header"><i class="bi bi-check2-square me-1"></i>Parameter conflicts resolved</div>
+          <div class="pt-2">
+            <% resolvedKeys.forEach(function(key) { %>
+              <% var parts = key.split('::'); %>
+              <div class="component-row">
+                <div class="component-name"><%= parts[0] %> "<%= parts[1] %>" — parameter "<%= parts[2] %>"</div>
+                <div class="component-note">Resolved value: <span class="fw-semibold"><%= resolved[key] %></span></div>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
+
+      <% var resolvedCompositionKeys = Object.keys(resolvedCompositionConflicts); %>
+      <% if (resolvedCompositionKeys.length) { %>
+        <div class="section-card">
+          <div class="section-header"><i class="bi bi-check2-square me-1"></i>Composition conflicts resolved</div>
+          <div class="pt-2">
+            <% resolvedCompositionKeys.forEach(function(key) { %>
+              <div class="component-row">
+                <div class="component-name"><code><%= key %></code></div>
+                <div class="component-note">Resolved value: <span class="fw-semibold"><%= formatPoolValue(resolvedCompositionConflicts[key]) %></span></div>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
+
+      <% if (composedPacks.length) { %>
+        <div class="section-card">
+          <div class="section-header"><i class="bi bi-boxes me-1"></i>Packs this selection composes</div>
+          <div class="pt-2">
+            <% composedPacks.forEach(function(p) { %>
+              <div class="component-row d-flex align-items-center justify-content-between gap-2">
+                <span class="component-name"><%= p.packCode %></span>
+                <span class="version-badge"><%= p.packVersion %></span>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
+
+      <% if (locals.seuId) { %>
+        <a href="/aisworg/seu/seus/<%= seuId %>" class="btn btn-outline-secondary btn-sm">View SEU</a>
+      <% } %>
+    <% } %>
+    <% } %>
+
+    <p class="mt-4"><a href="/aisworg/seu/objectives/<%= objectiveId %>" class="text-muted small">Cancel — back to Objective</a></p>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

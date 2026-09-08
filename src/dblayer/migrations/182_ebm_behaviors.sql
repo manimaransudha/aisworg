@@ -1,0 +1,13 @@
+-- design/mvp-build-plan/SEU Composition.md, 2026-09-07 — owner: "the ebm
+-- should carry this [Chapter 3 §7's Behaviour Categories] . that is what
+-- drives the behavior. that is the reason why conflicts are resolved."
+--
+-- Before this: ebms.composed_packs was only a Pack-code/version list, never
+-- the actual resolved content (Capabilities, Services, Policies, Quality
+-- Gates, Authority Rules, etc.) those Packs composed to, and a resolved
+-- conflict (applyConflictStrategy, seus.composition_report) was never
+-- persisted anywhere past the preview. behaviors carries both: the full
+-- flat pool unravelComposition already computes (everything that composed,
+-- unravelled), and the resolvedCompositionConflicts map recording what each
+-- conflict actually resolved to.
+ALTER TABLE ebms ADD COLUMN IF NOT EXISTS behaviors JSONB;

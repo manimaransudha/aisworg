@@ -1,11 +1,10 @@
 import { createViewModel } from "../utils/viewModel.js";
 
-// CR-092 Part 6 — the "Queue to validate" report page (owner: "The
-// validation view/form is what should show all the conflicting packs /
-// parameters / instructions"). objectiveId/selections/compositionReport are
-// always set by the GET route (stashed by the validate-commission POST,
-// core/web/objectives.ts) before this view ever renders.
+// design/mvp-build-plan/SEU Composition.md, 2026-09-07 — Validate Request's
+// own liveness output only (owner: "That was supposed to only show the
+// liveness of the information"); Compose EBM's own output moved to
+// seu_seus_compose.js/compose.ejs.
 export const seu_seus_validateVM = createViewModel({
-  required: ["title", "objectiveId", "selections", "compositionReport"],
-  optional: ["flash"]
+  required: ["title", "objectiveId", "seu"],
+  optional: ["flash", "pending", "failed", "failureReason", "passed"]
 });

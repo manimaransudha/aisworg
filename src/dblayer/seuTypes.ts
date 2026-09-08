@@ -574,7 +574,11 @@ export interface ProfileRow {
   created_at: string;
 }
 
-export type EbmStatus = "Composed" | "Active" | "Superseded";
+// 'Validated' (migration 178) — Chapter 8's own "Validate Engineering Model"
+// step, distinct from Composed/Active: a human confirms the composed EBM
+// (EBMValidated) before a separate, later action activates it (EBMActivated,
+// EBMStatus -> 'Active'). See design/mvp-build-plan/SEU Composition.md.
+export type EbmStatus = "Composed" | "Validated" | "Active" | "Superseded" | "Retired";
 
 export interface EbmComposedPack {
   packId: string;
@@ -629,9 +633,23 @@ export interface EbmRow {
   composition_report: EbmCompositionReport;
   status: EbmStatus;
   version: number;
+  // migration 182 — the actual resolved behavioural content (Chapter 3 §7's
+  // own Behaviour Categories), not just which Packs composed. {pool: the
+  // full flat pool unravelComposition computed, resolvedCompositionConflicts:
+  // what each conflict actually resolved to} — loosely typed here for the
+  // same reason seus.composition_report is (dblayer has no business
+  // importing domain/engine's PoolEntry shape).
+  behaviors: Record<string, unknown> | null;
   created_at: string;
 }
 
+// 'Failed' (migration 177) — a commissioning attempt that died during
+// "Validate Request" or "Compose EBM", before ever reaching Commissioned.
+// Distinct from 'Retired' (reached only from Operational, after a full
+// successful run) — never reused for an early failure. Excluded from the
+// "at most one active SEU per Objective" uniqueness check (migration 179),
+// same as 'Retired'/'Archived' — see design/mvp-build-plan/SEU Composition.md,
+// "Retry after a failed commission".
 export type SeuLifecycleState =
   | "Pending"
   | "Commissioned"
@@ -640,7 +658,8 @@ export type SeuLifecycleState =
   | "Operational"
   | "Suspended"
   | "Retired"
-  | "Archived";
+  | "Archived"
+  | "Failed";
 
 export interface CommissioningReport {
   // CR-092 Part 6 — templateCode/profileCode stay the single "primary"
@@ -664,6 +683,16 @@ export interface SeuRow {
   lifecycle_state: SeuLifecycleState;
   requested_by: number | null;
   commissioning_report: CommissioningReport | Record<string, never>;
+  // migration 180 — Compose EBM's own real output (unravelComposition/
+  // detectCompositionConflicts), written by ebmComposerHandler and by
+  // "Apply & re-validate" — never Validate Request's own output. Named for
+  // what it is (owner: "why are you using the word validate and compose in
+  // the same sense? Have i not told you multiple times they are not the
+  // same"), matching ebms.composition_report at the SEU level. Loosely typed
+  // here (dblayer has no business importing domain/engine's
+  // UnraveledComposition/CompositionConflict shapes) — the caller casts to
+  // the real shape it expects.
+  composition_report: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -819,7 +848,13 @@ export type TransitionEntityType =
   // lifecycle (Draft -> Validated -> Published -> Active -> Deprecated ->
   // Retired -> Archived) verbatim, entity-direct authoring same as
   // Template/Profile/Service above.
-  | "Policy";
+  | "Policy"
+  // design/mvp-build-plan/SEU Composition.md — the EBM's own Composed ->
+  // Validated -> Active transitions (Chapter 3's own EBMValidated/
+  // EBMActivated), two separate, independently human-triggered actions, not
+  // a cascade. entity_type's own DB CHECK constraint was already dropped
+  // (migration 036) — this is a TS-side addition only, no migration needed.
+  | "EBM";
 
 export interface TransitionDefinitionRow {
   id: string;

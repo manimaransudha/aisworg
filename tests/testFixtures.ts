@@ -89,7 +89,11 @@ import { packsDB } from "../src/dblayer/packsDB.js";
 import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { seedAllTestFixturePacks } from "../src/dblayer/seed/seedTestFixturePacks.js";
 import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
-import type { DeliverableRow, ProfileRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../src/dblayer/seuTypes.js";
+import { commissionFromForm, transitionEbm, previewCommissioningValidation } from "../src/routes/seu/core/commissioning.js";
+import { eventsDB } from "../src/dblayer/eventsDB.js";
+import { seusDB } from "../src/dblayer/seusDB.js";
+import { eventBus } from "../src/domain/engine/eventBus.js";
+import type { DeliverableRow, EventRow, ProfileRow, SeuRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../src/dblayer/seuTypes.js";
 
 // Test-only Pack twins (migration 119 / seedTestFixturePacks.ts) — every real
 // seed Pack mirrored under a `test-` prefixed code. NOT used by
@@ -207,6 +211,178 @@ export async function transitionDeliverableSync(input: {
     throw new Error(`test transitionDeliverableSync: completion failed: ${completed.ok ? completed.outcome : completed.detail}`);
   }
   return { ok: true, deliverable: completed.deliverable, appliedTransition: completed.appliedTransition };
+}
+
+// design/mvp-build-plan/SEU Composition.md — commissionSeu now only gets
+// through the shallow "Validate Request" gate; Compose EBM runs
+// asynchronously off the CommissionValidated event it publishes (the EBM
+// Composer, src/domain/engine/ebmComposer.ts), and reaching a real,
+// Operational SEU needs two further, separate human actions (Validate,
+// Activate) on top of that. Same idiom as transitionDeliverableSync above:
+// most tests care about the OUTCOME of commissioning, not these new async/
+// manual mechanics, so this drives the whole thing through in one call.
+//
+// Bug fix, found from a real test run (output.txt): this used to call
+// ebmComposerHandler directly for "deterministic completion." That's wrong —
+// CommissionValidated has a REAL subscription (eventSubscriptions.json,
+// "ebmComposer"), so commissionSeu's own eventBus.publish call already
+// dispatches the real handler in the background (fire-and-forget,
+// eventBus.ts's own dispatch(...).catch(...), never awaited by publish()).
+// Calling the handler again here ran it TWICE per commission — racing with
+// the real dispatch, sometimes finishing after a test file's own
+// after(() => pool.end()) already closed the pool ("Cannot use a pool after
+// calling end on the pool", seen throughout output.txt). Same root cause
+// tenant-contract.test.ts's own waitUntil comment already names: "dispatch
+// is fire-and-forget... anything waiting on a handler's side effect must
+// poll rather than assume it's done synchronously." Polling for the real
+// dispatch's own result — never invoking the handler a second time — is the
+// fix, matching that exact, already-established pattern.
+export type DriveCommissioningResult = { ok: true; seu: SeuRow } | { ok: false; stage: string; reason: string; seuId?: string };
+
+export async function waitUntilAsync(condition: () => Promise<boolean>, timeoutMs = 5000, intervalMs = 25): Promise<void> {
+  const start = Date.now();
+  while (!(await condition())) {
+    if (Date.now() - start > timeoutMs) return; // let the caller's own check report the failure
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+}
+
+// Bug fix, found from a real test run: "Compose EBM did not complete in
+// time" on files that never call this. eventBus.loadSubscriptions() reads
+// event_subscriptions into an in-memory map once per process
+// (eventBus.ts) — until it's called, subscribersByEventType is empty, so
+// commissionSeu's own eventBus.publish("CommissionValidated") finds zero
+// handlers and never dispatches the real EBM Composer at all (not a race —
+// it simply never runs). tenant-contract.test.ts happened to already call
+// this itself; nothing else did. Must run before the FIRST commissionSeu/
+// commissionFromForm call in a given test file — calling it only inside
+// driveCommissioningToActive would be too late for that file's own first
+// commission (the event is already published with zero handlers by then).
+// Memoized like ensureTestFixturePacks above; safe/cheap to call repeatedly.
+let subscriptionsLoaded: Promise<void> | null = null;
+export function ensureEventSubscriptionsLoaded(): Promise<void> {
+  if (!subscriptionsLoaded) subscriptionsLoaded = eventBus.loadSubscriptions();
+  return subscriptionsLoaded;
+}
+
+export async function driveCommissioningToActive(input: { seuId: string; actorRole: string; actorId?: string }): Promise<DriveCommissioningResult> {
+  await ensureEventSubscriptionsLoaded();
+
+  // design/mvp-build-plan/SEU Composition.md, 2026-09-07 — Validate Request
+  // itself is now async too (validateRequestHandler, off CommissionRequested,
+  // triggered by commissionSeu's own publish which already returned by the
+  // time this runs) — this used to be a synchronous check because
+  // commissionSeu published CommissionValidated inline before returning;
+  // now it has to poll, same as the Compose EBM wait below.
+  let requestValidatedOrFailed: EventRow | undefined;
+  await waitUntilAsync(async () => {
+    const { data: events } = await eventsDB.findByOriginatingObject("SEU", input.seuId);
+    requestValidatedOrFailed = (events ?? []).find((e) => e.event_type === "CommissionValidated" || e.event_type === "CommissionFailed");
+    return !!requestValidatedOrFailed;
+  });
+  if (!requestValidatedOrFailed || requestValidatedOrFailed.event_type === "CommissionFailed") {
+    const payload = requestValidatedOrFailed?.payload as { reason?: string; references?: string[] } | undefined;
+    const reason = payload?.references?.length ? `${payload.reason}: ${payload.references.join("; ")}` : (payload?.reason ?? "no CommissionValidated event found for this SEU — validateRequestHandler must not have run (or failed)");
+    return { ok: false, stage: "validate_request", reason, seuId: input.seuId };
+  }
+
+  // design/mvp-build-plan/SEU Composition.md, 2026-09-07 — Compose EBM is a
+  // manual transition now (owner: "handler have to check for the manual
+  // transition definition"); ebmComposerHandler's own automatic subscription
+  // to CommissionValidated is gone. Nothing runs Compose EBM unless a human
+  // (or, here, this fixture) clicks it — mirrors the real "Compose" button's
+  // own POST .../compose-ebm zero-conflict path (web/objectives.ts) exactly:
+  // previewCommissioningValidation, setCompositionReport, and — since this
+  // fixture's own callers always expect a clean commission, no conflicts —
+  // publish CompositionCompleted directly, same as that route does.
+  let seuForCompose: SeuRow | null = null;
+  {
+    const { data: seu } = await seusDB.findById(input.seuId);
+    seuForCompose = seu ?? null;
+  }
+  if (!seuForCompose) return { ok: false, stage: "compose_ebm", reason: "SEU not found before Compose EBM", seuId: input.seuId };
+  const composeViewerTenantId = seuForCompose.tenant_id ?? PLATFORM_TENANT_ID;
+  const { compositionReport, composedPacks, profileDetails, unraveled, compositionConflicts } = await previewCommissioningValidation({
+    selections: [{ templateId: seuForCompose.template_id, profileId: seuForCompose.profile_id }],
+    viewerTenantId: composeViewerTenantId,
+  });
+  await seusDB.setCompositionReport(input.seuId, {
+    selections: [{ templateId: seuForCompose.template_id, profileId: seuForCompose.profile_id }],
+    compositionReport, composedPacks, profileDetails, unraveled, compositionConflicts, resolvedCompositionConflicts: {},
+  });
+  if (compositionConflicts.length > 0) {
+    return { ok: false, stage: "compose_ebm", reason: compositionConflicts.map((c) => c.propertyName).join(" | "), seuId: input.seuId };
+  }
+  await eventBus.publish({
+    eventType: "CompositionCompleted",
+    originatingObjectType: "SEU",
+    originatingObjectId: input.seuId,
+    seuId: input.seuId,
+    correlationId: eventBus.newCorrelationId(),
+    payload: { seuId: input.seuId },
+    actorId: input.actorId ?? null,
+  });
+
+  // Wait for the REAL, already-dispatched compositionCompletedHandler to
+  // finish — either the SEU picks up an active_ebm_id (success) or a
+  // CommissionFailed event lands for it (an ebmsDB.create() error) — never
+  // invoke the handler ourselves.
+  let seuAfterCompose: SeuRow | null = null;
+  let failedEvent: EventRow | undefined;
+  await waitUntilAsync(async () => {
+    const { data: seu } = await seusDB.findById(input.seuId);
+    seuAfterCompose = seu ?? null;
+    if (seu?.active_ebm_id) return true;
+    const { data: eventsAfter } = await eventsDB.findByOriginatingObject("SEU", input.seuId);
+    failedEvent = (eventsAfter ?? []).find((e) => e.event_type === "CommissionFailed");
+    return !!failedEvent;
+  });
+
+  if (!seuAfterCompose?.active_ebm_id) {
+    const payload = failedEvent?.payload as { conflicts?: string[]; reason?: string } | undefined;
+    const reason = payload?.conflicts?.join(" | ") ?? payload?.reason ?? "Compose EBM did not complete in time";
+    return { ok: false, stage: "compose_ebm", reason, seuId: input.seuId };
+  }
+
+  // design/mvp-build-plan/SEU Composition.md, 2026-09-07 — "Validate" and
+  // "Activate" are two separate, independently human-triggered transitions
+  // on the EBM (owner: "Validate and Activate are 2 separate events. I can
+  // validate an EBM and not yet activate it"), same shape as the SEU detail
+  // page's own real "Apply" form (detail.ejs) — no async handler subscribed
+  // to either event any more (ebmVersioningHandler/seuActivationHandler/
+  // createEngineeringAssetsHandler deleted: "Subscription to an event and
+  // manual trigger of transition definition are 2 different things"). Both
+  // calls are synchronous now — transitionEbm's own Active branch runs
+  // finalizeCommissioning inline (Configured -> Commissioned -> Activated,
+  // Create Engineering Assets, Activated -> Operational), so its own return
+  // value is the real, authoritative outcome — nothing left to poll for.
+  const validateResult = await transitionEbm({ ebmId: seuAfterCompose.active_ebm_id, targetState: "Validated", actorRole: input.actorRole, actorId: input.actorId });
+  if (!validateResult.ok) {
+    return { ok: false, stage: "validate_engineering_model", reason: validateResult.reason === "not_found" ? "EBM not found" : validateResult.detail, seuId: input.seuId };
+  }
+
+  const activateResult = await transitionEbm({ ebmId: seuAfterCompose.active_ebm_id, targetState: "Active", actorRole: input.actorRole, actorId: input.actorId });
+  if (!activateResult.ok) {
+    return { ok: false, stage: "activate", reason: activateResult.reason === "not_found" ? "EBM not found" : activateResult.detail, seuId: input.seuId };
+  }
+
+  const { data: finalSeu } = await seusDB.findById(input.seuId);
+  if (!finalSeu || finalSeu.lifecycle_state !== "Operational") {
+    return { ok: false, stage: "activate", reason: `expected Operational after Activate, got ${finalSeu?.lifecycle_state ?? "SEU not found"}`, seuId: input.seuId };
+  }
+  return { ok: true, seu: finalSeu };
+}
+
+// Drop-in replacement for the old, fully-synchronous commissionFromForm
+// contract — the ~25 test files that use it purely as a "get me a working
+// SEU" fixture (not to test commissioning's own mechanics) should call this
+// instead. commissionFromForm itself now only gets through the shallow gate
+// (see its own header comment); this drives the rest through.
+export async function commissionFromFormSync(input: Parameters<typeof commissionFromForm>[0]): Promise<DriveCommissioningResult> {
+  await ensureEventSubscriptionsLoaded();
+  const requested = await commissionFromForm(input);
+  if (!requested.ok) return requested;
+  return driveCommissioningToActive({ seuId: requested.seu.id, actorRole: input.actorRole, actorId: input.actorId });
 }
 
 let cached: Promise<{ template: TemplateRow; profile: ProfileRow }> | null = null;

@@ -27,6 +27,7 @@ Claude agents should not update this.
 
 - Objective registry. *[Remarks: the registry is not named as such, but objectives are listed and can be navigated through. At a tenant level this should become an engineering capital asset]*
 
+Objective page - Buttons in a single column - layout is clumsy
 
 ## Chapter 5 - Pack
 

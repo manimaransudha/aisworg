@@ -85,7 +85,17 @@ import { seedAllTabsPackFixture } from "./seedAllTabsPackFixture.js";
 // CR-026 inheritance parent in sdk-authoring.test.ts) has no free real code
 // to borrow. Same `test-<code>` treatment capability-name already gets above
 // for every test-fixture Pack twin.
-const TEMPLATE_CATEGORY_TEST_CONCEPTS: Array<[code: string, label: string]> = [["test-enterprise-web-application", "Test: Web Application"]];
+const TEMPLATE_CATEGORY_TEST_CONCEPTS: Array<[code: string, label: string]> = [
+  ["test-enterprise-web-application", "Test: Web Application"],
+  // design/mvp-build-plan/SEU Composition.md — dedicated to
+  // cr088-filter-shaped-overrides.test.ts's own publishTemplate coverage for
+  // the "Template should have persisted all the applicable service levels"
+  // fix (materialisePackSelectionsAndCapabilities now materialises a
+  // non-sparse exposedParameters set) — its own code, not sharing
+  // test-enterprise-web-application (that one's a memoized, widely-reused
+  // fixture elsewhere — testFixtures.ts's ensureWebAppTemplateFixture).
+  ["test-cr088-publish-template", "Test: CR-088 publishTemplate Fixture"],
+];
 
 // CR-079 step (a) — the six new category-scoped Pack-identity concept types
 // (migration 132), mirrored here the same way capability-name's own Pack
@@ -184,6 +194,16 @@ const CATEGORY_SCOPED_PACK_NAME_CONCEPTS: Array<[conceptType: string, code: stri
   // migration 134 — governance-ebm-sharpening.test.ts's own two Packs use category: "Organisation".
   ["organisation-name", "conflict-a", "Test: Conflict A"],
   ["organisation-name", "conflict-b", "Test: Conflict B"],
+  // design/mvp-build-plan/SEU Composition.md — governance-ebm-sharpening.test.ts's
+  // own retry-after-Failed and Validate-Request-liveness tests, same stable-
+  // test-Pack-name treatment as conflict-a/conflict-b above (CR-079: "the
+  // test script should use a code present in the ontology," never a random
+  // per-run suffix). retry-conflict-a/b retired — the Retry test now uses a
+  // since-Retired mandatory Pack (a validate_request-stage failure, the only
+  // path that actually reaches lifecycle_state "Failed"), not a Compose-EBM
+  // conflict, which leaves the SEU Pending instead.
+  ["organisation-name", "retry-stale-pack-test", "Test: Retry Stale Pack"],
+  ["organisation-name", "stale-pack-test", "Test: Stale Pack"],
   ["technology-name", "technology-c", "C Engineering Practices"],
   ["technology-name", "technology-cpp", "C++ Engineering Practices"],
   ["technology-name", "technology-nodejs", "Node.js Engineering Practices"],

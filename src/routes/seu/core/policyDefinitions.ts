@@ -43,7 +43,7 @@ const VALID_SEVERITIES = new Set(["Critical", "High", "Medium", "Low"]);
 // SEU-execution-instance lifecycle, Ch.24 §9's own "Deliverable Lifecycle
 // State" applicability dimension) — not Ontology-backed, a different
 // canonical source than applicabilityDeliverableNames/applicabilityEnvironments.
-const VALID_DELIVERABLE_LIFECYCLE_STATES = new Set(["Defined", "In Progress", "Approved", "Baselined"]);
+export const VALID_DELIVERABLE_LIFECYCLE_STATES = new Set(["Defined", "In Progress", "Approved", "Baselined"]);
 
 async function assertPolicyDefinitionCodeVersionFree(code: string, version: string, tenantId: string, excludeId?: string): Promise<string | null> {
   const { data: existing } = await policyDefinitionsDB.findByCodeAndVersion(code, version, tenantId);

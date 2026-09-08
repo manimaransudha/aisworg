@@ -12,6 +12,7 @@ import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { checklistsDB } from "../../../dblayer/checklistsDB.js";
 import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
 import { assertCanonicalCategory, resolveLabels } from "./ontology.js";
+import { VALID_DELIVERABLE_LIFECYCLE_STATES } from "./policyDefinitions.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import type { CapabilityRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../../../dblayer/seuTypes.js";
 
@@ -252,6 +253,23 @@ export async function deriveExposableParameterCandidates(
   // actually adopted (the per-Pack materialised row shares the Definition's
   // own code, CR-089); the configurable fields themselves are read off the
   // Definition, since that's where they're actually authored.
+  //
+  // CR-088 closing (owner: "Profile should allow override of everything that
+  // is configurable") — the three applicability dimensions are filter-shaped
+  // (valueBearing: false), but still need a real, closed `valueOptions` set
+  // for Profile's own picker to offer (and for validateProfileSeed's existing
+  // generic "must be one of valueOptions" check to enforce) — the same real
+  // vocabularies each dimension's own canonical Policy Definition authoring
+  // form already uses (167_policy_definitions.sql): deliverable-name/
+  // category:environment Ontology concepts for the first two,
+  // VALID_DELIVERABLE_LIFECYCLE_STATES (policyDefinitions.ts's own real
+  // transition_definitions-backed set, not Ontology) for the third. Computed
+  // once — identical for every Policy this Template resolves.
+  const policyApplicabilityValueOptions: Record<string, string[]> = {
+    applicabilityDeliverableNames: Object.keys(await resolveLabels(viewerTenantId, "deliverable-name")),
+    applicabilityEnvironments: Object.keys(await resolveLabels(viewerTenantId, "category:environment")),
+    applicabilityDeliverableLifecycle: [...VALID_DELIVERABLE_LIFECYCLE_STATES],
+  };
   for (const packCode of packCodes) {
     const { data: policyRows } = await policiesDB.findByPackCode(packCode);
     for (const policyRow of policyRows ?? []) {
@@ -259,7 +277,7 @@ export async function deriveExposableParameterCandidates(
       if (!definition) continue;
       add({ sourceType: "policy", sourceCode: definition.code, sourceName: definition.name, parameterName: "constraintType", parameterLabel: "Constraint Type", valueBearing: true, defaultValue: definition.constraint_type, valueOptions: ["Policy", "Standard"] });
       for (const dim of POLICY_APPLICABILITY_PARAMETERS) {
-        add({ sourceType: "policy", sourceCode: definition.code, sourceName: definition.name, parameterName: dim.name, parameterLabel: dim.label, valueBearing: false });
+        add({ sourceType: "policy", sourceCode: definition.code, sourceName: definition.name, parameterName: dim.name, parameterLabel: dim.label, valueBearing: false, valueOptions: policyApplicabilityValueOptions[dim.name] });
       }
     }
   }
@@ -267,13 +285,19 @@ export async function deriveExposableParameterCandidates(
   // Checklist — one exposable parameter per distinct configurableKey
   // dimension actually used across a Checklist's own items (most Checklists
   // tag nothing at all, contributing no candidates).
+  //
+  // CR-088 closing — configurableKey is filter-shaped too; its own real
+  // value vocabulary is the checklist-configurable-value Ontology concept
+  // type (migration 171) — one flat, shared set across every dimension a
+  // Pack author names, not scoped per-key.
   const dimensionLabelByCode = await resolveLabels(viewerTenantId, "checklist-configurable-dimension");
+  const configurableValueOptions = Object.keys(await resolveLabels(viewerTenantId, "checklist-configurable-value"));
   for (const packCode of packCodes) {
     const { data: checklistRows } = await checklistsDB.findByPackCode(packCode);
     for (const checklist of checklistRows ?? []) {
       const keys = new Set((checklist.items ?? []).map((item) => item.configurableKey).filter((k): k is string => !!k?.trim()));
       for (const key of keys) {
-        add({ sourceType: "checklist", sourceCode: checklist.id, sourceName: checklist.name, parameterName: key, parameterLabel: dimensionLabelByCode[key] ?? key, valueBearing: false });
+        add({ sourceType: "checklist", sourceCode: checklist.id, sourceName: checklist.name, parameterName: key, parameterLabel: dimensionLabelByCode[key] ?? key, valueBearing: false, valueOptions: configurableValueOptions });
       }
     }
   }
@@ -288,9 +312,21 @@ export async function deriveExposableParameterCandidates(
 // Template's SAVED exposedParameters rows are flagged overridable, resolved
 // against the Template's own currently-materialised Pack selections (not the
 // Profile's own — the candidate universe is whatever the Template computed
-// it against at Template-save time) for label/valueOptions, restricted to
-// valueBearing (Service Level metric, Policy constraintType) — the only
-// shapes that carry a value at all for a Profile to override.
+// it against at Template-save time) for label/valueOptions.
+//
+// CR-088 closing (owner, 2026-09-06: "Profile should allow override of
+// everything that is configurable") — this used to also require
+// `c.valueBearing`, silently dropping every filter-shaped candidate (Policy's
+// three applicability dimensions, Checklist's configurableKey) even when the
+// Template itself flagged one overridable. There was never a technical
+// reason for this — deriveExposableParameterCandidates now gives every
+// filter-shaped candidate a real, closed valueOptions set too (above), and
+// ExposedParameterOverride's own storage shape ({sourceType, sourceCode,
+// parameterName, value}) already works identically for a filter selection as
+// for a value override — nothing downstream (validateProfileSeed's own
+// "must be one of valueOptions" check, reconstructProfileParameterOverrides)
+// assumed valueBearing either. The only real gate is whether the Template
+// flagged this specific candidate overridable at all.
 export async function deriveOverridableParameterCandidates(baseTemplateCode: string, viewerTenantId: string): Promise<ExposableParameterCandidate[]> {
   const { data: template } = await templatesDB.findActiveByCode(baseTemplateCode, viewerTenantId);
   if (!template) return [];
@@ -301,7 +337,7 @@ export async function deriveOverridableParameterCandidates(baseTemplateCode: str
   const packCodes = [...new Set(PACK_SELECTION_SLOTS.flatMap((slot) => (packSelections[slot.field as keyof PackSelectionsByCategory] as string[] | undefined) ?? []))];
   const dependencyGraph = await getDependencyGraphContent(template.id, viewerTenantId);
   const candidates = await deriveExposableParameterCandidates(packCodes, viewerTenantId, dependencyGraph);
-  return candidates.filter((c) => c.valueBearing && overridableKeys.has(`${c.sourceType}::${c.sourceCode}::${c.parameterName}`));
+  return candidates.filter((c) => overridableKeys.has(`${c.sourceType}::${c.sourceCode}::${c.parameterName}`));
 }
 
 export type TemplateValidationResult = { ok: true } | { ok: false; errors: string[] };
@@ -707,7 +743,31 @@ async function materialisePackSelectionsAndCapabilities(templateId: string, seed
   // own upsert() never writes draft_content") — exposedParameters (and `purpose`)
   // never persisted through publishTemplate/seedSdlcStandardTemplates.ts, only
   // through interactive authoring's createDraft/updateDraftContent.
-  await templatesDB.setDraftContent(templateId, { ...seed });
+  //
+  // Bug fix (owner: "Template should have persisted all the applicable
+  // service levels... otherwise this information is not available for
+  // composing") — that earlier fix only carried forward whatever exposedParameters
+  // the seed itself already had; it never DEFAULTED one. loadExposableParameterRows
+  // (web/sdkAuthoring.ts) computes the same non-sparse "one row per real
+  // candidate" set, but only for the SDK Authoring form's own display — it's
+  // never persisted unless a human opens that Template's Exposable Parameters
+  // tab and saves. Every JSON-seeded Template (all of them predate CR-088)
+  // never had a human do that, so its exposedParameters stayed empty forever
+  // — permanently hiding every Service Level metric its own composed Services
+  // actually declare from composition (resolveEffectiveParameters only ever
+  // reads a Template's own SAVED rows, never re-derives from the canonical
+  // Service Definition). Same non-sparse default now applies here, the one
+  // shared path every Template-creation route funnels through — one row per
+  // real candidate, value/overridable from whatever the seed already
+  // explicitly set for that exact key, else the candidate's own current
+  // default (mirrors loadExposableParameterRows's own merge exactly).
+  const candidates = await deriveExposableParameterCandidates(collectAllPackCodes(seed), seed.tenantId ?? PLATFORM_TENANT_ID, seed.dependencyGraph ?? []);
+  const existingByKey = new Map((seed.exposedParameters ?? []).map((e) => [`${e.sourceType}::${e.sourceCode}::${e.parameterName}`, e]));
+  const exposedParameters: ExposedParameter[] = candidates.map((c) => {
+    const saved = existingByKey.get(`${c.sourceType}::${c.sourceCode}::${c.parameterName}`);
+    return { sourceType: c.sourceType, sourceCode: c.sourceCode, parameterName: c.parameterName, value: saved?.value ?? c.defaultValue, overridable: saved ? saved.overridable : true };
+  });
+  await templatesDB.setDraftContent(templateId, { ...seed, exposedParameters });
 }
 
 export type PublishTemplateResult = { ok: true; templateId: string } | { ok: false; errors: string[] };

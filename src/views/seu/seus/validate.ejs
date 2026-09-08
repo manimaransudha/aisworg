@@ -6,30 +6,15 @@
 <body>
   <header><%- include('../../partials/navbar') %></header>
 
-  <%# CR-092 Part 6 (owner: "has to queue to validate. The validation
-       view/form is what should show all the conflicting packs / parameters
-       / instructions etc. There can be 2 profiles overriding the same
-       config parameter to 2 different values. All of these have to surface
-       here.") — renders whatever compositionEngine.compose() found for the
-       exact selection the picker (seus/new.ejs) submitted, before any
-       SEU/EBM row is created (previewCommissioningValidation,
-       core/commissioning.ts).
-       Governance conflicts (compositionReport.conflicts, flat strings —
-       e.g. two Packs disagreeing on an authorised role) are a hard block:
-       no resolution mechanism, matching FR-8.6 as-is.
-       Parameter conflicts (compositionReport.parameterConflicts — e.g. two
-       Profiles overriding the same exposed Commissioning Parameter to two
-       different values) are NOT auto-resolved by the composition engine
-       (owner: "The composition engine should not resolve the conflicts
-       automatically... the user has to resolve the conflict... the human
-       resolves it by picking which source's value wins, right on the
-       validation page"). Each renders as its own radio group here; picking
-       an option and clicking "Re-validate" resubmits every conflict's pick
-       — old (already-resolved, carried forward as hidden fields) and new
-       alike — as resolution[<conflict.key>]=<chosen value>, and
-       compositionEngine.compose() excludes any key present there from the
-       parameterConflicts it reports back. %>
-  <main class="container py-5" style="max-width: 900px;">
+  <%# design/mvp-build-plan/SEU Composition.md, 2026-09-07 — Validate
+       Request's own liveness output only (owner: "That was supposed to only
+       show the liveness of the information... is n't it that decoupling is
+       also going to need new pages"). Compose EBM's own output (unraveled
+       pool, conflicts, resolution picker) lives on seu/seus/compose.ejs now,
+       not here. This page never computes anything inline — the event chain
+       (CommissionRequested -> validateRequestHandler) runs off the request
+       that got here, before this page is ever loaded. %>
+  <main class="container py-5" style="max-width: 700px;">
     <% if (locals.flash) { %>
       <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
         <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
@@ -37,194 +22,59 @@
       </div>
     <% } %>
 
-    <h2 class="h3 mb-1 text-dark fw-bold">Commissioning Validation</h2>
-    <p class="text-muted small mb-4">What composing this selection together would produce, before anything is created.</p>
+    <h2 class="h3 mb-1 text-dark fw-bold">Commission Validation</h2>
+    <p class="text-muted small mb-4">Whether the Objective, Profile, Template, and everything they reference are still live.</p>
 
-    <% var report = compositionReport; %>
-    <% var resolved = (typeof resolvedParameterOverrides !== 'undefined' && resolvedParameterOverrides) ? resolvedParameterOverrides : {}; %>
-    <% var profileDetails = (typeof locals.profileDetails !== 'undefined' && locals.profileDetails) ? locals.profileDetails : []; %>
-    <% var hasParameterConflicts = report.parameterConflicts && report.parameterConflicts.length; %>
-    <% var isReady = !(report.conflicts && report.conflicts.length) && !hasParameterConflicts; %>
-
-    <% function humanizeDetailKey(key) { return key.replace(/([A-Z])/g, ' $1').replace(/^./, function(s) { return s.toUpperCase(); }); } %>
-    <% function formatDetailValue(key, value) {
-         if (key === 'exposedParameterOverrides' && Array.isArray(value)) {
-           return value.map(function(o) { return o.sourceType + ' "' + o.sourceCode + '" — ' + o.parameterName + ': ' + o.value; }).join('; ');
-         }
-         if (Array.isArray(value)) {
-           return value.map(function(v) { return (typeof v === 'object' && v !== null) ? JSON.stringify(v) : String(v); }).join(', ');
-         }
-         if (typeof value === 'object' && value !== null) {
-           return Object.entries(value).map(function(e) { return e[0] + ': ' + (typeof e[1] === 'object' ? JSON.stringify(e[1]) : e[1]); }).join(', ');
-         }
-         return String(value);
-       } %>
-
-    <%# Owner (2026-09-06): "On the Validation page, list all the profile
-         details. Not the heading or meta data. ALL THE DETAILS." — every
-         selected Profile's own full content (extractProfileDetails,
-         core/profiles.ts — every ProfileSeedInput field it actually set,
-         excluding identity/administrative metadata), shown unconditionally
-         here, not only once conflicts are cleared — this is what's being
-         validated, regardless of the outcome. %>
-    <% profileDetails.forEach(function(pd) { %>
-      <div class="section-card">
-        <div class="section-header"><i class="bi bi-person-badge me-1"></i><%= pd.profileName %> <code class="text-muted small"><%= pd.profileCode %></code></div>
-        <% var keys = Object.keys(pd.fields); %>
-        <% if (!keys.length) { %>
-          <div class="p-3 text-muted small">No content set on this Profile beyond its identity.</div>
-        <% } else { %>
-          <div class="pt-2">
-            <% keys.forEach(function(key) { %>
-              <div class="component-row">
-                <div class="component-name"><%= humanizeDetailKey(key) %></div>
-                <div class="component-note"><%= formatDetailValue(key, pd.fields[key]) %></div>
-              </div>
-            <% }) %>
-          </div>
-        <% } %>
-        <%# Owner (2026-09-06: "if there are overrides, you take the
-             overrides. You do not have to save what is already in the
-             template as the template_id is the reference to it") — the
-             RESOLVED, effective value for every value-bearing parameter
-             this Profile's base Template exposes (resolveEffectiveParameters,
-             core/profiles.ts: this Profile's own override where one exists,
-             else the Template's own value) — not just the raw candidate
-             list, the actual number this SEU would run against. Shown even
-             when empty — that's a real, distinct fact (the Template exposes
-             nothing yet), not the same as "this Profile set nothing" above. %>
-        <div class="component-row">
-          <div class="component-name">Effective Parameters (Template default, or Profile override where set)</div>
-          <% if (!pd.effectiveParameters.length) { %>
-            <div class="component-note">None — this Profile's base Template does not currently expose any parameter.</div>
-          <% } else { %>
-            <% pd.effectiveParameters.forEach(function(p) { %>
-              <div class="component-note">
-                <%= p.sourceType %> "<%= p.sourceCode %>" — <%= p.parameterName %>: <span class="fw-semibold"><%= p.effectiveValue %></span>
-                <%= p.overriddenByProfile ? '(overridden by this Profile)' : '(Template default)' %>
-              </div>
-            <% }) %>
-          <% } %>
-        </div>
-      </div>
-    <% }) %>
-
-    <% if (report.warnings && report.warnings.length) { %>
-      <div class="alert alert-warning">
-        <div class="fw-semibold mb-1"><i class="bi bi-exclamation-triangle me-1"></i>Warnings (non-blocking)</div>
-        <ul class="small mb-0 ps-3">
-          <% report.warnings.forEach(function(w) { %><li><%= w %></li><% }) %>
-        </ul>
+    <% if (locals.pending) { %>
+      <div class="alert alert-info border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-hourglass-split me-2"></i>Validating — <a href="" class="alert-link">reload</a> in a moment to see the result.
       </div>
     <% } %>
 
-    <% if (report.conflicts && report.conflicts.length) { %>
-      <div class="alert alert-danger">
-        <div class="fw-semibold mb-1"><i class="bi bi-x-octagon me-1"></i>Conflicts — must be resolved before commissioning</div>
-        <ul class="small mb-0 ps-3">
-          <% report.conflicts.forEach(function(c) { %><li><%= c %></li><% }) %>
-        </ul>
+    <% if (locals.failed) { %>
+      <div class="alert alert-danger border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>Validate Request failed: <%= failureReason %>
       </div>
     <% } %>
 
-    <% if (hasParameterConflicts) { %>
-      <%# CR-083 — section-card/section-header (not the plain Bootstrap
-           card/card-header this used before), matching every other card on
-           this screen and its sibling pages. %>
-      <div class="section-card">
-        <div class="section-header"><i class="bi bi-sliders me-1"></i>Parameter conflicts — choose which source wins</div>
-        <form method="POST" action="/aisworg/seu/objectives/<%= objectiveId %>/validate-commission">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <p class="text-muted small mb-0 px-3 pt-3">More than one Profile overrides the same Commissioning Parameter to a different value. Pick which one applies, then re-validate.</p>
-          <% selections.forEach(function(s) { %>
-            <input type="hidden" name="templateProfile" value="<%= s.templateId %>|<%= s.profileId || '' %>">
-          <% }) %>
-          <% Object.keys(resolved).forEach(function(key) { %>
-            <input type="hidden" name="resolution[<%= key %>]" value="<%= resolved[key] %>">
-          <% }) %>
-          <div class="pt-2">
-            <% report.parameterConflicts.forEach(function(conflict, i) { %>
-              <fieldset class="component-row">
-                <legend class="component-name h6 mb-1"><%= conflict.sourceType %> "<%= conflict.sourceCode %>" — parameter "<%= conflict.parameterName %>"</legend>
-                <% conflict.options.forEach(function(opt, j) { %>
-                  <div class="form-check">
-                    <input class="form-check-input" type="radio" name="resolution[<%= conflict.key %>]" id="res-<%= i %>-<%= j %>" value="<%= opt.value %>" required>
-                    <label class="form-check-label small" for="res-<%= i %>-<%= j %>">
-                      <span class="fw-semibold"><%= opt.value %></span> — from Profile "<%= opt.profileName %>" (<%= opt.profileCode %>)
-                    </label>
-                  </div>
-                <% }) %>
-              </fieldset>
+    <% if (locals.passed) { %>
+      <div class="alert alert-success border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-check-circle me-2"></i>Validate Request passed — the Objective, Profile, Template, and everything they reference are still live.
+      </div>
+    <% } %>
+
+    <% if (locals.checks && checks.length > 0) { %>
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white small fw-semibold text-muted">What was checked</div>
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+          </thead>
+          <tbody>
+            <% checks.forEach(function(c) { %>
+              <tr>
+                <td class="small"><%= c.item %></td>
+                <td>
+                  <% if (c.status === 'live') { %>
+                    <span class="badge bg-success-subtle text-success-emphasis"><i class="bi bi-check-lg"></i> Live</span>
+                  <% } else { %>
+                    <span class="badge bg-danger-subtle text-danger-emphasis"><i class="bi bi-x-lg"></i> Dead</span>
+                  <% } %>
+                </td>
+                <td class="small text-muted"><%= c.detail || '' %></td>
+              </tr>
             <% }) %>
-          </div>
-          <div class="p-3 border-top" style="border-color: var(--border) !important;">
-            <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Re-validate with these choices</button>
-            <a href="/aisworg/seu/seus/new?objectiveId=<%= objectiveId %>" class="btn btn-link text-muted btn-sm">Back to selection</a>
-          </div>
-        </form>
+          </tbody>
+        </table>
       </div>
     <% } %>
 
-    <% if (!isReady && !hasParameterConflicts) { %>
+    <% if (locals.failed) { %>
       <a href="/aisworg/seu/seus/new?objectiveId=<%= objectiveId %>" class="btn btn-outline-secondary btn-sm">Back to selection</a>
     <% } %>
 
-    <% if (isReady) { %>
-      <% var composedPacks = (typeof locals.composedPacks !== 'undefined' && locals.composedPacks) ? locals.composedPacks : []; %>
-      <% var resolvedKeys = Object.keys(resolved); %>
-      <div class="alert alert-success">
-        <i class="bi bi-check-circle me-1"></i>No conflicts found — this selection is ready to commission.
-      </div>
-
-      <%# Owner (2026-09-06): "It has to show what all got resolved without
-           conflicts as well" — a bare "ready to commission" message hid the
-           actual substance of what composing this selection produced. Two
-           things are worth surfacing: any parameter conflict the human
-           already resolved on a prior "Re-validate" round (so the resolution
-           itself stays visible, not just silently carried forward as hidden
-           fields), and the full set of Packs this selection actually
-           composed to (the real output of Ch.4 Composition, not just an
-           absence of conflicts). %>
-      <% if (resolvedKeys.length) { %>
-        <div class="section-card">
-          <div class="section-header"><i class="bi bi-check2-square me-1"></i>Parameter conflicts resolved</div>
-          <div class="pt-2">
-            <% resolvedKeys.forEach(function(key) { %>
-              <% var parts = key.split('::'); %>
-              <div class="component-row">
-                <div class="component-name"><%= parts[0] %> "<%= parts[1] %>" — parameter "<%= parts[2] %>"</div>
-                <div class="component-note">Resolved value: <span class="fw-semibold"><%= resolved[key] %></span></div>
-              </div>
-            <% }) %>
-          </div>
-        </div>
-      <% } %>
-
-      <% if (composedPacks.length) { %>
-        <div class="section-card">
-          <div class="section-header"><i class="bi bi-boxes me-1"></i>Packs this selection composes</div>
-          <div class="pt-2">
-            <% composedPacks.forEach(function(p) { %>
-              <div class="component-row d-flex align-items-center justify-content-between gap-2">
-                <span class="component-name"><%= p.packCode %></span>
-                <span class="version-badge"><%= p.packVersion %></span>
-              </div>
-            <% }) %>
-          </div>
-        </div>
-      <% } %>
-
-      <form method="POST" action="/aisworg/seu/objectives/<%= objectiveId %>/commission" class="d-inline">
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <% selections.forEach(function(s) { %>
-          <input type="hidden" name="templateProfile" value="<%= s.templateId %>|<%= s.profileId || '' %>">
-        <% }) %>
-        <% Object.keys(resolved).forEach(function(key) { %>
-          <input type="hidden" name="resolution[<%= key %>]" value="<%= resolved[key] %>">
-        <% }) %>
-        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-rocket-takeoff me-1"></i>Commission</button>
-        <a href="/aisworg/seu/seus/new?objectiveId=<%= objectiveId %>" class="btn btn-link text-muted btn-sm">Back to selection</a>
-      </form>
+    <% if (locals.passed) { %>
+      <a href="/aisworg/seu/objectives/<%= objectiveId %>/compose-ebm" class="btn btn-primary btn-sm"><i class="bi bi-diagram-3 me-1"></i>View Compose EBM</a>
     <% } %>
 
     <p class="mt-4"><a href="/aisworg/seu/objectives/<%= objectiveId %>" class="text-muted small">Cancel — back to Objective</a></p>

@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+</head>
+<body>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <%# design/mvp-build-plan/SEU Composition.md — owner: "There should be a
+       viewEBM button. It should be the same as detail.ejs. Dont use the same
+       page. create a new one. EBM page. We will need this to advance the EBM
+       states." Split out of seus/detail.ejs: everything sourced from the
+       EBM's own persisted behaviors.pool (migration 182), plus its own
+       Validate/Activate transition — SEU-runtime content (Deliverable
+       instances, Capability fulfilment, Obligations/Evidence/Decisions/
+       Knowledge/Command-WorkItem-Dispatch/External Interactions/Events)
+       stays on seus/detail.ejs. %>
+  <main class="container py-5">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <%# Bug fix (owner: "The buttons are in the EBM - Composed packs panel in
+         the metadata tab. The buttons should be sticky and outside of this
+         structure") — the Validate/Activate action is this whole page's
+         primary action, not Metadata-tab content; buried inside that tab's
+         own "Composed Packs" card, it disappeared the moment a viewer
+         switched to any other tab. Moved to the page header itself, so it
+         stays visible regardless of which tab is active. Deliberately NOT
+         position:sticky — .vertical-tabs (partials/verticalTabs) is already
+         sticky at the same top:1rem; stacking two sticky elements at the
+         same offset would make them fight for the same screen position once
+         scrolled, which risks exactly the "visible but not clickable"
+         overlap bug this same fix pass just found and fixed (the invalid
+         span>form nesting below). Being header-level (not tab-scoped) is
+         what the ask actually needed. %>
+    <div class="d-flex justify-content-between align-items-start mb-4">
+      <div>
+        <p class="text-muted small mb-1">
+          <a href="/aisworg/seu/seus">&larr; All SEUs</a>
+          &middot; <a href="/aisworg/seu/seus/<%= ebmView.seuId %>">View SEU</a>
+        </p>
+        <h2 class="h4 text-dark fw-bold mb-1"><%= ebmView.objectiveStatement %></h2>
+        <p class="text-muted small mb-0 font-monospace">EBM for SEU <%= ebmView.seuId %></p>
+      </div>
+      <% if (ebmView.ebm) { %>
+        <%# Bug fix — a <form> (flow content) inside a <span> (phrasing-content
+             only) is invalid HTML5 nesting; browsers can handle it
+             inconsistently (owner: "The button is visible, but no
+             clickable"). A <div> is the semantically correct, valid
+             container for a flex row holding a real <form>. %>
+        <div class="d-flex align-items-center gap-2 bg-body p-2 rounded shadow-sm">
+          <span class="state-badge state-<%= ebmView.ebm.status %> fs-6"><%= ebmView.ebm.status %></span>
+          <%# Chapter 3 §15 "Validate Engineering Model"/"Activate" — two
+               separate, independently human-triggered transitions on this
+               EBM. This is what the EBM page exists to host ("We will need
+               this to advance the EBM states"). %>
+          <%
+            function transitionLabel(s) { return s === 'Validated' ? 'Validate' : s === 'Active' ? 'Activate' : s; }
+          %>
+          <%# Bug fix (owner: "The styling is so bad. Validate looks like a
+               button" — a select+Apply pair reads as a row of pills/badges,
+               and a closed <select> showing "Validate" as its own text
+               LOOKS like a button, but isn't one — clicking it just opens a
+               dropdown, which is what read as "not clickable"). Now that
+               Retired no longer pollutes this list (previous fix), there is
+               only ever exactly one real next state at a time — a plain,
+               unambiguous button IS the real action, so render one instead
+               of a single-option dropdown. Falls back to the select+Apply
+               shape only in the (currently unreachable) case of 2+ options,
+               same as every other transition control on this page family
+               already does. %>
+          <% if (ebmView.ebm.possibleNextStates.length === 1) { %>
+            <% var only = ebmView.ebm.possibleNextStates[0]; %>
+            <form method="POST" action="/aisworg/seu/seus/<%= ebmView.seuId %>/ebm/transition" class="mb-0">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="targetState" value="<%= only %>">
+              <button type="submit" class="btn btn-sm btn-primary"><%= transitionLabel(only) %></button>
+            </form>
+          <% } else if (ebmView.ebm.possibleNextStates.length > 1) { %>
+            <form method="POST" action="/aisworg/seu/seus/<%= ebmView.seuId %>/ebm/transition" class="d-flex align-items-center gap-2 mb-0">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <select name="targetState" class="form-select form-select-sm" style="width: auto;">
+                <% ebmView.ebm.possibleNextStates.forEach(function(s) { %>
+                  <option value="<%= s %>"><%= transitionLabel(s) %></option>
+                <% }) %>
+              </select>
+              <button type="submit" class="btn btn-sm btn-outline-primary">Apply</button>
+            </form>
+          <% } %>
+        </div>
+      <% } %>
+    </div>
+
+    <%
+      // --- Shared pool helpers (same as compose.ejs's own formatPoolValue/sourceLabel) ---
+      var pool = ebmView.ebmPool || [];
+      function sourceLabel(source) { return (source.kind === 'pack' ? 'Pack ' : source.kind === 'template' ? 'Template ' : 'Profile ') + source.label; }
+      function formatPoolValue(value) {
+        if (value === null || value === undefined) return '—';
+        if (typeof value === 'object') return JSON.stringify(value);
+        return String(value);
+      }
+
+      // A generic, recursive object/array -> HTML renderer (definition list
+      // for objects, bullet list for arrays), used anywhere a pool entry's
+      // value is itself structured, instead of formatPoolValue's own
+      // JSON.stringify fallback.
+      function escapeHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+      function humanizeKey(key) { return String(key).replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').replace(/^./, function(s) { return s.toUpperCase(); }); }
+      function renderValueHtml(value) {
+        if (value === null || value === undefined || value === '') return '<span class="text-muted">—</span>';
+        if (Array.isArray(value)) {
+          if (!value.length) return '<span class="text-muted">—</span>';
+          return '<ul class="mb-0 ps-3">' + value.map(function(v) { return '<li>' + renderValueHtml(v) + '</li>'; }).join('') + '</ul>';
+        }
+        if (typeof value === 'object') {
+          var keys = Object.keys(value);
+          if (!keys.length) return '<span class="text-muted">—</span>';
+          return '<dl class="row mb-0 small">' + keys.map(function(k) {
+            return '<dt class="col-4 col-md-3 text-muted fw-normal">' + escapeHtml(humanizeKey(k)) + '</dt><dd class="col-8 col-md-9">' + renderValueHtml(value[k]) + '</dd>';
+          }).join('') + '</dl>';
+        }
+        return escapeHtml(value);
+      }
+
+      // --- Parameters: the Profile's own simple scalar fields (development
+      // methodology etc.) — a fixed allowlist, same names
+      // profileCompositionUnravel.ts's own simpleFields object declares.
+      var PARAMETER_KEYS = ['environment', 'developmentMethodology', 'primaryProgrammingLanguage', 'sourceControlProvider', 'targetCloudProvider', 'deploymentStrategy', 'aiProviderPreference', 'defaultRepositoryStructure', 'documentationLevel', 'participatingOrganisationCodes', 'environmentConfiguration', 'deploymentTargets', 'featureFlagCodes', 'compositionOptions'];
+      var parameterEntries = pool.filter(function(e) { return PARAMETER_KEYS.indexOf(e.propertyName) !== -1; });
+
+      // --- Engineering Practices: checklistItem::<packCode>::<checklistName>::<json>
+      // entries, grouped by pack + checklist name. packCode comes off the
+      // entry's own source.code (reliable); checklistName is the 3rd '::'
+      // segment (safe even if the trailing JSON blob itself contains '::').
+      var checklistEntries = pool.filter(function(e) { return e.propertyName.indexOf('checklistItem::') === 0; });
+      var checklistGroupsByKey = {};
+      checklistEntries.forEach(function(e) {
+        var checklistName = e.propertyName.split('::')[2] || '(unnamed checklist)';
+        var key = e.source.code + '::' + checklistName;
+        if (!checklistGroupsByKey[key]) checklistGroupsByKey[key] = { packCode: e.source.code, checklistName: checklistName, items: [] };
+        checklistGroupsByKey[key].items.push(e.value);
+      });
+      var checklistGroups = Object.keys(checklistGroupsByKey).map(function(k) { return checklistGroupsByKey[k]; });
+      var reviewGateEntries = pool.filter(function(e) { return e.propertyName.indexOf('reviewGate::') === 0; });
+
+      // --- Quality Gates: qualityGate::<governedTransition>::<category>.
+      var qualityGateEntries = pool.filter(function(e) { return e.propertyName.indexOf('qualityGate::') === 0; });
+
+      // --- Services: bare-code entries. A Capability entry's value is just
+      // {code}; a Service entry's value additionally carries serviceLevel —
+      // that's the only shape difference (Pack Dependency entries, the other
+      // bare-code shape in this pool, carry {type, satisfiedInComposedSet}
+      // instead and are excluded here).
+      function isServiceEntry(e) { return e.value && typeof e.value === 'object' && Object.prototype.hasOwnProperty.call(e.value, 'serviceLevel'); }
+      function isCapabilityEntry(e) { return e.value && typeof e.value === 'object' && Object.prototype.hasOwnProperty.call(e.value, 'code') && !isServiceEntry(e); }
+      var serviceEntries = pool.filter(isServiceEntry);
+      var capabilityCodeEntries = pool.filter(isCapabilityEntry);
+      var serviceParameterEntries = pool.filter(function(e) { return e.propertyName.indexOf('service::') === 0; });
+
+      // One panel per Service — its declared Service Level and its resolved
+      // Service Parameters (Template default, or Profile override) together.
+      var serviceGroupsByCode = {};
+      serviceEntries.forEach(function(e) {
+        var code = e.propertyName;
+        serviceGroupsByCode[code] = { code: code, source: e.source, declaredServiceLevel: e.value.serviceLevel, parameters: [] };
+      });
+      serviceParameterEntries.forEach(function(e) {
+        var parts = e.propertyName.split('::');
+        var code = parts[1];
+        if (!serviceGroupsByCode[code]) serviceGroupsByCode[code] = { code: code, source: null, declaredServiceLevel: [], parameters: [] };
+        serviceGroupsByCode[code].parameters.push({ parameterName: parts[2], value: e.value, source: e.source });
+      });
+      var serviceGroups = Object.keys(serviceGroupsByCode).map(function(k) { return serviceGroupsByCode[k]; });
+
+      // --- Governance: authorityRule:: + policy:: entries.
+      var authorityRuleEntries = pool.filter(function(e) { return e.propertyName.indexOf('authorityRule::') === 0; });
+      var policyEntries = pool.filter(function(e) { return e.propertyName.indexOf('policy::') === 0; });
+
+      // --- Deliverables: the Template's own declared catalogue/dependency
+      // graph only — the instantiated Deliverable rows (with lifecycle
+      // state/transition forms) live on the SEU detail page instead.
+      var deliverableCatalogueEntry = pool.find(function(e) { return e.propertyName === 'deliverableCatalogue'; });
+      var dependencyGraphEntry = pool.find(function(e) { return e.propertyName === 'dependencyGraph'; });
+
+      var tabs = [
+        { key: 'metadata', label: 'Metadata' },
+        { key: 'parameters', label: 'Parameters', sub: parameterEntries.length ? '<span class="badge bg-secondary-subtle text-secondary">' + parameterEntries.length + '</span>' : '' },
+        { key: 'engineering-practices', label: 'Engineering Practices', sub: checklistGroups.length ? '<span class="badge bg-secondary-subtle text-secondary">' + checklistGroups.length + '</span>' : '' },
+        { key: 'quality-gates', label: 'Quality Gates', sub: qualityGateEntries.length ? '<span class="badge bg-secondary-subtle text-secondary">' + qualityGateEntries.length + '</span>' : '' },
+        { key: 'deliverables', label: 'Deliverables', sub: '' },
+        { key: 'services', label: 'Services', sub: serviceGroups.length ? '<span class="badge bg-secondary-subtle text-secondary">' + serviceGroups.length + '</span>' : '' },
+        { key: 'capabilities', label: 'Capabilities', sub: capabilityCodeEntries.length ? '<span class="badge bg-secondary-subtle text-secondary">' + capabilityCodeEntries.length + '</span>' : '' },
+        { key: 'governance', label: 'Governance', sub: (authorityRuleEntries.length + policyEntries.length) ? '<span class="badge bg-secondary-subtle text-secondary">' + (authorityRuleEntries.length + policyEntries.length) + '</span>' : '' },
+      ];
+    %>
+
+    <div class="d-flex flex-column flex-md-row gap-4 align-items-start mb-4">
+      <%- include('../../partials/verticalTabs', { tabs: tabs, paneMode: true, paneIdPrefix: 'seu-ebm', activePaneIndex: 0 }) %>
+
+      <div class="tab-content flex-grow-1" style="min-width: 0;">
+
+        <%# ---------------------------------------------------------------- Metadata %>
+        <div class="tab-pane fade show active" id="seu-ebm-metadata" role="tabpanel">
+          <div class="section-card">
+            <div class="section-header">Template &amp; Profile</div>
+            <div class="p-3">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <div class="component-name">Template</div>
+                  <div class="component-note">
+                    <% if (ebmView.template) { %>
+                      <%= ebmView.template.name %> <code class="text-muted small"><%= ebmView.template.code %></code> &middot; v<%= ebmView.template.version %>
+                    <% } else { %>—<% } %>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="component-name">Profile</div>
+                  <div class="component-note">
+                    <% if (ebmView.profile) { %>
+                      <%= ebmView.profile.name %> <code class="text-muted small"><%= ebmView.profile.code %></code> &middot; v<%= ebmView.profile.version %>
+                    <% } else { %>—<% } %>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <% if (!ebmView.ebm) { %>
+            <div class="section-card">
+              <div class="section-header">Engineering Behavior Model</div>
+              <div class="p-3 text-muted small">
+                Not composed yet.
+                <a href="/aisworg/seu/objectives/<%= ebmView.objectiveId %>/compose-ebm">Go to Compose EBM</a>
+              </div>
+            </div>
+          <% } else { %>
+            <div class="section-card">
+              <div class="section-header">
+                <span>Engineering Behavior Model — Composed Packs</span>
+              </div>
+              <% if (ebmView.ebm.status === 'Composed') { %>
+                <%# Owner: "Give a 'back to compose' link if EBM has not
+                     gone past EBMCreated." Once Validated/Active, this
+                     goes away — there's nothing left to go back and
+                     recompose. %>
+                <p class="small mb-0 p-3 pb-0"><a href="/aisworg/seu/objectives/<%= ebmView.objectiveId %>/compose-ebm">&larr; Back to Compose</a></p>
+              <% } %>
+              <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                  <thead class="table-light"><tr><th>Pack</th><th>Version</th></tr></thead>
+                  <tbody>
+                    <% ebmView.composedPacks.forEach(function(p) { %>
+                      <tr><td class="small"><%= p.packCode %></td><td class="small text-muted"><%= p.packVersion %></td></tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          <% } %>
+        </div>
+
+        <%# ---------------------------------------------------------------- Parameters %>
+        <div class="tab-pane fade" id="seu-ebm-parameters" role="tabpanel">
+          <div class="section-card">
+            <% if (!ebmView.ebm) { %>
+              <div class="p-3 text-muted small">Not composed yet.</div>
+            <% } else if (!parameterEntries.length) { %>
+              <div class="p-3 text-muted small">No configuration parameters set.</div>
+            <% } else { %>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light"><tr><th>Parameter</th><th>Value</th><th>Source</th></tr></thead>
+                  <tbody>
+                    <% parameterEntries.forEach(function(e) { %>
+                      <tr>
+                        <td class="small"><code><%= e.propertyName %></code></td>
+                        <td class="small"><%= formatPoolValue(e.value) %></td>
+                        <td class="small text-muted"><%= sourceLabel(e.source) %></td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            <% } %>
+          </div>
+        </div>
+
+        <%# ---------------------------------------------------------------- Engineering Practices %>
+        <div class="tab-pane fade" id="seu-ebm-engineering-practices" role="tabpanel">
+          <details class="section-card" open>
+            <summary class="section-header">Checklists</summary>
+            <div class="p-3">
+              <% if (!ebmView.ebm) { %>
+                <p class="text-muted small mb-0">Not composed yet.</p>
+              <% } else if (!checklistGroups.length) { %>
+                <p class="text-muted small mb-0">No checklists contributed by any composed Pack.</p>
+              <% } else { %>
+                <% checklistGroups.forEach(function(g) { %>
+                  <details class="mb-2">
+                    <summary class="small fw-semibold"><%= g.checklistName %> <span class="text-muted">— Pack <%= g.packCode %> (<%= g.items.length %> item<%= g.items.length === 1 ? '' : 's' %>)</span></summary>
+                    <div class="table-responsive mt-2">
+                      <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light"><tr><th>Statement</th><th>Group</th></tr></thead>
+                        <tbody>
+                          <% g.items.forEach(function(item) { %>
+                            <tr>
+                              <td class="small"><%= item.statement || '—' %></td>
+                              <td class="small text-muted"><%= item.group || '—' %></td>
+                            </tr>
+                          <% }) %>
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                <% }) %>
+              <% } %>
+            </div>
+          </details>
+          <details class="section-card">
+            <summary class="section-header">Review Gates</summary>
+            <% if (!reviewGateEntries.length) { %>
+              <div class="p-3 text-muted small">No Review Gates contributed by any composed Pack.</div>
+            <% } else { %>
+              <% reviewGateEntries.forEach(function(e) { %>
+                <div class="p-3 border-top" style="border-color: var(--border) !important;">
+                  <div class="d-flex justify-content-between align-items-start mb-2">
+                    <code class="small"><%= e.propertyName %></code>
+                    <span class="small text-muted"><%= sourceLabel(e.source) %></span>
+                  </div>
+                  <%- renderValueHtml(e.value) %>
+                </div>
+              <% }) %>
+            <% } %>
+          </details>
+        </div>
+
+        <%# ---------------------------------------------------------------- Quality Gates %>
+        <div class="tab-pane fade" id="seu-ebm-quality-gates" role="tabpanel">
+          <details class="section-card" open>
+            <summary class="section-header">Quality Gates</summary>
+            <% if (!ebmView.ebm) { %>
+              <div class="p-3 text-muted small">Not composed yet.</div>
+            <% } else if (!qualityGateEntries.length) { %>
+              <div class="p-3 text-muted small">No Quality Gates contributed by any composed Pack.</div>
+            <% } else { %>
+              <% qualityGateEntries.forEach(function(e) { %>
+                <div class="p-3 border-top" style="border-color: var(--border) !important;">
+                  <div class="d-flex justify-content-between align-items-start mb-2">
+                    <code class="small"><%= e.propertyName %></code>
+                    <span class="small text-muted"><%= sourceLabel(e.source) %></span>
+                  </div>
+                  <%- renderValueHtml(e.value) %>
+                </div>
+              <% }) %>
+            <% } %>
+          </details>
+        </div>
+
+        <%# ---------------------------------------------------------------- Deliverables (declared only) %>
+        <div class="tab-pane fade" id="seu-ebm-deliverables" role="tabpanel">
+          <% if (!deliverableCatalogueEntry && !dependencyGraphEntry) { %>
+            <div class="section-card">
+              <div class="p-3 text-muted small">Not composed yet.</div>
+            </div>
+          <% } %>
+          <% if (deliverableCatalogueEntry) { %>
+            <details class="section-card" open>
+              <summary class="section-header">Deliverable Catalogue (declared by the Template)</summary>
+              <div class="p-3"><%- renderValueHtml(deliverableCatalogueEntry.value) %></div>
+            </details>
+          <% } %>
+          <% if (dependencyGraphEntry) { %>
+            <details class="section-card">
+              <summary class="section-header">Dependency Graph (declared by the Template)</summary>
+              <div class="p-3"><%- renderValueHtml(dependencyGraphEntry.value) %></div>
+            </details>
+          <% } %>
+          <p class="small text-muted">The instantiated Deliverables (lifecycle state, transitions) are on the <a href="/aisworg/seu/seus/<%= ebmView.seuId %>">SEU page</a>'s own Deliverables tab.</p>
+        </div>
+
+        <%# ---------------------------------------------------------------- Services %>
+        <div class="tab-pane fade" id="seu-ebm-services" role="tabpanel">
+          <% if (!serviceGroups.length) { %>
+            <div class="section-card">
+              <div class="p-3 text-muted small">No Services contributed by any composed Pack.</div>
+            </div>
+          <% } %>
+          <% serviceGroups.forEach(function(g, i) { %>
+            <details class="section-card" <%= i === 0 ? 'open' : '' %>>
+              <summary class="section-header">
+                <code><%= g.code %></code>
+                <% if (g.source) { %><span class="text-muted small fw-normal">— <%= sourceLabel(g.source) %></span><% } %>
+              </summary>
+              <div class="p-3">
+                <div class="component-name">Declared Service Level</div>
+                <div class="component-note mb-3"><%- renderValueHtml(g.declaredServiceLevel) %></div>
+                <div class="component-name">Service Parameters (Template default, or Profile override where set)</div>
+                <% if (!g.parameters.length) { %>
+                  <div class="component-note">No Service parameter exposed by this Template.</div>
+                <% } else { %>
+                  <div class="table-responsive mt-1">
+                    <table class="table table-sm align-middle mb-0">
+                      <thead class="table-light"><tr><th>Parameter</th><th>Effective Value</th><th>Source</th></tr></thead>
+                      <tbody>
+                        <% g.parameters.forEach(function(p) { %>
+                          <tr>
+                            <td class="small"><%= p.parameterName %></td>
+                            <td class="small"><%- renderValueHtml(p.value) %></td>
+                            <td class="small text-muted"><%= sourceLabel(p.source) %> <% if (p.source.kind === 'profile') { %><span class="badge bg-primary-subtle text-primary">override</span><% } else { %><span class="badge bg-secondary-subtle text-secondary">Template default</span><% } %></td>
+                          </tr>
+                        <% }) %>
+                      </tbody>
+                    </table>
+                  </div>
+                <% } %>
+              </div>
+            </details>
+          <% }) %>
+        </div>
+
+        <%# ---------------------------------------------------------------- Capabilities (codes only) %>
+        <div class="tab-pane fade" id="seu-ebm-capabilities" role="tabpanel">
+          <details class="section-card" open>
+            <summary class="section-header">Capability Codes</summary>
+            <% if (!capabilityCodeEntries.length) { %>
+              <div class="p-3 text-muted small">No Capability codes composed.</div>
+            <% } else { %>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light"><tr><th>Capability</th><th>Source</th></tr></thead>
+                  <tbody>
+                    <% capabilityCodeEntries.forEach(function(e) { %>
+                      <tr>
+                        <td class="small"><code><%= e.propertyName %></code></td>
+                        <td class="small text-muted"><%= sourceLabel(e.source) %></td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            <% } %>
+          </details>
+          <p class="small text-muted">Capability fulfilment (Fulfil/Replace) is on the <a href="/aisworg/seu/seus/<%= ebmView.seuId %>">SEU page</a>'s own Capabilities tab.</p>
+        </div>
+
+        <%# ---------------------------------------------------------------- Governance %>
+        <div class="tab-pane fade" id="seu-ebm-governance" role="tabpanel">
+          <details class="section-card" open>
+            <summary class="section-header">Authority Rules</summary>
+            <% if (!authorityRuleEntries.length) { %>
+              <div class="p-3 text-muted small">No Authority Rules contributed by any composed Pack.</div>
+            <% } else { %>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light"><tr><th>Governed Transition</th><th>Authorised Roles</th><th>Source</th></tr></thead>
+                  <tbody>
+                    <% authorityRuleEntries.forEach(function(e) { %>
+                      <tr>
+                        <td class="small"><%= e.value.governedTransition %></td>
+                        <td class="small"><%= (e.value.authorisedRoles || []).join(', ') %></td>
+                        <td class="small text-muted"><%= sourceLabel(e.source) %></td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            <% } %>
+          </details>
+          <details class="section-card">
+            <summary class="section-header">Policies</summary>
+            <% if (!policyEntries.length) { %>
+              <div class="p-3 text-muted small">No Policies adopted by any composed Pack.</div>
+            <% } else { %>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light"><tr><th>Policy</th><th>Governed Transition</th><th>Constraint Type</th><th>Source</th></tr></thead>
+                  <tbody>
+                    <% policyEntries.forEach(function(e) { %>
+                      <tr>
+                        <td class="small"><%= e.value.code %></td>
+                        <td class="small"><%= e.value.governedTransition %></td>
+                        <td class="small"><%= e.value.constraintType %></td>
+                        <td class="small text-muted"><%= sourceLabel(e.source) %></td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            <% } %>
+          </details>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

@@ -22,11 +22,10 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
-import { commissionFromForm } from "../src/routes/seu/core/commissioning.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { listServices } from "../src/routes/seu/core/services.js";
-import { ensureWebAppTemplateFixture } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
 
 after(async () => {
   await pool.end();
@@ -34,7 +33,7 @@ after(async () => {
 
 async function commissionTestSeu(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromForm({
+  const result = await commissionFromFormSync({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,

@@ -9,6 +9,34 @@
   {
     "entityType": "SEU",
     "fromState": "Pending",
+    "toState": "Failed",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "EBM",
+    "fromState": "Composed",
+    "toState": "Validated",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "EBM",
+    "fromState": "Validated",
+    "toState": "Active",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "EBM",
+    "fromState": "Composed",
+    "toState": "Retired",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Pending",
     "toState": "Validated",
     "requiredAuthorityRuleCode": null,
     "requiredPolicyCodes": []
@@ -58,6 +86,27 @@
   {
     "entityType": "SEU",
     "fromState": "Configured",
+    "toState": "Activated",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Pending",
+    "toState": "Configured",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Configured",
+    "toState": "Commissioned",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "SEU",
+    "fromState": "Commissioned",
     "toState": "Activated",
     "requiredAuthorityRuleCode": null,
     "requiredPolicyCodes": []

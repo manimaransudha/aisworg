@@ -15,7 +15,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 
 import pool from "../src/utils/db.js";
-import { commissionFromForm, commissionSeu } from "../src/routes/seu/core/commissioning.js";
+import { commissionSeu } from "../src/routes/seu/core/commissioning.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
@@ -27,7 +27,7 @@ import { executionTargetsDB } from "../src/dblayer/executionTargetsDB.js";
 import { deriveDedupedCapabilitiesFromPackCodes } from "../src/routes/seu/core/templates.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
-import { ensureWebAppTemplateFixture } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, driveCommissioningToActive } from "./testFixtures.js";
 
 const captured: Array<{ url: string; body: any; auth: string | undefined }> = [];
 let captureServer: http.Server;
@@ -86,7 +86,10 @@ async function commissionAndDispatch(prefix: string, tenantId: string) {
   const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: "1001" });
   assert.equal(activated.ok, true);
 
-  const result = await commissionSeu({ objectiveId: objective.id, templateIds: [fixtureTemplate.id], profileIds: [profile!.id], actorRole: "super", actorId: "1001", requestedBy: 1001, tenantId });
+  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [fixtureTemplate.id], profileIds: [profile!.id], actorRole: "super", actorId: "1001", requestedBy: 1001, tenantId });
+  assert.equal(requested.ok, true, !requested.ok ? `commissioning failed: ${requested.reason}` : undefined);
+  if (!requested.ok) throw new Error("unreachable");
+  const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: "1001" });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
   const seuId = result.seu.id;
@@ -174,7 +177,7 @@ test("a SEU commissioned without a named tenant belongs to the seeded default te
   await ensureWebAppTemplateFixture();
   const { data: def } = await tenantsDB.findDefault();
   assert.ok(def, "a default tenant is seeded");
-  const result = await commissionFromForm({
+  const result = await commissionFromFormSync({
     statement: `tenant-default-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,

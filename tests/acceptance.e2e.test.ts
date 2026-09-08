@@ -16,7 +16,8 @@ import fetchCookie from "fetch-cookie";
 import pool from "../src/utils/db.js";
 import app from "../src/app.js";
 import { appConfig } from "../src/config/appconfig.js";
-import { ensureWebAppTemplateFixture } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded } from "./testFixtures.js";
+import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 
 let server: ReturnType<typeof app.listen>;
 let baseUrl: string;
@@ -35,6 +36,9 @@ let request: ReturnType<typeof fetchCookie>;
 const TESTER_ALL_ID = 1001;
 
 before(async () => {
+  // Must run before this file's own commission POST — see
+  // ensureEventSubscriptionsLoaded's own header comment (testFixtures.ts).
+  await ensureEventSubscriptionsLoaded();
   await ensureWebAppTemplateFixture();
   await appConfig.init();
   server = app.listen(0);
@@ -109,10 +113,23 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
   });
   const commissioning = await commissionRes.json();
   assert.equal(commissionRes.status, 201, JSON.stringify(commissioning));
-  assert.equal(commissioning.lifecycleState, "Operational");
-  assert.ok(commissioning.commissioningReport.composition.packsUsed.includes("development"));
 
   const seuId = commissioning.seuId;
+
+  // design/mvp-build-plan/SEU Composition.md — commissionSeu (and so this
+  // API route) now only gets through the shallow "Validate Request" gate;
+  // it returns 'Pending', not 'Operational'. Compose EBM runs asynchronously
+  // off the CommissionValidated event it just published (the EBM Composer),
+  // and reaching Operational needs two further, separate manual actions
+  // (Validate, Activate) on top of that — driven through deterministically
+  // here, same as every other test exercising the outcome of commissioning
+  // rather than these new async/manual mechanics.
+  assert.equal(commissioning.lifecycleState, "Pending");
+  const driven = await driveCommissioningToActive({ seuId, actorRole: "general", actorId: String(TESTER_ALL_ID) });
+  assert.equal(driven.ok, true, !driven.ok ? `commissioning failed: ${driven.reason}` : undefined);
+  assert.equal(driven.ok && driven.seu.lifecycle_state, "Operational");
+  const { data: ebm } = driven.ok && driven.seu.active_ebm_id ? await ebmsDB.findById(driven.seu.active_ebm_id) : { data: null };
+  assert.ok(ebm?.composed_packs.some((p) => p.packCode === "development"), "expected the fixture Template's own mandatory Pack to have been composed");
 
   const statusRes = await request(`${baseUrl}/seus/${seuId}`);
   assert.equal(statusRes.status, 200);

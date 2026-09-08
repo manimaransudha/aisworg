@@ -14,7 +14,6 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 
 import pool from "../src/utils/db.js";
-import { commissionFromForm } from "../src/routes/seu/core/commissioning.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
@@ -26,7 +25,7 @@ import { humanOnUiAdapter } from "../src/adapters/humanOnUiAdapter.js";
 import { externalOrchestratorAdapter } from "../src/adapters/externalOrchestratorAdapter.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
 import type { ParticipantAdapter } from "../src/adapters/participantAdapter.js";
-import { ensureWebAppTemplateFixture } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
 
 // A local server standing in for a tenant's external orchestrator, capturing
 // every assignment the platform delivers.
@@ -84,7 +83,7 @@ after(async () => {
 
 async function commissionAndFulfil(prefix: string) {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromForm({
+  const result = await commissionFromFormSync({
     statement: `${prefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,

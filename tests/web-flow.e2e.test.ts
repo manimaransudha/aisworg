@@ -33,7 +33,7 @@ import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
 import { objectivesDB } from "../src/dblayer/objectivesDB.js";
-import { ensureWebAppTemplateFixture, uniqueTestPackVersion } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded } from "./testFixtures.js";
 
 type Session = ReturnType<typeof fetchCookie>;
 
@@ -41,6 +41,9 @@ let server: ReturnType<typeof app.listen>;
 let baseUrl: string;
 
 before(async () => {
+  // Must run before this file's own first commissionSeu call — see
+  // ensureEventSubscriptionsLoaded's own header comment (testFixtures.ts).
+  await ensureEventSubscriptionsLoaded();
   await appConfig.init();
   server = app.listen(0);
   await new Promise<void>((resolve) => server.once("listening", () => resolve()));
@@ -192,6 +195,20 @@ async function commissionSeu(request: Session, statementPrefix: string): Promise
   assert.equal(result.status, 302, "expected a redirect to the new SEU's detail page");
   assert.ok(result.location?.startsWith("/aisworg/seu/seus/"), `expected a redirect to the SEU detail page, got: ${result.location}`);
   const seuId = result.location!.split("/").pop()!;
+
+  // design/mvp-build-plan/SEU Composition.md — the real POST this test just
+  // submitted only gets commissionSeu through the shallow "Validate Request"
+  // gate now; Compose EBM runs asynchronously off the CommissionValidated
+  // event it published, and reaching Operational needs two further, separate
+  // manual actions (Validate, Activate) on top of that. The flows below are
+  // about what happens once an SEU is ready to work against, not these new
+  // async/manual mechanics — same reasoning commissionFromFormSync uses —
+  // so this drives it straight through deterministically rather than relying
+  // on eventBus.publish's own fire-and-forget dispatch or simulating the two
+  // extra button clicks over HTTP.
+  const driven = await driveCommissioningToActive({ seuId, actorRole: "super", actorId: String(TEST_USER_ALL_BADGES) });
+  assert.equal(driven.ok, true, !driven.ok ? `commissioning failed: ${driven.reason}` : undefined);
+
   return { seuId, csrf };
 }
 

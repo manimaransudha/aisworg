@@ -551,6 +551,7 @@
               { sourceType: 'service', label: 'Service Level' },
               { sourceType: 'policy', label: 'Policy' },
               { sourceType: 'checklist', label: 'Checklist' },
+              { sourceType: 'dependency', label: 'Deliverable Dependency' },
             ]; %>
             <% epGroups.forEach(function(g) { %>
               <% var groupRows = []; epRows.forEach(function(row, idx) { if (row.sourceType === g.sourceType) groupRows.push({ row: row, idx: idx }); }); %>
@@ -626,6 +627,8 @@
             <% var poGroups = [
               { sourceType: 'service', label: 'Service Level' },
               { sourceType: 'policy', label: 'Policy' },
+              { sourceType: 'checklist', label: 'Checklist' },
+              { sourceType: 'dependency', label: 'Deliverable Dependency' },
             ]; %>
             <% poGroups.forEach(function(g) { %>
               <% var groupRows = []; poRows.forEach(function(row, idx) { if (row.sourceType === g.sourceType) groupRows.push({ row: row, idx: idx }); }); %>

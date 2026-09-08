@@ -5,6 +5,9 @@ import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { dependencyDefinitionsDB, type DependencyOwningScope } from "../../../dblayer/dependencyDefinitionsDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
+import { eventsDB } from "../../../dblayer/eventsDB.js";
+import { templatesDB } from "../../../dblayer/templatesDB.js";
+import { profilesDB } from "../../../dblayer/profilesDB.js";
 import { objectivesDB } from "../../../dblayer/objectivesDB.js";
 import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { commandsDB } from "../../../dblayer/commandsDB.js";
@@ -12,6 +15,7 @@ import { workItemsDB } from "../../../dblayer/workItemsDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { capabilityFulfilmentsDB } from "../../../dblayer/capabilityFulfilmentsDB.js";
 import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
+import type { PoolEntry } from "../../../domain/engine/profileCompositionUnravel.js";
 import { getSeuEvents } from "./events.js";
 import { listObligationsWithNextStates } from "./obligations.js";
 import { listEvidenceWithNextStates, listEvidenceRelationships, listEvidenceLinkedToSeu } from "./evidence.js";
@@ -55,9 +59,69 @@ export async function getSeuStatus(seuId: string): Promise<SeuStatusView | null>
 
 export interface SeuListItem {
   id: string;
+  objectiveId: string;
+  activeEbmId: string | null;
   objectiveStatement: string;
   lifecycleState: string;
   createdAt: string;
+  // Same split as getObjectiveDetail's own possibleNextStates/possibleTransitionVerbs
+  // (core/objectives.ts): every governed, trigger==="manual" edge off this row's
+  // current lifecycle_state — badge-filtering happens in the web layer
+  // (resolveHeldBadges), same "which buttons does THIS viewer see" pattern
+  // sdkAuthoring's computeRowActions and objectives.ts's hasObjectiveBadge both
+  // already use. Owner: "Depending on the badge of the user, it shows the
+  // correct buttons based on transition definition. this is the current
+  // implementation. do not mess it up."
+  possibleNextStates: string[];
+  possibleTransitionVerbs: Record<string, string | null>;
+  // Owner: "If CommissionValidated is emitted, in All SEU pages, why does
+  // the Validate button still appear, the Compose button should show up" —
+  // lifecycle_state alone can't answer this: it stays "Pending" through the
+  // ENTIRE Validate Request + Compose EBM sub-flow (nothing moves it until
+  // Configured, much later). Whether Validate Request has already passed is
+  // an event fact (CommissionValidated), not a transition_definitions edge —
+  // checked here, batched, so the view can stop offering "Validate" once
+  // it's genuinely done (index.ejs's own "Compose" link is already the
+  // real next entry point once this is true — no separate button needed).
+  commissionValidated: boolean;
+}
+
+// Same shape as core/objectives.ts's own eligibleTransitions filter — a
+// transition with no manual trigger, or an unpopulated verb, is never a
+// button/link a viewer can click.
+async function seuPossibleNextStates(lifecycleState: string): Promise<Pick<SeuListItem, "possibleNextStates" | "possibleTransitionVerbs">> {
+  const { data: transitions } = await transitionDefinitionsDB.findPossibleNextTransitions("SEU", lifecycleState);
+  const eligible = (transitions ?? []).filter((t) => t.trigger === "manual");
+  return {
+    possibleNextStates: eligible.map((t) => t.toState),
+    possibleTransitionVerbs: Object.fromEntries(eligible.map((t) => [t.toState, t.verb])),
+  };
+}
+
+async function withPossibleNextStates<T extends { lifecycleState: string }>(rows: T[]): Promise<Array<T & Pick<SeuListItem, "possibleNextStates" | "possibleTransitionVerbs">>> {
+  const byState = new Map<string, Pick<SeuListItem, "possibleNextStates" | "possibleTransitionVerbs">>();
+  return Promise.all(
+    rows.map(async (row) => {
+      let resolved = byState.get(row.lifecycleState);
+      if (!resolved) {
+        resolved = await seuPossibleNextStates(row.lifecycleState);
+        byState.set(row.lifecycleState, resolved);
+      }
+      return { ...row, ...resolved };
+    })
+  );
+}
+
+// CR-072's own batched analog (eventsDB.findByOriginatingObjects) — one
+// query for every still-Pending row on this page, not one per row. Only
+// Pending rows are ambiguous (Failed/Configured/etc. already resolve
+// unambiguously through possibleNextStates); everything else defaults false
+// without a query.
+async function withCommissionValidated<T extends { id: string; lifecycleState: string }>(rows: T[]): Promise<Array<T & Pick<SeuListItem, "commissionValidated">>> {
+  const pendingIds = rows.filter((r) => r.lifecycleState === "Pending").map((r) => r.id);
+  const { data: events } = pendingIds.length ? await eventsDB.findByOriginatingObjects("SEU", pendingIds) : { data: [] };
+  const validatedIds = new Set((events ?? []).filter((e) => e.event_type === "CommissionValidated").map((e) => e.originating_object_id));
+  return rows.map((row) => ({ ...row, commissionValidated: validatedIds.has(row.id) }));
 }
 
 // viewer: undefined (or a Platform/Tenant Admin badge holder) sees every
@@ -66,12 +130,17 @@ export interface SeuListItem {
 export async function listSeus(viewer?: { userId: number | null; isAdmin: boolean }): Promise<SeuListItem[]> {
   const viewerId = viewer && !viewer.isAdmin && viewer.userId != null ? viewer.userId : undefined;
   const { data } = await seusDB.listWithObjectiveStatement(viewerId);
-  return (data ?? []).map((row) => ({
-    id: row.id,
-    objectiveStatement: row.objective_statement,
-    lifecycleState: row.lifecycle_state,
-    createdAt: row.created_at,
-  }));
+  const withStates = await withPossibleNextStates(
+    (data ?? []).map((row) => ({
+      id: row.id,
+      objectiveId: row.objective_id,
+      activeEbmId: row.active_ebm_id,
+      objectiveStatement: row.objective_statement,
+      lifecycleState: row.lifecycle_state,
+      createdAt: row.created_at,
+    }))
+  );
+  return withCommissionValidated(withStates);
 }
 
 // Paginated / searchable / sortable list for the SEUs Registry view.
@@ -81,16 +150,18 @@ export async function listSeusPaginated(
 ): Promise<ListResult<SeuListItem>> {
   const viewerId = viewer && !viewer.isAdmin && viewer.userId != null ? viewer.userId : undefined;
   const { items, total } = await seusDB.listWithObjectiveStatementPaginated(params, viewerId);
-  return listResult(
+  const withStates = await withPossibleNextStates(
     items.map((row) => ({
       id: row.id,
+      objectiveId: row.objective_id,
+      activeEbmId: row.active_ebm_id,
       objectiveStatement: row.objective_statement,
       lifecycleState: row.lifecycle_state,
       createdAt: row.created_at,
-    })),
-    total,
-    params
+    }))
   );
+  const withValidated = await withCommissionValidated(withStates);
+  return listResult(withValidated, total, params);
 }
 
 export interface SeuQuickviewItem extends SeuListItem {
@@ -227,7 +298,14 @@ export interface SeuDetailExternalInteraction {
 export interface SeuDetailView {
   seu: SeuRow;
   objectiveStatement: string;
-  composedPacks: EbmComposedPack[];
+  // design/mvp-build-plan/SEU Composition.md — owner: "There should be a
+  // viewEBM button... create a new one. EBM page." The EBM's own composed
+  // content (Metadata/Parameters/Engineering Practices/Quality Gates/
+  // Services/Capability codes/Governance/declared Deliverable Catalogue) —
+  // and its own Validate/Activate transition form — moved to its own page
+  // (getSeuEbmView/seus/ebm.ejs); this view stays SEU-runtime only. Reuses
+  // seu.active_ebm_id directly (already on SeuRow) rather than a redundant
+  // field here, for whichever page wants to link to it.
   capabilities: Array<{
     id: string;
     capabilityId: string;
@@ -267,6 +345,9 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     objectivesDB.findById(seu.objective_id),
     seuCapabilitiesDB.findBySeuId(seuId),
     deliverablesDB.findBySeuId(seuId),
+    // Still needed here even though Metadata itself moved to getSeuEbmView —
+    // this view's own Deliverables tab (the instantiated table) resolves
+    // dependency-edge readiness against the composed Pack scope below.
     seu.active_ebm_id ? ebmsDB.findById(seu.active_ebm_id) : Promise.resolve({ data: null }),
     getSeuEvents(seuId),
     participantsDB.findBySeuId(seuId),
@@ -436,7 +517,6 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
   return {
     seu,
     objectiveStatement: objective?.statement ?? "(objective not found)",
-    composedPacks: ebm?.composed_packs ?? [],
     capabilities: capabilityViews,
     deliverables: deliverableViews,
     commands: commandViews,
@@ -448,5 +528,73 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     decisions: decisionViews,
     externalInteractions: externalInteractionViews,
     events,
+  };
+}
+
+// design/mvp-build-plan/SEU Composition.md — owner: "There should be a
+// viewEBM button. It should be the same as detail.ejs. Dont use the same
+// page. create a new one. EBM page. We will need this to advance the EBM
+// states." A dedicated page for the EBM's own composed content (Metadata/
+// Parameters/Engineering Practices/Quality Gates/Services/Capability codes/
+// Governance/declared Deliverable Catalogue) and its own Validate/Activate
+// transition — split out of SeuDetailView/getSeuDetailView, which stays
+// SEU-runtime only.
+export interface SeuEbmView {
+  seuId: string;
+  objectiveId: string;
+  objectiveStatement: string;
+  composedPacks: EbmComposedPack[];
+  // Same generic transitionDefinitionsDB lookup every other entity on
+  // these two pages already uses for its own transition form.
+  ebm: { id: string; status: string; possibleNextStates: string[] } | null;
+  // Sourced from the SEU's own template_id/profile_id (fixed at commission
+  // time), not the EBM's — real from the moment Validate Request passes,
+  // not only once Compose EBM also succeeds (same bug fix as before the
+  // page split — carries over unchanged).
+  template: { code: string; name: string; version: string } | null;
+  profile: { code: string; name: string; version: string } | null;
+  // The EBM's own persisted behaviors.pool (migration 182) — the same flat,
+  // source-agnostic pool unravelComposition/compose.ejs already render.
+  // Empty (not null) when there's no EBM yet — every tab below already
+  // treats an empty pool as "not composed yet".
+  ebmPool: PoolEntry[];
+}
+
+export async function getSeuEbmView(seuId: string): Promise<SeuEbmView | null> {
+  const { data: seu } = await seusDB.findById(seuId);
+  if (!seu) return null;
+
+  const [{ data: objective }, { data: ebm }, { data: templateRow }, { data: profileRow }] = await Promise.all([
+    objectivesDB.findById(seu.objective_id),
+    seu.active_ebm_id ? ebmsDB.findById(seu.active_ebm_id) : Promise.resolve({ data: null }),
+    templatesDB.findById(seu.template_id),
+    profilesDB.findById(seu.profile_id),
+  ]);
+
+  const template = templateRow ? { code: templateRow.code, name: templateRow.name, version: templateRow.template_version } : null;
+  const profile = profileRow ? { code: profileRow.code, name: profileRow.name, version: profileRow.profile_version } : null;
+  const ebmPool = ((ebm?.behaviors as { pool?: PoolEntry[] } | null)?.pool ?? []) as PoolEntry[];
+  // Bug fix (owner: "I see the buttons Retire and Apply") — findPossibleNextStates
+  // returns EVERY structurally-defined edge off this status, including
+  // EBM: Composed -> Retired, a SYSTEM-only outcome (checkEbmLiveness failing
+  // during a Validate attempt, handled inside transitionEbm's own Validated
+  // branch) that a human should never pick from this dropdown themselves.
+  // findPossibleNextTransitions (same mechanism the SEU list's own Validate
+  // button already uses) carries verb, which Composed -> Retired deliberately
+  // has none of (only Composed -> Validated/Validated -> Active do) — the
+  // same real signal "genuinely human-actionable" already uses elsewhere,
+  // not a hardcoded "exclude Retired" special case.
+  const { data: ebmTransitions } = ebm ? await transitionDefinitionsDB.findPossibleNextTransitions("EBM", ebm.status) : { data: [] };
+  const ebmPossibleNextStates = (ebmTransitions ?? []).filter((t) => t.verb).map((t) => t.toState);
+
+  return {
+    seuId: seu.id,
+    objectiveId: seu.objective_id,
+    objectiveStatement: objective?.statement ?? "(objective not found)",
+    composedPacks: ebm?.composed_packs ?? [],
+    ebm: ebm ? { id: ebm.id, status: ebm.status, possibleNextStates: ebmPossibleNextStates } : null,
+    template,
+    profile,
+    ebmPool,
   };
 }

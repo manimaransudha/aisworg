@@ -25,10 +25,18 @@ import {
 } from "../core/objectives.js";
 import { objectivesDB } from "../../../dblayer/objectivesDB.js";
 import { parseListParams, paginateList, listResult } from "../../../utils/listQuery.js";
-import { commissionFromExistingObjective, previewCommissioningValidation } from "../core/commissioning.js";
+import { commissionFromExistingObjective, previewCommissioningValidation, applyConflictStrategy } from "../core/commissioning.js";
+import type { LivenessCheck } from "../core/commissioning.js";
+import { findOrCreateDefaultProfile } from "../core/profiles.js";
 import type { ProfileDetail } from "../core/profiles.js";
+import { seusDB } from "../../../dblayer/seusDB.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
+import { eventsDB } from "../../../dblayer/eventsDB.js";
+import { eventBus } from "../../../domain/engine/eventBus.js";
 import { listConceptsForType } from "../core/ontology.js";
 import type { ObjectiveStatus, ObjectiveTier, EbmCompositionReport, EbmComposedPack } from "../../../dblayer/seuTypes.js";
+import type { UnraveledComposition, CompositionConflict } from "../../../domain/engine/profileCompositionUnravel.js";
+import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { requireBadge } from "../../../middleware/requireBadge.js";
 import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
 import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
@@ -571,17 +579,77 @@ function parseResolvedParameterOverrides(body: Record<string, unknown>): Record<
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
+// Composition conflicts already resolved on a prior "Re-validate" round,
+// carried forward as hidden fields (JSON-encoded — unlike parameter
+// conflicts' own plain-string resolution, a composition conflict's resolved
+// value can be any shape: a number, an object, whatever that property's real
+// value is).
+function parsePreviouslyResolvedCompositionConflicts(body: Record<string, unknown>): Record<string, unknown> {
+  const raw = body.compositionResolution;
+  if (!raw || typeof raw !== "object") return {};
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value !== "string") continue;
+    try {
+      result[key] = JSON.parse(value);
+    } catch {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+// New strategy picks made THIS submission — propertyName -> the Ontology
+// composition-strategy code chosen for it (compositionStrategy[<propertyName>]).
+function parseCompositionStrategyChoices(body: Record<string, unknown>): Record<string, string> {
+  const raw = body.compositionStrategy;
+  if (!raw || typeof raw !== "object") return {};
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === "string" && value) result[key] = value;
+  }
+  return result;
+}
+
+// Owner: "you dont assume any base. i have been repeating this saying user
+// has to choose." Which sources actually participate is explicit human
+// input, per conflict — a checkbox ("include this source",
+// compositionSourceChecked[<propertyName>][]) and a radio ("this is the
+// base/chosen source", compositionSourceBase[<propertyName>]) — never
+// inferred from array order.
+function parseCompositionSourceSelections(body: Record<string, unknown>): { checked: Record<string, string[]>; base: Record<string, string> } {
+  const checked: Record<string, string[]> = {};
+  const rawChecked = body.compositionSourceChecked;
+  if (rawChecked && typeof rawChecked === "object") {
+    for (const [key, value] of Object.entries(rawChecked as Record<string, unknown>)) {
+      checked[key] = Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : typeof value === "string" ? [value] : [];
+    }
+  }
+  const base: Record<string, string> = {};
+  const rawBase = body.compositionSourceBase;
+  if (rawBase && typeof rawBase === "object") {
+    for (const [key, value] of Object.entries(rawBase as Record<string, unknown>)) {
+      if (typeof value === "string" && value) base[key] = value;
+    }
+  }
+  return { checked, base };
+}
+
 /** POST /aisworg/seu/objectives/:id/validate-commission — CR-092 Part 6's
  * "Queue to validate" action (owner: "has to queue to validate. The
  * validation view/form is what should show all the conflicting packs /
- * parameters / instructions"). Read-only: previewCommissioningValidation
- * creates no SEU/EBM row — it's the same compositionEngine.compose() the
- * real commission route below will re-run and actually block on, just
- * surfaced here before anything is created. Post/redirect/get, same
- * stashFormInput bounce-back convention GET /seus/new's own freeform-form
- * repopulation already uses — the report is computed here, then handed to
- * the GET route below via the session stash rather than rendered directly
- * from this POST (every other view in this router renders from a GET). */
+ * parameters / instructions"). design/mvp-build-plan/SEU Composition.md,
+ * 2026-09-07 — on first arrival for this Objective, creates the SEU
+ * (Pending) and publishes CommissionRequested, then stops: nothing is
+ * computed in this request (owner: "once an event is published, that is the
+ * end of that work"). validateRequestHandler (Validate Request) and, once it
+ * passes, ebmComposerHandler (Compose EBM) run off that chain and persist
+ * ebmComposerHandler's own real output to seus.composition_report (migration
+ * 180) — owner: "ebmComposerHandler should display this page" — for the GET
+ * below to read. Every subsequent "Apply & re-validate" round trip through
+ * this same route finds the SEU already exists, causes no transition, and
+ * recomputes the same thing directly — still persisted the same way, not
+ * via session stash. */
 router.post("/objectives/:id/validate-commission", requireBadge(["seu_commission"], { redirectTo: toDetailPage }), async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/new?objectiveId=${objectiveId}`;
@@ -600,40 +668,287 @@ router.post("/objectives/:id/validate-commission", requireBadge(["seu_commission
   }
 
   try {
-    const { compositionReport, composedPacks, profileDetails } = await previewCommissioningValidation({ selections, resolvedParameterOverrides });
-    stashFormInput(req, { selections, compositionReport, composedPacks, profileDetails, resolvedParameterOverrides });
-    return res.redirect(`/aisworg/seu/objectives/${objectiveId}/validate-commission`);
+    const viewerTenantId = req.session?.user?.tenant_id ?? PLATFORM_TENANT_ID;
+
+    // design/mvp-build-plan/SEU Composition.md, 2026-09-07 — "Queue to
+    // Validate" is the real manual trigger for CommissionRequested (owner:
+    // "Event CommissionRequested is published" on this click), and this SEU
+    // row's own birth (Pending) is what that manual click is allowed to
+    // cause directly (same as transitionEbm's Validate/Activate — a manual
+    // trigger may perform its own entity's transition inline). But per the
+    // owner's own rule ("once an event is published, that is the end of
+    // that work... there has to be a handler"), this request does nothing
+    // more after publishing it. validateRequestHandler (subscribed to
+    // CommissionRequested, payload {seuId} only — owner: "payload just needs
+    // the seuid and nothing more") runs Validate Request off the event and
+    // publishes CommissionValidated/CommissionFailed — nothing subscribes to
+    // CommissionValidated any more (owner: "handler have to check for the
+    // manual transition definition" — Compose EBM is manual now; a human
+    // clicks "Compose" on the Compose EBM page, POST .../compose-ebm below).
+    // Only the first submission through this route reaches this branch —
+    // CR-002/§18.2's own "at most one active SEU per Objective" check
+    // doubles as the create-or-reuse gate for every subsequent
+    // "Apply & re-validate".
+    const selection = selections[0];
+    const { data: objective } = await objectivesDB.findById(objectiveId);
+    if (!objective) return flashError(req, res, backTo, "Objective not found.");
+    const { data: existingSeu } = await seusDB.findByObjectiveId(objectiveId);
+    if (existingSeu) {
+      // Already requested — this route only ever originates CommissionRequested
+      // once per Objective; nothing more to do here (see compose-ebm below
+      // for "Apply & re-validate", which is Compose EBM's own concern now).
+      return res.redirect("/aisworg/seu/seus");
+    }
+    const profileId = selection.profileId ?? (await findOrCreateDefaultProfile(selection.templateId)).id;
+    // Same tenant resolution commissionSeu itself uses (§18.11: "An SEU's
+    // Tenant is set from its Objective's Tenant") — commissionSeu no
+    // longer sets tenant_id at all once it finds this row already exists,
+    // so it must be right here, at creation time.
+    let seuTenantId = objective.sponsoring_authority?.tenant ?? null;
+    if (!seuTenantId) {
+      const { data: defaultTenant } = await tenantsDB.findDefault();
+      seuTenantId = defaultTenant?.id ?? null;
+    }
+    const { data: newSeu, error: seuErr } = await seusDB.create({
+      objectiveId,
+      templateId: selection.templateId,
+      profileId,
+      requestedBy: req.session?.user?.id ?? null,
+      tenantId: seuTenantId,
+    });
+    if (seuErr || !newSeu) return flashError(req, res, backTo, (seuErr ?? new Error("failed to create SEU")).message);
+    await eventBus.publish({
+      eventType: "CommissionRequested",
+      originatingObjectType: "SEU",
+      originatingObjectId: newSeu.id,
+      seuId: newSeu.id,
+      correlationId: eventBus.newCorrelationId(),
+      payload: { seuId: newSeu.id },
+      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+    });
+    // Hard stop — validateRequestHandler, not this request, computes and
+    // persists the result; nothing here has it yet to show. Owner: "Queue to
+    // Validate should return back to ALL seus page and show the Validate
+    // button. that is what should take to validate page." — this SEU is now
+    // Pending, and the actor holds seu_commission (this route's own
+    // requireBadge gate), so index.ejs's badge+transition-gated Validate
+    // link will render for it immediately.
+    req.session.flash = { type: "success", message: "Commissioning queued — validating…" };
+    return res.redirect("/aisworg/seu/seus");
   } catch (err) {
     logger.error("[web/seu/objectives] POST /objectives/:id/validate-commission error", err as Error);
     return flashError(req, res, backTo, (err as Error).message);
   }
 });
 
-/** GET /aisworg/seu/objectives/:id/validate-commission — renders the report
- * the POST above just stashed. A direct GET with nothing stashed (no prior
- * POST this session) bounces back to the picker rather than showing an
- * empty/broken report. */
+/** POST /aisworg/seu/objectives/:id/compose-ebm — "Apply & re-validate",
+ * design/mvp-build-plan/SEU Composition.md, 2026-09-07 — split out of the
+ * route above (owner: "That was supposed to only show the liveness of the
+ * information... decoupling is also going to need new pages"). This is
+ * Compose EBM's own concern: picking a composition strategy per conflict
+ * and recomputing. Causes no transition — a pure, repeatable recompute —
+ * so it runs directly here, not off an event; writes to the same place
+ * ebmComposerHandler does (seus.composition_report), not session-stash. */
+router.post("/objectives/:id/compose-ebm", requireBadge(["seu_commission"], { redirectTo: toDetailPage }), async (req: Request, res: Response) => {
+  const objectiveId = String(req.params.id);
+  const backTo = `/aisworg/seu/objectives/${objectiveId}/compose-ebm`;
+  const selections = parseTemplateProfileSelections(req.body ?? {});
+  const resolvedParameterOverrides = parseResolvedParameterOverrides(req.body ?? {});
+  if (selections.length === 0) return flashError(req, res, backTo, "Nothing to re-validate.");
+
+  try {
+    const viewerTenantId = req.session?.user?.tenant_id ?? PLATFORM_TENANT_ID;
+    const { data: existingSeu } = await seusDB.findByObjectiveId(objectiveId);
+    if (!existingSeu) return flashError(req, res, backTo, "No SEU found for this Objective.");
+
+    const previouslyResolved = parsePreviouslyResolvedCompositionConflicts(req.body ?? {});
+    const newStrategyChoices = parseCompositionStrategyChoices(req.body ?? {});
+
+    // Bug fix (owner: "The error flash and it should stay on the Validation
+    // page. Currently it goes back to the profile selection page") — a
+    // strategy that genuinely can't run (merge's own same-code precondition,
+    // the only real failure applyConflictStrategy can return — see its own
+    // comment) is a recoverable, "try a different strategy" situation, not a
+    // broken selection — it must not bounce all the way back to the picker
+    // and lose everything else the human already resolved. Collect the
+    // failure message and simply skip that one pick (the conflict stays
+    // open, exactly as if nothing had been chosen for it yet); everything
+    // else proceeds normally, ending on the same stash+redirect-to-GET-
+    // Validation-page path every other case here already uses.
+    let resolvedCompositionConflicts = previouslyResolved;
+    let strategyError: string | undefined;
+    // Owner: "If the user says union, there is a union" — every chosen
+    // strategy actually runs; union/merge/intersection can genuinely come
+    // back with an empty value when the sources really don't agree (their
+    // own honest design, not a failure) — applyConflictStrategy's own `note`
+    // carries that explanation so it's surfaced, not silently dropped.
+    const strategyNotes: string[] = [];
+    if (Object.keys(newStrategyChoices).length > 0) {
+      // Need this conflict's own current options (each source's value)
+      // before a strategy can be applied to it — a first pass, resolved
+      // against whatever was already carried forward from prior rounds.
+      const firstPass = await previewCommissioningValidation({ selections, resolvedParameterOverrides, resolvedCompositionConflicts: previouslyResolved, viewerTenantId });
+      const sourceSelections = parseCompositionSourceSelections(req.body ?? {});
+      const newlyResolved: Record<string, unknown> = {};
+      for (const [propertyName, strategy] of Object.entries(newStrategyChoices)) {
+        const conflict = firstPass.compositionConflicts.find((c) => c.propertyName === propertyName);
+        if (!conflict) continue;
+        const applied = applyConflictStrategy(conflict, strategy, {
+          checkedSourceIds: sourceSelections.checked[propertyName] ?? [],
+          baseSourceId: sourceSelections.base[propertyName],
+        });
+        if (applied.ok) {
+          // Bug fix (owner: "what happens when after the composition, there
+          // is still a conflict?") — an empty result (Intersection genuinely
+          // finding nothing in common) is not a resolution; recording it
+          // anyway would silently clear the conflict from the list next
+          // render even though nothing was actually resolved. Only a real,
+          // defined value counts.
+          if (applied.value !== undefined) newlyResolved[propertyName] = applied.value;
+          if (applied.note) strategyNotes.push(`${propertyName}: ${applied.note}`);
+        } else {
+          strategyError = applied.error;
+        }
+      }
+      resolvedCompositionConflicts = { ...previouslyResolved, ...newlyResolved };
+    }
+
+    const { compositionReport, composedPacks, profileDetails, unraveled, compositionConflicts } = await previewCommissioningValidation({ selections, resolvedParameterOverrides, resolvedCompositionConflicts, viewerTenantId });
+    await seusDB.setCompositionReport(existingSeu.id, { selections, compositionReport, composedPacks, profileDetails, resolvedParameterOverrides, unraveled, compositionConflicts, resolvedCompositionConflicts });
+    // Owner: "The conflicts if resolved emits Composition completed. And
+    // composition completes here." — consumed by compositionCompletedHandler,
+    // the sole place ebmsDB.create() is called from (ebmComposerHandler
+    // itself only composes now, never creates).
+    if (compositionConflicts.length === 0) {
+      await eventBus.publish({
+        eventType: "CompositionCompleted",
+        originatingObjectType: "SEU",
+        originatingObjectId: existingSeu.id,
+        seuId: existingSeu.id,
+        correlationId: eventBus.newCorrelationId(),
+        payload: { seuId: existingSeu.id },
+        actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      });
+    }
+    if (strategyError) {
+      req.session.flash = { type: "error", message: strategyError };
+    } else if (strategyNotes.length) {
+      req.session.flash = { type: "success", message: strategyNotes.join(" · ") };
+    }
+    return res.redirect(`/aisworg/seu/objectives/${objectiveId}/compose-ebm`);
+  } catch (err) {
+    logger.error("[web/seu/objectives] POST /objectives/:id/compose-ebm error", err as Error);
+    return flashError(req, res, backTo, (err as Error).message);
+  }
+});
+
+/** GET /aisworg/seu/objectives/:id/validate-commission — Validate Request's
+ * own liveness output only (owner, 2026-09-07: "That was supposed to only
+ * show the liveness of the information"). Real, current state — the
+ * CommissionRequested -> validateRequestHandler chain runs off the request
+ * that got here, not this one. No SEU for this Objective at all bounces
+ * back to the picker. */
 router.get("/objectives/:id/validate-commission", requireBadge(["seu_commission"], { redirectTo: toDetailPage }), attachVM("seu/seus/validate"), async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
-  const stashed = takeFormInput(req) as {
+  const { data: seu } = await seusDB.findByObjectiveId(objectiveId);
+  if (!seu) {
+    return flashError(req, res, `/aisworg/seu/seus/new?objectiveId=${objectiveId}`, "Nothing to validate — choose a Template/Profile selection first.");
+  }
+
+  // Bug fix — validateRequestHandler (src/domain/engine/validateRequest.ts)
+  // publishes CommissionValidated on success but never touches
+  // lifecycle_state (nothing advances it off "Pending" until much later,
+  // Configured off EBMValidated) — so a `lifecycle_state !== "Pending"`
+  // check can never observe a real success here; the page was stuck showing
+  // "Validating — reload" forever even after validation genuinely passed
+  // (confirmed live: a real CommissionValidated event existed while
+  // lifecycle_state still read "Pending"). Read the real outcome off the
+  // events themselves instead, same source Failed already used.
+  const { data: events } = await eventsDB.findByOriginatingObject("SEU", seu.id);
+  const validatedEvent = (events ?? []).filter((e) => e.event_type === "CommissionValidated").sort((a, b) => a.occurred_at.localeCompare(b.occurred_at)).pop();
+  const failedEvent = (events ?? []).filter((e) => e.event_type === "CommissionFailed").sort((a, b) => a.occurred_at.localeCompare(b.occurred_at)).pop();
+  const failedPayload = failedEvent?.payload as { stage?: string; reason?: string; references?: string[]; checks?: LivenessCheck[] } | undefined;
+  const validatedPayload = validatedEvent?.payload as { checks?: LivenessCheck[] } | undefined;
+  // Only a validate_request-stage failure belongs on this page — a
+  // compose_ebm-stage failure means Validate Request passed; that
+  // failure's own conflicts render on the Compose EBM page instead.
+  const failed = failedPayload?.stage === "validate_request";
+  const failureReason = failed ? (failedPayload!.references?.length ? `${failedPayload!.reason ?? "validation failed"}: ${failedPayload!.references!.join("; ")}` : (failedPayload!.reason ?? "validation failed")) : null;
+  const passed = !!validatedEvent && !failed;
+  // Owner: "Show details of what was checked and what passed the check and
+  // failed the check if it is failed" — the full per-check breakdown
+  // validateRequestHandler recorded on whichever event actually fired
+  // (Authority/Policy gate first, then every checkRequestLiveness check).
+  const checks: LivenessCheck[] = (failed ? failedPayload?.checks : validatedPayload?.checks) ?? [];
+
+  req.vm.req.title = "Commission Validation";
+  req.vm.req.objectiveId = objectiveId;
+  req.vm.req.seu = seu;
+  req.vm.req.pending = !passed && !failed;
+  req.vm.req.failed = failed;
+  req.vm.req.failureReason = failureReason;
+  req.vm.req.passed = passed;
+  req.vm.req.checks = checks;
+  req.vm.opt.flash = getFlash(req);
+  return renderView(req, res, "seu/seus/validate", req.vm);
+});
+
+/** GET /aisworg/seu/objectives/:id/compose-ebm — Compose EBM's own real
+ * output (owner, 2026-09-07: "ebmComposerHandler should display this
+ * page"). ebmComposerHandler writes its own real result to
+ * seus.composition_report (migration 180) — either a real CommissionFailed
+ * conflict list, or a real composed result; "Apply & re-validate" writes
+ * the same field with the same shape. No SEU for this Objective at all
+ * bounces back to the picker. */
+router.get("/objectives/:id/compose-ebm", requireBadge(["seu_commission"], { redirectTo: toDetailPage }), attachVM("seu/seus/compose"), async (req: Request, res: Response) => {
+  const objectiveId = String(req.params.id);
+  const { data: seu } = await seusDB.findByObjectiveId(objectiveId);
+  if (!seu) {
+    return flashError(req, res, `/aisworg/seu/seus/new?objectiveId=${objectiveId}`, "Nothing to compose — choose a Template/Profile selection first.");
+  }
+  const stashed = seu.composition_report as {
     selections: Array<{ templateId: string; profileId?: string }>;
     compositionReport: EbmCompositionReport;
     composedPacks?: EbmComposedPack[];
     profileDetails?: ProfileDetail[];
     resolvedParameterOverrides?: Record<string, string>;
+    unraveled?: UnraveledComposition;
+    compositionConflicts?: CompositionConflict[];
+    resolvedCompositionConflicts?: Record<string, unknown>;
   } | null;
-  if (!stashed) {
-    return flashError(req, res, `/aisworg/seu/seus/new?objectiveId=${objectiveId}`, "Nothing to validate — choose a Template/Profile selection first.");
+
+  // Owner: "successful composition should also land on detail.ejs. Give a
+  // 'back to compose' link if EBM has not gone past EBMCreated. ... A
+  // conflict will still use the current compose page." active_ebm_id only
+  // gets set once compositionCompletedHandler actually succeeds (zero
+  // conflicts at that point) — a still-conflicted attempt never reaches
+  // here at all, so this redirect can never fire while a real conflict is
+  // still open.
+  if (seu.active_ebm_id) {
+    return res.redirect(`/aisworg/seu/seus/${seu.id}`);
   }
-  req.vm.req.title = "Commissioning Validation";
+
+  req.vm.req.title = "Compose EBM";
   req.vm.req.objectiveId = objectiveId;
-  req.vm.req.selections = stashed.selections;
-  req.vm.req.compositionReport = stashed.compositionReport;
-  req.vm.req.composedPacks = stashed.composedPacks ?? [];
-  req.vm.req.profileDetails = stashed.profileDetails ?? [];
-  req.vm.req.resolvedParameterOverrides = stashed.resolvedParameterOverrides ?? {};
+  req.vm.req.seuId = seu.id;
+  // Never true here any more — the moment it would be, the redirect above
+  // already sent the viewer to detail.ejs instead. Kept (not removed) so
+  // compose.ejs's own "composing…" vs "the EBM has been composed" branch —
+  // still correct for the real, narrow async window between CompositionCompleted
+  // firing and compositionCompletedHandler actually finishing — needs no edit.
+  req.vm.req.ebmComposed = false;
+  // Still "awaiting" only when there's genuinely nothing real to show yet.
+  req.vm.req.pending = seu.lifecycle_state === "Pending" && !stashed;
+  req.vm.req.selections = stashed?.selections ?? [{ templateId: seu.template_id, profileId: seu.profile_id }];
+  req.vm.req.compositionReport = stashed?.compositionReport ?? { warnings: [], conflicts: [], parameterConflicts: [], resolutions: [] };
+  req.vm.req.composedPacks = stashed?.composedPacks ?? [];
+  req.vm.req.profileDetails = stashed?.profileDetails ?? [];
+  req.vm.req.resolvedParameterOverrides = stashed?.resolvedParameterOverrides ?? {};
+  req.vm.req.unraveled = stashed?.unraveled ?? { pool: [] };
+  req.vm.req.compositionConflicts = stashed?.compositionConflicts ?? [];
+  req.vm.req.resolvedCompositionConflicts = stashed?.resolvedCompositionConflicts ?? {};
   req.vm.opt.flash = getFlash(req);
-  return renderView(req, res, "seu/seus/validate", req.vm);
+  return renderView(req, res, "seu/seus/compose", req.vm);
 });
 
 /** POST /aisworg/seu/objectives/:id/commission — commission an SEU directly against this (Active, non-Strategic leaf) Objective. Same badge SEU's own Pending -> Commissioned transition requires (transitionEngine.evaluate, called inside commissionFromExistingObjective).
@@ -671,10 +986,18 @@ router.post("/objectives/:id/commission", requireBadge(["seu_commission"], { red
   }
 
   try {
+    // The human's own prior picks from the Validation page — carried forward
+    // as compositionResolution[<key>] hidden fields, same helper the
+    // validate-commission POST route already uses. Design/mvp-build-plan/
+    // SEU Composition.md: this is what lets the EBM Composer reach the same
+    // zero-conflict result the human already confirmed, instead of the old,
+    // now-removed compositionEngine.compose() call re-deriving its own.
+    const resolvedCompositionConflicts = parsePreviouslyResolvedCompositionConflicts(req.body ?? {});
     const result = await commissionFromExistingObjective({
       objectiveId,
       selections,
       resolvedParameterOverrides,
+      resolvedCompositionConflicts,
       actorRole: req.session?.user?.role ?? "general",
       actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
       requestedBy: req.session?.user?.id ?? null,
@@ -682,7 +1005,13 @@ router.post("/objectives/:id/commission", requireBadge(["seu_commission"], { red
     if (!result.ok) {
       return flashError(req, res, backTo, `Commissioning failed at "${result.stage}": ${result.reason}`);
     }
-    return flashSuccess(req, res, `/aisworg/seu/seus/${result.seu.id}`, `SEU commissioned — lifecycle state: ${result.seu.lifecycle_state}.`);
+    // commissionSeu only gets through the shallow "Validate Request" gate
+    // now (design/mvp-build-plan/SEU Composition.md) — Compose EBM runs
+    // asynchronously off the CommissionValidated event it just published, so
+    // this is not yet a finished commission (lifecycle_state stays 'Pending'
+    // until a human later Validates then Activates the composed EBM on the
+    // SEU's own detail page).
+    return flashSuccess(req, res, `/aisworg/seu/seus/${result.seu.id}`, `Commissioning request validated — composing the Engineering Behavior Model. Check back on this SEU to validate and activate it once composed.`);
   } catch (err) {
     logger.error("[web/seu/objectives] POST /objectives/:id/commission error", err as Error);
     return flashError(req, res, backTo, (err as Error).message);

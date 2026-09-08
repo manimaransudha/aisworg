@@ -8,13 +8,15 @@ import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
-import { listSeusPaginated, getSeuDetailView } from "../core/seus.js";
+import { listSeusPaginated, getSeuDetailView, getSeuEbmView } from "../core/seus.js";
 import { parseListParams } from "../../../utils/listQuery.js";
 import { getObjectiveDetail, listCommissionableObjectives } from "../core/objectives.js";
 import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
 import { fulfilCapability } from "../core/capabilities.js";
 import { replaceParticipant } from "../core/participants.js";
 import { transitionDeliverable } from "../core/deliverables.js";
+import { transitionEbm } from "../core/commissioning.js";
+import { seusDB } from "../../../dblayer/seusDB.js";
 import { createObligation, transitionObligation } from "../core/obligations.js";
 import { createEvidence, transitionEvidence, linkEvidenceToObject } from "../core/evidence.js";
 import { createKnowledgeItem, promoteKnowledgeItemScope, transitionKnowledgeItem } from "../core/knowledge.js";
@@ -28,10 +30,21 @@ router.get("/seus", attachVM("seu/seus/index"), async (req: Request, res: Respon
     req.vm.req.title = "SEUs";
     const platformBadges: string[] = req.session?.user?.platformBadges ?? [];
     const params = parseListParams(req.query, { sortable: ["objective", "state", "created"], defaultSort: "created", defaultDir: "desc" });
-    req.vm.req.list = await listSeusPaginated(params, {
+    const list = await listSeusPaginated(params, {
       userId: req.session?.user?.id ?? null,
       isAdmin: platformBadges.includes("root") || platformBadges.includes("tenant_admin"),
     });
+    // Same badge-filter pass as web/objectives.ts's own hasObjectiveBadge —
+    // core already restricted possibleNextStates to real, manual-triggered
+    // edges; this narrows it further to the ones THIS viewer actually holds
+    // the badge for, so index.ejs never renders a button/link that would
+    // just 403 on click.
+    const held = await resolveHeldBadges(req);
+    const hasSeuBadge = (verb: string | null): boolean => held.isRoot || (!!verb && held.badgeTypes.has(`seu_${verb}`));
+    for (const item of list.items) {
+      item.possibleNextStates = item.possibleNextStates.filter((s) => hasSeuBadge(item.possibleTransitionVerbs[s]));
+    }
+    req.vm.req.list = list;
     req.vm.opt.listBasePath = "/aisworg/seu/seus";
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/seus/index", req.vm);
@@ -106,6 +119,28 @@ router.get("/seus/:id", attachVM("seu/seus/detail"), async (req: Request, res: R
     return renderView(req, res, "seu/seus/detail", req.vm);
   } catch (err) {
     logger.error("[web/seu/seus] GET /seus/:id error", err as Error);
+    next(err);
+  }
+});
+
+/** GET /aisworg/seu/seus/:id/ebm — the EBM's own composed content
+ * (Metadata/Parameters/Engineering Practices/Quality Gates/Services/
+ * Capability codes/Governance/declared Deliverable Catalogue) and its own
+ * Validate/Activate transition. design/mvp-build-plan/SEU Composition.md —
+ * owner: "There should be a viewEBM button... create a new one. EBM page.
+ * We will need this to advance the EBM states." */
+router.get("/seus/:id/ebm", attachVM("seu/seus/ebm"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const ebmView = await getSeuEbmView(String(req.params.id));
+    if (!ebmView) {
+      return flashError(req, res, "/aisworg/seu/seus", "SEU not found.");
+    }
+    req.vm.req.title = `EBM — SEU ${ebmView.seuId.slice(0, 8)}`;
+    req.vm.req.ebmView = ebmView;
+    req.vm.opt.flash = getFlash(req);
+    return renderView(req, res, "seu/seus/ebm", req.vm);
+  } catch (err) {
+    logger.error("[web/seu/seus] GET /seus/:id/ebm error", err as Error);
     next(err);
   }
 });
@@ -195,6 +230,47 @@ router.post("/seus/:id/deliverables/:deliverableId/transition", async (req: Requ
     return flashSuccess(req, res, backTo, `Deliverable "${result.pendingTransition.fromState}" → "${result.pendingTransition.toState}" dispatched to a Participant. It stays in "${result.pendingTransition.fromState}" until a result is reported.`);
   } catch (err) {
     logger.error("[web/seu/seus] POST /seus/:id/deliverables/:deliverableId/transition error", err as Error);
+    return flashError(req, res, backTo, (err as Error).message);
+  }
+});
+
+/** POST /aisworg/seu/seus/:id/ebm/transition — Chapter 3 §15 "Validate Engineering
+ * Model"/"Activate" (design/mvp-build-plan/SEU Composition.md, plan step 6).
+ * Two separate, independently human-triggered transitions on the SEU's own
+ * active EBM (Composed -> Validated -> Active), same shape as every other
+ * entity transition on this page. Activating also finishes commissioning
+ * (finalizeCommissioning, called inside transitionEbm). */
+router.post("/seus/:id/ebm/transition", async (req: Request, res: Response) => {
+  const seuId = String(req.params.id);
+  const backTo = `/aisworg/seu/seus/${seuId}`;
+  const { targetState } = req.body ?? {};
+
+  if (typeof targetState !== "string" || !targetState.trim()) {
+    return flashError(req, res, backTo, "Target state is required.");
+  }
+
+  try {
+    const { data: seu } = await seusDB.findById(seuId);
+    if (!seu || !seu.active_ebm_id) {
+      return flashError(req, res, backTo, "This SEU has no Engineering Behavior Model to transition yet.");
+    }
+    const result = await transitionEbm({
+      ebmId: seu.active_ebm_id,
+      targetState,
+      actorRole: req.session?.user?.role ?? "general",
+      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+    });
+    if (!result.ok) {
+      const reason = result.reason === "not_found" ? "EBM not found" : result.detail;
+      return flashError(req, res, backTo, `EBM transition blocked: ${reason}`);
+    }
+    const message =
+      result.appliedTransition.toState === "Active"
+        ? `Engineering Behavior Model activated — commissioning finished, lifecycle state: ${(await seusDB.findById(seuId)).data?.lifecycle_state}.`
+        : `Engineering Behavior Model moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`;
+    return flashSuccess(req, res, backTo, message);
+  } catch (err) {
+    logger.error("[web/seu/seus] POST /seus/:id/ebm/transition error", err as Error);
     return flashError(req, res, backTo, (err as Error).message);
   }
 });

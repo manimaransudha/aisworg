@@ -25,7 +25,6 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
-import { commissionFromForm } from "../src/routes/seu/core/commissioning.js";
 import { createAttentionItem } from "../src/routes/seu/core/attentionItems.js";
 import { checkSustainedPolicyWaivers, checkSustainedCapabilityShortages } from "../src/routes/seu/core/telemetry.js";
 import { transitionEngine } from "../src/domain/engine/transitionEngine.js";
@@ -35,7 +34,7 @@ import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { seuCapabilitiesDB } from "../src/dblayer/seuCapabilitiesDB.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
-import { ensureWebAppTemplateFixture } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
 
 after(async () => {
   await pool.end();
@@ -49,7 +48,7 @@ async function anyRealPackId(): Promise<string> {
 
 async function commissionTestSeu(statementPrefix: string): Promise<string> {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromForm({
+  const result = await commissionFromFormSync({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,

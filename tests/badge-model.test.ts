@@ -13,7 +13,6 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { query } from "../src/utils/db.js";
-import { commissionFromForm } from "../src/routes/seu/core/commissioning.js";
 import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
 import { transitionDeliverableSync as transitionDeliverable } from "./testFixtures.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
@@ -22,7 +21,7 @@ import { badgeTypesDB } from "../src/dblayer/badgeTypesDB.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { userDB } from "../src/dblayer/userDB.js";
 import { badgeAuthorityEngine } from "../src/domain/engine/badgeAuthorityEngine.js";
-import { ensureWebAppTemplateFixture } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
 
 // Bug fix (owner, 2026-08-17): "are you cleaning up the test data after the
 // tests are done?" — this file wasn't. Every createTestUser() call left a
@@ -88,7 +87,7 @@ async function createTestParentBadgeType(label: string): Promise<string> {
 
 async function commissionTestSeu(statementPrefix: string): Promise<string> {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromForm({
+  const result = await commissionFromFormSync({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,

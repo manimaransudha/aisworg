@@ -7,6 +7,14 @@ export interface SeuWithObjectiveStatement extends SeuRow {
   objective_statement: string;
 }
 
+// design/mvp-build-plan/SEU Composition.md, "Retry after a failed commission"
+// — "at most one SEU per Objective" is at most one *active* one (owner: "so
+// uniqueness has to be on an active seu... not on any other previous
+// state"), matching the partial unique index (migration 179) exactly. A
+// Failed/Retired/Archived SEU doesn't block a fresh commission, and
+// shouldn't show as "Commissioned" on the Objectives list either.
+const ACTIVE_LIFECYCLE_STATES: SeuLifecycleState[] = ["Pending", "Commissioned", "Configured", "Activated", "Operational", "Suspended"];
+
 export const seusDB = {
   async create(input: {
     objectiveId: string;
@@ -47,7 +55,10 @@ export const seusDB = {
   // most one SEU each, so no DISTINCT/grouping is needed.
   async commissionedObjectiveSeuIds(): Promise<DbResult<Array<{ objectiveId: string; seuId: string }>>> {
     try {
-      const { rows } = await query<{ objective_id: string; id: string }>("SELECT objective_id, id FROM seus");
+      const { rows } = await query<{ objective_id: string; id: string }>(
+        "SELECT objective_id, id FROM seus WHERE lifecycle_state = ANY($1::text[])",
+        [ACTIVE_LIFECYCLE_STATES]
+      );
       return { data: rows.map((r) => ({ objectiveId: r.objective_id, seuId: r.id })) };
     } catch (err) {
       logger.error("[seusDB] commissionedObjectiveSeuIds error", err as Error);
@@ -55,12 +66,18 @@ export const seusDB = {
     }
   },
 
-  // CR-002: the SEU (if any) commissioned against a given Objective. With the
-  // UNIQUE index on objective_id there is at most one; commissioning uses this
-  // for a friendly "already assigned" rejection ahead of the DB constraint.
+  // CR-002: the active SEU (if any) commissioned against a given Objective.
+  // The partial UNIQUE index (migration 179) guarantees at most one *active*
+  // row; commissioning uses this for a friendly "already assigned" rejection
+  // ahead of that DB constraint — must stay scoped the same way the index
+  // is, or a Failed/Retired/Archived SEU would wrongly block a fresh retry
+  // the schema itself now allows.
   async findByObjectiveId(objectiveId: string): Promise<DbResult<SeuRow | null>> {
     try {
-      const { rows } = await query<SeuRow>("SELECT * FROM seus WHERE objective_id = $1 LIMIT 1", [objectiveId]);
+      const { rows } = await query<SeuRow>(
+        "SELECT * FROM seus WHERE objective_id = $1 AND lifecycle_state = ANY($2::text[]) LIMIT 1",
+        [objectiveId, ACTIVE_LIFECYCLE_STATES]
+      );
       return { data: rows[0] ?? null };
     } catch (err) {
       logger.error("[seusDB] findByObjectiveId error", err as Error);
@@ -77,6 +94,22 @@ export const seusDB = {
       return { data: rows[0] };
     } catch (err) {
       logger.error("[seusDB] setActiveEbm error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // migration 180 — Compose EBM's own real output, written by
+  // ebmComposerHandler and by every "Apply & re-validate" round trip; read
+  // by the Validation screen's GET.
+  async setCompositionReport(seuId: string, report: Record<string, unknown>): Promise<DbResult<SeuRow>> {
+    try {
+      const { rows } = await query<SeuRow>(
+        "UPDATE seus SET composition_report = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
+        [JSON.stringify(report), seuId]
+      );
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[seusDB] setCompositionReport error", err as Error);
       return { error: err as Error };
     }
   },

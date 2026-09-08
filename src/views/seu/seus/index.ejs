@@ -55,7 +55,57 @@
                   <td class="small"><%= s.objectiveStatement %></td>
                   <td><span class="state-badge state-<%= s.lifecycleState %>"><%= s.lifecycleState %></span></td>
                   <td class="small text-muted"><%= new Date(s.createdAt).toLocaleString() %></td>
-                  <td class="text-end"><a href="/aisworg/seu/seus/<%= s.id %>" class="btn btn-sm btn-outline-primary">View</a></td>
+                  <td class="text-end">
+                    <a href="/aisworg/seu/seus/<%= s.id %>" class="btn btn-sm btn-outline-primary">View</a>
+                    <%# design/mvp-build-plan/SEU Composition.md —
+                         owner: "You dont add a Validate button. Depending on
+                         the badge of the user, it shows the correct buttons
+                         based on transition definition. this is the current
+                         implementation." Same pattern as objectives.ts's own
+                         possibleNextStates/hasObjectiveBadge split: core
+                         already restricted this to real, manual-triggered
+                         edges off the SEU's current lifecycle_state; the web
+                         layer already narrowed it to this viewer's own held
+                         badge. Only render the link when that leaves
+                         "Commissioned" (the Pending -> Commissioned edge,
+                         badge seu_commission) actually possible.
+                         Bug fix (owner: "If CommissionValidated is emitted,
+                         in All SEU pages, why does the Validate button still
+                         appear, the Compose button should show up") —
+                         lifecycle_state alone can't see this: it stays
+                         "Pending" through the whole Validate Request +
+                         Compose EBM sub-flow, so possibleNextStates keeps
+                         offering "Commissioned" even after Validate Request
+                         already passed. s.commissionValidated is the real,
+                         event-sourced fact (core/seus.ts's
+                         withCommissionValidated) — once true, "View EBM"
+                         below (already routing to the Compose EBM page while
+                         activeEbmId is null) is the real next action, not
+                         Validate again. %>
+                    <% if (s.possibleNextStates.includes('Commissioned') && !s.commissionValidated) { %>
+                      <a href="/aisworg/seu/objectives/<%= s.objectiveId %>/validate-commission" class="btn btn-sm btn-outline-secondary">Validate</a>
+                    <% } %>
+                    <%# design/mvp-build-plan/SEU Composition.md — owner
+                         reversed the earlier "remove View EBM" call: "There
+                         should be a viewEBM button. It should be the same as
+                         detail.ejs. Dont use the same page. create a new
+                         one. EBM page. We will need this to advance the EBM
+                         states." Back then View EBM only duplicated the
+                         Composed Packs table, genuinely redundant with View;
+                         now the EBM's own composed content (Metadata/
+                         Parameters/Engineering Practices/Quality Gates/
+                         Services/Capability codes/Governance/declared
+                         Deliverable Catalogue) lives on its own dedicated
+                         page (seus/ebm.ejs) — not the same information as
+                         View (seus/detail.ejs, SEU runtime content only)
+                         any more. Shown only once there's a real EBM to
+                         view; Compose stays the entry point before that. %>
+                    <% if (s.activeEbmId) { %>
+                      <a href="/aisworg/seu/seus/<%= s.id %>/ebm" class="btn btn-sm btn-outline-secondary">View EBM</a>
+                    <% } else { %>
+                      <a href="/aisworg/seu/objectives/<%= s.objectiveId %>/compose-ebm" class="btn btn-sm btn-outline-secondary">Compose</a>
+                    <% } %>
+                  </td>
                 </tr>
               <% }) %>
             </tbody>
