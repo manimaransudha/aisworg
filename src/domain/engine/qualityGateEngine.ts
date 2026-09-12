@@ -161,7 +161,7 @@ export const qualityGateEngine = {
     //
     // CR-059 — replaces the old free-text `criteria.category` match entirely.
     // A quality gate must reference a real Review Gate (`criteria.reviewGateId`,
-    // resolved at seedContributions time from the authored `deliverableName`
+    // resolved at materializeContributions time from the authored `deliverableName`
     // against this same Pack's own reviewGates[]), and the qualifying check is
     // a strict `review_gate_id` FK match, not a category/string comparison
     // (owner: a string match "can lead to corrupt data" — it can't tell which
@@ -191,7 +191,7 @@ export const qualityGateEngine = {
     // own constraint_type — the gate IS the explicit override the chapter
     // describes.
     // CR-061 — generalized from a single policyCode to policyIds (real,
-    // already-resolved ids — resolved at seedContributions time from the
+    // already-resolved ids — resolved at materializeContributions time from the
     // authored requiredPolicyCodes, core/packs.ts). All referenced Policies
     // must be satisfied (owner: "Every quality gate is defined by category
     // and that is an AND") — the "all" case is the only one built; a real

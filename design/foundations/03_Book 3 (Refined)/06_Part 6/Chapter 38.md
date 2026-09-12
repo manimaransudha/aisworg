@@ -1,14 +1,15 @@
 
-# Chapter 38 – Pack Platform Architecture
+# Chapter 38 – Pack SDK Architecture
 
 
 [Sudha: 
 
-think this chapter elevates Packs from a useful extensibility mechanism to the **primary unit of platform evolution**.
+Packs form an useful extensibility mechanism and behave as the **primary unit of platform evolution**.
 
-Early in our discussions, we described Packs as a way to customise engineering practices. That was true, but incomplete. After completing the Runtime Kernel, it's clear that Packs have a much broader role.
+Packs are a way to 
+- customise engineering practices. 
 
-The platform should be viewed as comprising two distinct parts:
+The SEU platform should be viewed as comprising two distinct parts:
 
 ```
 Stable Platform Core
@@ -16,7 +17,7 @@ Stable Platform Core
 Runtime Kernel
 Core Information Model
 Composition Engine
-Pack Platform
+Pack SDK
 
 +
 
@@ -30,59 +31,36 @@ Technology Packs
 Capability Packs
 ```
 
-This has a profound implication: most future innovation will occur by publishing new Packs rather than releasing new versions of the platform itself.
+Most future innovation will occur by publishing new Packs rather than releasing new versions of the platform itself.
 
-## One refinement I recommend
-
-I think we should introduce the concept of **Effective Engineering Configuration (EEC)** as a first-class runtime object.
-
-Today we've referred to "the composed result" in several chapters. Giving it a formal identity would simplify the architecture.
-
-An **Effective Engineering Configuration** would be the immutable, versioned result of composing all applicable Packs for an SEU. It would become the single configuration consumed by the Runtime Kernel, Execution Engine and Governance services.
+An **Engineering Behaviour Model** would be the immutable, versioned result of composing all applicable Packs for an SEU. It would become the single configuration consumed by the Runtime Kernel, Execution Engine and Governance services.
 
 This would have several advantages:
 
 - The Runtime Kernel consumes one configuration rather than many Packs.
-- Historical engineering execution becomes perfectly reproducible by referencing the EEC version.
+- Historical engineering execution becomes perfectly reproducible by referencing the EBM version.
 - Configuration changes become explicit lifecycle events.
-- Rollback becomes straightforward by reverting to a previous EEC.
+- Rollback becomes straightforward by reverting to a previous EBM.
 
-I strongly recommend creating an ADR:
 
-> **ADR – Effective Engineering Configuration**
+**Decision:** Before an SEU is activated, all applicable Packs shall be composed into a single immutable EBM. Runtime services shall consume the EBM rather than individual Packs.
 
-**Decision:** Before an SEU is activated, all applicable Packs shall be composed into a single immutable Effective Engineering Configuration (EEC). Runtime services shall consume the EEC rather than individual Packs.
-
-**Rationale:** This isolates runtime execution from Pack management, improves determinism, simplifies runtime logic and provides a reproducible snapshot of the engineering environment for every SEU lifecycle stage. I believe the EEC will become the runtime equivalent of a compiled executable: Packs are the source, the EEC is the executable configuration consumed by the platform.
+**Rationale:** This isolates runtime execution from Pack management, improves determinism, simplifies runtime logic and provides a reproducible snapshot of the engineering environment for every SEU lifecycle stage. 
 
 -----------------
 
-I think the previous chapter has changed the direction of the implementation architecture.
-
-Originally I thought the next chapter should be **Security**.
-
-I no longer think so.
-
-The most important implementation question after Packs is:
-
 > **How do people build Packs?**
 
-If Packs are the unit of evolution, then the platform succeeds or fails based on how easy it is to create, test, validate and publish them.
-
-That means the next architectural component is not a runtime service.
-
-It is the **Pack SDK**.
-
-This chapter is extremely important because it defines the contract between the stable platform and everyone extending it.
+If Packs are the unit of evolution, then the platform succeeds or fails based on how easy it is to create, test, validate and publish them. Packs are built using the Software Development Kit.
 ]
 
 ---
 
 # 1. Purpose
 
-The Pack Platform Architecture defines how Packs are created, versioned, composed, validated, deployed and managed within the Software Engineering Unit (SEU) platform.
+The Pack SDK Architecture defines how Packs are created, versioned, composed, validated, deployed and managed within the Software Engineering Unit (SEU) platform.
 
-The Pack Platform provides the extensibility mechanism for the entire platform.
+The Pack SDK provides the extensibility mechanism for the entire platform.
 
 Every engineering behaviour, governance model, domain capability and organisational customisation shall be introduced through Packs rather than modifications to the Runtime Kernel.
 
@@ -92,21 +70,19 @@ Every engineering behaviour, governance model, domain capability and organisatio
 
 This chapter defines:
 
-- Pack architecture;
-- Pack lifecycle;
-- Pack deployment;
-- Pack versioning;
-- Pack composition;
-- Pack compatibility.
+- Pack architecture
+- Pack lifecycle
+- Pack deployment
+- Pack versioning
+- Pack composition
+- Pack compatibility
 
 This chapter does not define:
 
-- Engineering Behaviour Models;
-- Runtime services;
-- individual Pack contents;
-- SDK implementation.
-
-These are defined elsewhere.
+- Engineering Behaviour Models
+- Runtime services
+- individual Pack contents
+- SDK implementation
 
 ---
 
@@ -117,7 +93,7 @@ Platform Core
 
 ↓
 
-Pack Platform
+Pack SDK
 
 ↓
 
@@ -136,7 +112,7 @@ Runtime Kernel
 Software Engineering Unit
 ```
 
-The Pack Platform forms the extensibility layer between the stable platform core and configurable engineering behaviour.
+The Pack SDK forms the extensibility layer between the stable platform core and configurable engineering behaviour.
 
 ---
 
@@ -144,19 +120,17 @@ The Pack Platform forms the extensibility layer between the stable platform core
 
 A Pack is a versioned, declarative package that contributes engineering behaviour or engineering metadata to the platform.
 
-The Pack Platform is responsible for:
+The Pack SDK is responsible for:
 
-- Pack discovery;
-- validation;
-- dependency management;
-- version compatibility;
-- composition;
-- activation;
-- lifecycle management.
+- Pack discovery
+- validation
+- dependency management
+- version compatibility
+- composition
+- activation
+- lifecycle management
 
-The Runtime Kernel consumes the composed result.
-
-It never interprets individual Packs directly.
+The Runtime Kernel consumes the composed result through Engineering Behavior Model.It never interprets individual Packs directly.
 
 ---
 
@@ -165,38 +139,31 @@ It never interprets individual Packs directly.
 ## PP-001
 
 The Runtime Kernel shall remain Pack-agnostic.
-
----
+ 
 
 ## PP-002
 
 Every Pack shall be independently versioned.
-
----
+ 
 
 ## PP-003
 
 Pack composition shall be deterministic.
-
----
-
+ 
 ## PP-004
 
 Packs shall be independently deployable.
-
----
+ 
 
 ## PP-005
 
 Packs shall never directly modify platform services.
-
----
+ 
 
 ## PP-006
 
 Platform evolution shall occur primarily through new Packs.
-
----
+ 
 
 # 6. Functional Requirements
 
@@ -204,43 +171,37 @@ Platform evolution shall occur primarily through new Packs.
 
 Every Pack shall possess:
 
-- globally unique identifier;
-- semantic version;
-- Pack type;
-- dependency declaration;
-- compatibility declaration.
+- globally unique identifier
+- semantic version
+- Pack type
+- dependency declaration
+- compatibility declaration
 
----
 
 ### FR-38.2
 
 The platform shall support concurrent versions of compatible Packs.
-
----
+*[Remarrks: Only one can be active]*
 
 ### FR-38.3
 
 Pack compatibility shall be validated before activation.
 
----
 
 ### FR-38.4
 
 Pack dependencies shall be resolved automatically.
 
----
 
 ### FR-38.5
 
 Pack conflicts shall be detected before commissioning an SEU.
 
----
 
 ### FR-38.6
 
 Pack activation shall preserve engineering continuity where possible.
 
----
 
 ### FR-38.7
 
@@ -263,8 +224,6 @@ Examples:
 - Default Policies
 - Default Quality Gates
 
----
-
 ### Organisation Packs
 
 Represent organisational engineering practices.
@@ -275,7 +234,6 @@ Examples:
 - Accenture Engineering Practices
 - Infosys Engineering Practices
 
----
 
 ### Customer Packs
 
@@ -286,7 +244,6 @@ Examples:
 - Cigna Engineering Requirements
 - HSBC Delivery Standards
 
----
 
 ### Domain Packs
 
@@ -300,7 +257,6 @@ Examples:
 - Telecom
 - Automotive
 
----
 
 ### Technology Packs
 
@@ -314,29 +270,25 @@ Examples:
 - Kubernetes
 - React
 
----
 
 ### Capability Packs
 
 Introduce reusable engineering capabilities.
 
----
 
 ### Profile Packs
 
 Define reusable engineering profiles.
 
----
 
 ### Template Packs
 
 Provide reusable engineering templates.
 
----
 
-Future Pack categories may be introduced without modifying the Runtime Kernel.
+Future Pack categories are introduced without modifying the Runtime Kernel through the Pack SDK.
 
----
+*[Remarks: Templates and Profiles are treated as separate entities. However, they reuse the same SDK. Keeping them separate enables easy composition.]*
 
 # 8. Pack Structure
 
@@ -348,10 +300,10 @@ Every Pack shall define:
 - Publisher
 - Description
 - Dependencies
-- Compatibility Matrix
+- Compatibility Matrix *[Remarks: Not implemented]*
 - Declared Contributions
 - Lifecycle State
-- Digital Signature
+- Digital Signature *[Remarks: Not implemented]*
 - Metadata
 
 The internal packaging format is implementation-defined.
@@ -363,7 +315,7 @@ The internal packaging format is implementation-defined.
 Every Pack shall progress through the following lifecycle.
 
 ```
-Created
+Defined
 
 ↓
 
@@ -375,15 +327,7 @@ Published
 
 ↓
 
-Installed
-
-↓
-
 Activated
-
-↓
-
-Deprecated
 
 ↓
 
@@ -404,12 +348,12 @@ The platform shall maintain a Pack Registry.
 
 The registry shall provide:
 
-- discovery;
-- version lookup;
-- dependency resolution;
-- compatibility validation;
-- publisher information;
-- lifecycle status.
+- discovery
+- version lookup
+- dependency resolution
+- compatibility validation
+- publisher information
+- lifecycle status
 
 The Registry is the authoritative catalogue of Packs.
 
@@ -419,15 +363,16 @@ The Registry is the authoritative catalogue of Packs.
 
 Pack composition shall:
 
-- resolve dependencies;
-- evaluate compatibility;
-- merge declarative contributions;
-- detect conflicts;
-- produce one Effective Engineering Configuration.
+- resolve dependencies
+- evaluate compatibility
+- merge declarative contributions
+- detect conflicts
+- produce one Effective Engineering Configuration
 
 Composition shall be deterministic.
 
 Given the same Pack set, the resulting configuration shall always be identical.
+*[Remarks: Pack composition is used for deriving new Packs from existing ones. It uses the Composition Strategy]*
 
 ---
 
@@ -435,13 +380,15 @@ Given the same Pack set, the resulting configuration shall always be identical.
 
 Compatibility shall be evaluated across:
 
-- platform version;
-- Pack versions;
-- dependency versions;
-- Engineering Behavior Model version;
-- Runtime Kernel version.
+- platform version
+- Pack versions
+- dependency versions
+- Engineering Behavior Model version
+- Runtime Kernel version
 
 Compatibility rules are declarative.
+
+*[Remarks: Not implemented yet. Has more relevance in Technology or Compliance Packs]*
 
 ---
 
@@ -449,12 +396,13 @@ Compatibility rules are declarative.
 
 Every Pack shall support:
 
-- publisher verification;
-- integrity validation;
-- signature verification;
-- provenance tracking.
+- publisher verification
+- integrity validation
+- signature verification
+- provenance tracking
 
 Untrusted Packs shall not be activated.
+*[Remarks: The aspects are implemented. Publishing should generate a report so it is checked and persisted.]*
 
 ---
 
@@ -462,12 +410,12 @@ Untrusted Packs shall not be activated.
 
 The platform shall preserve:
 
-- Pack origin;
-- publisher;
-- version history;
-- dependency history;
-- activation history;
-- composition history.
+- Pack origin
+- publisher
+- version history
+- dependency history
+- activation history
+- composition history
 
 Every engineering decision shall be traceable to the Pack versions that influenced it.
 
@@ -475,28 +423,31 @@ Every engineering decision shall be traceable to the Pack versions that influenc
 
 # 15. Events
 
-The Pack Platform shall publish:
+The Pack SDK shall publish:
 
-- PackInstalled
-- PackValidated
-- PackActivated
+- PackDefined
 - PackRejected
 - PackUpdated
+- PackValidated
+- PackActivated
 - PackDeprecated
 - PackRetired
 
 ---
+<mark>Check events are asynchronous. Differentiate between revision and version.</mark>
 
 # 16. Non-Functional Requirements
 
-The Pack Platform shall:
+The Pack SDK shall:
 
-- support thousands of Packs;
-- support deterministic composition;
-- support concurrent Pack versions;
-- remain horizontally scalable;
-- support offline validation;
-- remain implementation-independent.
+- support thousands of Packs
+- support deterministic composition
+- support concurrent Pack versions
+- remain horizontally scalable
+- support offline validation
+- remain implementation-independent
+
+*[Remarks: Implement export as json]*
 
 ---
 
@@ -522,11 +473,11 @@ The implementation shall satisfy the following criteria.
 
 Implementation of this chapter shall produce:
 
-- Pack Platform.
-- Pack Registry.
-- Pack Composition Engine.
-- Dependency Resolver.
-- Compatibility Validator.
-- Pack Lifecycle Manager.
-- Pack APIs.
-- Pack Events.
+- Pack SDK
+- Pack Registry
+- Pack Composition Engine
+- Dependency Resolver
+- Compatibility Validator
+- Pack Lifecycle Manager
+- Pack APIs
+- Pack Events

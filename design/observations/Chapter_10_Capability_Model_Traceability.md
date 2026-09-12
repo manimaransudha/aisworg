@@ -89,31 +89,3 @@ Key realization highlights include:
 ## 6. Conclusion
 
 Chapter 10 specification alignment is **exceptionally high (~94%)**. The Capability Model cleanly decouples required engineering competency from transient execution participants. It is fully integrated with Pack authoring, SEU commissioning, work item dispatch, and event-driven fulfilment tracking.
-
----
-
-## 7. Complete Specification Section Coverage Audit
-
-The following table documents the audit results for narrative, non-FR, and implementation-specific sections previously un-indexed in the primary matrix:
-
-| Section Heading | Code Verification Status | Implementation & Codebase Findings |
-|---|:---:|---|
-| **CM-001** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **CM-002** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **CM-003** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **CM-004** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **CM-005** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **CM-006** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **Architecture** | `Fully Met` | Verified against [`express-request.d.ts`](file://src/types/express-request.d.ts), [`seuTypes.ts`](file://src/dblayer/seuTypes.ts), [`cleanSlate.ts`](file://src/dblayer/seed/cleanSlate.ts). |
-| **Development** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`errorHandler.js`](file://src/middleware/errorHandler.js), [`profilesDB.ts`](file://src/dblayer/profilesDB.ts). |
-| **Testing** | `Fully Met` | Verified against [`auth.js`](file://src/middleware/auth.js), [`requirePlatformBadge.ts`](file://src/middleware/requirePlatformBadge.ts), [`cleanSlate.ts`](file://src/dblayer/seed/cleanSlate.ts). |
-| **Documentation** | `Fully Met` | Verified against [`seedPolicyDefinitions.ts`](file://src/dblayer/seed/seedPolicyDefinitions.ts), [`seedSdlcStandardTemplates.ts`](file://src/dblayer/seed/seedSdlcStandardTemplates.ts), [`domain-enterprise-workflows.pack.json`](file://src/dblayer/seed/data/domain-enterprise-workflows.pack.json). |
-| **Deployment** | `Fully Met` | Verified against [`seuTypes.ts`](file://src/dblayer/seuTypes.ts), [`seedPolicyDefinitions.ts`](file://src/dblayer/seed/seedPolicyDefinitions.ts), [`seedSdlcStandardTemplates.ts`](file://src/dblayer/seed/seedSdlcStandardTemplates.ts). |
-| **Knowledge** | `Fully Met` | Verified against [`requireTenantScope.ts`](file://src/middleware/requireTenantScope.ts), [`attachVM.js`](file://src/middleware/attachVM.js), [`viewRegistry.js`](file://src/viewModels/viewRegistry.js). |
-| **Governance** | `Fully Met` | Verified against [`seu_telemetry_index.js`](file://src/viewModels/seu_telemetry_index.js), [`capabilityFulfilmentsDB.ts`](file://src/dblayer/capabilityFulfilmentsDB.ts), [`ontologyDB.ts`](file://src/dblayer/ontologyDB.ts). |
-| **18.3 Functional Requirements (FR-10.1–7) (§6)** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`seuTypes.ts`](file://src/dblayer/seuTypes.ts), [`sdlc-phase-03-technical-discovery-architecture.pack.json`](file://src/dblayer/seed/data/sdlc-phase-03-technical-discovery-architecture.pack.json). |
-| **18.8 Capability Selection (§12)** | `Fully Met` | Verified against [`seu_sdk_authoring_edit.js`](file://src/viewModels/seu_sdk_authoring_edit.js), [`seu_seus_compose.js`](file://src/viewModels/seu_seus_compose.js), [`seu_seus_new.js`](file://src/viewModels/seu_seus_new.js). |
-| **18.11 Non-Functional Requirements (§15)** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **18.12 Acceptance Criteria (§16)** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`reviewGatesDB.ts`](file://src/dblayer/reviewGatesDB.ts), [`evidenceDB.ts`](file://src/dblayer/evidenceDB.ts). |
-| **18.13 Deliverables (§17)** | `Fully Met` | Verified against [`seu_reviews_index.js`](file://src/viewModels/seu_reviews_index.js), [`evidenceDB.ts`](file://src/dblayer/evidenceDB.ts), [`eventsDB.ts`](file://src/dblayer/eventsDB.ts). |
-| **Summary — ranked** | `Fully Met` | Verified against [`compliance-do178c-aviation.pack.json`](file://src/dblayer/seed/data/compliance-do178c-aviation.pack.json), [`technology-git.pack.json`](file://src/dblayer/seed/data/technology-git.pack.json), [`test-technology-git.pack.json`](file://src/dblayer/seed/data/test-fixtures/test-technology-git.pack.json). |

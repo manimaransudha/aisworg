@@ -1002,21 +1002,6 @@ export type TransitionObjectiveResult =
 // number of SEUs commissioned against it), and quality_gate_evaluations.seu_id
 // is NOT NULL, so there is nowhere to record an evaluation against. Logged
 // as a real, structural limitation, not silently skipped.
-//
-// CR-072 (owner: "the event should not be event transitioned... the
-// respective events listed in Events Section 14 of chapter 1") — the past-
-// tense verb name, not the target state name, for the one case they differ
-// (Active -> ObjectiveActivated, not "ObjectiveActive"). CR-073 — Reject is a
-// real, distinct status (owner: "It is Active to Reject" — not "Rejected",
-// not a reuse of "Proposed"), so this needs no such split for it.
-const OBJECTIVE_TRANSITION_EVENT: Partial<Record<ObjectiveStatus, string>> = {
-  Active: "ObjectiveActivated",
-  Reject: "ObjectiveRejected",
-  Achieved: "ObjectiveAchieved",
-  Superseded: "ObjectiveSuperseded",
-  Retired: "ObjectiveRetired",
-  Archived: "ObjectiveArchived",
-};
 
 export async function transitionObjective(input: { objectiveId: string; targetState: ObjectiveStatus; actorRole: string; actorId?: string; comment?: string }): Promise<TransitionObjectiveResult> {
   const { data: objective } = await objectivesDB.findById(input.objectiveId);
@@ -1063,8 +1048,14 @@ export async function transitionObjective(input: { objectiveId: string; targetSt
     await objectivesDB.addComment(objective.id, input.actorId != null ? Number(input.actorId) : null, trimmedComment);
   }
 
+  // Version Feature Plan.md §3 — eventType now comes straight off the
+  // resolved Transition Definition (gate.eventType), not a hardcoded
+  // per-status map; the past-tense-verb exceptions (Achieved/Retired/
+  // Archived, not "ObjectiveActive" etc. — CR-072) live in transition_definitions.event_type
+  // now (migration 183), not in code. Fallback stays as a safety net for a
+  // transition row nobody has set event_type on yet.
   await eventBus.publish({
-    eventType: OBJECTIVE_TRANSITION_EVENT[input.targetState] ?? "ObjectiveTransitioned",
+    eventType: gate.eventType ?? "ObjectiveTransitioned",
     originatingObjectType: "Objective",
     originatingObjectId: objective.id,
     seuId: null, // an Objective has no single owning SEU (zero-or-many, not stored on ObjectiveRow)

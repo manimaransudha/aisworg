@@ -14,6 +14,8 @@ import { commandsDB } from "../../../dblayer/commandsDB.js";
 import { workItemsDB } from "../../../dblayer/workItemsDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { capabilityFulfilmentsDB } from "../../../dblayer/capabilityFulfilmentsDB.js";
+import { ontologyDB } from "../../../dblayer/ontologyDB.js";
+import { findEligibleParticipants } from "./participantEligibility.js";
 import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
 import type { PoolEntry } from "../../../domain/engine/profileCompositionUnravel.js";
 import { getSeuEvents } from "./events.js";
@@ -312,12 +314,50 @@ export interface SeuDetailView {
     code: string;
     name: string;
     status: string;
-    // Participant Lifecycle Governance — Plan, Build order step 5 — the
-    // currently fulfilling Participant, so the detail page can offer
-    // Replace (Ch.13 §13) alongside the existing Fulfil form, not just show
-    // "—" once a Capability is already Fulfilled.
-    participant: { id: string; displayName: string; type: string; state: string } | null;
+    // Participant Lifecycle Governance — Plan, Build order step 5 — every
+    // currently fulfilling Participant (plural since the multi-select
+    // Fulfil dropdown, owner: "The participants dropdown should be
+    // multi-select. It chooses as many as it wants as eligible" — Ch.12 §7
+    // Hybrid/Composite), so the detail page can offer Release (a new
+    // two-step Replace, below) per Participant alongside the Fulfil form,
+    // not just show "—" once a Capability is already Fulfilled. Grouped by
+    // Participant Type — same shape and same reasoning as
+    // eligibleParticipantsByType below — so the card can show who's
+    // currently assigned, by type, with a checkbox per Participant to pick
+    // which one(s) to release.
+    participantsByType: Array<{ type: string; participants: Array<{ id: string; displayName: string; state: string }> }>;
+    // Ch.12 §18.1/§18.4 follow-up — every active participants_master
+    // resource (CR-098) already eligible for this Capability (capabilities[]
+    // contains its code), for the Fulfil form's own dropdown. Empty when the
+    // Capability is already Fulfilled (no Fulfil form shown) or the SEU has
+    // no tenant_id.
+    //
+    // Owner: "show each of the participant types separately so a
+    // hybrid/composite participant types is possible" — grouped by every
+    // registered Participant Type (same canonical list as
+    // `participantTypes` below), one entry per type, in that order, so the
+    // card layout can render a real section per type — the only way a human
+    // can deliberately build a genuine Hybrid pick (one AI + one Human,
+    // Ch.12 §7's own worked example) rather than Ctrl/Cmd-clicking blind
+    // through one flat, type-parenthetical list. A type with zero eligible
+    // Participants right now still gets its own (empty) entry, not omitted
+    // — the card shows every type's section regardless.
+    eligibleParticipantsByType: Array<{ type: string; participants: Array<{ id: string; displayName: string }> }>;
   }>;
+  // Migration 194 — canonical Participant Type codes (Ontology concept_type
+  // 'participant-types'), for the Fulfil/Replace forms' select.
+  participantTypes: string[];
+  // Owner: "I have been saying the fulfilment should show the EBM unionised
+  // values." The real requirement Capability Fulfilment eligibility is
+  // actually filtered against — `ebm.behaviors.competencyRequirements`
+  // (CR-101), Profile Configuration Parameters unioned with every composed
+  // Pack's own declared `contributionCompetencies` — not a proxy for it.
+  // Previously showed Pack *names* filtered by category, which silently
+  // dropped Configuration-Parameter-only values (e.g. `primaryProgrammingLanguage`
+  // with no matching Pack) and told a human nothing about the actual
+  // competency values eligibility checks against.
+  requiredTechnologyPacks: string[];
+  requiredDomainPacks: string[];
   deliverables: SeuDetailDeliverable[];
   commands: SeuDetailCommand[];
   obligations: SeuDetailObligation[];
@@ -341,7 +381,7 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
   const { data: seu } = await seusDB.findById(seuId);
   if (!seu) return null;
 
-  const [{ data: objective }, { data: capabilities }, { data: deliverables }, { data: ebm }, events, { data: seuParticipants }] = await Promise.all([
+  const [{ data: objective }, { data: capabilities }, { data: deliverables }, { data: ebm }, events, { data: seuParticipants }, { data: participantTypeConcepts }] = await Promise.all([
     objectivesDB.findById(seu.objective_id),
     seuCapabilitiesDB.findBySeuId(seuId),
     deliverablesDB.findBySeuId(seuId),
@@ -351,22 +391,64 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     seu.active_ebm_id ? ebmsDB.findById(seu.active_ebm_id) : Promise.resolve({ data: null }),
     getSeuEvents(seuId),
     participantsDB.findBySeuId(seuId),
+    // Migration 194 — the Fulfil/Replace forms' Participant Type select is
+    // Ontology-driven now (concept_type 'participant-types'), same as any
+    // other canonical vocabulary, not a hardcoded option list.
+    ontologyDB.findConceptsByType("participant-types", { isRoot: false, tenantId: null }),
   ]);
 
   const deliverableNameById = new Map((deliverables ?? []).map((d) => [d.id, d.name]));
   // CR-051 item 3 — provenance display lookups.
   const participantNameById = new Map((seuParticipants ?? []).map((p) => [p.id, `${p.display_name} (${p.type})`]));
   const capabilityNameById = new Map((capabilities ?? []).map((c) => [c.capability_id, `${c.capability_name} (${c.capability_code})`]));
+  // Migration 194 — moved up from the bottom of this function so the
+  // per-Capability grouping below (eligibleParticipantsByType) can use the
+  // same canonical list the Replace form's own type select already does.
+  const participantTypes = (participantTypeConcepts ?? []).map((c) => c.code);
+
+  // Owner: "the capability fulfilment helper has to include this technology
+  // and domain check as well" / "the fulfilment should show the EBM
+  // unionised values" — one real source now for both the display columns
+  // and the eligibility filter: `ebm.behaviors.competencyRequirements`
+  // (CR-101, computeCompetencyRequirements/profileCompositionUnravel.ts),
+  // read straight off the `ebm` already fetched above (same pattern as
+  // ebmPool below) rather than a second ebmsDB.findById round trip.
+  const competencyRequirements = (ebm?.behaviors as { competencyRequirements?: Record<string, string[]> } | null)?.competencyRequirements ?? {};
+  const requiredTechnologyPacks = competencyRequirements.Technology ?? [];
+  const requiredDomainPacks = competencyRequirements.Domain ?? [];
 
   const capabilityViews = await Promise.all(
     (capabilities ?? []).map(async (c) => {
-      let participant: { id: string; displayName: string; type: string; state: string } | null = null;
+      // Owner: "show each of the participant types separately so a
+      // hybrid/composite participant types is possible" — every registered
+      // type gets its own entry (possibly empty) in both lists below, not
+      // just the types that happen to have someone right now.
+      let participantsByType: Array<{ type: string; participants: Array<{ id: string; displayName: string; state: string }> }> = participantTypes.map((type) => ({ type, participants: [] }));
+      let eligibleParticipantsByType: Array<{ type: string; participants: Array<{ id: string; displayName: string }> }> = participantTypes.map((type) => ({ type, participants: [] }));
       if (c.status === "Fulfilled") {
-        const { data: fulfilment } = await capabilityFulfilmentsDB.findActiveBySeuCapabilityId(c.id);
-        const { data: participantRow } = fulfilment ? await participantsDB.findById(fulfilment.participant_id) : { data: null };
-        participant = participantRow ? { id: participantRow.id, displayName: participantRow.display_name, type: participantRow.type, state: participantRow.state } : null;
+        const { data: fulfilments } = await capabilityFulfilmentsDB.findActiveManyBySeuCapabilityId(c.id);
+        const participantRows = await Promise.all((fulfilments ?? []).map((f) => participantsDB.findById(f.participant_id)));
+        const fulfilling = participantRows
+          .map((r) => r.data)
+          .filter((p): p is NonNullable<typeof p> => p != null);
+        participantsByType = participantTypes.map((type) => ({
+          type,
+          participants: fulfilling.filter((p) => p.type === type).map((p) => ({ id: p.id, displayName: p.display_name, state: p.state })),
+        }));
+      } else if (seu.tenant_id) {
+        // Owner: "the participant dropdown should not show... the ones
+        // chosen for replacement" — excludes whoever was released from
+        // THIS Capability by a prior Replace round (releaseParticipants,
+        // core/capabilities.ts), so they don't trivially reappear the
+        // instant the Capability reverts to Unfulfilled.
+        const { data: excludeParticipantMasterIds } = await capabilityFulfilmentsDB.findReleasedParticipantMasterIds(c.id);
+        const eligible = await findEligibleParticipants({ tenantId: seu.tenant_id, capabilityCode: c.capability_code, competency: competencyRequirements, excludeParticipantMasterIds: excludeParticipantMasterIds ?? [] });
+        eligibleParticipantsByType = participantTypes.map((type) => ({
+          type,
+          participants: eligible.filter((p) => p.type === type).map((p) => ({ id: p.id, displayName: p.display_name })),
+        }));
       }
-      return { id: c.id, capabilityId: c.capability_id, code: c.capability_code, name: c.capability_name, status: c.status, participant };
+      return { id: c.id, capabilityId: c.capability_id, code: c.capability_code, name: c.capability_name, status: c.status, participantsByType, eligibleParticipantsByType };
     })
   );
 
@@ -518,6 +600,9 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     seu,
     objectiveStatement: objective?.statement ?? "(objective not found)",
     capabilities: capabilityViews,
+    participantTypes,
+    requiredTechnologyPacks,
+    requiredDomainPacks,
     deliverables: deliverableViews,
     commands: commandViews,
     obligations: obligationViews,

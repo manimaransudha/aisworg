@@ -157,6 +157,12 @@
         ]
       }
     ],
-    "policies": []
+    "policies": [],
+    "competencies": [
+      {
+        "dimension": "Technology",
+        "value": "git"
+      }
+    ]
   }
 }

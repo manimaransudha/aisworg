@@ -57,15 +57,19 @@
         { key: 'external-interactions', label: 'External Interactions', sub: detail.externalInteractions.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.externalInteractions.length + '</span>' : '' },
         { key: 'events', label: 'Events', sub: detail.events.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.events.length + '</span>' : '' },
       ];
+      var activeTabIndex = tabs.findIndex(function(t) { return t.key === String(locals.activeTab || ''); });
+      if (activeTabIndex < 0) activeTabIndex = 0;
+      var activeTabKey = tabs[activeTabIndex].key;
+      function paneClass(key) { return 'tab-pane fade' + (key === activeTabKey ? ' show active' : ''); }
     %>
 
     <div class="d-flex flex-column flex-md-row gap-4 align-items-start mb-4">
-      <%- include('../../partials/verticalTabs', { tabs: tabs, paneMode: true, paneIdPrefix: 'seu-detail', activePaneIndex: 0 }) %>
+      <%- include('../../partials/verticalTabs', { tabs: tabs, paneMode: true, paneIdPrefix: 'seu-detail', activePaneIndex: activeTabIndex }) %>
 
       <div class="tab-content flex-grow-1" style="min-width: 0;">
 
         <%# ---------------------------------------------------------------- Deliverables %>
-        <div class="tab-pane fade show active" id="seu-detail-deliverables" role="tabpanel">
+        <div class="<%= paneClass('deliverables') %>" id="seu-detail-deliverables" role="tabpanel">
           <div class="section-card">
             <div class="section-header">Deliverables</div>
             <div class="table-responsive">
@@ -131,65 +135,108 @@
         </div>
 
         <%# ---------------------------------------------------------------- Capability Fulfilment %>
-        <div class="tab-pane fade" id="seu-detail-capabilities" role="tabpanel">
-          <div class="section-card">
-            <div class="table-responsive">
-              <table class="table mb-0 align-middle">
-                <thead class="table-light"><tr><th>Capability</th><th>Status</th><th>Participant</th><th>Fulfil / Replace</th></tr></thead>
-                <tbody>
-                  <% detail.capabilities.forEach(function(c) { %>
-                    <tr>
-                      <td class="small"><%= c.name %> <code class="text-muted small"><%= c.code %></code></td>
-                      <td><span class="state-badge state-<%= c.status %>"><%= c.status %></span></td>
-                      <td>
-                        <% if (c.participant) { %>
-                          <span class="small"><%= c.participant.displayName %> <span class="text-muted">(<%= c.participant.type %>)</span></span>
-                          <span class="state-badge state-<%= c.participant.state %>"><%= c.participant.state %></span>
-                        <% } else { %>
-                          <span class="text-muted small">&mdash;</span>
-                        <% } %>
-                      </td>
-                      <td>
-                        <% if (c.status === 'Unfulfilled') { %>
-                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/capabilities/<%= c.capabilityId %>/fulfil"
-                                class="d-flex align-items-center gap-2">
-                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                            <select name="participantType" class="form-select form-select-sm" style="width: auto;">
-                              <option value="AI">AI</option>
-                              <option value="Human">Human</option>
-                              <option value="External">External</option>
-                            </select>
-                            <input type="text" name="displayName" class="form-control form-control-sm" style="width: 220px;"
-                                   placeholder="Participant name" required>
-                            <button type="submit" class="btn btn-sm btn-primary">Assign</button>
-                          </form>
-                        <% } else if (c.participant) { %>
-                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/capabilities/<%= c.capabilityId %>/participant/<%= c.participant.id %>/replace"
-                                class="d-flex align-items-center gap-2">
-                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                            <select name="participantType" class="form-select form-select-sm" style="width: auto;">
-                              <option value="AI">AI</option>
-                              <option value="Human">Human</option>
-                              <option value="External">External</option>
-                            </select>
-                            <input type="text" name="displayName" class="form-control form-control-sm" style="width: 220px;"
-                                   placeholder="Replacement name" required>
-                            <button type="submit" class="btn btn-sm btn-outline-secondary">Replace</button>
-                          </form>
-                        <% } else { %>
-                          <span class="text-muted small">&mdash;</span>
-                        <% } %>
-                      </td>
-                    </tr>
-                  <% }) %>
-                </tbody>
-              </table>
+        <%# Owner: "Layout of the Capability fulfilment layout has to
+             change. It should show each of the participant types
+             separately so a hybrid/composite participant types is
+             possible... Instead of a list, use a card layout for each
+             capability." One card per Capability (not a shared table row) —
+             the eligible-Participant picker within it is grouped by every
+             registered Participant Type (AI/Human/Automated/External),
+             each its own section, so a human can deliberately check one
+             from AI *and* one from Human (a real Hybrid, Ch.12 §7's own
+             worked example) rather than Ctrl/Cmd-clicking blind through one
+             flat, type-parenthetical <select multiple> (the prior layout —
+             owner: "Very clumsy layout"). Checkboxes, all sharing the name
+             `participantMasterIds`, submit as the same array
+             fulfilCapabilityWithParticipants already accepts — one shared
+             Assign action per card collects the picks across every type's
+             section together, not a separate Assign per type. %>
+        <div class="<%= paneClass('capabilities') %>" id="seu-detail-capabilities" role="tabpanel">
+          <% detail.capabilities.forEach(function(c) { %>
+            <div class="section-card mb-3">
+              <div class="section-header">
+                <span><%= c.name %> <code class="text-muted small"><%= c.code %></code></span>
+                <span class="state-badge state-<%= c.status %>"><%= c.status %></span>
+              </div>
+              <div class="p-3">
+
+                <% if (detail.requiredTechnologyPacks.length > 0 || detail.requiredDomainPacks.length > 0) { %>
+                  <div class="small mb-3">
+                    <% if (detail.requiredTechnologyPacks.length > 0) { %>
+                      <span class="text-muted me-1">Technology:</span>
+                      <% detail.requiredTechnologyPacks.forEach(function(v) { %><span class="badge bg-light text-dark border me-1"><%= v %></span><% }) %>
+                    <% } %>
+                    <% if (detail.requiredDomainPacks.length > 0) { %>
+                      <span class="text-muted ms-3 me-1">Domain:</span>
+                      <% detail.requiredDomainPacks.forEach(function(v) { %><span class="badge bg-light text-dark border me-1"><%= v %></span><% }) %>
+                    <% } %>
+                  </div>
+                <% } %>
+
+                <% if (c.status === 'Fulfilled') { %>
+                  <% var hasAnyAssigned = c.participantsByType.some(function(g) { return g.participants.length > 0; }); %>
+                  <% if (hasAnyAssigned) { %>
+                    <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/capabilities/<%= c.capabilityId %>/release">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <div class="row g-3">
+                        <% c.participantsByType.forEach(function(group) { %>
+                          <div class="col-6 col-md-3">
+                            <div class="small fw-semibold text-muted mb-1"><%= group.type %></div>
+                            <% if (group.participants.length > 0) { %>
+                              <% group.participants.forEach(function(p) { %>
+                                <div class="form-check">
+                                  <input class="form-check-input" type="checkbox" name="participantIds" value="<%= p.id %>" id="assigned-<%= c.id %>-<%= p.id %>">
+                                  <label class="form-check-label small" for="assigned-<%= c.id %>-<%= p.id %>">
+                                    <%= p.displayName %> <span class="state-badge state-<%= p.state %>"><%= p.state %></span>
+                                  </label>
+                                </div>
+                              <% }) %>
+                            <% } else { %>
+                              <span class="text-muted small">None</span>
+                            <% } %>
+                          </div>
+                        <% }) %>
+                      </div>
+                      <button type="submit" class="btn btn-sm btn-outline-secondary mt-3">Replace</button>
+                    </form>
+                  <% } else { %>
+                    <span class="text-muted small">&mdash;</span>
+                  <% } %>
+                <% } else { %>
+                  <% var hasAnyEligible = c.eligibleParticipantsByType.some(function(g) { return g.participants.length > 0; }); %>
+                  <% if (hasAnyEligible) { %>
+                    <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/capabilities/<%= c.capabilityId %>/fulfil">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <div class="row g-3">
+                        <% c.eligibleParticipantsByType.forEach(function(group) { %>
+                          <div class="col-6 col-md-3">
+                            <div class="small fw-semibold text-muted mb-1"><%= group.type %></div>
+                            <% if (group.participants.length > 0) { %>
+                              <% group.participants.forEach(function(p) { %>
+                                <div class="form-check">
+                                  <input class="form-check-input" type="checkbox" name="participantMasterIds" value="<%= p.id %>" id="pm-<%= c.id %>-<%= p.id %>">
+                                  <label class="form-check-label small" for="pm-<%= c.id %>-<%= p.id %>"><%= p.displayName %></label>
+                                </div>
+                              <% }) %>
+                            <% } else { %>
+                              <span class="text-muted small">None available</span>
+                            <% } %>
+                          </div>
+                        <% }) %>
+                      </div>
+                      <button type="submit" class="btn btn-sm btn-primary mt-3">Assign</button>
+                    </form>
+                  <% } else { %>
+                    <span class="text-muted small">No available Participant satisfies this Capability.</span>
+                  <% } %>
+                <% } %>
+              </div>
             </div>
-          </div>
+          <% }) %>
         </div>
 
         <%# ---------------------------------------------------------------- Obligations %>
-        <div class="tab-pane fade" id="seu-detail-obligations" role="tabpanel">
+        <div class="<%= paneClass('obligations') %>" id="seu-detail-obligations" role="tabpanel">
           <div class="section-card">
             <div class="p-3 border-bottom">
               <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/obligations" class="row g-2 align-items-center">
@@ -262,7 +309,7 @@
         </div>
 
         <%# ---------------------------------------------------------------- Evidence %>
-        <div class="tab-pane fade" id="seu-detail-evidence" role="tabpanel">
+        <div class="<%= paneClass('evidence') %>" id="seu-detail-evidence" role="tabpanel">
           <div class="section-card">
             <div class="p-3 border-bottom">
               <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/evidence" class="row g-2 align-items-center">
@@ -403,7 +450,7 @@
         </div>
 
         <%# ---------------------------------------------------------------- Decisions %>
-        <div class="tab-pane fade" id="seu-detail-decisions" role="tabpanel">
+        <div class="<%= paneClass('decisions') %>" id="seu-detail-decisions" role="tabpanel">
           <div class="section-card">
             <div class="p-3 border-bottom">
               <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/decisions" class="row g-2 align-items-center">
@@ -480,7 +527,7 @@
         </div>
 
         <%# ---------------------------------------------------------------- Knowledge %>
-        <div class="tab-pane fade" id="seu-detail-knowledge" role="tabpanel">
+        <div class="<%= paneClass('knowledge') %>" id="seu-detail-knowledge" role="tabpanel">
           <div class="section-card">
             <div class="p-3 border-bottom">
               <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/knowledge" class="row g-2 align-items-center">
@@ -577,7 +624,7 @@
         </div>
 
         <%# ---------------------------------------------------------------- Command / Work Item / Dispatch %>
-        <div class="tab-pane fade" id="seu-detail-commands" role="tabpanel">
+        <div class="<%= paneClass('commands') %>" id="seu-detail-commands" role="tabpanel">
           <div class="section-card">
             <div class="table-responsive">
               <table class="table table-sm mb-0 align-middle">
@@ -613,7 +660,7 @@
         </div>
 
         <%# ---------------------------------------------------------------- External Interactions %>
-        <div class="tab-pane fade" id="seu-detail-external-interactions" role="tabpanel">
+        <div class="<%= paneClass('external-interactions') %>" id="seu-detail-external-interactions" role="tabpanel">
           <div class="section-card">
             <div class="p-3 border-bottom">
               <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/external-interactions" class="row g-2 align-items-center">
@@ -684,7 +731,7 @@
         </div>
 
         <%# ---------------------------------------------------------------- Events %>
-        <div class="tab-pane fade" id="seu-detail-events" role="tabpanel">
+        <div class="<%= paneClass('events') %>" id="seu-detail-events" role="tabpanel">
           <div class="section-card">
             <div class="table-responsive">
               <table class="table table-sm mb-0">

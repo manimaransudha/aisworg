@@ -110,7 +110,7 @@ export async function checkRequestLiveness(input: { objective: ObjectiveRow; tem
   for (const code of (draft.additionalCapabilityCodes as string[] | undefined) ?? []) {
     const { data: concept } = await ontologyDB.findConcept("capability-name", code, viewer);
     checks.push(
-      concept && concept.is_active
+      concept
         ? { item: `Capability "${code}"`, status: "live", detail: "active capability-name concept" }
         : { item: `Capability "${code}"`, status: "dead", detail: "not a live capability-name concept" }
     );
@@ -362,15 +362,23 @@ export async function finalizeCommissioning(input: {
   // Ungoverned for MVP (no Authority/Policy declared on these rows in the
   // seed data), but still routed through transitionEngine so the mechanism
   // is real, not bypassed for convenience.
+  //
+  // Version Feature Plan.md §3/§4 (Ch.2, migration 189) — event_type is now
+  // read off the resolved Transition Definition instead of the ad hoc
+  // `SEU${to}` string this used to build directly; the fallback keeps the
+  // exact same name for any future SEU row added without event_type set.
+  // No version_event anywhere for SEU (confirmed with the owner): SEU's
+  // lifecycle_state is a runtime execution lifecycle, not the definition/
+  // authoring one this plan's Revision-vs-Version distinction is about.
   let previousStepEvent = { id: input.causationId };
   for (const [from, to] of PRE_ASSETS_STEPS) {
-    const step = await transitionEngine.evaluate({ entityType: "SEU", fromState: from, toState: to, actorRole: input.actorRole, actorId: input.actorId, context: {} });
+    const step = await transitionEngine.evaluate({ entityType: "SEU", fromState: from, toState: to, actorRole: input.actorRole, actorId: input.actorId, entityId: seu.id, context: {} });
     if (!step.allowed) {
       return { ok: false, stage: `transition_${from}_to_${to}`, reason: describeRejection(step), seuId: seu.id };
     }
     await seusDB.updateLifecycleState(seu.id, to);
     previousStepEvent = await eventBus.publish({
-      eventType: `SEU${to}`, originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id, correlationId,
+      eventType: step.eventType ?? `SEU${to}`, originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id, correlationId,
       causationId: previousStepEvent.id, actorId: input.actorId ?? null, authorityBadge: step.authorityBadge,
     });
   }
@@ -450,16 +458,12 @@ export async function finalizeCommissioning(input: {
   // Engineering Assets has actually run (Ch.30 causation fix: caused by the
   // previous cascade step's own event, a real chain, not a repeat of
   // correlationId).
-  const finalStep = await transitionEngine.evaluate({ entityType: "SEU", fromState: "Activated", toState: "Operational", actorRole: input.actorRole, actorId: input.actorId, context: {} });
+  const finalStep = await transitionEngine.evaluate({ entityType: "SEU", fromState: "Activated", toState: "Operational", actorRole: input.actorRole, actorId: input.actorId, entityId: seu.id, context: {} });
   if (!finalStep.allowed) {
     return { ok: false, stage: "transition_Activated_to_Operational", reason: describeRejection(finalStep), seuId: seu.id };
   }
   await seusDB.updateLifecycleState(seu.id, "Operational");
-  await eventBus.publish({
-    eventType: "SEUOperational", originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id, correlationId,
-    causationId: previousStepEvent.id, actorId: input.actorId ?? null, authorityBadge: finalStep.authorityBadge,
-  });
-
+  
   const report: CommissioningReport = {
     // CR-092 Part 6 — templateCode/profileCode stay the primary (backward
     // compat for anything reading the singular fields); templateCodes/
@@ -480,7 +484,10 @@ export async function finalizeCommissioning(input: {
     logger.error("[commissioning] failed to reload SEU after commissioning", finalErr as Error);
     return { ok: false, stage: "finalise", reason: "SEU commissioned but could not be reloaded", seuId: seu.id };
   }
-
+  await eventBus.publish({
+    eventType: finalStep.eventType ?? "SEUOperational", originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id, correlationId,
+    causationId: previousStepEvent.id, actorId: input.actorId ?? null, authorityBadge: finalStep.authorityBadge,
+  });
   return { ok: true, seu: finalSeu, report };
 }
 
@@ -519,6 +526,7 @@ export async function transitionEbm(input: { ebmId: string; targetState: string;
     toState: input.targetState,
     actorRole: input.actorRole,
     actorId: input.actorId,
+    entityId: ebm.id,
     context: { ebm },
   });
   if (!gate.allowed) {
@@ -569,13 +577,15 @@ export async function transitionEbm(input: { ebmId: string; targetState: string;
   // Owner: "did i not say version is not part of validation" — versioning
   // (a new ebms row) is EBMVersioned's own concern, not EBMValidated's;
   // Validate updates this row's status in place, same as every other
-  // transition here.
+  // transition here. Confirmed the same way at the transition_definitions
+  // level (Version Feature Plan.md §3/§4, migration 189): both this hop and
+  // Validated -> Active carry a real event_type but no version_event.
   const { data: updated, error } = await ebmsDB.updateStatus(ebm.id, input.targetState as EbmRow["status"]);
   if (error || !updated) throw error ?? new Error("failed to update EBM status");
 
   const correlationId = eventBus.newCorrelationId();
   await eventBus.publish({
-    eventType: input.targetState === "Validated" ? "EBMValidated" : input.targetState === "Active" ? "EBMActivated" : "EBMTransitioned",
+    eventType: gate.eventType ?? "EBMTransitioned",
     originatingObjectType: "EBM",
     originatingObjectId: ebm.id,
     seuId: ebm.seu_id,

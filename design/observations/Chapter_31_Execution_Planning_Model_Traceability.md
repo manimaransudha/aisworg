@@ -94,21 +94,21 @@ Key realization highlights include:
 
 ---
 
-## 5. Conclusion
+## 5. Conclusion (corrected 2026-09-12)
 
-Chapter 31 specification alignment is **very high (~95%)**. The Execution Engine accurately implements **ADR – Command-Driven Execution**, cleanly separating command creation from transient work item generation (`workItemGenerator.ts`) and participant capability dispatch (`dispatchEngine.ts`).
+The prior "~95%, Fully Met" conclusion and the Section 7 audit below contradicted each other (Section 7 called the same EE-001–006 principles "Unbuilt/Deferred"). Re-verified directly against the code; findings below replace both.
 
----
+The core ADR — Command-Driven Execution — is implemented: `executionEngine.execute()` (`src/domain/engine/executionEngine.ts:23`) creates a `Command` via `commandsDB.create()`, publishes `CommandGenerated`, hands off to `workItemGenerator.generate()` for the transient Work Item, then to `dispatchEngine.dispatch()`. This part of the pipeline is real and matches §10/§12/ADR.
 
-## 7. Complete Specification Section Coverage Audit
+### Gaps against the chapter text
 
-The following table documents the audit results for narrative, non-FR, and implementation-specific sections previously un-indexed in the primary matrix:
+1. **Not event-driven, not a subscriber (FR-31.1, EE-002).** The spec's Execution Cycle (§9) is "Observe Events → … → Wait for Events" — an independent loop that subscribes to the event bus. The actual `executionEngine` has no subscription; it is a synchronous function called directly by the one call site (`src/routes/seu/core/deliverables.ts:242`), inline in the deliverable-transition request handler. Nothing publishes an event that `executionEngine` reacts to later.
+2. **Single entity type wired up.** The only caller is the Deliverable transition path in `deliverables.ts`. `TransitionEntityType` is generic in the signature, but no other entity kind currently drives a Command through this engine.
+3. **§15 events mostly missing.** Of `ExecutionEvaluationStarted`, `ExecutionEvaluationCompleted`, `CommandGenerated`, `CapabilityRequested`, `ExecutionDeferred`, `ExecutionBlocked` — only `CommandGenerated` is published (`executionEngine.ts:50`). The other five do not exist anywhere in `src/` (verified by grep). Deferral (`no_eligible_participant`) is returned as a plain result value, not an `ExecutionDeferred` event.
+4. **No "Execution history service" or "Execution APIs" (§18).** History is reconstructable from the `commands`, `work_items`, and `events` tables (correlation/causation IDs), but there is no dedicated history service or API surface — §18 lists these as separate deliverables and neither exists as a named component.
+5. **No standalone "execution evaluation service."** Readiness/governance evaluation lives in the caller (`transitionEngine.evaluate`, quality-gate checks in `deliverables.ts`) before `executionEngine.execute()` is invoked — matching §11's "shall not duplicate dependency logic," but meaning there is no Execution Engine-owned evaluation service distinct from the transition/dependency engines, contrary to §18's listing of it as a discrete deliverable.
+6. **Reproducibility/determinism (EE-003, FR-31.7)** hold in the narrow sense that the same inputs produce the same Command → Work Item → Dispatch sequence, but this has not been exercised under concurrency (§13's "maximise safe engineering concurrency" is unverified — no concurrency-specific handling was found in `executionEngine.ts` or `dispatchEngine.ts`).
 
-| Section Heading | Code Verification Status | Implementation & Codebase Findings |
-|---|:---:|---|
-| **EE-001** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **EE-002** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **EE-003** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **EE-004** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **EE-005** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **EE-006** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
+### What is solid
+- ADR (Command-Driven Execution), FR-31.3, FR-31.4, FR-31.5, and the causation/correlation threading in FR-31.6 are implemented and match the spec's intent.
+- §11's "Execution Engine shall not duplicate dependency logic" is honored by construction — dependency/governance evaluation happens entirely in the caller.

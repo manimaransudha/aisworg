@@ -123,12 +123,19 @@ export interface JsonSchemaProperty {
 // only meaningful when kind === "nested-list".
 export interface ReferentialListItemField {
   name: string;
-  kind: "string" | "enum" | "boolean" | "referential" | "referential-multi" | "nested-list";
+  kind: "string" | "enum" | "boolean" | "referential" | "referential-multi" | "nested-list" | "referential-dynamic";
   referentialSource?: string;
   options?: string[];
   required?: boolean;
   help?: string;
   label?: string;
+  // CR-100 — "referential-dynamic" only: this field's concept type is driven
+  // by a SIBLING item field's current value within the same row (Competency's
+  // `value`, driven by its own row's `dimension`) — the item-level analogue
+  // of a top-level referential-select's dynamicSourceField/dynamicSourceSuffix.
+  // driverField names the sibling field, not a top-level schema property.
+  driverField?: string;
+  driverSuffix?: string;
   // CR-077 — true when this item field's schema carries x-format:"markdown"
   // (statement/prompt today). Drives the edit-mode toolbar and the view-mode
   // renderMarkdown call in _referentialListGroup.ejs; independent of `full`
@@ -205,6 +212,13 @@ function buildItemFields(itemProps: Record<string, JsonSchemaProperty>, itemRequ
         nestedItemFields.sort((a, b) => (rank.get(a.name) ?? nestedOrder.length) - (rank.get(b.name) ?? nestedOrder.length));
       }
       return { name: fieldName, kind: "nested-list" as const, nestedItemFields, ...common };
+    }
+    // CR-100 — Competency's own `value`: driven by the sibling `dimension`
+    // field's current value, not a fixed concept type. Checked before the
+    // plain x-referential case below since a driven field carries no
+    // x-referential of its own.
+    if (fieldDef["x-referential-source-by"]) {
+      return { name: fieldName, kind: "referential-dynamic" as const, driverField: fieldDef["x-referential-source-by"], driverSuffix: fieldDef["x-referential-source-suffix"] ?? "", ontology: true, ...common };
     }
     if (fieldDef["x-referential"] && fieldDef["x-multi"]) return { name: fieldName, kind: "referential-multi" as const, referentialSource: fieldDef["x-referential"], ...common };
     if (fieldDef["x-referential"]) return { name: fieldName, kind: "referential" as const, referentialSource: fieldDef["x-referential"], ontology: fieldDef["x-ontology"] === true, ...common };
@@ -410,6 +424,38 @@ export function dynamicReferentialSourceFieldsIn(schema: JsonSchemaDocument): Ar
   return result;
 }
 
+// CR-100 — the item-level analogue of dynamicReferentialSourceFieldsIn above,
+// for a referential-list ROW field driven by a SIBLING item field (Competency's
+// `value`, driven by its own row's `dimension`) rather than a top-level schema
+// property. Unlike the top-level case, the driver's own concept type is
+// resolved right here — from the driver sibling's plain `x-referential` in
+// the SAME item props — not a second schema.properties lookup, since an
+// item-level driver is never itself a top-level field. Same unbounded-depth
+// recursion as collectOntologyTypesFromItemProps, for the same reason
+// (CR-088's nested-list precedent).
+function collectDynamicItemFieldsFromItemProps(itemProps: Record<string, JsonSchemaProperty>, result: Array<{ driverConceptType: string; suffix: string }>): void {
+  for (const itemDef of Object.values(itemProps)) {
+    const driverField = itemDef["x-referential-source-by"];
+    if (driverField) {
+      const driverConceptType = itemProps[driverField]?.["x-referential"];
+      if (driverConceptType) result.push({ driverConceptType, suffix: itemDef["x-referential-source-suffix"] ?? "" });
+    }
+    if (itemDef.type === "array" && itemDef.items?.properties) {
+      collectDynamicItemFieldsFromItemProps(itemDef.items.properties, result);
+    }
+  }
+}
+
+export function dynamicReferentialSourceItemFieldsIn(schema: JsonSchemaDocument): Array<{ driverConceptType: string; suffix: string }> {
+  const result: Array<{ driverConceptType: string; suffix: string }> = [];
+  for (const def of Object.values(schema.properties ?? {})) {
+    if (def["x-widget"] === "referential-list" && def.items?.properties) {
+      collectDynamicItemFieldsFromItemProps(def.items.properties, result);
+    }
+  }
+  return result;
+}
+
 // --- Display grouping (UI redesign, owner: "extremely unfriendly") --------
 // generateFields() returns one flat list in schema-property order — Pack's 23
 // fields interleave Identity/Metadata, Compatibility, Dependencies, and 8
@@ -496,6 +542,10 @@ const PARAMETER_OVERRIDES_FIELD_NAMES = new Set(["exposedParameterOverrides"]);
 const CONFIGURATION_PARAMETER_FIELD_NAMES = new Set([
   "targetCloudProvider", "primaryProgrammingLanguage", "sourceControlProvider", "deploymentStrategy",
   "aiProviderPreference", "defaultRepositoryStructure", "documentationLevel", "developmentMethodology",
+  // Owner: "domain as an additional profile-configuration parameter" — ninth
+  // field, same "Configuration Parameters" display group as the other eight
+  // (migration 199).
+  "domain",
   "participatingOrganisationCodes", "environmentConfiguration",
 ]);
 

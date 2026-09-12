@@ -251,11 +251,60 @@ function findDeliverableId(html: string, name: string): string {
   return match[1];
 }
 
+// CR-098 rework of the Capability Fulfilment section — the shared table row
+// this file's own regex helpers used to scrape (`{code}</code></td>`) became
+// one `.section-card` per Capability (detail.ejs), each carrying its own
+// header (`<code>{code}</code>` + a `state-badge`), an eligible-Participant
+// checkbox picker grouped by Participant Type (Unfulfilled) or an
+// assigned-Participant release picker (Fulfilled), never a `<td>` anywhere.
+// Every helper below scopes to one card's own slice of the page first — the
+// same reason findEligibleParticipantMasterId needs a bounded slice, not a
+// bare regex, to avoid bleeding into a neighboring card's own checkboxes.
+function extractCapabilityCard(html: string, code: string): string {
+  const header = `<code class="text-muted small">${code}</code>`;
+  const start = html.indexOf(header);
+  if (start === -1) throw new Error(`could not find a Capability card for "${code}" on the page`);
+  const nextCard = html.indexOf('<div class="section-card mb-3">', start + 1);
+  return html.slice(start, nextCard === -1 ? html.length : nextCard);
+}
+
+function capabilityStatus(html: string, code: string): string {
+  const card = extractCapabilityCard(html, code);
+  const match = card.match(/<span class="state-badge state-([A-Za-z]+)">/);
+  if (!match) throw new Error(`could not find a status badge on the Capability card for "${code}"`);
+  return match[1];
+}
+
 function findUnfulfilledCapabilityId(html: string, code: string): string {
-  const pattern = new RegExp(`${code}</code></td>\\s*<td><span class="state-badge state-Unfulfilled">.*?capabilities/([a-f0-9-]+)/fulfil`, "s");
-  const match = html.match(pattern);
+  const card = extractCapabilityCard(html, code);
+  if (capabilityStatus(html, code) !== "Unfulfilled") throw new Error(`expected Capability "${code}" to be Unfulfilled on the page`);
+  const match = card.match(/capabilities\/([a-f0-9-]+)\/fulfil/);
   if (!match) throw new Error(`could not find an unfulfilled Fulfil form for Capability "${code}" on the page`);
   return match[1];
+}
+
+// CR-098's own registry-based Fulfil (fulfilCapabilityWithParticipants) —
+// the form no longer accepts an ad hoc participantType/displayName pair; it
+// submits one or more real participants_master ids, picked here off the
+// card's own eligible-Participant checkboxes (mock-onboarded fixture data,
+// seedParticipantsMaster.ts — real, already-seeded rows for every one of
+// this file's Capability codes, cycled across MOCK_CAPABILITY_CODES).
+function findEligibleParticipantMasterId(html: string, code: string): string {
+  const card = extractCapabilityCard(html, code);
+  const match = card.match(/name="participantMasterIds" value="([a-f0-9-]+)"/);
+  if (!match) throw new Error(`could not find an eligible Participant checkbox for Capability "${code}" on the page`);
+  return match[1];
+}
+
+// The Fulfilled-state card's own assigned-Participant checkbox (name=
+// participantIds, the Release form) plus its rendered display name — CR-098
+// no longer lets a caller choose the display name, so this reads back
+// whichever real participants_master identity actually got assigned.
+function findAssignedParticipant(html: string, code: string): { participantId: string; displayName: string } {
+  const card = extractCapabilityCard(html, code);
+  const match = card.match(/name="participantIds" value="([a-f0-9-]+)" id="assigned-[^"]+">\s*<label[^>]*>\s*([^<]+?)\s*<span/);
+  if (!match) throw new Error(`could not find an assigned Participant on the Capability "${code}" card`);
+  return { participantId: match[1], displayName: match[2].trim() };
 }
 
 function findObligationId(html: string): string {
@@ -291,15 +340,15 @@ test("Flow 2 — Capability Fulfilment: fulfilling a Capability flips its status
   const { seuId, csrf } = await commissionSeu(request, "webflow-fulfil");
   const detail = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(detail.html, "requirements-analysis");
+  const participantMasterId = findEligibleParticipantMasterId(detail.html, "requirements-analysis");
 
   const result = await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, {
-    participantType: "AI",
-    displayName: "WebFlow Test Analyst",
+    participantMasterIds: participantMasterId,
   });
   assert.equal(result.status, 302);
 
   const after1 = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(after1.html, /requirements-analysis<\/code><\/td>\s*<td><span class="state-badge state-Fulfilled">Fulfilled</s);
+  assert.equal(capabilityStatus(after1.html, "requirements-analysis"), "Fulfilled");
 });
 
 test("Flow 3 — Deliverable transition, valid: a Participant-fulfilled Deliverable moves to the next declared state", async () => {
@@ -307,11 +356,11 @@ test("Flow 3 — Deliverable transition, valid: a Participant-fulfilled Delivera
   const { seuId, csrf } = await commissionSeu(request, "webflow-valid-transition");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
+  const participantMasterId = findEligibleParticipantMasterId(before1.html, "requirements-analysis");
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
   await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, {
-    participantType: "AI",
-    displayName: "WebFlow Test Analyst",
+    participantMasterIds: participantMasterId,
   });
 
   const result = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, {
@@ -337,11 +386,11 @@ test("Flow 4 — Deliverable transition, invalid: rejected with an explicit erro
   const { seuId, csrf } = await commissionSeu(request, "webflow-invalid-transition");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
+  const participantMasterId = findEligibleParticipantMasterId(before1.html, "requirements-analysis");
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
   await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, {
-    participantType: "AI",
-    displayName: "WebFlow Test Analyst",
+    participantMasterIds: participantMasterId,
   });
   await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
 
@@ -364,6 +413,8 @@ test("Flow 5 — Deliverable transition, dependency gating (regression: must nev
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const reqCapabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
   const archCapabilityId = findUnfulfilledCapabilityId(before1.html, "architecture-design");
+  const reqParticipantMasterId = findEligibleParticipantMasterId(before1.html, "requirements-analysis");
+  const archParticipantMasterId = findEligibleParticipantMasterId(before1.html, "architecture-design");
   const requirementsSpecId = findDeliverableId(before1.html, "Requirements Analysis Model");
   const architectureDocId = findDeliverableId(before1.html, "Architecture Decision Record");
 
@@ -371,8 +422,8 @@ test("Flow 5 — Deliverable transition, dependency gating (regression: must nev
   // after this bug was originally found and fixed) is never what's blocking
   // Architecture Decision Record below — this test isolates the dependency gate
   // specifically, the one that actually broke before.
-  await postForm(request, `/seu/seus/${seuId}/capabilities/${reqCapabilityId}/fulfil`, csrf, { participantType: "AI", displayName: "WebFlow Analyst" });
-  await postForm(request, `/seu/seus/${seuId}/capabilities/${archCapabilityId}/fulfil`, csrf, { participantType: "AI", displayName: "WebFlow Architect" });
+  await postForm(request, `/seu/seus/${seuId}/capabilities/${reqCapabilityId}/fulfil`, csrf, { participantMasterIds: reqParticipantMasterId });
+  await postForm(request, `/seu/seus/${seuId}/capabilities/${archCapabilityId}/fulfil`, csrf, { participantMasterIds: archParticipantMasterId });
 
   // B (Architecture Decision Record) depends on A (Requirements Analysis Model)
   // reaching 'Approved'. A is still 'Defined' — B must be blocked.
@@ -421,7 +472,8 @@ test("Phase 3 — a dispatched web transition leaves a real Command and Work Ite
   assert.equal(deferredCommands?.[0]?.to_state, "In Progress");
 
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
-  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantType: "Human", displayName: "WebFlow Dispatch Tester" });
+  const participantMasterId = findEligibleParticipantMasterId(before1.html, "requirements-analysis");
+  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantMasterIds: participantMasterId });
 
   const dispatched = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "In Progress" });
   assert.equal(dispatched.status, 302);
@@ -456,9 +508,10 @@ test("Phase 4 — a Quality Gate blocks a Deliverable transition while an Obliga
   const { seuId, csrf } = await commissionSeu(request, "webflow-phase4");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
+  const participantMasterId = findEligibleParticipantMasterId(before1.html, "requirements-analysis");
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
-  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantType: "AI", displayName: "WebFlow Analyst" });
+  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantMasterIds: participantMasterId });
   await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
 
   const created = await postForm(request, `/seu/seus/${seuId}/obligations`, csrf, {
@@ -501,9 +554,10 @@ test("Phase 5 — a Deliverable transition requiring accepted Evidence is blocke
   const { seuId, csrf } = await commissionSeu(request, "webflow-phase5");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
+  const participantMasterId = findEligibleParticipantMasterId(before1.html, "requirements-analysis");
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
-  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantType: "AI", displayName: "WebFlow Analyst" });
+  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantMasterIds: participantMasterId });
   await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
   await webTransitionAndComplete(request, seuId, csrf, deliverableId, "Approved");
 
@@ -592,9 +646,10 @@ test("Phase 7 — Flow and Governance Telemetry are real, and a sustained patter
   const { seuId, csrf } = await commissionSeu(request, "webflow-phase7");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
+  const participantMasterId = findEligibleParticipantMasterId(before1.html, "requirements-analysis");
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
-  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantType: "AI", displayName: "WebFlow Analyst" });
+  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantMasterIds: participantMasterId });
   await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
 
   // A real Flow metric: this Deliverable now has a measurable cycle time.
@@ -664,9 +719,10 @@ test("Phase 8 — a blocked Quality Gate and a failed External Interaction both 
   const { seuId, csrf } = await commissionSeu(request, "webflow-phase8");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
+  const participantMasterId = findEligibleParticipantMasterId(before1.html, "requirements-analysis");
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
-  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantType: "AI", displayName: "WebFlow Analyst" });
+  await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantMasterIds: participantMasterId });
   await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
 
   const createdObligation = await postForm(request, `/seu/seus/${seuId}/obligations`, csrf, {
@@ -800,48 +856,52 @@ test("Phase 9 — a Pack published through the SDK is visible on the platform-wi
   assert.equal(packCardMatches[packCardMatches.length - 1]![1], "Retired");
 });
 
-function findReplaceParticipantId(html: string, capabilityCode: string): string {
-  const pattern = new RegExp(`${capabilityCode}</code></td>[\\s\\S]*?participant/([a-f0-9-]+)/replace`);
-  const match = html.match(pattern);
-  if (!match) throw new Error(`could not find a Replace form for Capability "${capabilityCode}" on the page`);
-  return match[1];
-}
-
+// CR-098's own two-step Replace (owner: "Replace should take it back to
+// unfilled state... Once user picks new participants, Click on assign again
+// to get the status changed to fulfiled") retired the old atomic
+// participant/:id/replace UI link entirely (detail.ejs no longer renders it
+// anywhere, even though the route itself still exists server-side, untouched,
+// for a direct/legacy caller — see web/seus.ts's own comment on that route).
+// The real, current flow this test now walks is Release (checked, from the
+// card's own assigned-Participant section) followed by an ordinary Fulfil
+// again — exactly what a person clicking through the real page does today.
 test("Participant Lifecycle Governance, Build order step 5 — replacing a fulfilled Capability's Participant over real HTTP", async () => {
   const request = newSession();
   const { seuId, csrf } = await commissionSeu(request, "webflow-participant-replace");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
+  const originalParticipantMasterId = findEligibleParticipantMasterId(before1.html, "requirements-analysis");
 
   await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, {
-    participantType: "AI",
-    displayName: "WebFlow Original Analyst",
+    participantMasterIds: originalParticipantMasterId,
   });
 
   const afterFulfil = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterFulfil.html, /WebFlow Original Analyst/);
-  const participantId = findReplaceParticipantId(afterFulfil.html, "requirements-analysis");
+  assert.equal(capabilityStatus(afterFulfil.html, "requirements-analysis"), "Fulfilled");
+  const original = findAssignedParticipant(afterFulfil.html, "requirements-analysis");
 
-  const result = await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/participant/${participantId}/replace`, csrf, {
-    participantType: "Human",
-    displayName: "WebFlow Replacement Analyst",
+  const released = await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/release`, csrf, {
+    participantIds: original.participantId,
+  });
+  assert.equal(released.status, 302);
+
+  const afterRelease = await getPage(request, `/seu/seus/${seuId}`);
+  assert.equal(capabilityStatus(afterRelease.html, "requirements-analysis"), "Unfulfilled", "Release must revert the Capability to Unfulfilled");
+  // CR-098 — a Participant just released from THIS Capability must not
+  // reappear among the eligible picks for the very next Fulfil (excludeParticipantMasterIds,
+  // core/participantEligibility.ts).
+  const replacementParticipantMasterId = findEligibleParticipantMasterId(afterRelease.html, "requirements-analysis");
+  assert.notEqual(replacementParticipantMasterId, originalParticipantMasterId, "the just-released Participant must not be offered again as an eligible pick");
+
+  const result = await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, {
+    participantMasterIds: replacementParticipantMasterId,
   });
   assert.equal(result.status, 302);
 
   const afterReplace = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterReplace.html, /alert-success/);
-  assert.match(afterReplace.html, /Participant replaced/);
-  assert.match(afterReplace.html, /WebFlow Replacement Analyst/);
-  // Scoped to the Capabilities table row itself (stops at the row's own
-  // </tr>, via the negative lookahead) — the page legitimately still lists
-  // "WebFlow Original Analyst" further down, in the Evidence-provenance
-  // participant <select> (detail.ejs), which correctly shows every
-  // Participant ever attached to the SEU, replaced ones included.
-  assert.doesNotMatch(
-    afterReplace.html,
-    /requirements-analysis<\/code><\/td>(?:(?!<\/tr>)[\s\S])*?WebFlow Original Analyst/,
-    "the old Participant must no longer be shown as this Capability's fulfilling Participant"
-  );
+  assert.equal(capabilityStatus(afterReplace.html, "requirements-analysis"), "Fulfilled");
+  const replacement = findAssignedParticipant(afterReplace.html, "requirements-analysis");
+  assert.notEqual(replacement.displayName, original.displayName, "expected a genuinely different Participant to now be fulfilling this Capability");
 });
 
 // Finds a list row's Objective id by its (unique, randomUUID-suffixed)

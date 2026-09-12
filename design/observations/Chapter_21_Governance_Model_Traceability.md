@@ -93,18 +93,3 @@ Returns structured outcome objects:
 ## 6. Conclusion
 
 Chapter 21 specification alignment is **exceptionally high (~96%)**. The Governance Model provides a clean, deterministic, multi-faceted evaluation layer that effectively separates permissibility logic from execution while maintaining complete traceability across all domain entities.
-
----
-
-## 7. Complete Specification Section Coverage Audit
-
-The following table documents the audit results for narrative, non-FR, and implementation-specific sections previously un-indexed in the primary matrix:
-
-| Section Heading | Code Verification Status | Implementation & Codebase Findings |
-|---|:---:|---|
-| **GM-001** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **GM-002** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **GM-003** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **GM-004** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **GM-005** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **GM-006** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |

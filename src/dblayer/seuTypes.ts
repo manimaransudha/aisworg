@@ -95,7 +95,7 @@ export type ServiceStatus = "Defined" | "Published" | "Active" | "Deprecated" | 
 // {code,label,target_level,target:number,units} shape service_definitions
 // (migration 155) uses, now shared here too: `services` is the Pack-composed
 // row FED FROM a Service Definition (CR-086 follow-on, core/packs.ts's
-// seedContributions), so it carries the exact same shape as its source,
+// materializeContributions), so it carries the exact same shape as its source,
 // targets merged with whatever this Pack's own contributionServices[]
 // overrides.
 export interface ServiceRow {
@@ -192,7 +192,7 @@ export interface PackContributions {
   // CR-065 — category dropped entirely, not fixed. Owner: "what is stored in
   // contributionCapabilities[]? Just store only the code" — name/description
   // are 100% derivable from the capability-name Ontology concept the code
-  // already resolves to (seedContributions looks them up there instead),
+  // already resolves to (materializeContributions looks them up there instead),
   // so storing them redundantly per-Pack was pure duplication.
   capabilities?: Array<{ code: string }>;
   // CR-064, then CR-086 follow-on (owner: "the services form should show all
@@ -205,7 +205,7 @@ export interface PackContributions {
   // Definition's own service_level rows is overridden); anything not listed
   // here simply inherits the Definition's own target — the Definition
   // itself is never mutated (owner: "the original service definition should
-  // not be overwritten"). seedContributions (core/packs.ts) resolves/merges
+  // not be overwritten"). materializeContributions (core/packs.ts) resolves/merges
   // at publish time, writing the merged result to the Pack-composed
   // `services` table only.
   services?: Array<{ code: string; serviceLevel?: Array<{ code: string; target: number }> }>;
@@ -219,7 +219,7 @@ export interface PackContributions {
   // declared Capabilities produce (via each Capability's own Service
   // Definition outputs). Every other field (name/category/constraintType/
   // governedTransition/conditionType/conditionField/conditionValues/severity)
-  // is derived off the Definition at seedContributions time — governedTransition
+  // is derived off the Definition at materializeContributions time — governedTransition
   // specifically from the Definition's own applicability_deliverable_lifecycle
   // (owner: "is not deliverable_lifecycle equivalent of that?") — never
   // authored here.
@@ -231,7 +231,7 @@ export interface PackContributions {
   // transition definition already holds") — a delimited
   // "EntityType|fromState|toState" value picked from real
   // transition_definitions rows, parsed back into the 3 real columns at
-  // seedContributions time (core/packs.ts). requiredPolicyCode reassembles
+  // materializeContributions time (core/packs.ts). requiredPolicyCode reassembles
   // into quality_gates.criteria's nested shape there too.
   //
   // CR-058 follow-up 2 (owner: "the code isn't a UUID or a freeform
@@ -254,7 +254,7 @@ export interface PackContributions {
   // replaces it: a reference to this SAME Pack's own reviewGates[].code
   // (self-referential picker, sdkAuthoring.ts), resolved to a real
   // review_gates row and then a real reviews.review_gate_id FK at
-  // seedContributions time (core/packs.ts) — a strict join, not a
+  // materializeContributions time (core/packs.ts) — a strict join, not a
   // coincidence string match (owner: matching by category/string alone
   // "can lead to corrupt data").
   qualityGates?: Array<{
@@ -297,7 +297,7 @@ export interface PackContributions {
   // quality gate"). `items` is the ordered verification list — see
   // ChecklistItem. Declaration-only here (this is the authored, form-facing
   // shape persisted into packs.contributions verbatim); materialising into
-  // the real `checklists` table happens in seedContributions (core/packs.ts),
+  // the real `checklists` table happens in materializeContributions (core/packs.ts),
   // same as reviewGates/qualityGates. Executing a Checklist (a Participant
   // works through `items`, produces one Evidence record) is out of scope —
   // SEU-commissioning-phase work, not Pack-side declaration.
@@ -326,6 +326,12 @@ export interface PackContributions {
   // (engineering-capital, freely-extensible); not a §20 verifiable item —
   // these are inputs/assets, not checks (tbi.md's own §9 classification note).
   engineeringCapital?: Array<{ type?: string; url?: string }>;
+  // CR-099 — which competency (Ontology category:pack dimension + that
+  // dimension's own child concept type's value) this Pack represents.
+  // Declaration only, same treatment as obligationDefinitions/
+  // engineeringCapital above — required at publish time whenever this
+  // Pack's own category is Technology or Domain (validatePackSeed).
+  competencies?: Array<{ dimension?: string; value?: string }>;
 }
 
 export interface PackRow {
@@ -484,8 +490,14 @@ export interface ServiceDefinitionRow {
   name: string;
   capability_code: string;
   purpose: string | null;
-  inputs: string | null;
-  outputs: string | null;
+  // Bug fix (migration 159 changed these to TEXT[] — a referential-multi-select
+  // of `deliverable-name` Ontology codes, mirroring `consumers` against
+  // capability-name — but this type, serviceDefinitionsDB.ts, and
+  // sdkAuthoring.ts's own form parsing were never updated to match; every
+  // caller omitting these hit a NOT NULL violation, and a real form
+  // submission could never populate them at all).
+  inputs: string[];
+  outputs: string[];
   service_level: ServiceLevelExpectation[];
   governance: string | null;
   success: string | null;
@@ -706,7 +718,10 @@ export interface SeuCapabilityRow {
   status: SeuCapabilityStatus;
 }
 
-export type ParticipantType = "AI" | "Human" | "External";
+// Migration 194 — Ontology-backed (concept_type 'participant-types'), not a
+// hardcoded union; validity is enforced at the write path via
+// assertCanonicalCategory, not by the TS type.
+export type ParticipantType = string;
 export type ParticipantState = "Created" | "Available" | "Assigned" | "Executing" | "Idle" | "Released" | "Archived";
 
 export interface ParticipantRow {
@@ -715,15 +730,50 @@ export interface ParticipantRow {
   type: ParticipantType;
   display_name: string;
   state: ParticipantState;
-  // SDK UI Layer Plan ("SEU Registry visibility") — nullable, AI/External
-  // participants aren't real accounts. Stopgap ahead of real Participant
-  // deployment; lets the Registry filter to "SEUs I'm a Participant on."
+  // Migration 195 — renamed from user_id, repointed from users(id) to
+  // participants_master(id). This is a per-SEU engagement of a
+  // participants_master resource (CR-098); NOT the same reference as
+  // CapabilityFulfilmentRow.participant_id below, which points at THIS
+  // table's own id instead.
+  participant_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Migration 195 (CR-098, Ch.13 §8) — the tenant-scoped, cross-SEU resource
+// registry: one row per real identity (a human, an AI agent configuration,
+// an Automated integration, an External authority), reusable across many
+// SEU engagements over time. `participants` (above) is one engagement of a
+// participants_master resource into one SEU's lifecycle.
+export interface ParticipantMasterRow {
+  id: string;
+  tenant_id: string;
+  // Ontology-backed (participant-types), same as ParticipantRow.type.
+  type: ParticipantType;
+  display_name: string;
+  // Array of capability-name Ontology codes — "Harry can fulfil development
+  // and code-review capabilities."
+  capabilities: string[];
+  // { <category:pack code>: [<that dimension's own concept_type codes>] } —
+  // CR-099: dimension keys are category:pack's own codes (Domain/Technology/
+  // ...), not a separate competency-dimension concept type.
+  competency: Record<string, string[]>;
+  // Ch.13 §14 Behaviour Context — array of {policy, payload}; policy is
+  // Ontology-backed (behaviour-context-policy), payload has no fixed shape.
+  behaviour_context: Array<{ policy: string; payload: Record<string, unknown> }>;
+  is_active: boolean;
+  // Only ever set for a Human-type master — the real login this identity
+  // corresponds to (carries forward participants.user_id's old purpose,
+  // the SDK UI Layer Plan's "SEUs I'm a Participant on" visibility filter).
   user_id: number | null;
   created_at: string;
   updated_at: string;
 }
 
-export type FulfilmentStrategy = "AI" | "Human" | "External" | "Hybrid" | "Composite";
+// Migration 194 — widened alongside ParticipantType: every fulfilment
+// strategy is either an Ontology-backed Participant Type or one of the two
+// multi-Participant strategies (FR-13.4) that aren't a Participant Type at all.
+export type FulfilmentStrategy = ParticipantType | "Hybrid" | "Composite";
 
 export interface CapabilityFulfilmentRow {
   id: string;
@@ -854,7 +904,13 @@ export type TransitionEntityType =
   // EBMActivated), two separate, independently human-triggered actions, not
   // a cascade. entity_type's own DB CHECK constraint was already dropped
   // (migration 036) — this is a TS-side addition only, no migration needed.
-  | "EBM";
+  | "EBM"
+  // Ch.18 Ontology Model, migration 190 — a Concept's own real governed
+  // lifecycle (Active -> Deprecated -> Retired -> Archived), replacing the
+  // old flat is_active boolean. No Draft/Validated/Published prefix: a
+  // concept goes live the moment it's added (no review workflow, §18.8), so
+  // Active is the initial state, not a birth transition.
+  | "Ontology";
 
 export interface TransitionDefinitionRow {
   id: string;
@@ -890,6 +946,15 @@ export interface TransitionDefinitionRow {
   // before (a plain badge-gated action button, no queue step).
   trigger: "manual" | "governed";
   submit_verb: string | null;
+  // Version Feature Plan.md §3 — the literal domain event this transition
+  // produces (replaces hardcoded per-entity *_TRANSITION_EVENT maps), the
+  // Chapter 41 §15 Version event it also constitutes (null for a pure
+  // Revision), and — for a row whose submit_verb queues a Submit step —
+  // that step's own Version event (e.g. Objective's VersionCreated fires on
+  // submit, not on the row's own to_state transition).
+  event_type: string | null;
+  version_event: string | null;
+  submit_version_event: string | null;
 }
 
 export type CommandStatus = "Generated" | "Dispatched" | "Completed" | "Deferred" | "Cancelled" | "Failed";
@@ -967,15 +1032,44 @@ export interface OntologyConceptRow {
   // CR-023: the longer "when to use this" guidance text, separate from the
   // short default_label. Generic to any concept_type; null where unset.
   description: string | null;
+  // Migration 191 — which of the two ways `description` should render:
+  // 'text' (escaped plain text) or 'markdown' (renderMarkdown, CR-094).
+  // Author's own per-concept choice, not inferred from content or
+  // concept_type — defaults to 'markdown' (every pre-191 row's existing
+  // behaviour, unchanged).
+  text_type: "text" | "markdown";
+  // Migration 191 — CR-096's "which UI group does this concept_type belong
+  // to" replaced from a code-side inference + hardcoded label map with a
+  // direct data column: set on a row whose `code` names ANOTHER concept_type
+  // (e.g. profile-configuration's own 'ai-provider-preference' row), this
+  // value is both the group membership marker and the group's own display
+  // label (core/ontology.ts's getConceptTypeNav). Null on every ordinary row.
+  ui_grouping: string | null;
   contributed_by_pack: string | null;
-  is_active: boolean;
+  // Migration 190 (Ch.18 §11/§12) — replaces the old flat is_active boolean
+  // with a real governed lifecycle + version. One row per Version now (unique
+  // on concept_type/code/tenant_id/version, same shape as Pack/Template/
+  // Profile/Service Definition); "the concept" for validation/picker purposes
+  // is whichever row has status = 'Active' for a given (concept_type, code,
+  // tenant_id) — never more than one at a time, enforced by application
+  // discipline (auto-supersede-previous-on-new-version), not a DB constraint,
+  // same as every other multi-version entity in this codebase.
+  version: string;
+  status: "Active" | "Deprecated" | "Retired" | "Archived";
+  // Composition (owner: "allow tenants to compose using the composition
+  // strategy that packs already have implemented") — Specialization/Override
+  // only; see migration 190's own header for why the other 4 compositionEngine
+  // strategies don't apply to a 2-field entity. Null on a plain, non-composed
+  // add/edit — Compose is an opt-in explicit action, not implied by every edit.
+  composition_strategy: "specialization" | "override" | null;
+  composition_sources: Array<{ conceptId: string; code: string }>;
   // CR-022: Platform's tenant_id for the shared canonical set; a tenant's own
   // tenant_id for their own vocabulary.
   tenant_id: string;
   created_at: string;
   // CR-091 — generic, nullable, meaningful only for `profile-configuration`
   // concepts today (same "generic column, not special-cased" discipline
-  // description/is_active already established): whether the Configuration
+  // description/status already established): whether the Configuration
   // Parameter this concept names is mandatory on a Profile. A tenant
   // overrides it by inserting their own (concept_type, code, tenant_id) row
   // with the opposite value — no separate override mechanism, the same

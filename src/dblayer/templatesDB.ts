@@ -16,21 +16,30 @@ export const templatesDB = {
   // tenantId defaults to Platform (packsDB.create's own pattern) — every
   // seed-script caller predates tenant ownership and gets exactly the same
   // idempotent-reseed row it always has.
+  // `status` defaults to 'Active' HERE, explicitly — not by relying on the
+  // column's own DEFAULT (which is 'Draft' as of migration 185b, matching
+  // Pack). This is the raw "already-published catalog entry" DB-layer
+  // helper — direct test fixtures across the suite (pack-sdk.test.ts,
+  // governance-ebm-sharpening.test.ts, etc.) call it expecting an
+  // immediately-usable Active row with no lifecycle walk, and that stays
+  // true. publishTemplate (core/templates.ts) no longer calls this at all —
+  // it creates a real Draft (createDraft) and walks it forward for real.
   async upsert(input: {
     code: string;
     name: string;
     templateVersion?: string;
     deliverableCatalogue?: TemplateDeliverableSeed[];
     tenantId?: string;
+    status?: TemplateRow["status"];
   }): Promise<DbResult<TemplateRow>> {
     try {
       const { rows } = await query<TemplateRow>(
-        `INSERT INTO templates (code, name, template_version, deliverable_catalogue, tenant_id)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO templates (code, name, template_version, deliverable_catalogue, tenant_id, status)
+         VALUES ($1, $2, $3, $4, $5, $6)
          ON CONFLICT (code, template_version, tenant_id) DO UPDATE
            SET name = EXCLUDED.name, deliverable_catalogue = EXCLUDED.deliverable_catalogue
          RETURNING *`,
-        [input.code, input.name, input.templateVersion ?? "1.0.0", JSON.stringify(input.deliverableCatalogue ?? []), input.tenantId ?? PLATFORM_TENANT_ID]
+        [input.code, input.name, input.templateVersion ?? "1.0.0", JSON.stringify(input.deliverableCatalogue ?? []), input.tenantId ?? PLATFORM_TENANT_ID, input.status ?? "Active"]
       );
       return { data: rows[0] };
     } catch (err) {

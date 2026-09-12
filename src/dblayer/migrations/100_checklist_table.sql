@@ -20,7 +20,7 @@
 --
 -- `id` stays stable across every republish of the originating Pack (owner:
 -- "It stays... Someone wants to update the checklist with a new item, they
--- can without a version change") — seedContributions upserts this row in
+-- can without a version change") — materializeContributions upserts this row in
 -- place, keyed by (originating_pack_id, name), so any gate's checklist_ids
 -- reference survives a Pack republish untouched.
 --

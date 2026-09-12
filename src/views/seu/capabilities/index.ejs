@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+</head>
+<body>
+  <%- include('../../partials/helpers') %>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-1 text-dark fw-bold">Capabilities</h2>
+      <p class="text-muted small mb-0">
+        Capability Registry (CR-086) — the canonical <code>capability-name</code> Ontology vocabulary: the same
+        codes Objectives, Packs, Profiles and Service Definitions all validate their own required/contributed
+        Capabilities against.
+      </p>
+    </div>
+
+    <% const _base = locals.listBasePath || '/aisworg/seu/capabilities'; %>
+    <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search code or label' }) %>
+    <div class="small text-muted mb-3">Sort:
+      <%- sortLink('Code', 'code', list, _base) %> &middot;
+      <%- sortLink('Label', 'label', list, _base) %>
+    </div>
+
+    <% if (list.total === 0) { %>
+      <% if (list.q) { %>
+        <div class="alert alert-warning">No Capabilities match your search.</div>
+      <% } else { %>
+        <div class="alert alert-warning">No capability-name concepts registered yet.</div>
+      <% } %>
+    <% } else { %>
+      <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Code</th>
+                <th>Label</th>
+                <th>Description</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% list.items.forEach(function(c) { %>
+                <tr>
+                  <td><code class="small"><%= c.code %></code></td>
+                  <td><%= c.default_label %></td>
+                  <td class="text-muted small"><%= c.description || '—' %></td>
+                  <td><span class="state-badge state-<%= c.status %>"><%= c.status %></span></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% } %>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

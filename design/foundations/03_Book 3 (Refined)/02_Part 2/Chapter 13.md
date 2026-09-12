@@ -55,20 +55,20 @@ The platform treats all Participants as equal architectural entities irrespectiv
 
 This chapter defines:
 
-- Participant abstraction;
-- Participant identity;
-- Participant lifecycle;
-- Participant assignment;
-- Participant replacement;
-- Participant collaboration;
-- Participant state.
+- Participant abstraction
+- Participant identity
+- Participant lifecycle
+- Participant assignment
+- Participant replacement
+- Participant collaboration
+- Participant state
 
 This chapter does not define:
 
-- AI implementation;
-- human resource management;
-- engineering behaviour;
-- capability definitions.
+- AI implementation
+- human resource management
+- engineering behaviour
+- capability definitions
 
 ---
 
@@ -106,15 +106,13 @@ A Participant is a runtime instance capable of fulfilling one or more Capabiliti
 
 Every Participant possesses:
 
-- identity;
-- lifecycle;
-- runtime state;
-- assigned Capabilities;
-- engineering history.
+- identity
+- lifecycle
+- runtime state
+- assigned Capabilities
+- engineering history
 
-Participants are transient.
-
-Knowledge remains permanent.
+Participants are transient. Knowledge remains permanent.
 
 ---
 
@@ -124,35 +122,23 @@ Knowledge remains permanent.
 
 Participants are replaceable.
 
----
-
 ## PM-002
 
 Participants possess identity.
-
----
 
 ## PM-003
 
 Participants shall not own engineering knowledge.
 
----
-
 ## PM-004
 
-Participants execute behaviour.
+Participants execute behaviour. They do not define behaviour.
 
-They do not define behaviour.
-
----
 
 ## PM-005
 
-Participants fulfil Capabilities.
+Participants fulfil Capabilities. They do not own Capabilities.
 
-They do not own Capabilities.
-
----
 
 ## PM-006
 
@@ -166,37 +152,25 @@ Participants shall remain independent of AI technologies.
 
 Every Participant shall possess a globally unique identifier.
 
----
-
 ### FR-13.2
 
 Every Participant shall belong to exactly one active SEU.
-
----
 
 ### FR-13.3
 
 Participants may fulfil multiple Capabilities.
 
----
-
 ### FR-13.4
 
 Multiple Participants may jointly fulfil one Capability.
-
----
 
 ### FR-13.5
 
 Participants shall support replacement.
 
----
-
 ### FR-13.6
 
 Replacement shall preserve engineering continuity.
-
----
 
 ### FR-13.7
 
@@ -206,7 +180,7 @@ Participant activities shall remain fully traceable.
 
 # 7. Participant Types
 
-The platform recognises three Participant Types.
+The platform recognises four Participant Types.
 
 ## AI Participant
 
@@ -235,15 +209,23 @@ Examples:
 - Enterprise Architect
 - Security Reviewer
 
-The platform models engineering participation only.
-
-Human resource management remains outside the scope of the platform.
+The platform models engineering participation only. Human resource management remains outside the scope of the platform.
 
 ---
 
 ## External Participant
 
-Represents an external autonomous service.
+Represents outside oversight/authority parties
+
+Examples: 
+
+- Auditors
+- Certifying Authorities
+
+
+## Automated Participant
+
+Represents internal deterministic tooling/systems
 
 Examples:
 
@@ -261,10 +243,10 @@ Every Participant shall maintain:
 - Participant Identifier
 - Participant Type
 - Display Name
-- Assigned Capabilities
+- Assigned Capabilities/Capability Context
 - Current State
 - SEU Identifier
-- Engineering History
+- Engineering Context
 - Authority Context
 - Behaviour Context
 
@@ -316,10 +298,10 @@ A Participant is assigned to a specific Deliverable or Work Item only through th
 
 Assignment establishes runtime relationships between:
 
-- Participant;
-- Capability;
-- Deliverable;
-- Engineering Behavior Model.
+- Participant
+- Capability
+- Deliverable
+- Engineering Behavior Model
 
 Assignment shall not modify the Participant definition.
 
@@ -333,10 +315,10 @@ The collaboration mechanism is implementation-defined.
 
 The platform shall preserve:
 
-- collaboration history;
-- engineering decisions;
-- evidence;
-- traceability.
+- collaboration history
+- engineering decisions
+- evidence
+- traceability
 
 ---
 
@@ -344,12 +326,12 @@ The platform shall preserve:
 
 Participants shall maintain runtime state including:
 
-- availability;
-- assigned Deliverables;
-- current Work Items;
-- execution history;
-- pending decisions;
-- outstanding obligations.
+- availability
+- assigned Deliverables
+- current Work Items
+- execution history
+- pending decisions
+- outstanding obligations
 
 Runtime state shall not contain permanent engineering knowledge.
 
@@ -361,12 +343,12 @@ The platform shall permit replacement of any Participant.
 
 Replacement shall preserve:
 
-- Deliverable state;
-- Knowledge;
-- Decisions;
-- Evidence;
-- Traceability;
-- Outstanding Obligations.
+- Deliverable state
+- Knowledge
+- Decisions
+- Evidence
+- Traceability
+- Outstanding Obligations
 
 Replacement shall not require recommissioning of the SEU.
 
@@ -445,11 +427,11 @@ The platform shall publish events including:
 
 The Participant subsystem shall:
 
-- support concurrent Participants;
-- support heterogeneous Participant implementations;
-- support dynamic replacement;
-- preserve engineering continuity;
-- maintain complete traceability.
+- support concurrent Participants
+- support heterogeneous Participant implementations
+- support dynamic replacement
+- preserve engineering continuity
+- maintain complete traceability
 
 ---
 
@@ -475,11 +457,11 @@ The implementation shall satisfy the following criteria.
 
 Implementation of this chapter shall produce:
 
-- Participant domain model.
-- Participant lifecycle service.
-- Participant registry.
-- Participant assignment interfaces.
-- Participant context model.
-- Participant state management.
-- Participant APIs.
-- Participant events.
+- Participant domain model
+- Participant lifecycle service
+- Participant registry
+- Participant assignment interfaces
+- Participant context model
+- Participant state management
+- Participant APIs
+- Participant events

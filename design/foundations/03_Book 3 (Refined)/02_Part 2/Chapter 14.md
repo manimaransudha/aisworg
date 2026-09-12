@@ -172,31 +172,24 @@ These artefacts constitute the shared engineering memory of the SEU.
 
 Engineering artefacts are the primary collaboration mechanism.
 
----
 
 ## ECM-002
 
 Participants shall remain loosely coupled.
 
----
-
 ## ECM-003
 
 Collaboration shall remain fully traceable.
-
----
 
 ## ECM-004
 
 Knowledge shall be shared through the Knowledge Repository.
 
----
 
 ## ECM-005
 
 Runtime events shall communicate engineering state changes.
 
----
 
 ## ECM-006
 
@@ -210,31 +203,26 @@ Direct participant communication shall not be required for normal execution.
 
 Participants shall collaborate through shared engineering artefacts.
 
----
 
 ### FR-14.2
 
 Participants shall publish engineering state changes.
 
----
 
 ### FR-14.3
 
 Participants shall consume published engineering state.
 
----
 
 ### FR-14.4
 
 Collaboration shall preserve engineering traceability.
 
----
 
 ### FR-14.5
 
 Participants shall remain independently replaceable.
 
----
 
 ### FR-14.6
 
@@ -250,31 +238,21 @@ The platform recognises the following collaboration artefacts.
 
 Represent engineering outcomes.
 
----
-
 ## Knowledge
 
 Represents reusable engineering understanding.
-
----
 
 ## Evidence
 
 Supports engineering decisions.
 
----
-
 ## Decisions
 
 Capture engineering intent.
 
----
-
 ## Obligations
 
 Represent engineering commitments.
-
----
 
 ## Events
 
@@ -366,10 +344,10 @@ Engineering decisions shall become shared engineering artefacts.
 
 Participants may:
 
-- propose decisions;
-- review decisions;
-- approve decisions;
-- consume decisions.
+- propose decisions
+- review decisions
+- approve decisions
+- consume decisions
 
 Decision ownership shall remain traceable.
 

@@ -213,6 +213,12 @@
         ]
       }
     ],
-    "policies": []
+    "policies": [],
+    "competencies": [
+      {
+        "dimension": "Technology",
+        "value": "nodejs"
+      }
+    ]
   }
 }

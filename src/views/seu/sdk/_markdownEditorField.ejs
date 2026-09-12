@@ -10,7 +10,7 @@
     with no re-init) only inserts markdown syntax at the cursor; it never
     intercepts submission. No live preview yet (CR-078, deferred) — save and
     view the rendered result in read mode.
-    Locals: name, value, required (bool). %>
+    Locals: name, value, required (bool), placeholder (optional string — CR-094 added this for Ontology's add-concept form; the original three callers pass none). %>
 <div class="md-editor-field">
   <div class="md-toolbar btn-group btn-group-sm mb-1" role="group" aria-label="Markdown formatting">
     <button type="button" class="btn btn-outline-secondary" data-md-action="bold" title="Bold"><i class="bi bi-type-bold"></i></button>
@@ -20,6 +20,6 @@
     <button type="button" class="btn btn-outline-secondary" data-md-action="list" title="Bulleted list"><i class="bi bi-list-ul"></i></button>
     <button type="button" class="btn btn-outline-secondary" data-md-action="link" title="Link"><i class="bi bi-link-45deg"></i></button>
   </div>
-  <textarea name="<%= name %>" class="form-control form-control-sm font-monospace md-editor-textarea" rows="4" <%- required ? 'required' : '' %>><%= value %></textarea>
+  <textarea name="<%= name %>" class="form-control form-control-sm font-monospace md-editor-textarea" rows="4" <%- required ? 'required' : '' %> placeholder="<%= locals.placeholder ?? '' %>"><%= value %></textarea>
   <div class="form-text small">Markdown supported — fenced <code>```</code> blocks for code. Save to see it rendered.</div>
 </div>

@@ -12,7 +12,7 @@ import { listSeusPaginated, getSeuDetailView, getSeuEbmView } from "../core/seus
 import { parseListParams } from "../../../utils/listQuery.js";
 import { getObjectiveDetail, listCommissionableObjectives } from "../core/objectives.js";
 import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
-import { fulfilCapability } from "../core/capabilities.js";
+import { fulfilCapabilityWithParticipants, releaseParticipants } from "../core/capabilities.js";
 import { replaceParticipant } from "../core/participants.js";
 import { transitionDeliverable } from "../core/deliverables.js";
 import { transitionEbm } from "../core/commissioning.js";
@@ -115,6 +115,7 @@ router.get("/seus/:id", attachVM("seu/seus/detail"), async (req: Request, res: R
     }
     req.vm.req.title = `SEU ${detail.seu.id.slice(0, 8)}`;
     req.vm.req.detail = detail;
+    req.vm.req.activeTab = typeof req.query.tab === "string" ? req.query.tab : undefined;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/seus/detail", req.vm);
   } catch (err) {
@@ -145,24 +146,28 @@ router.get("/seus/:id/ebm", attachVM("seu/seus/ebm"), async (req: Request, res: 
   }
 });
 
-/** POST /aisworg/seu/seus/:id/capabilities/:capabilityId/fulfil — Ch.12 direct assignment. */
+/** POST /aisworg/seu/seus/:id/capabilities/:capabilityId/fulfil — Ch.12 direct assignment.
+ * Owner: "The participants dropdown should be multi-select. It chooses as many as it wants
+ * as eligible." — a real HTML multi-select submits its field once per selection, so a single
+ * pick arrives as a bare string, not an array; normalise before passing it on. */
 router.post("/seus/:id/capabilities/:capabilityId/fulfil", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
-  const backTo = `/aisworg/seu/seus/${seuId}`;
-  const { participantType, displayName } = req.body ?? {};
+  const backTo = `/aisworg/seu/seus/${seuId}?tab=capabilities`;
+  const raw = req.body?.participantMasterIds;
+  const participantMasterIds: string[] = (Array.isArray(raw) ? raw : raw ? [raw] : []).map(String);
 
-  if (!participantType || typeof displayName !== "string" || !displayName.trim()) {
-    return flashError(req, res, backTo, "Participant type and display name are required.");
+  if (participantMasterIds.length === 0) {
+    return flashError(req, res, backTo, "At least one Participant is required.");
   }
 
   try {
-    const result = await fulfilCapability({
+    const results = await fulfilCapabilityWithParticipants({
       seuId,
       capabilityId: String(req.params.capabilityId),
-      participantType: participantType as ParticipantType,
-      displayName,
+      participantMasterIds,
     });
-    return flashSuccess(req, res, backTo, `Capability "${result.capabilityCode}" fulfilled by ${displayName}.`);
+    const names = results.map((r) => r.participant.display_name).join(", ");
+    return flashSuccess(req, res, backTo, `Capability "${results[0].capabilityCode}" fulfilled by ${names}.`);
   } catch (err) {
     logger.error("[web/seu/seus] POST /seus/:id/capabilities/:capabilityId/fulfil error", err as Error);
     return flashError(req, res, backTo, (err as Error).message);
@@ -177,7 +182,7 @@ router.post("/seus/:id/capabilities/:capabilityId/fulfil", async (req: Request, 
  */
 router.post("/seus/:id/capabilities/:capabilityId/participant/:participantId/replace", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
-  const backTo = `/aisworg/seu/seus/${seuId}`;
+  const backTo = `/aisworg/seu/seus/${seuId}?tab=capabilities`;
   const { participantType, displayName } = req.body ?? {};
 
   if (!participantType || typeof displayName !== "string" || !displayName.trim()) {
@@ -198,6 +203,40 @@ router.post("/seus/:id/capabilities/:capabilityId/participant/:participantId/rep
     return flashSuccess(req, res, backTo, `Participant replaced: "${displayName}" now fulfils this Capability.`);
   } catch (err) {
     logger.error("[web/seu/seus] POST .../participant/:participantId/replace error", err as Error);
+    return flashError(req, res, backTo, (err as Error).message);
+  }
+});
+
+/** POST /aisworg/seu/seus/:id/capabilities/:capabilityId/release — Ch.12 §7/§13, the detail
+ * page's new two-step Replace (owner: "Replace should take it back to unfilled state...
+ * Once user picks new participants, Click on assign again to get the status changed to
+ * fulfiled"). Releases one or more currently-fulfilling Participants (checked, by type, in
+ * the card's own assigned-Participants section) and reverts the Capability to Unfulfilled —
+ * picking a replacement is then the ordinary Fulfil/Assign form (.../fulfil above), not part
+ * of this same action. Distinct from the older .../participant/:participantId/replace route
+ * just above, which stays untouched (still the atomic ad hoc swap the dry-run suite exercises). */
+router.post("/seus/:id/capabilities/:capabilityId/release", async (req: Request, res: Response) => {
+  const seuId = String(req.params.id);
+  const backTo = `/aisworg/seu/seus/${seuId}?tab=capabilities`;
+  const raw = req.body?.participantIds;
+  const participantIds: string[] = (Array.isArray(raw) ? raw : raw ? [raw] : []).map(String);
+
+  if (participantIds.length === 0) {
+    return flashError(req, res, backTo, "At least one Participant is required.");
+  }
+
+  try {
+    const released = await releaseParticipants({
+      seuId,
+      capabilityId: String(req.params.capabilityId),
+      participantIds,
+      actorRole: req.session?.user?.role ?? "general",
+      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+    });
+    const names = released.map((p) => p.display_name).join(", ");
+    return flashSuccess(req, res, backTo, `Released: ${names}. Capability is Unfulfilled again — pick a replacement below.`);
+  } catch (err) {
+    logger.error("[web/seu/seus] POST /seus/:id/capabilities/:capabilityId/release error", err as Error);
     return flashError(req, res, backTo, (err as Error).message);
   }
 });

@@ -455,6 +455,7 @@ Code-verified audit (2026-08-22), not from memory — every claim below carries 
 
 Mostly holds, with two real gaps and one partial:
 - **SM-001** (explicit state) ✅ for every entity checked, **except EBM**: `ebms.status` exists but is set once at INSERT and never updated anywhere in `src/` — `ebmsDB.ts` exposes only `create`/`findById`, no `updateStatus`/transition method at all.
+*[Remarks: Because EBM is not a lifecycle entity. It is an execution configuration]*
 - **SM-002** (one authoritative owner) ✅ — each entity's state column is written by exactly one `*DB.ts` module's single `updateStatus`/`updateLifecycleState` method; no duplicate writers found.
 - **SM-003** (deterministic) ✅ — `transitionEngine.evaluate()` resolves exactly one `transition_definitions` row per `(entity_type, from_state, to_state)`, enforced by a DB unique constraint.
 - **SM-004** (atomic) ⚠️ — the state write itself is atomic (a single `UPDATE ... RETURNING *`), but the write and the resulting event publish are two separate, non-transactional round trips (`eventBus.publish()` called after `updateStatus` resolves, no surrounding `BEGIN/COMMIT`). A crash between the two leaves state changed with no event recorded. Generalized into its own audit CR: **[CR-055](../../../change-requests/CR-055-multi-statement-transaction-audit.md)** — is this the only instance of this pattern, or one of several across the codebase?

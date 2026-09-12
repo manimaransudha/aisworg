@@ -19,7 +19,12 @@
 // live as you type — entirely within the page's own CSS, not a native
 // picker's.
 (function () {
-  document.querySelectorAll('.ontology-combo').forEach(function (combo) {
+  // CR-100 — extracted into a named, reusable function so a row cloned
+  // AFTER page load (referentialListGroup.js's "+ Add another", Competency's
+  // own `value` combo living inside a repeatable row for the first time)
+  // can be initialised too — this file's own querySelectorAll below only
+  // ever sees whatever .ontology-combo elements exist at page load.
+  function initOntologyCombo(combo) {
     var input = combo.querySelector('.ontology-combo-input');
     var menu = combo.querySelector('.ontology-combo-menu');
     if (!input || !menu) return;
@@ -216,5 +221,11 @@
         if (menu.classList.contains('show')) render(input.value);
       });
     }
-  });
+  }
+
+  document.querySelectorAll('.ontology-combo').forEach(initOntologyCombo);
+  // Exposed for referentialListGroup.js's own clone handler — a newly added
+  // repeatable row's .ontology-combo (Competency's own `value`) needs this
+  // same initialisation, not just the ones present at page load.
+  window.initOntologyCombo = initOntologyCombo;
 })();

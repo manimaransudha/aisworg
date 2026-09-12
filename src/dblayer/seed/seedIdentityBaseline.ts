@@ -355,7 +355,16 @@ export async function seedIdentityBaseline(): Promise<void> {
       // can't see it, since it only reads the transitions graph. Added
       // explicitly so "holds every active noun_verb" stays true for this
       // real, actively-checked badge too.
-      { holderId: TESTER_ALL_ID, badges: [...nounVerbBadges(), "objective_propose"].sort() },
+      //
+      // Ch.18 Ontology (migration 190) — ontology_define is the identical
+      // shape: an authoringMappings-only verb (Ontology concepts have no
+      // Draft-creation transitions_definitions row either, "creation
+      // authority is not a transition"), invisible to nounVerbBadges()'s own
+      // transitions-only read. ontology_deprecate/retire/archive ARE real
+      // transitions-graph verbs and nounVerbBadges() already covers them —
+      // only the authoring verb needed the same manual addition as
+      // objective_propose.
+      { holderId: TESTER_ALL_ID, badges: [...nounVerbBadges(), "objective_propose", "ontology_define"].sort() },
       { holderId: TESTER_CREATOR_ID, badges: nounVerbBadges((v) => v === "create") },
       { holderId: TESTER_APPROVER_ID, badges: nounVerbBadges((v) => v === "approve") },
       ...authorityUsers.map((u) => ({ holderId: u.id, badges: u.badges })),

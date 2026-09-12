@@ -30,7 +30,7 @@
 -- governedTransition — required on the real Pack-composed `policies` table
 -- (Quality Gate's requiredPolicyCodes depends on it) but deliberately absent
 -- from policy_definitions ("there is no relationship with any other
--- entity") — is DERIVED at publish time (core/packs.ts's seedContributions),
+-- entity") — is DERIVED at publish time (core/packs.ts's materializeContributions),
 -- not authored here at all. Owner: "is not deliverable_lifecycle equivalent
 -- of that?" — yes: every canonical Policy's own applicabilityDeliverableLifecycle
 -- names which real Deliverable lifecycle state(s) it governs; the derived

@@ -51,6 +51,16 @@ export interface UnraveledComposition {
   // compositionEngine.compose()) so preview and commit share one answer.
   composedPacks: EbmComposedPack[];
   warnings: string[];
+  // Owner: "the primary programming language should be unioned with the
+  // technology competencies in the packs. It is an union. Same with domain
+  // as well." One entry per category:pack dimension (CR-099) — a real
+  // requirement set for this SEU, carried onto ebm.behaviors
+  // (compositionCompleted.ts) and consumed by findEligibleParticipants
+  // (core/participantEligibility.ts) as its `competency` filter. Not a
+  // conflict-detection pool entry — a Profile's primaryProgrammingLanguage
+  // disagreeing with a composed Pack's own Technology value isn't a
+  // disagreement to flag, both simply contribute to the same requirement set.
+  competencyRequirements: Record<string, string[]>;
 }
 
 export interface CompositionConflictOption {
@@ -69,6 +79,48 @@ export interface CompositionConflict {
 
 function toPoolSource(kind: PoolSourceKind, id: string, code: string, label: string): PoolSource {
   return { kind, id, code, label };
+}
+
+// Owner: "the primary programming language should be unioned with the
+// technology competencies in the packs... Same with domain as well." The
+// two Configuration Parameters explicitly given a real relationship to a
+// Pack-contributed competency dimension (CR-099's category:pack-keyed
+// `dimension`) — named directly by the owner, not a generic rule for every
+// Configuration Parameter.
+const CONFIGURATION_PARAMETER_COMPETENCY_UNIONS: Array<{ profileField: "primaryProgrammingLanguage" | "domain"; dimension: string }> = [
+  { profileField: "primaryProgrammingLanguage", dimension: "Technology" },
+  { profileField: "domain", dimension: "Domain" },
+];
+
+// Every Profile's own unioned Configuration Parameter value, plus every
+// composed Pack's own declared competency (any dimension it declares, not
+// just Technology/Domain — CR-099's own dimension vocabulary is
+// Ontology-extensible to any category:pack code). A plain union, not a
+// conflict — a Profile's primaryProgrammingLanguage and a composed Pack's
+// own Technology value both simply become eligible values, never flagged
+// as disagreeing with each other.
+function computeCompetencyRequirements(profiles: ProfileRow[], composedPacks: Map<string, PackRow>): Record<string, string[]> {
+  const values: Record<string, Set<string>> = {};
+  const add = (dimension: string, value: string) => {
+    (values[dimension] ??= new Set<string>()).add(value);
+  };
+
+  for (const { profileField, dimension } of CONFIGURATION_PARAMETER_COMPETENCY_UNIONS) {
+    for (const profile of profiles) {
+      const draft = (profile.draft_content ?? {}) as Record<string, unknown>;
+      const v = draft[profileField];
+      if (typeof v === "string" && v) add(dimension, v);
+    }
+  }
+  for (const pack of composedPacks.values()) {
+    for (const c of pack.contributions?.competencies ?? []) {
+      if (c.dimension && c.value) add(c.dimension, c.value);
+    }
+  }
+
+  const result: Record<string, string[]> = {};
+  for (const [dimension, set] of Object.entries(values)) result[dimension] = [...set];
+  return result;
 }
 
 async function resolveActivePack(code: string): Promise<PackRow | null> {
@@ -172,6 +224,7 @@ export async function unravelComposition(input: { templateIds: string[]; profile
       aiProviderPreference: draft.aiProviderPreference,
       defaultRepositoryStructure: draft.defaultRepositoryStructure,
       documentationLevel: draft.documentationLevel,
+      domain: draft.domain,
       participatingOrganisationCodes: draft.participatingOrganisationCodes,
       environmentConfiguration: draft.environmentConfiguration,
       deploymentTargets: draft.deploymentTargets,
@@ -343,6 +396,7 @@ export async function unravelComposition(input: { templateIds: string[]; profile
     pool,
     composedPacks: [...composedPacks.values()].map((pack) => ({ packId: pack.id, packCode: pack.code, packVersion: pack.pack_version })),
     warnings,
+    competencyRequirements: computeCompetencyRequirements(profiles, composedPacks),
   };
 }
 

@@ -24,20 +24,20 @@ The SEU is responsible for executing software engineering work while preserving 
 
 This chapter defines:
 
-- the SEU lifecycle;
-- the SEU runtime model;
-- the SEU composition model;
-- responsibilities of an SEU;
-- interaction with the Runtime Kernel, Composition Engine and Packs;
-- commissioning and archival.
+- the SEU lifecycle
+- the SEU runtime model
+- the SEU composition model
+- responsibilities of an SEU
+- interaction with the Runtime Kernel, Composition Engine and Packs
+- commissioning and archival
 
 This chapter does **not** define:
 
-- individual capabilities;
-- participant implementations;
-- engineering practices;
-- workflows;
-- knowledge internals.
+- individual capabilities
+- participant implementations
+- engineering practices
+- workflows
+- knowledge internals
 
 These are specified in subsequent chapters.
  
@@ -83,21 +83,21 @@ All engineering behaviour shall be inherited through the Engineering Behavior Mo
 
 The SEU is responsible for:
 
-- executing software engineering work;
-- maintaining engineering governance;
-- coordinating participants;
-- maintaining dependency graphs;
-- managing engineering obligations;
-- preserving knowledge;
-- maintaining traceability;
-- reporting engineering state.
+- executing software engineering work
+- maintaining engineering governance
+- coordinating participants
+- maintaining dependency graphs
+- managing engineering obligations
+- preserving knowledge
+- maintaining traceability
+- reporting engineering state
 
 The SEU is **not** responsible for:
 
-- composing engineering practices;
-- loading Packs;
-- authenticating users;
-- infrastructure management.
+- composing engineering practices
+- loading Packs
+- authenticating users
+- infrastructure management
  
 
 # 5. Functional Requirements

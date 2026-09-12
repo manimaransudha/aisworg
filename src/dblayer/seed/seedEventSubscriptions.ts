@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
-import { assertCanonicalCategory } from "../../routes/seu/core/ontology.js";
+import { ontologyDB } from "../ontologyDB.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -42,6 +42,12 @@ function loadSeed(): EventSubscriptionsSeed {
 
 export async function seedEventSubscriptions(): Promise<void> {
   const seed = loadSeed();
+  // Loaded once and checked in-memory below, rather than a live Ontology
+  // query per event type in the loop.
+  const ontologyViewer = { isRoot: false, tenantId: null };
+  const { data: canonicalEventCategories } = await ontologyDB.findConceptsByType("category:event-types", ontologyViewer);
+  const canonicalEventCategoryCodes = new Set((canonicalEventCategories ?? []).map((c) => c.code));
+
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -50,7 +56,9 @@ export async function seedEventSubscriptions(): Promise<void> {
       // Ch.30 §7 category, validated against Ontology (category:event-types)
       // exactly like category:evidence/category:deliverable/etc. — same
       // write-path enforcement, not a DB-level CHECK constraint.
-      if (et.category) await assertCanonicalCategory("category:event-types", et.category);
+      if (et.category && !canonicalEventCategoryCodes.has(et.category)) {
+        throw new Error(`"${et.category}" is not a canonical category:event-types concept. Allowed: ${[...canonicalEventCategoryCodes].join(", ") || "(none registered)"}`);
+      }
       await client.query(
         `INSERT INTO event_registry (event_type, description, category) VALUES ($1, $2, $3)
          ON CONFLICT (event_type) DO UPDATE SET description = EXCLUDED.description, category = EXCLUDED.category`,

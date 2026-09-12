@@ -74,16 +74,24 @@
             </ul>
           </li>
 
-          <!-- SDK / Authoring dropdown — Pack/Template/Profile/Transition Definition authoring, Schema Registry, Pack Registry -->
+          <!-- Registry dropdown — top-level, extracted out of SDK / Authoring
+               (owner: "SDK authoring holds the registry and the authoring
+               points. Make registry an option on the navbar similar to
+               Ontology") — every published-entity registry (Pack/Template/
+               Profile/Deliverable/Service/Policy/Schema), separate from the
+               authoring surfaces that create/edit them. -->
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle <%= ['seu-packs','seu-templates','seu-profiles','seu-deliverable-definitions','seu-service-definitions','seu-policy-definitions','seu-sdk-pack-authoring','seu-sdk-template-authoring','seu-sdk-profile-authoring','seu-sdk-transition-definition-authoring','seu-sdk-deliverable-authoring','seu-sdk-service-authoring','seu-sdk-policy-authoring','seu-sdk-schema-registry','seu-sdk-ontology'].includes(currentPage) ? 'active' : '' %>"
+            <a class="nav-link dropdown-toggle <%= ['seu-capabilities','seu-participants','seu-packs','seu-templates','seu-profiles','seu-deliverable-definitions','seu-service-definitions','seu-policy-definitions','seu-sdk-schema-registry'].includes(currentPage) ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              SDK / Authoring
+              <i class="bi bi-collection me-2"></i>Registry
             </a>
-            <%# Commented out dropdown-menu-dark per rule:
-            <ul class="dropdown-menu dropdown-menu-dark">
-            %>
             <ul class="dropdown-menu shadow-sm border">
+              <li><a class="dropdown-item <%= currentPage === 'seu-capabilities' ? 'active' : '' %>" href="/aisworg/seu/capabilities">
+                <i class="bi bi-lightning-charge me-2"></i>Capability Registry
+              </a></li>
+              <li><a class="dropdown-item <%= currentPage === 'seu-participants' ? 'active' : '' %>" href="/aisworg/seu/participants">
+                <i class="bi bi-people me-2"></i>Participant Registry
+              </a></li>
               <li><a class="dropdown-item <%= currentPage === 'seu-packs' ? 'active' : '' %>" href="/aisworg/seu/packs">
                 <i class="bi bi-box-seam me-2"></i>Pack Registry
               </a></li>
@@ -103,6 +111,22 @@
                 <i class="bi bi-box-seam me-2"></i>Policy Registry
               </a></li>
               <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item <%= currentPage === 'seu-sdk-schema-registry' ? 'active' : '' %>" href="/aisworg/seu/sdk/schema-registry">
+                <i class="bi bi-braces me-2"></i>Schema Registry
+              </a></li>
+            </ul>
+          </li>
+
+          <!-- SDK / Authoring dropdown — Pack/Template/Profile/Transition Definition/Deliverable/Service/Policy authoring -->
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle <%= ['seu-sdk-pack-authoring','seu-sdk-template-authoring','seu-sdk-profile-authoring','seu-sdk-transition-definition-authoring','seu-sdk-deliverable-authoring','seu-sdk-service-authoring','seu-sdk-policy-authoring'].includes(currentPage) ? 'active' : '' %>"
+               href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              SDK / Authoring
+            </a>
+            <%# Commented out dropdown-menu-dark per rule:
+            <ul class="dropdown-menu dropdown-menu-dark">
+            %>
+            <ul class="dropdown-menu shadow-sm border">
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-pack-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/pack-authoring">
                 <i class="bi bi-file-earmark-code me-2"></i>Pack Authoring
               </a></li>
@@ -124,12 +148,45 @@
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-policy-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/policy-authoring">
                 <i class="bi bi-file-earmark-code me-2"></i>Policy Authoring
               </a></li>
+            </ul>
+          </li>
+
+          <!-- Ontology — top-level dropdown, not nested under SDK / Authoring
+               (Ch.18 vocabulary admin, frequent enough to warrant a single
+               click). Sub-items are the same top-level entries the Ontology
+               page's own vertical tabs are built from (app.js's
+               getConceptTypeNav) — a GROUP concept_type (profile-configuration,
+               relabeled "SEU Configurations") collapses its whole membership
+               into one entry; entering it lands on the group's own tab strip
+               (web/ontology.ts's tabsForActiveType), not a flat list of every
+               concept_type. Active-highlighting checks membership too, so
+               viewing any one member (e.g. ?type=ai-provider-preference)
+               still highlights its group's own dropdown entry. -->
+          <% const _activeConceptType = currentPage === 'seu-sdk-ontology' ? (locals.currentQuery?.type || '') : ''; %>
+          <% const _ontologyGroups = locals.ontologyConceptTypeGroups || {}; %>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle <%= currentPage === 'seu-sdk-ontology' ? 'active' : '' %>"
+               href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-diagram-3 me-2"></i>Ontology
+            </a>
+            <ul class="dropdown-menu shadow-sm border">
+              <% (locals.ontologyConceptTypes || []).forEach(function (entry) { %>
+                <% var isActiveEntry = entry.type === _activeConceptType || (_ontologyGroups[entry.type] || []).includes(_activeConceptType); %>
+                <li><a class="dropdown-item <%= isActiveEntry ? 'active' : '' %>" href="/aisworg/seu/sdk/ontology?type=<%= encodeURIComponent(entry.type) %>">
+                  <%= entry.label %><% if (entry.isGroup) { %> <i class="bi bi-diagram-2 text-muted small" title="Group"></i><% } %>
+                </a></li>
+              <% }) %>
+              <% if (!(locals.ontologyConceptTypes || []).length) { %>
+                <li><a class="dropdown-item" href="/aisworg/seu/sdk/ontology">Ontology</a></li>
+              <% } %>
               <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item <%= currentPage === 'seu-sdk-schema-registry' ? 'active' : '' %>" href="/aisworg/seu/sdk/schema-registry">
-                <i class="bi bi-braces me-2"></i>Schema Registry
-              </a></li>
-              <li><a class="dropdown-item <%= currentPage === 'seu-sdk-ontology' ? 'active' : '' %>" href="/aisworg/seu/sdk/ontology">
-                <i class="bi bi-diagram-3 me-2"></i>Ontology Management
+              <!-- Owner: "I want the metadata to be a separate option under
+                   ontology" — text_type/ui_grouping management, deliberately
+                   its own entry rather than folded into any one concept-type
+                   tab (CR-096 follow-up: per-category editing risked the
+                   same group drifting to conflicting labels). -->
+              <li><a class="dropdown-item <%= locals.currentPath === '/aisworg/seu/sdk/ontology/metadata' ? 'active' : '' %>" href="/aisworg/seu/sdk/ontology/metadata">
+                <i class="bi bi-sliders me-2"></i>Metadata
               </a></li>
             </ul>
           </li>

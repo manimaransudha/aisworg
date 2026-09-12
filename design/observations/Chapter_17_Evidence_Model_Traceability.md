@@ -95,22 +95,3 @@ Collected ──► Validated ──► Accepted ──► Referenced ──► 
 ## 6. Conclusion
 
 Chapter 17 specification alignment is **exceptionally high (~95%)**. The Evidence Model serves as the trust foundation of the platform, providing multi-relationship artifact linking, complete provenance preservation, supersession versioning, and strict immutability.
-
----
-
-## 7. Complete Specification Section Coverage Audit
-
-The following table documents the audit results for narrative, non-FR, and implementation-specific sections previously un-indexed in the primary matrix:
-
-| Section Heading | Code Verification Status | Implementation & Codebase Findings |
-|---|:---:|---|
-| **EM-001** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **EM-002** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **EM-003** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **EM-004** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **EM-005** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **EM-006** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **20.12 Evidence Reuse ❌ — open, aspirational (§14)** | `Fully Met` | Verified against [`requireTenantScope.ts`](file://src/middleware/requireTenantScope.ts), [`transitionDefinitionsDB.ts`](file://src/dblayer/transitionDefinitionsDB.ts), [`attentionItemsDB.ts`](file://src/dblayer/attentionItemsDB.ts). |
-| **20.15 Non-Functional Requirements ⚠️ — mixed (§17)** | `Partially Met` | Verified against [`authorityVocabularyDB.ts`](file://src/dblayer/authorityVocabularyDB.ts), [`seedDomainPacks.ts`](file://src/dblayer/seed/seedDomainPacks.ts). |
-| **20.17 Deliverables ⚠️ — mixed, re-scored (§19)** | `Fully Met` | Verified against [`seu_reviews_index.js`](file://src/viewModels/seu_reviews_index.js), [`evidenceDB.ts`](file://src/dblayer/evidenceDB.ts), [`eventsDB.ts`](file://src/dblayer/eventsDB.ts). |
-| **Summary — what's genuinely open, ranked** | `Fully Met` | Verified against [`requirePlatformBadge.ts`](file://src/middleware/requirePlatformBadge.ts), [`transitionDefinitionsDB.ts`](file://src/dblayer/transitionDefinitionsDB.ts), [`checklistsDB.ts`](file://src/dblayer/checklistsDB.ts). |

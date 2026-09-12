@@ -22,7 +22,7 @@
 --                  from the Definition itself). A row omitted here simply
 --                  inherits the Definition's own target unchanged — the
 --                  Definition row itself is never written to (core/packs.ts's
---                  seedContributions resolves + merges at publish time,
+--                  materializeContributions resolves + merges at publish time,
 --                  writing only to the Pack-composed `services` table).
 -- capabilityCode/name/contractDescription are no longer schema fields at
 -- all (owner: "these fields do not have to be stored") — shown in the form

@@ -1,5 +1,5 @@
 import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
-import { ontologyDB } from "../../../dblayer/ontologyDB.js";
+import { syncConceptFromEntity, retireConceptForEntity } from "./ontology.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
@@ -9,12 +9,13 @@ import type { DeliverableDefinitionRow } from "../../../dblayer/seuTypes.js";
 // CR-049 Phase 1 — Deliverable Definition authoring, mirroring core/templates.ts
 // in shape. The one thing this touches that Template's own materialisation
 // doesn't: syncing the `deliverable-name` Ontology concept CR-038's Template
-// `deliverableCatalogue` picker already reads (ontologyDB.upsertConcept/
-// retireConcept — the SAME functions the Ontology Management CRUD page
-// already calls, not new mechanism). That sync happens ONLY at the moment a
-// row genuinely reaches or leaves Active — there's nothing to "materialise
-// onto real columns" the way Template needs (code/description already ARE
-// real columns on deliverable_definitions from the moment of Draft creation).
+// `deliverableCatalogue` picker already reads (core/ontology.ts's own
+// syncConceptFromEntity/retireConceptForEntity — migration 190's system-sync
+// entry points, not the user-authoring addConcept/retireConcept). That sync
+// happens ONLY at the moment a row genuinely reaches or leaves Active —
+// there's nothing to "materialise onto real columns" the way Template needs
+// (code/description already ARE real columns on deliverable_definitions from
+// the moment of Draft creation).
 
 export interface DeliverableDefinitionSeedInput {
   code: string;
@@ -108,7 +109,7 @@ const EVENT_BY_TARGET_STATE: Record<string, string> = {
 // becoming (or ceasing to be) Active, never earlier (a Draft/Validated/
 // Published Definition must stay invisible to that picker).
 async function syncOntologyOnActivate(row: DeliverableDefinitionRow): Promise<void> {
-  await ontologyDB.upsertConcept({ conceptType: "deliverable-name", code: row.code, defaultLabel: row.code, description: row.description, tenantId: row.tenant_id });
+  await syncConceptFromEntity("deliverable-name", row.code, row.code, row.description ?? null, row.tenant_id);
 }
 
 // Only retires the Ontology-side row if no OTHER Version of this same
@@ -117,7 +118,7 @@ async function syncOntologyOnActivate(row: DeliverableDefinitionRow): Promise<vo
 // with the new Version's own content; retiring here would wrongly undo that.
 async function demoteOntologyIfNoOtherActive(row: DeliverableDefinitionRow): Promise<void> {
   const { data: stillActive } = await deliverableDefinitionsDB.findActiveByCode(row.code, row.tenant_id);
-  if (!stillActive) await ontologyDB.retireConcept("deliverable-name", row.code, row.tenant_id);
+  if (!stillActive) await retireConceptForEntity("deliverable-name", row.code, row.tenant_id);
 }
 
 export async function transitionDeliverableDefinition(input: { deliverableDefinitionId: string; targetState: DeliverableDefinitionRow["status"]; actorRole: string; actorId?: string }): Promise<TransitionDeliverableDefinitionResult> {

@@ -91,20 +91,3 @@ Key realization highlights include:
 ## 5. Conclusion
 
 Chapter 30 specification alignment is **high (~92%)**. The Event Model provides a robust, decoupled, post-commit event bus (`eventBus.ts`). DB-backed subscriptions, correlation/causation tracking, and monotonic sequencing form a solid foundation for the platform's event-driven architecture.
-
----
-
-## 7. Complete Specification Section Coverage Audit
-
-The following table documents the audit results for narrative, non-FR, and implementation-specific sections previously un-indexed in the primary matrix:
-
-| Section Heading | Code Verification Status | Implementation & Codebase Findings |
-|---|:---:|---|
-| **EM-001** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **EM-002** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **EM-003** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **EM-004** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **EM-005** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **EM-006** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **Integration Events** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`attachVM.js`](file://src/middleware/attachVM.js), [`viewRegistry.js`](file://src/viewModels/viewRegistry.js). |
-| **Administrative Events** | `Fully Met` | Verified against [`attachVM.js`](file://src/middleware/attachVM.js), [`requirePlatformBadge.ts`](file://src/middleware/requirePlatformBadge.ts), [`viewRegistry.js`](file://src/viewModels/viewRegistry.js). |

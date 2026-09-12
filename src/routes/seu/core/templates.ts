@@ -770,29 +770,56 @@ async function materialisePackSelectionsAndCapabilities(templateId: string, seed
   await templatesDB.setDraftContent(templateId, { ...seed, exposedParameters });
 }
 
-export type PublishTemplateResult = { ok: true; templateId: string } | { ok: false; errors: string[] };
+export type PublishTemplateResult = { ok: true; templateId: string; alreadyExists?: boolean } | { ok: false; errors: string[] };
 
-// CR-024 — now immutably versioned the way Pack is (Ch.41 VM-002):
-// templates.upsert's ON CONFLICT target is (code, template_version), so a
-// second call with the same code but a different templateVersion creates a
-// new row rather than overwriting. (No real caller today — every seed
-// script calls templatesDB.upsert directly, not this function — but this is
-// the intended "publish a Template the proper way" entry point, kept correct.)
-export async function publishTemplate(seed: TemplateSeedInput): Promise<PublishTemplateResult> {
+// CR-024 — immutably versioned the way Pack is (Ch.41 VM-002): identity is
+// (code, template_version, tenant_id), so a second call with the same code
+// but a different templateVersion creates a new row rather than overwriting.
+//
+// Rebuilt (owner: "templates.status defaults to 'Active' - this should be
+// draft; similar to pack") — this used to call templatesDB.upsert(), which
+// relied on that default to land the new row directly at Active, skipping
+// the governed lifecycle (and its VersionValidated/VersionPublished/
+// VersionActivated events) entirely in one step. Pack has no such shortcut
+// anywhere — packsDB has no upsert() at all; createPackDraft always creates
+// a real Draft (hardcoded in its own INSERT, never relying on any default),
+// and publishPack walks it forward through real transitionPack calls. This
+// now mirrors that exactly: create a real Draft, materialise it, fire
+// TemplateCreated (unchanged — still the "birth" event, still not fired from
+// interactive authoring's createAuthoringDraft, the same asymmetry Pack's
+// own PackRegistered has), then advance through Validated -> Published ->
+// Active via the SAME advanceTemplateOneStep the authoring UI itself uses —
+// CR-024/026's own supersede-previous-Active logic on the Published ->
+// Active hop comes along for free. Requires a real actor now, since every
+// hop is genuinely governed (mirrors publishPack's own actorRole/actorId).
+export async function publishTemplate(input: { seed: TemplateSeedInput; actorRole: string; actorId?: string }): Promise<PublishTemplateResult> {
+  const { seed, actorRole, actorId } = input;
   const validation = await validateTemplateSeed(seed);
   if (!validation.ok) return { ok: false, errors: validation.errors };
 
-  const { data: template, error } = await templatesDB.upsert({ code: seed.code, name: seed.name, templateVersion: seed.templateVersion, deliverableCatalogue: seed.deliverableCatalogue, tenantId: seed.tenantId });
-  if (error || !template) return { ok: false, errors: [(error ?? new Error("failed to upsert template")).message] };
+  const tenantId = seed.tenantId ?? PLATFORM_TENANT_ID;
 
-  await materialisePackSelectionsAndCapabilities(template.id, seed);
-  await materialiseDependencyGraph({
-    owningEntityType: "Template",
-    owningEntityId: template.id,
-    deliverableCatalogue: seed.deliverableCatalogue ?? [],
-    dependencyGraph: seed.dependencyGraph ?? [],
-    tenantId: seed.tenantId ?? PLATFORM_TENANT_ID,
+  // Idempotent reseed (mirrors createPackDraft's own findByCodeAndVersion
+  // check exactly): a second publish under the same (code, templateVersion,
+  // tenantId) re-materialises the existing row's content instead of erroring
+  // or minting a duplicate — the same real need upsert()'s own ON CONFLICT
+  // used to serve, without landing a brand-new version anywhere but Draft.
+  const { data: existing } = await templatesDB.findByCodeAndVersion(seed.code, seed.templateVersion, tenantId);
+  if (existing) {
+    await materialiseTemplateDraft(existing.id, seed);
+    return { ok: true, templateId: existing.id, alreadyExists: true };
+  }
+
+  const { data: draft, error } = await templatesDB.createDraft({
+    code: seed.code,
+    name: seed.name,
+    templateVersion: seed.templateVersion,
+    tenantId,
+    parentTemplateId: seed.parentTemplateId,
   });
+  if (error || !draft) return { ok: false, errors: [(error ?? new Error("failed to create template draft")).message] };
+
+  await materialiseTemplateDraft(draft.id, seed);
 
   // CR-025 — real named events (Ch.6 §16), mirroring PackRegistered
   // (core/packs.ts's createPackDraft) exactly, including the same asymmetry:
@@ -802,13 +829,20 @@ export async function publishTemplate(seed: TemplateSeedInput): Promise<PublishT
   await eventBus.publish({
     eventType: "TemplateCreated",
     originatingObjectType: "Template",
-    originatingObjectId: template.id,
+    originatingObjectId: draft.id,
     seuId: null, // platform catalog entity, not SEU-scoped
     correlationId: eventBus.newCorrelationId(),
-    payload: { code: template.code, templateVersion: template.template_version },
+    payload: { code: draft.code, templateVersion: draft.template_version },
   });
 
-  return { ok: true, templateId: template.id };
+  let current = draft;
+  for (let i = 0; i < 3; i++) { // Draft -> Validated -> Published -> Active
+    const result = await advanceTemplateOneStep(current, actorRole, actorId);
+    if (!result.ok) return { ok: false, errors: [`advancing Template "${current.code}" from "${current.status}" failed: ${result.reason}${result.detail ? ` (${result.detail})` : ""}`] };
+    current = result.template;
+  }
+
+  return { ok: true, templateId: current.id };
 }
 
 // Entity-direct authoring (bug fix correcting CR-014): a governed status
@@ -830,28 +864,21 @@ export type TransitionTemplateResult = { ok: true; template: TemplateRow } | { o
 // its old status forever.
 const TERMINAL_REACTIVATABLE_STATES = new Set(["Deprecated", "Retired", "Archived"]);
 
-// CR-025 (Ch.6 §16, owner: "20.10 Events... Fix this. Similar to what is on
-// pack") — real per-state-named events instead of one generic
-// "TemplateTransitioned" for every hop, mirroring Pack's own
-// EVENT_BY_TARGET_STATE (core/packs.ts) exactly. §16's own text names six
-// events and omits "TemplateArchived" — the same omission Pack's chapter
-// doesn't have (Ch.5 §16 lists all seven, PackRegistered included) — treated
-// as an oversight, not a deliberate difference, so Archived is included here
-// for real parity with Pack rather than followed literally.
-const EVENT_BY_TARGET_STATE: Record<string, string> = {
-  Validated: "TemplateValidated",
-  Published: "TemplatePublished",
-  Active: "TemplateActivated",
-  Deprecated: "TemplateDeprecated",
-  Retired: "TemplateRetired",
-  Archived: "TemplateArchived",
-};
-
+// Version Feature Plan.md §3/§4 (Ch.6, migration 185) — event_type is now
+// read straight off the resolved Transition Definition (transitionEngine's
+// TransitionOutcome), replacing the hardcoded EVENT_BY_TARGET_STATE map this
+// used to carry (CR-025's own per-state-named events are unchanged in
+// substance, just relocated from code to data — mirrors how Pack's identical
+// map was replaced, migration 184).
 export async function transitionTemplate(input: { templateId: string; targetState: TemplateRow["status"]; actorRole: string; actorId?: string }): Promise<TransitionTemplateResult> {
   const { data: template } = await templatesDB.findById(input.templateId);
   if (!template) return { ok: false, reason: "not_found" };
   const fromState = template.status;
-  const gate = await transitionEngine.evaluate({ entityType: "Template", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId, context: { template } });
+  // entityId passed so a Template row ever declaring submit_verb (none do
+  // today) would have its triggerEngine.hasBeenSubmitted check actually work
+  // — was missing, the same latent gap Pack's own transitionPack had before
+  // its fix (Events and Lifecycles.md Ch.5 Implementation row 3).
+  const gate = await transitionEngine.evaluate({ entityType: "Template", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId, entityId: template.id, context: { template } });
   if (!gate.allowed) {
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Template ${fromState} -> ${input.targetState}` };
@@ -866,7 +893,7 @@ export async function transitionTemplate(input: { templateId: string; targetStat
   const { data: updated, error } = await templatesDB.updateStatus(template.id, input.targetState);
   if (error || !updated) throw error ?? new Error("failed to update template status");
   await eventBus.publish({
-    eventType: EVENT_BY_TARGET_STATE[input.targetState] ?? "TemplateTransitioned",
+    eventType: gate.eventType ?? "TemplateTransitioned",
     originatingObjectType: "Template",
     originatingObjectId: template.id,
     seuId: null, // platform catalog entity, not SEU-scoped

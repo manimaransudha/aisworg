@@ -147,9 +147,17 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   // source-control-provider are mandatory on the Platform tenant; publishProfile
   // runs validateProfileSeed, so these need real values or it rejects both.
   const mandatoryConfigParams = { developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github" };
-  const plainPublished = await publishProfile({ code: plainCode, name: "Plain Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: [], profileVersion: "1.0.0", ...mandatoryConfigParams });
+  const plainPublished = await publishProfile({
+    seed: { code: plainCode, name: "Plain Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: [], profileVersion: "1.0.0", ...mandatoryConfigParams },
+    actorRole: "power",
+    actorId: "1001",
+  });
   assert.equal(plainPublished.ok, true, !plainPublished.ok ? plainPublished.errors.join("; ") : undefined);
-  const nodejsPublished = await publishProfile({ code: nodejsCode, name: "Nodejs Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: ["technology-nodejs"], profileVersion: "1.0.0", ...mandatoryConfigParams });
+  const nodejsPublished = await publishProfile({
+    seed: { code: nodejsCode, name: "Nodejs Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: ["technology-nodejs"], profileVersion: "1.0.0", ...mandatoryConfigParams },
+    actorRole: "power",
+    actorId: "1001",
+  });
   assert.equal(nodejsPublished.ok, true, !nodejsPublished.ok ? nodejsPublished.errors.join("; ") : undefined);
   if (!nodejsPublished.ok || !plainPublished.ok) return;
 

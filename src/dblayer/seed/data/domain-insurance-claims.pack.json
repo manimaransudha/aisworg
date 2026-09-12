@@ -67,6 +67,12 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "competencies": [
+      {
+        "dimension": "Domain",
+        "value": "insurance-claims"
+      }
+    ]
   }
 }

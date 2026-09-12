@@ -86,27 +86,3 @@ Identified ──► Analysed ──► Proposed ──► Reviewed ──► Ap
 ## 6. Conclusion
 
 Chapter 19 specification alignment is **exceptionally high (~94%)**. The Decision Model cleanly completes the platform's Trust Pipeline, providing an exact 8-state governed lifecycle, Quality Gate integration for deliverable transitions, and robust explainability documentation.
-
----
-
-## 7. Complete Specification Section Coverage Audit
-
-The following table documents the audit results for narrative, non-FR, and implementation-specific sections previously un-indexed in the primary matrix:
-
-| Section Heading | Code Verification Status | Implementation & Codebase Findings |
-|---|:---:|---|
-| **DM-001** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **DM-002** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **DM-003** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **DM-004** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **DM-005** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **DM-006** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **Architecture Decisions** | `Fully Met` | Verified against [`express-request.d.ts`](file://src/types/express-request.d.ts), [`reviewsDB.ts`](file://src/dblayer/reviewsDB.ts), [`decisionsDB.ts`](file://src/dblayer/decisionsDB.ts). |
-| **Operational Decisions** | `Fully Met` | Verified against [`tenantsDB.ts`](file://src/dblayer/tenantsDB.ts), [`reviewsDB.ts`](file://src/dblayer/reviewsDB.ts), [`decisionsDB.ts`](file://src/dblayer/decisionsDB.ts). |
-| **20.2 ⚠️ Architectural Principles (DM-001–006) (§5)** | `Fully Met` | Verified against [`express-request.d.ts`](file://src/types/express-request.d.ts), [`evidenceDB.ts`](file://src/dblayer/evidenceDB.ts), [`seuTypes.ts`](file://src/dblayer/seuTypes.ts). |
-| **20.3 ⚠️ Functional Requirements (FR-19.1–7) (§6)** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`seuTypes.ts`](file://src/dblayer/seuTypes.ts), [`sdlc-phase-03-technical-discovery-architecture.pack.json`](file://src/dblayer/seed/data/sdlc-phase-03-technical-discovery-architecture.pack.json). |
-| **20.10 ❌ Decision Reuse — wholly unimplemented (§13)** | `Fully Met` | Verified against [`requireTenantScope.ts`](file://src/middleware/requireTenantScope.ts), [`requireBadge.ts`](file://src/middleware/requireBadge.ts), [`badgeGrantsDB.ts`](file://src/dblayer/badgeGrantsDB.ts). |
-| **20.12 ❌ Decision Versioning — not built (§15)** | `Fully Met` | Verified against [`requireTenantScope.ts`](file://src/middleware/requireTenantScope.ts), [`requireBadge.ts`](file://src/middleware/requireBadge.ts), [`badgeGrantsDB.ts`](file://src/dblayer/badgeGrantsDB.ts). |
-| **20.14 ⚠️ Non-Functional Requirements (§17)** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **20.15 ⚠️ Acceptance Criteria (§18)** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`reviewGatesDB.ts`](file://src/dblayer/reviewGatesDB.ts), [`evidenceDB.ts`](file://src/dblayer/evidenceDB.ts). |
-| **Summary — ranked** | `Fully Met` | Verified against [`compliance-do178c-aviation.pack.json`](file://src/dblayer/seed/data/compliance-do178c-aviation.pack.json), [`technology-git.pack.json`](file://src/dblayer/seed/data/technology-git.pack.json), [`test-technology-git.pack.json`](file://src/dblayer/seed/data/test-fixtures/test-technology-git.pack.json). |

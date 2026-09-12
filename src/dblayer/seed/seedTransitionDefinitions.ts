@@ -15,7 +15,7 @@
 // whole seed. The only Pack that ever created most of these codes
 // (core-engineering.pack.json) predates 69 CRs of real design work and
 // isn't the source of truth anymore. Left null/[] instead, and self-heals:
-// core/packs.ts's seedContributions calls backfillAuthorityRuleCode/
+// core/packs.ts's materializeContributions calls backfillAuthorityRuleCode/
 // backfillPolicyCode right after upserting each real Authority Rule/Policy
 // during any Pack publish — if that Pack's own code happens to be one this
 // file wanted, the transition_definitions row gets wired up then, whichever
@@ -41,6 +41,13 @@ interface TransitionDefinitionSeed {
   // step defined (badge = entityType + '_' + submitVerb).
   trigger?: "manual" | "governed";
   submitVerb?: string;
+  // Version Feature Plan.md §3 — eventType/versionEvent describe this row's
+  // own to_state transition; submitVersionEvent describes its submitVerb
+  // step, if it has one (a distinct thing — see migration 183's header).
+  // All three default to null/undefined for a pure Revision.
+  eventType?: string;
+  versionEvent?: string;
+  submitVersionEvent?: string;
 }
 
 let cachedSeeds: TransitionDefinitionSeed[] | null = null;
@@ -52,7 +59,7 @@ function loadSeeds(): TransitionDefinitionSeed[] {
   return cachedSeeds;
 }
 
-// Self-healing backfill — called from core/packs.ts's seedContributions
+// Self-healing backfill — called from core/packs.ts's materializeContributions
 // right after a real Authority Rule/Policy is upserted during any Pack
 // publish. Wires the newly-real id onto whichever transition_definitions
 // row(s) transitionDefinitions.json originally wanted that code for, no
@@ -102,14 +109,20 @@ export async function seedTransitionDefinitions(): Promise<void> {
       }
 
       await client.query(
-        `INSERT INTO transition_definitions (entity_type, from_state, to_state, required_authority_rule_id, required_policy_ids, trigger, submit_verb)
-         VALUES ($1, $2, $3, $4, $5::uuid[], $6, $7)
+        `INSERT INTO transition_definitions (entity_type, from_state, to_state, required_authority_rule_id, required_policy_ids, trigger, submit_verb, event_type, version_event, submit_version_event)
+         VALUES ($1, $2, $3, $4, $5::uuid[], $6, $7, $8, $9, $10)
          ON CONFLICT (entity_type, from_state, to_state)
          DO UPDATE SET required_authority_rule_id = EXCLUDED.required_authority_rule_id,
                        required_policy_ids = EXCLUDED.required_policy_ids,
                        trigger = EXCLUDED.trigger,
-                       submit_verb = EXCLUDED.submit_verb`,
-        [seed.entityType, seed.fromState, seed.toState, ruleId, policyIds, seed.trigger ?? "manual", seed.submitVerb ?? null]
+                       submit_verb = EXCLUDED.submit_verb,
+                       event_type = EXCLUDED.event_type,
+                       version_event = EXCLUDED.version_event,
+                       submit_version_event = EXCLUDED.submit_version_event`,
+        [
+          seed.entityType, seed.fromState, seed.toState, ruleId, policyIds, seed.trigger ?? "manual", seed.submitVerb ?? null,
+          seed.eventType ?? null, seed.versionEvent ?? null, seed.submitVersionEvent ?? null,
+        ]
       );
     }
 

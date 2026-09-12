@@ -181,6 +181,12 @@
         ]
       }
     ],
-    "policies": []
+    "policies": [],
+    "competencies": [
+      {
+        "dimension": "Technology",
+        "value": "c"
+      }
+    ]
   }
 }

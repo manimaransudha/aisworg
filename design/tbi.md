@@ -1,5 +1,7 @@
 # To be implemented
 
+**This file should not be loaded into the context** 
+
 This is my notes. Not to be used for any implementation source of truth. Anything that needs an implementation will be specifically a CR.
 Claude agents should not update this.
 
@@ -20,7 +22,8 @@ Claude agents should not update this.
 
 - Multi-tenancy should define a client contract and strategic objectives should be scoped to a client contract. Move should scope to a contract.
 
-- There is a retire button. Check the functionality. 
+- Active to Retire: SEU_id does not exist. Disable commissioning against the parent. Allow commissioning against the retired objective. 
+- Active to Supersede: SEU_id exists: Carry forward the parent SEU_id to the new one. Supersede should be an Engineering decision. Include this payload to the superseded objective. 
  
 
 - Objective registry. *[Remarks: the registry is not named as such, but objectives are listed and can be navigated through. At a tenant level this should become an engineering capital asset]*
@@ -73,3 +76,20 @@ Engineering Behaviour, Engineering Templates, Engineering Metrics, Reusable Comp
 - Service versioning. 
 
 when a capability is chosen, the corresponding services have to be chosen in the services tab. What is editable is only the service levels and that has to be stored as part of the contributionServices[] array. I am supposing this array is a jsonb within the pack row. 
+
+## Chapter 38 
+
+- Pack recomposition updates active EBM - Not implemented
+Pack retiring should notify EBM owners and recomposition updates should be materialised. 
+- Lifecycle testing
+- Pack dependency graph (dependency declaration is present) and 
+- Pack compatibility not implemented. Compatibility to be checked before activation
+- Export as json & schema validator. Take existing templates and convert them
+
+## Chapter 28
+
+- Instead of being monolithic, break the runtime kernel separately
+
+## Chapter 41 
+
+1) Is versioning a middleware or hardcoded in every place --- centralise this

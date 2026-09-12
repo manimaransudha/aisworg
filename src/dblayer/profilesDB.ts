@@ -18,6 +18,13 @@ export const profilesDB = {
   // profiles.category DATABASE COLUMN is touched by this (owner: "do not
   // delete. But do not use them") — they simply stop being written to by any
   // new row from here on; existing historical values sit there untouched.
+  // `status` defaults to 'Active' HERE, explicitly — not by relying on the
+  // column's own DEFAULT (which is 'Draft' as of migration 185b, matching
+  // Pack/Template). This is the raw "already-published catalog entry"
+  // DB-layer helper — direct test fixtures across the suite call it
+  // expecting an immediately-usable Active row with no lifecycle walk, and
+  // that stays true. publishProfile (core/profiles.ts) no longer calls this
+  // at all — it creates a real Draft (createDraft) and walks it forward.
   async upsert(input: {
     code: string;
     name: string;
@@ -25,11 +32,12 @@ export const profilesDB = {
     environment?: string;
     profileVersion?: string;
     tenantId?: string;
+    status?: ProfileRow["status"];
   }): Promise<DbResult<ProfileRow>> {
     try {
       const { rows } = await query<ProfileRow>(
-        `INSERT INTO profiles (code, name, base_template_id, environment, profile_version, tenant_id)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO profiles (code, name, base_template_id, environment, profile_version, tenant_id, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (code, profile_version, tenant_id) DO UPDATE
            SET name = EXCLUDED.name, base_template_id = EXCLUDED.base_template_id,
                environment = EXCLUDED.environment
@@ -41,6 +49,7 @@ export const profilesDB = {
           input.environment ?? "development",
           input.profileVersion ?? "1.0.0",
           input.tenantId ?? PLATFORM_TENANT_ID,
+          input.status ?? "Active",
         ]
       );
       return { data: rows[0] };
@@ -50,6 +59,12 @@ export const profilesDB = {
     }
   },
 
+  // Bug fix — this omitted `status` entirely, relying on the column's own
+  // default. That default was 'Active' until migration 186 (Version Feature
+  // Plan.md's Ch.7 pass) moved it to 'Draft', matching Pack — this throwaway
+  // synthesizer (findOrCreateDefaultProfile's own fallback, core/profiles.ts)
+  // needs an immediately-usable Active row, not a Draft, so it's now
+  // explicit about it, the same way upsert() already is.
   async create(input: {
     baseTemplateId: string;
     environment?: string;
@@ -57,8 +72,8 @@ export const profilesDB = {
     try {
       const code = `profile-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const { rows } = await query<ProfileRow>(
-        `INSERT INTO profiles (code, name, base_template_id, environment)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO profiles (code, name, base_template_id, environment, status)
+         VALUES ($1, $2, $3, $4, 'Active')
          RETURNING *`,
         [code, `Custom profile for ${input.baseTemplateId}`, input.baseTemplateId, input.environment ?? "development"]
       );

@@ -103,17 +103,3 @@ The 11-stage workflow in §8 is realized as follows:
 ## 6. Conclusion
 
 Chapter 8 specification alignment is **very high (~91%)**. The end-to-end commissioning workflow cleanly bridges static Template/Profile specifications with runtime execution environments, incorporating robust liveness checks, multi-stage event emissions, manual governance approval gates, and precise asset materialization.
-
----
-
-## 7. Complete Specification Section Coverage Audit
-
-The following table documents the audit results for narrative, non-FR, and implementation-specific sections previously un-indexed in the primary matrix:
-
-| Section Heading | Code Verification Status | Implementation & Codebase Findings |
-|---|:---:|---|
-| **22.1 ✅ Purpose (§1)** | `Fully Met` | Verified against [`requireBadge.ts`](file://src/middleware/requireBadge.ts), [`templatesDB.ts`](file://src/dblayer/templatesDB.ts), [`profilesDB.ts`](file://src/dblayer/profilesDB.ts). |
-| **22.3 ⚠️ Commissioning Objectives (§4)** | `Fully Met` | Verified against [`requireTenant.ts`](file://src/middleware/requireTenant.ts), [`requireTenantScope.ts`](file://src/middleware/requireTenantScope.ts), [`attachVM.js`](file://src/middleware/attachVM.js). |
-| **22.4 🚩 Inputs / Outputs — mostly narrower than named (§5–6)** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`requireTenantScope.ts`](file://src/middleware/requireTenantScope.ts), [`auth.js`](file://src/middleware/auth.js). |
-| **22.15 ⚠️ Non-Functional Requirements (§19)** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **22.16 ⚠️ Acceptance Criteria (§20)** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`reviewGatesDB.ts`](file://src/dblayer/reviewGatesDB.ts), [`evidenceDB.ts`](file://src/dblayer/evidenceDB.ts). |

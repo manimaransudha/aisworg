@@ -528,7 +528,7 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
   // Origin, if given, is Ontology-backed too (category:obligation-origin,
   // new concept type, migration 110). No real Obligation Definition table —
   // nothing cross-references one by id (unlike Checklist/Policy), so this
-  // stays declaration-only validation, no seedContributions upsert.
+  // stays declaration-only validation, no materializeContributions upsert.
   const seenObligationCodes = new Set<string>();
   for (const ob of seed.contributions.obligationDefinitions ?? []) {
     if (!ob.code?.trim()) errors.push("obligation definition is missing a code");
@@ -558,6 +558,33 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
       errors.push((err as Error).message);
     }
     if (!ec.url?.trim()) errors.push("engineering capital entry is missing a url");
+  }
+
+  // CR-099 — Competency contributions: {dimension, value}. dimension is
+  // Ontology-backed off category:pack directly (the same vocabulary this
+  // Pack's own `category` above already validates against — a Pack's
+  // competency dimension and its own category are the same concept, not a
+  // separate one); value is checked against dimension's own lower-cased
+  // child concept type (e.g. dimension "Technology" -> concept type
+  // "technology"). Owner: "Pack has to now define mandatory competency.
+  // Otherwise it will lead to gaps" — required whenever this Pack's own
+  // category is Technology or Domain, the two categories with a real
+  // competency vocabulary to draw from (migrations 195/196).
+  for (const comp of seed.contributions.competencies ?? []) {
+    try {
+      await assertCanonicalCategory("category:pack", comp.dimension ?? "", ontologyViewer);
+    } catch (err) {
+      errors.push((err as Error).message);
+      continue;
+    }
+    try {
+      await assertCanonicalCategory((comp.dimension ?? "").toLowerCase(), comp.value ?? "", ontologyViewer);
+    } catch (err) {
+      errors.push((err as Error).message);
+    }
+  }
+  if ((seed.category === "Technology" || seed.category === "Domain") && (seed.contributions.competencies ?? []).length === 0) {
+    errors.push(`a ${seed.category} Pack must declare at least one Competency (contributionCompetencies)`);
   }
 
   // CR-086 follow-on (owner: "the services form should show all services
@@ -638,12 +665,19 @@ export async function createPackDraft(seed: PackSeedInput): Promise<{ ok: true; 
   // same-code-and-version row instead of treating it as a fresh publish.
   const { data: existing } = await packsDB.findByCodeAndVersion(seed.code, seed.packVersion, seed.tenantId ?? PLATFORM_TENANT_ID);
   if (existing) {
-    await seedContributions(existing, seed);
+    await materializeContributions(existing, seed);
     return { ok: true, pack: existing, alreadyExists: true };
   }
 
   const { data: pack, error } = await packsDB.create({ ...seed, metadata: packMetadataFromSeed(seed) });
   if (error || !pack) return { ok: false, errors: [(error ?? new Error("failed to create pack")).message] };
+
+  // Version Feature Plan.md — materializeContributions must finish before the event
+  // publishes, not after: nothing here reads the event or its result, so
+  // the ordering was accidental, and "no logic after publish" (the event
+  // pub-sub model takes over from here, not linear code) is a real rule
+  // going forward, not just for Objective/Pack's own transitions.
+  await materializeContributions(pack, seed);
 
   await eventBus.publish({
     eventType: "PackRegistered",
@@ -654,7 +688,6 @@ export async function createPackDraft(seed: PackSeedInput): Promise<{ ok: true; 
     payload: { code: pack.code, packVersion: pack.pack_version },
   });
 
-  await seedContributions(pack, seed);
   return { ok: true, pack, alreadyExists: false };
 }
 
@@ -748,7 +781,7 @@ export async function publishPack(input: { seed: PackSeedInput; actorRole: strin
   return { ...advanced, alreadyPublished: draft.alreadyExists };
 }
 
-async function seedContributions(pack: PackRow, seed: PackSeedInput): Promise<void> {
+async function materializeContributions(pack: PackRow, seed: PackSeedInput): Promise<void> {
   const capabilityIdByCode = new Map<string, string>();
   for (const cap of seed.contributions.capabilities ?? []) {
     // Owner: "what is stored in contributionCapabilities[]? Just store only
@@ -928,20 +961,6 @@ async function seedContributions(pack: PackRow, seed: PackSeedInput): Promise<vo
 
 }
 
-// Ch.5 §15 / Ch.38 §15 event names, one per lifecycle hop.
-// CR-080 — Deprecated dropped from Pack's lifecycle entirely (never actually
-// distinguished from Retired at runtime); Draft added as a target for the
-// new Validated -> Draft (Reject) hop, named the same past-tense way every
-// other hop's event is.
-const EVENT_BY_TARGET_STATE: Record<string, string> = {
-  Draft: "PackRejected",
-  Validated: "PackValidated",
-  Published: "PackPublished",
-  Active: "PackActivated",
-  Retired: "PackRetired",
-  Archived: "PackArchived",
-};
-
 export type TransitionPackResult =
   | { ok: true; pack: PackRow; appliedTransition: { fromState: string; toState: string } }
   | { ok: false; reason: "not_found" }
@@ -995,6 +1014,12 @@ export async function transitionPack(input: { packId: string; targetState: strin
     actorRole: input.actorRole,
     actorId: input.actorId,
     context: { pack },
+    // Version Feature Plan.md — was missing entirely. Without it, the
+    // generic submit_verb gate (transitionEngine.evaluate's own
+    // hasBeenSubmitted check) always reads as "not submitted" — dormant
+    // while no Pack transition declared a submit_verb, but Draft->Validated
+    // now does (migration 184), so this is load-bearing from here on.
+    entityId: pack.id,
     alternateBadges: alternateBadgesForPackTransition(fromState, input.targetState),
   });
   if (!gate.allowed) {
@@ -1028,8 +1053,11 @@ export async function transitionPack(input: { packId: string; targetState: strin
     await packsDB.addComment(pack.id, input.actorId != null ? Number(input.actorId) : null, trimmedComment);
   }
 
+  // Version Feature Plan.md §3 — eventType now comes straight off the
+  // resolved Transition Definition (gate.eventType, migration 184), not the
+  // old hardcoded EVENT_BY_TARGET_STATE map.
   await eventBus.publish({
-    eventType: EVENT_BY_TARGET_STATE[input.targetState] ?? "PackTransitioned",
+    eventType: gate.eventType ?? "PackTransitioned",
     originatingObjectType: "Pack",
     originatingObjectId: pack.id,
     seuId: null, // platform catalog entity, not SEU-scoped

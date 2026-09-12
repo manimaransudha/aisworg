@@ -30,6 +30,7 @@ import { eventBus } from "./domain/engine/eventBus.js";
 import { devActAsAvailable, currentActAs, listTenants, listBadgeTypes } from "./dev/actAs.js";
 import { userDB } from "./dblayer/userDB.js";
 import { ensureBadgeBootstrap, getPlatformBadges } from "./domain/identity/badgeBootstrap.js";
+import { getConceptTypeNav } from "./routes/seu/core/ontology.js";
 
 // Ch.30 Event Bus redesign — loads event_subscriptions into the in-memory
 // routing map once at module load (same unconditional placement the old
@@ -216,6 +217,32 @@ app.use(async (req, res, next) => {
     res.locals.session = req.session;
     res.locals.activeUser = req.session?.user || null;
     res.locals.csrfToken = generateCsrfToken(req, res);
+    res.locals.currentQuery = req.query;
+    res.locals.currentPath = req.path;
+
+    // Ontology's navbar dropdown lists concept-type GROUPS as sub-options
+    // (owner: "the sublists grouped... ai-provider-preference, development-
+    // methodology etc as a SEU Configurations") — fetched here (not
+    // per-route) since the navbar renders on every page, not just the
+    // Ontology page itself. Cheap over a small admin table; skipped for
+    // logged-out/non-general sessions, same role gate the navbar itself uses
+    // for the rest of the SEU menus. ontologyConceptTypeGroups lets the
+    // navbar highlight a group's own entry as active when the resolved
+    // concept_type (res.locals.currentQuery.type, set precisely by
+    // web/ontology.ts's own GET handler) is one of that group's members.
+    res.locals.ontologyConceptTypes = [];
+    res.locals.ontologyConceptTypeGroups = {};
+    try {
+        const su = req.session?.user;
+        if (su && ['general', 'power', 'super'].includes(su.role)) {
+            const isRoot = (su.platformBadges || []).includes('root');
+            const nav = await getConceptTypeNav({ isRoot, tenantId: su.tenant_id ?? null });
+            res.locals.ontologyConceptTypes = nav.topLevel;
+            res.locals.ontologyConceptTypeGroups = nav.groupMembers;
+        }
+    } catch (err) {
+        logger.warn('[navbar] ontology concept types fetch failed', err);
+    }
 
     // CR-001 — dev-only "Act As" switcher (design/Change Requests.md). Only
     // assembled when the feature is live for this caller (dev + not off + the

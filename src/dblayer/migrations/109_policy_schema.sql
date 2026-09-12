@@ -16,7 +16,7 @@
 --   conditionType/conditionField/conditionValues: condition's own flat,
 --     form-facing shape (owner: "we will start with this, but... we will
 --     refine this as we go along") — reassembled into condition's real
---     nested JSONB shape at seedContributions time, same pattern
+--     nested JSONB shape at materializeContributions time, same pattern
 --     criteriaType/deliverableName already use for Quality Gate. Starts
 --     with the 2 real, already-evaluated types (always_true/field_in);
 --     conditionField/conditionValues only apply to field_in.

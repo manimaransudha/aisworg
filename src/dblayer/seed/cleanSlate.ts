@@ -62,6 +62,7 @@ import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { seedIdentityBaseline } from "./seedIdentityBaseline.js";
 import { seedEbookLibraryObjectives } from "./seedEbookLibraryObjectives.js";
+import { seedParticipantsMaster } from "./seedParticipantsMaster.js";
 import { seedTransitionDefinitions } from "./seedTransitionDefinitions.js";
 import { seedAuthorityVocabulary } from "./seedAuthorityVocabulary.js";
 import { seedEventSubscriptions } from "./seedEventSubscriptions.js";
@@ -264,6 +265,10 @@ const USAGE_DATA_TABLES = [
   "capability_fulfilments",
   "seu_capabilities",
   "participants",
+  // CR-098 — the participants.participant_id FK requires this to be wiped
+  // in the same TRUNCATE (Postgres resolves the whole dependency graph
+  // across every table in this one statement regardless of list order).
+  "participants_master",
   "deliverable_authoring_content",
   "deliverables",
   "ebms",
@@ -341,7 +346,7 @@ async function run(): Promise<void> {
       await client.query(
         `INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id)
          VALUES ($1, $2, $3, '11111111-1111-1111-1111-111111111111')
-         ON CONFLICT (concept_type, code, tenant_id) DO NOTHING`,
+         ON CONFLICT (concept_type, code, tenant_id, version) DO NOTHING`,
         [conceptType, code, label]
       );
     }
@@ -358,7 +363,7 @@ async function run(): Promise<void> {
       await client.query(
         `INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id)
          VALUES ('template-categories', $1, $2, '11111111-1111-1111-1111-111111111111')
-         ON CONFLICT (concept_type, code, tenant_id) DO NOTHING`,
+         ON CONFLICT (concept_type, code, tenant_id, version) DO NOTHING`,
         [code, label]
       );
     }
@@ -538,6 +543,20 @@ async function run(): Promise<void> {
   // none of these nodes declare a required Capability.
   await seedEbookLibraryObjectives();
 
+  // Step 3c — CR-098: clean-slate calls the Participant onboarding adapter
+  // registry (src/adapters/participantOnboardingRegistry.ts), not a
+  // hardcoded generator (owner: "clean-slate has to call the adapter. But
+  // the adapter has to be an 'adapter'. For every client deployment this
+  // will change to integrate with their specific details.") — 50
+  // participants_master rows per tenant (Athens/Babylon/Cambodia) PER
+  // registered Participant Type (AI/Human/Automated/External), 600 total,
+  // each spread across every real capability-name code. Depends only on
+  // step 3's tenants + the Ontology concepts migrations 046/050/068/071/130
+  // (capability-name), 049 (category:pack — CR-099's competency dimension
+  // vocabulary), and 194/195 (participant-types, competency values,
+  // behaviour-context-policy) already seed statically.
+  await seedParticipantsMaster();
+
   // Step 4 — CR-006 transition definitions: wipe the accumulated graph
   // (incl. test-fixture pollution) and reseed fresh from
   // transitionDefinitions.json. Atomic wipe+reseed inside the module. Must
@@ -545,7 +564,7 @@ async function run(): Promise<void> {
   // fresh rows. An unresolvable requiredAuthorityRuleCode/requiredPolicyCodes
   // entry doesn't throw — left null/[] and self-healed via
   // backfillAuthorityRuleCode/backfillPolicyCode, called from
-  // core/packs.ts's seedContributions during Pack publish (steps 6-7 below)
+  // core/packs.ts's materializeContributions during Pack publish (steps 6-7 below)
   // — whichever Pack ends up declaring a matching code wires it up.
   // core-engineering.pack.json (the original source of most of these codes)
   // is not loaded: its own code collides with openup-development.pack.json's,

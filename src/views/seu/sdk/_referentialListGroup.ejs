@@ -517,6 +517,15 @@
                       <% var _ontItemOptsView = ((locals.ontologyOptions || {})[itemField.referentialSource] || []); %>
                       <% var _matchedOntItem = _ontItemOptsView.find(function(o) { return o.code === value; }); %>
                       <%= _matchedOntItem ? _matchedOntItem.label : (value ? ('⚠ ' + value + ' (not currently active)') : '—') %>
+                    <% } else if (itemField.kind === 'referential-dynamic') { %>
+                      <%# CR-100 — resolve against THIS row's own saved
+                          driver value (e.g. dimension "Technology" ->
+                          concept type "technology"), not a fixed source. %>
+                      <% var _dynDriverValView = row[itemField.driverField] || ''; %>
+                      <% var _dynConceptTypeView = (_dynDriverValView ? _dynDriverValView.toLowerCase() : '') + (itemField.driverSuffix || ''); %>
+                      <% var _dynOptsView = ((locals.ontologyOptions || {})[_dynConceptTypeView] || []); %>
+                      <% var _matchedDynItem = _dynOptsView.find(function(o) { return o.code === value; }); %>
+                      <%= _matchedDynItem ? _matchedDynItem.label : (value ? ('⚠ ' + value + ' (proposed — not yet a registered Ontology concept)') : '—') %>
                     <% } else if (itemField.markdown && value) { %>
                       <%- renderMarkdown(value) %>
                     <% } else { %>
@@ -913,6 +922,31 @@
                 </select>
                 <% var _selectedOntItem = _ontItemOpts.find(function(opt) { return opt.code === value; }); %>
                 <div class="form-text small fst-italic" data-autofill-from="<%= itemField.name %>" data-autofill-attr="description"><%= (_selectedOntItem && _selectedOntItem.description) || '' %></div>
+              <% } else if (itemField.kind === 'referential-dynamic') { %>
+                <%# CR-100 — Competency's own `value`, driven by this same
+                    row's own `dimension` (e.g. "Technology" -> concept type
+                    "technology"). The row-scoped analogue of Pack's own
+                    top-level `code` combo (edit.ejs's own dynamicSourceField
+                    branch): a free-text input plus a JS-driven suggestion
+                    list (dynamicOntologyField.js), reused here for the first
+                    time inside a repeatable row rather than a singular
+                    top-level field — data-driver-field carries this ROW's
+                    own bracketed field name (e.g.
+                    "contributionCompetencies[0][dimension]"), not the bare
+                    field name, so each row's combo tracks its own dimension
+                    <select>, never another row's. Publishing an unregistered
+                    value is still blocked (validatePackSeed, unchanged) —
+                    typing one here is what proposes it (OntologyComposed,
+                    core/sdkAuthoring.ts's emitOntologyComposedForCompetencies). %>
+                <% var _dynDriverField = field.itemFields.find(function(g) { return g.name === itemField.driverField; }); %>
+                <% var _dynDriverConceptType = _dynDriverField ? _dynDriverField.referentialSource : ''; %>
+                <% var _dynDriverOpts = ((locals.ontologyOptions || {})[_dynDriverConceptType] || []); %>
+                <% var _dynOptionsByDriverValue = {}; %>
+                <% _dynDriverOpts.forEach(function(dOpt) { _dynOptionsByDriverValue[dOpt.code] = (locals.ontologyOptions || {})[(dOpt.code || '').toLowerCase() + (itemField.driverSuffix || '')] || []; }); %>
+                <div class="ontology-combo" data-driver-field="<%= field.name %>[<%= i %>][<%= itemField.driverField %>]" data-driver-values='<%- JSON.stringify(_dynOptionsByDriverValue) %>'>
+                  <input name="<%= inputName %>" class="form-control form-control-sm ontology-combo-input" autocomplete="off" value="<%= value %>" <%- isRequiredField ? 'required' : '' %> <%- canEdit ? '' : 'disabled' %>>
+                  <div class="ontology-combo-menu"></div>
+                </div>
               <% } else if (itemField.kind === 'referential') { %>
                 <%# Owner: "Review Gates form is pathetic... same feedback
                     for quality gates" — governedTransition's own option list

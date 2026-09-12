@@ -43,6 +43,27 @@ export default pool;
 export const query = (text, params) => pool.query(text, params);
 
 /**
+ * Multi-row INSERT ... VALUES (...), (...), ... RETURNING * in a single
+ * round trip. `table` and `columns` are caller-supplied identifiers (never
+ * user input) and are interpolated directly; `rows` values are always
+ * parameterized.
+ */
+export function bulkInsert(table, columns, rows) {
+    if (rows.length === 0) {
+        return Promise.resolve({ rows: [] });
+    }
+    const values = [];
+    const placeholders = rows.map((row, i) => {
+        const base = i * columns.length;
+        const ph = columns.map((_, j) => `$${base + j + 1}`);
+        values.push(...row);
+        return `(${ph.join(", ")})`;
+    });
+    const text = `INSERT INTO ${table} (${columns.join(", ")}) VALUES ${placeholders.join(", ")} RETURNING *`;
+    return pool.query(text, values);
+}
+
+/**
  * Custom error for database connection issues
  */
 export class DatabaseConnectionError extends Error {

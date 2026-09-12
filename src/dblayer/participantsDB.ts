@@ -10,13 +10,13 @@ export const participantsDB = {
   // Participant becomes eligible for a Capability (fulfilCapability, Ch.12)
   // at Available, per Ch.13 §10 — not pre-assigned to anything; the real
   // Assigned transition belongs to dispatchEngine (step 3).
-  async create(input: { seuId: string; type: ParticipantType; displayName: string; userId?: number | null }): Promise<DbResult<ParticipantRow>> {
+  async create(input: { seuId: string; type: ParticipantType; displayName: string; participantId?: string | null }): Promise<DbResult<ParticipantRow>> {
     try {
       const { rows } = await query<ParticipantRow>(
-        `INSERT INTO participants (seu_id, type, display_name, user_id)
+        `INSERT INTO participants (seu_id, type, display_name, participant_id)
          VALUES ($1, $2, $3, $4)
          RETURNING *`,
-        [input.seuId, input.type, input.displayName, input.userId ?? null]
+        [input.seuId, input.type, input.displayName, input.participantId ?? null]
       );
       return { data: rows[0] };
     } catch (err) {

@@ -30,7 +30,14 @@ export type TransitionOutcome =
   // authorised under (null when the definition declares no verb — an ungoverned
   // step). The caller records it, with the real actor, on the transition event
   // it publishes — the accountability record (who did this, under what authority).
-  | { allowed: true; entityType: TransitionEntityType; fromState: string; toState: string; createsObligation: string | null; authorityBadge: string | null }
+  // Version Feature Plan.md §3 — eventType/versionEvent are read straight off
+  // the resolved Transition Definition, not derived here or by the caller:
+  // eventType replaces the old hardcoded per-entity *_TRANSITION_EVENT maps;
+  // versionEvent is null for a pure Revision. (A row's own submit_verb step,
+  // if it has one, carries its own submit_version_event — not surfaced here,
+  // since that step is fired by triggerEngine.submit, which never calls
+  // evaluate — see objectives.ts's submitObjective.)
+  | { allowed: true; entityType: TransitionEntityType; fromState: string; toState: string; createsObligation: string | null; authorityBadge: string | null; eventType: string | null; versionEvent: string | null }
   | { allowed: false; reason: "no_transition_definition" }
   // CR-006: authority_denied carries the required noun_verb badge
   // (authorityRuleCode) and the reason (badgeDenialReason, e.g. missing_badge).
@@ -154,6 +161,15 @@ export const transitionEngine = {
       }
     }
 
-    return { allowed: true, entityType: input.entityType, fromState: input.fromState, toState: input.toState, createsObligation: definition.creates_obligation, authorityBadge };
+    return {
+      allowed: true,
+      entityType: input.entityType,
+      fromState: input.fromState,
+      toState: input.toState,
+      createsObligation: definition.creates_obligation,
+      authorityBadge,
+      eventType: definition.event_type,
+      versionEvent: definition.version_event,
+    };
   },
 };

@@ -7,13 +7,17 @@ import type { DbResult, ServiceDefinitionRow, ServiceLevelExpectation } from "./
 // authored entity. Own table (153_service_definitions.sql), mirroring
 // deliverableDefinitionsDB.ts's own shape column-for-column.
 export const serviceDefinitionsDB = {
+  // Bug fix — inputs/outputs are TEXT[] (migration 159), not a bare string;
+  // `?? []` now matches `consumers`' own already-correct treatment just
+  // below (the pg driver serialises a JS array to a Postgres array literal
+  // for an array-typed column directly, no JSON.stringify).
   async createDraft(input: {
     code: string;
     name: string;
     capabilityCode: string;
     purpose?: string | null;
-    inputs?: string | null;
-    outputs?: string | null;
+    inputs?: string[];
+    outputs?: string[];
     serviceLevel?: ServiceLevelExpectation[];
     governance?: string | null;
     success?: string | null;
@@ -34,8 +38,8 @@ export const serviceDefinitionsDB = {
           input.name,
           input.capabilityCode,
           input.purpose ?? null,
-          input.inputs ?? null,
-          input.outputs ?? null,
+          input.inputs ?? [],
+          input.outputs ?? [],
           JSON.stringify(input.serviceLevel ?? []),
           input.governance ?? null,
           input.success ?? null,
@@ -57,7 +61,7 @@ export const serviceDefinitionsDB = {
   async updateDraftContent(
     id: string,
     input: {
-      code: string; name: string; capabilityCode: string; purpose: string | null; inputs: string | null; outputs: string | null;
+      code: string; name: string; capabilityCode: string; purpose: string | null; inputs: string[]; outputs: string[];
       serviceLevel: ServiceLevelExpectation[]; governance: string | null; success: string | null; consumers: string[]; version: string; draftContent: Record<string, unknown>;
     }
   ): Promise<DbResult<ServiceDefinitionRow>> {

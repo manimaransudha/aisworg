@@ -14,6 +14,8 @@ import {seu_profiles_indexVM} from "./seu_profiles_index.js";
 import {seu_deliverable_definitions_indexVM} from "./seu_deliverable_definitions_index.js";
 import {seu_service_definitions_indexVM} from "./seu_service_definitions_index.js";
 import {seu_policy_definitions_indexVM} from "./seu_policy_definitions_index.js";
+import {seu_capabilities_indexVM} from "./seu_capabilities_index.js";
+import {seu_participants_indexVM} from "./seu_participants_index.js";
 import {seu_objectives_indexVM} from "./seu_objectives_index.js";
 import {seu_objectives_detailVM} from "./seu_objectives_detail.js";
 import {seu_objectives_newVM} from "./seu_objectives_new.js";
@@ -35,6 +37,7 @@ import {seu_sdk_schema_registry_indexVM} from "./seu_sdk_schema_registry_index.j
 import {seu_sdk_schema_registry_detailVM} from "./seu_sdk_schema_registry_detail.js";
 import {seu_sdk_schema_registry_newVM} from "./seu_sdk_schema_registry_new.js";
 import {seu_sdk_ontology_indexVM} from "./seu_sdk_ontology_index.js";
+import {seu_sdk_ontology_metadataVM} from "./seu_sdk_ontology_metadata.js";
 import {seu_workqueue_indexVM} from "./seu_workqueue_index.js";
 import {seu_reviews_indexVM} from "./seu_reviews_index.js";
 import {seu_compliance_indexVM} from "./seu_compliance_index.js";
@@ -62,6 +65,8 @@ export const viewModels = {
   "seu/deliverable-definitions/index": seu_deliverable_definitions_indexVM,
   "seu/service-definitions/index": seu_service_definitions_indexVM,
   "seu/policy-definitions/index": seu_policy_definitions_indexVM,
+  "seu/capabilities/index": seu_capabilities_indexVM,
+  "seu/participants/index": seu_participants_indexVM,
   "seu/objectives/index": seu_objectives_indexVM,
   "seu/objectives/detail": seu_objectives_detailVM,
   "seu/objectives/new": seu_objectives_newVM,
@@ -83,6 +88,7 @@ export const viewModels = {
   "seu/sdk/schema-registry/detail": seu_sdk_schema_registry_detailVM,
   "seu/sdk/schema-registry/new": seu_sdk_schema_registry_newVM,
   "seu/sdk/ontology/index": seu_sdk_ontology_indexVM,
+  "seu/sdk/ontology/metadata": seu_sdk_ontology_metadataVM,
   "seu/workqueue/index": seu_workqueue_indexVM,
   "seu/reviews/index": seu_reviews_indexVM,
   "seu/compliance/index": seu_compliance_indexVM,

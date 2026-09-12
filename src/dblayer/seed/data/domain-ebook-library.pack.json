@@ -32,6 +32,12 @@
         "code": "availability-assurance-service"
       }
     ],
-    "policies": []
+    "policies": [],
+    "competencies": [
+      {
+        "dimension": "Domain",
+        "value": "ebook-library"
+      }
+    ]
   }
 }

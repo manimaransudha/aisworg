@@ -1,0 +1,23 @@
+-- Owner: "templates.status defaults to 'Active' - this should be draft;
+-- similar to pack." Confirmed and extended to Profile — both entities are
+-- authored through the same SDK authoring pipeline (Ch.6 §20.1) and both
+-- had the identical gap: `packs.status` defaults to 'Draft' (packsDB.create
+-- never even relies on it — it hardcodes 'Draft' in every INSERT); Template
+-- and Profile instead defaulted to 'Active', with their own "proper publish"
+-- entry points (publishTemplate/publishProfile) silently relying on that
+-- default to skip the entire governed lifecycle (and its
+-- VersionValidated/VersionPublished/VersionActivated events) in one step.
+--
+-- This column-level change is defense-in-depth, matching Pack's own belt-
+-- and-suspenders posture (a safe default for any future/other code that
+-- inserts without specifying status) — it changes no existing behaviour by
+-- itself. Both real INSERT paths already specify status explicitly and
+-- continue to: `createDraft` ('Draft', unchanged) and `upsert` (now
+-- explicit 'Active' in application code, migration accompanying this one in
+-- templatesDB.ts/profilesDB.ts, not just an ambient default) — see
+-- core/templates.ts's publishTemplate / core/profiles.ts's publishProfile,
+-- which stop calling `upsert` altogether and now create a real Draft and
+-- walk it forward through real, governed transitions instead, exactly
+-- mirroring publishPack/advancePackLifecycle.
+ALTER TABLE templates ALTER COLUMN status SET DEFAULT 'Draft';
+ALTER TABLE profiles ALTER COLUMN status SET DEFAULT 'Draft';

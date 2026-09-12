@@ -138,14 +138,23 @@ async function seedOne(templateFile: string, profileFile: string): Promise<void>
   // replaces the old raw templatesDB.upsert + manual setMandatoryPacks/
   // setRequiredCapabilities/materialiseDependencyGraph calls. None of the 9
   // *.template.json files set templateVersion today — first version for all.
+  // publishTemplate now walks a real Draft through the governed lifecycle
+  // (owner: "templates.status defaults to 'Active' - this should be draft;
+  // similar to pack") — needs a real actor for those transitions, same
+  // actorRole/actorId convention every Pack seed script already uses
+  // (actorId "1" holds `root`, which bypasses every badge check).
   const templateResult = await publishTemplate({
-    code: templateSeed.code,
-    name: templateSeed.name,
-    templateVersion: templateSeed.templateVersion ?? "1.0.0",
-    deliverableCatalogue: templateSeed.deliverableCatalogue,
-    dependencyGraph: templateSeed.dependencyGraph,
-    exposedParameters: templateSeed.exposedParameters,
-    ...packSelections,
+    seed: {
+      code: templateSeed.code,
+      name: templateSeed.name,
+      templateVersion: templateSeed.templateVersion ?? "1.0.0",
+      deliverableCatalogue: templateSeed.deliverableCatalogue,
+      dependencyGraph: templateSeed.dependencyGraph,
+      exposedParameters: templateSeed.exposedParameters,
+      ...packSelections,
+    },
+    actorRole: "super",
+    actorId: "1",
   });
   if (!templateResult.ok) throw new Error(`[seed:sdlc-standard-templates] failed to publish template "${templateSeed.code}": ${templateResult.errors.join("; ")}`);
   logger.info(`[seed:sdlc-standard-templates] template ${templateSeed.code} -> ${templateResult.templateId}`);
@@ -154,28 +163,32 @@ async function seedOne(templateFile: string, profileFile: string): Promise<void>
   // `category` (and Part 2 retired `configParameters`) from Profile
   // entirely — neither is a real field any more.
   const profileResult = await publishProfile({
-    code: profileSeed.code,
-    name: profileSeed.name,
-    baseTemplateCode: profileSeed.baseTemplateCode,
-    environment: profileSeed.environment,
-    optionalPackCodes: profileSeed.optionalPackCodes ?? [],
-    technologyPackCodes: profileSeed.technologyPackCodes ?? [],
-    domainPackCodes: profileSeed.domainPackCodes ?? [],
-    compliancePackCodes: profileSeed.compliancePackCodes ?? [],
-    integrationPackCodes: profileSeed.integrationPackCodes ?? [],
-    engineeringPackCodes: profileSeed.engineeringPackCodes ?? [],
-    organisationPackCodes: profileSeed.organisationPackCodes ?? [],
-    profileVersion: "1.0.0",
-    description: profileSeed.description,
-    developmentMethodology: profileSeed.developmentMethodology,
-    primaryProgrammingLanguage: profileSeed.primaryProgrammingLanguage,
-    sourceControlProvider: profileSeed.sourceControlProvider,
-    targetCloudProvider: profileSeed.targetCloudProvider,
-    deploymentStrategy: profileSeed.deploymentStrategy,
-    aiProviderPreference: profileSeed.aiProviderPreference,
-    defaultRepositoryStructure: profileSeed.defaultRepositoryStructure,
-    documentationLevel: profileSeed.documentationLevel,
-    exposedParameterOverrides: profileSeed.exposedParameterOverrides,
+    seed: {
+      code: profileSeed.code,
+      name: profileSeed.name,
+      baseTemplateCode: profileSeed.baseTemplateCode,
+      environment: profileSeed.environment,
+      optionalPackCodes: profileSeed.optionalPackCodes ?? [],
+      technologyPackCodes: profileSeed.technologyPackCodes ?? [],
+      domainPackCodes: profileSeed.domainPackCodes ?? [],
+      compliancePackCodes: profileSeed.compliancePackCodes ?? [],
+      integrationPackCodes: profileSeed.integrationPackCodes ?? [],
+      engineeringPackCodes: profileSeed.engineeringPackCodes ?? [],
+      organisationPackCodes: profileSeed.organisationPackCodes ?? [],
+      profileVersion: "1.0.0",
+      description: profileSeed.description,
+      developmentMethodology: profileSeed.developmentMethodology,
+      primaryProgrammingLanguage: profileSeed.primaryProgrammingLanguage,
+      sourceControlProvider: profileSeed.sourceControlProvider,
+      targetCloudProvider: profileSeed.targetCloudProvider,
+      deploymentStrategy: profileSeed.deploymentStrategy,
+      aiProviderPreference: profileSeed.aiProviderPreference,
+      defaultRepositoryStructure: profileSeed.defaultRepositoryStructure,
+      documentationLevel: profileSeed.documentationLevel,
+      exposedParameterOverrides: profileSeed.exposedParameterOverrides,
+    },
+    actorRole: "super",
+    actorId: "1",
   });
   if (!profileResult.ok) throw new Error(`[seed:sdlc-standard-templates] failed to publish profile "${profileSeed.code}": ${profileResult.errors.join("; ")}`);
   logger.info(`[seed:sdlc-standard-templates] profile ${profileSeed.code} -> ${profileResult.profileId}`);

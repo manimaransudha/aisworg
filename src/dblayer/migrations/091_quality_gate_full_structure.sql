@@ -80,7 +80,7 @@ ON CONFLICT (concept_type, code, tenant_id) DO NOTHING;
 --     transition definition already holds" — a referential picker sourced
 --     from real transition_definitions rows, submitted as the delimited
 --     "EntityType|fromState|toState" value parsed back into the 3 real
---     columns at seedContributions time (core/packs.ts).
+--     columns at materializeContributions time (core/packs.ts).
 --   - criteriaType: the 4 real qualityGateEngine.ts criteria types, no
 --     generic AND/OR (owner: settled during design — composite logic
 --     resolves once, inside participant execution, never inside the gate).

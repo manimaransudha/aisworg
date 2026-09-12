@@ -61,7 +61,7 @@ async function freshPackSeed(overrides: Partial<PackSeedInput> = {}): Promise<Pa
 test("validatePackSeed rejects a non-semver packVersion, duplicate contribution codes, duplicate services, and an unresolved dependency", async () => {
   // CR-087 — services[] no longer carries capabilityCode/name/contractDescription
   // (CR-086 Step 8 narrowed it to {code, serviceLevel}, code now a Service
-  // Definition catalog reference resolved at seedContributions/publish time,
+  // Definition catalog reference resolved at materializeContributions/publish time,
   // not validatePackSeed's own structural check). "references unknown
   // capability" was that resolution step's own error, not validatePackSeed's
   // — it isn't raised here at all any more; duplicate-service-code detection

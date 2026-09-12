@@ -217,6 +217,12 @@
         ]
       }
     ],
-    "policies": []
+    "policies": [],
+    "competencies": [
+      {
+        "dimension": "Technology",
+        "value": "javascript"
+      }
+    ]
   }
 }

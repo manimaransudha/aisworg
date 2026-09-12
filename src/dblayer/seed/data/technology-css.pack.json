@@ -148,6 +148,12 @@
         ]
       }
     ],
-    "policies": []
+    "policies": [],
+    "competencies": [
+      {
+        "dimension": "Technology",
+        "value": "css"
+      }
+    ]
   }
 }

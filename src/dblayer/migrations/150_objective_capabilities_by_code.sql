@@ -8,7 +8,7 @@
 --
 -- objective_capabilities previously stored capability_id, a FK into the
 -- functional, Pack-instance-scoped `capabilities` table (populated by
--- seedContributions on every Pack publish — a completely different vocabulary
+-- materializeContributions on every Pack publish — a completely different vocabulary
 -- from the Ontology's capability-name concepts, per CR-086). Replaced here
 -- with the bare capability-name code directly. No DB-level FK to
 -- ontology_concepts (it's tenant-scoped/composite-keyed, and every other

@@ -5,5 +5,5 @@ import { createViewModel } from "../utils/viewModel.js";
 // Authority nouns/verbs surface it mirrors.
 export const seu_sdk_ontology_indexVM = createViewModel({
   required: ["title", "conceptTypes", "activeType", "list", "listBasePath"],
-  optional: ["flash", "isRoot"],
+  optional: ["flash", "isRoot", "renderMarkdown", "compositionSources", "existingGroupLabels"],
 });

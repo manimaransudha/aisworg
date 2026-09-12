@@ -18,14 +18,16 @@
     "fromState": "Composed",
     "toState": "Validated",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "EBMValidated"
   },
   {
     "entityType": "EBM",
     "fromState": "Validated",
     "toState": "Active",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "EBMActivated"
   },
   {
     "entityType": "EBM",
@@ -95,28 +97,32 @@
     "fromState": "Pending",
     "toState": "Configured",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "SEUConfigured"
   },
   {
     "entityType": "SEU",
     "fromState": "Configured",
     "toState": "Commissioned",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "SEUCommissioned"
   },
   {
     "entityType": "SEU",
     "fromState": "Commissioned",
     "toState": "Activated",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "SEUActivated"
   },
   {
     "entityType": "SEU",
     "fromState": "Activated",
     "toState": "Operational",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "SEUOperational"
   },
   {
     "entityType": "SEU",
@@ -188,7 +194,10 @@
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
     ],
-    "submitVerb": "propose"
+    "submitVerb": "propose",
+    "eventType": "ObjectiveActivated",
+    "versionEvent": "VersionActivated",
+    "submitVersionEvent": "VersionCreated"
   },
   {
     "entityType": "Objective",
@@ -198,7 +207,9 @@
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
     ],
-    "trigger": "governed"
+    "trigger": "governed",
+    "eventType": "ObjectiveAchieved",
+    "versionEvent": "VersionPublished"
   },
   {
     "entityType": "Objective",
@@ -207,7 +218,8 @@
     "requiredAuthorityRuleCode": "authority-transition-objective",
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
-    ]
+    ],
+    "eventType": "ObjectiveRejected"
   },
   {
     "entityType": "Objective",
@@ -216,7 +228,9 @@
     "requiredAuthorityRuleCode": "authority-transition-objective",
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
-    ]
+    ],
+    "eventType": "ObjectiveSuperseded",
+    "versionEvent": "VersionSuperseded"
   },
   {
     "entityType": "Objective",
@@ -225,7 +239,9 @@
     "requiredAuthorityRuleCode": "authority-transition-objective",
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
-    ]
+    ],
+    "eventType": "ObjectiveRetired",
+    "versionEvent": "VersionDeprecated"
   },
   {
     "entityType": "Objective",
@@ -234,7 +250,9 @@
     "requiredAuthorityRuleCode": "authority-transition-objective",
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
-    ]
+    ],
+    "eventType": "ObjectiveArchived",
+    "versionEvent": "VersionArchived"
   },
   {
     "entityType": "Objective",
@@ -243,7 +261,9 @@
     "requiredAuthorityRuleCode": "authority-transition-objective",
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
-    ]
+    ],
+    "eventType": "ObjectiveArchived",
+    "versionEvent": "VersionArchived"
   },
   {
     "entityType": "Objective",
@@ -252,7 +272,9 @@
     "requiredAuthorityRuleCode": "authority-transition-objective",
     "requiredPolicyCodes": [
       "policy-objective-transition-baseline"
-    ]
+    ],
+    "eventType": "ObjectiveArchived",
+    "versionEvent": "VersionArchived"
   },
   {
     "entityType": "Obligation",
@@ -589,7 +611,9 @@
     "requiredAuthorityRuleCode": "authority-transition-pack",
     "requiredPolicyCodes": [
       "policy-pack-transition-baseline"
-    ]
+    ],
+    "eventType": "PackValidated",
+    "versionEvent": "VersionValidated"
   },
   {
     "entityType": "Pack",
@@ -598,7 +622,9 @@
     "requiredAuthorityRuleCode": "authority-transition-pack",
     "requiredPolicyCodes": [
       "policy-pack-transition-baseline"
-    ]
+    ],
+    "eventType": "PackPublished",
+    "versionEvent": "VersionPublished"
   },
   {
     "entityType": "Pack",
@@ -607,7 +633,9 @@
     "requiredAuthorityRuleCode": "authority-transition-pack-elevated",
     "requiredPolicyCodes": [
       "policy-pack-transition-baseline"
-    ]
+    ],
+    "eventType": "PackActivated",
+    "versionEvent": "VersionActivated"
   },
   {
     "entityType": "Pack",
@@ -616,7 +644,9 @@
     "requiredAuthorityRuleCode": "authority-transition-pack-elevated",
     "requiredPolicyCodes": [
       "policy-pack-transition-baseline"
-    ]
+    ],
+    "eventType": "PackArchived",
+    "versionEvent": "VersionArchived"
   },
   {
     "entityType": "Pack",
@@ -625,7 +655,9 @@
     "requiredAuthorityRuleCode": "authority-transition-pack-elevated",
     "requiredPolicyCodes": [
       "policy-pack-transition-baseline"
-    ]
+    ],
+    "eventType": "PackRetired",
+    "versionEvent": "VersionDeprecated"
   },
   {
     "entityType": "Pack",
@@ -634,7 +666,8 @@
     "requiredAuthorityRuleCode": "authority-transition-pack",
     "requiredPolicyCodes": [
       "policy-pack-transition-baseline"
-    ]
+    ],
+    "eventType": "PackRejected"
   },
   {
     "entityType": "Participant",
@@ -780,42 +813,54 @@
     "fromState": "Draft",
     "toState": "Validated",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "TemplateValidated",
+    "versionEvent": "VersionValidated"
   },
   {
     "entityType": "Template",
     "fromState": "Validated",
     "toState": "Published",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "TemplatePublished",
+    "versionEvent": "VersionPublished"
   },
   {
     "entityType": "Template",
     "fromState": "Published",
     "toState": "Active",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "TemplateActivated",
+    "versionEvent": "VersionActivated"
   },
   {
     "entityType": "Template",
     "fromState": "Active",
     "toState": "Deprecated",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "TemplateDeprecated",
+    "versionEvent": "VersionDeprecated"
   },
   {
     "entityType": "Template",
     "fromState": "Deprecated",
     "toState": "Retired",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "TemplateRetired",
+    "versionEvent": "VersionSuperseded"
   },
   {
     "entityType": "Template",
     "fromState": "Retired",
     "toState": "Archived",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "TemplateArchived",
+    "versionEvent": "VersionArchived"
   },
   {
     "entityType": "Template",
@@ -906,42 +951,54 @@
     "fromState": "Draft",
     "toState": "Validated",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "ProfileValidated",
+    "versionEvent": "VersionValidated"
   },
   {
     "entityType": "Profile",
     "fromState": "Validated",
     "toState": "Published",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "ProfilePublished",
+    "versionEvent": "VersionPublished"
   },
   {
     "entityType": "Profile",
     "fromState": "Published",
     "toState": "Active",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "ProfileActivated",
+    "versionEvent": "VersionActivated"
   },
   {
     "entityType": "Profile",
     "fromState": "Active",
     "toState": "Deprecated",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "ProfileDeprecated",
+    "versionEvent": "VersionDeprecated"
   },
   {
     "entityType": "Profile",
     "fromState": "Deprecated",
     "toState": "Retired",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "ProfileRetired",
+    "versionEvent": "VersionSuperseded"
   },
   {
     "entityType": "Profile",
     "fromState": "Retired",
     "toState": "Archived",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "ProfileArchived",
+    "versionEvent": "VersionArchived"
   },
   {
     "entityType": "Profile",
@@ -969,35 +1026,45 @@
     "fromState": "Defined",
     "toState": "Published",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "ServiceDefinitionPublished",
+    "versionEvent": "VersionPublished"
   },
   {
     "entityType": "Service",
     "fromState": "Published",
     "toState": "Active",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "ServiceDefinitionActivated",
+    "versionEvent": "VersionActivated"
   },
   {
     "entityType": "Service",
     "fromState": "Active",
     "toState": "Deprecated",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "ServiceDefinitionDeprecated",
+    "versionEvent": "VersionDeprecated"
   },
   {
     "entityType": "Service",
     "fromState": "Deprecated",
     "toState": "Retired",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "ServiceDefinitionRetired",
+    "versionEvent": "VersionSuperseded"
   },
   {
     "entityType": "Service",
     "fromState": "Retired",
     "toState": "Archived",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "ServiceDefinitionArchived",
+    "versionEvent": "VersionArchived"
   },
   {
     "entityType": "Policy",
@@ -1040,5 +1107,32 @@
     "toState": "Archived",
     "requiredAuthorityRuleCode": null,
     "requiredPolicyCodes": []
+  },
+  {
+    "entityType": "Ontology",
+    "fromState": "Active",
+    "toState": "Deprecated",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": [],
+    "eventType": "ConceptDeprecated",
+    "versionEvent": "VersionDeprecated"
+  },
+  {
+    "entityType": "Ontology",
+    "fromState": "Deprecated",
+    "toState": "Retired",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": [],
+    "eventType": "OntologyConceptRetired",
+    "versionEvent": "VersionSuperseded"
+  },
+  {
+    "entityType": "Ontology",
+    "fromState": "Retired",
+    "toState": "Archived",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": [],
+    "eventType": "OntologyConceptArchived",
+    "versionEvent": "VersionArchived"
   }
 ]

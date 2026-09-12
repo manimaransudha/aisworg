@@ -9,6 +9,12 @@ export function query<T extends QueryResultRow = QueryResultRow>(
   params?: unknown[]
 ): Promise<QueryResult<T>>;
 
+export function bulkInsert<T extends QueryResultRow = QueryResultRow>(
+  table: string,
+  columns: string[],
+  rows: unknown[][]
+): Promise<QueryResult<T>>;
+
 declare const pool: Pool;
 export default pool;
 

@@ -99,25 +99,3 @@ Key realization highlights include:
 ## 5. Conclusion
 
 Chapter 26 specification alignment is **very high (~95%)**. The Quality Gate Model effectively provides a clean, declarative, read-only evaluation engine. Realized highlights include Ontology-backed categories (`category:evidence`), append-only audit logging (`quality_gate_evaluations`), and an explicit badge-gated waiver subsystem (`quality_gate_waivers`, CR-058).
-
----
-
-## 7. Complete Specification Section Coverage Audit
-
-The following table documents the audit results for narrative, non-FR, and implementation-specific sections previously un-indexed in the primary matrix:
-
-| Section Heading | Code Verification Status | Implementation & Codebase Findings |
-|---|:---:|---|
-| **QG-001** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **QG-002** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **QG-003** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **QG-004** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **QG-005** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **QG-006** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **Entry Gates** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`requireTenant.ts`](file://src/middleware/requireTenant.ts), [`requireTenantScope.ts`](file://src/middleware/requireTenantScope.ts). |
-| **Compliance Gates** | `Fully Met` | Verified against [`requireTenant.ts`](file://src/middleware/requireTenant.ts), [`requireTenantScope.ts`](file://src/middleware/requireTenantScope.ts), [`viewRegistry.js`](file://src/viewModels/viewRegistry.js). |
-| **19.3 ⚠️ Functional Requirements (FR-26.1–7) (§6)** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`seuTypes.ts`](file://src/dblayer/seuTypes.ts), [`sdlc-phase-03-technical-discovery-architecture.pack.json`](file://src/dblayer/seed/data/sdlc-phase-03-technical-discovery-architecture.pack.json). |
-| **19.10 ✅ Waivers — built via CR-058, badge-gated (§13)** | `Fully Met` | Verified against [`requireTenantScope.ts`](file://src/middleware/requireTenantScope.ts), [`requireBadge.ts`](file://src/middleware/requireBadge.ts), [`seu_compliance_index.js`](file://src/viewModels/seu_compliance_index.js). |
-| **19.13 ⚠️ Non-Functional Requirements (§16)** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **19.14 ⚠️ Acceptance Criteria (§17)** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`reviewGatesDB.ts`](file://src/dblayer/reviewGatesDB.ts), [`evidenceDB.ts`](file://src/dblayer/evidenceDB.ts). |
-| **Summary — ranked (updated post-CR-058)** | `Fully Met` | Verified against [`deliverableAuthoringContentDB.ts`](file://src/dblayer/deliverableAuthoringContentDB.ts), [`checklistsDB.ts`](file://src/dblayer/checklistsDB.ts), [`attentionItemsDB.ts`](file://src/dblayer/attentionItemsDB.ts). |

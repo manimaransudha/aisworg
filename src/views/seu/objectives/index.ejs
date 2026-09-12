@@ -12,6 +12,7 @@
     .tier-badge { font-size: 0.68rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 6px; background: #ede9fe; color: #5b21b6; }
     .tree-node:hover { background: #f8fafc; }
     .breadcrumb-path { font-size: 0.72rem; color: #94a3b8; }
+    .dropdown-toggle-no-caret::after { display: none !important; }
     /* CR-083 — .display-id-pill centralised into public/css/style.css. */
   </style>
 </head>
@@ -67,73 +68,121 @@
     <% } else if (mode === 'rejected') { %>
       <!-- Rejected mode: Objectives whose status is Reject (CR-073), each with
            its most recent comment as the reason. -->
-      <div class="card border-0 shadow-sm">
-        <div class="list-group list-group-flush">
-          <% list.items.forEach(function(o) { %>
-            <div class="list-group-item">
-              <div class="d-flex align-items-center gap-2 mb-1">
-                <span class="tier-badge"><%= o.tier %></span>
-                <a href="/aisworg/seu/objectives/<%= o.id %>" class="small text-dark text-decoration-none fw-semibold flex-grow-1"><% if (o.displayId) { %><span class="display-id-pill me-1"><%= o.displayId %></span><% } %><%= o.statement %></a>
-                <span class="state-badge state-<%= o.status %>"><%= o.status %></span>
-                <%# CR-075 — this tab exists specifically for the proposer to
-                     find and edit rejected Objectives, so Edit belongs here
-                     more than anywhere else. %>
-                <% if (locals.canProposeObjective && !o.editLocked) { %>
-                  <a href="/aisworg/seu/objectives/<%= o.id %>/edit" class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-pencil"></i> Edit</a>
-                <% } %>
-                <a href="/aisworg/seu/objectives/<%= o.id %>" class="btn btn-sm btn-outline-primary py-0">View</a>
-              </div>
-              <% if (o.lastComment) { %>
-                <div class="small text-muted ps-1 border-start border-2 border-warning-subtle">
-                  <i class="bi bi-chat-left-text me-1"></i><%= o.lastComment.comment_text %>
-                </div>
-              <% } %>
-            </div>
-          <% }) %>
-        </div>
+      <div class="card border-0 shadow-sm overflow-hidden">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light text-muted small fw-bold" style="font-size: 0.7rem; letter-spacing: 0.04em;">
+            <tr>
+              <th style="width: 110px;" class="text-center">TIER</th>
+              <th>OBJECTIVE STATEMENT</th>
+              <th style="width: 120px;" class="text-center">STATUS</th>
+              <th style="width: 360px;" class="text-end pe-3">BUTTONS</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% list.items.forEach(function(o) { %>
+              <tr class="align-middle">
+                <td class="text-center" style="width: 110px;">
+                  <span class="tier-badge"><%= o.tier %></span>
+                </td>
+                <td>
+                  <a href="/aisworg/seu/objectives/<%= o.id %>" class="small text-dark text-decoration-none fw-semibold">
+                    <% if (o.displayId) { %><span class="display-id-pill me-1"><%= o.displayId %></span><% } %><%= o.statement %>
+                  </a>
+                  <% if (o.lastComment) { %>
+                    <div class="small text-muted ps-2 mt-1 border-start border-2 border-warning-subtle ms-1">
+                      <i class="bi bi-chat-left-text me-1"></i><%= o.lastComment.comment_text %>
+                    </div>
+                  <% } %>
+                </td>
+                <td class="text-center" style="width: 120px;">
+                  <span class="state-badge state-<%= o.status %>"><%= o.status %></span>
+                </td>
+                <td class="align-middle text-end pe-3" style="width: 360px;">
+                  <div class="d-inline-flex align-items-center justify-content-end">
+                    <div class="d-inline-flex gap-1 align-items-center me-2 pe-2 border-end border-secondary-subtle">
+                      <span class="text-muted small">&mdash;</span>
+                    </div>
+                    <div class="d-inline-flex gap-1 align-items-center">
+                      <a href="/aisworg/seu/objectives/<%= o.id %>" class="btn btn-sm btn-outline-primary py-0 me-1">View</a>
+                      <% if (locals.canProposeObjective && !o.editLocked) { %>
+                        <a href="/aisworg/seu/objectives/<%= o.id %>/edit" class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-pencil"></i> Edit</a>
+                      <% } %>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
       </div>
     <% } else if (mode === 'search') { %>
       <!-- Search mode: flat hits, each with its breadcrumb to root. -->
-      <div class="card border-0 shadow-sm">
-        <div class="list-group list-group-flush">
-          <% list.items.forEach(function(o) { %>
-            <div class="list-group-item">
-              <% if (o.path && o.path.length) { %>
-                <div class="breadcrumb-path mb-1">
-                  <% o.path.forEach(function(p, i) { %><%= i ? ' › ' : '' %><a href="/aisworg/seu/objectives/<%= p.id %>" class="text-muted text-decoration-none"><%= p.displayId ? (p.displayId + ' ') : '' %><%= p.statement %></a><% }) %>
-                </div>
-              <% } %>
-              <div class="d-flex align-items-center gap-2">
-                <span class="tier-badge"><%= o.tier %></span>
-                <a href="/aisworg/seu/objectives/<%= o.id %>" class="small text-dark text-decoration-none fw-semibold flex-grow-1"><% if (o.displayId) { %><span class="display-id-pill me-1"><%= o.displayId %></span><% } %><%= o.statement %></a>
-                <span class="state-badge state-<%= o.status %>"><%= o.status %></span>
-                <% if (o.commissioned) { %>
-                  <%# Bug fix (owner, 2026-09-06: "Link the seu id on the
-                       Commissioned status on the Objectives page") — was
-                       inert text; now links straight to the real SEU
-                       (o.commissionedSeuId, toListItem). %>
-                  <a href="/aisworg/seu/seus/<%= o.commissionedSeuId %>" class="badge bg-success-subtle text-success-emphasis border border-success-subtle text-decoration-none">Commissioned</a>
-                <% } else if (o.commissionable) { %>
-                  <%# Bug fix — same treatment as _nodes.ejs's own tree rows:
-                       routed through the SEU-area screen
-                       (seus/new.ejs?objectiveId=..), which now shows either
-                       the real Commission form or the full Template-gap
-                       diagnostic, rather than submitting blind from here. %>
-                  <a href="/aisworg/seu/seus/new?objectiveId=<%= o.id %>" class="btn btn-sm btn-primary py-0"><i class="bi bi-diagram-3 me-1"></i>Commission SEU</a>
-                <% } %>
-                <%# CR-075 — Edit reachable directly from search results too. %>
-                <% if (locals.canProposeObjective && !o.editLocked) { %>
-                  <a href="/aisworg/seu/objectives/<%= o.id %>/edit" class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-pencil"></i> Edit</a>
-                <% } %>
-                <a href="/aisworg/seu/objectives/<%= o.id %>" class="btn btn-sm btn-outline-primary py-0">View</a>
-              </div>
-            </div>
-          <% }) %>
-        </div>
+      <div class="card border-0 shadow-sm overflow-hidden">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light text-muted small fw-bold" style="font-size: 0.7rem; letter-spacing: 0.04em;">
+            <tr>
+              <th style="width: 110px;" class="text-center">TIER</th>
+              <th>OBJECTIVE STATEMENT</th>
+              <th style="width: 120px;" class="text-center">STATUS</th>
+              <th style="width: 360px;" class="text-end pe-3">BUTTONS</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% list.items.forEach(function(o) { %>
+              <tr class="align-middle">
+                <td class="text-center" style="width: 110px;">
+                  <span class="tier-badge"><%= o.tier %></span>
+                </td>
+                <td>
+                  <% if (o.path && o.path.length) { %>
+                    <div class="breadcrumb-path mb-1">
+                      <% o.path.forEach(function(p, i) { %><%= i ? ' › ' : '' %><a href="/aisworg/seu/objectives/<%= p.id %>" class="text-muted text-decoration-none"><%= p.displayId ? (p.displayId + ' ') : '' %><%= p.statement %></a><% }) %>
+                    </div>
+                  <% } %>
+                  <a href="/aisworg/seu/objectives/<%= o.id %>" class="small text-dark text-decoration-none fw-semibold">
+                    <% if (o.displayId) { %><span class="display-id-pill me-1"><%= o.displayId %></span><% } %><%= o.statement %>
+                  </a>
+                </td>
+                <td class="text-center" style="width: 120px;">
+                  <span class="state-badge state-<%= o.status %>"><%= o.status %></span>
+                </td>
+                <td class="align-middle text-end pe-3" style="width: 360px;">
+                  <div class="d-inline-flex align-items-center justify-content-end">
+                    <div class="d-inline-flex gap-1 align-items-center me-2 pe-2 border-end border-secondary-subtle">
+                      <% if (o.commissioned) { %>
+                        <a href="/aisworg/seu/seus/<%= o.commissionedSeuId %>" class="badge bg-success-subtle text-success-emphasis border border-success-subtle text-decoration-none">Commissioned</a>
+                      <% } else if (o.commissionable) { %>
+                        <a href="/aisworg/seu/seus/new?objectiveId=<%= o.id %>" class="btn btn-sm btn-primary py-0"><i class="bi bi-diagram-3 me-1"></i>Commission SEU</a>
+                      <% } else { %>
+                        <span class="text-muted small">&mdash;</span>
+                      <% } %>
+                    </div>
+                    <div class="d-inline-flex gap-1 align-items-center">
+                      <a href="/aisworg/seu/objectives/<%= o.id %>" class="btn btn-sm btn-outline-primary py-0 me-1">View</a>
+                      <% if (locals.canProposeObjective && !o.editLocked) { %>
+                        <a href="/aisworg/seu/objectives/<%= o.id %>/edit" class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-pencil"></i> Edit</a>
+                      <% } %>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
       </div>
     <% } else { %>
       <!-- Browse mode: paginated Strategic roots; expand to lazy-load children. -->
-      <div class="card border-0 shadow-sm" id="objective-tree">
+      <div class="card border-0 shadow-sm overflow-hidden" id="objective-tree">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light text-muted small fw-bold" style="font-size: 0.7rem; letter-spacing: 0.04em;">
+            <tr>
+              <th style="width: 110px;" class="text-center">TIER</th>
+              <th>OBJECTIVE STATEMENT</th>
+              <th style="width: 120px;" class="text-center">STATUS</th>
+              <th style="width: 360px;" class="text-end pe-3">BUTTONS</th>
+            </tr>
+          </thead>
+        </table>
         <%- include('_nodes', { nodes: roots, depth: 0, csrfToken: locals.csrfToken, childTiers: childTiers, canRetireObjective: locals.canRetireObjective, canProposeObjective: locals.canProposeObjective, hasObjectiveBadge: locals.hasObjectiveBadge }) %>
       </div>
     <% } %>
@@ -149,11 +198,13 @@
         var id = btn.getAttribute('data-id');
         var depth = parseInt(btn.getAttribute('data-depth'), 10) || 0;
         var container = tree.querySelector('.tree-children[data-parent="' + id + '"]');
+        var childRow = tree.querySelector('.tree-children-row[data-parent="' + id + '"]');
         if (!container) return;
         var icon = btn.querySelector('i');
 
         if (btn.getAttribute('data-loaded') === '1') {
-          var isHidden = container.style.display === 'none';
+          var isHidden = childRow ? childRow.style.display === 'none' : container.style.display === 'none';
+          if (childRow) childRow.style.display = isHidden ? '' : 'none';
           container.style.display = isHidden ? '' : 'none';
           if (icon) icon.className = isHidden ? 'bi bi-chevron-down' : 'bi bi-chevron-right';
           return;
@@ -163,6 +214,8 @@
           .then(function (html) {
             container.innerHTML = html;
             btn.setAttribute('data-loaded', '1');
+            if (childRow) childRow.style.display = '';
+            container.style.display = '';
             if (icon) icon.className = 'bi bi-chevron-down';
           })
           .catch(function () { /* best-effort expand */ });

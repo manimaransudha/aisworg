@@ -6,5 +6,6 @@
   "developmentMethodology": "scrum",
   "primaryProgrammingLanguage": "typescript",
   "sourceControlProvider": "github",
-  "optionalPackCodes": ["testing-qa"]
+  "optionalPackCodes": ["testing-qa"],
+  "technologyPackCodes": ["technology-nodejs", "technology-react"]
 }

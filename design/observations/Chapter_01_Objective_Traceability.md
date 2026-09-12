@@ -130,15 +130,3 @@ All 7 required events are wired to `eventBus.publish`:
 
 Chapter 1 specification alignment is **high (~90%)**. The codebase strictly enforces hierarchical decomposition, 1:1 leaf commissioning, badge authorization, tenant reach isolation, versioning, and event publishing. The identified gaps (Pack capability derivation, automated achievement derivation, and Objective-rooted Knowledge Graph traversal/service) are documented design deferrals that do not invalidate current operational intent.
 
-
----
-
-## 7. Complete Specification Section Coverage Audit
-
-The following table documents the audit results for narrative, non-FR, and implementation-specific sections previously un-indexed in the primary matrix:
-
-| Section Heading | Code Verification Status | Implementation & Codebase Findings |
-|---|:---:|---|
-| **7. Objective Tiers** | `Fully Met` | Verified against [`requireTenant.ts`](file://src/middleware/requireTenant.ts), [`requireTenantScope.ts`](file://src/middleware/requireTenantScope.ts), [`attachVM.js`](file://src/middleware/attachVM.js). |
-| **15. Non-Functional Requirements** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **16. Acceptance Criteria** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`reviewGatesDB.ts`](file://src/dblayer/reviewGatesDB.ts), [`evidenceDB.ts`](file://src/dblayer/evidenceDB.ts). |

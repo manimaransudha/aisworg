@@ -37,19 +37,19 @@ The Capability Model separates engineering competence from engineering execution
 
 This chapter defines:
 
-- Capability abstraction;
-- Capability lifecycle;
-- Capability fulfilment;
-- Capability relationships;
-- Capability discovery;
-- Capability composition.
+- Capability abstraction
+- Capability lifecycle
+- Capability fulfilment
+- Capability relationships
+- Capability discovery
+- Capability composition
 
 This chapter does not define:
 
-- Participant implementations;
-- engineering behaviour;
-- work item execution;
-- AI reasoning.
+- Participant implementations
+- engineering behaviour
+- work item execution
+- AI reasoning
 
 ---
 
@@ -93,10 +93,10 @@ Capabilities are platform concepts.
 
 They are independent of:
 
-- Participants;
-- Organisations;
-- Technologies;
-- AI providers.
+- Participants
+- Organisations
+- Technologies
+- AI providers
 
 ---
 
@@ -106,83 +106,57 @@ They are independent of:
 
 Capabilities are stable.
 
----
 
 ## CM-002
 
 Participants are replaceable.
-
----
-
+ 
 ## CM-003
 
 Multiple Participants may fulfil the same Capability.
-
----
-
+ 
 ## CM-004
 
 One Participant may fulfil multiple Capabilities.
-
----
-
+ 
 ## CM-005
 
 Capabilities shall not contain runtime state.
-
----
-
+ 
 ## CM-006
 
-Capabilities shall remain independent of engineering behaviour.
-
-Behaviour is supplied by the Engineering Behavior Model.
-
----
-
+Capabilities shall remain independent of engineering behaviour. Behaviour is supplied by the Engineering Behavior Model.
+ 
 # 6. Functional Requirements
 
 ### FR-10.1
 
 The platform shall maintain a Capability Catalogue.
-
----
-
+ 
 ### FR-10.2
 
 Every Work Item shall require one or more Capabilities.
-
----
-
+ 
 ### FR-10.3
 
 Every Capability shall possess a globally unique identifier.
-
----
-
+ 
 ### FR-10.4
 
 Capabilities shall support versioning.
-
----
-
+ 
 ### FR-10.5
 
 Capabilities shall be independently extensible.
-
----
-
+ 
 ### FR-10.6
 
 Capabilities shall support fulfilment by multiple Participant types.
-
----
-
+ 
 ### FR-10.7
 
 Capability fulfilment shall remain traceable.
-
----
+ 
 
 # 7. Capability Categories
 

@@ -121,6 +121,13 @@ export interface ProfileSeedInput {
   defaultRepositoryStructure?: string;
   documentationLevel?: string;
   developmentMethodology?: string;
+  // Owner: "I want domain as an additional profile-configuration parameter."
+  // A ninth Configuration Parameter, same shape as the other eight —
+  // reuses the `domain` concept type CR-099 already seeded (migration 196)
+  // as its own value source, migration 199. Unioned with composed Packs'
+  // own Domain competency values at EBM composition (compositionEngine.ts),
+  // same treatment as primaryProgrammingLanguage/Technology.
+  domain?: string;
   // Ch.7 §5/§12 Participating Organisations — no seeded values yet (owner:
   // "populated when implementing multi-tenancy"); the field/mechanism exists
   // now regardless.
@@ -307,6 +314,7 @@ export const CONFIGURATION_PARAMETER_FIELDS: Array<{ field: keyof ProfileSeedInp
   { field: "defaultRepositoryStructure", parameterCode: "default-repository-structure" },
   { field: "documentationLevel", parameterCode: "documentation-level" },
   { field: "developmentMethodology", parameterCode: "development-methodology" },
+  { field: "domain", parameterCode: "domain" },
 ];
 
 export type ProfileValidationResult = { ok: true } | { ok: false; errors: string[] };
@@ -402,7 +410,7 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
 
   for (const code of seed.featureFlagCodes ?? []) {
     const { data: concept } = await ontologyDB.findConcept("feature-flag", code, ontologyViewer);
-    if (!concept?.is_active) errors.push(`featureFlagCodes references unknown feature-flag code "${code}"`);
+    if (!concept) errors.push(`featureFlagCodes references unknown feature-flag code "${code}"`);
   }
 
   // CR-091 — Ch.7 §5 Optional Capability Enablement: each code must be a
@@ -413,7 +421,7 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
   // already-Template-covered code is redundant, not wrong.
   for (const code of seed.additionalCapabilityCodes ?? []) {
     const { data: concept } = await ontologyDB.findConcept("capability-name", code, ontologyViewer);
-    if (!concept?.is_active) errors.push(`additionalCapabilityCodes references unknown capability-name code "${code}"`);
+    if (!concept) errors.push(`additionalCapabilityCodes references unknown capability-name code "${code}"`);
   }
 
   // CR-091 Part 2 — each Configuration Parameter's own value (if set) must
@@ -426,11 +434,32 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
     const value = (seed[cp.field] as string | undefined)?.trim();
     if (value) {
       const { data: valueConcept } = await ontologyDB.findConcept(cp.parameterCode, value, ontologyViewer);
-      if (!valueConcept?.is_active) errors.push(`${String(cp.field)} references unknown ${cp.parameterCode} code "${value}"`);
+      if (!valueConcept) errors.push(`${String(cp.field)} references unknown ${cp.parameterCode} code "${value}"`);
     }
     const { data: parameterConcept } = await ontologyDB.findConcept("profile-configuration", cp.parameterCode, ontologyViewer);
     if (parameterConcept?.is_mandatory && !value) {
       errors.push(`${String(cp.field)} is required (a mandatory Configuration Parameter for this tenant)`);
+    }
+  }
+
+  // Owner: "All configuration parameters in the profile should have been
+  // ontology driven. If typescript is not in Ontology, that should have not
+  // been allowed for selection." primaryProgrammingLanguage's own Ontology
+  // source (`primary-programming-language`, just validated above) is a
+  // DIFFERENT concept type from the competency dimension it's unioned into
+  // at EBM composition (`technology` — CR-101's own
+  // CONFIGURATION_PARAMETER_COMPETENCY_UNIONS, profileCompositionUnravel.ts)
+  // — the two vocabularies can silently diverge, which is exactly what
+  // happened ("typescript" was a valid primary-programming-language value
+  // with no matching technology concept, entering a SEU's Technology
+  // competency requirement as a value no real Participant or Pack could
+  // ever hold). Checked only here, not as a generic mechanism — `domain`'s
+  // own Configuration Parameter already sources directly from the `domain`
+  // concept type (migration 199), so it has no equivalent gap to check.
+  if (seed.primaryProgrammingLanguage?.trim()) {
+    const { data: technologyConcept } = await ontologyDB.findConcept("technology", seed.primaryProgrammingLanguage.trim(), ontologyViewer);
+    if (!technologyConcept) {
+      errors.push(`primaryProgrammingLanguage "${seed.primaryProgrammingLanguage}" has no matching "technology" competency concept — it would be unioned into this SEU's Technology competency requirement (CR-101) as a value no Participant or Pack could ever match. Register it as a technology concept first.`);
     }
   }
 
@@ -439,7 +468,7 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
   // which is correct until multi-tenancy adds real concepts to pick from.
   for (const code of seed.participatingOrganisationCodes ?? []) {
     const { data: concept } = await ontologyDB.findConcept("participating-organisations", code, ontologyViewer);
-    if (!concept?.is_active) errors.push(`participatingOrganisationCodes references unknown participating-organisations code "${code}"`);
+    if (!concept) errors.push(`participatingOrganisationCodes references unknown participating-organisations code "${code}"`);
   }
 
   // Ch.7 §9 Profile Inheritance (owner, 2026-08-19: "19.2 and 19.3 has to be
@@ -466,31 +495,56 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
   return errors.length > 0 ? { ok: false, errors } : { ok: true };
 }
 
-export type PublishProfileResult = { ok: true; profileId: string } | { ok: false; errors: string[] };
+export type PublishProfileResult = { ok: true; profileId: string; alreadyExists?: boolean } | { ok: false; errors: string[] };
 
 // Ch.41 VM-002-style immutability (owner, 2026-08-19), mirroring publishPack/
-// publishTemplate: profilesDB.upsert's ON CONFLICT target is now
-// (code, profile_version, tenant_id) — a second call with the same code but a
-// different profileVersion (or a different owning tenant) creates a new row
-// rather than overwriting.
-export async function publishProfile(seed: ProfileSeedInput): Promise<PublishProfileResult> {
+// publishTemplate: profilesDB's own (code, profile_version, tenant_id)
+// identity means a second call with the same code but a different
+// profileVersion (or a different owning tenant) creates a new row rather
+// than overwriting.
+//
+// Rebuilt (same fix as core/templates.ts's publishTemplate, same owner ask
+// extended to Profile since both nouns share the identical SDK authoring
+// pipeline, Ch.6 §20.1) — this used to call profilesDB.upsert(), which
+// relied on profiles.status's own default to land the new row directly at
+// Active, skipping the governed lifecycle (and its VersionValidated/
+// VersionPublished/VersionActivated events) entirely. Now creates a real
+// Draft (profilesDB.createDraft), materialises it, fires ProfileCreated
+// (unchanged — still not fired from interactive authoring's
+// createAuthoringDraft either), then advances through Validated ->
+// Published -> Active via the SAME advanceProfileOneStep the authoring UI
+// itself uses. Requires a real actor now, mirroring publishPack/
+// publishTemplate's own actorRole/actorId.
+export async function publishProfile(input: { seed: ProfileSeedInput; actorRole: string; actorId?: string }): Promise<PublishProfileResult> {
+  const { seed, actorRole, actorId } = input;
   const validation = await validateProfileSeed(seed);
   if (!validation.ok) return { ok: false, errors: validation.errors };
 
   const { data: template } = await templatesDB.findByCode(seed.baseTemplateCode);
   if (!template) return { ok: false, errors: [`baseTemplateCode "${seed.baseTemplateCode}" not found`] };
 
-  const { data: profile, error } = await profilesDB.upsert({
+  const tenantId = seed.tenantId ?? PLATFORM_TENANT_ID;
+
+  // Idempotent reseed — mirrors publishTemplate's own findByCodeAndVersion
+  // check exactly.
+  const { data: existing } = await profilesDB.findByCodeAndVersion(seed.code, seed.profileVersion, tenantId);
+  if (existing) {
+    await materialiseProfileDraft(existing.id, seed);
+    return { ok: true, profileId: existing.id, alreadyExists: true };
+  }
+
+  const { data: draft, error } = await profilesDB.createDraft({
     code: seed.code,
     name: seed.name,
     baseTemplateId: template.id,
     environment: seed.environment,
     profileVersion: seed.profileVersion,
-    tenantId: seed.tenantId,
+    tenantId,
+    parentProfileId: seed.parentProfileId,
   });
-  if (error || !profile) return { ok: false, errors: [(error ?? new Error("failed to upsert profile")).message] };
+  if (error || !draft) return { ok: false, errors: [(error ?? new Error("failed to create profile draft")).message] };
 
-  await materialiseProfileDraft(profile.id, seed);
+  await materialiseProfileDraft(draft.id, seed);
 
   // Ch.7 §15 (owner, 2026-08-19: "Fix 19.9 similar to what we did for pack
   // and template") — mirrors PackRegistered/TemplateCreated exactly,
@@ -499,13 +553,20 @@ export async function publishProfile(seed: ProfileSeedInput): Promise<PublishPro
   await eventBus.publish({
     eventType: "ProfileCreated",
     originatingObjectType: "Profile",
-    originatingObjectId: profile.id,
+    originatingObjectId: draft.id,
     seuId: null, // platform catalog entity, not SEU-scoped
     correlationId: eventBus.newCorrelationId(),
-    payload: { code: profile.code, profileVersion: profile.profile_version },
+    payload: { code: draft.code, profileVersion: draft.profile_version },
   });
 
-  return { ok: true, profileId: profile.id };
+  let current = draft;
+  for (let i = 0; i < 3; i++) { // Draft -> Validated -> Published -> Active
+    const result = await advanceProfileOneStep(current, actorRole, actorId);
+    if (!result.ok) return { ok: false, errors: [`advancing Profile "${current.code}" from "${current.status}" failed: ${result.reason}${result.detail ? ` (${result.detail})` : ""}`] };
+    current = result.profile;
+  }
+
+  return { ok: true, profileId: current.id };
 }
 
 // Entity-direct authoring (bug fix correcting CR-014): a governed status
@@ -523,25 +584,20 @@ export type TransitionProfileResult = { ok: true; profile: ProfileRow } | { ok: 
 // code (within the same tenant). The old row itself is untouched.
 const TERMINAL_REACTIVATABLE_STATES = new Set(["Deprecated", "Retired", "Archived"]);
 
-// Ch.7 §15 (owner, 2026-08-19) — real per-state-named events, mirroring
-// core/templates.ts's own EVENT_BY_TARGET_STATE exactly. §15's own text
-// names six events and omits "ProfileArchived" — the same omission Pack/
-// Template's chapters had (treated there as an oversight, not a deliberate
-// difference) — included here for real parity, not followed literally.
-const EVENT_BY_TARGET_STATE: Record<string, string> = {
-  Validated: "ProfileValidated",
-  Published: "ProfilePublished",
-  Active: "ProfileActivated",
-  Deprecated: "ProfileDeprecated",
-  Retired: "ProfileRetired",
-  Archived: "ProfileArchived",
-};
-
+// Version Feature Plan.md §3/§4 (Ch.7, migration 187) — event_type is now
+// read straight off the resolved Transition Definition (transitionEngine's
+// TransitionOutcome), replacing the hardcoded EVENT_BY_TARGET_STATE map this
+// used to carry (built 2026-08-19, Ch.7 §19.9) — mirrors how Template's
+// identical map was replaced, migration 185.
 export async function transitionProfile(input: { profileId: string; targetState: ProfileRow["status"]; actorRole: string; actorId?: string }): Promise<TransitionProfileResult> {
   const { data: profile } = await profilesDB.findById(input.profileId);
   if (!profile) return { ok: false, reason: "not_found" };
   const fromState = profile.status;
-  const gate = await transitionEngine.evaluate({ entityType: "Profile", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId, context: { profile } });
+  // entityId passed so a Profile row ever declaring submit_verb (none do
+  // today) would have its triggerEngine.hasBeenSubmitted check actually work
+  // — the same latent gap Template's own transitionTemplate had before its
+  // fix (Events and Lifecycles.md Ch.6 Implementation row 3).
+  const gate = await transitionEngine.evaluate({ entityType: "Profile", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId, entityId: profile.id, context: { profile } });
   if (!gate.allowed) {
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Profile ${fromState} -> ${input.targetState}` };
@@ -556,7 +612,7 @@ export async function transitionProfile(input: { profileId: string; targetState:
   const { data: updated, error } = await profilesDB.updateStatus(profile.id, input.targetState);
   if (error || !updated) throw error ?? new Error("failed to update profile status");
   await eventBus.publish({
-    eventType: EVENT_BY_TARGET_STATE[input.targetState] ?? "ProfileTransitioned",
+    eventType: gate.eventType ?? "ProfileTransitioned",
     originatingObjectType: "Profile",
     originatingObjectId: profile.id,
     seuId: null, // platform catalog entity, not SEU-scoped

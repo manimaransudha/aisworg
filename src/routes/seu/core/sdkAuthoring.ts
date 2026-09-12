@@ -79,6 +79,8 @@ export function toPackSeedInput(content: Record<string, unknown>): PackSeedInput
     reviewGates: arr("contributionReviewGates", "reviewGates"),
     obligationDefinitions: arr("contributionObligationDefinitions", "obligationDefinitions"),
     engineeringCapital: arr("contributionEngineeringCapital", "engineeringCapital"),
+    // CR-099 — same hand-written flatten every other contribution kind needs here.
+    competencies: arr("contributionCompetencies", "competencies"),
   } as unknown as PackSeedInput["contributions"];
   return {
     ...(content as unknown as PackSeedInput),
@@ -257,18 +259,27 @@ function toServiceLevelExpectations(value: unknown): ServiceLevelExpectation[] {
     .filter((v) => v.code || v.label);
 }
 
+// Bug fix — migration 159 made inputs/outputs a referential-multi-select
+// against deliverable-name (the same treatment `consumers` already gets
+// against capability-name, just below), but this parser kept treating them
+// as a bare string ever since — a real multi-select post (an array) could
+// never be captured, silently landing as `undefined` every time.
+function toStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
 export function toServiceDefinitionSeedInput(content: Record<string, unknown>): ServiceDefinitionSeedInput {
   return {
     code: typeof content.code === "string" ? content.code : "",
     name: typeof content.name === "string" ? content.name : "",
     capabilityCode: typeof content.capabilityCode === "string" ? content.capabilityCode : "",
     purpose: typeof content.purpose === "string" ? content.purpose : undefined,
-    inputs: typeof content.inputs === "string" ? content.inputs : undefined,
-    outputs: typeof content.outputs === "string" ? content.outputs : undefined,
+    inputs: toStringArray(content.inputs),
+    outputs: toStringArray(content.outputs),
     serviceLevel: toServiceLevelExpectations(content.serviceLevel),
     governance: typeof content.governance === "string" ? content.governance : undefined,
     success: typeof content.success === "string" ? content.success : undefined,
-    consumers: Array.isArray(content.consumers) ? content.consumers.filter((c): c is string => typeof c === "string") : [],
+    consumers: toStringArray(content.consumers),
     version: typeof content.version === "string" && content.version.trim() ? content.version.trim() : "1.0.0",
   };
 }
@@ -360,6 +371,9 @@ function packRowToContent(pack: PackRow): Record<string, unknown> {
     contributionReviewGates: (c as Record<string, unknown[]>).reviewGates ?? [],
     contributionObligationDefinitions: (c as Record<string, unknown[]>).obligationDefinitions ?? [],
     contributionEngineeringCapital: (c as Record<string, unknown[]>).engineeringCapital ?? [],
+    // CR-099 — packs.contributions stores the short key `competencies`;
+    // same hand-written remap every other contribution kind needs here.
+    contributionCompetencies: (c as Record<string, unknown[]>).competencies ?? [],
     dependencies: pack.dependencies ?? [],
     // CR-067 — the referential-list widget shape ({packCode}), same as
     // dependencies above.
@@ -838,6 +852,8 @@ export async function inheritedPackVersionContent(fromPackId: string, viewerTena
       contributionReviewGates: c.reviewGates ?? [],
       contributionObligationDefinitions: c.obligationDefinitions ?? [],
       contributionEngineeringCapital: c.engineeringCapital ?? [],
+      // CR-099 — same hand-written remap every other contribution kind needs here.
+      contributionCompetencies: c.competencies ?? [],
       dependencies: source.dependencies,
       compositionSources: source.composition_sources,
     },
@@ -945,38 +961,62 @@ async function withDefaultTemplatePurpose(content: Record<string, unknown>, code
 }
 
 // CR-079 step (d) — when a Pack Draft's own `code` doesn't resolve against
-// its category's own Ontology vocabulary, publish ConceptCreated (Ch.18
-// §14 — already named there, but zero of its 7 events exist anywhere in the
-// codebase before this; emission only, who consumes it is a separate,
+// its category's own Ontology vocabulary, publish OntologyComposed (Ch.18
+// §14 — already named there, but zero of its 7 events existed anywhere in
+// the codebase before this; emission only, who consumes it is a separate,
 // deferred layer — Chapter 18 / design/mvp-build-plan/Ontology Plan.md).
-// Owner: "when a new pack code is entered, ConceptCreated event has to be
-// triggered." Called on every Draft create/save, not just once — but
+// Owner correction: a Pack proposing an unregistered code IS Ch.18 §8's own
+// "Ontology Composition" (constructing the effective Ontology by composing
+// contributions from Packs) — not a direct concept-registry addition, which
+// is what ConceptCreated means elsewhere (core/ontology.ts's own
+// createConceptVersion, the Ontology Management page's own Add/Compose
+// actions). Called on every Draft create/save, not just once — but
 // de-duplicated per (Pack, code, conceptType) via the events table itself
 // (nothing else tracks "pending" concepts), so resaving the same still-
 // unregistered code doesn't re-fire. Owner: "One unregistered code get one
-// conceptcreated from one pack. If another pack uses the same unregistered
-// code, there will be another conceptcreated event" — deliberately NOT
-// deduplicated across different Packs proposing the same code; conflict
-// resolution across proposals happens at consumption, out of scope here.
-async function emitConceptCreatedIfUnregistered(packId: string, code: string, category: string, tenantId?: string): Promise<void> {
-  if (!code.trim() || !category.trim()) return;
-  const conceptType = `${category.toLowerCase()}-name`;
+// [event] from one pack. If another pack uses the same unregistered code,
+// there will be another [event]" — deliberately NOT deduplicated across
+// different Packs proposing the same code; conflict resolution across
+// proposals happens at consumption, out of scope here.
+// CR-100 — generalised from a Pack-code-only helper to any (code, conceptType)
+// pair a Pack's own contributions propose. Callers resolve their own concept
+// type (Pack's own code: `${category.toLowerCase()}-name`; a Competency
+// value: `${dimension.toLowerCase()}`) — this function no longer derives one
+// itself.
+async function emitOntologyComposedIfUnregistered(packId: string, code: string, conceptType: string, tenantId?: string): Promise<void> {
+  if (!code.trim() || !conceptType.trim()) return;
   const ontologyViewer = { isRoot: false, tenantId: tenantId ?? PLATFORM_TENANT_ID };
   const { data: concept } = await ontologyDB.findConcept(conceptType, code, ontologyViewer);
-  if (concept?.is_active) return; // already a real, registered concept — nothing to propose
+  if (concept) return; // already a real, registered concept — nothing to propose
   const { data: priorEvents } = await eventsDB.findByOriginatingObject("Pack", packId);
   const alreadyProposed = (priorEvents ?? []).some(
-    (e) => e.event_type === "ConceptCreated" && e.payload?.code === code && e.payload?.conceptType === conceptType
+    (e) => e.event_type === "OntologyComposed" && e.payload?.code === code && e.payload?.conceptType === conceptType
   );
   if (alreadyProposed) return;
   await eventBus.publish({
-    eventType: "ConceptCreated",
+    eventType: "OntologyComposed",
     originatingObjectType: "Pack",
     originatingObjectId: packId,
     seuId: null,
     correlationId: eventBus.newCorrelationId(),
     payload: { code, conceptType },
   });
+}
+
+// CR-100 — owner: "Value has to be a dropdown from Competency Value Ontology
+// but allow a new text. If a new text is written, it has to emit a
+// OntologyComposed event." Same proposal mechanism as the Pack's own code
+// above, one entry at a time — a Competency's `value` is unregistered under
+// its own `dimension`'s (lower-cased) concept type exactly the same way an
+// unregistered Pack `code` is unregistered under its category's `-name`
+// concept type; `emitOntologyComposedIfUnregistered` already no-ops for an
+// already-registered value and already de-dupes repeat saves, so this is
+// pure orchestration, no new proposal/dedup logic.
+async function emitOntologyComposedForCompetencies(packId: string, competencies: Array<{ dimension?: string; value?: string }> | undefined, tenantId?: string): Promise<void> {
+  for (const comp of competencies ?? []) {
+    if (!comp.dimension?.trim() || !comp.value?.trim()) continue;
+    await emitOntologyComposedIfUnregistered(packId, comp.value, comp.dimension.toLowerCase(), tenantId);
+  }
 }
 
 // --- Create a Draft from authored content (real author) ---------------------
@@ -1033,7 +1073,8 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       payload: { code: pack.code, packVersion: pack.pack_version },
       actorId: input.actorId,
     });
-    await emitConceptCreatedIfUnregistered(pack.id, seed.code, seed.category, input.tenantId);
+    await emitOntologyComposedIfUnregistered(pack.id, seed.code, `${(seed.category ?? "").toLowerCase()}-name`, input.tenantId);
+    await emitOntologyComposedForCompetencies(pack.id, seed.contributions.competencies, input.tenantId);
     return { ok: true, draftId: pack.id };
   }
   if (input.kind === "Template") {
@@ -1149,8 +1190,8 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       name: seed.name,
       capabilityCode: seed.capabilityCode,
       purpose: seed.purpose ?? null,
-      inputs: seed.inputs ?? null,
-      outputs: seed.outputs ?? null,
+      inputs: seed.inputs ?? [],
+      outputs: seed.outputs ?? [],
       serviceLevel: seed.serviceLevel ?? [],
       governance: seed.governance ?? null,
       success: seed.success ?? null,
@@ -1219,7 +1260,8 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     });
     if (error) return { ok: false, errors: [error.message] };
     if (!data) return { ok: false, errors: ["draft not found or no longer editable (only Draft rows can be saved)"] };
-    await emitConceptCreatedIfUnregistered(input.id, seed.code, seed.category, existingPack.tenant_id);
+    await emitOntologyComposedIfUnregistered(input.id, seed.code, `${(seed.category ?? "").toLowerCase()}-name`, existingPack.tenant_id);
+    await emitOntologyComposedForCompetencies(input.id, seed.contributions.competencies, existingPack.tenant_id);
     return { ok: true };
   }
   if (input.kind === "Template") {
@@ -1291,8 +1333,8 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     const validation = await validateServiceDefinitionSeed({ ...seed, tenantId: existing.tenant_id, parentServiceDefinitionId: existing.parent_service_definition_id ?? undefined }, input.id);
     if (!validation.ok) return { ok: false, errors: validation.errors };
     const { data, error } = await serviceDefinitionsDB.updateDraftContent(input.id, {
-      code: seed.code, name: seed.name, capabilityCode: seed.capabilityCode, purpose: seed.purpose ?? null, inputs: seed.inputs ?? null,
-      outputs: seed.outputs ?? null, serviceLevel: seed.serviceLevel ?? [], governance: seed.governance ?? null, success: seed.success ?? null,
+      code: seed.code, name: seed.name, capabilityCode: seed.capabilityCode, purpose: seed.purpose ?? null, inputs: seed.inputs ?? [],
+      outputs: seed.outputs ?? [], serviceLevel: seed.serviceLevel ?? [], governance: seed.governance ?? null, success: seed.success ?? null,
       consumers: seed.consumers ?? [], version: seed.version, draftContent: input.content,
     });
     if (error) return { ok: false, errors: [error.message] };

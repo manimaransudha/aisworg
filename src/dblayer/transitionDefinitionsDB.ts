@@ -66,17 +66,26 @@ export const transitionDefinitionsDB = {
     requiredQualityGateIds?: string[];
     createsObligation?: string | null;
     category?: string | null;
+    // Version Feature Plan.md §3 — kept in sync with the JSON-seeded path
+    // (seedTransitionDefinitions.ts) so an SDK-authored definition doesn't
+    // silently lose its event/version declaration relative to a seeded one.
+    eventType?: string | null;
+    versionEvent?: string | null;
+    submitVersionEvent?: string | null;
   }): Promise<DbResult<TransitionDefinitionRow>> {
     try {
       const { rows } = await query<TransitionDefinitionRow>(
-        `INSERT INTO transition_definitions (entity_type, from_state, to_state, required_authority_rule_id, required_policy_ids, required_quality_gate_ids, creates_obligation, category)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `INSERT INTO transition_definitions (entity_type, from_state, to_state, required_authority_rule_id, required_policy_ids, required_quality_gate_ids, creates_obligation, category, event_type, version_event, submit_version_event)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          ON CONFLICT (entity_type, from_state, to_state) DO UPDATE
            SET required_authority_rule_id = EXCLUDED.required_authority_rule_id,
                required_policy_ids = EXCLUDED.required_policy_ids,
                required_quality_gate_ids = EXCLUDED.required_quality_gate_ids,
                creates_obligation = EXCLUDED.creates_obligation,
-               category = EXCLUDED.category
+               category = EXCLUDED.category,
+               event_type = EXCLUDED.event_type,
+               version_event = EXCLUDED.version_event,
+               submit_version_event = EXCLUDED.submit_version_event
          RETURNING *`,
         [
           input.entityType,
@@ -87,6 +96,9 @@ export const transitionDefinitionsDB = {
           input.requiredQualityGateIds ?? [],
           input.createsObligation ?? null,
           input.category ?? null,
+          input.eventType ?? null,
+          input.versionEvent ?? null,
+          input.submitVersionEvent ?? null,
         ]
       );
       return { data: rows[0] };

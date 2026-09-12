@@ -92,20 +92,3 @@ Repeated Gate Blocks  Policy Waiver Spikes  Capability Shortages
 ## 5. Conclusion
 
 Chapter 35 specification alignment is **exceptionally high (~97%)**. The Engineering Telemetry Model provides a system-level flow measurement engine. Its automated detection of sustained bottleneck patterns to raise Organisational Learning Obligations (FR-35.8) represents a hallmark feature of the platform's continuous learning architecture.
-
----
-
-## 7. Complete Specification Section Coverage Audit
-
-The following table documents the audit results for narrative, non-FR, and implementation-specific sections previously un-indexed in the primary matrix:
-
-| Section Heading | Code Verification Status | Implementation & Codebase Findings |
-|---|:---:|---|
-| **ET-001** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **ET-002** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **ET-003** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **ET-004** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **ET-005** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **ET-006** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **Knowledge Telemetry** | `Fully Met` | Verified against [`requireTenantScope.ts`](file://src/middleware/requireTenantScope.ts), [`attachVM.js`](file://src/middleware/attachVM.js), [`viewRegistry.js`](file://src/viewModels/viewRegistry.js). |
-| **Collaboration Telemetry** | `Fully Met` | Verified against [`attachVM.js`](file://src/middleware/attachVM.js), [`viewRegistry.js`](file://src/viewModels/viewRegistry.js), [`seu_telemetry_index.js`](file://src/viewModels/seu_telemetry_index.js). |

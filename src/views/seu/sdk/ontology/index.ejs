@@ -20,10 +20,13 @@
       <p class="text-muted small mb-0">
         The vocabulary every write checks against (Ch.18). <strong>Platform</strong> concepts are canonical and
         visible to everyone; your own additions land in <strong>your tenant's</strong> vocabulary alongside them —
-        <%= locals.isRoot ? "as root, you're adding to Platform's shared set." : "nobody else's vocabulary is affected, and nobody else can retire yours." %>
-        Add or <strong>retire</strong> (soft — never delete): a retired concept stays and existing data keeps working,
-        it just drops out of new pickers. New codes are <strong>lowercase, hyphenated, no spaces</strong>
-        (e.g. <code>capability-name</code>).
+        <%= locals.isRoot ? "as root, you're adding to Platform's shared set." : "nobody else's vocabulary is affected, and nobody else can act on yours." %>
+        Every concept is <strong>versioned</strong> (Ch.18 §12): adding a code that already exists publishes a new
+        Version and automatically deprecates the one before it — nothing is ever overwritten in place. A concept's
+        own lifecycle (never a hard delete) moves forward one step at a time:
+        <strong>Active → Deprecated → Retired → Archived</strong> — Deprecated still works but is discouraged for
+        new use, Retired drops out of new-item pickers, Archived is final. New codes are
+        <strong>lowercase, hyphenated, no spaces</strong> (e.g. <code>capability-name</code>).
       </p>
     </div>
 
@@ -31,7 +34,7 @@
     <%- include('../../../partials/verticalTabs', { tabs: conceptTypes.map(function (ct) { return { key: ct, label: ct, href: '/aisworg/seu/sdk/ontology?type=' + encodeURIComponent(ct) }; }), active: activeType }) %>
     <div class="flex-grow-1" style="min-width: 0;">
 
-    <div class="card border-0 shadow-sm mb-4">
+    <div class="card border-0 shadow-sm mb-4" id="addConceptCard">
       <div class="card-body">
         <form method="POST" action="/aisworg/seu/sdk/ontology/add" class="row g-2 align-items-end">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -40,16 +43,127 @@
             <input name="conceptType" class="form-control form-control-sm" value="<%= activeType %>" placeholder="capability-name" required>
             <div class="form-text small">Existing type, or type a new one to start it.</div>
           </div>
-          <div class="col-sm-3"><label class="form-label small mb-1">Code</label><input name="code" class="form-control form-control-sm" placeholder="requirements-analysis" required></div>
-          <div class="col-sm-4"><label class="form-label small mb-1">Label</label><input name="defaultLabel" class="form-control form-control-sm" placeholder="Requirements Analysis" required></div>
-          <div class="col-sm-2 d-grid"><button class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Add concept</button></div>
+          <div class="col-sm-3"><label class="form-label small mb-1">Code</label><input name="code" id="addCode" class="form-control form-control-sm" placeholder="requirements-analysis" required></div>
+          <div class="col-sm-4"><label class="form-label small mb-1">Label</label><input name="defaultLabel" id="addLabel" class="form-control form-control-sm" placeholder="Requirements Analysis" required></div>
+          <div class="col-sm-2 d-grid"><button class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Add / Save</button></div>
+          <div class="col-sm-3">
+            <label class="form-label small mb-1">Text type</label>
+            <select name="textType" class="form-select form-select-sm" id="addTextType">
+              <option value="markdown" selected>Markdown</option>
+              <option value="text">Plain text</option>
+            </select>
+          </div>
+          <div class="col-sm-5">
+            <label class="form-label small mb-1">UI grouping <span class="text-muted fw-normal">(optional — existing shown below, or type a new one; groups this code under one navbar entry, Ch.18/CR-096)</span></label>
+            <input name="uiGrouping" id="addUiGrouping" class="form-control form-control-sm" list="addUiGroupingOptions" placeholder="e.g. SEU Configurations" autocomplete="off">
+            <datalist id="addUiGroupingOptions">
+              <% (locals.existingGroupLabels || []).forEach(function (g) { %><option value="<%= g %>"><% }) %>
+            </datalist>
+          </div>
           <div class="col-12">
             <label class="form-label small mb-1">Description <span class="text-muted fw-normal">(optional — "when to use this", shown as guidance wherever this concept is picked)</span></label>
-            <textarea name="description" class="form-control form-control-sm" rows="2" placeholder="e.g. Template for creating software for a web application that has enterprise wide impact; use this when..."></textarea>
+            <div id="addDescMarkdown">
+              <%- include('../_markdownEditorField', { name: 'description', value: '', required: false, placeholder: 'e.g. Template for creating software for a web application that has enterprise wide impact; use this when...' }) %>
+            </div>
+            <textarea id="addDescPlain" name="description" class="form-control form-control-sm" rows="2" hidden placeholder="Plain-text description — no markdown rendering."></textarea>
           </div>
         </form>
       </div>
     </div>
+    <script>
+      (function () {
+        var sel = document.getElementById('addTextType');
+        var mdWrap = document.getElementById('addDescMarkdown');
+        var plainTa = document.getElementById('addDescPlain');
+        if (!sel || !mdWrap || !plainTa) return;
+        var mdTa = mdWrap.querySelector('textarea[name="description"]');
+        function sync() {
+          var isMarkdown = sel.value !== 'text';
+          mdWrap.hidden = !isMarkdown;
+          plainTa.hidden = isMarkdown;
+          if (mdTa) mdTa.disabled = !isMarkdown;
+          plainTa.disabled = isMarkdown;
+        }
+        sel.addEventListener('change', sync);
+        sync();
+
+        // "Edit" button on a concept row (owner: "The lists should have an
+        // edit button") — pre-fills THIS SAME form (code/label/text type/
+        // UI grouping/description) with that row's own values and scrolls
+        // to it, instead of retyping a concept from scratch to publish a
+        // new Version of it. Saving still goes through addConcept's own
+        // create-or-new-version logic unchanged — an existing code just
+        // publishes a new Version, same as typing it by hand would.
+        var codeInput = document.getElementById('addCode');
+        var labelInput = document.getElementById('addLabel');
+        var uiGroupingInput = document.getElementById('addUiGrouping');
+        document.querySelectorAll('.js-edit-concept').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            if (codeInput) codeInput.value = btn.getAttribute('data-code') || '';
+            if (labelInput) labelInput.value = btn.getAttribute('data-label') || '';
+            if (uiGroupingInput) uiGroupingInput.value = btn.getAttribute('data-ui-grouping') || '';
+            sel.value = btn.getAttribute('data-text-type') || 'markdown';
+            sync();
+            var desc = btn.getAttribute('data-description') || '';
+            if (mdTa) mdTa.value = desc;
+            plainTa.value = desc;
+            var card = document.getElementById('addConceptCard');
+            if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          });
+        });
+      })();
+    </script>
+
+    <% if (activeType && (locals.compositionSources || []).length > 0) { %>
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+          <button class="btn btn-sm btn-outline-secondary mb-2" type="button" data-bs-toggle="collapse" data-bs-target="#composePanel">
+            <i class="bi bi-diagram-2 me-1"></i>Compose from an existing concept
+          </button>
+          <div class="collapse" id="composePanel">
+            <p class="text-muted small">
+              Same Composition Strategy engine Pack authoring uses (CR-067). <strong>Specialization</strong> copies a
+              source concept's label/description into a new code, free to diverge from there.
+              <strong>Override</strong> publishes a new Version of one of your own existing concepts, unchanged
+              fields carried forward.
+            </p>
+            <form method="POST" action="/aisworg/seu/sdk/ontology/compose" class="row g-2 align-items-end">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="conceptType" value="<%= activeType %>">
+              <div class="col-sm-2">
+                <label class="form-label small mb-1">Strategy</label>
+                <select name="strategy" class="form-select form-select-sm" id="composeStrategy">
+                  <option value="specialization">Specialization</option>
+                  <option value="override">Override</option>
+                </select>
+              </div>
+              <div class="col-sm-3" id="composeSourceGroup">
+                <label class="form-label small mb-1">Source concept</label>
+                <select name="sourceConceptId" class="form-select form-select-sm">
+                  <% compositionSources.forEach(function (s) { %>
+                    <option value="<%= s.id %>"><%= s.code %> — <%= s.label %><%= s.isPlatform ? ' (Platform)' : '' %></option>
+                  <% }) %>
+                </select>
+              </div>
+              <div class="col-sm-2"><label class="form-label small mb-1">Code</label><input name="code" class="form-control form-control-sm" placeholder="new or existing code" required></div>
+              <div class="col-sm-2"><label class="form-label small mb-1">Label override <span class="text-muted fw-normal">(optional)</span></label><input name="defaultLabel" class="form-control form-control-sm"></div>
+              <div class="col-sm-2"><label class="form-label small mb-1">Description override <span class="text-muted fw-normal">(optional)</span></label><input name="description" class="form-control form-control-sm"></div>
+              <div class="col-sm-1 d-grid"><button class="btn btn-primary btn-sm"><i class="bi bi-diagram-2 me-1"></i>Compose</button></div>
+            </form>
+          </div>
+        </div>
+      </div>
+      <script>
+        (function () {
+          var strategySel = document.getElementById('composeStrategy');
+          var sourceGroup = document.getElementById('composeSourceGroup');
+          if (!strategySel || !sourceGroup) return;
+          function sync() { sourceGroup.hidden = strategySel.value === 'override'; }
+          strategySel.addEventListener('change', sync);
+          sync();
+        })();
+      </script>
+    <% } %>
 
     <% if (activeType) { %>
       <%- include('../../../partials/listControls', { list: list, listBasePath: listBasePath, searchPlaceholder: 'Search' }) %>
@@ -61,33 +175,60 @@
               <tr>
                 <th><%- sortLink('Code', 'code', list, listBasePath) %></th>
                 <th><%- sortLink('Label', 'label', list, listBasePath) %></th>
+                <th>Version</th>
                 <th><%- sortLink('Owner', 'tenant', list, listBasePath) %></th>
-                <th><%- sortLink('Status', 'active', list, listBasePath) %></th>
+                <th><%- sortLink('Status', 'status', list, listBasePath) %></th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              <% if (list.total === 0) { %><tr><td colspan="5" class="text-muted small text-center py-3"><%= list.q ? 'No concepts match your search.' : 'No concepts for this type yet.' %></td></tr><% } %>
+              <% if (list.total === 0) { %><tr><td colspan="6" class="text-muted small text-center py-3"><%= list.q ? 'No concepts match your search.' : 'No concepts for this type yet.' %></td></tr><% } %>
+              <% var STATUS_BADGE = { Active: 'bg-success-subtle text-success border-success-subtle', Deprecated: 'bg-warning-subtle text-warning-emphasis border-warning-subtle', Retired: 'bg-secondary-subtle text-secondary border-secondary-subtle', Archived: 'bg-dark-subtle text-dark-emphasis border-dark-subtle' }; %>
+              <% var ACTION_LABEL = { Deprecated: 'Deprecate', Retired: 'Retire', Archived: 'Archive' }; %>
               <% list.items.forEach(function(c) { %>
-                <% var canRetireThis = locals.isRoot || !c.isPlatform; %>
-                <tr class="<%= c.isActive ? '' : 'text-muted' %>">
+                <% var canActOnThis = locals.isRoot || !c.isPlatform; %>
+                <tr class="<%= c.status === 'Active' ? '' : 'text-muted' %>">
                   <td><code><%= c.code %></code></td>
                   <td class="small">
                     <%= c.label %>
-                    <% if (c.description) { %><div class="text-muted small fst-italic mt-1" style="max-width: 32rem;"><%= c.description %></div><% } %>
-                  </td>
-                  <td><% if (c.isPlatform) { %><span class="badge bg-primary-subtle text-primary border border-primary-subtle">Platform</span><% } else { %><span class="badge bg-light text-dark border">Your tenant</span><% } %></td>
-                  <td><% if (c.isActive) { %><span class="badge bg-success-subtle text-success border border-success-subtle">Active</span><% } else { %><span class="badge bg-secondary-subtle text-secondary border">Retired</span><% } %></td>
-                  <td class="text-end">
-                    <% if (c.isActive && canRetireThis) { %>
-                      <form method="POST" action="/aisworg/seu/sdk/ontology/retire" onsubmit="return confirm('Retire concept <%= c.code %>? Existing data is unaffected; it just won\'t be offered for new items.');">
-                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                        <input type="hidden" name="conceptType" value="<%= activeType %>">
-                        <input type="hidden" name="code" value="<%= c.code %>">
-                        <input type="hidden" name="tenantId" value="<%= c.tenantId %>">
-                        <button class="btn btn-sm btn-outline-secondary">Retire</button>
-                      </form>
+                    <% if (c.description) { %>
+                      <button type="button" class="btn btn-link btn-sm p-0 ms-2 align-baseline" data-bs-toggle="modal" data-bs-target="#descriptionModal"
+                        data-code="<%= c.code %>" data-label="<%= c.label %>" data-text-type="<%= c.textType %>"
+                        data-description="<%= c.textType === 'markdown' ? renderMarkdown(c.description) : c.description %>"><i class="bi bi-eye me-1"></i>View</button>
                     <% } %>
+                    <% if (c.compositionStrategy) { %>
+                      <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle ms-1" title="<%= (c.compositionSources || []).map(function(s){ return s.code; }).join(', ') %>">
+                        <%= c.compositionStrategy === 'specialization' ? 'Specialized' : 'Override' %>
+                      </span>
+                    <% } %>
+                    <% if (c.uiGrouping) { %>
+                      <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle ms-1" title="Grouped under this label in the Ontology navigation — edit in Ontology &gt; Metadata (CR-096)">
+                        <i class="bi bi-diagram-2 me-1"></i><%= c.uiGrouping %>
+                      </span>
+                    <% } %>
+                  </td>
+                  <td class="small"><code><%= c.version %></code></td>
+                  <td><% if (c.isPlatform) { %><span class="badge bg-primary-subtle text-primary border border-primary-subtle">Platform</span><% } else { %><span class="badge bg-light text-dark border">Your tenant</span><% } %></td>
+                  <td><span class="badge border <%= STATUS_BADGE[c.status] %>"><%= c.status %></span></td>
+                  <td class="text-end">
+                    <div class="d-flex gap-1 justify-content-end">
+                      <% if (canActOnThis) { %>
+                        <button type="button" class="btn btn-sm btn-outline-secondary js-edit-concept"
+                          data-code="<%= c.code %>" data-label="<%= c.label %>" data-text-type="<%= c.textType %>"
+                          data-ui-grouping="<%= c.uiGrouping || '' %>" data-description="<%= c.description || '' %>">
+                          <i class="bi bi-pencil me-1"></i>Edit
+                        </button>
+                      <% } %>
+                      <% if (c.nextState && canActOnThis) { %>
+                        <form method="POST" action="/aisworg/seu/sdk/ontology/<%= c.nextState.verb %>" onsubmit="return confirm('<%= ACTION_LABEL[c.nextState.toState] %> concept <%= c.code %> (v<%= c.version %>)?');">
+                          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                          <input type="hidden" name="conceptType" value="<%= activeType %>">
+                          <input type="hidden" name="code" value="<%= c.code %>">
+                          <input type="hidden" name="tenantId" value="<%= c.tenantId %>">
+                          <button class="btn btn-sm btn-outline-secondary"><%= ACTION_LABEL[c.nextState.toState] %></button>
+                        </form>
+                      <% } %>
+                    </div>
                   </td>
                 </tr>
               <% }) %>
@@ -101,6 +242,50 @@
     </div>
   </main>
 
+  <!-- Shared description modal — one instance, refilled per row from the
+       triggering button's data-* attributes (Bootstrap's relatedTarget
+       pattern) rather than one modal per row, since a description can grow
+       long once markdown (headings, fenced code, lists) is in play. -->
+  <div class="modal fade" id="descriptionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title mb-0">
+            <code id="descriptionModalCode"></code>
+            <span id="descriptionModalLabel" class="ms-2"></span>
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="descriptionModalBody"></div>
+      </div>
+    </div>
+  </div>
+
   <%- include('../../../partials/footer') %>
+  <script src="<%= baseUrl %>/js/markdownEditor.js"></script>
+  <script>
+    (function () {
+      var modalEl = document.getElementById('descriptionModal');
+      if (!modalEl) return;
+      modalEl.addEventListener('show.bs.modal', function (event) {
+        var btn = event.relatedTarget;
+        if (!btn) return;
+        document.getElementById('descriptionModalCode').textContent = btn.getAttribute('data-code') || '';
+        document.getElementById('descriptionModalLabel').textContent = btn.getAttribute('data-label') || '';
+        var body = document.getElementById('descriptionModalBody');
+        var raw = btn.getAttribute('data-description') || '';
+        // text_type (migration 191) decides HOW to inject: markdown was
+        // already rendered+sanitized server-side (safe as innerHTML); plain
+        // text never went through sanitize-html, so it must go in as literal
+        // text (textContent), never innerHTML, or a stray "<" would be
+        // parsed as a tag.
+        if (btn.getAttribute('data-text-type') === 'text') {
+          body.textContent = raw;
+        } else {
+          body.innerHTML = raw;
+        }
+      });
+    })();
+  </script>
 </body>
 </html>

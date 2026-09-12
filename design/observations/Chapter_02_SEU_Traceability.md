@@ -126,18 +126,3 @@ A notable structural discrepancy exists between the specification lifecycle and 
 ## 7. Conclusion
 
 Chapter 2 specification alignment is **solid (~88%)**. The SEU as an executable runtime aggregate with singular resource ownership, dependency-driven dispatch, participant isolation, and EBM inheritance is fully implemented. The primary observations relate to state-naming alignment (`Infrastructure-Readiness` vs. `Work-Progress`) and the omission of a explicit `Roles` component.
-
----
-
-## 7. Complete Specification Section Coverage Audit
-
-The following table documents the audit results for narrative, non-FR, and implementation-specific sections previously un-indexed in the primary matrix:
-
-| Section Heading | Code Verification Status | Implementation & Codebase Findings |
-|---|:---:|---|
-| **19.1 ✅ Purpose / Definition (§1)** | `Fully Met` | Verified against [`attachVM.js`](file://src/middleware/attachVM.js), [`requireBadge.ts`](file://src/middleware/requireBadge.ts), [`seu_policy_definitions_index.js`](file://src/viewModels/seu_policy_definitions_index.js). |
-| **19.2 ✅ Architectural Position (§3)** | `Fully Met` | Verified against [`seu_seus_compose.js`](file://src/viewModels/seu_seus_compose.js), [`seu_objectives_edit.js`](file://src/viewModels/seu_objectives_edit.js), [`seu_seus_validate.js`](file://src/viewModels/seu_seus_validate.js). |
-| **19.3 ✅ Responsibilities (§4)** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **19.13 ⚠️ Non-Functional Requirements (§16)** | `Unbuilt / Deferred` | Verified against No direct matches in `src/` (Unbuilt/Deferred). |
-| **19.14 ⚠️ Acceptance Criteria (§17)** | `Fully Met` | Verified against [`app.js`](file://src/app.js), [`reviewGatesDB.ts`](file://src/dblayer/reviewGatesDB.ts), [`evidenceDB.ts`](file://src/dblayer/evidenceDB.ts). |
-| **Summary — ranked** | `Fully Met` | Verified against [`compliance-do178c-aviation.pack.json`](file://src/dblayer/seed/data/compliance-do178c-aviation.pack.json), [`technology-git.pack.json`](file://src/dblayer/seed/data/technology-git.pack.json), [`test-technology-git.pack.json`](file://src/dblayer/seed/data/test-fixtures/test-technology-git.pack.json). |

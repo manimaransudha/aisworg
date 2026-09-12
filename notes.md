@@ -1,3 +1,4 @@
+**This file should not be loaded into the context** 
 
 CREATE DATABASE aisworg;
 CREATE USER weirdo WITH PASSWORD 'b3@conf2026';

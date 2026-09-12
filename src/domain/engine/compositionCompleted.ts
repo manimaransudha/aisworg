@@ -31,7 +31,7 @@ export const compositionCompletedHandler: EventHandler = async (event: EventRow)
   const stashed = seu.composition_report as {
     composedPacks?: EbmComposedPack[];
     compositionReport?: EbmCompositionReport;
-    unraveled?: { pool: unknown[] };
+    unraveled?: { pool: unknown[]; competencyRequirements?: Record<string, string[]> };
     resolvedCompositionConflicts?: Record<string, unknown>;
   } | null;
 
@@ -42,7 +42,17 @@ export const compositionCompletedHandler: EventHandler = async (event: EventRow)
   // plus what every conflict actually resolved to — not recomputed, just
   // carried onto the EBM itself instead of staying stranded in
   // seus.composition_report.
-  const behaviors = { pool: stashed?.unraveled?.pool ?? [], resolvedCompositionConflicts: stashed?.resolvedCompositionConflicts ?? {} };
+  //
+  // competencyRequirements (owner: "the primary programming language should
+  // be unioned with the technology competencies in the packs... Same with
+  // domain as well") — unravelComposition's own union, carried the same way,
+  // read by findEligibleParticipants (core/participantEligibility.ts) as its
+  // `competency` filter once this EBM is this SEU's active one.
+  const behaviors = {
+    pool: stashed?.unraveled?.pool ?? [],
+    resolvedCompositionConflicts: stashed?.resolvedCompositionConflicts ?? {},
+    competencyRequirements: stashed?.unraveled?.competencyRequirements ?? {},
+  };
 
   const { data: ebm, error: ebmErr } = await ebmsDB.create({
     seuId,

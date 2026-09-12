@@ -68,6 +68,25 @@ export const seuCapabilitiesDB = {
     }
   },
 
+  // Owner: "Replace should take it back to unfilled state... Howmany ever
+  // number of participants are released, it should remain the same [->
+  // Unfulfilled]" — releasing any number of currently-fulfilling
+  // Participants (releaseParticipants, core/capabilities.ts) always reverts
+  // this Capability to Unfulfilled unconditionally, never conditional on
+  // whether some other fulfilment happens to remain active.
+  async markUnfulfilled(id: string): Promise<DbResult<SeuCapabilityRow>> {
+    try {
+      const { rows } = await query<SeuCapabilityRow>(
+        "UPDATE seu_capabilities SET status = 'Unfulfilled' WHERE id = $1 RETURNING *",
+        [id]
+      );
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[seuCapabilitiesDB] markUnfulfilled error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   // Engineering Telemetry — Plan, Build order step 5 — sustained-pattern
   // detection input for capability shortage (d), Ch.35 §11's own example of
   // a genuinely cross-SEU pattern. seu_ids ordered newest-SEU-first so the

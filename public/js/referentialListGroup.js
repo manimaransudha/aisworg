@@ -40,6 +40,18 @@
         // touched by that — clear it explicitly so the reset filter and
         // the actually-visible Pack options agree.
         clone.querySelectorAll('.dep-pack-select option[hidden]').forEach(function (opt) { opt.hidden = false; });
+        // CR-100 — Competency's own `value` combo (.ontology-combo,
+        // dynamicOntologyField.js) carries its driver's row-scoped field
+        // name in a data-* attribute, which the input/select/textarea loop
+        // above never touches; fix its row index up the same way, then
+        // initialise the clone's own listeners (never bound — this file's
+        // own querySelectorAll ran once, at page load, before this row
+        // existed).
+        clone.querySelectorAll('.ontology-combo[data-driver-field]').forEach(function (combo) {
+          var driverField = combo.getAttribute('data-driver-field');
+          if (driverField) combo.setAttribute('data-driver-field', driverField.replace(/\[\d+\]/, '[' + nextIndex + ']'));
+          if (typeof window.initOntologyCombo === 'function') window.initOntologyCombo(combo);
+        });
         group.setAttribute('data-next-index', String(nextIndex + 1));
         addBtn.parentNode.insertBefore(clone, addBtn);
         notifyDirty();

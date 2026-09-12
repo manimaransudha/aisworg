@@ -1,10 +1,9 @@
 import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
-import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
-import { assertCanonicalCategory } from "./ontology.js";
+import { assertCanonicalCategory, syncConceptFromEntity, retireConceptForEntity } from "./ontology.js";
 import type { ServiceDefinitionRow, ServiceLevelExpectation } from "../../../dblayer/seuTypes.js";
 
 // CR-086 follow-on — Service Definition authoring (Book 3 Ch.11), mirroring
@@ -25,8 +24,14 @@ export interface ServiceDefinitionSeedInput {
   name: string;
   capabilityCode: string;
   purpose?: string | null;
-  inputs?: string | null;
-  outputs?: string | null;
+  // Bug fix — migration 159 made these TEXT[] (a referential-multi-select of
+  // deliverable-name Ontology codes, mirroring `consumers` against
+  // capability-name), but this field stayed typed/parsed as a bare string
+  // ever since — never actually populatable through the real form, and a
+  // NOT NULL violation for any caller (including this file's own
+  // copyServiceDefinitionAsNewDraft) that omitted it entirely.
+  inputs?: string[];
+  outputs?: string[];
   serviceLevel?: ServiceLevelExpectation[];
   governance?: string | null;
   success?: string | null;
@@ -82,6 +87,25 @@ export async function validateServiceDefinitionSeed(seed: ServiceDefinitionSeedI
     }
   }
 
+  // Bug fix — migration 159 made inputs/outputs a referential-multi-select
+  // against deliverable-name (the same treatment consumers already gets
+  // against capability-name, just above), but no validation was ever added
+  // to match; this is the missing half of that migration.
+  for (const input of seed.inputs ?? []) {
+    try {
+      await assertCanonicalCategory("deliverable-name", input);
+    } catch (err) {
+      errors.push((err as Error).message);
+    }
+  }
+  for (const output of seed.outputs ?? []) {
+    try {
+      await assertCanonicalCategory("deliverable-name", output);
+    } catch (err) {
+      errors.push((err as Error).message);
+    }
+  }
+
   if (seed.parentServiceDefinitionId) {
     const { data: parent } = await serviceDefinitionsDB.findById(seed.parentServiceDefinitionId);
     if (!parent) {
@@ -108,45 +132,41 @@ export async function inheritedServiceDefinitionContent(parentServiceDefinitionI
   return {
     ok: true,
     content: {
-      code: parent.code, name: parent.name, capabilityCode: parent.capability_code, purpose: parent.purpose ?? "", inputs: parent.inputs ?? "",
-      outputs: parent.outputs ?? "", serviceLevel: parent.service_level, governance: parent.governance ?? "", success: parent.success ?? "", consumers: parent.consumers,
+      code: parent.code, name: parent.name, capabilityCode: parent.capability_code, purpose: parent.purpose ?? "", inputs: parent.inputs,
+      outputs: parent.outputs, serviceLevel: parent.service_level, governance: parent.governance ?? "", success: parent.success ?? "", consumers: parent.consumers,
     },
   };
 }
 
 export type TransitionServiceDefinitionResult = { ok: true; serviceDefinition: ServiceDefinitionRow } | { ok: false; reason: string; detail?: string };
 
-// Mirrors core/deliverableDefinitions.ts's own EVENT_BY_TARGET_STATE, one
-// level down: "ServiceDefinition..." not "Service..." — reserved for a
-// future real `services` execution-side event of the same short name
-// (Ch.11 §14's own ServiceDefined/ServicePublished/etc. are that entity's,
-// not this Definition's, even though they share a name).
-const EVENT_BY_TARGET_STATE: Record<string, string> = {
-  Published: "ServiceDefinitionPublished",
-  Active: "ServiceDefinitionActivated",
-  Deprecated: "ServiceDefinitionDeprecated",
-  Retired: "ServiceDefinitionRetired",
-  Archived: "ServiceDefinitionArchived",
-};
-
 // Syncs the `service-name` Ontology concept — only at the moment of
 // genuinely becoming (or ceasing to be) Active, mirroring
 // syncOntologyOnActivate/demoteOntologyIfNoOtherActive in
 // core/deliverableDefinitions.ts exactly, one concept type over.
 async function syncOntologyOnActivate(row: ServiceDefinitionRow): Promise<void> {
-  await ontologyDB.upsertConcept({ conceptType: "service-name", code: row.code, defaultLabel: row.name, description: row.purpose, tenantId: row.tenant_id });
+  await syncConceptFromEntity("service-name", row.code, row.name, row.purpose ?? null, row.tenant_id);
 }
 
 async function demoteOntologyIfNoOtherActive(row: ServiceDefinitionRow): Promise<void> {
   const { data: stillActive } = await serviceDefinitionsDB.findActiveByCode(row.code, row.tenant_id);
-  if (!stillActive) await ontologyDB.retireConcept("service-name", row.code, row.tenant_id);
+  if (!stillActive) await retireConceptForEntity("service-name", row.code, row.tenant_id);
 }
 
+// Version Feature Plan.md §3/§4 (Ch.11, migration 188) — event_type is now
+// read straight off the resolved Transition Definition (transitionEngine's
+// TransitionOutcome), replacing the hardcoded EVENT_BY_TARGET_STATE map this
+// used to carry — mirrors how Template's/Profile's identical maps were
+// replaced, migrations 185/187.
 export async function transitionServiceDefinition(input: { serviceDefinitionId: string; targetState: ServiceDefinitionRow["status"]; actorRole: string; actorId?: string }): Promise<TransitionServiceDefinitionResult> {
   const { data: serviceDefinition } = await serviceDefinitionsDB.findById(input.serviceDefinitionId);
   if (!serviceDefinition) return { ok: false, reason: "not_found" };
   const fromState = serviceDefinition.status;
-  const gate = await transitionEngine.evaluate({ entityType: "Service", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId, context: { serviceDefinition } });
+  // entityId passed so a Service Definition row ever declaring submit_verb
+  // (none do today) would have its triggerEngine.hasBeenSubmitted check
+  // actually work — the same latent gap Template's/Profile's own
+  // transitionTemplate/transitionProfile had before their fix.
+  const gate = await transitionEngine.evaluate({ entityType: "Service", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId, entityId: serviceDefinition.id, context: { serviceDefinition } });
   if (!gate.allowed) {
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Service ${fromState} -> ${input.targetState}` };
@@ -161,7 +181,7 @@ export async function transitionServiceDefinition(input: { serviceDefinitionId: 
   else if (fromState === "Active") await demoteOntologyIfNoOtherActive(updated);
 
   await eventBus.publish({
-    eventType: EVENT_BY_TARGET_STATE[input.targetState] ?? "ServiceDefinitionTransitioned",
+    eventType: gate.eventType ?? "ServiceDefinitionTransitioned",
     originatingObjectType: "ServiceDefinition",
     originatingObjectId: updated.id,
     seuId: null, // platform catalog entity, not SEU-scoped
@@ -209,8 +229,8 @@ export async function copyServiceDefinitionAsNewDraft(serviceDefinitionId: strin
     version: source.version,
     authoredBy: Number(actorId),
     draftContent: {
-      code: source.code, name: source.name, capabilityCode: source.capability_code, purpose: source.purpose ?? "", inputs: source.inputs ?? "",
-      outputs: source.outputs ?? "", serviceLevel: source.service_level, governance: source.governance ?? "", success: source.success ?? "", consumers: source.consumers,
+      code: source.code, name: source.name, capabilityCode: source.capability_code, purpose: source.purpose ?? "", inputs: source.inputs,
+      outputs: source.outputs, serviceLevel: source.service_level, governance: source.governance ?? "", success: source.success ?? "", consumers: source.consumers,
     },
     tenantId: source.tenant_id,
     parentServiceDefinitionId: source.parent_service_definition_id,

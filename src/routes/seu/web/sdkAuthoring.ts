@@ -31,7 +31,7 @@ import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
 import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
 import { badgeGrantsDB } from "../../../dblayer/badgeGrantsDB.js";
 import {
-  generateFields, parseFormBody, validateAgainstSchema, groupFieldsForDisplay, ontologyConceptTypesIn, dynamicReferentialSourceFieldsIn,
+  generateFields, parseFormBody, validateAgainstSchema, groupFieldsForDisplay, ontologyConceptTypesIn, dynamicReferentialSourceFieldsIn, dynamicReferentialSourceItemFieldsIn,
   CONTRIBUTION_SECTION_HELP, VERIFIABLE_ITEM_FIELD_HELP, type JsonSchemaDocument,
 } from "../../../domain/sdk/formGenerator.js";
 import { renderMarkdown } from "../../../domain/sdk/markdownRender.js";
@@ -587,7 +587,7 @@ async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: strin
     // should not define something beyond what a transition definition
     // already holds"). Submitted value is the machine-parseable delimited
     // triple (core/packs.ts's parseGovernedTransition splits it back apart
-    // at seedContributions time); the option's own display TEXT (set in the
+    // at materializeContributions time); the option's own display TEXT (set in the
     // view, options are plain strings here) needs to stay legible, so the
     // delimited value itself uses a readable separator rather than an
     // opaque id.
@@ -817,6 +817,20 @@ async function loadOntologyOptions(schema: JsonSchemaDocument, viewer: { isRoot:
   for (const { driverField, suffix } of dynamicReferentialSourceFieldsIn(schema)) {
     const driverConceptType = schema.properties?.[driverField]?.["x-referential-source"];
     if (!driverConceptType) continue;
+    const driverConcepts = await listConceptsForType(driverConceptType, viewer, false);
+    await Promise.all(driverConcepts.map(async (driverConcept) => {
+      const conceptType = `${driverConcept.code.toLowerCase()}${suffix}`;
+      if (result[conceptType]) return;
+      const concepts = await listConceptsForType(conceptType, viewer, false);
+      result[conceptType] = concepts.map((c) => ({ code: c.code, label: c.default_label, description: c.description })).sort((a, b) => a.label.localeCompare(b.label));
+    }));
+  }
+
+  // CR-100 — same pre-fetch, for an item-level driven field (Competency's
+  // `value`, driven by its own row's `dimension`) instead of a top-level one.
+  // The driver's own concept type is already known directly here (unlike the
+  // top-level loop above), so no schema.properties lookup is needed.
+  for (const { driverConceptType, suffix } of dynamicReferentialSourceItemFieldsIn(schema)) {
     const driverConcepts = await listConceptsForType(driverConceptType, viewer, false);
     await Promise.all(driverConcepts.map(async (driverConcept) => {
       const conceptType = `${driverConcept.code.toLowerCase()}${suffix}`;

@@ -10,6 +10,7 @@ import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { capabilityFulfilmentsDB } from "../../../dblayer/capabilityFulfilmentsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
+import { assertCanonicalCategory } from "./ontology.js";
 import type { ParticipantRow, ParticipantType } from "../../../dblayer/seuTypes.js";
 
 export type TransitionParticipantResult =
@@ -99,7 +100,10 @@ export async function replaceParticipant(input: {
   oldParticipantId: string;
   newParticipantType: ParticipantType;
   newDisplayName: string;
-  newUserId?: number | null;
+  // Migration 195 — the participants_master resource this new engagement
+  // is for, if any (CR-098). Renamed from newUserId; no current caller
+  // populates this (unchanged from before the rename).
+  newParticipantMasterId?: string | null;
   actorRole: string;
   actorId?: string;
 }): Promise<ReplaceParticipantResult> {
@@ -116,11 +120,13 @@ export async function replaceParticipant(input: {
   const toArchived = await transitionParticipant({ participantId: oldParticipant.id, targetState: "Archived", actorRole: input.actorRole, actorId: input.actorId });
   if (!toArchived.ok) return toArchived;
 
+  await assertCanonicalCategory("participant-types", input.newParticipantType);
+
   const { data: newParticipant, error } = await participantsDB.create({
     seuId: oldParticipant.seu_id,
     type: input.newParticipantType,
     displayName: input.newDisplayName,
-    userId: input.newUserId ?? null,
+    participantId: input.newParticipantMasterId ?? null,
   });
   if (error || !newParticipant) throw error ?? new Error("failed to create replacement participant");
 

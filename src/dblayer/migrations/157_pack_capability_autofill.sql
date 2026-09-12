@@ -5,7 +5,7 @@
 -- capability-name Ontology concept `code` already resolves to (and already
 -- validates against — core/packs.ts's assertCanonicalCategory), so storing
 -- them redundantly per-Pack was pure duplication, not just a non-editable
--- UI nicety. seedContributions (core/packs.ts) now looks them up from the
+-- UI nicety. materializeContributions (core/packs.ts) now looks them up from the
 -- Ontology at publish time instead of trusting the seed's own row.
 --
 -- x-ontology:true on `code` is what lets its own dropdown resolve a real

@@ -73,6 +73,7 @@ export const validateRequestHandler: EventHandler = async (event: EventRow) => {
         detail: gate.reason === "authority_denied" ? `missing badge ${gate.authorityRuleCode}` : gate.reason === "policy_blocked" ? `policy "${gate.policyCode}" blocked` : gate.reason,
       };
   if (!gate.allowed) {
+    await seusDB.updateLifecycleState(seu.id, "Failed");
     await eventBus.publish({
       eventType: "CommissionFailed",
       originatingObjectType: "SEU",
@@ -83,7 +84,6 @@ export const validateRequestHandler: EventHandler = async (event: EventRow) => {
       actorId: event.actor_id,
       payload: { stage: "validate_request", checks: [authorityCheck], ...gate },
     });
-    await seusDB.updateLifecycleState(seu.id, "Failed");
     return;
   }
 

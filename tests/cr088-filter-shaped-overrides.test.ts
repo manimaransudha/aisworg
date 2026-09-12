@@ -166,7 +166,7 @@ test("Profile override: a real value from the candidate's own valueOptions is ac
   const validation = await validateProfileSeed(seed);
   assert.equal(validation.ok, true, !validation.ok ? `unexpected validation errors: ${validation.errors.join("; ")}` : undefined);
 
-  const result = await publishProfile(seed);
+  const result = await publishProfile({ seed, actorRole: "power", actorId: "1001" });
   assert.equal(result.ok, true, !result.ok ? result.errors.join("; ") : undefined);
   if (!result.ok) return;
 
@@ -213,11 +213,15 @@ test("publishTemplate: materialises a non-sparse exposedParameters set from the 
   const { packCode, checklistId } = await buildFixturePack();
 
   const result = await publishTemplate({
-    code: "test-cr088-publish-template",
-    name: "CR-088 publishTemplate fixture",
-    templateVersion: uniqueTestPackVersion(),
-    engineeringPackCodes: [packCode],
-    deliverableCatalogue: [],
+    seed: {
+      code: "test-cr088-publish-template",
+      name: "CR-088 publishTemplate fixture",
+      templateVersion: uniqueTestPackVersion(),
+      engineeringPackCodes: [packCode],
+      deliverableCatalogue: [],
+    },
+    actorRole: "power",
+    actorId: "1001",
   });
   assert.equal(result.ok, true, !result.ok ? JSON.stringify(result.errors) : undefined);
   if (!result.ok) return;

@@ -53,20 +53,20 @@ Execution within an SEU is initiated only when dependency conditions have been s
 
 This chapter defines:
 
-- dependency model;
-- dependency graph;
-- readiness evaluation;
-- dependency state;
-- dependency resolution;
-- execution triggering;
-- dependency monitoring.
+- dependency model
+- dependency graph
+- readiness evaluation
+- dependency state
+- dependency resolution
+- execution triggering
+- dependency monitoring
 
 This chapter does not define:
 
-- engineering behaviour;
-- participant reasoning;
-- work item execution;
-- project scheduling.
+- engineering behaviour
+- participant reasoning
+- work item execution
+- project scheduling
 
 ---
 
