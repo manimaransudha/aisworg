@@ -219,6 +219,30 @@
         "dimension": "Technology",
         "value": "nodejs"
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "test-nodejs-runtime-eol-tracking",
+        "category": "Security",
+        "title": "The Node.js runtime version must be tracked against its official support lifecycle",
+        "description": "Running on a Node.js major version past its official End-of-Life means no further security patches; the runtime version in use must be tracked against the Node.js release schedule and upgraded before EOL, not discovered after a patch stops arriving.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "The deployed Node.js runtime version is confirmed within its supported lifecycle window at all times.",
+        "requiredEvidence": {
+          "title": "Runtime version currency check",
+          "category": "Validation Evidence",
+          "description": "Deployed Node.js version compared against the official release/EOL schedule.",
+          "collectionMethod": "Automated runtime-version inventory check."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated dependency/vulnerability scan check.",
+        "externalEvidence": false
+      }
     ]
   }
 }

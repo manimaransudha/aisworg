@@ -62,6 +62,7 @@
                           <%= !currentUser || currentUser.email === u.email ? 'disabled' : '' %>>
                     <option value="general" <%= u.role==='general' ? 'selected' : '' %>>General</option>
                     <option value="power"   <%= u.role==='power'   ? 'selected' : '' %>>Power</option>
+                    <option value="tenant_super" <%= u.role==='tenant_super' ? 'selected' : '' %>>Tenant Super</option>
                     <option value="super"   <%= u.role==='super'   ? 'selected' : '' %>>Super</option>
                   </select>
                 </form>
@@ -134,6 +135,7 @@
             <label class="form-label small fw-semibold">Role *</label>
             <select name="role" class="form-select" required>
               <option value="power">Power</option>
+              <option value="tenant_super">Tenant Super</option>
               <option value="super">Super</option>
             </select>
           </div>

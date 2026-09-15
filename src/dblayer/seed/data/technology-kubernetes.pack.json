@@ -59,6 +59,30 @@
         "dimension": "Technology",
         "value": "kubernetes"
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "kubernetes-manifest-resource-limit-audit",
+        "category": "Engineering",
+        "title": "Workload manifests must declare resource requests/limits and be audited for drift",
+        "description": "A Kubernetes workload deployed without resource requests/limits can starve or be starved by its neighbors; manifests must be audited periodically to confirm every workload still declares appropriate limits, not only at initial rollout.",
+        "origin": "Quality Gates",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Every deployed workload's manifest declares resource requests/limits, confirmed within the declared audit cadence.",
+        "requiredEvidence": {
+          "title": "Manifest resource-limit audit",
+          "category": "Validation Evidence",
+          "description": "Cluster admission/audit output confirming resource requests/limits on all workloads.",
+          "collectionMethod": "Automated manifest policy/admission-controller audit."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated dependency/vulnerability scan check.",
+        "externalEvidence": false
+      }
     ]
   }
 }

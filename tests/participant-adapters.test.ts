@@ -78,7 +78,6 @@ after(async () => {
   const { data: caps } = await capabilitiesDB.findByCodes(["requirements-analysis"]);
   for (const cap of caps ?? []) await executionTargetsDB.deleteByTenantAndCapability(defaultTenantId, cap.id);
   await new Promise<void>((resolve) => captureServer.close(() => resolve()));
-  await pool.end();
 });
 
 async function commissionAndFulfil(prefix: string) {

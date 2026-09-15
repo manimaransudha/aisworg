@@ -99,6 +99,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-vision-assumption-validation",
+        "category": "Organisational Learning",
+        "title": "Validate core vision assumptions before funding downstream phases",
+        "description": "The market/opportunity assumptions underlying the Product Vision One-Pager and Lean Canvas must be tracked and revisited against real discovery/beta findings, not treated as fixed once later phases are commissioned on top of them.",
+        "origin": "Organisation Packs",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "The assumption log is checked against discovery/beta findings at each downstream phase gate; discrepancies are recorded as Knowledge, not silently dropped.",
+        "requiredEvidence": {
+          "title": "Assumption log review",
+          "category": "Analytical Evidence",
+          "description": "A recorded review of the vision's stated assumptions against evidence gathered in later phases.",
+          "collectionMethod": "Manual review recorded at Discovery/Beta checkpoints."
+        },
+        "classification": "judgment",
+        "prompt": "Do the vision's core market/opportunity assumptions still hold given the evidence gathered since?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "assurance": "Reviewed by Product leadership at each downstream phase gate.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

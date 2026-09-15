@@ -1071,42 +1071,54 @@
     "fromState": "Draft",
     "toState": "Validated",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "PolicyDefinitionValidated",
+    "versionEvent": "VersionValidated"
   },
   {
     "entityType": "Policy",
     "fromState": "Validated",
     "toState": "Published",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "PolicyDefinitionPublished",
+    "versionEvent": "VersionPublished"
   },
   {
     "entityType": "Policy",
     "fromState": "Published",
     "toState": "Active",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "PolicyDefinitionActivated",
+    "versionEvent": "VersionActivated"
   },
   {
     "entityType": "Policy",
     "fromState": "Active",
     "toState": "Deprecated",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "PolicyDefinitionDeprecated",
+    "versionEvent": "VersionDeprecated"
   },
   {
     "entityType": "Policy",
     "fromState": "Deprecated",
     "toState": "Retired",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "PolicyDefinitionRetired",
+    "versionEvent": "VersionSuperseded"
   },
   {
     "entityType": "Policy",
     "fromState": "Retired",
     "toState": "Archived",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "PolicyDefinitionArchived",
+    "versionEvent": "VersionArchived"
   },
   {
     "entityType": "Ontology",

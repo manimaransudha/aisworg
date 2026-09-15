@@ -498,11 +498,6 @@ router.post("/authority/transition-definitions/:id/update", requireAuthorityAdmi
 // type, same tenant-scoped visibility (Platform + this viewer's own) as
 // every other Ontology lookup on this page, just resolved as a flat code
 // list the same way pack-code/template-code already are.
-// Ch.17 §7's own canonical 6 — the only values Quality Gate's category
-// picker should ever offer, regardless of what else has drifted into the
-// live category:evidence vocabulary over time.
-const CANONICAL_EVIDENCE_CATEGORIES = new Set(["Analytical Evidence", "Validation Evidence", "Operational Evidence", "Review Evidence", "Decision Evidence", "External Evidence"]);
-
 async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: string | null }): Promise<Record<string, string[]>> {
   const [{ data: packs }, { data: templates }, featureFlags, deliverableNames, deliverableCategories, evidenceCategories, policyCategories, obligationCategories, obligationOrigins, serviceNames, capabilityNames, engineeringCapitalTypes, complianceNames, { data: transitionDefinitions }] = await Promise.all([
     viewer.isRoot || !viewer.tenantId ? packsDB.findAll() : packsDB.findAllVisibleTo(viewer.tenantId),
@@ -563,18 +558,13 @@ async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: strin
     "deliverable-name": [...new Set(deliverableNames.map((c) => c.default_label))].sort(),
     "category:deliverable": [...new Set(deliverableCategories.map((c) => c.default_label))].sort(),
     // Owner: "Review Gates form is pathetic... same feedback for quality
-    // gates" — the live category:evidence vocabulary carries 4 drifted,
-    // non-canonical values ("Review"/"Technical"/"Test"/"Validation") never
-    // cleaned up (a pre-existing Evidence-model gap, out of scope to fix at
-    // the Ontology-data level here — real Evidence rows already use them).
-    // This picker is Quality Gate's ONLY consumer of category:evidence
-    // (confirmed: no other schema field references this source), so
-    // narrowing what's OFFERED here to the real Ch.17 §7 canonical 6 is
-    // safe and fully scoped — doesn't touch the underlying Ontology data or
-    // any other picker/validation path.
-    "category:evidence": [...new Set(evidenceCategories.map((c) => c.code))]
-      .filter((c) => CANONICAL_EVIDENCE_CATEGORIES.has(c))
-      .sort(),
+    // gates" — Quality Gate's own category picker. The 4 drifted,
+    // non-canonical category:evidence values ("Review"/"Technical"/"Test"/
+    // "Validation") this used to filter out client-side are now retired at
+    // the Ontology-data level itself (migration 223) — evidenceCategories
+    // (fetched with includeInactive:false) never returns them, so no
+    // client-side narrowing is needed here any more.
+    "category:evidence": [...new Set(evidenceCategories.map((c) => c.code))].sort(),
     "category:policy": [...new Set(policyCategories.map((c) => c.code))].sort(),
     "category:obligation": [...new Set(obligationCategories.map((c) => c.code))].sort(),
     "category:obligation-origin": [...new Set(obligationOrigins.map((c) => c.code))].sort(),
@@ -592,6 +582,20 @@ async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: strin
     // delimited value itself uses a readable separator rather than an
     // opaque id.
     "transition-definition": [...new Set((transitionDefinitions ?? []).filter((t) => t.is_active).map((t) => `${t.entity_type}|${t.from_state}|${t.to_state}`))].sort(),
+    // Owner: "If the scope is eligibility, the nouns (SEU, Ontology etc.)
+    // should be in the dropdown" — Policy's own applicabilityDeliverableNames
+    // repurposed by scope (formGenerator.ts's x-referential-source-by-value);
+    // the real, active Authority Vocabulary noun list, same source the
+    // Authority admin surface itself uses — not Ontology-backed.
+    "noun": (await listActiveNouns()).map((n) => n.code).sort(),
+    // Policy condition redesign — exceptionRules[].exceptionApprovers.
+    // Owner: "should have list of badges that are Ontology driven... It
+    // means Reference authority_noun_verbs" — badges are not modeled in the
+    // Ontology; this is the same real registry requireBadge itself checks
+    // against, in its own `{noun}_{verb}` code shape (badgeGrantsDB.ts).
+    "authority-badge": Object.entries(await activeMappingByNoun())
+      .flatMap(([noun, verbs]) => verbs.map((verb) => `${noun}_${verb}`))
+      .sort(),
   };
 }
 
@@ -900,7 +904,15 @@ async function loadPolicyDefinitionOptions(viewer: { isRoot: boolean; tenantId: 
   const { data: definitions } = viewer.isRoot || !viewer.tenantId ? await policyDefinitionsDB.findAll() : await policyDefinitionsDB.findAllVisibleTo(viewer.tenantId);
   return (definitions ?? [])
     .filter((d) => d.status === "Active")
-    .map((d) => ({ code: d.code, name: d.name, description: d.description ?? "", applicabilityDeliverableNames: d.applicability_deliverable_names }))
+    // Migration 216 — applicability_deliverables moved off this row and
+    // onto each condition (owner: "I am inclined to move the applicability
+    // inside the condition"); this option's own field name/shape stays
+    // unchanged for the dimming feature below, so just re-derive the flat
+    // name list across every condition. Owner: "No old data tolerance is
+    // required. Let us proceed and fix the seeds later" — the 34 real seed
+    // Policy Definitions still carry pre-219 conditions and will crash this
+    // until the deferred reseed pass; not papered over here.
+    .map((d) => ({ code: d.code, name: d.name, description: d.description ?? "", applicabilityDeliverableNames: [...new Set(d.conditions.flatMap((c) => c.applicabilityDeliverables.map((r) => r.name)))] }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -1086,7 +1098,7 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
       field.required = parameterConcept?.is_mandatory === true;
     }
   }
-  req.vm.req.groups = groupFieldsForDisplay(generatedFields);
+  req.vm.req.groups = groupFieldsForDisplay(schema, generatedFields);
   req.vm.req.contentJson = JSON.stringify(draft?.content ?? {}, null, 2);
   req.vm.req.canEdit = canDefine && isDraft;
   req.vm.req.canPublish = canAdvance;
@@ -1390,7 +1402,8 @@ router.post("/sdk/:slug/:draftId/save", requireDraftTenantScope(), requireDefine
     if (kind === "Template") reconstructExposedParameters(req.body ?? {});
     if (kind === "Profile") reconstructProfileParameterOverrides(req.body ?? {});
     const content = parseFormBody(schema, req.body ?? {});
-    const saved = await saveAuthoringDraft({ kind, id: draftId, content });
+    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
+    const saved = await saveAuthoringDraft({ kind, id: draftId, content, actorId });
     if (!saved.ok) return flashError(req, res, backTo(slug, draftId), saved.errors.join("; "));
     // Validate the save against the schema, but don't block an incremental draft.
     const errors = validateAgainstSchema(schema, content);
@@ -1441,7 +1454,8 @@ router.post("/sdk/:slug/:draftId/import", requireDraftTenantScope(), requireDefi
     if (!schema) return flashError(req, res, backTo(slug, draftId), `No schema_definitions grammar for ${kind}.`);
     const errors = validateAgainstSchema(schema, parsed);
     if (errors.length) return flashError(req, res, backTo(slug, draftId), `Import rejected — invalid against the ${kind} schema: ${errors.join("; ")}`);
-    const saved = await saveAuthoringDraft({ kind, id: draftId, content: parsed });
+    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
+    const saved = await saveAuthoringDraft({ kind, id: draftId, content: parsed, actorId });
     if (!saved.ok) return flashError(req, res, backTo(slug, draftId), saved.errors.join("; "));
     return flashSuccess(req, res, backTo(slug, draftId), "Imported.");
   } catch (err) {

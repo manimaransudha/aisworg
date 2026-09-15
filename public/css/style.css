@@ -628,6 +628,40 @@ body:has(.login-card, .auth-card, .verify-card, .card-center) { background: var(
 .ontology-combo-item:hover, .ontology-combo-item.active { background: var(--surface-muted); }
 .ontology-combo-empty { padding: .4rem .75rem; font-size: .8rem; color: var(--text-muted); font-style: italic; }
 
+/* Owner: "a flag in the schema that will specify if an Ontology Composition
+   is allowed" — a multi-value field's chip list (composableMultiSelect.js),
+   reusing .ontology-combo's own suggestion-menu styling above for its
+   pick-or-type input. */
+.ontology-multi-combo { position: relative; }
+.ontology-multi-chips { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .4rem; }
+.ontology-multi-chips:empty { margin-bottom: 0; }
+.ontology-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .2rem .5rem;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  font-size: .78rem;
+}
+.ontology-chip-flag { color: var(--warning, #b45309); }
+.ontology-chip-remove {
+  border: 0;
+  background: none;
+  padding: 0;
+  line-height: 1;
+  color: var(--text-muted);
+  font-size: .9rem;
+  cursor: pointer;
+}
+.ontology-chip-remove:hover { color: var(--text); }
+
+/* Owner: "what kind of coding is this? isn't this fundamental?" — a driven
+   multi-select's own per-variant <fieldset> (scopeDrivenMulti.js) needs none
+   of the browser's default fieldset chrome (border/padding/min-width). */
+.scope-driven-variant { border: 0; padding: 0; margin: 0; min-width: 0; }
+
 /* CR-081 — the branch-picker (existing versions to start a new one from)
    needs a real, visible boundary of its own: it sits directly under the
    Code field's own small muted help line, and without one both read as an

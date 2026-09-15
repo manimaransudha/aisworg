@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-nydfs-72-hour-incident-notification",
+        "category": "Compliance",
+        "title": "A cybersecurity event must be reported to the NYDFS Superintendent within 72 hours",
+        "description": "23 NYCRR 500 requires notification to the NYDFS Superintendent within 72 hours of determining a cybersecurity event meets the notification threshold; this is a strict deadline independent of the incident's own remediation timeline.",
+        "origin": "External systems",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "Every qualifying cybersecurity event is reported to NYDFS within 72 hours of the determination.",
+        "requiredEvidence": {
+          "title": "NYDFS notification timeline record",
+          "category": "Validation Evidence",
+          "description": "Timestamped record of the notification threshold determination and NYDFS filing.",
+          "collectionMethod": "Incident management system export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated notification-deadline compliance check.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

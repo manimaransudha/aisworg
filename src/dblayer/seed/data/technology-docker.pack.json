@@ -59,6 +59,30 @@
         "dimension": "Technology",
         "value": "docker"
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "docker-base-image-vulnerability-rebuild",
+        "category": "Security",
+        "title": "Container images must be rebuilt when their base image gets a security patch",
+        "description": "A container built from a base image is only as current as that base image was at build time; a later CVE patch to the base image does nothing for already-built, still-deployed images unless they are rebuilt and redeployed.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every deployed image is rebuilt from a patched base image within the declared SLA of the base image's advisory.",
+        "requiredEvidence": {
+          "title": "Base image vulnerability scan",
+          "category": "Validation Evidence",
+          "description": "Container image scan output showing base-image CVE status.",
+          "collectionMethod": "Automated container image scanning tool output."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated dependency/vulnerability scan check.",
+        "externalEvidence": false
+      }
     ]
   }
 }

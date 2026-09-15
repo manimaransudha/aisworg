@@ -12,38 +12,66 @@
   "conditions": [
     {
       "statement": "Every public endpoint has documented request and response schemas, including error responses.",
-      "requiredEvidence": [
+      "severity": "High",
+      "applicabilityDeliverables": [
         {
-          "type": "documentation_artifact",
-          "field": "schema_coverage"
+          "name": "api-specification",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "High",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Documentation Artifact — Schema Coverage",
+        "category": "Analytical Evidence",
+        "description": "Every public endpoint has documented request and response schemas, including error responses.",
+        "collectionMethod": "Documentation artifact review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "Every public endpoint has at least one worked example.",
-      "requiredEvidence": [
+      "severity": "Medium",
+      "applicabilityDeliverables": [
         {
-          "type": "documentation_artifact",
-          "field": "examples"
+          "name": "api-specification",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Documentation Artifact — Examples",
+        "category": "Analytical Evidence",
+        "description": "Every public endpoint has at least one worked example.",
+        "collectionMethod": "Documentation artifact review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "The documented contract (e.g. OpenAPI spec) validates against the live API's actual behaviour, with zero drift.",
-      "requiredEvidence": [
+      "severity": "Medium",
+      "applicabilityDeliverables": [
         {
-          "type": "contract_validation_result"
+          "name": "api-specification",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Contract Validation Result",
+        "category": "Validation Evidence",
+        "description": "The documented contract (e.g. OpenAPI spec) validates against the live API's actual behaviour, with zero drift.",
+        "collectionMethod": "Automated tool/system output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     }
   ],
   "version": "1.0.0"

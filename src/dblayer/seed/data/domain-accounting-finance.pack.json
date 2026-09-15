@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "accounting-period-close-reconciliation-completeness",
+        "category": "Compliance",
+        "title": "Every GL account must be reconciled before period close",
+        "description": "A financial period cannot be considered closed while any General Ledger account has an outstanding, unreconciled variance; every account must be reconciled and any variance investigated before the close is finalized.",
+        "origin": "Quality Gates",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "All GL accounts show a reconciled status with zero unexplained variance before period close is finalized.",
+        "requiredEvidence": {
+          "title": "GL reconciliation report",
+          "category": "Validation Evidence",
+          "description": "Reconciliation status for every GL account for the closing period.",
+          "collectionMethod": "General ledger/reconciliation system export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated reconciliation completeness check.",
+        "externalEvidence": false
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

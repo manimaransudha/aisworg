@@ -22,47 +22,311 @@
   "conditions": [
     {
       "statement": "Every Deployment Manifest or Deployment Package is accompanied by Release Notes / Change Log naming what changed.",
-      "requiredEvidence": [
+      "severity": "Medium",
+      "applicabilityDeliverables": [
         {
-          "type": "release_notes_review"
+          "name": "deployment-manifest",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "deployment-package",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "release-notes-change-log",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "app-store-submission-package",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "monitoring-alerting-configuration",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "incident-report-post-mortem",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "root-cause-analysis-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "known-error-record",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "operational-intelligence-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Release Notes Review",
+        "category": "Analytical Evidence",
+        "description": "Every Deployment Manifest or Deployment Package is accompanied by Release Notes / Change Log naming what changed.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "Monitoring & Alerting Configuration exists and is active before a Deployment Package reaches production.",
-      "requiredEvidence": [
+      "severity": "Critical",
+      "applicabilityDeliverables": [
         {
-          "type": "monitoring_configuration_check"
+          "name": "deployment-manifest",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "deployment-package",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "release-notes-change-log",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "app-store-submission-package",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "monitoring-alerting-configuration",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "incident-report-post-mortem",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "root-cause-analysis-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "known-error-record",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "operational-intelligence-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Critical",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Monitoring Configuration Check",
+        "category": "Validation Evidence",
+        "description": "Monitoring & Alerting Configuration exists and is active before a Deployment Package reaches production.",
+        "collectionMethod": "Automated tool/system output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "Every Incident Report / Post-Mortem produces a Root Cause Analysis Report, and a recurring cause is logged as a Known Error Record rather than re-investigated from scratch each time.",
-      "requiredEvidence": [
+      "severity": "High",
+      "applicabilityDeliverables": [
         {
-          "type": "root_cause_analysis_report"
+          "name": "deployment-manifest",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "deployment-package",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "release-notes-change-log",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "app-store-submission-package",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "monitoring-alerting-configuration",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "incident-report-post-mortem",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "root-cause-analysis-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "known-error-record",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "operational-intelligence-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "High",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Root Cause Analysis Report",
+        "category": "Analytical Evidence",
+        "description": "Every Incident Report / Post-Mortem produces a Root Cause Analysis Report, and a recurring cause is logged as a Known Error Record rather than re-investigated from scratch each time.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "An App Store Submission Package includes the target platform's required metadata and passes automated store-compliance checks before submission.",
-      "requiredEvidence": [
+      "severity": "Medium",
+      "applicabilityDeliverables": [
         {
-          "type": "store_compliance_check"
+          "name": "deployment-manifest",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "deployment-package",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "release-notes-change-log",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "app-store-submission-package",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "monitoring-alerting-configuration",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "incident-report-post-mortem",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "root-cause-analysis-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "known-error-record",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "operational-intelligence-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Store Compliance Check",
+        "category": "Validation Evidence",
+        "description": "An App Store Submission Package includes the target platform's required metadata and passes automated store-compliance checks before submission.",
+        "collectionMethod": "Automated tool/system output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     }
   ],
   "version": "1.0.0"

@@ -12,7 +12,7 @@ import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { checklistsDB } from "../../../dblayer/checklistsDB.js";
 import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
 import { assertCanonicalCategory, resolveLabels } from "./ontology.js";
-import { VALID_DELIVERABLE_LIFECYCLE_STATES } from "./policyDefinitions.js";
+import { listTransitionsForEntityType } from "./policyDefinitions.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import type { CapabilityRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../../../dblayer/seuTypes.js";
 
@@ -191,10 +191,18 @@ export function extractExposedParameters(draftContent: Record<string, unknown> |
   return Array.isArray(draftContent?.exposedParameters) ? (draftContent!.exposedParameters as ExposedParameter[]) : undefined;
 }
 
+// Migration 214 (owner: "Add only deliverable name and allow multiple
+// transitions. And add a +Add another deliverable") — applicabilityDeliverables
+// replaced the two flat dimensions this list used to name
+// (applicabilityDeliverableNames/applicabilityDeliverableLifecycle) with a
+// real referential-list (Array<{name, transitions}>), which this
+// mechanism's own flat-value-per-candidate shape can't represent — a
+// Profile override needs one scalar value per candidate, not a list of
+// {name, transitions} rows. Dropped from CR-088's own Exposable Parameters
+// candidates for now (a real, not-yet-designed follow-up, not silently
+// papered over); applicabilityEnvironments is unaffected and stays.
 const POLICY_APPLICABILITY_PARAMETERS: Array<{ name: string; label: string }> = [
-  { name: "applicabilityDeliverableNames", label: "Applicable Deliverable Names" },
   { name: "applicabilityEnvironments", label: "Applicable Environments" },
-  { name: "applicabilityDeliverableLifecycle", label: "Applicable Deliverable Lifecycle States" },
 ];
 
 // dependencyGraph is Template's OWN authored content (CR-041), not derived
@@ -255,20 +263,15 @@ export async function deriveExposableParameterCandidates(
   // Definition, since that's where they're actually authored.
   //
   // CR-088 closing (owner: "Profile should allow override of everything that
-  // is configurable") — the three applicability dimensions are filter-shaped
-  // (valueBearing: false), but still need a real, closed `valueOptions` set
+  // is configurable") — applicabilityEnvironments is filter-shaped
+  // (valueBearing: false) but still needs a real, closed `valueOptions` set
   // for Profile's own picker to offer (and for validateProfileSeed's existing
   // generic "must be one of valueOptions" check to enforce) — the same real
-  // vocabularies each dimension's own canonical Policy Definition authoring
-  // form already uses (167_policy_definitions.sql): deliverable-name/
-  // category:environment Ontology concepts for the first two,
-  // VALID_DELIVERABLE_LIFECYCLE_STATES (policyDefinitions.ts's own real
-  // transition_definitions-backed set, not Ontology) for the third. Computed
-  // once — identical for every Policy this Template resolves.
+  // category:environment Ontology vocabulary its own canonical Policy
+  // Definition authoring form already uses. Computed once — identical for
+  // every Policy this Template resolves.
   const policyApplicabilityValueOptions: Record<string, string[]> = {
-    applicabilityDeliverableNames: Object.keys(await resolveLabels(viewerTenantId, "deliverable-name")),
     applicabilityEnvironments: Object.keys(await resolveLabels(viewerTenantId, "category:environment")),
-    applicabilityDeliverableLifecycle: [...VALID_DELIVERABLE_LIFECYCLE_STATES],
   };
   for (const packCode of packCodes) {
     const { data: policyRows } = await policiesDB.findByPackCode(packCode);
@@ -278,6 +281,35 @@ export async function deriveExposableParameterCandidates(
       add({ sourceType: "policy", sourceCode: definition.code, sourceName: definition.name, parameterName: "constraintType", parameterLabel: "Constraint Type", valueBearing: true, defaultValue: definition.constraint_type, valueOptions: ["Policy", "Standard"] });
       for (const dim of POLICY_APPLICABILITY_PARAMETERS) {
         add({ sourceType: "policy", sourceCode: definition.code, sourceName: definition.name, parameterName: dim.name, parameterLabel: dim.label, valueBearing: false, valueOptions: policyApplicabilityValueOptions[dim.name] });
+      }
+      // Owner: "Profile should just flatten it out" — applicabilityDeliverables
+      // is Array<{name, transitions}>, the same "list of rows, each becoming
+      // its own candidate" shape the Deliverable dependency graph above
+      // already uses: the row's own `name` is its fixed identity (composite
+      // sourceCode, same convention dependencyGraph's own edge-keyed
+      // sourceCode uses), `transitions` is the one overridable, filter-shaped
+      // attribute — valueOptions scoped to THIS row's own real entity type
+      // (the named noun under scope=Eligibility, else the constant
+      // "Deliverable"), same rule governedTransitionsFor (packs.ts) uses.
+      // Migration 216 — applicabilityDeliverables moved onto each condition
+      // (owner: "I am inclined to move the applicability inside the
+      // condition"); flattened across every condition here since a Profile
+      // overriding "transitions" for a given name doesn't care which
+      // condition originally declared it — `add()`'s own sourceCode dedup
+      // already collapses the same name declared by more than one condition.
+      for (const cond of definition.conditions) {
+        for (const row of cond.applicabilityDeliverables ?? []) {
+          const entityType = definition.scope === "Eligibility" ? row.name : "Deliverable";
+          add({
+            sourceType: "policy",
+            sourceCode: `${definition.code}::${row.name}`,
+            sourceName: `${definition.name} (${row.name})`,
+            parameterName: "transitions",
+            parameterLabel: "Transitions",
+            valueBearing: false,
+            valueOptions: await listTransitionsForEntityType(entityType),
+          });
+        }
       }
     }
   }

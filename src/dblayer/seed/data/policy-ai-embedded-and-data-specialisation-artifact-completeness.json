@@ -19,36 +19,213 @@
   "conditions": [
     {
       "statement": "A Model Card exists for every trained model, declaring its own Training Data Specification and Model Evaluation Report.",
-      "requiredEvidence": [
+      "severity": "High",
+      "applicabilityDeliverables": [
         {
-          "type": "model_documentation_check"
+          "name": "training-data-specification",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "model-card",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "model-evaluation-report",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "hardware-interface-specification",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "firmware-build",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "hardware-compatibility-report",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "data-pipeline-specification",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "data-quality-report",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "High",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Model Documentation Check",
+        "category": "Analytical Evidence",
+        "description": "A Model Card exists for every trained model, declaring its own Training Data Specification and Model Evaluation Report.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "A Firmware Build is accompanied by a Hardware Compatibility Report confirming it against its declared Hardware Interface Specification.",
-      "requiredEvidence": [
+      "severity": "Critical",
+      "applicabilityDeliverables": [
         {
-          "type": "hardware_compatibility_report"
+          "name": "training-data-specification",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "model-card",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "model-evaluation-report",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "hardware-interface-specification",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "firmware-build",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "hardware-compatibility-report",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "data-pipeline-specification",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "data-quality-report",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Critical",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Hardware Compatibility Report",
+        "category": "Analytical Evidence",
+        "description": "A Firmware Build is accompanied by a Hardware Compatibility Report confirming it against its declared Hardware Interface Specification.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "A Data Pipeline Specification's own output meets the thresholds declared in its Data Quality Report before being consumed downstream.",
-      "requiredEvidence": [
+      "severity": "High",
+      "applicabilityDeliverables": [
         {
-          "type": "data_quality_report"
+          "name": "training-data-specification",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "model-card",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "model-evaluation-report",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "hardware-interface-specification",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "firmware-build",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "hardware-compatibility-report",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "data-pipeline-specification",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "data-quality-report",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "High",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Data Quality Report",
+        "category": "Analytical Evidence",
+        "description": "A Data Pipeline Specification's own output meets the thresholds declared in its Data Quality Report before being consumed downstream.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     }
   ],
   "version": "1.0.0"

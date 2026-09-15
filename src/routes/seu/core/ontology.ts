@@ -12,10 +12,12 @@
 // everywhere else); everyone else reads Platform + their own tenant, and can
 // only ever write their own.
 import { ontologyDB, type OntologyViewer } from "../../../dblayer/ontologyDB.js";
+import { eventsDB } from "../../../dblayer/eventsDB.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
+import { ontologyComposableFieldsIn, type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import type { OntologyConceptRow } from "../../../dblayer/seuTypes.js";
 
 // actorId, added by migration 190's governed lifecycle — every real
@@ -68,6 +70,84 @@ export async function assertCanonicalCategory(conceptType: string, value: string
     const { data: allowed } = await ontologyDB.findConceptsByType(conceptType, viewer);
     const list = (allowed ?? []).map((c) => c.code).join(", ");
     throw new Error(`"${value}" is not a canonical ${conceptType} concept. Allowed: ${list || "(none registered)"}`);
+  }
+}
+
+// Owner: "flag in the schema that will specify if an Ontology Composition is
+// allowed" (x-ontology-composable, formGenerator.ts), generalising CR-079
+// step (d)/CR-100's own Pack-code/Competency-value proposal mechanism
+// (previously `emitOntologyComposedIfUnregistered`, sdkAuthoring.ts,
+// hardcoded to originatingObjectType "Pack") to any kind, any composable
+// field. If `code` already resolves to a real concept, this is a no-op —
+// nothing to propose. Otherwise, de-duplicated per (originatingObjectType,
+// originatingObjectId, code, conceptType) via the events table itself
+// (same discipline as before — nothing else tracks "pending" proposals),
+// publishes OntologyComposed (Ch.18 §8). Owner: "payload should carry
+// originator information (id, badge, tenant etc.), originating entity (pack,
+// policy, etc.), the ontology concept (code, applicable environment etc.,
+// proposed value)" — originator id/badge are the event's own actorId/
+// authorityBadge envelope fields (the platform's standing "every transition:
+// real actor + badge" discipline), not payload; everything without a
+// dedicated envelope column (tenant, the originating entity's own human
+// code, which authored field this came from) lives in payload.
+export async function emitOntologyComposed(input: {
+  originatingObjectType: string;
+  originatingObjectId: string;
+  originatingEntityCode?: string | null;
+  code: string;
+  conceptType: string;
+  fieldName?: string;
+  actorId?: string | null;
+  badge?: string | null;
+  tenantId?: string;
+}): Promise<void> {
+  const code = input.code.trim();
+  const conceptType = input.conceptType.trim();
+  if (!code || !conceptType) return;
+  const tenantId = input.tenantId ?? PLATFORM_TENANT_ID;
+  const { data: concept } = await ontologyDB.findConcept(conceptType, code, { isRoot: false, tenantId });
+  if (concept) return; // already a real, registered concept — nothing to propose
+  const { data: priorEvents } = await eventsDB.findByOriginatingObject(input.originatingObjectType, input.originatingObjectId);
+  const alreadyProposed = (priorEvents ?? []).some(
+    (e) => e.event_type === "OntologyComposed" && e.payload?.code === code && e.payload?.conceptType === conceptType
+  );
+  if (alreadyProposed) return;
+  await eventBus.publish({
+    eventType: "OntologyComposed",
+    originatingObjectType: input.originatingObjectType,
+    originatingObjectId: input.originatingObjectId,
+    seuId: null,
+    correlationId: eventBus.newCorrelationId(),
+    payload: { code, conceptType, fieldName: input.fieldName ?? null, tenantId, originatingEntityCode: input.originatingEntityCode ?? null },
+    actorId: input.actorId ?? null,
+    authorityBadge: input.badge ?? null,
+  });
+}
+
+// Scans a kind's own schema for every x-ontology-composable field
+// (formGenerator.ts's ontologyComposableFieldsIn — both multi-select arrays
+// and single-value driven/fixed fields, e.g. Pack's own `code`) and proposes
+// whichever of the submitted content's entered values aren't yet real
+// concepts — the draft-save-time counterpart to assertCanonicalCategory's
+// draft-blocking check: propose instead of reject. Callers still enforce
+// assertCanonicalCategory (or an equivalent) on these same fields at PUBLISH
+// time — this function alone never lets an unregistered value through past
+// that gate, it only stops it from being rejected at draft-save.
+export async function proposeComposableOntologyValues(
+  schema: JsonSchemaDocument,
+  content: Record<string, unknown>,
+  ctx: { originatingObjectType: string; originatingObjectId: string; originatingEntityCode?: string | null; actorId?: string | null; badge?: string | null; tenantId?: string }
+): Promise<void> {
+  for (const { fieldName, multi, resolveConceptType } of ontologyComposableFieldsIn(schema)) {
+    const conceptType = resolveConceptType(content);
+    if (!conceptType) continue;
+    const raw = content[fieldName];
+    const values = multi
+      ? (Array.isArray(raw) ? raw.filter((v): v is string => typeof v === "string" && v.trim() !== "") : [])
+      : (typeof raw === "string" && raw.trim() !== "" ? [raw] : []);
+    for (const value of values) {
+      await emitOntologyComposed({ ...ctx, code: value, conceptType, fieldName });
+    }
   }
 }
 

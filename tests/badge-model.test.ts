@@ -64,7 +64,6 @@ after(async () => {
     await pool.query("DELETE FROM badge_grants WHERE badge_type = ANY($1::text[])", [createdBadgeTypeCodes]);
     await pool.query("DELETE FROM badge_types WHERE code = ANY($1::text[])", [createdBadgeTypeCodes]);
   }
-  await pool.end();
 });
 
 async function createTestUser(label: string): Promise<string> {

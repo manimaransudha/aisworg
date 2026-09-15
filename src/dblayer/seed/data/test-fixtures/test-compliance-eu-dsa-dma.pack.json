@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-dsa-systemic-risk-assessment-refresh",
+        "category": "Compliance",
+        "title": "DSA systemic risk assessment must be refreshed at least annually",
+        "description": "The Digital Services Act requires very large platforms to reassess systemic risks (illegal content, fundamental rights, civic discourse) at least annually and after significant functionality changes, not rely on a single original assessment.",
+        "origin": "Compliance Packs",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "The systemic risk assessment is refreshed within the annual window or after a significant functionality change, whichever comes first.",
+        "requiredEvidence": {
+          "title": "Systemic risk assessment refresh",
+          "category": "Analytical Evidence",
+          "description": "Updated systemic risk assessment document.",
+          "collectionMethod": "Legal/trust-and-safety review."
+        },
+        "classification": "human-attested",
+        "prompt": "Has the systemic risk assessment been refreshed within the required window?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Trust & Safety / legal compliance sign-off.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

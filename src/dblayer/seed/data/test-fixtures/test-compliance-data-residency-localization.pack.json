@@ -63,6 +63,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-data-residency-transfer-mechanism-currency",
+        "category": "Compliance",
+        "title": "Cross-border data transfer mechanisms must stay valid as regulations change",
+        "description": "A legal basis for cross-border transfer (SCCs, adequacy decision, CAC security assessment, local data-protection-officer registration) can lapse or be invalidated by a regulatory change; transfers must be re-verified against the current legal basis, not assumed permanently authorized.",
+        "origin": "External systems",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every active cross-border data transfer has a currently valid legal transfer mechanism on file.",
+        "requiredEvidence": {
+          "title": "Transfer mechanism validity check",
+          "category": "Analytical Evidence",
+          "description": "Legal review confirming each active cross-border transfer's mechanism remains valid under current regulation.",
+          "collectionMethod": "Legal/compliance review, recorded on a recurring cadence."
+        },
+        "classification": "human-attested",
+        "prompt": "Does every active cross-border data transfer still have a valid legal transfer mechanism on file?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Data protection/legal counsel sign-off.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

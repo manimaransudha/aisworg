@@ -63,6 +63,30 @@
         "dimension": "Technology",
         "value": "cobol"
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "cobol-copybook-documentation-currency",
+        "category": "Engineering",
+        "title": "COBOL copybooks and program documentation must stay current with production code",
+        "description": "Mainframe COBOL programs and their shared copybooks accumulate undocumented field changes over decades of maintenance; documentation must be periodically reconciled against the live copybook/program source, not trusted as historically accurate.",
+        "origin": "Telemetry and Knowledge Model",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Program/copybook documentation is reconciled against live source within the declared review cadence.",
+        "requiredEvidence": {
+          "title": "Copybook documentation reconciliation",
+          "category": "Analytical Evidence",
+          "description": "Comparison of documented field definitions against live copybook source.",
+          "collectionMethod": "Manual source/documentation reconciliation."
+        },
+        "classification": "human-attested",
+        "prompt": "Does copybook/program documentation still match live source?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Mainframe engineering lead sign-off.",
+        "externalEvidence": false
+      }
     ]
   }
 }

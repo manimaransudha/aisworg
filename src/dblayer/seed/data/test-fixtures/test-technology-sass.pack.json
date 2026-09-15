@@ -99,6 +99,30 @@
         "dimension": "Technology",
         "value": "sass"
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "test-sass-unused-mixin-variable-drift-audit",
+        "category": "Engineering",
+        "title": "Sass mixins, variables, and partials must be audited for unused/duplicate drift",
+        "description": "Sass partials, mixins, and variables accumulate unused or duplicated entries as the stylesheet architecture evolves; the codebase must be periodically audited to remove dead code and reconcile duplicate design tokens.",
+        "origin": "Quality Gates",
+        "priority": "Low",
+        "severity": "Low",
+        "completionCriteria": "The Sass codebase is audited for unused/duplicate entries within the declared cadence, with findings remediated.",
+        "requiredEvidence": {
+          "title": "Unused Sass audit",
+          "category": "Validation Evidence",
+          "description": "Tool output identifying unused Sass mixins/variables/partials.",
+          "collectionMethod": "Automated Sass linting/coverage tool output."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated Sass-coverage audit.",
+        "externalEvidence": false
+      }
     ]
   }
 }

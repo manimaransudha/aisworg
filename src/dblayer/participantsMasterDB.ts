@@ -78,6 +78,19 @@ export const participantsMasterDB = {
     }
   },
 
+  // CR-103 — resolves the participants_master identity behind a logged-in
+  // user, for that user's own "SEUs I'm a Participant on" home page. Only
+  // ever set for a Human-type master (migration 195's own user_id comment).
+  async findByUserId(userId: number): Promise<DbResult<ParticipantMasterRow | null>> {
+    try {
+      const { rows } = await query<ParticipantMasterRow>("SELECT * FROM participants_master WHERE user_id = $1", [userId]);
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[participantsMasterDB] findByUserId error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findByTenantId(tenantId: string): Promise<DbResult<ParticipantMasterRow[]>> {
     try {
       const { rows } = await query<ParticipantMasterRow>("SELECT * FROM participants_master WHERE tenant_id = $1 ORDER BY created_at", [tenantId]);

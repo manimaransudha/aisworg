@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "banking-kyc-periodic-refresh",
+        "category": "Compliance",
+        "title": "Customer KYC records must be refreshed on their risk-based review cycle",
+        "description": "A customer's KYC profile is not valid indefinitely; it must be refreshed on the risk-based cycle (e.g. annually for high-risk, longer for low-risk) rather than relying on the original onboarding check.",
+        "origin": "Compliance Packs",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every customer's KYC record is refreshed within its assigned risk-based review cycle.",
+        "requiredEvidence": {
+          "title": "KYC refresh record",
+          "category": "Validation Evidence",
+          "description": "KYC system record showing the refresh date against the assigned review cycle.",
+          "collectionMethod": "Core banking/KYC system export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated KYC-cycle currency check.",
+        "externalEvidence": false
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

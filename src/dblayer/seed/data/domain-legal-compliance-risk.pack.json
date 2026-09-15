@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "legal-contract-expiry-tracking",
+        "category": "Review Finding",
+        "title": "An expiring contract must be flagged for renewal decision before lapse",
+        "description": "Contract Lifecycle Management requires flagging contracts approaching expiry with enough lead time for a deliberate renew/renegotiate/terminate decision; a contract lapsing by default is a governance failure, not a neutral outcome.",
+        "origin": "Policies",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Every contract approaching expiry is flagged and has a recorded renewal decision before lapse.",
+        "requiredEvidence": {
+          "title": "Contract expiry decision record",
+          "category": "Validation Evidence",
+          "description": "Record of the renewal/renegotiate/terminate decision made before contract expiry.",
+          "collectionMethod": "CLM system export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated contract-expiry tracking check.",
+        "externalEvidence": false
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

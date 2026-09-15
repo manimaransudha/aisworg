@@ -77,6 +77,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-quality-defect-triage-completion",
+        "category": "Engineering",
+        "title": "Test failures and defects found during hardening are triaged before Scale & Performance",
+        "description": "Every defect surfaced by the automated test suite, performance testing, security testing, or accessibility testing during this phase must be triaged (fixed, deferred, or accepted) before scale work builds on top of it.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "No Critical/High severity defect from this phase's Test Report remains untriaged.",
+        "requiredEvidence": {
+          "title": "Defect triage record",
+          "category": "Validation Evidence",
+          "description": "Triage disposition for each defect raised by this phase's test suite.",
+          "collectionMethod": "Defect tracker export filtered to this phase's Test Report."
+        },
+        "classification": "human-attested",
+        "prompt": "Has every Critical/High severity defect from this phase's Test Report been triaged?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "QA lead sign-off.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

@@ -46,12 +46,14 @@ import {
   type PolicyDefinitionSeedInput,
 } from "./policyDefinitions.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
-import { eventsDB } from "../../../dblayer/eventsDB.js";
+import { emitOntologyComposed, proposeComposableOntologyValues } from "./ontology.js";
+import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
+import type { JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { compositionEngine, type CompositionSource } from "../../../domain/engine/compositionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { listCurrentTransitionDefinitions } from "./transitionDefinitions.js";
-import type { PackContributions, PackRow, PolicyCondition, ProfileRow, SchemaDefinitionEntityKind, ServiceLevelExpectation, TemplateRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
+import type { EvidenceDefinition, PackContributions, PackRow, PolicyCondition, ProfileRow, SchemaDefinitionEntityKind, ServiceLevelExpectation, TemplateRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { randomUUID } from "node:crypto";
 
 // ---------------------------------------------------------------------------
@@ -284,33 +286,137 @@ export function toServiceDefinitionSeedInput(content: Record<string, unknown>): 
   };
 }
 
-// CR-089 — applicabilityDeliverableLifecycle is a real Postgres TEXT[]
-// column (policy_definitions) but has no Ontology backing to drive a
-// multi-select widget, so the schema represents it as a plain
-// comma-separated string (same convention contributionPolicies[].conditionValues
-// already uses, migration 109) — split/trim/filter back to a real array
-// here, the same way toPackSeedInput's parseGovernedTransition-adjacent
-// fields never need to (they're genuinely single strings) but conditionValues
-// itself does (core/packs.ts).
-function toCommaSeparatedList(value: unknown): string[] {
-  return typeof value === "string" ? value.split(",").map((v) => v.trim()).filter(Boolean) : Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+// Migration 216 (owner: "I am inclined to move the applicability inside the
+// condition") — applicabilityDeliverables moved from a Policy-level field
+// into each condition; parseFormBody already produces Array<{name,
+// transitions}> shaped rows for it regardless of nesting depth (the same
+// referential-list machinery, one level deeper), so this only guards
+// against a malformed/missing value reaching the seed. Migration 219
+// (owner: "The governing condition should be within applicability
+// deliverables") — each row now carries its own governingCondition,
+// assembled by the same toPolicyGoverningCondition used to fold it (used to
+// live one level up, on the condition itself).
+function toApplicabilityDeliverables(value: unknown): PolicyCondition["applicabilityDeliverables"] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((row) => (row && typeof row === "object" ? (row as Record<string, unknown>) : {}))
+    .map((row) => ({
+      name: typeof row.name === "string" ? row.name : "",
+      transitions: Array.isArray(row.transitions) ? row.transitions.filter((t): t is string => typeof t === "string") : [],
+      governingCondition: toPolicyGoverningCondition(row.governingCondition),
+    }))
+    .filter((row) => row.name.trim() !== "");
 }
 
-// `conditions` is authored as raw JSON (x-widget: "json") — parseFormBody
-// (formGenerator.ts) already JSON.parses it back into real objects before
-// this ever runs; only loosely shape-checked here (full field-by-field
-// validation is validatePolicyDefinitionSeed's own job).
-function toPolicyConditions(value: unknown): PolicyCondition[] {
+// Ch.17 §8's Definition-side Evidence shape (seuTypes.ts's EvidenceDefinition)
+// — owner: "Evidence definition has to be a common model and used in Policy
+// [and] Obligations." Two call sites: Policy's own conditions[].requiredEvidence
+// directly, and ObligationDefinition's own requiredEvidence (below), which
+// reaches both of ObligationDefinition's own call sites without a separate
+// mechanism. parseFormBody (formGenerator.ts) already reassembles a form
+// submission into this exact nested shape (blank template rows already
+// filtered out); only loosely shape-checked here — full field-by-field
+// validation (including the Ontology check on category) is
+// validatePolicyDefinitionSeed's own job.
+function toEvidenceDefinition(value: unknown): EvidenceDefinition {
+  const v = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  return {
+    title: typeof v.title === "string" ? v.title : "",
+    category: typeof v.category === "string" ? v.category : "",
+    description: typeof v.description === "string" ? v.description : "",
+    collectionMethod: typeof v.collectionMethod === "string" ? v.collectionMethod : "",
+  };
+}
+
+function toPolicyRelatedObligations(value: unknown): PolicyCondition["relatedObligations"] {
   if (!Array.isArray(value)) return [];
   return value
     .filter((v): v is Record<string, unknown> => typeof v === "object" && v !== null)
     .map((v) => ({
+      category: typeof v.category === "string" ? v.category : "",
+      title: typeof v.title === "string" ? v.title : "",
+      description: typeof v.description === "string" ? v.description : "",
+      origin: typeof v.origin === "string" ? v.origin : "",
+      priority: typeof v.priority === "string" ? v.priority : "",
+      severity: typeof v.severity === "string" ? v.severity : "",
+      completionCriteria: typeof v.completionCriteria === "string" ? v.completionCriteria : "",
+      requiredEvidence: toEvidenceDefinition(v.requiredEvidence),
+    }))
+    .filter((row) => row.category.trim() !== "");
+}
+
+// Owner: "identifier: system generated" — assigned here (the one place
+// every save path for `conditions` passes through), not client-side, so a
+// row that never reaches a real save never gets one either.
+function toPolicyExceptionRules(value: unknown): PolicyCondition["exceptionRules"] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((v): v is Record<string, unknown> => typeof v === "object" && v !== null)
+    .map((v) => ({
+      identifier: typeof v.identifier === "string" && v.identifier.trim() ? v.identifier.trim() : randomUUID(),
+      exceptionStatement: typeof v.exceptionStatement === "string" ? v.exceptionStatement : "",
+      duration: typeof v.duration === "string" ? v.duration : "",
+      exceptionScope: typeof v.exceptionScope === "string" ? v.exceptionScope : "",
+      exceptionApprovers: Array.isArray(v.exceptionApprovers) ? v.exceptionApprovers.filter((a): a is string => typeof a === "string") : [],
+      exceptionComposition: (v.exceptionComposition === "all" || v.exceptionComposition === "any") ? v.exceptionComposition : "",
+      reviewRequirements: typeof v.reviewRequirements === "string" ? v.reviewRequirements : "",
+    }))
+    .filter((row) => row.exceptionStatement.trim() !== "");
+}
+
+// Migration 216 — governingCondition folded in (owner: "Governing condition
+// has to be folded into condition. this will be governed. If it is empty,
+// the policy checking will be manual") — left null/undefined here rather
+// than defaulted to {"type":"always_true"}, so packs.ts's own materialization
+// can tell "explicitly always_true" apart from "author left this manual" if
+// it ever needs to (today both behave the same at evaluation time).
+//
+// Migration 218 (owner: "make the GoverningCondition UI user friendly and
+// not a json edit") — governingCondition is now a structured nested-object
+// form ({type, field, operator, values, value}, values a comma-separated
+// STRING as authored), assembled back into the real {"type":...} shape
+// governingConditionTypes.ts's CONDITION_EVALUATORS expect. Two input
+// shapes reach this function: the form-submitted one just described, and
+// the real condition object already in its final shape (seed data/inherit/
+// copy-as-new-draft, e.g. {"type":"field_in","field":"x","values":["a","b"]}
+// with `values` a real array) — both handled without assuming either one.
+function toPolicyGoverningCondition(value: unknown): Record<string, unknown> | null {
+  const parsed = typeof value === "string" ? safeJsonParse(value) : value;
+  if (!parsed || typeof parsed !== "object") return null;
+  const v = parsed as Record<string, unknown>;
+  const type = typeof v.type === "string" ? v.type.trim() : "";
+  if (!type) return null; // no type chosen — manual/human-attested
+  if (type === "always_true") return { type: "always_true" };
+  const field = typeof v.field === "string" ? v.field.trim() : "";
+  if (type === "field_in") {
+    const values = Array.isArray(v.values)
+      ? v.values.filter((x): x is string => typeof x === "string")
+      : typeof v.values === "string"
+        ? v.values.split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
+    return { type, field, values };
+  }
+  if (type === "comparison" || type === "threshold") {
+    const operator = typeof v.operator === "string" ? v.operator : "";
+    const compareValue = typeof v.value === "string" || typeof v.value === "number" ? v.value : "";
+    return { type, field, operator, value: compareValue };
+  }
+  return null; // unrecognised type — same "fails closed" discipline evaluateCondition itself uses
+}
+
+function toPolicyConditions(value: unknown): PolicyCondition[] {
+  const rows = Array.isArray(value) ? value : [];
+  return rows
+    .filter((v): v is Record<string, unknown> => typeof v === "object" && v !== null)
+    .map((v) => ({
       statement: typeof v.statement === "string" ? v.statement : "",
-      requiredEvidence: Array.isArray(v.requiredEvidence) ? (v.requiredEvidence as Array<Record<string, unknown>>) : [],
-      severity: (v.severity as PolicyCondition["severity"]) ?? "Medium",
-      exceptionRules: Array.isArray(v.exceptionRules) ? v.exceptionRules.filter((r): r is string => typeof r === "string") : [],
-      relatedObligations: Array.isArray(v.relatedObligations) ? v.relatedObligations.filter((r): r is string => typeof r === "string") : [],
-    }));
+      severity: typeof v.severity === "string" ? v.severity : "",
+      applicabilityDeliverables: toApplicabilityDeliverables(v.applicabilityDeliverables),
+      requiredEvidence: toEvidenceDefinition(v.requiredEvidence),
+      relatedObligations: toPolicyRelatedObligations(v.relatedObligations),
+      exceptionRules: toPolicyExceptionRules(v.exceptionRules),
+    }))
+    .filter((row) => row.statement.trim() !== "");
 }
 
 export function toPolicyDefinitionSeedInput(content: Record<string, unknown>): PolicyDefinitionSeedInput {
@@ -320,10 +426,9 @@ export function toPolicyDefinitionSeedInput(content: Record<string, unknown>): P
     description: typeof content.description === "string" ? content.description : undefined,
     category: typeof content.category === "string" ? content.category : "",
     constraintType: content.constraintType === "Standard" ? "Standard" : "Policy",
-    applicabilityDeliverableNames: Array.isArray(content.applicabilityDeliverableNames) ? content.applicabilityDeliverableNames.filter((c): c is string => typeof c === "string") : [],
     applicabilityEnvironments: Array.isArray(content.applicabilityEnvironments) ? content.applicabilityEnvironments.filter((c): c is string => typeof c === "string") : [],
-    applicabilityDeliverableLifecycle: toCommaSeparatedList(content.applicabilityDeliverableLifecycle),
     conditions: toPolicyConditions(typeof content.conditions === "string" ? safeJsonParse(content.conditions) : content.conditions),
+    scope: content.scope === "Eligibility" ? "Eligibility" : content.scope === "Transition" ? "Transition" : undefined,
     version: typeof content.version === "string" && content.version.trim() ? content.version.trim() : "1.0.0",
   };
 }
@@ -694,16 +799,18 @@ export async function getAuthoringDraft(kind: SchemaDefinitionEntityKind, id: st
     const { data: p } = await policyDefinitionsDB.findById(id);
     if (!p) return null;
     // Same "real columns always win" discipline — every field is a real
-    // column on policy_definitions, not draft_content-only.
-    // applicabilityDeliverableLifecycle/conditions round-trip through the
-    // same string representation the form/schema itself uses (comma list,
-    // JSON text) — see toPolicyDefinitionSeedInput's own comment for why.
+    // column on policy_definitions, not draft_content-only. `conditions`
+    // (migrations 215/216, full redesign — applicabilityDeliverables/
+    // governedTransition/governingCondition all live inside it now, per
+    // condition) is a real referential-list field, needing its raw array
+    // shape back unchanged, not JSON-stringified.
     return {
       id: p.id, code: p.code, name: p.name, status: p.status,
       content: {
         ...(p.draft_content ?? {}), code: p.code, name: p.name, description: p.description ?? "", category: p.category, constraintType: p.constraint_type,
-        applicabilityDeliverableNames: p.applicability_deliverable_names, applicabilityEnvironments: p.applicability_environments,
-        applicabilityDeliverableLifecycle: p.applicability_deliverable_lifecycle.join(", "), conditions: p.conditions, version: p.version,
+        applicabilityEnvironments: p.applicability_environments,
+        conditions: p.conditions, version: p.version,
+        scope: p.scope,
         tenantId: p.tenant_id, parentPolicyDefinitionId: p.parent_policy_definition_id,
       },
     };
@@ -960,62 +1067,19 @@ async function withDefaultTemplatePurpose(content: Record<string, unknown>, code
   return { ...content, purpose: concept.description };
 }
 
-// CR-079 step (d) — when a Pack Draft's own `code` doesn't resolve against
-// its category's own Ontology vocabulary, publish OntologyComposed (Ch.18
-// §14 — already named there, but zero of its 7 events existed anywhere in
-// the codebase before this; emission only, who consumes it is a separate,
-// deferred layer — Chapter 18 / design/mvp-build-plan/Ontology Plan.md).
-// Owner correction: a Pack proposing an unregistered code IS Ch.18 §8's own
-// "Ontology Composition" (constructing the effective Ontology by composing
-// contributions from Packs) — not a direct concept-registry addition, which
-// is what ConceptCreated means elsewhere (core/ontology.ts's own
-// createConceptVersion, the Ontology Management page's own Add/Compose
-// actions). Called on every Draft create/save, not just once — but
-// de-duplicated per (Pack, code, conceptType) via the events table itself
-// (nothing else tracks "pending" concepts), so resaving the same still-
-// unregistered code doesn't re-fire. Owner: "One unregistered code get one
-// [event] from one pack. If another pack uses the same unregistered code,
-// there will be another [event]" — deliberately NOT deduplicated across
-// different Packs proposing the same code; conflict resolution across
-// proposals happens at consumption, out of scope here.
-// CR-100 — generalised from a Pack-code-only helper to any (code, conceptType)
-// pair a Pack's own contributions propose. Callers resolve their own concept
-// type (Pack's own code: `${category.toLowerCase()}-name`; a Competency
-// value: `${dimension.toLowerCase()}`) — this function no longer derives one
-// itself.
-async function emitOntologyComposedIfUnregistered(packId: string, code: string, conceptType: string, tenantId?: string): Promise<void> {
-  if (!code.trim() || !conceptType.trim()) return;
-  const ontologyViewer = { isRoot: false, tenantId: tenantId ?? PLATFORM_TENANT_ID };
-  const { data: concept } = await ontologyDB.findConcept(conceptType, code, ontologyViewer);
-  if (concept) return; // already a real, registered concept — nothing to propose
-  const { data: priorEvents } = await eventsDB.findByOriginatingObject("Pack", packId);
-  const alreadyProposed = (priorEvents ?? []).some(
-    (e) => e.event_type === "OntologyComposed" && e.payload?.code === code && e.payload?.conceptType === conceptType
-  );
-  if (alreadyProposed) return;
-  await eventBus.publish({
-    eventType: "OntologyComposed",
-    originatingObjectType: "Pack",
-    originatingObjectId: packId,
-    seuId: null,
-    correlationId: eventBus.newCorrelationId(),
-    payload: { code, conceptType },
-  });
-}
-
 // CR-100 — owner: "Value has to be a dropdown from Competency Value Ontology
 // but allow a new text. If a new text is written, it has to emit a
-// OntologyComposed event." Same proposal mechanism as the Pack's own code
-// above, one entry at a time — a Competency's `value` is unregistered under
-// its own `dimension`'s (lower-cased) concept type exactly the same way an
-// unregistered Pack `code` is unregistered under its category's `-name`
-// concept type; `emitOntologyComposedIfUnregistered` already no-ops for an
-// already-registered value and already de-dupes repeat saves, so this is
-// pure orchestration, no new proposal/dedup logic.
-async function emitOntologyComposedForCompetencies(packId: string, competencies: Array<{ dimension?: string; value?: string }> | undefined, tenantId?: string): Promise<void> {
+// OntologyComposed event." Thin Pack-specific orchestration over the generic
+// core/ontology.ts#emitOntologyComposed (formerly a Pack-only local
+// function here, generalised the same session Policy's own composable
+// Applicability fields needed the identical mechanism) — a Competency's
+// `value` is unregistered under its own `dimension`'s (lower-cased) concept
+// type exactly the same way an unregistered Pack `code` is unregistered
+// under its category's `-name` concept type.
+async function emitOntologyComposedForCompetencies(packId: string, packCode: string, competencies: Array<{ dimension?: string; value?: string }> | undefined, ctx: { actorId?: string | null; badge?: string | null; tenantId?: string }): Promise<void> {
   for (const comp of competencies ?? []) {
     if (!comp.dimension?.trim() || !comp.value?.trim()) continue;
-    await emitOntologyComposedIfUnregistered(packId, comp.value, comp.dimension.toLowerCase(), tenantId);
+    await emitOntologyComposed({ originatingObjectType: "Pack", originatingObjectId: packId, originatingEntityCode: packCode, code: comp.value, conceptType: comp.dimension.toLowerCase(), ...ctx });
   }
 }
 
@@ -1073,8 +1137,11 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       payload: { code: pack.code, packVersion: pack.pack_version },
       actorId: input.actorId,
     });
-    await emitOntologyComposedIfUnregistered(pack.id, seed.code, `${(seed.category ?? "").toLowerCase()}-name`, input.tenantId);
-    await emitOntologyComposedForCompetencies(pack.id, seed.contributions.competencies, input.tenantId);
+    const { data: packSchema } = await schemaDefinitionsDB.findLatest("Pack");
+    if (packSchema) {
+      await proposeComposableOntologyValues(packSchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Pack", originatingObjectId: pack.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: "pack_define", tenantId: input.tenantId });
+    }
+    await emitOntologyComposedForCompetencies(pack.id, seed.code, seed.contributions.competencies, { actorId: input.actorId, badge: "pack_define", tenantId: input.tenantId });
     return { ok: true, draftId: pack.id };
   }
   if (input.kind === "Template") {
@@ -1215,7 +1282,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       if (!seed.name) seed.name = inherited.content.name as string;
       if (!seed.category) seed.category = inherited.content.category as string;
     }
-    const validation = await validatePolicyDefinitionSeed({ ...seed, tenantId, parentPolicyDefinitionId: input.parentPolicyDefinitionId }, undefined);
+    const validation = await validatePolicyDefinitionSeed({ ...seed, tenantId, parentPolicyDefinitionId: input.parentPolicyDefinitionId }, undefined, true);
     if (!validation.ok) return { ok: false, errors: validation.errors };
     const { data: p, error } = await policyDefinitionsDB.createDraft({
       code: seed.code,
@@ -1223,10 +1290,9 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       description: seed.description ?? null,
       category: seed.category,
       constraintType: seed.constraintType,
-      applicabilityDeliverableNames: seed.applicabilityDeliverableNames ?? [],
       applicabilityEnvironments: seed.applicabilityEnvironments ?? [],
-      applicabilityDeliverableLifecycle: seed.applicabilityDeliverableLifecycle ?? [],
       conditions: seed.conditions ?? [],
+      scope: seed.scope,
       version: seed.version,
       authoredBy,
       draftContent: input.content,
@@ -1234,13 +1300,17 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       parentPolicyDefinitionId: input.parentPolicyDefinitionId ?? null,
     });
     if (error || !p) return { ok: false, errors: [(error ?? new Error("failed to create Policy Definition draft")).message] };
+    const { data: policySchema } = await schemaDefinitionsDB.findLatest("Policy");
+    if (policySchema) {
+      await proposeComposableOntologyValues(policySchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Policy", originatingObjectId: p.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: "policy_define", tenantId });
+    }
     return { ok: true, draftId: p.id };
   }
   return { ok: false, errors: [`kind "${input.kind}" is not authorable`] };
 }
 
 // --- Save (update a Draft's content) ----------------------------------------
-export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKind; id: string; content: Record<string, unknown> }): Promise<AuthoringActionResult> {
+export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKind; id: string; content: Record<string, unknown>; actorId?: string }): Promise<AuthoringActionResult> {
   if (input.kind === "Pack") {
     const { data: existingPack } = await packsDB.findById(input.id);
     if (!existingPack) return { ok: false, errors: ["draft not found or no longer editable (only Draft rows can be saved)"] };
@@ -1260,8 +1330,11 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     });
     if (error) return { ok: false, errors: [error.message] };
     if (!data) return { ok: false, errors: ["draft not found or no longer editable (only Draft rows can be saved)"] };
-    await emitOntologyComposedIfUnregistered(input.id, seed.code, `${(seed.category ?? "").toLowerCase()}-name`, existingPack.tenant_id);
-    await emitOntologyComposedForCompetencies(input.id, seed.contributions.competencies, existingPack.tenant_id);
+    const { data: packSchema } = await schemaDefinitionsDB.findLatest("Pack");
+    if (packSchema) {
+      await proposeComposableOntologyValues(packSchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Pack", originatingObjectId: input.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: "pack_define", tenantId: existingPack.tenant_id });
+    }
+    await emitOntologyComposedForCompetencies(input.id, seed.code, seed.contributions.competencies, { actorId: input.actorId, badge: "pack_define", tenantId: existingPack.tenant_id });
     return { ok: true };
   }
   if (input.kind === "Template") {
@@ -1345,15 +1418,21 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     const { data: existing } = await policyDefinitionsDB.findById(input.id);
     if (!existing) return { ok: false, errors: ["draft not found or no longer editable (only Draft rows can be saved)"] };
     const seed = toPolicyDefinitionSeedInput({ ...input.content });
-    const validation = await validatePolicyDefinitionSeed({ ...seed, tenantId: existing.tenant_id, parentPolicyDefinitionId: existing.parent_policy_definition_id ?? undefined }, input.id);
+    const validation = await validatePolicyDefinitionSeed({ ...seed, tenantId: existing.tenant_id, parentPolicyDefinitionId: existing.parent_policy_definition_id ?? undefined }, input.id, true);
     if (!validation.ok) return { ok: false, errors: validation.errors };
     const { data, error } = await policyDefinitionsDB.updateDraftContent(input.id, {
       code: seed.code, name: seed.name, description: seed.description ?? null, category: seed.category, constraintType: seed.constraintType,
-      applicabilityDeliverableNames: seed.applicabilityDeliverableNames ?? [], applicabilityEnvironments: seed.applicabilityEnvironments ?? [],
-      applicabilityDeliverableLifecycle: seed.applicabilityDeliverableLifecycle ?? [], conditions: seed.conditions ?? [], version: seed.version, draftContent: input.content,
+      applicabilityEnvironments: seed.applicabilityEnvironments ?? [],
+      conditions: seed.conditions ?? [],
+      scope: seed.scope,
+      version: seed.version, draftContent: input.content,
     });
     if (error) return { ok: false, errors: [error.message] };
     if (!data) return { ok: false, errors: ["draft not found or no longer editable (only Draft rows can be saved)"] };
+    const { data: policySchema } = await schemaDefinitionsDB.findLatest("Policy");
+    if (policySchema) {
+      await proposeComposableOntologyValues(policySchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Policy", originatingObjectId: input.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: "policy_define", tenantId: existing.tenant_id });
+    }
     return { ok: true };
   }
   return { ok: false, errors: [`kind "${input.kind}" is not authorable`] };
@@ -1460,11 +1539,20 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
     const { data: p } = await policyDefinitionsDB.findById(input.id);
     if (!p) return { ok: false, errors: ["Policy Definition draft not found"] };
     if (p.status === "Draft") {
+      // Bug fix (found verifying migration 212's scope-driven Applicability
+      // rendering) — two issues: scope (a real column, 207_policy_definitions_
+      // scope_and_governing_condition.sql) was missing entirely; and unlike
+      // getAuthoringDraft's own "real columns always win" mapping,
+      // `...(p.draft_content ?? {})` was spread LAST here, letting stale
+      // draft content silently override every real column (including
+      // code/name/category) at the one call site that actually gates
+      // Publish — exactly backwards.
       const seed = toPolicyDefinitionSeedInput({
-        code: p.code, name: p.name, description: p.description ?? undefined, category: p.category, constraintType: p.constraint_type,
-        applicabilityDeliverableNames: p.applicability_deliverable_names, applicabilityEnvironments: p.applicability_environments,
-        applicabilityDeliverableLifecycle: p.applicability_deliverable_lifecycle.join(", "), conditions: JSON.stringify(p.conditions), version: p.version,
         ...(p.draft_content ?? {}),
+        code: p.code, name: p.name, description: p.description ?? undefined, category: p.category, constraintType: p.constraint_type,
+        applicabilityEnvironments: p.applicability_environments,
+        conditions: JSON.stringify(p.conditions), version: p.version,
+        scope: p.scope,
       });
       const validation = await validatePolicyDefinitionSeed({ ...seed, tenantId: p.tenant_id, parentPolicyDefinitionId: p.parent_policy_definition_id ?? undefined }, p.id);
       if (!validation.ok) return { ok: false, errors: validation.errors };

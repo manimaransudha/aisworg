@@ -59,6 +59,30 @@
         "dimension": "Technology",
         "value": "go"
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "test-go-module-vulnerability-tracking",
+        "category": "Security",
+        "title": "Go module vulnerabilities must be tracked and remediated within SLA",
+        "description": "A vulnerability disclosed against a dependency in go.mod must be triaged and remediated within its severity's SLA; govulncheck flags reachable vulnerabilities specifically, so an unaddressed finding is a real, exploitable exposure, not theoretical.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every reachable Critical/High vulnerability reported by govulncheck is remediated or carries an approved waiver within its SLA.",
+        "requiredEvidence": {
+          "title": "govulncheck scan",
+          "category": "Validation Evidence",
+          "description": "govulncheck output showing reachable vulnerabilities in the module graph.",
+          "collectionMethod": "`govulncheck ./...` tool output."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated dependency/vulnerability scan check.",
+        "externalEvidence": false
+      }
     ]
   }
 }

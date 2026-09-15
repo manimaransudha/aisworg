@@ -277,8 +277,9 @@ router.post("/seus/:id/deliverables/:deliverableId/transition", async (req: Requ
  * Model"/"Activate" (design/mvp-build-plan/SEU Composition.md, plan step 6).
  * Two separate, independently human-triggered transitions on the SEU's own
  * active EBM (Composed -> Validated -> Active), same shape as every other
- * entity transition on this page. Activating also finishes commissioning
- * (finalizeCommissioning, called inside transitionEbm). */
+ * entity transition on this page. CR-102: activating publishes EBMActivated
+ * and returns immediately — finalizeCommissioning now runs asynchronously in
+ * ebmActivatedHandler, off the bus, not inside this request. */
 router.post("/seus/:id/ebm/transition", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}`;
@@ -305,7 +306,7 @@ router.post("/seus/:id/ebm/transition", async (req: Request, res: Response) => {
     }
     const message =
       result.appliedTransition.toState === "Active"
-        ? `Engineering Behavior Model activated — commissioning finished, lifecycle state: ${(await seusDB.findById(seuId)).data?.lifecycle_state}.`
+        ? `Engineering Behavior Model activated — commissioning is proceeding in the background. Refresh this page shortly to see the SEU's lifecycle state.`
         : `Engineering Behavior Model moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`;
     return flashSuccess(req, res, backTo, message);
   } catch (err) {

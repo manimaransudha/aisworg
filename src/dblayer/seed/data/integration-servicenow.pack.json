@@ -75,6 +75,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "servicenow-cab-approval-sla",
+        "category": "Engineering",
+        "title": "A submitted Change Request must reach a CAB decision within its SLA",
+        "description": "A Change Request left pending CAB review past its SLA blocks the underlying work without a recorded reason; pending requests must be tracked and escalated, not left indefinitely in a submitted state.",
+        "origin": "Quality Gates",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Every Change Request reaches a CAB decision within its declared SLA, or is escalated.",
+        "requiredEvidence": {
+          "title": "CAB decision timing record",
+          "category": "Validation Evidence",
+          "description": "Record of Change Request submission and CAB decision timing.",
+          "collectionMethod": "ServiceNow Table API export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated CAB-SLA check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

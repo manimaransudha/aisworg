@@ -18,10 +18,6 @@ import { servicesDB } from "../src/dblayer/servicesDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 const SLA_SECONDS = 60;
 
 async function commissionDispatchAndDeclareSla(prefix: string, opts?: { slaSeconds?: number; targetCompletionAt?: Date | null }) {

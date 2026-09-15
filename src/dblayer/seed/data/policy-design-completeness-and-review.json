@@ -19,38 +19,225 @@
   "conditions": [
     {
       "statement": "Every Design artefact declares the requirement or capability it satisfies, not left as free-standing content.",
-      "requiredEvidence": [
+      "severity": "Medium",
+      "applicabilityDeliverables": [
         {
-          "type": "traceability_record"
+          "name": "solution-architecture-document",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "system-model",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "security-design",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "ux-ui-design-specification",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "detailed-design-specification",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "database-schema-data-model",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "integration-specification-interface-contracts",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "domain-model",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Traceability Record",
+        "category": "Analytical Evidence",
+        "description": "Every Design artefact declares the requirement or capability it satisfies, not left as free-standing content.",
+        "collectionMethod": "Traceability tool/matrix review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "A Security Design exists, reviewed by a security-capable participant, for any component handling sensitive data or external input.",
-      "requiredEvidence": [
+      "severity": "Critical",
+      "applicabilityDeliverables": [
         {
-          "type": "review_result"
+          "name": "solution-architecture-document",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "system-model",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "security-design",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "ux-ui-design-specification",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "detailed-design-specification",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "database-schema-data-model",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "integration-specification-interface-contracts",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "domain-model",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Critical",
+      "requiredEvidence": {
+        "title": "Review Result",
+        "category": "Validation Evidence",
+        "description": "A Security Design exists, reviewed by a security-capable participant, for any component handling sensitive data or external input.",
+        "collectionMethod": "Recorded outcome from the review process"
+      },
+      "relatedObligations": [],
       "exceptionRules": [
-        "A component with no sensitive data and no external-facing surface may be exempted, logged with justification."
-      ],
-      "relatedObligations": []
+        {
+          "identifier": "6184d1b7-19a7-53d4-a43e-a58a9f7bdf96",
+          "exceptionStatement": "A component with no sensitive data and no external-facing surface may be exempted, logged with justification.",
+          "duration": "Permanent, unless the component's data or exposure classification changes",
+          "exceptionScope": "This component's Security Design only",
+          "exceptionApprovers": [
+            "Deliverable_approve"
+          ],
+          "exceptionComposition": "any",
+          "reviewRequirements": "Re-evaluated if the component later handles sensitive data or gains an external-facing surface."
+        }
+      ]
     },
     {
       "statement": "Interface/integration contracts (API, database schema, integration specification) are internally consistent — no two Design artefacts declare conflicting contracts for the same interface.",
-      "requiredEvidence": [
+      "severity": "High",
+      "applicabilityDeliverables": [
         {
-          "type": "contract_consistency_check"
+          "name": "solution-architecture-document",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "system-model",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "security-design",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "ux-ui-design-specification",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "detailed-design-specification",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "database-schema-data-model",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "integration-specification-interface-contracts",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "domain-model",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "High",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Contract Consistency Check",
+        "category": "Validation Evidence",
+        "description": "Interface/integration contracts (API, database schema, integration specification) are internally consistent — no two Design artefacts declare conflicting contracts for the same interface.",
+        "collectionMethod": "Automated tool/system output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     }
   ],
   "version": "1.0.0"

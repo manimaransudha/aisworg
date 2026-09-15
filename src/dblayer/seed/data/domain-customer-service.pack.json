@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "customer-service-sla-breach-root-cause",
+        "category": "Review Finding",
+        "title": "An SLA breach on a support ticket must have a recorded root cause",
+        "description": "A ticket that breaches its SLA must not simply be closed once resolved; the breach itself needs a recorded root cause so recurring causes can be identified and addressed.",
+        "origin": "Telemetry and Knowledge Model",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Every SLA-breaching ticket has a recorded root cause before closure.",
+        "requiredEvidence": {
+          "title": "SLA breach root-cause record",
+          "category": "Analytical Evidence",
+          "description": "Root-cause note attached to each SLA-breaching ticket.",
+          "collectionMethod": "Ticketing system export."
+        },
+        "classification": "human-attested",
+        "prompt": "Does every SLA-breaching ticket have a recorded root cause?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Support team lead sign-off.",
+        "externalEvidence": false
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

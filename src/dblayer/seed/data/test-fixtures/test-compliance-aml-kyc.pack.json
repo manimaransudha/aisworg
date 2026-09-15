@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-aml-sar-sanctions-hit-escalation",
+        "category": "Compliance",
+        "title": "A sanctions/watchlist match or suspicious activity indicator must be escalated and filed within the regulatory deadline",
+        "description": "An OFAC sanctions screening hit or a suspicious-activity indicator under BSA/FinCEN CDD rules must be escalated to compliance and, where warranted, filed as a Suspicious Activity Report (SAR) within the regulatory deadline, never resolved by silently clearing the transaction.",
+        "origin": "External systems",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "Every sanctions/watchlist hit and suspicious-activity indicator reaches a recorded disposition (cleared, escalated, or SAR filed) within the regulatory deadline.",
+        "requiredEvidence": {
+          "title": "AML case disposition record",
+          "category": "Validation Evidence",
+          "description": "Compliance case management record showing disposition and timing of each sanctions hit or suspicious-activity indicator.",
+          "collectionMethod": "AML/sanctions screening system case log."
+        },
+        "classification": "human-attested",
+        "prompt": "Has every sanctions/watchlist hit or suspicious-activity indicator reached a recorded disposition within the regulatory deadline?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "BSA/AML compliance officer sign-off.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

@@ -76,6 +76,7 @@ import { seedLegacyKnowledgeRecoveryPack } from "./seedLegacyKnowledgeRecoveryPa
 import { seedDomainSpecialisationPacks } from "./seedDomainSpecialisationPacks.js";
 import { seedSdlcStandardTemplates } from "./seedSdlcStandardTemplates.js";
 import { seedPolicyDefinitions } from "./seedPolicyDefinitions.js";
+import { seedCr104Demo } from "./seedCr104Demo.js";
 import { seedAllTestFixturePacks } from "./seedTestFixturePacks.js";
 import { seedAllTabsPackFixture } from "./seedAllTabsPackFixture.js";
 
@@ -205,6 +206,10 @@ const CATEGORY_SCOPED_PACK_NAME_CONCEPTS: Array<[conceptType: string, code: stri
   // conflict, which leaves the SEU Pending instead.
   ["organisation-name", "retry-stale-pack-test", "Test: Retry Stale Pack"],
   ["organisation-name", "stale-pack-test", "Test: Stale Pack"],
+  // CR-104 real seed validation fixtures (seedCr104Demo.ts) — not test-only,
+  // loaded by db:clean-slate itself.
+  ["organisation-name", "cr104-demo-mandatory", "CR-104 Demo: Platform-Mandatory Pack"],
+  ["organisation-name", "cr104-demo-seu-eligibility-policies", "CR-104 Demo: SEU-Scoped & Eligibility-Scoped Policies"],
   ["technology-name", "technology-c", "C Engineering Practices"],
   ["technology-name", "technology-cpp", "C++ Engineering Practices"],
   ["technology-name", "technology-nodejs", "Node.js Engineering Practices"],
@@ -634,7 +639,7 @@ async function run(): Promise<void> {
   // deprecating — the real Packs steps 6/7 just seeded (only one Pack
   // version per code can be Active; a test file that mints its own
   // throwaway versions under a REAL Pack's code deprecates it). Rerun-safe.
-  await seedAllTestFixturePacks();
+  // await seedAllTestFixturePacks();
 
   // Step 7c — owner: "Create atleast one pack seed json which has all the
   // tabs populated." test-pack-all-tabs.pack.json deliberately populates
@@ -674,6 +679,16 @@ async function run(): Promise<void> {
   // would (same reasoning schema_definitions' own step 2e trims-back-rather-
   // than-wipes for).
   await seedPolicyDefinitions();
+
+  // Step 10 — CR-104 validation fixtures (owner: "Create seed data similar
+  // to the test data you created for testing CR-104... so I can use that as
+  // the base for my further validation"): a real, Platform-Mandatory Pack
+  // (composes into every Template automatically) plus a second Pack, adopted
+  // only by its own dedicated Profile (baseTemplateCode "saas-product"),
+  // carrying an SEU-scoped Policy and an Eligibility-scoped Policy. Must run
+  // after step 8 (needs the real "saas-product" Template/Profile to already
+  // exist). Rerun-safe.
+  await seedCr104Demo();
 
   logger.info("[db:clean-slate] done. Sanity-check next: hit /aisworg/seu/sdk/pack-authoring (Create starts a fresh Draft directly — no bootstrap Template needed) and /aisworg/seu/telemetry (zero Deliverables measured) as a real user.");
 }

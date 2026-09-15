@@ -32,10 +32,6 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
 import { uniqueTestPackVersion } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 // A real, already-seeded, Active canonical Policy — confirmed directly
 // against the live DB (no *.pack.json adopts it today, but the Definition
 // itself is real Platform-seeded data, not test-only).
@@ -48,6 +44,7 @@ async function buildFixturePack(): Promise<{ packId: string; packCode: string; c
     name: "CR-088 filter-shaped override fixture Pack",
     category: "Engineering",
     packVersion: "1.0.0",
+    installationClassification: "Optional",
     contributions: {},
   });
   assert.ok(!packError && pack, packError?.message);
@@ -74,20 +71,18 @@ test("deriveExposableParameterCandidates: Policy applicability dimensions get re
   const { packCode } = await buildFixturePack();
   const candidates = await deriveExposableParameterCandidates([packCode], PLATFORM_TENANT_ID, []);
 
-  const deliverableNames = candidates.find((c) => c.sourceType === "policy" && c.sourceCode === REAL_POLICY_CODE && c.parameterName === "applicabilityDeliverableNames");
-  assert.ok(deliverableNames, "expected an applicabilityDeliverableNames candidate for the adopted Policy");
-  assert.equal(deliverableNames!.valueBearing, false);
-  assert.ok(deliverableNames!.valueOptions && deliverableNames!.valueOptions.length > 0, "expected a real, non-empty deliverable-name vocabulary");
-
   const environments = candidates.find((c) => c.sourceType === "policy" && c.sourceCode === REAL_POLICY_CODE && c.parameterName === "applicabilityEnvironments");
   assert.ok(environments?.valueOptions && environments.valueOptions.length > 0, "expected a real, non-empty category:environment vocabulary");
 
-  const lifecycle = candidates.find((c) => c.sourceType === "policy" && c.sourceCode === REAL_POLICY_CODE && c.parameterName === "applicabilityDeliverableLifecycle");
-  assert.deepEqual(
-    lifecycle?.valueOptions ? [...lifecycle.valueOptions].sort() : [],
-    ["Approved", "Baselined", "Defined", "In Progress"],
-    "applicabilityDeliverableLifecycle must be exactly the real transition_definitions states, not Ontology-derived"
-  );
+  // Migration 214 (owner: "Add only deliverable name and allow multiple
+  // transitions. And add a +Add another deliverable") — applicabilityDeliverables
+  // replaced applicabilityDeliverableNames/applicabilityDeliverableLifecycle
+  // with a real referential-list (Array<{name, transitions}>), which this
+  // mechanism's own flat-value-per-candidate shape can't represent — dropped
+  // from CR-088's own Exposable Parameters candidates for now (see
+  // templates.ts's own comment), so neither dimension is offered here anymore.
+  assert.equal(candidates.find((c) => c.sourceType === "policy" && c.parameterName === "applicabilityDeliverableNames"), undefined);
+  assert.equal(candidates.find((c) => c.sourceType === "policy" && c.parameterName === "applicabilityDeliverableLifecycle"), undefined);
 });
 
 test("deriveExposableParameterCandidates: Checklist configurableKey gets valueOptions from checklist-configurable-value", async () => {
@@ -109,7 +104,7 @@ async function buildFixtureTemplate(input: { packCode: string; checklistId: stri
   await templatesDB.setMandatoryPacks(template!.id, [input.packCode]);
   await templatesDB.setDraftContent(template!.id, {
     exposedParameters: [
-      { sourceType: "policy", sourceCode: REAL_POLICY_CODE, parameterName: "applicabilityDeliverableNames", overridable: input.flagOverridable },
+      { sourceType: "policy", sourceCode: REAL_POLICY_CODE, parameterName: "applicabilityEnvironments", overridable: input.flagOverridable },
       { sourceType: "checklist", sourceCode: input.checklistId, parameterName: "type", overridable: input.flagOverridable },
     ],
   });
@@ -121,7 +116,7 @@ test("deriveOverridableParameterCandidates: filter-shaped candidates reach Profi
   const templateCode = await buildFixtureTemplate({ packCode, checklistId, flagOverridable: true });
 
   const candidates = await deriveOverridableParameterCandidates(templateCode, PLATFORM_TENANT_ID);
-  const policyCandidate = candidates.find((c) => c.sourceType === "policy" && c.parameterName === "applicabilityDeliverableNames");
+  const policyCandidate = candidates.find((c) => c.sourceType === "policy" && c.parameterName === "applicabilityEnvironments");
   assert.ok(policyCandidate, "expected the Policy applicability candidate to reach Profile's own tab now that valueBearing is no longer required");
   assert.ok(policyCandidate!.valueOptions && policyCandidate!.valueOptions.length > 0);
 
@@ -231,7 +226,7 @@ test("publishTemplate: materialises a non-sparse exposedParameters set from the 
   const exposed = extractExposedParameters(template!.draft_content as Record<string, unknown>);
   assert.ok(exposed && exposed.length > 0, "expected a non-sparse exposedParameters set materialised automatically, without the seed providing one");
 
-  const policyCandidate = exposed!.find((e) => e.sourceType === "policy" && e.sourceCode === REAL_POLICY_CODE && e.parameterName === "applicabilityDeliverableNames");
+  const policyCandidate = exposed!.find((e) => e.sourceType === "policy" && e.sourceCode === REAL_POLICY_CODE && e.parameterName === "applicabilityEnvironments");
   assert.ok(policyCandidate, "expected the fixture Pack's adopted Policy applicability candidate to be materialised");
   assert.equal(policyCandidate!.overridable, true, "by default all of the parameters are checked");
 

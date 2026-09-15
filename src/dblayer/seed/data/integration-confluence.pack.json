@@ -75,6 +75,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "confluence-page-ownership-currency",
+        "category": "Organisational Learning",
+        "title": "Published documentation pages must have a current, accountable owner",
+        "description": "Technical documentation published to Confluence accumulates stale pages whose original author has moved teams or left; each page needs a current, accountable owner so drift is caught rather than silently persisting.",
+        "origin": "Telemetry and Knowledge Model",
+        "priority": "Low",
+        "severity": "Low",
+        "completionCriteria": "Every published page's owner field is confirmed current within the declared review cadence.",
+        "requiredEvidence": {
+          "title": "Page ownership currency check",
+          "category": "Analytical Evidence",
+          "description": "Review confirming each published page's owner is still accurate/active.",
+          "collectionMethod": "Confluence space audit."
+        },
+        "classification": "human-attested",
+        "prompt": "Are published pages' owners still current?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Documentation lead sign-off.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

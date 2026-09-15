@@ -63,6 +63,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "pmla-suspicious-transaction-reporting",
+        "category": "Compliance",
+        "title": "A suspicious transaction must be reported to FIU-IND within the PMLA-mandated window",
+        "description": "PMLA requires suspicious transactions to be reported to the Financial Intelligence Unit-India within the regulatory window; RBI's cybersecurity framework separately requires timely incident reporting, both deadlines are independent obligations, not satisfied by internal escalation alone.",
+        "origin": "External systems",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "Every suspicious transaction is reported to FIU-IND within the PMLA-mandated window.",
+        "requiredEvidence": {
+          "title": "STR filing record",
+          "category": "Validation Evidence",
+          "description": "Record of Suspicious Transaction Report filing timing against detection.",
+          "collectionMethod": "AML case management system export."
+        },
+        "classification": "human-attested",
+        "prompt": "Has every suspicious transaction been reported to FIU-IND within the mandated window?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "AML compliance officer sign-off.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

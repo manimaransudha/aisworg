@@ -70,6 +70,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "kubernetes-rbac-privilege-review",
+        "category": "Security",
+        "title": "Kubernetes RBAC bindings and ServiceAccount tokens must be reviewed for least-privilege",
+        "description": "ClusterRoleBindings and ServiceAccount token permissions can accumulate excess privilege as workloads are added; bindings must be reviewed periodically against actual need, not left at their original broad grant.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "RBAC bindings and ServiceAccount permissions are reviewed and confirmed least-privilege within the declared cadence.",
+        "requiredEvidence": {
+          "title": "RBAC privilege review",
+          "category": "Validation Evidence",
+          "description": "Review of live RBAC bindings against actual workload need.",
+          "collectionMethod": "Kubernetes API RBAC export."
+        },
+        "classification": "human-attested",
+        "prompt": "Do RBAC bindings and ServiceAccount permissions still match least-privilege need?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Platform/security engineering sign-off.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

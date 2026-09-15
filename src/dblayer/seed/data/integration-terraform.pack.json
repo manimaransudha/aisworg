@@ -70,6 +70,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "terraform-state-drift-detection",
+        "category": "Engineering",
+        "title": "Terraform state must be checked for drift from live infrastructure on a recurring cadence",
+        "description": "Infrastructure changed outside of Terraform (manual console edits, other tooling) causes the state file to silently diverge from reality; drift must be detected on a recurring cadence, not discovered only when the next apply produces surprising changes.",
+        "origin": "Quality Gates",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "A drift-detection plan is run within the declared cadence, with any drift reconciled or explicitly accepted.",
+        "requiredEvidence": {
+          "title": "State drift detection report",
+          "category": "Validation Evidence",
+          "description": "Terraform plan output run against live infrastructure to detect drift.",
+          "collectionMethod": "Terraform Cloud/Enterprise drift-detection run."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated drift-detection check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

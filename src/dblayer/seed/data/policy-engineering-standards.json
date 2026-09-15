@@ -12,26 +12,45 @@
   "conditions": [
     {
       "statement": "The standard has been reviewed within the declared cadence window.",
-      "requiredEvidence": [
+      "severity": "Medium",
+      "applicabilityDeliverables": [
         {
-          "type": "standard_review_record"
+          "name": "engineering-standard",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Standard Review Record",
+        "category": "Analytical Evidence",
+        "description": "The standard has been reviewed within the declared cadence window.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "Any revision to the standard cites accumulated Telemetry evidence as its basis, not unstructured opinion alone.",
-      "requiredEvidence": [
+      "severity": "Low",
+      "applicabilityDeliverables": [
         {
-          "type": "standard_review_record",
-          "field": "evidentiary_basis"
+          "name": "engineering-standard",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Low",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Standard Review Record — Evidentiary Basis",
+        "category": "Analytical Evidence",
+        "description": "Any revision to the standard cites accumulated Telemetry evidence as its basis, not unstructured opinion alone.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     }
   ],
   "version": "1.0.0"

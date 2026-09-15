@@ -15,10 +15,6 @@ import { createEvidence } from "../src/routes/seu/core/evidence.js";
 import { getKnowledgeMetrics } from "../src/routes/seu/core/telemetry.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 async function commissionTestSeuWithDeliverable(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromFormSync({
@@ -26,8 +22,7 @@ async function commissionTestSeuWithDeliverable(statementPrefix: string) {
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super", actorId: "1001", requestedBy: 1001,
   });
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
-  if (!result.ok) throw new Error("unreachable");
+  if (!result.ok) throw new Error(`commissioning failed: ${result.reason}`);
   const seuId = result.seu.id;
 
   const detail = await getSeuDetailView(seuId);
@@ -42,11 +37,11 @@ test("Knowledge Telemetry: growth and Evidence generation are real counts, broke
 
   const beforeA = await getKnowledgeMetrics(a.seuId);
 
-  await createKnowledgeItem({ seuId: a.seuId, deliverableId: a.deliverableId, category: "Technical", title: "Test Knowledge Item (SEU scope)", acquisitionScope: "SEU" });
-  await createKnowledgeItem({ seuId: a.seuId, deliverableId: a.deliverableId, category: "Technical", title: "Test Knowledge Item (Platform scope)", acquisitionScope: "Platform" });
-  await createEvidence({ seuId: a.seuId, relatedObjectType: "Deliverable", relatedObjectId: a.deliverableId, category: "Test", title: "Test Evidence" });
+  await createKnowledgeItem({ seuId: a.seuId, deliverableId: a.deliverableId, category: "Technical Knowledge", title: "Test Knowledge Item (SEU scope)", acquisitionScope: "SEU" });
+  await createKnowledgeItem({ seuId: a.seuId, deliverableId: a.deliverableId, category: "Technical Knowledge", title: "Test Knowledge Item (Platform scope)", acquisitionScope: "Platform" });
+  await createEvidence({ seuId: a.seuId, relatedObjectType: "Deliverable", relatedObjectId: a.deliverableId, category: "Validation Evidence", title: "Test Evidence" });
 
-  await createKnowledgeItem({ seuId: b.seuId, deliverableId: b.deliverableId, category: "Technical", title: "SEU B's own Knowledge Item", acquisitionScope: "SEU" });
+  await createKnowledgeItem({ seuId: b.seuId, deliverableId: b.deliverableId, category: "Technical Knowledge", title: "SEU B's own Knowledge Item", acquisitionScope: "SEU" });
 
   const afterA = await getKnowledgeMetrics(a.seuId);
   assert.equal(afterA.totalKnowledgeItems, beforeA.totalKnowledgeItems + 2);

@@ -143,6 +143,30 @@
         "dimension": "Technology",
         "value": "react-native"
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "test-react-native-platform-sdk-deprecation-tracking",
+        "category": "Security",
+        "title": "Native iOS/Android SDK deprecations must be tracked against the app's target SDK versions",
+        "description": "A React Native app bridges into native iOS/Android APIs that get deprecated on each platform's own release cycle; deprecated API usage must be tracked and migrated before the platform removes it, not discovered as a store-submission rejection.",
+        "origin": "Quality Gates",
+        "priority": "Medium",
+        "severity": "High",
+        "completionCriteria": "Every deprecated native API usage is migrated or tracked to remediation before the platform's removal deadline.",
+        "requiredEvidence": {
+          "title": "SDK deprecation scan",
+          "category": "Validation Evidence",
+          "description": "Native build/lint output flagging deprecated iOS/Android API usage.",
+          "collectionMethod": "Automated native build/lint tool output."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated dependency/vulnerability scan check.",
+        "externalEvidence": false
+      }
     ]
   }
 }

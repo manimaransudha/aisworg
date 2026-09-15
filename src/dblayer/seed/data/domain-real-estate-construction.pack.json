@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "construction-safety-incident-reporting",
+        "category": "Compliance",
+        "title": "A jobsite safety incident must be reported within the regulatory deadline",
+        "description": "Construction safety incidents (OSHA-reportable or local equivalent) must be reported to the regulator within its mandated window; site-level resolution of the immediate hazard does not discharge the external reporting duty.",
+        "origin": "External systems",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "Every reportable jobsite safety incident is filed within its regulatory deadline.",
+        "requiredEvidence": {
+          "title": "Safety incident filing record",
+          "category": "Validation Evidence",
+          "description": "Timestamped record of incident occurrence and regulatory filing.",
+          "collectionMethod": "Safety/incident management system export."
+        },
+        "classification": "human-attested",
+        "prompt": "Has every reportable jobsite safety incident been filed within its regulatory deadline?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Site safety officer sign-off.",
+        "externalEvidence": true
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

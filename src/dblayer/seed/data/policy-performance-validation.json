@@ -14,51 +14,87 @@
   "conditions": [
     {
       "statement": "P95 latency under declared load is at or below the SLA target.",
-      "requiredEvidence": [
+      "severity": "High",
+      "applicabilityDeliverables": [
         {
-          "type": "performance_report",
-          "metric": "p95_latency"
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "High",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Performance Report — P95 Latency",
+        "category": "Validation Evidence",
+        "description": "P95 latency under declared load is at or below the SLA target.",
+        "collectionMethod": "Performance/load-test tool output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "Throughput under declared load meets or exceeds the minimum requests-per-second target.",
-      "requiredEvidence": [
+      "severity": "High",
+      "applicabilityDeliverables": [
         {
-          "type": "performance_report",
-          "metric": "throughput"
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "High",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Performance Report — Throughput",
+        "category": "Validation Evidence",
+        "description": "Throughput under declared load meets or exceeds the minimum requests-per-second target.",
+        "collectionMethod": "Performance/load-test tool output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "No memory leak detected over a sustained load-test window (memory usage returns to baseline after load subsides).",
-      "requiredEvidence": [
+      "severity": "Critical",
+      "applicabilityDeliverables": [
         {
-          "type": "performance_report",
-          "metric": "memory_profile"
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Critical",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Performance Report — Memory Profile",
+        "category": "Validation Evidence",
+        "description": "No memory leak detected over a sustained load-test window (memory usage returns to baseline after load subsides).",
+        "collectionMethod": "Performance/load-test tool output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "CPU and memory utilisation under peak declared load remain below the declared ceiling.",
-      "requiredEvidence": [
+      "severity": "Medium",
+      "applicabilityDeliverables": [
         {
-          "type": "performance_report",
-          "metric": "resource_utilisation"
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Performance Report — Resource Utilisation",
+        "category": "Validation Evidence",
+        "description": "CPU and memory utilisation under peak declared load remain below the declared ceiling.",
+        "collectionMethod": "Performance/load-test tool output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     }
   ],
   "version": "1.0.0"

@@ -78,11 +78,24 @@
       {
         "code": "fixture-review-followup",
         "category": "Engineering",
+        "title": "Fixture follow-up review",
+        "description": "A follow-up review is required after this fixture is exercised.",
         "origin": "Telemetry and Knowledge Model",
-        "statement": "A follow-up review is required after this fixture is exercised.",
+        "priority": "Low",
+        "severity": "Low",
+        "completionCriteria": "The follow-up review is completed and recorded.",
+        "requiredEvidence": {
+          "title": "Fixture follow-up review record",
+          "category": "Analytical Evidence",
+          "description": "A record confirming the fixture's follow-up review was completed.",
+          "collectionMethod": "Manual review, recorded after the fixture is exercised."
+        },
         "classification": "human-attested",
+        "prompt": "Has the fixture's follow-up review been completed?",
         "participant": "human",
-        "outputContract": "passed-failed-notes"
+        "outputContract": "passed-failed-notes",
+        "assurance": "Test-fixture maintainer sign-off.",
+        "externalEvidence": false
       }
     ],
     "authorityRules": [

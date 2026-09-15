@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "aviation-denied-boarding-compensation-compliance",
+        "category": "Compliance",
+        "title": "Denied-boarding/overbooking events must be compensated per applicable regulation",
+        "description": "Aviation and travel operators must track denied-boarding and significant delay/cancellation events against the applicable regulatory compensation scheme (e.g. EU261), and ensure compensation is issued, not left to passenger-initiated claims alone.",
+        "origin": "Policies",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every qualifying denied-boarding/delay event has recorded compensation issuance or a documented exemption.",
+        "requiredEvidence": {
+          "title": "Compensation issuance record",
+          "category": "Validation Evidence",
+          "description": "Record of compensation issued or exemption documented for each qualifying event.",
+          "collectionMethod": "Reservation/compensation system export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated compensation-issuance check.",
+        "externalEvidence": false
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

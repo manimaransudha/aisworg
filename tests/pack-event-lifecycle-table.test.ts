@@ -24,10 +24,6 @@ import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { createPackDraft, transitionPack, type PackSeedInput } from "../src/routes/seu/core/packs.js";
 import { uniqueTestPackVersion } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 async function freshPackSeed(overrides: Partial<PackSeedInput> = {}): Promise<PackSeedInput> {
   return {
     code: "test-pack",

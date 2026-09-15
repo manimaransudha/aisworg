@@ -75,6 +75,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "jira-workflow-configuration-drift-review",
+        "category": "Engineering",
+        "title": "Jira workflow and field configuration must be reviewed for drift from the intended process",
+        "description": "Ad hoc workflow/field edits accumulate over time and can silently diverge from the platform's own governed lifecycle mapping; configuration must be periodically reviewed against the intended process, not left to drift.",
+        "origin": "EBM",
+        "priority": "Low",
+        "severity": "Low",
+        "completionCriteria": "Jira workflow/field configuration is reviewed against the intended process mapping within the declared cadence.",
+        "requiredEvidence": {
+          "title": "Workflow configuration drift review",
+          "category": "Analytical Evidence",
+          "description": "Comparison of live Jira workflow/field configuration against the intended process mapping.",
+          "collectionMethod": "Jira admin configuration export."
+        },
+        "classification": "human-attested",
+        "prompt": "Does Jira's workflow/field configuration still match the intended process mapping?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Jira administrator sign-off.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

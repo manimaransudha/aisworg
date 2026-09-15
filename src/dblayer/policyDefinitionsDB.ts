@@ -1,7 +1,7 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import { PLATFORM_TENANT_ID } from "./constants.js";
-import type { DbResult, PolicyDefinitionRow, PolicyCondition } from "./seuTypes.js";
+import type { DbResult, PolicyDefinitionRow, PolicyCondition, PolicyScope } from "./seuTypes.js";
 
 // CR-089 — Policy Definition (Book 3 Ch.24), a new standalone table
 // (167_policy_definitions.sql), mirroring serviceDefinitionsDB.ts's own shape
@@ -16,10 +16,13 @@ export const policyDefinitionsDB = {
     description?: string | null;
     category: string;
     constraintType?: "Policy" | "Standard";
-    applicabilityDeliverableNames?: string[];
     applicabilityEnvironments?: string[];
-    applicabilityDeliverableLifecycle?: string[];
     conditions?: PolicyCondition[];
+    // Migration 216 — governedTransition/governingCondition dropped as real
+    // columns (folded into each condition — PolicyCondition.governingCondition);
+    // scope stays, optional/defaulted so every existing caller keeps today's
+    // behaviour ("Transition").
+    scope?: PolicyScope;
     version?: string;
     authoredBy?: number | null;
     draftContent?: Record<string, unknown>;
@@ -28,8 +31,8 @@ export const policyDefinitionsDB = {
   }): Promise<DbResult<PolicyDefinitionRow>> {
     try {
       const { rows } = await query<PolicyDefinitionRow>(
-        `INSERT INTO policy_definitions (code, name, description, category, constraint_type, applicability_deliverable_names, applicability_environments, applicability_deliverable_lifecycle, conditions, version, status, authored_by, draft_content, tenant_id, parent_policy_definition_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'Draft', $11, $12, $13, $14)
+        `INSERT INTO policy_definitions (code, name, description, category, constraint_type, applicability_environments, conditions, scope, version, status, authored_by, draft_content, tenant_id, parent_policy_definition_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Draft', $10, $11, $12, $13)
          RETURNING *`,
         [
           input.code,
@@ -37,10 +40,9 @@ export const policyDefinitionsDB = {
           input.description ?? null,
           input.category,
           input.constraintType ?? "Policy",
-          input.applicabilityDeliverableNames ?? [],
           input.applicabilityEnvironments ?? [],
-          input.applicabilityDeliverableLifecycle ?? [],
           JSON.stringify(input.conditions ?? []),
+          input.scope ?? "Transition",
           input.version ?? "1.0.0",
           input.authoredBy ?? null,
           JSON.stringify(input.draftContent ?? {}),
@@ -59,18 +61,24 @@ export const policyDefinitionsDB = {
     id: string,
     input: {
       code: string; name: string; description: string | null; category: string; constraintType: "Policy" | "Standard";
-      applicabilityDeliverableNames: string[]; applicabilityEnvironments: string[]; applicabilityDeliverableLifecycle: string[];
-      conditions: PolicyCondition[]; version: string; draftContent: Record<string, unknown>;
+      applicabilityEnvironments: string[];
+      conditions: PolicyCondition[];
+      // CR-104 follow-up — optional so a Draft authored before this field
+      // existed round-trips unchanged.
+      scope?: PolicyScope;
+      version: string; draftContent: Record<string, unknown>;
     }
   ): Promise<DbResult<PolicyDefinitionRow>> {
     try {
       const { rows } = await query<PolicyDefinitionRow>(
-        `UPDATE policy_definitions SET code = $2, name = $3, description = $4, category = $5, constraint_type = $6, applicability_deliverable_names = $7, applicability_environments = $8, applicability_deliverable_lifecycle = $9, conditions = $10, version = $11, draft_content = $12
+        `UPDATE policy_definitions SET code = $2, name = $3, description = $4, category = $5, constraint_type = $6, applicability_environments = $7, conditions = $8, scope = $9, version = $10, draft_content = $11
          WHERE id = $1 AND status = 'Draft' RETURNING *`,
         [
           id, input.code, input.name, input.description, input.category, input.constraintType,
-          input.applicabilityDeliverableNames, input.applicabilityEnvironments, input.applicabilityDeliverableLifecycle,
-          JSON.stringify(input.conditions), input.version, JSON.stringify(input.draftContent),
+          input.applicabilityEnvironments,
+          JSON.stringify(input.conditions),
+          input.scope ?? "Transition",
+          input.version, JSON.stringify(input.draftContent),
         ]
       );
       return { data: rows[0] };

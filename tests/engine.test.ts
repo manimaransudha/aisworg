@@ -22,10 +22,6 @@ import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
 import { uniqueTestPackVersion } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 // Post-MVP Phase 9's own "Done when" line asked for a second,
 // independently-versioned Pack composed alongside the first — this exercises
 // that multi-Pack merge path with real, non-conflicting data (see
@@ -42,7 +38,7 @@ test("compositionEngine.compose resolves a Template's mandatory Pack plus a Prof
   const optionalCode = "test-compose-optional";
 
   const mandatory = await publishPack({
-    seed: { code: mandatoryCode, name: "Test Mandatory Pack", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Mandatory", contributions: {} },
+    seed: { code: mandatoryCode, name: "Test Mandatory Pack", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} },
     actorRole: "power", actorId: "1001",
     activate: true,
   });

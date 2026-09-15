@@ -32,10 +32,6 @@ import { validateTransitionDefinitionSeed, addTransitionDefinition } from "../sr
 import { addVerb, addMapping, listAuthorityMapping } from "../src/routes/seu/core/authorityVocabulary.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 async function anyRealPackId(): Promise<string> {
   const { data: pack } = await packsDB.findByCode("development");
   if (!pack) throw new Error("expected development pack to be seeded");

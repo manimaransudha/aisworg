@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "gdpr-dsar-fulfillment-deadline",
+        "category": "Compliance",
+        "title": "A Data Subject Access Request must be fulfilled within GDPR's one-month statutory deadline",
+        "description": "GDPR requires a response to a Data Subject Access Request (or extension notice) within one month of receipt; the obligation exists from the moment the request is received, independent of any other Deliverable's own lifecycle.",
+        "origin": "Customer requests",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "Every DSAR receives a substantive response, or a documented extension notice, within the statutory deadline.",
+        "requiredEvidence": {
+          "title": "DSAR fulfillment record",
+          "category": "Validation Evidence",
+          "description": "Timestamped record of DSAR receipt and response.",
+          "collectionMethod": "Privacy request management system export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated DSAR-deadline compliance check.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

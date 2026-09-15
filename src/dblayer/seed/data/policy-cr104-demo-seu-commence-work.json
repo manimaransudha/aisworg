@@ -1,0 +1,44 @@
+{
+  "code": "cr104-demo-seu-commence-work",
+  "name": "CR-104 Demo: SEU commence-work sign-off",
+  "description": "CR-104 validation fixture — an SEU-scoped Policy governing the SEU's own Activated -> Operational transition (the platform's own commence-work sign-off step), not any owned Deliverable/AttentionItem. Its own governingCondition is deliberately always-unsatisfied so adopting this Definition demonstrably blocks that hop, proving the mechanism end to end.",
+  "category": "Operational",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "The SEU has a recorded commence-work sign-off before becoming Operational.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [
+        {
+          "name": "SEU",
+          "transitions": ["SEU|Activated|Operational"],
+          "governingCondition": { "type": "field_in", "field": "neverSet", "values": ["only-this-satisfies"] }
+        }
+      ],
+      "requiredEvidence": { "title": "", "category": "", "description": "", "collectionMethod": "" },
+      "relatedObligations": [
+        {
+          "category": "Compliance",
+          "title": "Record the SEU's commence-work sign-off",
+          "description": "This SEU may not become Operational until a commence-work sign-off (client sign-off, active contract, manager approval — whichever this Profile requires) is recorded against it.",
+          "origin": "Policies",
+          "priority": "Very High",
+          "severity": "Critical",
+          "completionCriteria": "A commence-work sign-off is recorded for this SEU, and this Policy's own condition is re-evaluated true.",
+          "requiredEvidence": {
+            "title": "Commence-work sign-off record",
+            "category": "Validation Evidence",
+            "description": "A recorded sign-off (client approval, contract execution, or manager approval) authorizing this SEU to begin Operational work.",
+            "collectionMethod": "Manual attestation recorded by the responsible Authority holder."
+          }
+        }
+      ],
+      "exceptionRules": []
+    }
+  ],
+  "scope": "Transition",
+  "version": "1.0.0"
+}

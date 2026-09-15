@@ -65,6 +65,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "prometheus-alert-rule-staleness-review",
+        "category": "Engineering",
+        "title": "Alert rules must be reviewed for staleness as monitored services evolve",
+        "description": "A Prometheus alerting rule referencing a metric or label that no longer exists silently stops firing; alert rules must be periodically checked against the live metric inventory, not assumed to keep working indefinitely.",
+        "origin": "Quality Gates",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Every alert rule is confirmed to reference a currently emitted metric within the declared review cadence.",
+        "requiredEvidence": {
+          "title": "Alert rule staleness check",
+          "category": "Validation Evidence",
+          "description": "Comparison of alert rule metric references against the live metric inventory.",
+          "collectionMethod": "Prometheus/Alertmanager rule validation."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated alert-rule validation check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

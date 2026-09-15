@@ -39,10 +39,6 @@ async function participantEventTypes(participantId: string): Promise<string[]> {
   return (data ?? []).map((e) => e.event_type);
 }
 
-after(async () => {
-  await pool.end();
-});
-
 async function commissionAndFulfil(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromFormSync({

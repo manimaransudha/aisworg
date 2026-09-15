@@ -9,7 +9,10 @@
 // constraints, Pack-specific requirements — without touching either caller.
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
-import type { ParticipantMasterRow, SeuRow } from "../../../dblayer/seuTypes.js";
+import { policiesDB } from "../../../dblayer/policiesDB.js";
+import { unravelComposition } from "../../../domain/engine/profileCompositionUnravel.js";
+import { evaluateCondition, type GoverningCondition } from "../../../domain/engine/governingCondition.js";
+import type { ParticipantMasterRow, PolicyRow, SeuRow } from "../../../dblayer/seuTypes.js";
 
 export interface EligibilityCriteria {
   tenantId: string;
@@ -20,6 +23,12 @@ export interface EligibilityCriteria {
   // values, not all of them — "banking OR health experience" reads as
   // ["banking","health"], not "must have both."
   competency?: Record<string, string[]>;
+  // CR-104 — scope: "Eligibility" Policy ids (a background check, say) this
+  // Capability Fulfilment requires. Checked against a candidate
+  // Participant's own behaviour_context, never a transition's context —
+  // onboarding, not engineering behaviour, so this is never read off any
+  // EBM (see resolveEligibilityPolicies below).
+  requiredPolicyIds?: string[];
   // Owner: "the participant dropdown should not show... the ones chosen
   // for replacement." A Participant just released from THIS Capability
   // (releaseParticipants, core/capabilities.ts) would otherwise reappear
@@ -36,6 +45,35 @@ function matchesCompetency(participantCompetency: Record<string, string[]>, requ
     const held = participantCompetency[dimension] ?? [];
     return values.some((v) => held.includes(v));
   });
+}
+
+// CR-104 — a required Policy is checked against whichever of the
+// Participant's own behaviour_context entries names it by code (Ch.13 §14 —
+// "policy" + "payload"), not against a transition's context object. No
+// matching entry at all means the condition has nothing to evaluate against,
+// so it fails closed (never eligible), same discipline unrecognised
+// condition types already use in governingCondition.ts.
+function matchesRequiredPolicies(participant: ParticipantMasterRow, policies: PolicyRow[]): boolean {
+  return policies.every((policy) => {
+    const entry = participant.behaviour_context.find((e) => e.policy === policy.code);
+    if (!entry) return false;
+    return evaluateCondition(policy.condition as GoverningCondition, entry.payload);
+  });
+}
+
+// CR-104 — scope "Eligibility" Policies a SEU's Capability Fulfilment
+// requires, resolved LIVE off the SEU's own Template/Profile composition —
+// deliberately never through the EBM (behaviors/applicable_policy_ids/
+// seu_scoped_policy_ids all describe Engineering Behaviour; Participant
+// eligibility is onboarding, a different domain entirely, even though both
+// happen to draw on the same composed Packs). Reuses unravelComposition
+// directly — the same real composition logic (including CR-104's own
+// Mandatory-Pack folding) commissioning itself runs, not a re-derived copy.
+export async function resolveEligibilityPolicies(seu: SeuRow): Promise<PolicyRow[]> {
+  const { composedPacks } = await unravelComposition({ templateIds: [seu.template_id], profileIds: [seu.profile_id] }, seu.tenant_id);
+  const packIds = composedPacks.map((p) => p.packId);
+  const { data: policies } = await policiesDB.findByPackIds(packIds);
+  return (policies ?? []).filter((p) => p.scope === "Eligibility");
 }
 
 // Owner: "the primary programming language should be unioned with the
@@ -63,6 +101,10 @@ export async function findEligibleParticipants(criteria: EligibilityCriteria): P
   let eligible = data ?? [];
   if (criteria.competency) {
     eligible = eligible.filter((p) => matchesCompetency(p.competency, criteria.competency!));
+  }
+  if (criteria.requiredPolicyIds?.length) {
+    const { data: requiredPolicies } = await policiesDB.findByIds(criteria.requiredPolicyIds);
+    eligible = eligible.filter((p) => matchesRequiredPolicies(p, requiredPolicies ?? []));
   }
   if (criteria.excludeParticipantMasterIds?.length) {
     const excluded = new Set(criteria.excludeParticipantMasterIds);

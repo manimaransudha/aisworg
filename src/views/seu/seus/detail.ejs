@@ -43,6 +43,9 @@
         <p class="text-muted small mb-0 font-monospace"><%= detail.seu.id %></p>
       </div>
       <span class="state-badge state-<%= detail.seu.lifecycle_state %> fs-6"><%= detail.seu.lifecycle_state %></span>
+      <% if (detail.blockedTransition) { %>
+        <span class="state-badge state-Blocked fs-6 ms-1" title="<%= detail.blockedTransition.obligationTitle %>">Blocked</span>
+      <% } %>
     </div>
 
     <%

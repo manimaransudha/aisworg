@@ -65,6 +65,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "snyk-vulnerability-remediation-sla",
+        "category": "Security",
+        "title": "A Snyk-detected vulnerability must be remediated within its severity's SLA",
+        "description": "A dependency, container, or code vulnerability surfaced by Snyk must be remediated (or waived with an approved, tracked exception) within its severity-based SLA; an untriaged finding sitting in the scan report is not an accepted risk.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every Critical/High Snyk finding is remediated or carries an approved, tracked waiver within its SLA.",
+        "requiredEvidence": {
+          "title": "Vulnerability remediation SLA record",
+          "category": "Validation Evidence",
+          "description": "Record of Snyk finding remediation/waiver timing against its severity SLA.",
+          "collectionMethod": "Snyk API scan export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated remediation-SLA check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

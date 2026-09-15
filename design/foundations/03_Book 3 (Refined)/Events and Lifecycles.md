@@ -419,42 +419,7 @@ The Template subsystem shall publish:
 ---
 
 ## ✅ Chapter 7 – Profile Model
-
-### 1. Entity Overview
-- **Chapter:** [Chapter 7.md](file:///Volumes/Chennai/gitrepo/aisworg/design/foundations/03_Book 3 (Refined)/01_Part 1/Chapter 7.md)
-
-### 2. Lifecycle States & Transitions
-
-```
-Draft
-
-↓
-
-Validated
-
-↓
-
-Published
-
-↓
-
-Active
-
-↓
-
-Deprecated
-
-↓
-
-Retired
-
-↓
-
-Archived
-```
-
-Chapter 7 §14's own seven-state lifecycle is byte-for-byte identical to Template's (Ch.6 §15): Draft → Validated → Published → Active → Deprecated → Retired → Archived — no Reject/submit step, same as Pack/Template (§19.1). Already built in full, same day as Template's own build (§19.1/§19.2/§19.3/§19.9) — this table corrects/completes it against Version Feature Plan.md's own discipline (transition_definitions.event_type/version_event as data, migration 187), mirroring Chapter 6's identical pass exactly.
-
+ 
 ### States and transitions
 
 No. | Description | Action | Transition Defined | Versioning | Lifecycle State | Event | Badge
@@ -488,24 +453,24 @@ No. | Implementation details
 8. | Implemented.
 9. | Implemented (§19.1/§19.2's `reactivateAsNewVersion`). Gate-only, as described above — never itself the origin of a published event.
 
-### 3. Subsystem Events
-
-The Profile subsystem shall publish:
-
-- ProfileCreated
-- ProfileValidated
-- ProfilePublished
-- ProfileActivated
-- ProfileDeprecated
-- ProfileRetired
-- ProfileArchived *(built, §19.9 — §15's own text omits this one; treated as the same oversight Pack/Template's chapters have, not a deliberate difference)*
+*(ProfileArchived built, §19.9 — §15's own text omits this one; treated as the same oversight Pack/Template's chapters have, not a deliberate difference)*
 
 ---
 
 ## Chapter 8 – SEU Commissioning
+ 
 
-### 1. Entity Overview
-- **Chapter:** [Chapter 8.md](file:///Volumes/Chennai/gitrepo/aisworg/design/foundations/03_Book 3 (Refined)/01_Part 1/Chapter 8.md)
+No. | Description | Action | Transition Defined | Versioning | Lifecycle State | Event | Badge  
+--|-----|-----|-----|-----|-----|----|----- 
+1. | Choose a profile;Validate  | Profile selector |Yes| No |  | PackRegistered | pack_define 
+2. | Editing a draft pack | Edit | No | No | Draft | None | pack_define
+3. | Validate a pack | Validate | Yes | VersionValidated | Validated | PackValidated | pack_validate  
+4. | Reject a pack | Reject | Yes | No | Draft | PackRejected | pack_reject 
+5. | Publish a pack | Publish | Yes | VersionPublished | Published | PackPublished | pack_publish  
+6. | Activate a pack | Activate | Yes | VersionActivated | Active | PackActivated | pack_activate  
+7. | Retire a pack | Retire | Yes | VersionDeprecated | Retired | PackRetired | pack_retire 
+8. | Archive a pack | Archive | Yes | VersionArchived | Archived | PackArchived (code-level; not listed in §15 — likely a spec omission, not a code bug) | pack_archive
+
 
 ### 2. Lifecycle States & Transitions
 
@@ -1246,55 +1211,32 @@ The Obligation subsystem shall publish:
 
 ## Chapter 24 – Policy Model
 
-### 1. Entity Overview
-- **Chapter:** [Chapter 24.md](file:///Volumes/Chennai/gitrepo/aisworg/design/foundations/03_Book 3 (Refined)/04_Part 4/Chapter 24.md)
 
-### 2. Lifecycle States & Transitions
+### States and transitions
 
-Policies shall progress through the following lifecycle.
+No. | Description | Action | Transition Defined | Versioning | Lifecycle State | Event | Badge  
+--|-----|-----|-----|-----|-----|----|----- 
+1. | When a new Policy Definition is created | New | No | No | Draft | None | policy_define 
+2. | Editing a Draft Policy Definition | Edit | No | No | Draft | None | policy_define 
+3. | Validate a Policy Definition | Validate | Yes | VersionValidated | Validated | PolicyDefinitionValidated | policy_validate 
+4. | Publish a Policy Definition | Publish | Yes | VersionPublished | Published | PolicyDefinitionPublished | policy_publish 
+5. | Activate a Policy Definition | Activate | Yes | VersionActivated | Active | PolicyDefinitionActivated | policy_activate 
+6. | Deprecate a Policy Definition | Deprecate | Yes | VersionDeprecated | Deprecated | PolicyDefinitionDeprecated | policy_deprecate 
+7. | Retire a Policy Definition | Retire | Yes | VersionSuperseded | Retired | PolicyDefinitionRetired | policy_retire 
+8. | Archive a Policy Definition | Archive | Yes | VersionArchived | Archived | PolicyDefinitionArchived | policy_archive 
 
-```
-Draft
+### Implementation
 
-↓
-
-Validated
-
-↓
-
-Published
-
-↓
-
-Active
-
-↓
-
-Deprecated
-
-↓
-
-Retired
-
-↓
-
-Archived
-```
-
-Historical Policies shall remain available for engineering reconstruction.
-
-### 3. Subsystem Events
-
-The Policy subsystem shall publish:
-
-- PolicyCreated
-- PolicyValidated
-- PolicyPublished
-- PolicyApplied
-- PolicyViolated
-- PolicyExceptionRequested
-- PolicyExceptionApproved
-- PolicyRetired
+No. | Implementation details   
+--|-----
+1. | 
+2. | 
+3. | 
+4. | 
+5. | 
+6. | 
+7. | Ch.24 §13's own generic chain has no "Superseded" state — Retired is the real lifecycle state; VersionSuperseded is Ch.41 §15's version-event name at that position only (same judgment already made for Template/Profile's own Deprecated→Retired hop).
+8. | Gap, not yet fixed: `policy_validate`/`policy_publish`/`policy_activate`/`policy_deprecate`/`policy_retire`/`policy_archive` are real, enforced badges (transitionEngine.ts checks `${entityType}_${verb}` directly against badge_grants) but noun `policy` has no rows at all in `authority_noun_verbs` — same shape as the `ontology_define` gap found in Chapter 18's own pass — so these badges are invisible to the Authority admin UI's own grant picker; only a direct grant (seed/SQL) can assign them today.
 
 ---
 

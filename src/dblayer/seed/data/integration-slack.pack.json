@@ -70,6 +70,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "slack-webhook-token-rotation",
+        "category": "Security",
+        "title": "Slack incoming webhook URLs and bot tokens must be rotated on a recurring cadence",
+        "description": "An incoming webhook URL or bot token is a bearer credential that, once leaked, allows posting/reading without further authentication; these must be rotated periodically, not treated as permanent configuration.",
+        "origin": "Quality Gates",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Webhook URLs and bot tokens are rotated within the declared cadence.",
+        "requiredEvidence": {
+          "title": "Webhook/token rotation record",
+          "category": "Validation Evidence",
+          "description": "Record of webhook/bot token rotation date.",
+          "collectionMethod": "Slack app configuration export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated token-age check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

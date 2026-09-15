@@ -43,10 +43,6 @@ before(async () => {
   await ensureEventSubscriptionsLoaded();
 });
 
-after(async () => {
-  await pool.end();
-});
-
 interface RealHop {
   entityType: "SEU" | "EBM";
   description: string;

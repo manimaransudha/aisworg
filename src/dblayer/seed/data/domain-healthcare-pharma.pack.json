@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "healthcare-adverse-event-reporting-timeline",
+        "category": "Compliance",
+        "title": "A reportable adverse event must be filed within the regulatory timeline",
+        "description": "Clinical/pharma operations must report a qualifying adverse event to the relevant regulator (FDA, EMA) within its mandated timeline from awareness, independent of the event's own clinical resolution.",
+        "origin": "External systems",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "Every reportable adverse event is filed within its regulatory timeline.",
+        "requiredEvidence": {
+          "title": "Adverse event filing record",
+          "category": "Validation Evidence",
+          "description": "Timestamped record of adverse event awareness and regulatory filing.",
+          "collectionMethod": "Pharmacovigilance/adverse-event system export."
+        },
+        "classification": "human-attested",
+        "prompt": "Has every reportable adverse event been filed within its regulatory timeline?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Pharmacovigilance/regulatory affairs sign-off.",
+        "externalEvidence": true
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

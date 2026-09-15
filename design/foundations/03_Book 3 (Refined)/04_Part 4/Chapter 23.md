@@ -344,15 +344,15 @@ Additional categories may be introduced through Packs.
 
 Every Obligation shall define:
 
-- Identifier
+- Identifier 
 - Title
 - Category
 - Description
 - Origin
 - Priority
 - Severity
-- Status
 - Completion Criteria
+- Status
 - Related Deliverables
 - Related Decisions
 - Related Evidence

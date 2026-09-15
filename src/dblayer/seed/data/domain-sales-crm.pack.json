@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "crm-stale-opportunity-review",
+        "category": "Engineering",
+        "title": "Stale CRM opportunities must be reviewed and dispositioned, not left open indefinitely",
+        "description": "An opportunity with no recorded activity past its stage's expected cycle time must be reviewed and dispositioned (advanced, disqualified, or explicitly reaffirmed), so pipeline reporting doesn't silently carry stale, unreliable data.",
+        "origin": "Telemetry and Knowledge Model",
+        "priority": "Low",
+        "severity": "Low",
+        "completionCriteria": "Every opportunity flagged stale is dispositioned within the declared review cadence.",
+        "requiredEvidence": {
+          "title": "Stale opportunity disposition record",
+          "category": "Analytical Evidence",
+          "description": "Disposition record for each opportunity flagged stale.",
+          "collectionMethod": "CRM system export."
+        },
+        "classification": "human-attested",
+        "prompt": "Has every stale opportunity been reviewed and dispositioned?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Sales manager sign-off.",
+        "externalEvidence": false
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

@@ -66,7 +66,6 @@ before(async () => {
 
 after(async () => {
   await new Promise<void>((resolve) => captureServer.close(() => resolve()));
-  await pool.end();
 });
 
 async function commissionAndDispatch(prefix: string, tenantId: string) {

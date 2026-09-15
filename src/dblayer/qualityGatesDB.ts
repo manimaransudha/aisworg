@@ -38,6 +38,9 @@ export const qualityGatesDB = {
     // CR-060, revised same day — advisory Checklists; see
     // PackContributions.qualityGates' own recommendedChecklistIds comment.
     recommendedChecklistIds?: string[];
+    // CR-104 — real deliverable-name codes this gate targets; empty/omitted
+    // = every Deliverable on this transition (unchanged default behaviour).
+    applicabilityDeliverableNames?: string[];
   }): Promise<DbResult<QualityGateRow>> {
     const client = await pool.connect();
     try {
@@ -47,6 +50,7 @@ export const qualityGatesDB = {
       const criteria = input.criteria ?? { type: "no_unresolved_obligations" };
       const checklistIds = input.checklistIds ?? [];
       const recommendedChecklistIds = input.recommendedChecklistIds ?? [];
+      const applicabilityDeliverableNames = input.applicabilityDeliverableNames ?? [];
       const { rows: currentRows } = await client.query<QualityGateRow>(
         "SELECT * FROM quality_gates WHERE entity_type = $1 AND from_state = $2 AND to_state = $3 AND category = $4 AND is_active = true",
         [input.entityType, input.fromState, input.toState, category]
@@ -57,7 +61,8 @@ export const qualityGatesDB = {
         current.name === input.name &&
         JSON.stringify(current.criteria) === JSON.stringify(criteria) &&
         JSON.stringify([...current.checklist_ids].sort()) === JSON.stringify([...checklistIds].sort()) &&
-        JSON.stringify([...current.recommended_checklist_ids].sort()) === JSON.stringify([...recommendedChecklistIds].sort());
+        JSON.stringify([...current.recommended_checklist_ids].sort()) === JSON.stringify([...recommendedChecklistIds].sort()) &&
+        JSON.stringify([...current.applicability_deliverable_names].sort()) === JSON.stringify([...applicabilityDeliverableNames].sort());
       if (unchanged) {
         await client.query("COMMIT");
         return { data: current };
@@ -67,10 +72,10 @@ export const qualityGatesDB = {
         await client.query("UPDATE quality_gates SET is_active = false WHERE id = $1", [current.id]);
       }
       const { rows } = await client.query<QualityGateRow>(
-        `INSERT INTO quality_gates (code, name, category, entity_type, from_state, to_state, criteria, originating_pack_id, version, is_active, checklist_ids, recommended_checklist_ids)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10, $11)
+        `INSERT INTO quality_gates (code, name, category, entity_type, from_state, to_state, criteria, originating_pack_id, version, is_active, checklist_ids, recommended_checklist_ids, applicability_deliverable_names)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10, $11, $12)
          RETURNING *`,
-        [code, input.name, category, input.entityType, input.fromState, input.toState, JSON.stringify(criteria), input.originatingPackId, nextVersion, checklistIds, recommendedChecklistIds]
+        [code, input.name, category, input.entityType, input.fromState, input.toState, JSON.stringify(criteria), input.originatingPackId, nextVersion, checklistIds, recommendedChecklistIds, applicabilityDeliverableNames]
       );
       await client.query("COMMIT");
       return { data: rows[0] };
@@ -96,6 +101,23 @@ export const qualityGatesDB = {
       return { data: rows };
     } catch (err) {
       logger.error("[qualityGatesDB] findAllActive error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // CR-104 — every active gate originating from any of these Pack ids, the
+  // materialisation query compositionCompleted.ts runs once at EBM creation
+  // (not a live per-transition lookup) to fill ebms.applicable_quality_gate_ids.
+  async findByPackIds(packIds: string[]): Promise<DbResult<QualityGateRow[]>> {
+    if (packIds.length === 0) return { data: [] };
+    try {
+      const { rows } = await query<QualityGateRow>(
+        "SELECT * FROM quality_gates WHERE originating_pack_id = ANY($1::uuid[]) AND is_active = true",
+        [packIds]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[qualityGatesDB] findByPackIds error", err as Error);
       return { error: err as Error };
     }
   },

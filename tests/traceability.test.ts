@@ -18,10 +18,6 @@ import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { explainDeliverable, impactOfDeliverable } from "../src/routes/seu/core/traceability.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 async function dispatchAndComplete(deliverableId: string, targetState: string, reference: string | null) {
   const dispatched = await transitionDeliverable({ deliverableId, targetState, actorRole: "super", actorId: "1" });
   assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : undefined);

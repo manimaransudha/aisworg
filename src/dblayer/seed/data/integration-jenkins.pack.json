@@ -65,6 +65,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "jenkins-credential-store-rotation",
+        "category": "Security",
+        "title": "Jenkins credential store secrets must be rotated and plugins kept current",
+        "description": "Secrets held in the Jenkins credential store (deploy keys, API tokens) must be rotated periodically, and installed plugins kept patched, since Jenkins is a common high-value target when either goes stale.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Credential store secrets are rotated and plugins are current within the declared cadence.",
+        "requiredEvidence": {
+          "title": "Credential rotation / plugin currency check",
+          "category": "Validation Evidence",
+          "description": "Record of credential rotation and plugin version currency.",
+          "collectionMethod": "Jenkins admin export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated credential/plugin currency check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

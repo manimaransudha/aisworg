@@ -12,39 +12,66 @@
   "conditions": [
     {
       "statement": "Zero Critical or High severity defects reported by static analysis.",
-      "requiredEvidence": [
+      "severity": "Critical",
+      "applicabilityDeliverables": [
         {
-          "type": "static_analysis_result",
-          "severity_filter": "critical_high"
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Critical",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Static Analysis Result — Critical High",
+        "category": "Validation Evidence",
+        "description": "Zero Critical or High severity defects reported by static analysis.",
+        "collectionMethod": "Static analysis tool output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "Zero security-relevant findings reported by static analysis (distinct from the dependency-level scan in S1-S3).",
-      "requiredEvidence": [
+      "severity": "High",
+      "applicabilityDeliverables": [
         {
-          "type": "static_analysis_result",
-          "category": "security"
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "High",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Static Analysis Result — Security",
+        "category": "Validation Evidence",
+        "description": "Zero security-relevant findings reported by static analysis (distinct from the dependency-level scan in S1-S3).",
+        "collectionMethod": "Static analysis tool output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "Technical debt ratio, as reported by the static analysis tool, does not exceed the threshold declared by the active governance tier.",
-      "requiredEvidence": [
+      "severity": "Medium",
+      "applicabilityDeliverables": [
         {
-          "type": "static_analysis_result",
-          "metric": "technical_debt_ratio"
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Static Analysis Result — Technical Debt Ratio",
+        "category": "Validation Evidence",
+        "description": "Technical debt ratio, as reported by the static analysis tool, does not exceed the threshold declared by the active governance tier.",
+        "collectionMethod": "Static analysis tool output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     }
   ],
   "version": "1.0.0"

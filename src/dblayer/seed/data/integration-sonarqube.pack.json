@@ -75,6 +75,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "sonarqube-quality-gate-waiver-tracking",
+        "category": "Engineering",
+        "title": "A SonarQube Quality Gate override must be tracked as a real waiver, not a silent bypass",
+        "description": "Overriding a failed SonarQube Quality Gate to allow a merge/release must be recorded with justification and an owner, so the debt it represents is tracked rather than disappearing the moment the override is clicked.",
+        "origin": "Quality Gates",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Every Quality Gate override has a recorded justification and owner, tracked to resolution.",
+        "requiredEvidence": {
+          "title": "Quality Gate override record",
+          "category": "Validation Evidence",
+          "description": "Record of each Quality Gate override with justification and owner.",
+          "collectionMethod": "SonarQube API export."
+        },
+        "classification": "human-attested",
+        "prompt": "Does every Quality Gate override have a recorded justification and owner?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Engineering lead sign-off.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

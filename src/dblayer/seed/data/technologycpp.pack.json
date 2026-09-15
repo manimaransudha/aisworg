@@ -199,6 +199,30 @@
         "dimension": "Technology",
         "value": "cpp"
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "cpp-memory-safety-tooling-currency",
+        "category": "Security",
+        "title": "Memory-safety tooling (ASan/UBSan/static analysis) must run on a recurring cadence, not only at initial setup",
+        "description": "C++'s manual memory management and complex ownership semantics make it uniquely exposed to memory-safety defects that only surface under specific runtime conditions; sanitizer builds and static analysis must be run on a recurring cadence against current code, not treated as a one-time setup task.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "A sanitizer/static-analysis run against current code completes within the declared cadence, with findings triaged.",
+        "requiredEvidence": {
+          "title": "Memory-safety tooling run",
+          "category": "Validation Evidence",
+          "description": "ASan/UBSan or static analyzer output against the current codebase.",
+          "collectionMethod": "Automated sanitizer/static-analysis tool output."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated dependency/vulnerability scan check.",
+        "externalEvidence": false
+      }
     ]
   }
 }

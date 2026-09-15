@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "wms-cycle-count-variance-investigation",
+        "category": "Engineering",
+        "title": "A significant inventory cycle-count variance must be investigated, not just adjusted",
+        "description": "When a warehouse cycle count finds a variance beyond the declared threshold, the system-of-record adjustment must be accompanied by a recorded investigation into cause (shrinkage, mis-pick, data error), not silently reconciled away.",
+        "origin": "Quality Gates",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Every cycle-count variance beyond threshold has a recorded investigation and root cause.",
+        "requiredEvidence": {
+          "title": "Cycle count variance investigation",
+          "category": "Analytical Evidence",
+          "description": "Investigation record for a cycle-count variance beyond the declared threshold.",
+          "collectionMethod": "WMS cycle-count system export."
+        },
+        "classification": "human-attested",
+        "prompt": "Has this cycle-count variance been investigated with a recorded root cause?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Warehouse operations manager sign-off.",
+        "externalEvidence": false
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

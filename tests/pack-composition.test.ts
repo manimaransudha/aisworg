@@ -14,10 +14,6 @@ import { createPackDraft, publishPack, validatePackSeed, type PackSeedInput } fr
 import { composeAuthoringDraft } from "../src/routes/seu/core/sdkAuthoring.js";
 import { uniqueTestPackVersion } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 test("validatePackSeed rejects a Composition Strategy with too few sources", async () => {
   const seed: PackSeedInput = {
     code: "test-comp-arity", name: "Test", category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional",

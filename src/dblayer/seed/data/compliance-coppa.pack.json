@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "coppa-parental-consent-currency",
+        "category": "Compliance",
+        "title": "Verifiable parental consent must remain current for each children's account",
+        "description": "COPPA's verifiable parental consent is not a one-time checkbox; consent scope and validity must be reconfirmed if data collection practices materially change, and data collected on children's accounts must stay within the minimum necessary for the service.",
+        "origin": "Policies",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every children's account's parental consent record matches the service's current data-collection practices, or consent is re-obtained.",
+        "requiredEvidence": {
+          "title": "Parental consent currency check",
+          "category": "Validation Evidence",
+          "description": "Comparison of each children's account's consent scope against current data-collection practices.",
+          "collectionMethod": "Automated consent-record audit."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated consent-currency check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

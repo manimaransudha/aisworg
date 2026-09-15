@@ -10,38 +10,54 @@
   "conditions": [
     {
       "statement": "Change request has an associated approved decision from the Change Evaluation and Scheduling Service.",
-      "requiredEvidence": [
-        {
-          "type": "change_approval_record"
-        }
-      ],
       "severity": "Critical",
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Change Approval Record",
+        "category": "Validation Evidence",
+        "description": "Change request has an associated approved decision from the Change Evaluation and Scheduling Service.",
+        "collectionMethod": "Change management system record"
+      },
+      "relatedObligations": [],
       "exceptionRules": [
-        "Emergency change may proceed with retrospective approval within one business day, per Authority policy."
-      ],
-      "relatedObligations": []
+        {
+          "identifier": "c61e5fbb-1cee-528f-aa42-91629750f816",
+          "exceptionStatement": "Emergency change may proceed with retrospective approval within one business day, per Authority policy.",
+          "duration": "One business day post-change",
+          "exceptionScope": "This emergency change only",
+          "exceptionApprovers": [
+            "Deliverable_approve"
+          ],
+          "exceptionComposition": "any",
+          "reviewRequirements": "Retrospective approval must be recorded within one business day of the change."
+        }
+      ]
     },
     {
       "statement": "The change does not conflict with another approved change scheduled for the same window.",
-      "requiredEvidence": [
-        {
-          "type": "change_conflict_report"
-        }
-      ],
       "severity": "High",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Change Conflict Report",
+        "category": "Analytical Evidence",
+        "description": "The change does not conflict with another approved change scheduled for the same window.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "The change includes a documented rollback plan (satisfies O3 where the change is itself a release).",
-      "requiredEvidence": [
-        {
-          "type": "rollback_procedure_document"
-        }
-      ],
       "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Rollback Procedure Document",
+        "category": "Analytical Evidence",
+        "description": "The change includes a documented rollback plan (satisfies O3 where the change is itself a release).",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     }
   ],
   "version": "1.0.0"

@@ -48,6 +48,30 @@
           "Test (OpenUP Capability Pattern) Checklist"
         ]
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "openup-test-defect-triage-sla",
+        "category": "Review Finding",
+        "title": "A defect surfaced by testing must be triaged within its severity's SLA",
+        "description": "OpenUP's Test discipline requires a found defect to be triaged (assigned, prioritized, or explicitly deferred) within its severity-based SLA; an untriaged defect sitting in the log accumulates silently without anyone owning its resolution.",
+        "origin": "Quality Gates",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Every defect is triaged within its severity's SLA.",
+        "requiredEvidence": {
+          "title": "Defect triage SLA record",
+          "category": "Validation Evidence",
+          "description": "Record of defect triage timing against its severity SLA.",
+          "collectionMethod": "Test management tool export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated triage-SLA check.",
+        "externalEvidence": false
+      }
     ]
   }
 }

@@ -63,6 +63,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "glba-safeguards-risk-assessment-refresh",
+        "category": "Compliance",
+        "title": "GLBA Safeguards Rule risk assessment must be refreshed periodically",
+        "description": "The FTC Safeguards Rule requires a periodic risk assessment of the information security program protecting nonpublic personal information (NPI); a risk assessment performed once at program inception does not satisfy the ongoing requirement.",
+        "origin": "Compliance Packs",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "The Safeguards Rule risk assessment is refreshed within its declared cadence.",
+        "requiredEvidence": {
+          "title": "Safeguards Rule risk assessment",
+          "category": "Analytical Evidence",
+          "description": "Refreshed risk assessment covering the NPI information security program.",
+          "collectionMethod": "Information security risk assessment review."
+        },
+        "classification": "human-attested",
+        "prompt": "Has the Safeguards Rule risk assessment been refreshed within its cadence?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Qualified Individual (GLBA-designated) sign-off.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

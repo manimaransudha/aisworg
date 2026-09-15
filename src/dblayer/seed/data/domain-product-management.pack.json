@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "product-prd-shipped-feature-traceability",
+        "category": "Review Finding",
+        "title": "A shipped feature must trace back to an approved PRD, or the deviation is recorded",
+        "description": "Product lifecycle governance requires a shipped feature to trace to an approved Product Requirements Document; a feature that ships materially different from its PRD without a recorded deviation loses that traceability silently.",
+        "origin": "Reviews",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Every shipped feature traces to its PRD, or a recorded deviation explains the difference.",
+        "requiredEvidence": {
+          "title": "PRD-to-feature traceability record",
+          "category": "Analytical Evidence",
+          "description": "Trace or documented deviation between the shipped feature and its PRD.",
+          "collectionMethod": "Product management tool export."
+        },
+        "classification": "human-attested",
+        "prompt": "Does this shipped feature trace to its PRD, or is a deviation recorded?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Product manager sign-off.",
+        "externalEvidence": false
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

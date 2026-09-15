@@ -77,6 +77,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "postmortem-action-item-closure",
+        "category": "Organisational Learning",
+        "title": "Post-mortem action items must be tracked to closure",
+        "description": "Action items raised in the Post-Mortem & Lessons Learned report must not become Knowledge that is written once and never acted on; each is tracked until closed.",
+        "origin": "Telemetry and Knowledge Model",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Every Post-Mortem action item reaches a recorded closed/deferred state before Growth & Optimization begins.",
+        "requiredEvidence": {
+          "title": "Post-mortem action item tracker",
+          "category": "Analytical Evidence",
+          "description": "Status of each action item raised in the Post-Mortem & Lessons Learned report.",
+          "collectionMethod": "Action item tracker export."
+        },
+        "classification": "human-attested",
+        "prompt": "Has every post-mortem action item reached a recorded closed or deferred state?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Engineering lead sign-off.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

@@ -23,10 +23,6 @@ import { publishProfile, transitionProfile, type ProfileSeedInput } from "../src
 import { uniqueTestPackVersion } from "./testFixtures.js";
 import { randomUUID } from "node:crypto";
 
-after(async () => {
-  await pool.end();
-});
-
 // A Profile always needs a real base Template to point at — created here via
 // the raw, status-agnostic templatesDB.upsert() (Active immediately, no
 // Ontology-code validation), the same low-level fixture pattern every other

@@ -27,10 +27,6 @@ import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { listServices } from "../src/routes/seu/core/services.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 async function commissionTestSeu(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromFormSync({

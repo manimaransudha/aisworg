@@ -59,6 +59,30 @@
         "dimension": "Technology",
         "value": "java"
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "java-maven-gradle-dependency-vulnerability-tracking",
+        "category": "Security",
+        "title": "Maven/Gradle dependency vulnerabilities must be tracked and remediated within SLA",
+        "description": "A vulnerability disclosed against a Maven/Gradle dependency (including transitive ones) must be triaged and remediated within its severity's SLA, not left unaddressed once a dependency-check scan reports it.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every Critical/High dependency vulnerability is remediated or carries an approved waiver within its SLA.",
+        "requiredEvidence": {
+          "title": "Dependency vulnerability scan",
+          "category": "Validation Evidence",
+          "description": "OWASP Dependency-Check or equivalent scan output against the build's dependency tree.",
+          "collectionMethod": "Automated dependency-scanning tool output."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated dependency/vulnerability scan check.",
+        "externalEvidence": false
+      }
     ]
   }
 }

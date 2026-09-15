@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-iso27001-soa-currency-review",
+        "category": "Compliance",
+        "title": "The Statement of Applicability must be reviewed whenever the risk treatment plan changes",
+        "description": "ISO/IEC 27001:2022 requires the SoA to accurately reflect which Annex A controls are applied and why; a risk treatment plan change that isn't reflected back into the SoA leaves the ISMS's own documentation out of sync with its actual controls.",
+        "origin": "EBM",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "The SoA is reviewed and updated within the declared window after any risk treatment plan change.",
+        "requiredEvidence": {
+          "title": "SoA currency review",
+          "category": "Analytical Evidence",
+          "description": "Review confirming the SoA reflects the current risk treatment plan.",
+          "collectionMethod": "ISMS documentation review."
+        },
+        "classification": "human-attested",
+        "prompt": "Does the Statement of Applicability still accurately reflect the current risk treatment plan?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "assurance": "ISMS manager sign-off.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

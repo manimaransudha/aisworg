@@ -1,0 +1,9 @@
+{
+  "code": "cr104-demo-mandatory",
+  "name": "CR-104 Demo: Platform-Mandatory Pack",
+  "category": "Organisation",
+  "packVersion": "1.0.0",
+  "installationClassification": "Mandatory",
+  "description": "CR-104 validation fixture — Platform-scoped, installation_classification 'Mandatory'. Composes into every Template's EBM automatically, with no Template ever having to list it as a mandatory Pack. Deliberately contributes nothing (no authority rules, quality gates, or policies) so it is safe to leave Mandatory platform-wide: commission any SEU and confirm this Pack appears in its EBM's composed_packs without ever having been selected.",
+  "contributions": {}
+}

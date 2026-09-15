@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-bipa-biometric-retention-destruction",
+        "category": "Compliance",
+        "title": "Biometric identifiers must be destroyed per the published retention schedule",
+        "description": "BIPA/CUBI require biometric identifiers to be destroyed when the initial purpose is satisfied or within the published retention schedule, whichever comes first; retained biometric data past that point is a standing violation, not a one-time consent gap.",
+        "origin": "Policies",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Biometric data past its retention schedule is confirmed destroyed, with no exceptions outstanding.",
+        "requiredEvidence": {
+          "title": "Biometric data destruction log",
+          "category": "Validation Evidence",
+          "description": "System log confirming destruction of biometric identifiers past their retention schedule.",
+          "collectionMethod": "Automated data-lifecycle/retention system export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated retention-schedule enforcement check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

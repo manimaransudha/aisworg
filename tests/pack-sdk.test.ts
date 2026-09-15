@@ -23,10 +23,6 @@ import { compositionEngine } from "../src/domain/engine/compositionEngine.js";
 import { validatePackSeed, publishPack, transitionPack, createPackDraft, listPacksWithNextStates, packCodeVersionSummaries, type PackSeedInput } from "../src/routes/seu/core/packs.js";
 import { ensureTestFixturePacks, uniqueTestPackVersion } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 // CR-026 — a real, seeded tenant (seedIdentityBaseline.ts's ATHENS_TENANT_ID's
 // sibling "Demo" tenant), used only to prove Pack's tenant-scoped versioning
 // against a genuine second tenant, not a made-up UUID.

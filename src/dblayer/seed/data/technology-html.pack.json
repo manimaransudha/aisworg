@@ -171,6 +171,30 @@
         "dimension": "Technology",
         "value": "html"
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "html-semantic-accessibility-markup-audit",
+        "category": "Engineering",
+        "title": "Semantic HTML and accessibility markup must be periodically audited",
+        "description": "Markup drifts toward non-semantic div soup and missing ARIA/alt attributes as pages are edited incrementally; the markup must be periodically audited against accessibility and semantic-HTML standards, not only checked at initial build.",
+        "origin": "Quality Gates",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Rendered markup is audited for semantic/accessibility conformance within the declared cadence.",
+        "requiredEvidence": {
+          "title": "Semantic markup accessibility audit",
+          "category": "Validation Evidence",
+          "description": "Automated accessibility/semantic-HTML scan output.",
+          "collectionMethod": "Automated HTML accessibility scanning tool output."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated dependency/vulnerability scan check.",
+        "externalEvidence": false
+      }
     ]
   }
 }

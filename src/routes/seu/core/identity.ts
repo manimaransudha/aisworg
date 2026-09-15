@@ -11,6 +11,8 @@ import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { badgeTypesDB } from "../../../dblayer/badgeTypesDB.js";
 import { badgeGrantsDB } from "../../../dblayer/badgeGrantsDB.js";
 import { userDB } from "../../../dblayer/userDB.js";
+import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
+import { authorityVocabularyDB } from "../../../dblayer/authorityVocabularyDB.js";
 import { emailService } from "../../../domain/auth/emailService.js";
 import { query } from "../../../utils/db.js";
 import type { BadgeGrantRow, BadgeScopeKind, BadgeTypeRow, TenantRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
@@ -127,7 +129,7 @@ export async function createPlatformUser(input: { email: string; name?: string; 
   return { ok: true, email: input.email, verificationLink: result.link ?? null };
 }
 
-const EDITABLE_ROLES = new Set(["general", "power", "super"]);
+const EDITABLE_ROLES = new Set(["general", "power", "tenant_super", "super"]);
 
 export type UpdatePlatformUserResult = { ok: true } | { ok: false; detail: string };
 
@@ -224,4 +226,123 @@ export async function createOrRenameTenantBadge(input: { tenantId: string; code:
   if ("validationErrors" in result) return { ok: false, detail: result.validationErrors.join("; ") };
   if (result.error || !result.data) return { ok: false, detail: result.error?.message ?? "failed to create badge type" };
   return { ok: true, badgeType: result.data };
+}
+
+// --- Tenant Admin (tenant_super role) — a separate, tenant-scoped view. ----
+// Owner: "there has to be a separate view for tenant_admins... user
+// management screen should list users scoped to that tenant... tenant_admin
+// can allocate badges to users" — the badges that can be allotted correspond
+// to the Deliverable noun (transition_definitions has the valid verbs, so
+// the badge is noun_verb). Gated by requireRole('tenant_super')
+// (middleware/auth.js), not requirePlatformBadge — a deliberately separate
+// authority axis from root's own Identity Management above, scoped by
+// req.session.user.tenant_id rather than any badge.
+
+// Same PlatformUserView shape as the platform-wide dashboard, filtered to one
+// tenant — deliberately not a call to getIdentityDashboardView (that loads
+// every tenant's users/grants; a tenant_super only ever needs its own).
+export interface TenantUserView extends PlatformUserView {
+  // The subset of platformBadges that are real, revocable noun_verb grants
+  // (per listGrantableNounVerbBadges — the same live authority_noun_verbs
+  // vocabulary this screen grants from), carrying the real badge_grants.id —
+  // platformBadges (inherited) stays a flat display list for everything else
+  // (root/tenant_admin/pack_all/…, not grantable from this screen so not
+  // revocable from it either), but revoking needs the actual grant row, not
+  // just the badge_type string (two different users could each hold
+  // "deliverable_approve" as two distinct grant rows).
+  revocableGrants: Array<{ id: string; badgeType: string }>;
+}
+
+export async function listUsersForTenant(tenantId: string): Promise<TenantUserView[]> {
+  const { rows: userRows } = await query<{ id: number; email: string; name: string | null; role: string; is_active: boolean; created_at: string }>(
+    "SELECT id, email, name, role, is_active, created_at FROM users WHERE tenant_id = $1 ORDER BY created_at DESC",
+    [tenantId]
+  );
+  if (userRows.length === 0) return [];
+  const holderIds = userRows.map((u) => String(u.id));
+  const [{ rows: badgeRows }, grantableBadges] = await Promise.all([
+    query<{ id: string; holder_id: string; badge_type: string }>(
+      "SELECT id, holder_id, badge_type FROM badge_grants WHERE holder_type = 'User' AND status = 'Active' AND holder_id = ANY($1::text[]) AND badge_type != 'viewer' ORDER BY badge_type",
+      [holderIds]
+    ),
+    listGrantableNounVerbBadges(),
+  ]);
+  const grantableSet = new Set(grantableBadges);
+  const badgesByHolder = new Map<string, string[]>();
+  const revocableGrantsByHolder = new Map<string, Array<{ id: string; badgeType: string }>>();
+  for (const row of badgeRows) {
+    const list = badgesByHolder.get(row.holder_id) ?? [];
+    list.push(row.badge_type);
+    badgesByHolder.set(row.holder_id, list);
+    if (grantableSet.has(row.badge_type)) {
+      const grants = revocableGrantsByHolder.get(row.holder_id) ?? [];
+      grants.push({ id: row.id, badgeType: row.badge_type });
+      revocableGrantsByHolder.set(row.holder_id, grants);
+    }
+  }
+  return userRows.map((u) => ({
+    ...u,
+    platformBadges: badgesByHolder.get(String(u.id)) ?? [],
+    revocableGrants: revocableGrantsByHolder.get(String(u.id)) ?? [],
+  }));
+}
+
+// Owner: tenant_admin's own grant screen should not be limited to Deliverable
+// — every real noun_verb badge (lifecycle transition verbs AND
+// creation-authority verbs like propose/define/create, per
+// [[creation-authority-not-a-transition]]) should be grantable. authority_noun_verbs
+// (authorityVocabularyDB) is the live, Ontology-driven mapping table itself —
+// the same source badgeGrantsDB's own resolveNounVerbBadge validates a grant
+// against — so this list and that later validation can never disagree.
+// Deliberately narrower than "every badge_type": platform-scoped badges
+// (root, tenant_admin, pack_all, viewer) have no noun in this mapping table
+// at all, so they stay structurally excluded, not filtered out by convention.
+export async function listGrantableNounVerbBadges(): Promise<string[]> {
+  const { data } = await authorityVocabularyDB.listActiveMappingPairs();
+  return [...new Set((data ?? []).map((r) => `${r.noun_code.toLowerCase()}_${r.verb_code}`))].sort();
+}
+
+export type IssueTenantBadgeResult =
+  | { ok: true; grant: BadgeGrantRow }
+  | { ok: false; detail: string };
+
+// Any real noun_verb badge (owner: "should include all entity_types", not
+// just Deliverable), restricted to a user already confirmed to belong to the
+// acting tenant_super's own tenant — a userId picked from that tenant's own
+// User Management list, not a free-typed email, so there's no cross-tenant
+// grant path to begin with; checked again here regardless, since the route
+// boundary is the only real enforcement point.
+export async function issueNounVerbBadgeToTenantUser(input: { actingTenantId: string; userId: number; badgeType: string }): Promise<IssueTenantBadgeResult> {
+  const allowedBadges = await listGrantableNounVerbBadges();
+  if (!allowedBadges.includes(input.badgeType)) return { ok: false, detail: `"${input.badgeType}" is not a real, active noun x verb badge` };
+
+  const holder = await userDB.findById(input.userId);
+  if (!holder) return { ok: false, detail: "user not found" };
+  if (holder.tenant_id !== input.actingTenantId) return { ok: false, detail: "that user is not in your tenant" };
+
+  const result = await badgeGrantsDB.create({
+    holderId: String(holder.id),
+    badgeType: input.badgeType,
+    governedEntityType: null,
+    capabilityId: null,
+    scopeId: null,
+  });
+  if ("validationErrors" in result) return { ok: false, detail: result.validationErrors.join("; ") };
+  if (result.error || !result.data) return { ok: false, detail: result.error?.message ?? "failed to create grant" };
+  return { ok: true, grant: result.data };
+}
+
+// Same tenant-membership check as issuing, the other direction: revoking a
+// grant a tenant_super didn't grant (a different tenant's holder) is refused,
+// not just hidden from the list.
+export async function revokeTenantBadgeGrant(input: { actingTenantId: string; grantId: string }): Promise<{ ok: true } | { ok: false; detail: string }> {
+  const { data: grant, error: findErr } = await badgeGrantsDB.findById(input.grantId);
+  if (findErr || !grant) return { ok: false, detail: "grant not found" };
+  if (grant.holder_type !== "User") return { ok: false, detail: "not a user grant" };
+  const holder = await userDB.findById(Number(grant.holder_id));
+  if (!holder || holder.tenant_id !== input.actingTenantId) return { ok: false, detail: "that grant is not in your tenant" };
+
+  const { data, error } = await badgeGrantsDB.revoke(input.grantId);
+  if (error || !data) return { ok: false, detail: error?.message ?? "grant not found" };
+  return { ok: true };
 }

@@ -12,6 +12,8 @@
 // before this event was published, not recomputed here.
 import { seusDB } from "../../dblayer/seusDB.js";
 import { ebmsDB } from "../../dblayer/ebmsDB.js";
+import { qualityGatesDB } from "../../dblayer/qualityGatesDB.js";
+import { policiesDB } from "../../dblayer/policiesDB.js";
 import { eventBus } from "./eventBus.js";
 import { logger } from "../../utils/logger.js";
 import type { EventHandler } from "./eventBus.js";
@@ -54,6 +56,30 @@ export const compositionCompletedHandler: EventHandler = async (event: EventRow)
     competencyRequirements: stashed?.unraveled?.competencyRequirements ?? {},
   };
 
+  // CR-104 — this EBM's own materialised governance: real Quality Gate/
+  // Policy rows contributed by the Packs actually composed here
+  // (originating_pack_id), computed once now rather than re-derived by a
+  // bare (entity_type, from_state, to_state) match on every later
+  // transition attempt — the same "compute once, store the fact" discipline
+  // composed_packs/behaviors.competencyRequirements already established.
+  //
+  // Policies split three ways by their own scope/governed_transition:
+  //   - scope 'Eligibility' — onboarding, not engineering behaviour; never
+  //     materialised onto the EBM at all (resolved live, off the SEU's own
+  //     Template/Profile, by findEligibleParticipants — see participantEligibility.ts).
+  //   - scope 'Transition' governing 'SEU|...' — the SEU's own lifecycle,
+  //     kept as its own field; commissioning.ts reads this one directly.
+  //   - every other 'Transition' policy — an owned entity's own transition
+  //     (Deliverable/AttentionItem/etc), unchanged from before.
+  const composedPackIds = (stashed?.composedPacks ?? []).map((p) => p.packId);
+  const [{ data: applicableQualityGates }, { data: composedPolicies }] = await Promise.all([
+    qualityGatesDB.findByPackIds(composedPackIds),
+    policiesDB.findByPackIds(composedPackIds),
+  ]);
+  const transitionPolicies = (composedPolicies ?? []).filter((p) => p.scope === "Transition");
+  const seuScopedPolicies = transitionPolicies.filter((p) => p.governed_transition?.startsWith("SEU|"));
+  const entityScopedPolicies = transitionPolicies.filter((p) => !p.governed_transition?.startsWith("SEU|"));
+
   const { data: ebm, error: ebmErr } = await ebmsDB.create({
     seuId,
     templateId: seu.template_id,
@@ -61,6 +87,9 @@ export const compositionCompletedHandler: EventHandler = async (event: EventRow)
     composedPacks: stashed?.composedPacks ?? [],
     compositionReport: stashed?.compositionReport ?? { warnings: [], conflicts: [], parameterConflicts: [], resolutions: [] },
     behaviors,
+    applicableQualityGateIds: (applicableQualityGates ?? []).map((g) => g.id),
+    applicablePolicyIds: entityScopedPolicies.map((p) => p.id),
+    seuScopedPolicyIds: seuScopedPolicies.map((p) => p.id),
   });
   if (ebmErr || !ebm) {
     await eventBus.publish({
@@ -85,5 +114,9 @@ export const compositionCompletedHandler: EventHandler = async (event: EventRow)
     correlationId: event.correlation_id,
     causationId: event.id,
     actorId: event.actor_id,
+    // CR-104 — carried on the payload too (not just persisted on the EBM
+    // row), so a listener reacting to EBMCreated has this SEU's own
+    // commence-work-style policy set without a second lookup.
+    payload: { seuScopedPolicyIds: ebm.seu_scoped_policy_ids },
   });
 };

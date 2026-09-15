@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "energy-outage-regulatory-reporting",
+        "category": "Compliance",
+        "title": "A qualifying outage must be reported to the regulator within its mandated window",
+        "description": "Utility outages meeting the regulator's reportable-event threshold (duration, customers affected) must be reported within the mandated window; internal incident resolution does not substitute for the external regulatory filing.",
+        "origin": "External systems",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "Every qualifying outage is reported to the regulator within its mandated window.",
+        "requiredEvidence": {
+          "title": "Outage regulatory filing record",
+          "category": "Validation Evidence",
+          "description": "Timestamped record of the outage event and the regulatory filing.",
+          "collectionMethod": "Outage management system export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated outage-reporting deadline check.",
+        "externalEvidence": true
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

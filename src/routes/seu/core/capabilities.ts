@@ -22,7 +22,7 @@ import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { assertCanonicalCategory } from "./ontology.js";
-import { findEligibleParticipants, getSeuCompetencyRequirements } from "./participantEligibility.js";
+import { findEligibleParticipants, getSeuCompetencyRequirements, resolveEligibilityPolicies } from "./participantEligibility.js";
 import { transitionParticipant } from "./participants.js";
 import type { CapabilityFulfilmentRow, FulfilmentStrategy, ParticipantRow, ParticipantType, SeuRow } from "../../../dblayer/seuTypes.js";
 
@@ -62,7 +62,8 @@ async function resolveMasterParticipant(
   if (!master) throw new Error(`Participant ${participantMasterId} not found`);
   if (!seu.tenant_id) throw new Error(`SEU ${seu.id} has no owning tenant`);
   const competency = await getSeuCompetencyRequirements(seu);
-  const eligible = await findEligibleParticipants({ tenantId: seu.tenant_id, capabilityCode: seuCapability.capability_code, competency, excludeParticipantMasterIds });
+  const requiredPolicies = await resolveEligibilityPolicies(seu);
+  const eligible = await findEligibleParticipants({ tenantId: seu.tenant_id, capabilityCode: seuCapability.capability_code, competency, requiredPolicyIds: requiredPolicies.map((p) => p.id), excludeParticipantMasterIds });
   if (!eligible.some((p) => p.id === master.id)) {
     throw new Error(`Participant "${master.display_name}" is not eligible for Capability "${seuCapability.capability_code}"`);
   }

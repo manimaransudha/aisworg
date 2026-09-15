@@ -10,39 +10,42 @@
   "conditions": [
     {
       "statement": "The vendor has a risk assessment on record, completed within the declared validity period.",
-      "requiredEvidence": [
-        {
-          "type": "vendor_risk_assessment",
-          "field": "assessment_date"
-        }
-      ],
       "severity": "Critical",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Vendor Risk Assessment — Assessment Date",
+        "category": "Analytical Evidence",
+        "description": "The vendor has a risk assessment on record, completed within the declared validity period.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "The assessed risk rating is below the declared acceptance threshold, or has been explicitly waived by an Authority holder.",
-      "requiredEvidence": [
-        {
-          "type": "vendor_risk_assessment",
-          "field": "risk_rating"
-        }
-      ],
       "severity": "High",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Vendor Risk Assessment — Risk Rating",
+        "category": "Analytical Evidence",
+        "description": "The assessed risk rating is below the declared acceptance threshold, or has been explicitly waived by an Authority holder.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "Where the vendor processes sensitive data, the contract includes a data-protection clause.",
-      "requiredEvidence": [
-        {
-          "type": "vendor_contract",
-          "field": "data_protection_clause"
-        }
-      ],
       "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Vendor Contract — Data Protection Clause",
+        "category": "Analytical Evidence",
+        "description": "Where the vendor processes sensitive data, the contract includes a data-protection clause.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     }
   ],
   "version": "1.0.0"

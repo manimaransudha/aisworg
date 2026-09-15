@@ -75,6 +75,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "azdo-pat-rotation",
+        "category": "Security",
+        "title": "Azure DevOps Personal Access Tokens used by this integration must be rotated before expiry",
+        "description": "A Personal Access Token backing this integration's connection to Azure Boards/Repos/Pipelines must be rotated before its expiry, and its scope reviewed to remain least-privilege, rather than renewed indefinitely with the same broad scope.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "The PAT is rotated before expiry and its scope reviewed within the declared cadence.",
+        "requiredEvidence": {
+          "title": "PAT rotation record",
+          "category": "Validation Evidence",
+          "description": "Record of PAT rotation date and scope review.",
+          "collectionMethod": "Azure DevOps token management export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated PAT-expiry check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

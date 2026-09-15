@@ -77,6 +77,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "experiment-result-disposition",
+        "category": "Organisational Learning",
+        "title": "Experiment results must be dispositioned, win or lose",
+        "description": "Every experiment run under the Product Analytics Specification must be recorded with its outcome and the resulting product decision, including negative or inconclusive results, not only the ones that shipped.",
+        "origin": "Telemetry and Knowledge Model",
+        "priority": "Low",
+        "severity": "Low",
+        "completionCriteria": "Every experiment declared in the phase's experimentation results has a recorded outcome and decision.",
+        "requiredEvidence": {
+          "title": "Experiment outcome log",
+          "category": "Analytical Evidence",
+          "description": "Outcome and resulting decision for each experiment run this phase.",
+          "collectionMethod": "Experimentation platform export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated experimentation-platform export.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

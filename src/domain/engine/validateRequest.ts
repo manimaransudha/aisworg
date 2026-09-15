@@ -91,6 +91,7 @@ export const validateRequestHandler: EventHandler = async (event: EventRow) => {
   const checks = [authorityCheck, ...livenessChecks];
   const deadReferences = livenessChecks.filter((c) => c.status === "dead").map((c) => (c.detail ? `${c.item} ${c.detail}` : c.item));
   if (deadReferences.length > 0) {
+    await seusDB.updateLifecycleState(seu.id, "Failed");
     await eventBus.publish({
       eventType: "CommissionFailed",
       originatingObjectType: "SEU",
@@ -101,7 +102,6 @@ export const validateRequestHandler: EventHandler = async (event: EventRow) => {
       actorId: event.actor_id,
       payload: { stage: "validate_request", reason: "stale_reference", references: deadReferences, checks },
     });
-    await seusDB.updateLifecycleState(seu.id, "Failed");
     return;
   }
 

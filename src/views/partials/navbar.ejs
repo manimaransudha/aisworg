@@ -14,9 +14,10 @@
         <%
           const _u         = locals.session?.user;
           const _role      = _u?.role || 'none';
-          const _isGeneral = ['general','power','super'].includes(_role);
-          const _isPower   = ['power','super'].includes(_role);
+          const _isGeneral = ['general','power','tenant_super','super'].includes(_role);
+          const _isPower   = ['power','tenant_super','super'].includes(_role);
           const _isSuper   = _role === 'super';
+          const _isTenantSuper = _role === 'tenant_super';
         %>
 
         <% if (_isGeneral) { %>
@@ -283,6 +284,11 @@
               <li><a class="dropdown-item <%= currentPage === 'seu-identity' ? 'active' : '' %>" href="/aisworg/seu/identity">
                 <i class="bi bi-person-badge me-2"></i>Identity Management
               </a></li>
+              <% if (_isTenantSuper) { %>
+              <li><a class="dropdown-item <%= currentPage === 'seu-tenant-admin-users' ? 'active' : '' %>" href="/aisworg/seu/tenant-admin/users">
+                <i class="bi bi-people-fill me-2"></i>Tenant User Management
+              </a></li>
+              <% } %>
               <% if (_isSuper) { %>
               <li><a class="dropdown-item <%= currentPage === 'settings' ? 'active' : '' %>"href="/aisworg/settings">
                 <i class="bi bi-gear me-2"></i>Settings

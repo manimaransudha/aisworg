@@ -74,6 +74,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-openup-change-request-backlog-aging",
+        "category": "Review Finding",
+        "title": "An aging, undispositioned Change Request must be escalated, not left indefinitely open",
+        "description": "OpenUP's change-control process requires every Change Request to reach a disposition; a request sitting undispositioned past its expected cycle time silently blocks the work items depending on it and must be escalated rather than left in the backlog.",
+        "origin": "Policies",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "No Change Request remains undispositioned past its declared aging threshold without escalation.",
+        "requiredEvidence": {
+          "title": "Change Request aging report",
+          "category": "Validation Evidence",
+          "description": "Report of Change Requests exceeding the aging threshold and their escalation status.",
+          "collectionMethod": "Change management tool export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated Change Request aging check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

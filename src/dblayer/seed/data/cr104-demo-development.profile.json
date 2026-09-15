@@ -1,0 +1,12 @@
+{
+  "code": "cr104-demo-development",
+  "name": "CR-104 Demo Profile (SaaS Product base)",
+  "baseTemplateCode": "saas-product",
+  "environment": "development",
+  "profileVersion": "1.0.0",
+  "description": "CR-104 validation fixture — the SaaS Product Template's own real commissioning path, with cr104-demo-seu-eligibility-policies added as an optional Pack. Commission an SEU against Template 'saas-product' + this Profile to see: (1) cr104-demo-mandatory composed automatically without being selected here, (2) the Activated -> Operational transition blocked by the SEU-scoped Policy, (3) the requirements-analysis Capability Fulfilment's eligible-Participant list filtered by the Eligibility-scoped Policy (a Participant needs a behaviour_context entry {policy: 'cr104-demo-background-check', payload: {cleared: true}} to be eligible).",
+  "developmentMethodology": "scrum",
+  "primaryProgrammingLanguage": "typescript",
+  "sourceControlProvider": "github",
+  "optionalPackCodes": ["cr104-demo-seu-eligibility-policies"]
+}

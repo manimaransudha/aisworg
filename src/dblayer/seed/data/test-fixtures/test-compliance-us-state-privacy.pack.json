@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-us-state-privacy-gpc-signal-honoring",
+        "category": "Compliance",
+        "title": "Global Privacy Control opt-out signals must be honored automatically",
+        "description": "CCPA/CPRA and several other US state privacy laws require honoring a browser-sent Global Privacy Control signal as a valid opt-out of sale/sharing; the mechanism handling this signal must be periodically verified to still function correctly as the site changes.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "A test GPC signal is confirmed to be honored (opt-out applied) within the declared check cadence.",
+        "requiredEvidence": {
+          "title": "GPC signal handling test",
+          "category": "Validation Evidence",
+          "description": "Test result confirming a GPC opt-out signal is correctly applied.",
+          "collectionMethod": "Automated privacy-signal handling test."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated GPC-handling functional test.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

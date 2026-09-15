@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../partials/head') %>
+  <%# CR-103 — Participant home page. Uses the same CR-083 section-card/
+       section-header/state-badge primitives as seu/seus/detail.ejs (the page
+       this deliberately looks similar to, minus Capability Fulfilment and,
+       for this first pass, minus the write/transition forms — read-only
+       view of the Participant's own work). %>
+  <style>
+    .edge-note { font-size: 0.75rem; color: #64748b; }
+  </style>
+</head>
+<body>
+  <header><%- include('../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <h2 class="h4 text-dark fw-bold mb-4">My Work</h2>
+
+    <% var master = participantHome.master; %>
+    <% if (!master) { %>
+      <div class="section-card">
+        <div class="p-3 text-muted small">No Participant identity is registered for your account yet.</div>
+      </div>
+    <% } else { %>
+      <div class="section-card mb-4">
+        <div class="section-header">My Participant Record</div>
+        <div class="p-3">
+          <dl class="row mb-0 small">
+            <dt class="col-sm-2">Name</dt><dd class="col-sm-10"><%= master.display_name %></dd>
+            <dt class="col-sm-2">Identifier</dt><dd class="col-sm-10 font-monospace"><%= master.id %></dd>
+            <dt class="col-sm-2">Type</dt><dd class="col-sm-10"><%= master.type %></dd>
+            <dt class="col-sm-2">Status</dt><dd class="col-sm-10"><span class="state-badge state-<%= master.is_active ? 'Active' : 'Inactive' %>"><%= master.is_active ? 'Active' : 'Inactive' %></span></dd>
+          </dl>
+        </div>
+      </div>
+
+      <h3 class="h5 text-dark fw-bold mb-3">My SEU Assignments</h3>
+      <% if (participantHome.engagements.length === 0) { %>
+        <div class="section-card">
+          <div class="p-3 text-muted small">No SEU engagements yet.</div>
+        </div>
+      <% } %>
+
+      <% participantHome.engagements.forEach(function(eng, idx) { %>
+        <% var d = eng.detail; var prefix = 'p' + idx; %>
+        <div class="section-card mb-4">
+          <div class="d-flex justify-content-between align-items-start p-3 border-bottom">
+            <div>
+              <p class="text-muted small mb-1 font-monospace"><%= d.seu.id %></p>
+              <h4 class="h6 text-dark fw-bold mb-0"><%= d.objectiveStatement %></h4>
+            </div>
+            <div class="text-end">
+              <div><span class="state-badge state-<%= d.seu.lifecycle_state %>"><%= d.seu.lifecycle_state %></span></div>
+              <div class="mt-1 small text-muted">My status: <span class="state-badge state-<%= eng.participant.state %>"><%= eng.participant.state %></span></div>
+            </div>
+          </div>
+
+          <%
+            var tabs = [
+              { key: 'deliverables', label: 'Deliverables', sub: d.deliverables.length ? '<span class="badge bg-secondary-subtle text-secondary">' + d.deliverables.length + '</span>' : '' },
+              { key: 'obligations', label: 'Obligations', sub: d.obligations.length ? '<span class="badge bg-secondary-subtle text-secondary">' + d.obligations.length + '</span>' : '' },
+              { key: 'evidence', label: 'Evidence', sub: d.evidence.length ? '<span class="badge bg-secondary-subtle text-secondary">' + d.evidence.length + '</span>' : '' },
+              { key: 'decisions', label: 'Decisions', sub: d.decisions.length ? '<span class="badge bg-secondary-subtle text-secondary">' + d.decisions.length + '</span>' : '' },
+              { key: 'knowledge', label: 'Knowledge', sub: d.knowledgeItems.length ? '<span class="badge bg-secondary-subtle text-secondary">' + d.knowledgeItems.length + '</span>' : '' },
+              { key: 'commands', label: 'Command / Work Item', sub: d.commands.length ? '<span class="badge bg-secondary-subtle text-secondary">' + d.commands.length + '</span>' : '' },
+              { key: 'external-interactions', label: 'External Interactions', sub: d.externalInteractions.length ? '<span class="badge bg-secondary-subtle text-secondary">' + d.externalInteractions.length + '</span>' : '' },
+              { key: 'events', label: 'Events', sub: d.events.length ? '<span class="badge bg-secondary-subtle text-secondary">' + d.events.length + '</span>' : '' },
+            ];
+          %>
+
+          <div class="d-flex flex-column flex-md-row gap-4 align-items-start p-3">
+            <%- include('../partials/verticalTabs', { tabs: tabs, paneMode: true, paneIdPrefix: prefix, activePaneIndex: 0 }) %>
+
+            <div class="tab-content flex-grow-1" style="min-width: 0;">
+
+              <div class="tab-pane fade show active" id="<%= prefix %>-deliverables" role="tabpanel">
+                <div class="table-responsive">
+                  <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light"><tr><th>Deliverable</th><th>State</th></tr></thead>
+                    <tbody>
+                      <% if (d.deliverables.length === 0) { %><tr><td colspan="2" class="text-muted small">Nothing assigned to you yet.</td></tr><% } %>
+                      <% d.deliverables.forEach(function(item) { %>
+                        <tr>
+                          <td class="small"><%= item.name %><br><span class="text-muted" style="font-size:0.72rem;"><% if (item.category) { %><%= item.category %> &middot; <% } %>Acquisition Scope: <%= item.acquisitionScope %></span></td>
+                          <td><span class="state-badge state-<%= item.lifecycleState.replace(/\s+/g, '-') %>"><%= item.lifecycleState %></span></td>
+                        </tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="tab-pane fade" id="<%= prefix %>-obligations" role="tabpanel">
+                <div class="table-responsive">
+                  <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light"><tr><th>Deliverable</th><th>Title</th><th>Category / Severity</th><th>Status</th></tr></thead>
+                    <tbody>
+                      <% if (d.obligations.length === 0) { %><tr><td colspan="4" class="text-muted small">None.</td></tr><% } %>
+                      <% d.obligations.forEach(function(o) { %>
+                        <tr>
+                          <td class="small"><%= o.deliverableName %></td>
+                          <td class="small"><%= o.obligation.title %></td>
+                          <td class="small"><%= o.obligation.category %> &middot; <%= o.obligation.severity %></td>
+                          <td><span class="state-badge state-<%= o.obligation.status.replace(/\s+/g, '-') %>"><%= o.obligation.status %></span></td>
+                        </tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="tab-pane fade" id="<%= prefix %>-evidence" role="tabpanel">
+                <div class="table-responsive">
+                  <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light"><tr><th>Supports</th><th>Title</th><th>Category / Confidence</th><th>Status</th></tr></thead>
+                    <tbody>
+                      <% if (d.evidence.length === 0) { %><tr><td colspan="4" class="text-muted small">None.</td></tr><% } %>
+                      <% d.evidence.forEach(function(e) { %>
+                        <tr>
+                          <td class="small"><%= e.relatedObjectLabels.join(', ') || '—' %></td>
+                          <td class="small"><%= e.evidence.title %></td>
+                          <td class="small"><%= e.evidence.category %> &middot; <%= e.evidence.confidence_level %></td>
+                          <td><span class="state-badge state-<%= e.evidence.status %>"><%= e.evidence.status %></span></td>
+                        </tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="tab-pane fade" id="<%= prefix %>-decisions" role="tabpanel">
+                <div class="table-responsive">
+                  <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light"><tr><th>Deliverable</th><th>Title</th><th>Category</th><th>Status</th></tr></thead>
+                    <tbody>
+                      <% if (d.decisions.length === 0) { %><tr><td colspan="4" class="text-muted small">None.</td></tr><% } %>
+                      <% d.decisions.forEach(function(dec) { %>
+                        <tr>
+                          <td class="small"><%= dec.deliverableName %></td>
+                          <td class="small"><%= dec.decision.title %></td>
+                          <td class="small"><%= dec.decision.category %></td>
+                          <td><span class="state-badge state-<%= dec.decision.status %>"><%= dec.decision.status %></span></td>
+                        </tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="tab-pane fade" id="<%= prefix %>-knowledge" role="tabpanel">
+                <div class="table-responsive">
+                  <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light"><tr><th>Deliverable</th><th>Title</th><th>Category / Scope</th><th>Status</th></tr></thead>
+                    <tbody>
+                      <% if (d.knowledgeItems.length === 0) { %><tr><td colspan="4" class="text-muted small">None.</td></tr><% } %>
+                      <% d.knowledgeItems.forEach(function(k) { %>
+                        <tr>
+                          <td class="small"><%= k.deliverableName %></td>
+                          <td class="small"><%= k.knowledgeItem.title %></td>
+                          <td class="small"><%= k.knowledgeItem.category %> &middot; <%= k.knowledgeItem.acquisition_scope %></td>
+                          <td><span class="state-badge state-<%= k.knowledgeItem.status %>"><%= k.knowledgeItem.status %></span></td>
+                        </tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="tab-pane fade" id="<%= prefix %>-commands" role="tabpanel">
+                <div class="table-responsive">
+                  <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light"><tr><th>Command</th><th>Transition</th><th>Status</th><th>My Work Item</th></tr></thead>
+                    <tbody>
+                      <% if (d.commands.length === 0) { %><tr><td colspan="4" class="text-muted small">None.</td></tr><% } %>
+                      <% d.commands.forEach(function(cmd) { %>
+                        <tr>
+                          <td class="small"><%= cmd.entityLabel %><br><span class="text-muted" style="font-size:0.72rem;"><%= cmd.commandType %></span></td>
+                          <td class="small"><%= cmd.fromState %> &rarr; <%= cmd.toState %></td>
+                          <td><span class="state-badge state-<%= cmd.status %>"><%= cmd.status %></span></td>
+                          <td class="small">
+                            <% cmd.workItems.forEach(function(wi) { %>
+                              <div><span class="state-badge state-<%= wi.status %>"><%= wi.status %></span><% if (wi.dispatchStrategy) { %> <span class="text-muted" style="font-size:0.7rem;">(<%= wi.dispatchStrategy %>)</span><% } %></div>
+                            <% }) %>
+                          </td>
+                        </tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="tab-pane fade" id="<%= prefix %>-external-interactions" role="tabpanel">
+                <div class="table-responsive">
+                  <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light"><tr><th>Deliverable</th><th>Type / Direction</th><th>Target System</th><th>Status</th></tr></thead>
+                    <tbody>
+                      <% if (d.externalInteractions.length === 0) { %><tr><td colspan="4" class="text-muted small">None.</td></tr><% } %>
+                      <% d.externalInteractions.forEach(function(ei) { %>
+                        <tr>
+                          <td class="small"><%= ei.deliverableName || '—' %></td>
+                          <td class="small"><%= ei.interaction.interaction_type %> &middot; <%= ei.interaction.direction %></td>
+                          <td class="small"><%= ei.interaction.target_system %></td>
+                          <td><span class="state-badge state-<%= ei.interaction.status.replace(/\s+/g, '-') %>"><%= ei.interaction.status %></span></td>
+                        </tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="tab-pane fade" id="<%= prefix %>-events" role="tabpanel">
+                <div class="table-responsive">
+                  <table class="table table-sm mb-0">
+                    <thead class="table-light"><tr><th>Type</th><th>Object</th><th>When</th></tr></thead>
+                    <tbody>
+                      <% if (d.events.length === 0) { %><tr><td colspan="3" class="text-muted small">None.</td></tr><% } %>
+                      <% d.events.forEach(function(e) { %>
+                        <tr>
+                          <td class="small"><code><%= e.event_type %></code></td>
+                          <td class="small text-muted"><%= e.originating_object_type %></td>
+                          <td class="small text-muted"><%= new Date(e.occurred_at).toLocaleString() %></td>
+                        </tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    <% } %>
+  </main>
+
+  <%- include('../partials/footer') %>
+</body>
+</html>

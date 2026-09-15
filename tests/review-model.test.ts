@@ -24,10 +24,6 @@ import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 async function commissionSeu(prefix: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromFormSync({
@@ -84,8 +80,12 @@ test("a Review runs its full lifecycle without modifying the reviewed object; it
 });
 
 test("requires_accepted_review Quality Gate blocks a transition until an Accepted, passing Review against the required Review Gate exists (CR-059)", async () => {
-  const { seuId, deliverable } = await commissionSeu("review-gate");
-
+  // CR-104 — Quality Gates are materialised onto an SEU's own EBM once, at
+  // EBM creation, from whichever Packs are composed at that exact moment —
+  // not re-derived live on every evaluate() call. This gate (and its Review
+  // Gate) must therefore exist BEFORE commissionSeu below, or the resulting
+  // EBM's applicable_quality_gate_ids will never include it.
+  //
   // A gate on a fully run-scoped triple, not just a run-scoped category —
   // qualityGateEngine.evaluate() ANDs across EVERY active gate at a given
   // (entityType, fromState, toState), regardless of category, so sharing
@@ -117,6 +117,8 @@ test("requires_accepted_review Quality Gate blocks a transition until an Accepte
     criteria: { type: "requires_accepted_review", reviewGateId: reviewGate!.id },
     originatingPackId: corePack!.id,
   });
+
+  const { seuId, deliverable } = await commissionSeu("review-gate");
   const evalGate = () => qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: deliverable.id, seuId, fromState, toState });
 
   assert.equal((await evalGate()).outcome, "Blocked", "no Review yet -> blocked");

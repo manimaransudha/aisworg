@@ -77,6 +77,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "release-scope-change-tracking",
+        "category": "Engineering",
+        "title": "Scope changes after Release Plan approval are recorded, not silent",
+        "description": "Once the Release Plan is accepted, any addition or removal of committed scope must be recorded against the plan so release commitments stay traceable.",
+        "origin": "Policies",
+        "priority": "Medium",
+        "severity": "Low",
+        "completionCriteria": "Every scope change made after Release Plan approval is logged with rationale.",
+        "requiredEvidence": {
+          "title": "Scope change log",
+          "category": "Analytical Evidence",
+          "description": "A log of scope changes made after Release Plan approval, each with rationale.",
+          "collectionMethod": "Extracted from backlog/release-planning tool change history."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated backlog change-log extraction.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

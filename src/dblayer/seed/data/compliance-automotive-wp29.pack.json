@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "wp29-csms-post-deployment-monitoring",
+        "category": "Security",
+        "title": "Cybersecurity Management System must monitor deployed vehicle software for new vulnerabilities",
+        "description": "UNECE R155 requires a Cybersecurity Management System that continues to monitor, assess, and respond to vulnerabilities discovered after a vehicle software component is deployed, not only during pre-deployment certification.",
+        "origin": "Telemetry and Knowledge Model",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "Each newly disclosed vulnerability affecting a deployed component is triaged and, where applicable, remediated via a certified OTA update within the CSMS's declared response window.",
+        "requiredEvidence": {
+          "title": "CSMS vulnerability monitoring log",
+          "category": "Validation Evidence",
+          "description": "CSMS record of vulnerability triage and remediation timing for deployed components.",
+          "collectionMethod": "CSMS monitoring system export."
+        },
+        "classification": "human-attested",
+        "prompt": "Has each newly disclosed vulnerability affecting deployed software been triaged within the CSMS's response window?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Product Security Incident Response Team (PSIRT) sign-off.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

@@ -40,10 +40,6 @@ import { packsDB } from "../src/dblayer/packsDB.js";
 import { composableFieldsFromPack } from "../src/routes/seu/core/sdkAuthoring.js";
 import { compositionEngine, type CompositionSource } from "../src/domain/engine/compositionEngine.js";
 
-after(async () => {
-  await pool.end();
-});
-
 async function loadScenarioSources(): Promise<{ openupRequirements: CompositionSource; integrationJira: CompositionSource }> {
   const { data: openupRequirementsPack } = await packsDB.findActiveByCode("requirements-analysis");
   const { data: integrationJiraPack } = await packsDB.findActiveByCode("integration-jira");

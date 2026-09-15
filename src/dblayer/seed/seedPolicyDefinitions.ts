@@ -15,7 +15,7 @@ import path from "node:path";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { PLATFORM_TENANT_ID } from "../constants.js";
-import type { PolicyCondition } from "../seuTypes.js";
+import type { PolicyCondition, PolicyScope } from "../seuTypes.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "data");
@@ -26,10 +26,25 @@ interface PolicyDefinitionSeedFile {
   description: string;
   category: string;
   constraintType: "Policy" | "Standard";
+  // Migrations 214/216 — these three named the OLD, now-dropped
+  // policy_definitions columns' own JSON shape (applicability_deliverables,
+  // governed_transition, governing_condition — all folded into each element
+  // of `conditions` now, PolicyCondition.applicabilityDeliverables/
+  // governingCondition). None of the 34 real seed files ever set any of
+  // them to begin with ("seed data work is deferred" — owner), so the
+  // mechanical fold below (attached to every condition, or left as the
+  // packs.ts DEFAULT_CONDITION fallback when `conditions` is empty) is never
+  // actually exercised on real data today — this only keeps this script
+  // from referencing columns that no longer exist.
   applicabilityDeliverableNames: string[];
   applicabilityEnvironments: string[];
   applicabilityDeliverableLifecycle: string[];
   conditions: PolicyCondition[];
+  // CR-104 follow-up — optional; none of the 34 original real files set
+  // these, so they fall back to the DB column defaults (scope "Transition")
+  // exactly as before this field existed.
+  scope?: PolicyScope;
+  governingCondition?: Record<string, unknown> | null;
   version: string;
 }
 
@@ -72,6 +87,13 @@ const POLICY_DEFINITION_FILES = [
   "policy-change-and-decision-governance-artifact-completeness.json",
   "policy-vendor-and-compliance-evidence-completeness.json",
   "policy-organisational-knowledge-currency.json",
+  // CR-104 follow-up — real, seeded validation fixtures for the SEU-scoped
+  // and Eligibility-scoped Policy scopes (owner: "we have to fix publishPack
+  // also. it should not override anything" — these adopt through the same
+  // real Definition -> Pack -> materialised Policy path every other real
+  // Policy does, no bypass).
+  "policy-cr104-demo-seu-commence-work.json",
+  "policy-cr104-demo-background-check.json",
 ];
 
 export async function seedPolicyDefinitions(): Promise<void> {
@@ -81,17 +103,38 @@ export async function seedPolicyDefinitions(): Promise<void> {
     let count = 0;
     for (const file of POLICY_DEFINITION_FILES) {
       const seed = loadJson(file);
+      // Migrations 214/216/219 — mechanical fold of the old independent
+      // names/lifecycle-transitions/governingCondition fields into each
+      // condition's own applicabilityDeliverables rows, each carrying the
+      // fold's own governingCondition (moved off the condition and onto
+      // each row by migration 219): every name paired with every listed
+      // transition, attached to every condition that doesn't already
+      // declare its own rows. Never exercised on real data today (see the
+      // interface's own comment above) — the real per-condition authoring
+      // is the deferred reseed pass.
+      const applicabilityDeliverables = seed.applicabilityDeliverableNames.map((name) => ({
+        name, transitions: seed.applicabilityDeliverableLifecycle, governingCondition: seed.governingCondition ?? null,
+      }));
+      const conditions: PolicyCondition[] = (seed.conditions ?? []).map((c) => ({
+        ...c,
+        applicabilityDeliverables: c.applicabilityDeliverables?.length
+          ? c.applicabilityDeliverables.map((row) => ({ ...row, governingCondition: row.governingCondition ?? seed.governingCondition ?? null }))
+          : applicabilityDeliverables,
+      }));
       await client.query(
-        `INSERT INTO policy_definitions (code, name, description, category, constraint_type, applicability_deliverable_names, applicability_environments, applicability_deliverable_lifecycle, conditions, version, status, draft_content, tenant_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'Active', $11, $12)
+        `INSERT INTO policy_definitions (code, name, description, category, constraint_type, applicability_environments, conditions, scope, version, status, draft_content, tenant_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Active', $10, $11)
          ON CONFLICT (code, version, tenant_id) DO UPDATE SET
            name = EXCLUDED.name, description = EXCLUDED.description, category = EXCLUDED.category, constraint_type = EXCLUDED.constraint_type,
-           applicability_deliverable_names = EXCLUDED.applicability_deliverable_names, applicability_environments = EXCLUDED.applicability_environments,
-           applicability_deliverable_lifecycle = EXCLUDED.applicability_deliverable_lifecycle, conditions = EXCLUDED.conditions, draft_content = EXCLUDED.draft_content`,
+           applicability_environments = EXCLUDED.applicability_environments,
+           conditions = EXCLUDED.conditions,
+           scope = EXCLUDED.scope,
+           draft_content = EXCLUDED.draft_content`,
         [
           seed.code, seed.name, seed.description, seed.category, seed.constraintType,
-          seed.applicabilityDeliverableNames, seed.applicabilityEnvironments, seed.applicabilityDeliverableLifecycle,
-          JSON.stringify(seed.conditions), seed.version, JSON.stringify(seed), PLATFORM_TENANT_ID,
+          seed.applicabilityEnvironments,
+          JSON.stringify(conditions), seed.scope ?? "Transition",
+          seed.version, JSON.stringify(seed), PLATFORM_TENANT_ID,
         ]
       );
       count++;

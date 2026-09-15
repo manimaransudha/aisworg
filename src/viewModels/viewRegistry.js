@@ -28,6 +28,7 @@ import {seu_identity_indexVM} from "./seu_identity_index.js";
 import {seu_identity_tenantsVM} from "./seu_identity_tenants.js";
 import {seu_identity_badgesVM} from "./seu_identity_badges.js";
 import {seu_identity_usersVM} from "./seu_identity_users.js";
+import {seu_tenantAdmin_usersVM} from "./seu_tenantAdmin_users.js";
 import {seu_sdk_authoring_indexVM} from "./seu_sdk_authoring_index.js";
 import {seu_sdk_authority_indexVM} from "./seu_sdk_authority_index.js";
 import {seu_sdk_authority_detailVM} from "./seu_sdk_authority_detail.js";
@@ -79,6 +80,7 @@ export const viewModels = {
   "seu/identity/tenants": seu_identity_tenantsVM,
   "seu/identity/badges": seu_identity_badgesVM,
   "seu/identity/users": seu_identity_usersVM,
+  "seu/tenantAdmin/users": seu_tenantAdmin_usersVM,
   "seu/sdk/authoring/index": seu_sdk_authoring_indexVM,
   "seu/sdk/authority/index": seu_sdk_authority_indexVM,
   "seu/sdk/authority/detail": seu_sdk_authority_detailVM,

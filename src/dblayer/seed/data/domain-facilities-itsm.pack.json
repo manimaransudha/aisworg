@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "itsm-major-incident-post-incident-review",
+        "category": "Review Finding",
+        "title": "A major ITSM incident requires a completed post-incident review",
+        "description": "ITIL practice requires a Major Incident to be followed by a Post-Incident Review identifying root cause and preventive action; closing the incident ticket alone does not satisfy this.",
+        "origin": "Reviews",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every Major Incident has a completed Post-Incident Review with recorded preventive actions.",
+        "requiredEvidence": {
+          "title": "Post-incident review record",
+          "category": "Analytical Evidence",
+          "description": "Completed Post-Incident Review document for the Major Incident.",
+          "collectionMethod": "ITSM tool's problem/PIR record."
+        },
+        "classification": "human-attested",
+        "prompt": "Has a Post-Incident Review been completed for this Major Incident?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "IT service management lead sign-off.",
+        "externalEvidence": false
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

@@ -18,12 +18,20 @@
     %>
 <%
   function ilabel(n) { return n.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, function(c){ return c.toUpperCase(); }); }
+  // Bug fix — JSON.stringify embedded raw into a SINGLE-quoted HTML
+  // attribute breaks the moment any embedded label carries a literal
+  // apostrophe (e.g. "COPPA Children's Privacy Compliance") — it closes the
+  // attribute early, silently truncating everything after it in the JSON.
+  // Escaping `'` to `&#39;` keeps the attribute intact; the browser decodes
+  // the entity back before JSON.parse ever sees it.
+  function escapeAttrJson(obj) { return JSON.stringify(obj).replace(/'/g, '&#39;'); }
   var isDependencies = field.name === 'dependencies';
   var isChecklists = field.name === 'contributionChecklists';
   var isQualityGates = field.name === 'contributionQualityGates';
   var isReviewGates = field.name === 'contributionReviewGates';
   var isObligationDefinitions = field.name === 'contributionObligationDefinitions';
   var isServices = field.name === 'contributionServices';
+  var isConditions = field.name === 'conditions';
   // Hoisted out of the view-only block below (var is function-scoped in a
   // compiled EJS template, but only ASSIGNED where the code actually runs —
   // the canEdit branch needs these too, for the isDependencyGraph edit card).
@@ -54,9 +62,15 @@
   // §20 verifiable-item fields (statement/prompt markdown paragraphs, then
   // a small badge row for classification/participant/outputContract/
   // externalEvidence/assurance), each shown only when the row actually has it.
-  function verifiableFieldsBlock(row, statementMd, promptMd) { %>
-    <% if (row.statement) { %>
-      <div class="small mb-1"><% if (statementMd) { %><%- renderMarkdown(row.statement) %><% } else { %><%= row.statement %><% } %></div>
+  // Migration 222 — Obligation Definitions' own "statement" is now
+  // "description" (Ch.23 §8's own name, shared with Policy's
+  // relatedObligations via seuTypes.ts's ObligationDefinition); statementField
+  // lets this one shared helper read the right field per kind instead of a
+  // hardcoded "statement".
+  function verifiableFieldsBlock(row, statementMd, promptMd, statementField) {
+    var statementValue = row[statementField || 'statement']; %>
+    <% if (statementValue) { %>
+      <div class="small mb-1"><% if (statementMd) { %><%- renderMarkdown(statementValue) %><% } else { %><%= statementValue %><% } %></div>
     <% } %>
     <% if (row.prompt) { %>
       <div class="small text-muted fst-italic mb-1"><strong class="fst-normal">Prompt:</strong> <% if (promptMd) { %><%- renderMarkdown(row.prompt) %><% } else { %><%= row.prompt %><% } %></div>
@@ -339,19 +353,113 @@
       </div>
     <% }) %>
   <% } else if (isObligationDefinitions) { %>
-    <% var obStatementField = field.itemFields.find(function(f) { return f.name === 'statement'; }); %>
+    <% var obStatementField = field.itemFields.find(function(f) { return f.name === 'description'; }); %>
     <% var obPromptField = field.itemFields.find(function(f) { return f.name === 'prompt'; }); %>
     <% var obStatementIsMarkdown = obStatementField && obStatementField.markdown; %>
     <% var obPromptIsMarkdown = obPromptField && obPromptField.markdown; %>
     <% existingRows.forEach(function(row) { %>
       <div class="card mb-2">
         <div class="card-body">
-          <h6 class="mb-1"><%= row.code || '—' %></h6>
+          <h6 class="mb-1"><%= row.title || row.code || '—' %> <% if (row.title && row.code) { %><code class="text-muted small"><%= row.code %></code><% } %></h6>
           <div class="mb-1">
             <% if (row.category) { %><span class="badge bg-light text-dark border me-1"><%= row.category %></span><% } %>
             <% if (row.origin) { %><span class="badge bg-light text-dark border me-1"><%= row.origin %></span><% } %>
+            <% if (row.priority) { %><span class="badge bg-light text-dark border me-1"><%= row.priority %></span><% } %>
+            <% if (row.severity) { %><span class="badge bg-light text-dark border me-1"><%= row.severity %></span><% } %>
           </div>
-          <% verifiableFieldsBlock(row, obStatementIsMarkdown, obPromptIsMarkdown); %>
+          <% verifiableFieldsBlock(row, obStatementIsMarkdown, obPromptIsMarkdown, 'description'); %>
+          <% if (row.completionCriteria) { %><div class="small text-muted mt-1">Completion: <%= row.completionCriteria %></div><% } %>
+          <% var packObEv = row.requiredEvidence || {}; %>
+          <% if (packObEv.title || packObEv.category || packObEv.description || packObEv.collectionMethod) { %>
+            <div class="small text-muted mt-1">Required evidence: <%= packObEv.title || packObEv.category || '—' %><% if (packObEv.category && packObEv.title) { %> <span class="badge bg-light text-dark border"><%= packObEv.category %></span><% } %><% if (packObEv.collectionMethod) { %> — <%= packObEv.collectionMethod %><% } %></div>
+          <% } %>
+        </div>
+      </div>
+    <% }) %>
+  <% } else if (isConditions) { %>
+    <%# Policy condition redesign — Ch.24 §8's Conditions/Required Evidence/
+        Related Obligations/Exception Rules/Severity, view mode. A named
+        card block (same treatment as Checklists/Quality Gates/Obligation
+        Definitions above) rather than trying to force this shape through
+        the generic nested-list/table branches further below, which are
+        built around Checklist item's own specific fields (mandatory/
+        statement/participant/configurableKey) and would render nonsense
+        badges for a condition's very differently-shaped relatedObligations/
+        exceptionRules sub-rows. %>
+    <% var condStatementField = field.itemFields.find(function(f) { return f.name === 'statement'; }); %>
+    <% var condStatementIsMarkdown = condStatementField && condStatementField.markdown; %>
+    <% existingRows.forEach(function(row, condIdx) { %>
+      <div class="card mb-2">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-1">
+            <div>
+              <% if (condStatementIsMarkdown && row.statement) { %><%- renderMarkdown(row.statement) %><% } else { %><%= row.statement || '—' %><% } %>
+            </div>
+            <% if (row.severity) { %><span class="badge bg-warning-subtle text-warning-emphasis ms-2 flex-shrink-0"><%= row.severity %></span><% } %>
+          </div>
+          <%# Migration 219 — "The governing condition should be within
+              applicability deliverables": each (name, transitions) row now
+              carries its own real governing rule, shown alongside it rather
+              than once for the whole condition. %>
+          <% var condDeliverables = Array.isArray(row.applicabilityDeliverables) ? row.applicabilityDeliverables.slice(0, Math.max(row.applicabilityDeliverables.length - 1, 0)) : []; %>
+          <% if (condDeliverables.length) { %>
+            <div class="small text-muted mb-2">Applies to:
+              <% condDeliverables.forEach(function(d) { %>
+                <div class="mb-1">
+                  <span class="badge bg-light text-dark border me-1"><%= d.name || '—' %><% if (d.transitions && d.transitions.length) { %> (<%= d.transitions.map(function(t) { return formatGovernedTransition(t); }).join(', ') %>)<% } %></span>
+                  <% if (d.governingCondition && typeof d.governingCondition === 'object' && d.governingCondition.type && d.governingCondition.type !== 'always_true') { %>
+                    <code class="small"><%= JSON.stringify(d.governingCondition) %></code>
+                  <% } else { %>
+                    <span class="badge bg-secondary-subtle text-secondary">Manual</span>
+                  <% } %>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
+          <% var reqEv = row.requiredEvidence || {}; %>
+          <% if (reqEv.title || reqEv.category || reqEv.description || reqEv.collectionMethod) { %>
+            <div class="small text-muted mb-2">Required evidence: <%= reqEv.title || reqEv.category || '—' %><% if (reqEv.category && reqEv.title) { %> <span class="badge bg-light text-dark border"><%= reqEv.category %></span><% } %><% if (reqEv.collectionMethod) { %> — <%= reqEv.collectionMethod %><% } %></div>
+          <% } %>
+          <% var relatedObs = Array.isArray(row.relatedObligations) ? row.relatedObligations.slice(0, Math.max(row.relatedObligations.length - 1, 0)) : []; %>
+          <% if (relatedObs.length) { %>
+            <div class="mb-2">
+              <div class="text-uppercase text-muted small fw-semibold mb-1">Related Obligations</div>
+              <% relatedObs.forEach(function(ob) { %>
+                <div class="border rounded p-2 mb-1 small">
+                  <span class="badge bg-light text-dark border me-1"><%= ob.category || '—' %></span>
+                  <% if (ob.priority) { %><span class="badge bg-light text-dark border me-1"><%= ob.priority %></span><% } %>
+                  <% if (ob.severity) { %><span class="badge bg-light text-dark border me-1"><%= ob.severity %></span><% } %>
+                  <% if (ob.origin) { %><span class="text-muted">(<%= ob.origin %>)</span><% } %>
+                  <% if (ob.title) { %><div class="fw-semibold"><%= ob.title %></div><% } %>
+                  <% if (ob.description) { %><div class="text-muted"><%= ob.description %></div><% } %>
+                  <% if (ob.completionCriteria) { %><div class="text-muted">Completion: <%= ob.completionCriteria %></div><% } %>
+                  <% var obEv = ob.requiredEvidence || {}; %>
+                  <% if (obEv.title || obEv.category || obEv.description || obEv.collectionMethod) { %>
+                    <div class="text-muted">Required evidence: <%= obEv.title || obEv.category || '—' %><% if (obEv.category && obEv.title) { %> <span class="badge bg-light text-dark border"><%= obEv.category %></span><% } %><% if (obEv.collectionMethod) { %> — <%= obEv.collectionMethod %><% } %></div>
+                  <% } %>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
+          <% var excRules = Array.isArray(row.exceptionRules) ? row.exceptionRules.slice(0, Math.max(row.exceptionRules.length - 1, 0)) : []; %>
+          <% if (excRules.length) { %>
+            <div>
+              <div class="text-uppercase text-muted small fw-semibold mb-1">Exception Rules</div>
+              <% excRules.forEach(function(ex) { %>
+                <div class="border rounded p-2 mb-1 small">
+                  <% if (ex.identifier) { %><code class="text-muted me-1"><%= ex.identifier %></code><% } %>
+                  <%= ex.exceptionStatement || '—' %>
+                  <% if (ex.exceptionComposition) { %><span class="badge bg-light text-dark border ms-1"><%= ex.exceptionComposition %></span><% } %>
+                  <% if (ex.exceptionApprovers && ex.exceptionApprovers.length) { %>
+                    <div class="text-muted">Approvers: <%= ex.exceptionApprovers.join(', ') %></div>
+                  <% } %>
+                  <% if (ex.duration) { %><div class="text-muted">Duration: <%= ex.duration %></div><% } %>
+                  <% if (ex.exceptionScope) { %><div class="text-muted">Scope: <%= ex.exceptionScope %></div><% } %>
+                  <% if (ex.reviewRequirements) { %><div class="text-muted">Review: <%= ex.reviewRequirements %></div><% } %>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
         </div>
       </div>
     <% }) %>
@@ -493,14 +601,19 @@
                           not id alone. Options source dispatches on
                           referentialSource (checklist vs policy), the same
                           way pack-code fields dispatch on their own source. %>
-                      <% var _multiOptions = itemField.referentialSource === 'policy' ? (locals.policyOptions || []) : (locals.checklistOptions || []); %>
                       <% var selectedRefs = Array.isArray(value) ? value : []; %>
                       <% if (!selectedRefs.length) { %>
                         <span class="text-muted">None</span>
-                      <% } else { %>
+                      <% } else if (itemField.referentialSource === 'policy' || itemField.referentialSource === 'checklist') { %>
+                        <% var _multiOptions = itemField.referentialSource === 'policy' ? (locals.policyOptions || []) : (locals.checklistOptions || []); %>
                         <% selectedRefs.forEach(function(ref) { %>
                           <% var matchedOpt = _multiOptions.find(function(o) { return o.id === ref || o.name === ref; }); %>
                           <span class="badge bg-light text-dark border me-1 mb-1"><%= matchedOpt ? (matchedOpt.name + ' — ' + matchedOpt.packName) : ('⚠ ' + ref + ' (not found)') %></span>
+                        <% }) %>
+                      <% } else { %>
+                        <% selectedRefs.forEach(function(ref) { %>
+                          <% var _parts = String(ref).split('|'); %>
+                          <span class="badge bg-light text-dark border me-1 mb-1"><%= _parts.length === 3 ? (_parts[0] + ': ' + _parts[1] + ' → ' + _parts[2]) : ref %></span>
                         <% }) %>
                       <% } %>
                     <% } else if (itemField.kind === 'boolean') { %>
@@ -526,6 +639,22 @@
                       <% var _dynOptsView = ((locals.ontologyOptions || {})[_dynConceptTypeView] || []); %>
                       <% var _matchedDynItem = _dynOptsView.find(function(o) { return o.code === value; }); %>
                       <%= _matchedDynItem ? _matchedDynItem.label : (value ? ('⚠ ' + value + ' (proposed — not yet a registered Ontology concept)') : '—') %>
+                    <% } else if (itemField.kind === 'referential-by-scope') { %>
+                      <%# Owner: "Add only deliverable name and allow
+                          multiple transitions" — view mode has no live scope
+                          toggle to resolve against, so this tries each
+                          declared variant's own source and shows whichever
+                          one actually matches the saved value (a noun code
+                          and a deliverable-name code colliding is not a real
+                          concern in practice). %>
+                      <% var _byScopeLabel = null; %>
+                      <% (itemField.scopeVariants || []).forEach(function(v) {
+                           if (_byScopeLabel) return;
+                           var opts = v.ontology ? ((locals.ontologyOptions || {})[v.referentialSource] || []) : ((locals.referentialOptions || {})[v.referentialSource] || []).map(function(s) { return { code: s, label: s }; });
+                           var m = opts.find(function(o) { return o.code === value; });
+                           if (m) _byScopeLabel = m.label;
+                         }); %>
+                      <%= _byScopeLabel || (value ? ('⚠ ' + value) : '—') %>
                     <% } else if (itemField.markdown && value) { %>
                       <%- renderMarkdown(value) %>
                     <% } else { %>
@@ -639,7 +768,7 @@
             <select name="<%= field.name %>[<%= i %>][code]" class="form-select form-select-sm rlg-service-def-select" <%- canEdit ? '' : 'disabled' %>>
               <option value="">— Service —</option>
               <% serviceDefOptions.forEach(function(d) { %>
-                <option value="<%= d.code %>" data-capability-code="<%= d.capabilityCode %>" data-name="<%= d.name %>" data-purpose="<%= d.purpose %>" data-service-level='<%- JSON.stringify(d.serviceLevel) %>' <%= svcCode === d.code ? 'selected' : '' %>><%= d.name %></option>
+                <option value="<%= d.code %>" data-capability-code="<%= d.capabilityCode %>" data-name="<%= d.name %>" data-purpose="<%= d.purpose %>" data-service-level='<%- escapeAttrJson(d.serviceLevel) %>' <%= svcCode === d.code ? 'selected' : '' %>><%= d.name %></option>
               <% }) %>
               <% if (svcCode && !svcDef) { %>
                 <option value="<%= svcCode %>" selected>&#9888; <%= svcCode %> (not currently an Active Service Definition)</option>
@@ -745,7 +874,20 @@
                 an editing affordance only (owner, elsewhere on this page:
                 "In a view page why will a mandatory * indicator show up?"). %>
             <% var itemLabel = itemField.label || ilabel(itemField.name); %>
-            <% var isRequiredField = canEdit && itemField.required; %>
+            <%# Bug fix (owner: "an action should not happen [without
+                mandatory information] — that is basic form validation") —
+                `formnovalidate` (edit.ejs) disabled ALL native validation
+                platform-wide because this trailing blank "New item" row (the
+                "+ Add another" clone template, isExisting === false) always
+                carries `required` on its own inputs regardless of whether
+                the author ever touches this contribution type — a hidden,
+                empty, required field the browser can't focus/scroll to
+                silently aborted the whole submit. The template row is pure
+                scaffolding, never real content, so it never needs
+                `required` at all; gating on `isExisting` here is what lets
+                edit.ejs restore real native validation instead of disabling
+                it everywhere. %>
+            <% var isRequiredField = canEdit && itemField.required && isExisting; %>
             <%# Owner: "who puts form fields in columns blindly" — every
                 field used to get the identical col-sm-6 col-lg-4 regardless
                 of what it actually holds, so a boolean checkbox took the
@@ -759,14 +901,92 @@
             <%# CR-060 — nested-list (Checklist's own `items`) and
                 referential-multi (checklistIds) both need real room, same
                 reasoning as `full` above. %>
-            <% var colClass = (full || itemField.kind === 'nested-list' || itemField.kind === 'referential-multi') ? 'col-12'
+            <% var colClass = (full || itemField.kind === 'nested-list' || itemField.kind === 'nested-object' || itemField.kind === 'referential-multi') ? 'col-12'
                  : itemField.kind === 'boolean' ? 'col-sm-6 col-lg-3'
                  : itemField.kind === 'enum' ? 'col-sm-6 col-lg-4'
                  : 'col-sm-6 col-lg-6'; %>
-            <div class="<%= colClass %>">
+            <%# Owner: "Exceptions are defined only when Constraint type is
+                'Policy'" — exceptionRules' own x-show-when names
+                constraintType directly (a bare, unindexed TOP-LEVEL Policy
+                field, unlike the row-relative sibling references the two
+                deeper nesting levels need — form.elements[name] already
+                finds it regardless of how deep the dependent field sits, so
+                no path computation is needed at this level). %>
+            <% var _itemShowWhenCurrent = itemField.showWhen ? (fieldValueByName ? fieldValueByName[itemField.showWhen] : '') : ''; %>
+            <% var _itemShowWhenHidden = itemField.showWhen ? (itemField.showWhenValues ? itemField.showWhenValues.indexOf(_itemShowWhenCurrent) === -1 : !_itemShowWhenCurrent) : false; %>
+            <div class="<%= colClass %>" <% if (itemField.showWhen) { %>data-show-when="<%= itemField.showWhen %>" <% if (itemField.showWhenValues) { %>data-show-when-values='<%- escapeAttrJson(itemField.showWhenValues) %>' <% } %>style="<%= _itemShowWhenHidden ? 'display:none' : '' %>"<% } %>>
               <label class="form-label small text-muted mb-1"><%= itemLabel %><% if (isRequiredField) { %> <span class="text-danger">*</span><% } %></label>
 
-              <% if (itemField.kind === 'nested-list') { %>
+              <% if (itemField.kind === 'nested-object') { %>
+                <%# Policy condition redesign — `requiredEvidence`, one fixed
+                    sub-object (no add/remove, unlike nested-list below).
+                    Same per-nestedField-kind dispatch as nested-list's own
+                    inner loop, minus the repeatable-row wrapper. %>
+                <% var nestedObjRow = (row[itemField.name] && typeof row[itemField.name] === 'object' && !Array.isArray(row[itemField.name])) ? row[itemField.name] : {}; %>
+                <div class="card card-body bg-white border">
+                  <div class="row g-2">
+                    <% (itemField.nestedItemFields || []).forEach(function(nestedField) { %>
+                      <% var nestedFull = nestedField.name === 'statement' || nestedField.name === 'prompt'; %>
+                      <% var nestedColClass = nestedFull ? 'col-12' : nestedField.kind === 'boolean' ? 'col-sm-6 col-lg-3' : nestedField.kind === 'enum' ? 'col-sm-6 col-lg-4' : 'col-sm-6 col-lg-6'; %>
+                      <% var nestedInputName = field.name + '[' + i + '][' + itemField.name + '][' + nestedField.name + ']'; %>
+                      <% var nestedValue = nestedObjRow[nestedField.name] || ''; %>
+                      <% var nestedLabel = nestedField.label || ilabel(nestedField.name); %>
+                      <% var nestedRequired = canEdit && nestedField.required && isExisting; %>
+                      <%# GoverningCondition structured UI — nestedField.showWhen
+                          names a SIBLING field within this same nested-object
+                          (bare name, e.g. "type"); resolved to that sibling's
+                          own full input name the same way nestedInputName is
+                          computed above. showWhenValues (when set) narrows
+                          "sibling is truthy" to "sibling's CURRENT value is
+                          one of these" — edit.ejs's generic [data-show-when]
+                          listener (extended, not replaced) reads both. %>
+                      <% var _nestedShowWhenName = nestedField.showWhen ? (field.name + '[' + i + '][' + itemField.name + '][' + nestedField.showWhen + ']') : ''; %>
+                      <% var _nestedShowWhenCurrent = nestedField.showWhen ? (nestedObjRow[nestedField.showWhen] || '') : ''; %>
+                      <% var _nestedShowWhenHidden = nestedField.showWhen ? (nestedField.showWhenValues ? nestedField.showWhenValues.indexOf(_nestedShowWhenCurrent) === -1 : !_nestedShowWhenCurrent) : false; %>
+                      <div class="<%= nestedColClass %>" <% if (nestedField.showWhen) { %>data-show-when="<%= _nestedShowWhenName %>" <% if (nestedField.showWhenValues) { %>data-show-when-values='<%- escapeAttrJson(nestedField.showWhenValues) %>' <% } %>style="<%= _nestedShowWhenHidden ? 'display:none' : '' %>"<% } %>>
+                        <label class="form-label small text-muted mb-1"><%= nestedLabel %><% if (nestedRequired) { %> <span class="text-danger">*</span><% } %></label>
+                        <% if (nestedField.kind === 'enum') { %>
+                          <select name="<%= nestedInputName %>" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %> <%- nestedRequired ? 'required' : '' %>>
+                            <option value="">— <%= nestedLabel %> —</option>
+                            <% (nestedField.options || []).forEach(function(opt) { %>
+                              <option value="<%= opt %>" <%= nestedValue === opt ? 'selected' : '' %>><%= opt %></option>
+                            <% }) %>
+                          </select>
+                        <% } else if (nestedField.kind === 'referential' && nestedField.ontology) { %>
+                          <% var _nestedOntOpts2 = ((locals.ontologyOptions || {})[nestedField.referentialSource] || []); %>
+                          <select name="<%= nestedInputName %>" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %> <%- nestedRequired ? 'required' : '' %>>
+                            <option value="">— <%= nestedLabel %> —</option>
+                            <% _nestedOntOpts2.forEach(function(opt) { %>
+                              <option value="<%= opt.code %>" <%= nestedValue === opt.code ? 'selected' : '' %>><%= opt.label %></option>
+                            <% }) %>
+                            <% if (nestedValue && !_nestedOntOpts2.some(function(opt) { return opt.code === nestedValue; })) { %>
+                              <option value="<%= nestedValue %>" selected>&#9888; <%= nestedValue %> (not currently active)</option>
+                            <% } %>
+                          </select>
+                        <% } else if (nestedField.kind === 'boolean') { %>
+                          <div class="form-check mt-1">
+                            <input type="checkbox" class="form-check-input" name="<%= nestedInputName %>" value="true" <%= nestedValue === 'true' ? 'checked' : '' %> <%- canEdit ? '' : 'disabled' %>>
+                          </div>
+                        <% } else if (nestedField.markdown) { %>
+                          <%- include('_markdownEditorField', { name: nestedInputName, value: nestedValue, required: nestedRequired }) %>
+                        <% } else if (nestedFull) { %>
+                          <textarea name="<%= nestedInputName %>" class="form-control form-control-sm" rows="2" <%- canEdit ? '' : 'disabled' %> <%- nestedRequired ? 'required' : '' %>><%= nestedValue %></textarea>
+                        <% } else { %>
+                          <input name="<%= nestedInputName %>" class="form-control form-control-sm" value="<%= nestedValue %>" <%- canEdit ? '' : 'disabled' %> <%- nestedRequired ? 'required' : '' %>>
+                        <% } %>
+                        <% if (nestedField.help) { %><div class="form-text small"><%= nestedField.help %></div><% } %>
+                      </div>
+                    <% }) %>
+                  </div>
+                </div>
+              <% } else if (itemField.kind === 'json') { %>
+                <%# Policy condition redesign — governingCondition, folded
+                    into each condition row (owner: "Governing condition has
+                    to be folded into condition"). Same small JSON textarea
+                    the top-level x-widget:"json" field uses
+                    (_generatedFieldGroups.ejs), one item-field level down. %>
+                <textarea name="<%= inputName %>" class="form-control form-control-sm font-monospace" rows="3" <%- canEdit ? '' : 'disabled' %>><%= value %></textarea>
+              <% } else if (itemField.kind === 'nested-list') { %>
                 <%# CR-060 — the first two-level referential-list in this
                     codebase: Checklist's own `items` is itself a repeatable
                     sub-list within one Checklist card. buildRow() (formGenerator.ts)
@@ -787,11 +1007,14 @@
                       <div class="row g-2">
                         <% (itemField.nestedItemFields || []).forEach(function(nestedField) { %>
                           <% var nestedFull = nestedField.name === 'statement' || nestedField.name === 'prompt'; %>
-                          <% var nestedColClass = nestedFull ? 'col-12' : nestedField.kind === 'boolean' ? 'col-sm-6 col-lg-3' : nestedField.kind === 'enum' ? 'col-sm-6 col-lg-4' : 'col-sm-6 col-lg-6'; %>
+                          <% var nestedColClass = (nestedFull || nestedField.kind === 'nested-object') ? 'col-12' : nestedField.kind === 'boolean' ? 'col-sm-6 col-lg-3' : nestedField.kind === 'enum' ? 'col-sm-6 col-lg-4' : 'col-sm-6 col-lg-6'; %>
                           <% var nestedInputName = field.name + '[' + i + '][' + itemField.name + '][' + j + '][' + nestedField.name + ']'; %>
                           <% var nestedValue = nestedRow[nestedField.name] || ''; %>
                           <% var nestedLabel = nestedField.label || ilabel(nestedField.name); %>
-                          <% var nestedRequired = canEdit && nestedField.required; %>
+                          <%# Bug fix — same as isRequiredField above, one
+                              level down: the nested-list's own trailing
+                              blank clone row must never carry `required`. %>
+                          <% var nestedRequired = canEdit && nestedField.required && nestedIsExisting; %>
                           <div class="<%= nestedColClass %>">
                             <label class="form-label small text-muted mb-1"><%= nestedLabel %><% if (nestedRequired) { %> <span class="text-danger">*</span><% } %></label>
                             <% if (nestedField.kind === 'enum') { %>
@@ -824,6 +1047,115 @@
                             <% } else if (nestedField.kind === 'boolean') { %>
                               <div class="form-check mt-1">
                                 <input type="checkbox" class="form-check-input" name="<%= nestedInputName %>" value="true" <%= nestedValue === 'true' ? 'checked' : '' %> <%- canEdit ? '' : 'disabled' %>>
+                              </div>
+                            <% } else if (nestedField.kind === 'referential-multi') { %>
+                              <%# Policy condition redesign — exceptionRules[].exceptionApprovers,
+                                  the first referential-multi field found one
+                                  level below a nested-list's own sub-items.
+                                  Sourced from the flat referentialOptions map
+                                  the same way an itemField-level referential-multi
+                                  with a non-bespoke source already is
+                                  (line ~928 above), nothing Ontology or
+                                  {id,name,packName}-shaped about it. %>
+                              <% var _nestedSelectedMulti = Array.isArray(nestedValue) ? nestedValue : []; %>
+                              <select name="<%= nestedInputName %>[]" class="form-select form-select-sm" multiple size="4" <%- canEdit ? '' : 'disabled' %>>
+                                <% ((locals.referentialOptions || {})[nestedField.referentialSource] || []).forEach(function(opt) { %>
+                                  <option value="<%= opt %>" <%= _nestedSelectedMulti.indexOf(opt) !== -1 ? 'selected' : '' %>><%= opt %></option>
+                                <% }) %>
+                              </select>
+                              <div class="form-text small">Ctrl/Cmd-click to select more than one.</div>
+                            <% } else if (nestedField.kind === 'generated') { %>
+                              <%# Owner: "identifier: system generated" —
+                                  never author-editable; a disabled input
+                                  would drop its value on submit entirely, so
+                                  a hidden input carries it through instead. %>
+                              <input type="hidden" name="<%= nestedInputName %>" value="<%= nestedValue %>">
+                              <div class="form-control-plaintext form-control-sm text-muted small py-0"><%= nestedValue || '(assigned on save)' %></div>
+                            <% } else if (nestedField.kind === 'referential-by-scope') { %>
+                              <%# "I am inclined to move the applicability
+                                  inside the condition" — applicabilityDeliverables[].name,
+                                  now nested one level deeper than the field
+                                  it used to be (Policy's own top-level
+                                  applicabilityDeliverables). Same live
+                                  fieldset-toggle mechanism, still driven by
+                                  the TOP-LEVEL `scope` field (unaffected by
+                                  the nesting depth change). %>
+                              <div class="scope-driven-multi" data-driver-field="<%= nestedField.driverField %>">
+                                <% (nestedField.scopeVariants || []).forEach(function(variant) { %>
+                                  <% var _nestedCurrentScopeVal = fieldValueByName ? fieldValueByName[nestedField.driverField] : ''; %>
+                                  <% var _nestedNamedMatch = (nestedField.scopeVariants || []).some(function(x) { return x.matchValue !== null && x.matchValue === _nestedCurrentScopeVal; }); %>
+                                  <% var _nestedVariantActive = variant.matchValue === null ? !_nestedNamedMatch : variant.matchValue === _nestedCurrentScopeVal; %>
+                                  <% var _nestedByScopeOpts = variant.ontology ? ((locals.ontologyOptions || {})[variant.referentialSource] || []) : ((locals.referentialOptions || {})[variant.referentialSource] || []).map(function(s) { return { code: s, label: s }; }); %>
+                                  <fieldset class="scope-driven-variant" data-match-value="<%= variant.matchValue === null ? '' : variant.matchValue %>" data-is-default="<%= variant.matchValue === null ? '1' : '' %>" <%- _nestedVariantActive ? '' : 'disabled hidden' %>>
+                                    <select name="<%= nestedInputName %>" class="form-select form-select-sm" <%- nestedRequired ? 'required' : '' %>>
+                                      <option value="">— <%= nestedLabel %> —</option>
+                                      <% _nestedByScopeOpts.forEach(function(opt) { %>
+                                        <option value="<%= opt.code %>" <%= (_nestedVariantActive && nestedValue === opt.code) ? 'selected' : '' %>><%= opt.label %></option>
+                                      <% }) %>
+                                    </select>
+                                  </fieldset>
+                                <% }) %>
+                              </div>
+                            <% } else if (nestedField.kind === 'json') { %>
+                              <textarea name="<%= nestedInputName %>" class="form-control form-control-sm font-monospace" rows="3" <%- canEdit ? '' : 'disabled' %>><%= nestedValue %></textarea>
+                            <% } else if (nestedField.kind === 'nested-object') { %>
+                              <%# "The governing condition should be within
+                                  applicability deliverables" / "Evidence
+                                  definition... used in Policy [and]
+                                  Obligations" — a THIRD level of nesting (a
+                                  nested-object inside a nested-list row):
+                                  governingCondition (inside applicabilityDeliverables)
+                                  and requiredEvidence (inside relatedObligations)
+                                  both live here. Dispatch covers 'enum',
+                                  'referential'+ontology (requiredEvidence's
+                                  own `category`), and plain/markdown string
+                                  — not the full generic chain the two
+                                  shallower levels above carry (no boolean/
+                                  referential-multi/generated ever occurs at
+                                  this depth today). %>
+                              <% var nestedObjSubRow = (nestedRow[nestedField.name] && typeof nestedRow[nestedField.name] === 'object' && !Array.isArray(nestedRow[nestedField.name])) ? nestedRow[nestedField.name] : {}; %>
+                              <div class="card card-body bg-white border">
+                                <div class="row g-2">
+                                  <% (nestedField.nestedItemFields || []).forEach(function(subField) { %>
+                                    <% var subFull = subField.name === 'description' || subField.name === 'statement'; %>
+                                    <% var subInputName = field.name + '[' + i + '][' + itemField.name + '][' + j + '][' + nestedField.name + '][' + subField.name + ']'; %>
+                                    <% var subValue = nestedObjSubRow[subField.name] || ''; %>
+                                    <% var subLabel = subField.label || ilabel(subField.name); %>
+                                    <% var subRequired = canEdit && subField.required && nestedIsExisting; %>
+                                    <% var subShowWhenName = subField.showWhen ? (field.name + '[' + i + '][' + itemField.name + '][' + j + '][' + nestedField.name + '][' + subField.showWhen + ']') : ''; %>
+                                    <% var subShowWhenCurrent = subField.showWhen ? (nestedObjSubRow[subField.showWhen] || '') : ''; %>
+                                    <% var subShowWhenHidden = subField.showWhen ? (subField.showWhenValues ? subField.showWhenValues.indexOf(subShowWhenCurrent) === -1 : !subShowWhenCurrent) : false; %>
+                                    <div class="<%= subFull ? 'col-12' : 'col-sm-6 col-lg-6' %>" <% if (subField.showWhen) { %>data-show-when="<%= subShowWhenName %>" <% if (subField.showWhenValues) { %>data-show-when-values='<%- escapeAttrJson(subField.showWhenValues) %>' <% } %>style="<%= subShowWhenHidden ? 'display:none' : '' %>"<% } %>>
+                                      <label class="form-label small text-muted mb-1"><%= subLabel %><% if (subRequired) { %> <span class="text-danger">*</span><% } %></label>
+                                      <% if (subField.kind === 'enum') { %>
+                                        <select name="<%= subInputName %>" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %> <%- subRequired ? 'required' : '' %>>
+                                          <option value="">— <%= subLabel %> —</option>
+                                          <% (subField.options || []).forEach(function(opt) { %>
+                                            <option value="<%= opt %>" <%= subValue === opt ? 'selected' : '' %>><%= opt %></option>
+                                          <% }) %>
+                                        </select>
+                                      <% } else if (subField.kind === 'referential' && subField.ontology) { %>
+                                        <% var _subOntOpts = ((locals.ontologyOptions || {})[subField.referentialSource] || []); %>
+                                        <select name="<%= subInputName %>" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %> <%- subRequired ? 'required' : '' %>>
+                                          <option value="">— <%= subLabel %> —</option>
+                                          <% _subOntOpts.forEach(function(opt) { %>
+                                            <option value="<%= opt.code %>" <%= subValue === opt.code ? 'selected' : '' %>><%= opt.label %></option>
+                                          <% }) %>
+                                          <% if (subValue && !_subOntOpts.some(function(opt) { return opt.code === subValue; })) { %>
+                                            <option value="<%= subValue %>" selected>&#9888; <%= subValue %> (not currently active)</option>
+                                          <% } %>
+                                        </select>
+                                      <% } else if (subField.markdown) { %>
+                                        <%- include('_markdownEditorField', { name: subInputName, value: subValue, required: subRequired }) %>
+                                      <% } else if (subFull) { %>
+                                        <textarea name="<%= subInputName %>" class="form-control form-control-sm" rows="2" <%- canEdit ? '' : 'disabled' %> <%- subRequired ? 'required' : '' %>><%= subValue %></textarea>
+                                      <% } else { %>
+                                        <input name="<%= subInputName %>" class="form-control form-control-sm" value="<%= subValue %>" <%- canEdit ? '' : 'disabled' %> <%- subRequired ? 'required' : '' %>>
+                                      <% } %>
+                                      <% if (subField.help) { %><div class="form-text small"><%= subField.help %></div><% } %>
+                                    </div>
+                                  <% }) %>
+                                </div>
                               </div>
                             <% } else if (nestedField.markdown) { %>
                               <%- include('_markdownEditorField', { name: nestedInputName, value: nestedValue, required: nestedRequired }) %>
@@ -859,14 +1191,36 @@
                     contributions JSON) — match either way, same dual-shape
                     handling core/packs.ts's validateChecklistIds/
                     validatePolicyCodes already do server-side. %>
-                <% var _multiOptions = itemField.referentialSource === 'policy' ? (locals.policyOptions || []) : (locals.checklistOptions || []); %>
                 <% var _selectedMultiRefs = Array.isArray(row[itemField.name]) ? row[itemField.name] : []; %>
-                <select name="<%= field.name %>[<%= i %>][<%= itemField.name %>][]" class="form-select form-select-sm" multiple size="5" <%- canEdit ? '' : 'disabled' %>>
-                  <% _multiOptions.forEach(function(opt) { %>
-                    <option value="<%= opt.id %>" <%= (_selectedMultiRefs.indexOf(opt.id) !== -1 || _selectedMultiRefs.indexOf(opt.name) !== -1) ? 'selected' : '' %>><%= opt.name %> — <%= opt.packName %></option>
-                  <% }) %>
-                </select>
-                <div class="form-text small">Ctrl/Cmd-click to select more than one.</div>
+                <% if (itemField.referentialSource === 'policy' || itemField.referentialSource === 'checklist') { %>
+                  <% var _multiOptions = itemField.referentialSource === 'policy' ? (locals.policyOptions || []) : (locals.checklistOptions || []); %>
+                  <select name="<%= field.name %>[<%= i %>][<%= itemField.name %>][]" class="form-select form-select-sm" multiple size="5" <%- canEdit ? '' : 'disabled' %>>
+                    <% _multiOptions.forEach(function(opt) { %>
+                      <option value="<%= opt.id %>" <%= (_selectedMultiRefs.indexOf(opt.id) !== -1 || _selectedMultiRefs.indexOf(opt.name) !== -1) ? 'selected' : '' %>><%= opt.name %> — <%= opt.packName %></option>
+                    <% }) %>
+                  </select>
+                  <div class="form-text small">Ctrl/Cmd-click to select more than one.</div>
+                <% } else { %>
+                  <%# Owner: "Add only deliverable name and allow multiple
+                      transitions" — Policy's own applicabilityDeliverables[].transitions,
+                      the first referential-multi ITEM field sourced from the
+                      generic flat referentialOptions map (e.g.
+                      "transition-definition", every entity's real transitions)
+                      rather than one of the two bespoke {id,name,packName}
+                      sources above. Labels formatted the same way the
+                      top-level driven multi-select does (_generatedFieldGroups.ejs's
+                      formatMultiOptionLabel) — "EntityType|From|To" shows as
+                      "EntityType: From → To" so the author can tell which
+                      entity's transitions they're looking at, not just this
+                      row's own. %>
+                  <select name="<%= field.name %>[<%= i %>][<%= itemField.name %>][]" class="form-select form-select-sm" multiple size="5" <%- canEdit ? '' : 'disabled' %>>
+                    <% ((locals.referentialOptions || {})[itemField.referentialSource] || []).forEach(function(opt) { %>
+                      <% var _parts = String(opt).split('|'); %>
+                      <option value="<%= opt %>" <%= _selectedMultiRefs.indexOf(opt) !== -1 ? 'selected' : '' %>><%= _parts.length === 3 ? (_parts[0] + ': ' + _parts[1] + ' → ' + _parts[2]) : opt %></option>
+                    <% }) %>
+                  </select>
+                  <div class="form-text small">Ctrl/Cmd-click to select more than one — already filtered to this row's own entity type (policyTransitionFilter.js).</div>
+                <% } %>
               <% } else if (itemField.kind === 'referential' && itemField.referentialSource.indexOf('pack-code') === 0) { %>
                 <%# Owner: "Why is code not auto generated?... Pack code
                     dropdown has to be platform + tenant ones." — code is a
@@ -943,9 +1297,34 @@
                 <% var _dynDriverOpts = ((locals.ontologyOptions || {})[_dynDriverConceptType] || []); %>
                 <% var _dynOptionsByDriverValue = {}; %>
                 <% _dynDriverOpts.forEach(function(dOpt) { _dynOptionsByDriverValue[dOpt.code] = (locals.ontologyOptions || {})[(dOpt.code || '').toLowerCase() + (itemField.driverSuffix || '')] || []; }); %>
-                <div class="ontology-combo" data-driver-field="<%= field.name %>[<%= i %>][<%= itemField.driverField %>]" data-driver-values='<%- JSON.stringify(_dynOptionsByDriverValue) %>'>
+                <div class="ontology-combo" data-driver-field="<%= field.name %>[<%= i %>][<%= itemField.driverField %>]" data-driver-values='<%- escapeAttrJson(_dynOptionsByDriverValue) %>'>
                   <input name="<%= inputName %>" class="form-control form-control-sm ontology-combo-input" autocomplete="off" value="<%= value %>" <%- isRequiredField ? 'required' : '' %> <%- canEdit ? '' : 'disabled' %>>
                   <div class="ontology-combo-menu"></div>
+                </div>
+              <% } else if (itemField.kind === 'referential-by-scope') { %>
+                <%# Owner: "Add only deliverable name and allow multiple
+                    transitions" — Policy's own applicabilityDeliverables[].name,
+                    driven by the TOP-LEVEL `scope` field (not a sibling item
+                    field, unlike referential-dynamic above). Reuses the same
+                    live fieldset-toggle mechanism the top-level driven
+                    multi-select uses (scopeDrivenMulti.js is generic over
+                    both) — data-driver-field names the bare top-level field,
+                    no row index, since scope isn't itself row-scoped. %>
+                <div class="scope-driven-multi" data-driver-field="<%= itemField.driverField %>">
+                  <% (itemField.scopeVariants || []).forEach(function(variant) { %>
+                    <% var _currentScopeVal = fieldValueByName ? fieldValueByName[itemField.driverField] : ''; %>
+                    <% var _namedMatch = (itemField.scopeVariants || []).some(function(x) { return x.matchValue !== null && x.matchValue === _currentScopeVal; }); %>
+                    <% var _variantActive = variant.matchValue === null ? !_namedMatch : variant.matchValue === _currentScopeVal; %>
+                    <% var _byScopeOpts = variant.ontology ? ((locals.ontologyOptions || {})[variant.referentialSource] || []) : ((locals.referentialOptions || {})[variant.referentialSource] || []).map(function(s) { return { code: s, label: s }; }); %>
+                    <fieldset class="scope-driven-variant" data-match-value="<%= variant.matchValue === null ? '' : variant.matchValue %>" data-is-default="<%= variant.matchValue === null ? '1' : '' %>" <%- _variantActive ? '' : 'disabled hidden' %>>
+                      <select name="<%= inputName %>" class="form-select form-select-sm">
+                        <option value="">— <%= itemLabel %> —</option>
+                        <% _byScopeOpts.forEach(function(opt) { %>
+                          <option value="<%= opt.code %>" <%= (_variantActive && value === opt.code) ? 'selected' : '' %>><%= opt.label %></option>
+                        <% }) %>
+                      </select>
+                    </fieldset>
+                  <% }) %>
                 </div>
               <% } else if (itemField.kind === 'referential') { %>
                 <%# Owner: "Review Gates form is pathetic... same feedback

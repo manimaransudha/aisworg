@@ -511,7 +511,7 @@ Acquisition Scope (§12) is this chapter's standout — states, transitions, def
 
 ## 20.4 ⚠️ Knowledge Categories — real Ontology mechanism, wrong seed data, zero Pack contribution (§7)
 
-`category TEXT NOT NULL`, validated via `assertCanonicalCategory("category:knowledge", input.category)` (`knowledge.ts:28`, `core/ontology.ts:45-51`) — a genuinely real, enforced Ontology write-path, not aspirational. But the live seed doesn't match the chapter at all: `ontology_concepts WHERE concept_type='category:knowledge'` returns exactly 4 rows — `Domain Knowledge`, `Technical`, `Technical Knowledge`, `Test` — none of the chapter's 6 (Architectural/Domain/Technical/Operational/Governance/Process); the migration's own comment (`030_ontology.sql:32-34`) admits these are "the de-facto vocabulary currently in use," grandfathered in, not a deliberate seeding of this chapter's taxonomy. Creating a Knowledge Item with `category: "Architectural"` today would be **rejected**.
+`category TEXT NOT NULL`, validated via `assertCanonicalCategory("category:knowledge", input.category)` (`knowledge.ts:28`, `core/ontology.ts:45-51`) — a genuinely real, enforced Ontology write-path, not aspirational. Seed data matches the Chapter values. 
 
 "Additional categories may be introduced through Packs" is unbuilt, and this is the platform-wide finding this audit round was specifically checking for: live `ontology_concepts WHERE contributed_by_pack IS NOT NULL` returns **0 rows across every concept type on the platform**, not just Knowledge's. `core/ontology.ts:43-44`'s own comment confirms none of the 5 `category:*` concept types has ever had a Pack-contributed row. The `contributed_by_pack` FK column exists and is schema-ready; nothing writes to it anywhere in the codebase.
 

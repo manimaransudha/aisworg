@@ -1,0 +1,11 @@
+{
+  "code": "cr104-demo-seu-eligibility-policies",
+  "name": "CR-104 Demo: SEU-Scoped & Eligibility-Scoped Policies",
+  "category": "Organisation",
+  "packVersion": "1.0.0",
+  "installationClassification": "Optional",
+  "description": "CR-104 validation fixture, adopted by the cr104-demo-development Profile only (not Mandatory — never composes anywhere else). Adopts two real, seeded Policy Definitions (policy-cr104-demo-seu-commence-work.json, scope Transition on 'SEU|Activated|Operational'; policy-cr104-demo-background-check.json, scope Eligibility) through the normal, governed publishPack adoption path — no direct DB writes.",
+  "contributions": {
+    "policies": ["cr104-demo-seu-commence-work", "cr104-demo-background-check"]
+  }
+}

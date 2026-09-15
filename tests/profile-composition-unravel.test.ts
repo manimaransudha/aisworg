@@ -23,10 +23,6 @@ import { unravelComposition, detectCompositionConflicts } from "../src/domain/en
 import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
 import type { PackContributions } from "../src/dblayer/seuTypes.js";
 
-after(async () => {
-  await pool.end();
-});
-
 // Bug fix, found by running this file: packsDB.create() always inserts as
 // Draft (hardcoded in its own INSERT) — but unravelComposition resolves
 // every Pack via packsDB.findActiveByCode (matching compositionEngine.ts's
@@ -43,6 +39,7 @@ async function createPack(input: { contributions?: PackContributions; dependenci
     name: `Fixture Pack ${code}`,
     category: "Engineering",
     packVersion: "1.0.0",
+    installationClassification: "Optional",
     contributions: input.contributions ?? {},
     dependencies: input.dependencies ?? [],
   });
@@ -160,7 +157,7 @@ test("Policies are informational, never a conflict — different constraintTypes
 
 test("Pack Dependency: a required dependency on a Pack code NOT in the composed set is reported; satisfied when it is", async () => {
   const targetCode = `test-unravel-target-${randomUUID()}`;
-  const { data: targetPack } = await packsDB.create({ code: targetCode, name: "Fixture target Pack", category: "Engineering", packVersion: "1.0.0", contributions: {} });
+  const { data: targetPack } = await packsDB.create({ code: targetCode, name: "Fixture target Pack", category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", contributions: {} });
   assert.ok(targetPack);
   await packsDB.updateStatus(targetPack!.id, "Active");
 
@@ -181,7 +178,7 @@ test("Pack Dependency: a required dependency on a Pack code NOT in the composed 
 
 test("Pack Dependency: an incompatible dependency on a Pack that IS in the composed set is reported", async () => {
   const targetCode = `test-unravel-incompatible-target-${randomUUID()}`;
-  const { data: incompatibleTarget } = await packsDB.create({ code: targetCode, name: "Fixture incompatible target", category: "Engineering", packVersion: "1.0.0", contributions: {} });
+  const { data: incompatibleTarget } = await packsDB.create({ code: targetCode, name: "Fixture incompatible target", category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", contributions: {} });
   await packsDB.updateStatus(incompatibleTarget!.id, "Active");
   const dependent = await createPack({ dependencies: [{ packCode: targetCode, version: "1.0.0", type: "incompatible" }] });
   const { templateId, profileId } = await createTemplateAndProfile([dependent, targetCode]);

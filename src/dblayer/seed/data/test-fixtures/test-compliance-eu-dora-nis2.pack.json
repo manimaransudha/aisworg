@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-dora-nis2-major-incident-reporting-timeline",
+        "category": "Compliance",
+        "title": "A major ICT incident must be reported within DORA/NIS2's mandated timeline",
+        "description": "DORA and NIS2 impose strict, short reporting windows (e.g. early warning within 24 hours, intermediate report within 72 hours) for major ICT-related incidents; missing the window is itself a compliance failure independent of the incident's own resolution.",
+        "origin": "External systems",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "Every major ICT incident's regulatory notifications are filed within their mandated windows.",
+        "requiredEvidence": {
+          "title": "Incident notification timeline record",
+          "category": "Validation Evidence",
+          "description": "Timestamped record of each required regulatory notification against the incident's detection time.",
+          "collectionMethod": "Incident management system export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated incident-timeline compliance check.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

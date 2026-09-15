@@ -83,8 +83,16 @@
                   <% } %>
                 </p>
                 <% if (p.description) { %><p class="small mb-2"><%= p.description %></p><% } %>
-                <% if (p.applicability_deliverable_names && p.applicability_deliverable_names.length > 0) { %>
-                  <p class="small text-muted mb-1">Applies to: <%= p.applicability_deliverable_names.join(', ') %></p>
+                <%# Migration 216 — applicability_deliverables moved off this
+                    row and onto each condition (owner: "I am inclined to
+                    move the applicability inside the condition"); flatten
+                    across every condition to keep this summary line. %>
+                <%
+                  var appliesToNames = (p.conditions || []).flatMap(function(c) { return (c.applicabilityDeliverables || []).map(function(r) { return r.name; }); });
+                  appliesToNames = [...new Set(appliesToNames)];
+                %>
+                <% if (appliesToNames.length > 0) { %>
+                  <p class="small text-muted mb-1">Applies to: <%= appliesToNames.join(', ') %></p>
                 <% } %>
                 <% if (p.conditions && p.conditions.length > 0) { %>
                   <p class="small text-muted mb-0"><%= p.conditions.length %> condition<%= p.conditions.length === 1 ? '' : 's' %></p>

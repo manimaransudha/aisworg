@@ -12,25 +12,29 @@
   "conditions": [
     {
       "statement": "The Deliverable's current content hash matches its recorded baseline hash, or the divergence is attributed to exactly one approved Change record.",
-      "requiredEvidence": [
-        {
-          "type": "baseline_hash_comparison"
-        }
-      ],
       "severity": "Critical",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Baseline Hash Comparison",
+        "category": "Validation Evidence",
+        "description": "The Deliverable's current content hash matches its recorded baseline hash, or the divergence is attributed to exactly one approved Change record.",
+        "collectionMethod": "Automated tool/system output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "No commit to the baselined branch lacks an associated Change ID.",
-      "requiredEvidence": [
-        {
-          "type": "change_approval_record"
-        }
-      ],
       "severity": "Critical",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Change Approval Record",
+        "category": "Validation Evidence",
+        "description": "No commit to the baselined branch lacks an associated Change ID.",
+        "collectionMethod": "Change management system record"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     }
   ],
   "version": "1.0.0"

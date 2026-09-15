@@ -1,0 +1,28 @@
+{
+  "code": "cr104-demo-background-check",
+  "name": "CR-104 Demo: background check",
+  "description": "CR-104 validation fixture — a scope:'Eligibility' Policy governing whether a Participant may be selected to fulfil a Capability at all, checked against the candidate's own behaviour_context, never against a transition. A Participant is eligible only with a behaviour_context entry {policy: 'cr104-demo-background-check', payload: {cleared: true}}.",
+  "category": "Compliance",
+  "constraintType": "Policy",
+  "applicabilityDeliverableNames": [],
+  "applicabilityEnvironments": [],
+  "applicabilityDeliverableLifecycle": [],
+  "conditions": [
+    {
+      "statement": "The candidate Participant has passed a background check.",
+      "severity": "Critical",
+      "applicabilityDeliverables": [
+        {
+          "name": "Participant",
+          "transitions": [],
+          "governingCondition": { "type": "field_in", "field": "cleared", "values": [true] }
+        }
+      ],
+      "requiredEvidence": { "title": "", "category": "", "description": "", "collectionMethod": "" },
+      "relatedObligations": [],
+      "exceptionRules": []
+    }
+  ],
+  "scope": "Eligibility",
+  "version": "1.0.0"
+}

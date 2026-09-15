@@ -67,6 +67,30 @@
         "criteriaType": "requires_accepted_evidence_or_approved_decision"
       }
     ],
+    "obligationDefinitions": [
+      {
+        "code": "openup-integration-build-health-tracking",
+        "category": "Engineering",
+        "title": "A broken integration build must be tracked to resolution, not worked around",
+        "description": "OpenUP's Development discipline treats a red integration build as blocking further integration; a broken build left unresolved while developers route around it (e.g. by not pulling latest) accumulates hidden integration risk.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every integration build failure is tracked to a resolved state within the declared SLA.",
+        "requiredEvidence": {
+          "title": "Build health tracking record",
+          "category": "Validation Evidence",
+          "description": "Record of integration build failures and their resolution timing.",
+          "collectionMethod": "CI system build history export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated build-health SLA check.",
+        "externalEvidence": false
+      }
+    ],
     "authorityRules": [
       {
         "code": "authority-commission-seu",

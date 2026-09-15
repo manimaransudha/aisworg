@@ -21,10 +21,6 @@ import { createKnowledgeItem, transitionKnowledgeItem } from "../src/routes/seu/
 import { createDecision, transitionDecision } from "../src/routes/seu/core/decisions.js";
 import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 async function commissionTestSeu(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
   await ensureCoreEngineeringQualityGates();

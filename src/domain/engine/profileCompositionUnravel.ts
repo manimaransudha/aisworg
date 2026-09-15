@@ -172,6 +172,14 @@ export async function unravelComposition(input: { templateIds: string[]; profile
     templates.push(template);
     const { data: mandatoryCodes } = await templatesDB.getMandatoryPackCodes(template.id);
     rootPackCodes.push(...(mandatoryCodes ?? []));
+    // CR-104 — "mandatory" is now a real composition rule: every Active Pack
+    // marked installation_classification = 'Mandatory', scoped to this
+    // Template's own tenant (Platform-scoped ones apply everywhere;
+    // tenant-scoped ones apply to every Template in that same tenant) —
+    // folded in alongside the Template's own explicit mandatoryPackCodes,
+    // not instead of it.
+    const { data: platformMandatoryPacks } = await packsDB.findActiveMandatoryVisibleTo(template.tenant_id);
+    rootPackCodes.push(...(platformMandatoryPacks ?? []).map((p) => p.code));
   }
 
   const profiles: ProfileRow[] = [];
@@ -374,9 +382,7 @@ export async function unravelComposition(input: { templateIds: string[]; profile
           code: definition.code,
           governedTransition: policyRow.governed_transition,
           constraintType: definition.constraint_type,
-          applicabilityDeliverableNames: definition.applicability_deliverable_names,
           applicabilityEnvironments: definition.applicability_environments,
-          applicabilityDeliverableLifecycle: definition.applicability_deliverable_lifecycle,
           conditions: definition.conditions,
         },
         source: packSource,

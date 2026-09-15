@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "ecommerce-cancellation-parity-audit",
+        "category": "Compliance",
+        "title": "Subscription cancellation must remain as easy as sign-up",
+        "description": "FTC/EU consumer protection rules require that cancelling a subscription be no harder than subscribing; UI changes to the sign-up flow must be checked against the cancellation flow so the two don't silently drift out of parity.",
+        "origin": "Reviews",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "The cancellation flow is re-audited against the current sign-up flow after any material change to either, and parity is confirmed.",
+        "requiredEvidence": {
+          "title": "Cancellation-parity UX audit",
+          "category": "Validation Evidence",
+          "description": "UX audit comparing the number of steps/friction between sign-up and cancellation.",
+          "collectionMethod": "Manual UX audit recorded after each material flow change."
+        },
+        "classification": "human-attested",
+        "prompt": "Is cancelling a subscription still no harder than signing up for one?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Legal/UX compliance review.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

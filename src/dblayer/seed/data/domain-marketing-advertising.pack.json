@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "marketing-consent-segmentation-compliance",
+        "category": "Compliance",
+        "title": "Audience segments used for targeted advertising must be built only from consented data",
+        "description": "Multi-channel campaign targeting must exclude individuals who withdrew marketing consent or opted out of tracking; a segment built from a stale audience snapshot can silently reintroduce non-consented individuals.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every audience segment used in an active campaign is refreshed against current consent status within the declared cadence.",
+        "requiredEvidence": {
+          "title": "Segment consent-currency check",
+          "category": "Validation Evidence",
+          "description": "Comparison of the audience segment against current consent/opt-out status.",
+          "collectionMethod": "Marketing automation platform's consent sync log."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated consent-segmentation check.",
+        "externalEvidence": false
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

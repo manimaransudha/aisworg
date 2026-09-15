@@ -1,6 +1,6 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import type { ConstraintType, DbResult, PolicyRow } from "./seuTypes.js";
+import type { ConstraintType, DbResult, PolicyRow, PolicyScope } from "./seuTypes.js";
 
 export const policiesDB = {
   // CR-061 — Policy's definition is tied to its own Pack, not global (owner:
@@ -13,29 +13,41 @@ export const policiesDB = {
     name: string;
     category?: string;
     constraintType?: ConstraintType;
-    governedTransition: string;
+    // CR-104 — "Transition" (default, unchanged) governs a real state hop and
+    // requires governedTransition. "Eligibility" governs Capability
+    // Fulfilment participant selection instead — no transition involved,
+    // governedTransition stays null/omitted for it.
+    scope?: PolicyScope;
+    governedTransition?: string | null;
     condition?: Record<string, unknown>;
     severity?: string;
     originatingPackId: string;
+    // Migration 211 — real runtime enforcement of Applicability Deliverable
+    // Names (owner: "the policy can be available to any number of
+    // deliverables as well"), reusing quality_gates' own mechanism: empty =
+    // matches every Deliverable name.
+    applicabilityDeliverableNames?: string[];
   }): Promise<DbResult<PolicyRow>> {
     try {
       const { rows } = await query<PolicyRow>(
-        `INSERT INTO policies (code, name, category, constraint_type, governed_transition, condition, severity, originating_pack_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `INSERT INTO policies (code, name, category, constraint_type, scope, governed_transition, condition, severity, originating_pack_id, applicability_deliverable_names)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          ON CONFLICT (originating_pack_id, code) DO UPDATE
            SET name = EXCLUDED.name, category = EXCLUDED.category, constraint_type = EXCLUDED.constraint_type,
-               governed_transition = EXCLUDED.governed_transition, condition = EXCLUDED.condition,
-               severity = EXCLUDED.severity
+               scope = EXCLUDED.scope, governed_transition = EXCLUDED.governed_transition, condition = EXCLUDED.condition,
+               severity = EXCLUDED.severity, applicability_deliverable_names = EXCLUDED.applicability_deliverable_names
          RETURNING *`,
         [
           input.code,
           input.name,
           input.category ?? "Engineering",
           input.constraintType ?? "Policy",
-          input.governedTransition,
+          input.scope ?? "Transition",
+          input.governedTransition ?? null,
           JSON.stringify(input.condition ?? { type: "always_true" }),
           input.severity ?? "Medium",
           input.originatingPackId,
+          input.applicabilityDeliverableNames ?? [],
         ]
       );
       return { data: rows[0] };
@@ -71,6 +83,22 @@ export const policiesDB = {
       return { data: rows };
     } catch (err) {
       logger.error("[policiesDB] findByIds error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // CR-104 — every Policy originating from any of these Pack ids, run once
+  // at EBM creation (compositionCompleted.ts) to fill
+  // ebms.applicable_policy_ids. Policy has no is_active concept (migration
+  // 106's own "not global so no versioning required") — every row for a
+  // composed Pack applies, no active-flag filter needed.
+  async findByPackIds(packIds: string[]): Promise<DbResult<PolicyRow[]>> {
+    if (packIds.length === 0) return { data: [] };
+    try {
+      const { rows } = await query<PolicyRow>("SELECT * FROM policies WHERE originating_pack_id = ANY($1::uuid[])", [packIds]);
+      return { data: rows };
+    } catch (err) {
+      logger.error("[policiesDB] findByPackIds error", err as Error);
       return { error: err as Error };
     }
   },

@@ -59,6 +59,30 @@
         "dimension": "Technology",
         "value": "kotlin"
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "test-kotlin-gradle-dependency-vulnerability-tracking",
+        "category": "Security",
+        "title": "Gradle dependency vulnerabilities and Android API deprecations must be tracked",
+        "description": "A Kotlin/Android project's Gradle dependencies must be scanned for known vulnerabilities, and usages of deprecated Android APIs tracked, so both are remediated on a recurring cadence rather than discovered only at the next target-SDK bump.",
+        "origin": "Quality Gates",
+        "priority": "Medium",
+        "severity": "High",
+        "completionCriteria": "Every Critical/High dependency vulnerability and deprecated-API usage is remediated or tracked within SLA.",
+        "requiredEvidence": {
+          "title": "Dependency/deprecation scan",
+          "category": "Validation Evidence",
+          "description": "Gradle dependency vulnerability scan plus Android lint deprecation report.",
+          "collectionMethod": "Automated Gradle/Android lint tool output."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated dependency/vulnerability scan check.",
+        "externalEvidence": false
+      }
     ]
   }
 }

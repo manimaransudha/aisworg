@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-sox-segregation-of-duties-conflict-remediation",
+        "category": "Compliance",
+        "title": "A segregation-of-duties conflict in financially relevant systems must be remediated or compensated",
+        "description": "SOX ITGC requires that a user access review finding a segregation-of-duties conflict (e.g. one person can both create and approve a financial transaction) be remediated by access change or, where remediation isn't immediately possible, covered by a documented compensating control.",
+        "origin": "Reviews",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "Every SoD conflict identified in an access review is remediated or has a recorded, approved compensating control.",
+        "requiredEvidence": {
+          "title": "SoD conflict remediation record",
+          "category": "Validation Evidence",
+          "description": "Access review finding and its remediation or compensating-control disposition.",
+          "collectionMethod": "User access review / IAM system export."
+        },
+        "classification": "human-attested",
+        "prompt": "Has every identified segregation-of-duties conflict been remediated or covered by an approved compensating control?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Internal controls / SOX compliance lead sign-off.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

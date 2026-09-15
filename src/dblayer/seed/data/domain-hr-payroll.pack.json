@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "payroll-tax-filing-deadline-compliance",
+        "category": "Compliance",
+        "title": "Payroll tax filings must be submitted by their statutory deadline every cycle",
+        "description": "Each payroll cycle produces statutory tax filing/remittance obligations (withholding, employer contributions); a filing missed even once creates penalty exposure independent of whether payroll itself was processed correctly.",
+        "origin": "External systems",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "Every payroll cycle's statutory tax filings are submitted by their deadline.",
+        "requiredEvidence": {
+          "title": "Payroll tax filing record",
+          "category": "Validation Evidence",
+          "description": "Filing confirmation record for each statutory payroll tax obligation.",
+          "collectionMethod": "Payroll system's own filing/remittance log."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated payroll-filing deadline check.",
+        "externalEvidence": true
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

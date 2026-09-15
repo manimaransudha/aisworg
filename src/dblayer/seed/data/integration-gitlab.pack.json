@@ -75,6 +75,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "gitlab-runner-token-rotation",
+        "category": "Security",
+        "title": "GitLab CI/CD runner registration tokens must be rotated on a recurring cadence",
+        "description": "A long-lived runner registration or project access token can be exposed through pipeline logs or a compromised runner; tokens must be rotated periodically rather than treated as permanent infrastructure secrets.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Runner registration and project access tokens are rotated within the declared cadence.",
+        "requiredEvidence": {
+          "title": "Runner token rotation record",
+          "category": "Validation Evidence",
+          "description": "Record of runner/project token rotation date.",
+          "collectionMethod": "GitLab admin API export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated token-age check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

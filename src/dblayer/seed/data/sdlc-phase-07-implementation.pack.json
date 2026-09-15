@@ -77,6 +77,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "implementation-review-finding-closure",
+        "category": "Review Finding",
+        "title": "Implementation review findings are closed before Quality Engineering & Hardening",
+        "description": "Findings raised during the Implementation Review (peer review comments, static analysis, architecture non-conformance) must be resolved or explicitly deferred with rationale before the Deliverable moves on.",
+        "origin": "Reviews",
+        "priority": "High",
+        "severity": "Medium",
+        "completionCriteria": "No implementation review finding remains open without a recorded deferral rationale.",
+        "requiredEvidence": {
+          "title": "Review finding disposition",
+          "category": "Validation Evidence",
+          "description": "Record of each review finding's resolution or deferral rationale.",
+          "collectionMethod": "Pull request review-thread export."
+        },
+        "classification": "human-attested",
+        "prompt": "Has every implementation review finding reached a resolved or explicitly deferred state?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Reviewer/tech-lead sign-off.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

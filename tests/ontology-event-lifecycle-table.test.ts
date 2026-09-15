@@ -31,10 +31,6 @@ import { ontologyDB } from "../src/dblayer/ontologyDB.js";
 import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
 import { addConcept, updateConceptMeta, composeConcept, deprecateConcept, retireConcept, archiveConcept, type OntologyActor } from "../src/routes/seu/core/ontology.js";
 
-after(async () => {
-  await pool.end();
-});
-
 // TESTER_ALL_ID (1001, seedIdentityBaseline.ts) — "holds every active
 // noun_verb (any authorised transition)" — the same standing test-fixture
 // actor every other lifecycle-table test file already uses for its governed

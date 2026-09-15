@@ -191,6 +191,30 @@
         "dimension": "Technology",
         "value": "react"
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "react-npm-dependency-browser-support-currency",
+        "category": "Security",
+        "title": "npm dependencies and the browser support matrix must be kept current",
+        "description": "A React app's npm dependency tree and its declared browser support matrix (browserslist) both drift as the ecosystem moves; dependencies must be scanned for vulnerabilities and the support matrix reconciled against actual analytics on a recurring cadence.",
+        "origin": "Quality Gates",
+        "priority": "Medium",
+        "severity": "High",
+        "completionCriteria": "Dependencies are scanned for vulnerabilities and the browser support matrix reconciled within the declared cadence.",
+        "requiredEvidence": {
+          "title": "Dependency/browser-matrix audit",
+          "category": "Validation Evidence",
+          "description": "npm audit output plus browserslist coverage compared against real traffic analytics.",
+          "collectionMethod": "Automated dependency scan plus browserslist/analytics comparison."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated dependency/vulnerability scan check.",
+        "externalEvidence": false
+      }
     ]
   }
 }

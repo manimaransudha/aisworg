@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "enterprise-workflow-handoff-sla-tracking",
+        "category": "Engineering",
+        "title": "A cross-domain workflow handoff must not silently exceed its own SLA",
+        "description": "An end-to-end value chain (Lead-to-Cash, Procure-to-Pay, etc.) crosses domain ownership boundaries; each handoff between domains must be tracked against its own SLA so a delay in one domain doesn't silently propagate unnoticed into the next.",
+        "origin": "Telemetry and Knowledge Model",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Every cross-domain handoff in the workflow is tracked against its declared SLA, with breaches escalated.",
+        "requiredEvidence": {
+          "title": "Handoff SLA tracking record",
+          "category": "Validation Evidence",
+          "description": "Timing record for each cross-domain handoff against its declared SLA.",
+          "collectionMethod": "Workflow orchestration system export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated handoff-SLA tracking.",
+        "externalEvidence": false
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

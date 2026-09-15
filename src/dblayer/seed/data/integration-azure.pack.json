@@ -70,6 +70,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "azure-service-principal-credential-rotation",
+        "category": "Security",
+        "title": "Azure service principal / managed identity credentials must be rotated on a recurring cadence",
+        "description": "Client secrets or certificates backing this integration's Azure service principal must be rotated before expiry; a credential left to auto-renew indefinitely without review is an unmonitored standing risk.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "The service principal's credential is rotated before expiry within the declared cadence.",
+        "requiredEvidence": {
+          "title": "Service principal credential rotation record",
+          "category": "Validation Evidence",
+          "description": "Azure AD record of credential rotation date.",
+          "collectionMethod": "Azure Entra ID export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated credential-expiry check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

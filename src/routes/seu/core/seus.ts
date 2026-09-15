@@ -15,8 +15,9 @@ import { workItemsDB } from "../../../dblayer/workItemsDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { capabilityFulfilmentsDB } from "../../../dblayer/capabilityFulfilmentsDB.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
-import { findEligibleParticipants } from "./participantEligibility.js";
+import { findEligibleParticipants, resolveEligibilityPolicies } from "./participantEligibility.js";
 import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
+import { RESOLVED_OBLIGATION_STATUSES } from "../../../domain/engine/qualityGateEngine.js";
 import type { PoolEntry } from "../../../domain/engine/profileCompositionUnravel.js";
 import { getSeuEvents } from "./events.js";
 import { listObligationsWithNextStates } from "./obligations.js";
@@ -299,6 +300,14 @@ export interface SeuDetailExternalInteraction {
 
 export interface SeuDetailView {
   seu: SeuRow;
+  // CR-106 Option C — set when the SEU itself (not one of its owned
+  // Deliverables) has an open Obligation raised by a blocked governed
+  // transition (raiseObligationForBlockedTransition) — today, only its own
+  // Activated -> Operational commence-work hop can raise one. Drives the
+  // "Blocked" pill next to the lifecycle-state badge (seus/detail.ejs):
+  // the SEU is legitimately still Activated, waiting on this Obligation,
+  // not stalled for an unknown reason.
+  blockedTransition: { obligationTitle: string; toState: string } | null;
   objectiveStatement: string;
   // design/mvp-build-plan/SEU Composition.md — owner: "There should be a
   // viewEBM button... create a new one. EBM page." The EBM's own composed
@@ -416,6 +425,11 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
   const competencyRequirements = (ebm?.behaviors as { competencyRequirements?: Record<string, string[]> } | null)?.competencyRequirements ?? {};
   const requiredTechnologyPacks = competencyRequirements.Technology ?? [];
   const requiredDomainPacks = competencyRequirements.Domain ?? [];
+  // CR-104 — same "one real source for both display and the eligibility
+  // filter" discipline as competencyRequirements above, but deliberately
+  // NOT read off the EBM (onboarding, not engineering behaviour) — resolved
+  // live off this SEU's own Template/Profile composition instead.
+  const eligibilityPolicyIds = (await resolveEligibilityPolicies(seu)).map((p) => p.id);
 
   const capabilityViews = await Promise.all(
     (capabilities ?? []).map(async (c) => {
@@ -442,7 +456,7 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
         // core/capabilities.ts), so they don't trivially reappear the
         // instant the Capability reverts to Unfulfilled.
         const { data: excludeParticipantMasterIds } = await capabilityFulfilmentsDB.findReleasedParticipantMasterIds(c.id);
-        const eligible = await findEligibleParticipants({ tenantId: seu.tenant_id, capabilityCode: c.capability_code, competency: competencyRequirements, excludeParticipantMasterIds: excludeParticipantMasterIds ?? [] });
+        const eligible = await findEligibleParticipants({ tenantId: seu.tenant_id, capabilityCode: c.capability_code, competency: competencyRequirements, requiredPolicyIds: eligibilityPolicyIds, excludeParticipantMasterIds: excludeParticipantMasterIds ?? [] });
         eligibleParticipantsByType = participantTypes.map((type) => ({
           type,
           participants: eligible.filter((p) => p.type === type).map((p) => ({ id: p.id, displayName: p.display_name })),
@@ -541,6 +555,20 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     possibleNextStates,
   }));
 
+  // CR-106 Option C — an open (not yet Verified/Closed/Archived) Obligation
+  // raised against the SEU itself, carrying a recorded blocked_to_state, is
+  // this SEU's own commence-work hop waiting on resolution.
+  const blockingObligation = obligationViews.find(
+    (v) =>
+      v.obligation.related_object_type === "SEU" &&
+      v.obligation.related_object_id === seuId &&
+      v.obligation.blocked_to_state &&
+      !RESOLVED_OBLIGATION_STATUSES.has(v.obligation.status)
+  );
+  const blockedTransition = blockingObligation
+    ? { obligationTitle: blockingObligation.obligation.title, toState: blockingObligation.obligation.blocked_to_state! }
+    : null;
+
   const [evidenceWithNextStates, knowledgeItemsWithNextStates, decisionsWithNextStates, evidenceSupersedeCandidates] = await Promise.all([
     listEvidenceWithNextStates(seuId),
     listKnowledgeItemsWithNextStates(seuId),
@@ -598,6 +626,7 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
 
   return {
     seu,
+    blockedTransition,
     objectiveStatement: objective?.statement ?? "(objective not found)",
     capabilities: capabilityViews,
     participantTypes,

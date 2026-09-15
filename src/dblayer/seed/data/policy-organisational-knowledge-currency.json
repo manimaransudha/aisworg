@@ -18,36 +18,192 @@
   "conditions": [
     {
       "statement": "Knowledge Base Articles and Lessons Learned Reports are reviewed for continued accuracy on a defined cadence, not left indefinitely from their original authoring date.",
-      "requiredEvidence": [
+      "severity": "Low",
+      "applicabilityDeliverables": [
         {
-          "type": "knowledge_review_record"
+          "name": "knowledge-base-articles",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "lessons-learned-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "capability-maturity-assessment",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "capability-evolution-roadmap",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "traceability-matrix",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "review-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "user-technical-documentation",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Low",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Knowledge Review Record",
+        "category": "Analytical Evidence",
+        "description": "Knowledge Base Articles and Lessons Learned Reports are reviewed for continued accuracy on a defined cadence, not left indefinitely from their original authoring date.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "A Capability Maturity Assessment or Capability Evolution Roadmap is refreshed following each major Lessons Learned Report.",
-      "requiredEvidence": [
+      "severity": "Low",
+      "applicabilityDeliverables": [
         {
-          "type": "capability_maturity_assessment"
+          "name": "knowledge-base-articles",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "lessons-learned-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "capability-maturity-assessment",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "capability-evolution-roadmap",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "traceability-matrix",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "review-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "user-technical-documentation",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Low",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Capability Maturity Assessment",
+        "category": "Analytical Evidence",
+        "description": "A Capability Maturity Assessment or Capability Evolution Roadmap is refreshed following each major Lessons Learned Report.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "A Traceability Matrix or piece of User/Technical Documentation is updated whenever the artefacts it traces or describes change materially, not left to drift.",
-      "requiredEvidence": [
+      "severity": "Medium",
+      "applicabilityDeliverables": [
         {
-          "type": "traceability_matrix_currency_check"
+          "name": "knowledge-base-articles",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "lessons-learned-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "capability-maturity-assessment",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "capability-evolution-roadmap",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "traceability-matrix",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "review-report",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "user-technical-documentation",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Traceability Matrix Currency Check",
+        "category": "Analytical Evidence",
+        "description": "A Traceability Matrix or piece of User/Technical Documentation is updated whenever the artefacts it traces or describes change materially, not left to drift.",
+        "collectionMethod": "Traceability matrix review against current artefacts"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     }
   ],
   "version": "1.0.0"

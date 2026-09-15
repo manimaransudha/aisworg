@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "hipaa-breach-notification-deadline",
+        "category": "Compliance",
+        "title": "A confirmed ePHI breach must be notified within HIPAA's 60-day deadline",
+        "description": "HIPAA requires notification to affected individuals (and HHS, and media for large breaches) without unreasonable delay and no later than 60 days after discovery of a breach involving unsecured ePHI; this deadline runs from discovery, not from root-cause resolution.",
+        "origin": "External systems",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "Every confirmed ePHI breach's required notifications are sent within the 60-day statutory deadline.",
+        "requiredEvidence": {
+          "title": "Breach notification timeline record",
+          "category": "Validation Evidence",
+          "description": "Timestamped record of breach discovery and each required notification.",
+          "collectionMethod": "Incident/breach management system export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated breach-notification deadline check.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

@@ -25,10 +25,6 @@ before(async () => {
   await ensureEventSubscriptionsLoaded();
 });
 
-after(async () => {
-  await pool.end();
-});
-
 // CR-009: Operational/Engineering Objectives require a parent (only Strategic
 // may be a root). These tests build their fixtures under a fresh Strategic root.
 async function strategicRoot(): Promise<string> {

@@ -1,6 +1,6 @@
 # CR-102 — `EBMActivated` subscriber: move `finalizeCommissioning` off the synchronous `transitionEbm` call path (Book 3 Ch.2/Ch.3/Ch.8)
 
-**Raised:** 2026-09-12 · **Origin:** owner, auditing the SEU/EBM/Commissioning chain (Ch.2/3/8) against the platform's own "no code statements after an event is published" rule, following the Version Feature Plan.md pass on Events and Lifecycles.md. **Status: 🟡 Proposed — design agreed in conversation, not yet built.**
+**Raised:** 2026-09-12 · **Origin:** owner, auditing the SEU/EBM/Commissioning chain (Ch.2/3/8) against the platform's own "no code statements after an event is published" rule, following the Version Feature Plan.md pass on Events and Lifecycles.md. **Status:** 🟢 Built.
 
 ## The gap (found live, in code, not assumed from the documents)
 

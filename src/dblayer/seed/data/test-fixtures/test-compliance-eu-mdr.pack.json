@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-mdr-post-market-surveillance-reporting",
+        "category": "Compliance",
+        "title": "Post-market surveillance data must be reviewed and reported per the device's risk class",
+        "description": "EU MDR/IVDR require an ongoing Post-Market Surveillance (and, for higher-risk devices, PMCF) process producing periodic reports; a CE mark obtained at launch does not discharge this continuing duty.",
+        "origin": "Telemetry and Knowledge Model",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "The Periodic Safety Update Report (or PMCF report) is produced within the cadence required for the device's risk classification.",
+        "requiredEvidence": {
+          "title": "Post-market surveillance report",
+          "category": "Analytical Evidence",
+          "description": "Periodic Safety Update Report or PMCF report for the device.",
+          "collectionMethod": "Post-market surveillance system, reviewed on the required cadence."
+        },
+        "classification": "human-attested",
+        "prompt": "Has the required post-market surveillance report been produced on schedule?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Regulatory affairs / quality lead sign-off.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

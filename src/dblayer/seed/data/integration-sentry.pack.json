@@ -65,6 +65,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "sentry-unresolved-issue-triage-sla",
+        "category": "Review Finding",
+        "title": "A newly surfaced Sentry issue must be triaged within its severity's SLA",
+        "description": "An application error surfaced by Sentry must be triaged (assigned, prioritized, or explicitly ignored with reason) within its severity-based SLA; an unresolved, untouched issue accumulating silently is a monitoring gap in itself.",
+        "origin": "Quality Gates",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Every new issue is triaged within its severity's SLA.",
+        "requiredEvidence": {
+          "title": "Issue triage SLA record",
+          "category": "Validation Evidence",
+          "description": "Record of issue triage timing against its severity SLA.",
+          "collectionMethod": "Sentry API issue export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated triage-SLA check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

@@ -70,6 +70,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "bitbucket-branch-permission-drift-review",
+        "category": "Security",
+        "title": "Branch permissions and repository access keys must be periodically reviewed for drift",
+        "description": "Branch restriction rules and repository access keys/app passwords can drift from the intended policy as people and integrations change; they must be reviewed periodically rather than assumed correct from initial setup.",
+        "origin": "Quality Gates",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Branch permissions and access keys are reviewed against intended policy within the declared cadence.",
+        "requiredEvidence": {
+          "title": "Branch permission/access-key review",
+          "category": "Validation Evidence",
+          "description": "Review comparing live branch permissions and access keys against intended policy.",
+          "collectionMethod": "Bitbucket admin API export."
+        },
+        "classification": "human-attested",
+        "prompt": "Do branch permissions and repository access keys still match intended policy?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Repository administrator sign-off.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

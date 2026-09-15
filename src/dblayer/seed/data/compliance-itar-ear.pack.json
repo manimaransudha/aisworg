@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "itar-ear-export-classification-rereview",
+        "category": "Compliance",
+        "title": "Export control classification must be re-reviewed when the product materially changes",
+        "description": "An ITAR/EAR export classification (USML category, ECCN) is tied to a specific product configuration; a material change to functionality, encryption, or technical data must trigger a re-review, since the original classification may no longer apply.",
+        "origin": "Reviews",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "Export classification is re-reviewed and reconfirmed (or updated) after any material product change.",
+        "requiredEvidence": {
+          "title": "Export classification re-review record",
+          "category": "Analytical Evidence",
+          "description": "Export control review confirming or updating the product's classification after a material change.",
+          "collectionMethod": "Export control/legal review."
+        },
+        "classification": "human-attested",
+        "prompt": "Has export classification been re-reviewed following this product's material change?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Export control officer / legal sign-off.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

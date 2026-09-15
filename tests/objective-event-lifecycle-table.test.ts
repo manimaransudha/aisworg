@@ -32,10 +32,6 @@ before(async () => {
   await ensureEventSubscriptionsLoaded();
 });
 
-after(async () => {
-  await pool.end();
-});
-
 async function strategicRoot(): Promise<string> {
   const { objective } = await createObjective({
     statement: `event-table-root-${randomUUID()}`,

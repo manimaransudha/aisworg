@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-fedramp-poam-closure-tracking",
+        "category": "Security",
+        "title": "Plan of Action & Milestones (POA&M) items must be tracked to closure",
+        "description": "FedRAMP continuous monitoring requires every open POA&M item (a known control deficiency) to be tracked to remediation within its risk-based deadline; an ATO is not a one-time event once POA&M items go stale.",
+        "origin": "Quality Gates",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "No POA&M item remains open past its risk-based remediation deadline without an approved deviation request.",
+        "requiredEvidence": {
+          "title": "POA&M status report",
+          "category": "Validation Evidence",
+          "description": "Current POA&M report showing each item's status against its deadline.",
+          "collectionMethod": "Continuous monitoring (ConMon) system export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated POA&M deadline check.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

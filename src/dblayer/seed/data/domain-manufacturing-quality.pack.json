@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "manufacturing-nonconformance-capa-closure",
+        "category": "Review Finding",
+        "title": "A quality non-conformance must be tracked to CAPA closure",
+        "description": "A Non-Conformance Report raised during manufacturing quality control must produce a Corrective and Preventive Action (CAPA) tracked to closure, not merely a rework of the single affected unit.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every Non-Conformance Report has a linked CAPA that reaches a recorded closed state.",
+        "requiredEvidence": {
+          "title": "CAPA closure record",
+          "category": "Validation Evidence",
+          "description": "CAPA record showing closure against the originating Non-Conformance Report.",
+          "collectionMethod": "Quality management system (QMS) export."
+        },
+        "classification": "human-attested",
+        "prompt": "Does every Non-Conformance Report have a CAPA that reached closure?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Quality manager sign-off.",
+        "externalEvidence": false
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

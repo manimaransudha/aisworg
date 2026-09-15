@@ -79,6 +79,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "github-app-token-scope-review",
+        "category": "Security",
+        "title": "GitHub App/token permissions must be reviewed to stay least-privilege",
+        "description": "A GitHub App installation or PAT's granted permissions can accumulate broader scope than currently needed; scope must be periodically reviewed and narrowed, not left at its original broad grant indefinitely.",
+        "origin": "Quality Gates",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "The GitHub App/token's granted scope is reviewed and confirmed least-privilege within the declared cadence.",
+        "requiredEvidence": {
+          "title": "Token/App scope review",
+          "category": "Validation Evidence",
+          "description": "Review of granted GitHub App/token permissions against actual usage.",
+          "collectionMethod": "GitHub API permissions export."
+        },
+        "classification": "human-attested",
+        "prompt": "Does the GitHub App/token's granted scope still match actual least-privilege need?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Platform/security engineering sign-off.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

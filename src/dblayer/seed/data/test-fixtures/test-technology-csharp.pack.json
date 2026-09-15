@@ -59,6 +59,30 @@
         "dimension": "Technology",
         "value": "csharp"
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "test-csharp-nuget-vulnerability-tracking",
+        "category": "Security",
+        "title": "NuGet package vulnerabilities must be tracked and remediated within SLA",
+        "description": "A vulnerability disclosed against a referenced NuGet package must be triaged and remediated (upgrade, patch, or documented waiver) within its severity's SLA, not left unaddressed once `dotnet list package --vulnerable` reports it.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every Critical/High NuGet vulnerability is remediated or carries an approved waiver within its SLA.",
+        "requiredEvidence": {
+          "title": "NuGet vulnerability scan",
+          "category": "Validation Evidence",
+          "description": "Output of a NuGet vulnerability scan against referenced packages.",
+          "collectionMethod": "`dotnet list package --vulnerable` / NuGet audit tool output."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated dependency/vulnerability scan check.",
+        "externalEvidence": false
+      }
     ]
   }
 }

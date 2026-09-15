@@ -10,38 +10,42 @@
   "conditions": [
     {
       "statement": "The decision has a linked ADR record.",
-      "requiredEvidence": [
-        {
-          "type": "adr_record"
-        }
-      ],
       "severity": "Critical",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "ADR Record",
+        "category": "Analytical Evidence",
+        "description": "The decision has a linked ADR record.",
+        "collectionMethod": "ADR document review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "The ADR references the Objective or Deliverable it affects.",
-      "requiredEvidence": [
-        {
-          "type": "adr_record",
-          "field": "affected_entity"
-        }
-      ],
       "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "ADR Record — Affected Entity",
+        "category": "Analytical Evidence",
+        "description": "The ADR references the Objective or Deliverable it affects.",
+        "collectionMethod": "ADR document review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "The ADR's status is Published, not left in Draft beyond the declared grace period.",
-      "requiredEvidence": [
-        {
-          "type": "adr_record",
-          "field": "status"
-        }
-      ],
       "severity": "Low",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "ADR Record — Status",
+        "category": "Analytical Evidence",
+        "description": "The ADR's status is Published, not left in Draft beyond the declared grace period.",
+        "collectionMethod": "ADR document review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     }
   ],
   "version": "1.0.0"

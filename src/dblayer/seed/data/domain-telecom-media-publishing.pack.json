@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "telecom-subscriber-data-retention-compliance",
+        "category": "Compliance",
+        "title": "Subscriber call/usage data must be deleted per the statutory retention limit",
+        "description": "Telecom regulation typically sets a maximum retention period for subscriber call detail records and usage data; retaining beyond that limit is itself a violation, independent of any data breach.",
+        "origin": "Policies",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Subscriber call/usage data past its statutory retention limit is confirmed deleted.",
+        "requiredEvidence": {
+          "title": "Data retention deletion log",
+          "category": "Validation Evidence",
+          "description": "System log confirming deletion of subscriber data past its statutory retention limit.",
+          "collectionMethod": "Automated data-retention/deletion system export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated retention-limit enforcement check.",
+        "externalEvidence": false
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

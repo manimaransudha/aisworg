@@ -12,53 +12,99 @@
   "conditions": [
     {
       "statement": "Line coverage >= the threshold declared by the active governance tier.",
-      "requiredEvidence": [
+      "severity": "High",
+      "applicabilityDeliverables": [
         {
-          "type": "test_result",
-          "metric": "line_coverage"
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "High",
+      "requiredEvidence": {
+        "title": "Test Result — Line Coverage",
+        "category": "Validation Evidence",
+        "description": "Line coverage >= the threshold declared by the active governance tier.",
+        "collectionMethod": "Automated test suite execution output"
+      },
+      "relatedObligations": [],
       "exceptionRules": [
-        "Legacy code under active remediation may be granted a temporary lower threshold, time-boxed and tracked as an Obligation."
-      ],
-      "relatedObligations": []
+        {
+          "identifier": "cc48504c-75d9-597f-a17b-4eb46f833747",
+          "exceptionStatement": "Legacy code under active remediation may be granted a temporary lower threshold, time-boxed and tracked as an Obligation.",
+          "duration": "Time-boxed per the linked remediation Obligation's own completion criteria",
+          "exceptionScope": "The specific legacy module(s) under remediation only",
+          "exceptionApprovers": [
+            "Deliverable_approve"
+          ],
+          "exceptionComposition": "any",
+          "reviewRequirements": "Tracked via a linked Obligation; reviewed at each remediation milestone."
+        }
+      ]
     },
     {
       "statement": "Branch coverage >= the threshold declared by the active governance tier.",
-      "requiredEvidence": [
+      "severity": "Medium",
+      "applicabilityDeliverables": [
         {
-          "type": "test_result",
-          "metric": "branch_coverage"
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Test Result — Branch Coverage",
+        "category": "Validation Evidence",
+        "description": "Branch coverage >= the threshold declared by the active governance tier.",
+        "collectionMethod": "Automated test suite execution output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "Modules tagged critical-path (authentication, payment, data-integrity) meet a threshold at least 15 points higher than the general threshold.",
-      "requiredEvidence": [
+      "severity": "Critical",
+      "applicabilityDeliverables": [
         {
-          "type": "test_result",
-          "metric": "line_coverage",
-          "scope": "critical_path"
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Critical",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Test Result — Line Coverage",
+        "category": "Validation Evidence",
+        "description": "Modules tagged critical-path (authentication, payment, data-integrity) meet a threshold at least 15 points higher than the general threshold.",
+        "collectionMethod": "Automated test suite execution output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "No source file is excluded from coverage measurement without a documented, Authority-approved justification.",
-      "requiredEvidence": [
+      "severity": "Medium",
+      "applicabilityDeliverables": [
         {
-          "type": "coverage_exclusion_record"
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Coverage Exclusion Record",
+        "category": "Validation Evidence",
+        "description": "No source file is excluded from coverage measurement without a documented, Authority-approved justification.",
+        "collectionMethod": "Automated tool/system output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     }
   ],
   "version": "1.0.0"

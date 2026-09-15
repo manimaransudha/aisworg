@@ -59,6 +59,30 @@
         "dimension": "Technology",
         "value": "swift"
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "swift-spi-dependency-ios-deprecation-tracking",
+        "category": "Security",
+        "title": "CocoaPods/SPM dependencies and deprecated iOS APIs must be tracked",
+        "description": "A Swift/iOS app's CocoaPods/Swift Package Manager dependencies and its usage of iOS SDK APIs both drift as Apple deprecates APIs each release; both must be tracked and remediated before the next OS version removes what's deprecated.",
+        "origin": "Quality Gates",
+        "priority": "Medium",
+        "severity": "High",
+        "completionCriteria": "Dependencies are scanned for vulnerabilities and deprecated API usage is migrated within the declared cadence.",
+        "requiredEvidence": {
+          "title": "Dependency/deprecation scan",
+          "category": "Validation Evidence",
+          "description": "Xcode build warnings for deprecated APIs plus dependency vulnerability scan output.",
+          "collectionMethod": "Automated Xcode build analysis plus dependency scan."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated dependency/vulnerability scan check.",
+        "externalEvidence": false
+      }
     ]
   }
 }

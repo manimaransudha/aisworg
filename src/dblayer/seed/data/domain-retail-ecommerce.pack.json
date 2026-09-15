@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "retail-dynamic-pricing-compliance-audit",
+        "category": "Compliance",
+        "title": "Dynamic pricing rules must be periodically audited for compliance and fairness",
+        "description": "Automated dynamic pricing/promotion rules can drift into non-compliant or discriminatory outcomes as they're tuned; the ruleset must be periodically audited against pricing regulations and fairness expectations, not left to run unaudited.",
+        "origin": "Quality Gates",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "The dynamic pricing ruleset is audited within the declared cadence, with any compliance/fairness issue dispositioned.",
+        "requiredEvidence": {
+          "title": "Pricing rule compliance audit",
+          "category": "Analytical Evidence",
+          "description": "Audit of the dynamic pricing ruleset against pricing regulation and fairness expectations.",
+          "collectionMethod": "Pricing engine rule audit."
+        },
+        "classification": "human-attested",
+        "prompt": "Has the dynamic pricing ruleset been audited within the required cadence?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Pricing/legal compliance sign-off.",
+        "externalEvidence": false
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

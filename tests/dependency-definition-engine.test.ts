@@ -21,10 +21,6 @@ import { seusDB } from "../src/dblayer/seusDB.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 test("dependencyDefinitionEngine: a target with no incoming rows is ready trivially", async () => {
   await ensureWebAppTemplateFixture();
   const { data: template } = await templatesDB.findByCode("test-enterprise-web-application");

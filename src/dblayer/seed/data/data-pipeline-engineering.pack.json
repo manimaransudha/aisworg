@@ -69,6 +69,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "data-pipeline-quality-anomaly-triage",
+        "category": "Engineering",
+        "title": "A data-quality anomaly flagged by pipeline QA checks must be triaged, not silently passed through",
+        "description": "A pipeline's own quality-assurance checks (schema drift, null-rate spikes, referential breaks) exist to catch bad data before it propagates downstream; a flagged anomaly must be triaged and dispositioned, not allowed to flow through on a default-pass configuration.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every data-quality anomaly flagged by pipeline QA checks is triaged within the declared SLA.",
+        "requiredEvidence": {
+          "title": "Data quality anomaly triage record",
+          "category": "Validation Evidence",
+          "description": "Record of anomaly triage disposition and timing.",
+          "collectionMethod": "Data quality monitoring platform export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated anomaly-triage SLA check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

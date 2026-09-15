@@ -77,6 +77,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-localization-audit-gap-closure",
+        "category": "Compliance",
+        "title": "Localization audit gaps must be closed before Ongoing Operations & Governance",
+        "description": "Any locale or regional-compliance gap identified in the localization audits must be closed or explicitly accepted per-locale before the product is considered ready for ongoing operations in that locale.",
+        "origin": "Compliance Packs",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Every gap in the localization audit is closed or carries a recorded per-locale exception.",
+        "requiredEvidence": {
+          "title": "Localization audit closure",
+          "category": "Validation Evidence",
+          "description": "Disposition of each finding in the localization audit, per locale.",
+          "collectionMethod": "Localization audit report review."
+        },
+        "classification": "human-attested",
+        "prompt": "Has every localization audit finding been closed or explicitly exempted for its locale?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Localization lead sign-off.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

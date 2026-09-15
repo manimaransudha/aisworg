@@ -42,7 +42,14 @@ export const packsDB = {
           input.name,
           input.category,
           input.packVersion,
-          input.installationClassification ?? "Mandatory",
+          // Bug fix — `??` only catches null/undefined; an unanswered
+          // <select> (formGenerator.ts's "select" kind, blank "— select —"
+          // option) submits "" (installationClassification is enum-typed,
+          // not x-ontology, so this never goes through assertCanonicalCategory
+          // at all before reaching here), which isn't nullish and slipped
+          // straight through to `packs_installation_classification_check`
+          // as an invalid empty string.
+          input.installationClassification || "Mandatory",
           JSON.stringify(input.contributions),
           JSON.stringify(input.dependencies ?? []),
           JSON.stringify(input.compositionSources ?? []),
@@ -95,7 +102,10 @@ export const packsDB = {
           input.name,
           input.category,
           input.packVersion,
-          input.installationClassification ?? "Mandatory",
+          // Bug fix — same as create() above: `??` doesn't catch "" (a
+          // <select> left on "— select —"), which reached the DB's own
+          // installation_classification CHECK constraint raw.
+          input.installationClassification || "Mandatory",
           JSON.stringify(input.contributions),
           JSON.stringify(input.dependencies ?? []),
           JSON.stringify(input.compositionSources ?? []),
@@ -323,6 +333,29 @@ export const packsDB = {
       return { data: rows };
     } catch (err) {
       logger.error("[packsDB] findActiveVisibleTo error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // CR-104 — "mandatory" made a real composition rule, not descriptive
+  // metadata (design/foundations Ch.5 §7 itself flagged this gap: "'Mandatory
+  // = required for every SEU' is realised as 'in the Template's mandatory
+  // set,' not as an automatic platform-wide inclusion of every
+  // Mandatory-classified Pack"). Every Active Pack marked
+  // installation_classification = 'Mandatory' at the Platform tenant applies
+  // to every Template everywhere; one marked Mandatory at a specific tenant
+  // applies to every Template belonging to that same tenant. Composition
+  // folds this set in alongside whatever a Template's own mandatoryPackCodes
+  // explicitly lists — this is additive, not a replacement for it.
+  async findActiveMandatoryVisibleTo(viewerTenantId: string): Promise<DbResult<PackRow[]>> {
+    try {
+      const { rows } = await query<PackRow>(
+        "SELECT * FROM packs WHERE status = 'Active' AND installation_classification = 'Mandatory' AND (tenant_id = $1 OR tenant_id = $2) ORDER BY code",
+        [PLATFORM_TENANT_ID, viewerTenantId]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[packsDB] findActiveMandatoryVisibleTo error", err as Error);
       return { error: err as Error };
     }
   },

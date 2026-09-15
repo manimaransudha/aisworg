@@ -35,10 +35,6 @@ before(async () => {
   await ensureEventSubscriptionsLoaded();
 });
 
-after(async () => {
-  await pool.end();
-});
-
 // This test's own fixture rows (randomUUID-coded, never cleaned up after a
 // run, same disposable-fixture convention every other test in this suite
 // uses) accumulate across repeated runs against the shared dev database —

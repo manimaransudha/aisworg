@@ -53,7 +53,6 @@ before(async () => {
 
 after(async () => {
   await new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())));
-  await pool.end();
 });
 
 test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a Capability, progress a Deliverable", async () => {

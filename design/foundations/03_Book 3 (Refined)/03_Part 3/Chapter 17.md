@@ -536,9 +536,9 @@ This is the runtime/schema mechanism connecting an *already-created* Evidence ro
 | FR-17.6 fully traceable | ✅ (Deliverable direction) | `core/traceability.ts`'s `explainDeliverable` surfaces `supportingEvidence` via `evidenceDB.findByRelatedObject` |
 | FR-17.7 reusable across multiple objects | ✅ Built 2026-08-21 | same fix as FR-17.4; cross-SEU sharing (20.2) built as a free side effect |
 
-## 20.5 Evidence Categories ✅ — Fixed 2026-08-21 (§7)
+## 20.5 Evidence Categories ✅ — Fixed 2026-08-21, drift cleaned up 2026-09-14 (§7)
 
-The chapter names 6 categories (Analytical/Validation/Operational/Review/Decision/External). `030_ontology.sql` originally seeded only 2 of them under `category:evidence`. The web form offered all 6 regardless — since `assertCanonicalCategory` rejects anything not seeded as active, selecting the other 4 threw at submission, a live bug. **Fixed**: migration `085_evidence_category_ontology_gap.sql`, all 6 chapter-named categories now seeded. No code change was needed — `assertCanonicalCategory`/the form are fully generic over whatever is seeded.
+The chapter names 6 categories (Analytical/Validation/Operational/Review/Decision/External). `030_ontology.sql` originally seeded only 2 of them under `category:evidence`, alongside 4 non-canonical shorthand duplicates ("Validation"/"Review"/"Test"/"Technical") that never matched any of the chapter's own names. The web form offered all 6 real categories regardless — since `assertCanonicalCategory` rejects anything not seeded as active, selecting one of the other 4 threw at submission, a live bug. **Fixed 2026-08-21**: migration `085_evidence_category_ontology_gap.sql` seeded the missing 4 real categories; Quality Gate's own category picker (`web/sdkAuthoring.ts`) worked around the 4 drifted ones with a client-side filter rather than fixing the data. **Fixed 2026-09-14**: migration 030 no longer seeds the 4 drifted values; migration 223 retires them on any database that already ran the old version (confirmed unused first — zero `evidence` rows, every real `quality_gates.category` already canonical). The client-side filter is removed — `category:evidence` is genuinely just the 6 real categories now.
 
 ## 20.6 Evidence Structure ⚠️ — partial, Collection Method missing (§8)
 

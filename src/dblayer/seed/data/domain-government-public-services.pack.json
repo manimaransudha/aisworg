@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "govservices-citizen-data-access-audit",
+        "category": "Compliance",
+        "title": "Access to citizen personal data must be logged and periodically audited",
+        "description": "Government systems handling citizen personal data (identity, benefits, tax) must log every access and have those logs periodically audited for inappropriate access, not merely retain the logs unreviewed.",
+        "origin": "Quality Gates",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "The citizen-data access log is audited within the declared cadence, with any inappropriate access escalated.",
+        "requiredEvidence": {
+          "title": "Citizen-data access audit",
+          "category": "Validation Evidence",
+          "description": "Audit of citizen personal-data access logs for the review period.",
+          "collectionMethod": "Identity/access management audit log export."
+        },
+        "classification": "human-attested",
+        "prompt": "Has the citizen-data access log been audited within the required cadence?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Data protection/privacy officer sign-off.",
+        "externalEvidence": true
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

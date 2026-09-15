@@ -193,6 +193,35 @@ const PARTICIPANT_USER_TENANTS = [
 ];
 const PARTICIPANTS_PER_TENANT = 5;
 
+// Owner: "create a tenant user id for each of the tenants and assign the
+// tenant_admin badge." One admin user per tenant, all 6 including Platform,
+// holding the real `tenant_admin` badge (badge_types, migration 012,
+// scope_kind 'Tenant') scoped to that tenant's own id — a real Layer-1
+// authority grant, not the role='super' users in USERS above, which bypass
+// authority entirely via the legacy `role` column (role != authority, per
+// this platform's own standing rule). Local login, password "password", same
+// as every other fixture persona here. Reserved id range 2501–2506, clear of
+// every range above (2001–2017, 2101–2108, 2201–2232, 2301, 2401–2415).
+// Migration 202 — 'tenant_super' added to users.role's own CHECK constraint,
+// value only for now (owner: "for now add the role. Will explain what to do
+// in a moment") — not yet wired into ROLE_LEVEL/requireRole
+// (middleware/auth.js); it grants no requireRole-gated access today.
+const TENANT_ADMIN_USERS = TENANTS.map((t, i) => ({
+  id: 2501 + i,
+  // .toLowerCase() — Athens/Babylon/Cambodia's own tenant.code is
+  // proper-noun-cased; users.email has no case-folding at the column level
+  // and login (passportConfig.js's userDB.findByEmail) always lowercases the
+  // search term, so an un-lowercased email here can never be found again.
+  email: `tenant-admin@${t.code.toLowerCase()}.com`,
+  name: `${t.name} — Tenant Admin`,
+  tenantId: t.id,
+  role: "tenant_super",
+  // Platform's own admin is a Platform-type identity (mirrors
+  // platformPackAllUser's own precedent below); every other tenant's admin
+  // is Tenant-type, scoped to itself.
+  type: (t.code === "platform" ? "Platform" : "Tenant") as "Platform" | "Tenant",
+}));
+
 // Owner (2026-08-17): a PLATFORM (not Tenant) pack_all holder — same badge set
 // as pack-all@athens.com, but a Platform-type identity, so pack authority can
 // be exercised/tested from the Platform tenant too, not just Athens. Reserved
@@ -330,18 +359,26 @@ export async function seedIdentityBaseline(): Promise<void> {
       ...packUsers.map((u) => ({ ...u, type: "Tenant" as const })),
       ...authoringUsers.map((u) => ({ ...u, type: "Tenant" as const })),
       ...participantUsers.map((u) => ({ ...u, type: "Tenant" as const })),
+      // badges: [] here deliberately — tenant_admin is scope_kind 'Tenant'
+      // and needs a real scope_id (the tenant's own id), which the flat,
+      // scope-less badge_grants insert loop below (built from this same
+      // array's own `badges` field) can't express. Granted separately, after
+      // that loop, once these users' own rows already exist.
+      ...TENANT_ADMIN_USERS.map((u) => ({ ...u, badges: [] as string[] })),
       platformPackAllUser,
     ];
     for (const u of authorityUsers) {
       await client.query(
         `INSERT INTO users (id, email, name, avatar_url, role, auth_provider, provider_id, is_active, is_protected, type, tenant_id, password_hash, created_at)
-         VALUES ($1, $2, $3, NULL, 'general', 'local', NULL, TRUE, FALSE, $4, $5, $6, NOW())
+         VALUES ($1, $2, $3, NULL, $4, 'local', NULL, TRUE, FALSE, $5, $6, $7, NOW())
          ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, role = EXCLUDED.role,
            type = EXCLUDED.type, tenant_id = EXCLUDED.tenant_id, password_hash = EXCLUDED.password_hash, is_active = TRUE`,
-        [u.id, u.email, u.name, u.type, u.tenantId, passwordHash]
+        // "role" in u ? u.role : "general" — every set here is a plain object
+        // literal except TENANT_ADMIN_USERS, the one with its own real role.
+        [u.id, u.email, u.name, "role" in u ? u.role : "general", u.type, u.tenantId, passwordHash]
       );
     }
-    logger.info(`[seed:identity-baseline] upserted ${objectiveUsers.length} Objective-authority + ${packUsers.length} Pack-authority (Tenant) + 1 Pack-authority (Platform) + ${participantUsers.length} Participant fixture users (password "password").`);
+    logger.info(`[seed:identity-baseline] upserted ${objectiveUsers.length} Objective-authority + ${packUsers.length} Pack-authority (Tenant) + 1 Pack-authority (Platform) + ${participantUsers.length} Participant fixture users + ${TENANT_ADMIN_USERS.length} Tenant Admin users (password "password").`);
 
     // CR-006 — fixture noun_verb grants for the test users. badge_grants.badge_type
     // is free TEXT (no FK), so a grant of "deliverable_approve" needs no badge_types
@@ -382,6 +419,21 @@ export async function seedIdentityBaseline(): Promise<void> {
       }
     }
     logger.info(`[seed:identity-baseline] seeded ${grantCount} fixture noun_verb grants across ${fixtureGrants.length} test users.`);
+
+    // tenant_admin (badge_types.scope_kind 'Tenant', migration 012) needs a
+    // real scope_id — the tenant's own id — which the flat, scope-less loop
+    // above can't express (it only ever writes holder_type/holder_id/
+    // badge_type/status). These holders' prior grants were already cleared
+    // by the DELETE above (TENANT_ADMIN_USERS is part of authorityUsers, so
+    // its ids are in fixtureHolderIds too); this just adds the one real,
+    // scoped row per tenant admin.
+    for (const u of TENANT_ADMIN_USERS) {
+      await client.query(
+        "INSERT INTO badge_grants (holder_type, holder_id, badge_type, scope_id, status) VALUES ('User', $1, 'tenant_admin', $2, 'Active')",
+        [String(u.id), u.tenantId]
+      );
+    }
+    logger.info(`[seed:identity-baseline] granted tenant_admin (scoped) to ${TENANT_ADMIN_USERS.length} tenant admin users, one per tenant.`);
 
     // Advance the serial past the highest seeded id so the next UI-created user
     // doesn't collide with a seeded id (clean-slate's RESTART IDENTITY leaves

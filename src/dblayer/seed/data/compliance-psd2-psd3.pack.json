@@ -63,6 +63,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "psd2-sca-exemption-monitoring",
+        "category": "Compliance",
+        "title": "SCA exemptions must be monitored against fraud-rate thresholds, not applied indefinitely",
+        "description": "PSD2's transaction-risk-analysis SCA exemption is only permitted while the acquirer's/issuer's fraud rate stays below the regulatory threshold; exceeding the threshold requires reverting to full SCA, so exemption use must be continuously monitored, not set once.",
+        "origin": "Telemetry and Knowledge Model",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "The fraud rate underlying each active SCA exemption is checked within the declared monitoring cadence and remains below threshold.",
+        "requiredEvidence": {
+          "title": "SCA exemption fraud-rate check",
+          "category": "Validation Evidence",
+          "description": "Fraud-rate monitoring output for each active SCA exemption category.",
+          "collectionMethod": "Payment fraud monitoring system export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated fraud-rate threshold check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

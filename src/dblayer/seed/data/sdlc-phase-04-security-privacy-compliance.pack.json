@@ -77,6 +77,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "security-finding-remediation",
+        "category": "Security",
+        "title": "Security Assessment findings are remediated or formally accepted",
+        "description": "Every finding raised in the Security Assessment Report (threat model, security controls, privacy impact assessment) must reach a recorded disposition — remediated, or accepted with an approved risk exception — before downstream phases build on this baseline.",
+        "origin": "Reviews",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "All Security Assessment findings are Remediated or carry an approved risk-acceptance record.",
+        "requiredEvidence": {
+          "title": "Security finding closure record",
+          "category": "Validation Evidence",
+          "description": "Evidence that each Security Assessment finding reached a recorded disposition.",
+          "collectionMethod": "Security scan re-run plus sign-off record for accepted risks."
+        },
+        "classification": "human-attested",
+        "prompt": "Has every Security Assessment finding been remediated or formally risk-accepted?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Security lead sign-off.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

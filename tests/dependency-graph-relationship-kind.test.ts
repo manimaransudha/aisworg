@@ -56,7 +56,6 @@ after(async () => {
     await pool.query("DELETE FROM events WHERE originating_object_type = 'Template' AND originating_object_id = ANY($1::uuid[])", [createdTemplateIds]);
     await pool.query("DELETE FROM templates WHERE id = ANY($1::uuid[])", [createdTemplateIds]);
   }
-  await pool.end();
 });
 
 const ROOT_ACTOR_ID = "1";

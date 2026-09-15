@@ -77,6 +77,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "capacity-model-revalidation",
+        "category": "Engineering",
+        "title": "Capacity & Scaling Model must be revisited against real load",
+        "description": "The Capacity & Scaling Model accepted at this phase's review is a projection; it must be revalidated against real production load data once available, not treated as permanently accurate.",
+        "origin": "Telemetry and Knowledge Model",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "The capacity model is compared against real observed load within a defined window post-launch and updated or reaffirmed.",
+        "requiredEvidence": {
+          "title": "Capacity model vs. observed load",
+          "category": "Analytical Evidence",
+          "description": "A comparison of the projected Capacity & Scaling Model against observed production telemetry.",
+          "collectionMethod": "Automated extraction from monitoring/telemetry systems."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated telemetry comparison.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

@@ -16,10 +16,6 @@ import pool from "../src/utils/db.js";
 import { validatePackSeed, type PackSeedInput } from "../src/routes/seu/core/packs.js";
 import { uniqueTestPackVersion } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 function freshPackSeed(overrides: Partial<PackSeedInput> = {}): PackSeedInput {
   return {
     code: `test-cr099-pack-${randomUUID()}`,

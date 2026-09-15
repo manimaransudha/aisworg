@@ -23,10 +23,6 @@ import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 async function commissionTestSeu(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromFormSync({

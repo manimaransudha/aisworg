@@ -45,6 +45,18 @@ export const participantsDB = {
     }
   },
 
+  // CR-103 — every per-SEU engagement of one participants_master identity,
+  // across every SEU, for that Participant's own home page.
+  async findByParticipantMasterId(participantMasterId: string): Promise<DbResult<ParticipantRow[]>> {
+    try {
+      const { rows } = await query<ParticipantRow>("SELECT * FROM participants WHERE participant_id = $1 ORDER BY created_at DESC", [participantMasterId]);
+      return { data: rows };
+    } catch (err) {
+      logger.error("[participantsDB] findByParticipantMasterId error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async updateStatus(id: string, state: string): Promise<DbResult<ParticipantRow>> {
     try {
       const { rows } = await query<ParticipantRow>(

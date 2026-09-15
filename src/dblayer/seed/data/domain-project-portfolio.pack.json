@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "ppm-benefit-realization-tracking",
+        "category": "Organisational Learning",
+        "title": "A project's promised business case benefits must be tracked after delivery, not only before approval",
+        "description": "PPM governance approves projects against a business case's projected benefits; those benefits must be tracked post-delivery to confirm they materialized, closing the loop the business case opened rather than treating approval as the end of the story.",
+        "origin": "Telemetry and Knowledge Model",
+        "priority": "Medium",
+        "severity": "Low",
+        "completionCriteria": "Each completed project's actual benefit realization is measured against its business case within the declared post-delivery window.",
+        "requiredEvidence": {
+          "title": "Benefit realization report",
+          "category": "Analytical Evidence",
+          "description": "Comparison of actual realized benefits against the business case's projections.",
+          "collectionMethod": "PPM/benefits tracking system export."
+        },
+        "classification": "human-attested",
+        "prompt": "Has this project's benefit realization been measured against its business case?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Portfolio management office sign-off.",
+        "externalEvidence": false
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

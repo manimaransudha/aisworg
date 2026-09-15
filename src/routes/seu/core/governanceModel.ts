@@ -14,7 +14,9 @@ export interface EffectiveGovernanceModel {
   seuId: string;
   ebm: { id: string; version: number; status: string; composedPacks: Array<{ packCode: string; packVersion: string }> };
   authorityRules: Array<{ code: string; governedTransition: string; authorisedRole: string; fromPack: string }>;
-  policies: Array<{ code: string; name: string; governedTransition: string; fromPack: string }>;
+  // CR-104 — null for scope "Eligibility" Policies (Capability Fulfilment
+  // participant selection, no transition involved at all).
+  policies: Array<{ code: string; name: string; governedTransition: string | null; fromPack: string }>;
   qualityGates: Array<{ name: string; category: string; governedTransition: string; criteriaType: string; fromPack: string }>;
   conflicts: string[];
 }

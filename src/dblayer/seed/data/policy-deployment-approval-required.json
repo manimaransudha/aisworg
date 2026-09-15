@@ -12,39 +12,78 @@
   "conditions": [
     {
       "statement": "Release Management Service has issued an approved release recommendation for this exact package version.",
-      "requiredEvidence": [
+      "severity": "Critical",
+      "applicabilityDeliverables": [
         {
-          "type": "release_approval_record"
+          "name": "release-package",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Critical",
+      "requiredEvidence": {
+        "title": "Release Approval Record",
+        "category": "Validation Evidence",
+        "description": "Release Management Service has issued an approved release recommendation for this exact package version.",
+        "collectionMethod": "Release management system record"
+      },
+      "relatedObligations": [],
       "exceptionRules": [
-        "Emergency rollback deployment may bypass approval, subject to retrospective review."
-      ],
-      "relatedObligations": []
+        {
+          "identifier": "c3810b9c-822e-52a8-aa3e-2111344b2cd0",
+          "exceptionStatement": "Emergency rollback deployment may bypass approval, subject to retrospective review.",
+          "duration": "Until retrospective review is completed",
+          "exceptionScope": "This emergency rollback deployment only",
+          "exceptionApprovers": [
+            "Deliverable_approve"
+          ],
+          "exceptionComposition": "any",
+          "reviewRequirements": "Retrospective review must be completed and recorded after the rollback."
+        }
+      ]
     },
     {
       "statement": "The approval was issued within its declared validity window (has not gone stale relative to the deployment attempt).",
-      "requiredEvidence": [
+      "severity": "Medium",
+      "applicabilityDeliverables": [
         {
-          "type": "release_approval_record",
-          "field": "issued_at"
+          "name": "release-package",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Release Approval Record — Issued At",
+        "category": "Validation Evidence",
+        "description": "The approval was issued within its declared validity window (has not gone stale relative to the deployment attempt).",
+        "collectionMethod": "Release management system record"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "No Critical or High severity Obligation remains open against this Release Package at deployment time.",
-      "requiredEvidence": [
+      "severity": "High",
+      "applicabilityDeliverables": [
         {
-          "type": "obligation_register_snapshot"
+          "name": "release-package",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "High",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Obligation Register Snapshot",
+        "category": "Analytical Evidence",
+        "description": "No Critical or High severity Obligation remains open against this Release Package at deployment time.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     }
   ],
   "version": "1.0.0"

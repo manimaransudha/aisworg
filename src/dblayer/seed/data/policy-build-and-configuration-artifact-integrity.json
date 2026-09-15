@@ -17,36 +17,171 @@
   "conditions": [
     {
       "statement": "Every Configuration File, CI/CD Pipeline Definition, and Infrastructure-as-Code artefact is version-controlled and free of embedded secrets.",
-      "requiredEvidence": [
+      "severity": "Critical",
+      "applicabilityDeliverables": [
         {
-          "type": "secrets_scan_result"
+          "name": "configuration-files",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "ci-cd-pipeline-definition",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "infrastructure-as-code-environment-configuration",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "integration-build",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "test-suite",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "technical-notes",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Critical",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Secrets Scan Result",
+        "category": "Validation Evidence",
+        "description": "Every Configuration File, CI/CD Pipeline Definition, and Infrastructure-as-Code artefact is version-controlled and free of embedded secrets.",
+        "collectionMethod": "Automated secret-scanning tool output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "The Test Suite executes as part of the CI/CD Pipeline Definition, not run manually and separately from it.",
-      "requiredEvidence": [
+      "severity": "High",
+      "applicabilityDeliverables": [
         {
-          "type": "pipeline_configuration_check"
+          "name": "configuration-files",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "ci-cd-pipeline-definition",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "infrastructure-as-code-environment-configuration",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "integration-build",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "test-suite",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "technical-notes",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "High",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Pipeline Configuration Check",
+        "category": "Validation Evidence",
+        "description": "The Test Suite executes as part of the CI/CD Pipeline Definition, not run manually and separately from it.",
+        "collectionMethod": "Automated tool/system output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "An Integration Build completes without error before being promoted beyond the environment it was built in.",
-      "requiredEvidence": [
+      "severity": "Critical",
+      "applicabilityDeliverables": [
         {
-          "type": "build_result"
+          "name": "configuration-files",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "ci-cd-pipeline-definition",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "infrastructure-as-code-environment-configuration",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "integration-build",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "test-suite",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "technical-notes",
+          "transitions": [
+            "Deliverable|Approved|Baselined"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Critical",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Build Result",
+        "category": "Validation Evidence",
+        "description": "An Integration Build completes without error before being promoted beyond the environment it was built in.",
+        "collectionMethod": "Automated tool/system output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     }
   ],
   "version": "1.0.0"

@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "order-management-backorder-allocation-tracking",
+        "category": "Engineering",
+        "title": "Backordered inventory allocation must follow a recorded, fair allocation rule",
+        "description": "When demand exceeds available inventory, allocation across pending orders must follow a recorded rule (e.g. first-in-first-out, priority tier) rather than an ad hoc decision, so customers aren't arbitrarily disadvantaged.",
+        "origin": "Policies",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Every backorder allocation event is traceable to the declared allocation rule.",
+        "requiredEvidence": {
+          "title": "Allocation rule trace",
+          "category": "Analytical Evidence",
+          "description": "Trace of a backorder allocation decision against the declared allocation rule.",
+          "collectionMethod": "Order management system export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated allocation-rule trace check.",
+        "externalEvidence": false
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

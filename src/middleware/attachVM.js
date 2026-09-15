@@ -44,6 +44,7 @@ export function attachVM(viewName) {
         else if (url.includes('/seu/packs')) activePage = 'seu-packs';
         else if (url.includes('/seu/templates')) activePage = 'seu-templates';
         else if (url.includes('/seu/profiles')) activePage = 'seu-profiles';
+        else if (url.includes('/seu/tenant-admin/users')) activePage = 'seu-tenant-admin-users';
         else if (url.includes('/seu/identity')) activePage = 'seu-identity';
         else if (url.includes('/seu/sdk/pack-authoring')) activePage = 'seu-sdk-pack-authoring';
         else if (url.includes('/seu/sdk/template-authoring')) activePage = 'seu-sdk-template-authoring';

@@ -65,6 +65,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "pagerduty-oncall-coverage-gap-check",
+        "category": "Engineering",
+        "title": "On-call schedules must have no uncovered escalation gaps",
+        "description": "An on-call schedule with an unfilled slot or a broken escalation policy silently fails only when an incident actually occurs; coverage must be checked proactively, not discovered during a real page.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every on-call schedule and escalation policy has zero coverage gaps for the current and next period, confirmed within the declared cadence.",
+        "requiredEvidence": {
+          "title": "On-call coverage gap check",
+          "category": "Validation Evidence",
+          "description": "Schedule coverage report confirming no unfilled slots in current/next period.",
+          "collectionMethod": "PagerDuty API schedule export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated on-call coverage check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

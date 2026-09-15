@@ -21,10 +21,6 @@ import { createAttentionItem, listAttentionItemsBySeu, transitionAttentionItem }
 import { createExternalInteraction, listExternalInteractionsBySeu, transitionExternalInteraction } from "../src/routes/seu/core/externalInteractions.js";
 import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
   await ensureCoreEngineeringQualityGates();

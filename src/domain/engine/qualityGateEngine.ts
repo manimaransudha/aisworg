@@ -16,14 +16,21 @@ import { evidenceDB } from "../../dblayer/evidenceDB.js";
 import { decisionsDB } from "../../dblayer/decisionsDB.js";
 import { reviewsDB } from "../../dblayer/reviewsDB.js";
 import { policiesDB } from "../../dblayer/policiesDB.js";
-import { evaluateCondition, type PolicyCondition } from "./policyCondition.js";
+import { seusDB } from "../../dblayer/seusDB.js";
+import { ebmsDB } from "../../dblayer/ebmsDB.js";
+import { deliverablesDB } from "../../dblayer/deliverablesDB.js";
+import { evaluateCondition, type GoverningCondition } from "./governingCondition.js";
 import { eventBus } from "./eventBus.js";
 import type { QualityGateRow, TransitionEntityType } from "../../dblayer/seuTypes.js";
 
 // Ch.23 §12: an Obligation stops blocking once it's at least Verified —
 // Closed/Archived are further administrative steps past the point governance
 // cares.
-const RESOLVED_OBLIGATION_STATUSES = new Set(["Verified", "Closed", "Archived"]);
+// Exported — CR-106's own resolution-triggered retry subscriber
+// (obligationResolved, domain/engine/obligationResolved.ts) fires on the
+// exact same "resolved enough" set no_unresolved_obligations already uses,
+// so the two never drift apart on what "resolved" means.
+export const RESOLVED_OBLIGATION_STATUSES = new Set(["Verified", "Closed", "Archived"]);
 
 // Ch.17 §9: Evidence counts once it's reached Accepted or is actively
 // Referenced; Archived means retired from active use, so a newly-requested
@@ -63,8 +70,48 @@ export const qualityGateEngine = {
     toState: string;
     context?: Record<string, unknown>;
   }): Promise<QualityGateListEvaluationResult> {
-    const { data: gates } = await qualityGatesDB.findAllActive(input.entityType, input.fromState, input.toState);
-    if (!gates || gates.length === 0) return { outcome: "NotApplicable" };
+    // CR-104 — for a SEU-scoped entity (real seuId, an EBM already
+    // materialised), Quality Gates are matched via this SEU's own EBM
+    // materialised applicable_quality_gate_ids (compositionCompleted.ts,
+    // computed once at commissioning from the composed Packs' own
+    // originating_pack_id) — not a bare (entity_type, from_state, to_state)
+    // match against the GLOBAL quality_gates table, which used to apply any
+    // Pack's gate to every SEU platform-wide regardless of composition.
+    //
+    // Platform-level entities (Pack, Objective, TransitionDefinition, ...)
+    // genuinely have no SEU/EBM/composition at all — seuId is null by
+    // design there (§4.3/Open Q#3's own "a Quality Gate can gate a Pack
+    // transition with a null SEU"), so composition scoping doesn't apply;
+    // these keep the original global match. Same fallback for the (should
+    // be rare/transient) case of a SEU-scoped entity whose SEU has no
+    // active EBM yet.
+    let gates: QualityGateRow[];
+    if (!input.seuId) {
+      const { data } = await qualityGatesDB.findAllActive(input.entityType, input.fromState, input.toState);
+      gates = data ?? [];
+    } else {
+      const { data: seu } = await seusDB.findById(input.seuId);
+      if (!seu?.active_ebm_id) {
+        const { data } = await qualityGatesDB.findAllActive(input.entityType, input.fromState, input.toState);
+        gates = data ?? [];
+      } else {
+        const { data: ebm } = await ebmsDB.findById(seu.active_ebm_id);
+        const { data: candidateGates } = await qualityGatesDB.findByIds(ebm?.applicable_quality_gate_ids ?? []);
+        gates = (candidateGates ?? []).filter(
+          (g) => g.entity_type === input.entityType && g.from_state === input.fromState && g.to_state === input.toState
+        );
+      }
+    }
+    if (gates.length === 0) return { outcome: "NotApplicable" };
+
+    const named = gates.some((g) => g.applicability_deliverable_names.length > 0);
+    if (named && input.entityType === "Deliverable") {
+      const { data: deliverable } = await deliverablesDB.findById(input.entityId);
+      const name = deliverable?.name;
+      gates = gates.filter((g) => g.applicability_deliverable_names.length === 0 || (name && g.applicability_deliverable_names.includes(name)));
+    }
+    if (gates.length === 0) return { outcome: "NotApplicable" };
+
     for (const gate of gates) {
       const result = await this.evaluateGate(gate, input);
       if (result.outcome === "Blocked" || result.outcome === "Waived") return result;
@@ -206,7 +253,7 @@ export const qualityGateEngine = {
         return this.blockOrWaive(gate, input, "one or more referenced Policies do not exist", { policyIds });
       }
       for (const policy of policies) {
-        const satisfied = evaluateCondition(policy.condition as PolicyCondition, input.context ?? {});
+        const satisfied = evaluateCondition(policy.condition as GoverningCondition, input.context ?? {});
         if (!satisfied) {
           return this.blockOrWaive(gate, input, `Policy "${policy.code}" is not satisfied for this entity`, { policyId: policy.id, policyCode: policy.code });
         }

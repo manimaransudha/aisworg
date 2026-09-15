@@ -33,10 +33,6 @@ async function qualityGateEventTypesForEntity(entityId: string): Promise<string[
   return rows.map((r) => r.event_type);
 }
 
-after(async () => {
-  await pool.end();
-});
-
 async function commissionTestSeu(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
   await ensureCoreEngineeringQualityGates();

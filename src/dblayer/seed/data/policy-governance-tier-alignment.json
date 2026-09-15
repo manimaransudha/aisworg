@@ -10,27 +10,29 @@
   "conditions": [
     {
       "statement": "If any selected Pack has category: compliance, the resolved governance_tier is not 'rapid'.",
-      "requiredEvidence": [
-        {
-          "type": "profile_definition",
-          "field": "selected_packs"
-        }
-      ],
       "severity": "High",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Profile Definition — Selected Packs",
+        "category": "Analytical Evidence",
+        "description": "If any selected Pack has category: compliance, the resolved governance_tier is not 'rapid'.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "If the resolved governance_tier is 'enterprise', at least one Architecture Review Board review (G1) exists per release.",
-      "requiredEvidence": [
-        {
-          "type": "review_result",
-          "board": "architecture_review_board"
-        }
-      ],
       "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Review Result — Architecture Review Board",
+        "category": "Validation Evidence",
+        "description": "If the resolved governance_tier is 'enterprise', at least one Architecture Review Board review (G1) exists per release.",
+        "collectionMethod": "Recorded outcome from the review process"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     }
   ],
   "version": "1.0.0"

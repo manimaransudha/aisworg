@@ -36,10 +36,6 @@ import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 async function anyRealPackId(): Promise<string> {
   const { data: pack } = await packsDB.findByCode("development");
   if (!pack) throw new Error("expected development pack to be seeded");

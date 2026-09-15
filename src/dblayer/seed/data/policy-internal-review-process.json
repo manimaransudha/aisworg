@@ -10,38 +10,42 @@
   "conditions": [
     {
       "statement": "The decision has a recorded risk score.",
-      "requiredEvidence": [
-        {
-          "type": "risk_assessment_record"
-        }
-      ],
       "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Risk Assessment Record",
+        "category": "Analytical Evidence",
+        "description": "The decision has a recorded risk score.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "Decisions scoring at or above the declared risk threshold have a recorded Architecture Review Board review.",
-      "requiredEvidence": [
-        {
-          "type": "review_result",
-          "board": "architecture_review_board"
-        }
-      ],
       "severity": "Critical",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Review Result — Architecture Review Board",
+        "category": "Validation Evidence",
+        "description": "Decisions scoring at or above the declared risk threshold have a recorded Architecture Review Board review.",
+        "collectionMethod": "Recorded outcome from the review process"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "The review's recorded outcome is Approved, not merely Reviewed or Rejected.",
-      "requiredEvidence": [
-        {
-          "type": "review_result",
-          "field": "outcome"
-        }
-      ],
       "severity": "High",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Review Result — Outcome",
+        "category": "Validation Evidence",
+        "description": "The review's recorded outcome is Approved, not merely Reviewed or Rejected.",
+        "collectionMethod": "Recorded outcome from the review process"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     }
   ],
   "version": "1.0.0"

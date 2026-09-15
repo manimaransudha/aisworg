@@ -70,6 +70,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "gcp-service-account-key-rotation",
+        "category": "Security",
+        "title": "GCP service account keys must be rotated on a recurring cadence",
+        "description": "Long-lived GCP service account JSON keys used by this integration must be rotated periodically, preferring Workload Identity Federation where possible; an un-rotated static key is a standing credential risk.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every service account key in use is rotated within the declared cadence, or migrated to Workload Identity Federation.",
+        "requiredEvidence": {
+          "title": "Service account key rotation record",
+          "category": "Validation Evidence",
+          "description": "IAM record of service account key age and rotation.",
+          "collectionMethod": "GCP IAM export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated key-age check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

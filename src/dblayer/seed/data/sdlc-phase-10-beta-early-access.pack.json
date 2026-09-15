@@ -77,6 +77,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "beta-feedback-disposition",
+        "category": "Organisational Learning",
+        "title": "Beta feedback and exit-criteria exceptions must be dispositioned before General Launch",
+        "description": "Feedback and defects raised during the Beta program, and any Beta Exit Criteria not fully met, must be recorded with an explicit accept/fix decision before Launch, not silently dropped when the beta window closes.",
+        "origin": "Customer requests",
+        "priority": "High",
+        "severity": "Medium",
+        "completionCriteria": "Every unmet Beta Exit Criterion and every significant beta finding has a recorded accept/fix decision.",
+        "requiredEvidence": {
+          "title": "Beta finding disposition log",
+          "category": "Validation Evidence",
+          "description": "A record of the disposition of each significant beta finding and unmet exit criterion.",
+          "collectionMethod": "Beta feedback tracker export."
+        },
+        "classification": "human-attested",
+        "prompt": "Has every significant beta finding and unmet exit criterion been dispositioned?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Product Owner sign-off.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

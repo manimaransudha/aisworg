@@ -19,10 +19,6 @@ import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { listRegisteredOnboardingTypes, resolveOnboardingAdapter } from "../src/adapters/participantOnboardingRegistry.js";
 import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
 
-after(async () => {
-  await pool.end();
-});
-
 // Real, already-seeded canonical Ontology values (checked directly against
 // the migrations, not guessed): participant-types (194), capability-name
 // (046, "software-construction" — same real, shared term

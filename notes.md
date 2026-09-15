@@ -68,13 +68,14 @@ So if you're chasing a "wrong data after clean-slate" bug, the file to edit is o
 
 https://zenfy.ac/get-started/
 
-obj-propose@babylon.com
-obj-propose@athens.com
-obj-activate@athens.com
+obj-all@babylon.com
 
 pack-define@athens.com
 pack_all@platform.com
 template-define@athens.com
+
+human-415@babylon.com
+tenant-admin@babylon.com
 
 phase1-tenant-move-athens-child-a24dfa19-7784-47a7-95e2-9c5c398c0941 v1.0.1
 

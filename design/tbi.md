@@ -90,6 +90,7 @@ Pack retiring should notify EBM owners and recomposition updates should be mater
 
 - Instead of being monolithic, break the runtime kernel separately
 
-## Chapter 41 
 
-1) Is versioning a middleware or hardcoded in every place --- centralise this
+So: commissioning gets the SEU to Operational, but that only means the SEU is now in the state where its Deliverables are eligible to move. Actual execution starts only when a human (or an API caller) transitions one of this SEU's own Deliverables — e.g. Defined → In Progress — through the SEU detail page or the Deliverables API. That transition is what calls transitionDeliverable, which calls executionEngine.execute, which creates the Command, generates the Work Item, and calls dispatchEngine.dispatch (which then requires an eligible Participant to actually fulfil the producing Capability, or the dispatch is deferred).
+
+One thing I checked and did not find: there's no code-level gate anywhere in transitionDeliverable that requires seus.lifecycle_state === 'Operational' before allowing a Deliverable transition — it's a conceptual precondition (Ch.2's own lifecycle), not an enforced one in the current build. So technically a Deliverable could be dispatched even if the owning SEU weren't Operational yet; nothing checks.

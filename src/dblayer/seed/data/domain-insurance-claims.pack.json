@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "insurance-claims-reserve-adequacy-review",
+        "category": "Engineering",
+        "title": "Open claim reserves must be periodically reviewed for adequacy",
+        "description": "An open claim's reserve estimate can go stale as new information (medical updates, litigation developments) arrives; reserves must be reviewed periodically, not left at their initial estimate for the life of the claim.",
+        "origin": "Reviews",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Every open claim's reserve is reviewed within the declared cadence and adjusted if warranted.",
+        "requiredEvidence": {
+          "title": "Reserve adequacy review record",
+          "category": "Analytical Evidence",
+          "description": "Reserve review and adjustment record for each open claim.",
+          "collectionMethod": "Claims management system export."
+        },
+        "classification": "human-attested",
+        "prompt": "Has this open claim's reserve been reviewed for adequacy within the required cadence?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Claims adjuster/actuarial sign-off.",
+        "externalEvidence": false
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

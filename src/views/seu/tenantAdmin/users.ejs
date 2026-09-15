@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+</head>
+<body>
+  <%- include('../../partials/helpers') %>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-1 text-dark fw-bold"><i class="bi bi-people me-2"></i>Tenant User Management</h2>
+      <p class="text-muted small mb-0">Users in your own tenant. You can grant/revoke any real noun_verb badge (e.g. deliverable_publish, objective_propose).</p>
+    </div>
+
+    <% const _base = locals.listBasePath || '/aisworg/seu/tenant-admin/users'; %>
+    <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search email / name / role' }) %>
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body">
+        <table class="table table-sm align-middle">
+          <thead><tr>
+            <th><%- sortLink('Email', 'email', list, _base) %></th>
+            <th><%- sortLink('Name', 'name', list, _base) %></th>
+            <th><%- sortLink('Role', 'role', list, _base) %></th>
+            <th>Active</th>
+            <th>Badges</th>
+            <th>Grant a badge</th>
+          </tr></thead>
+          <tbody>
+            <% if (list.total === 0) { %>
+              <tr><td colspan="6" class="text-muted small text-center py-3"><%= list.q ? 'No users match your search.' : 'No users in your tenant yet.' %></td></tr>
+            <% } %>
+            <% list.items.forEach(function(u) { %>
+              <tr>
+                <td class="small"><%= u.email %></td>
+                <td class="small"><%= u.name || '' %></td>
+                <td><span class="badge bg-light text-dark border"><%= u.role %></span></td>
+                <td><%= u.is_active ? 'Yes' : 'No' %></td>
+                <td>
+                  <% var _revocableTypes = u.revocableGrants.map(function(g) { return g.badgeType; }); %>
+                  <% u.platformBadges.filter(function(b) { return _revocableTypes.indexOf(b) === -1; }).forEach(function(b) { %>
+                    <span class="badge bg-secondary-subtle text-dark-emphasis me-1"><%= b %></span>
+                  <% }) %>
+                  <% u.revocableGrants.forEach(function(g) { %>
+                    <form method="POST" action="/aisworg/seu/tenant-admin/grants/<%= g.id %>/revoke" class="d-inline-flex align-items-center gap-1 me-1 mb-1">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <span class="badge bg-secondary-subtle text-dark-emphasis"><%= g.badgeType %></span>
+                      <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Revoke">&times;</button>
+                    </form>
+                  <% }) %>
+                </td>
+                <td class="text-nowrap">
+                  <form method="POST" action="/aisworg/seu/tenant-admin/grants" class="d-flex align-items-center gap-2">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="userId" value="<%= u.id %>">
+                    <select name="badgeType" class="form-select form-select-sm" style="width: auto;" size="4" multiple required>
+                      <% grantableBadges.forEach(function(b) { %><option value="<%= b %>"><%= b %></option><% }) %>
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Grant</button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

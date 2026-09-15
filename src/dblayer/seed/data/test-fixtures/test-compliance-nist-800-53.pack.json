@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-nist80053-continuous-control-assessment",
+        "category": "Security",
+        "title": "Security controls must be continuously assessed for drift from their assessed baseline",
+        "description": "NIST SP 800-53's control families are assessed at a point in time (e.g. for an ATO); continuous monitoring requires detecting when a live control's configuration drifts from what was assessed, not relying on the original assessment indefinitely.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Control configuration drift is checked within the declared continuous-monitoring cadence, with any drift dispositioned.",
+        "requiredEvidence": {
+          "title": "Control drift assessment",
+          "category": "Validation Evidence",
+          "description": "Continuous monitoring output comparing live control configuration to the assessed baseline.",
+          "collectionMethod": "Continuous monitoring (ConMon) tool output."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated control-drift detection.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

@@ -15,10 +15,6 @@ import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { createKnowledgeItem, getEngineeringCapital, promoteKnowledgeItemScope, transitionKnowledgeItem } from "../src/routes/seu/core/knowledge.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 async function commissionTestSeu(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromFormSync({

@@ -22,10 +22,6 @@ import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { publishTemplate, transitionTemplate, type TemplateSeedInput } from "../src/routes/seu/core/templates.js";
 import { uniqueTestPackVersion } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 // "api-platform" — a real, platform-seeded template-categories Ontology
 // concept (migration 053) — Template's `code` must resolve to one of these,
 // not a hand-typed string (validateTemplateSeed -> assertCanonicalCategory).

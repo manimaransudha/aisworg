@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-dpdp-consent-withdrawal-mechanism-check",
+        "category": "Compliance",
+        "title": "Consent withdrawal must remain as easy as giving consent, and be honored promptly",
+        "description": "India's DPDP Act requires that withdrawing consent be as easy as giving it, and that data processing stop promptly upon withdrawal; the consent management mechanism must be periodically checked for continued correct operation, not assumed to work indefinitely.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "The consent withdrawal mechanism is tested and confirmed functional within the declared check cadence.",
+        "requiredEvidence": {
+          "title": "Consent withdrawal mechanism test",
+          "category": "Validation Evidence",
+          "description": "Test result confirming consent withdrawal correctly stops processing.",
+          "collectionMethod": "Automated consent-management system test."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated consent-mechanism functional test.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

@@ -63,6 +63,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "sebi-trading-window-closure-monitoring",
+        "category": "Compliance",
+        "title": "Trading window closures must be enforced during Unpublished Price Sensitive Information periods",
+        "description": "SEBI's Prohibition of Insider Trading regulations require the trading window to be closed for designated persons whenever Unpublished Price Sensitive Information exists; a lapse in enforcing the closure is a compliance failure independent of whether any actual trade occurred.",
+        "origin": "Policies",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "The trading window closure is active and enforced for every declared UPSI period.",
+        "requiredEvidence": {
+          "title": "Trading window enforcement record",
+          "category": "Validation Evidence",
+          "description": "Record confirming the trading window was closed for designated persons during each UPSI period.",
+          "collectionMethod": "Compliance/insider-trading monitoring system export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated trading-window enforcement check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

@@ -163,6 +163,30 @@
         "dimension": "Technology",
         "value": "git"
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "git-stale-branch-large-object-cleanup",
+        "category": "Engineering",
+        "title": "Stale branches and accidentally committed large objects must be cleaned up periodically",
+        "description": "A repository accumulates abandoned branches and, occasionally, large binary objects committed by mistake; both degrade repository usability and must be reviewed and cleaned up on a recurring cadence rather than left to grow indefinitely.",
+        "origin": "Quality Gates",
+        "priority": "Low",
+        "severity": "Low",
+        "completionCriteria": "Stale branches and oversized objects are reviewed and cleaned up within the declared cadence.",
+        "requiredEvidence": {
+          "title": "Repository hygiene audit",
+          "category": "Validation Evidence",
+          "description": "Repository scan listing stale branches and objects exceeding the size threshold.",
+          "collectionMethod": "Automated repository hygiene scan."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated repository hygiene check.",
+        "externalEvidence": false
+      }
     ]
   }
 }

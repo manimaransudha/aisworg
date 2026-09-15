@@ -33,15 +33,35 @@
 // bulk path only. Every other caller (real onboarding adapters via routes,
 // admin actions) still goes through createParticipantMaster's live,
 // always-current validation unchanged.
+import { createRequire } from "node:module";
 import { tenantsDB } from "../tenantsDB.js";
 import { participantsMasterDB } from "../participantsMasterDB.js";
 import { ontologyDB, type OntologyViewer } from "../ontologyDB.js";
+import { bulkInsert } from "../../utils/db.js";
 import { resolveOnboardingAdapter, listRegisteredOnboardingTypes } from "../../adapters/participantOnboardingRegistry.js";
 import { logger } from "../../utils/logger.js";
 import type { OnboardedParticipant } from "../../adapters/participantOnboardingAdapter.js";
 
+const require = createRequire(import.meta.url);
+const bcrypt = require("bcryptjs");
+
+// Human Participant login accounts — owner: "before going forward with
+// execution", a Human Participant needs to actually be a real user who can
+// log in and see their own dispatched Work Items, not just a
+// participants_master matching-catalog row. Human only, for now (AI/External/
+// Automated participants don't log in). Password hashed ONCE and reused
+// across every seeded row — same shape as seedIdentityBaseline.ts's own
+// fixture-user block (`bcrypt.hash("password", 12)`), not per-row (500 bcrypt
+// hashes at seed time would be needlessly slow; the literal password is the
+// same for every one of these by design, a dev/test seed, not production
+// credentials). users is TRUNCATED at clean-slate step 1b and this seed only
+// ever runs after that (never standalone against a live table per this
+// project's "no standalone seed scripts" rule), so a plain bulk INSERT with
+// no ON CONFLICT is correct here — same assumption participantsMasterDB's own
+// createMany already relies on in this exact file.
+
 // const TENANT_CODES = ["platform", "demo", "default", "Athens", "Babylon", "Cambodia"];
-const TENANT_CODES = ["default"];
+const TENANT_CODES = ["Babylon"];
 const PARTICIPANTS_PER_TENANT_PER_TYPE = 500;
 
 // Still bounded — participantsMasterDB.create is one query per row (the
@@ -112,7 +132,9 @@ async function runWithConcurrency<T>(items: T[], worker: (item: T) => Promise<vo
 
 export async function seedParticipantsMaster(): Promise<void> {
   let created = 0;
+  let usersCreated = 0;
   const types = listRegisteredOnboardingTypes();
+  const humanPasswordHash = await bcrypt.hash("password", 12);
 
   for (const code of TENANT_CODES) {
     const { data: tenant } = await tenantsDB.findByCode(code);
@@ -128,6 +150,12 @@ export async function seedParticipantsMaster(): Promise<void> {
       const adapter = resolveOnboardingAdapter(type);
       const seeds = Array.from({ length: PARTICIPANTS_PER_TENANT_PER_TYPE }, (_, i) => i);
       const rows: Parameters<typeof participantsMasterDB.createMany>[0] = [];
+      // Parallel to `rows`, same index — pushed in the same tick as its own
+      // row (no `await` between the two pushes below), so index correlation
+      // holds even though runWithConcurrency's completion order is not the
+      // same as `seeds`' own order. Human-only; every other type's slot stays
+      // null and is never looked at.
+      const humanEmails: (string | null)[] = [];
 
       await runWithConcurrency(seeds, async (i) => {
         // tenant.name, not the raw lookup `code` — reads correctly in the
@@ -148,7 +176,36 @@ export async function seedParticipantsMaster(): Promise<void> {
           isActive: true,
           userId: onboarded.userId ?? null,
         });
+        // Same per-tenant real-domain convention seedIdentityBaseline's own
+        // fixture users already use (participant1@babylon.com etc.) — no
+        // tenant code in the local part, since the domain already carries it.
+        humanEmails.push(type === "Human" ? `human-${i + 1}@${code.toLowerCase()}.com` : null);
       });
+
+      if (type === "Human") {
+        const userRows = rows.map((row, idx) => [
+          humanEmails[idx],
+          row.displayName,
+          "general",
+          "local",
+          true,
+          false,
+          "Tenant",
+          tenant.id,
+          humanPasswordHash,
+        ]);
+        const { rows: insertedUsers } = await bulkInsert(
+          "users",
+          ["email", "name", "role", "auth_provider", "is_active", "is_protected", "type", "tenant_id", "password_hash"],
+          userRows
+        );
+        const createdUsers = insertedUsers as unknown as Array<{ email: string; id: number }>;
+        usersCreated += createdUsers.length;
+        const userIdByEmail = new Map<string, number>(createdUsers.map((u) => [u.email, u.id]));
+        rows.forEach((row, idx) => {
+          row.userId = userIdByEmail.get(humanEmails[idx] as string) ?? null;
+        });
+      }
 
       const { data, error } = await participantsMasterDB.createMany(rows);
       if (error) throw error;
@@ -156,5 +213,5 @@ export async function seedParticipantsMaster(): Promise<void> {
     }
   }
 
-  logger.info(`[seedParticipantsMaster] seeded ${created} participants_master rows across ${TENANT_CODES.length} tenants x ${types.length} Participant Types.`);
+  logger.info(`[seedParticipantsMaster] seeded ${created} participants_master rows across ${TENANT_CODES.length} tenants x ${types.length} Participant Types (${usersCreated} Human rows also got a real login user, password "password").`);
 }

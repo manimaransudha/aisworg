@@ -1,33 +1,61 @@
 <%# Grouped, TABBED rendering of a groupFieldsForDisplay() result — the Pack/
     Template/Profile authoring redesign (owner: "extremely unfriendly", then
-    "each of the sections ... has to be a separate tab"). Every section —
-    Identity & Metadata, Pack Codes, Deliverable Catalogue, Compatibility,
-    Dependencies, and each individual Contribution type — is its own
-    Bootstrap tab, not a stacked card or a nested accordion; only one
-    section's fields are on screen at a time. Pack Codes / Deliverable
-    Catalogue are Template's own tabs (owner: "A tab for pack codes... A tab
-    for deliverable catalogue. This is where the dependency graph should
-    be") — they render only when the entity's schema actually has those
-    fields (Template does; Profile picks up Pack Codes too, for the four
-    category names it shares; Pack has neither).
+    "each of the sections ... has to be a separate tab"), later generalised
+    (owner: "Policy UI has to be similar to Pack - Metadata tab and other
+    tabs grouped" -> "Full redesign") so which simple-field-grid tabs a kind
+    has — Identity & Metadata, Pack Codes, Deliverable Catalogue,
+    Compatibility, Policy's own Applicability/Governance, etc. — is entirely
+    the schema's own x-groups declaration (groups.groups, in order), not a
+    hardcoded list here. Dependencies and each individual Contribution type
+    are still their own tab too, name/pattern-detected as before. Only one
+    tab's fields are on screen at a time.
     Locals: groups (FieldGroups), canEdit (bool), referentialOptions,
     contributionHelp (Record<string,string>), verifiableFieldHelp
     (Record<string,string>), checklistOptions (ChecklistOption[], CR-060 —
     checklistIds' cross-Pack picker source), renderMarkdown (CR-077 —
     (raw: string) => string, threaded through to _referentialListGroup.ejs),
     sections (string[], optional — which of
-    metadata/packSelection/deliverables/compatibility/dependencies/contributions
-    to include; omitted = all), idPrefix (string, optional — keeps tab/pane
-    element ids unique when this partial is included more than once on the
-    same page, e.g. once per stepper pane).
+    groups/exposableParameters/parameterOverrides/dependencies/contributions
+    to include; omitted = all — 'groups' covers every schema-declared simple
+    tab plus Configuration Parameters), idPrefix (string, optional — keeps
+    tab/pane element ids unique when this partial is included more than once
+    on the same page, e.g. once per stepper pane).
     Self-contained — doesn't share markup with _generatedFields.ejs, which the
     schema-registry's own meta-schema form still uses unchanged, so this
     redesign carries zero risk to that page. %>
 <%
-  var sections = locals.sections || ['metadata', 'packSelection', 'deliverables', 'exposableParameters', 'parameterOverrides', 'configurationParameters', 'compatibility', 'dependencies', 'contributions'];
+  // Full redesign (owner: "Policy UI has to be similar to Pack - Metadata
+  // tab and other tabs grouped") — which simple-field-grid tabs exist, their
+  // label, order, and field membership all come from the schema's own
+  // x-groups/x-group now (formGenerator.js's groupFieldsForDisplay), not a
+  // hardcoded list of tab ids here. `sections` (unused by the form's only
+  // real caller today — reserved for a future stepper) now filters by these
+  // five conceptual buckets instead of the old finer-grained tab ids.
+  var sections = locals.sections || ['groups', 'exposableParameters', 'parameterOverrides', 'dependencies', 'contributions'];
   var wantSection = function(key) { return sections.indexOf(key) !== -1; };
+  // Bug fix — JSON.stringify embedded raw into a SINGLE-quoted HTML
+  // attribute (the only way to embed valid JSON, whose own strings are
+  // double-quoted, without colliding with the attribute's own quoting) broke
+  // the moment any Ontology label carried a literal apostrophe (e.g. "COPPA
+  // Children's Privacy Compliance") — the apostrophe closed the attribute
+  // early, silently truncating every driver value that came after it in the
+  // JSON, not just the one carrying it. Escaping `'` to `&#39;` keeps the
+  // attribute intact; the browser decodes the entity back to a literal `'`
+  // before JSON.parse ever sees it, which reads it as an ordinary string
+  // character like any other.
+  var escapeAttrJson = function(obj) { return JSON.stringify(obj).replace(/'/g, '&#39;'); };
+  // Bug fix (owner: "still shows Deliverable states" — the raw
+  // "Deliverable|Approved|Baselined" value IS a transition already, but
+  // displaying that exact string as the option's own visible LABEL too is
+  // just concatenated states with pipes, not "more clear" at all). Strips
+  // the entity type, shows "From → To" — generic over any EntityType|From|To
+  // referentialOptions value, not just Deliverable's; a plain non-pipe
+  // string (e.g. a noun code) passes through unchanged.
+  var formatMultiOptionLabel = function(opt) {
+    var parts = String(opt).split('|');
+    return parts.length === 3 ? (parts[1] + ' → ' + parts[2]) : opt;
+  };
   var idPrefix = locals.idPrefix || 'sec';
-  var simpleFields = (locals.groups.other || []).concat(locals.groups.metadata || []);
   var VERIFIABLE_FIELD_NAMES = ['statement','classification','prompt','participant','outputContract','assurance','externalEvidence'];
 
   // CR-067 x-show-when — "when a composition strategy is chosen, the UI
@@ -38,10 +66,13 @@
   // "simple"-tab field (referential-list fields carry no scalar .value, so
   // they're never valid controllers, only targets).
   var fieldValueByName = {};
-  simpleFields.concat(locals.groups.packSelection || [], locals.groups.deliverables || [], locals.groups.compatibility || []).forEach(function (f) {
-    if (f.kind !== 'referential-list') fieldValueByName[f.name] = f.value;
+  (locals.groups.groups || []).forEach(function (g) {
+    g.fields.forEach(function (f) { if (f.kind !== 'referential-list') fieldValueByName[f.name] = f.value; });
   });
   var isShowWhenHidden = function (f) { return !!f.showWhen && !fieldValueByName[f.showWhen]; };
+  // Deliverable Catalogue tab exists only for Template (its own x-groups
+  // declares a "deliverables" entry; Profile/Pack/Service/Policy don't).
+  var hasDeliverablesGroup = (locals.groups.groups || []).some(function (g) { return g.key === 'deliverables' && g.fields.length; });
 
   // One entry per TAB — 'simple' (a plain field grid: Identity & Metadata,
   // Compatibility), 'referential-list' (Dependencies + most Contribution
@@ -50,14 +81,19 @@
   // the author straight to whichever section already has real data, same
   // intent the old accordion's "collapsed unless populated" had.
   var tabs = [];
-  if (wantSection('metadata') && simpleFields.length) {
-    tabs.push({ id: 'metadata', label: 'Identity & Metadata', type: 'simple', fields: simpleFields, hasContent: false });
+  if (wantSection('groups')) {
+    (locals.groups.groups || []).forEach(function (g) {
+      if (g.fields.length) tabs.push({ id: g.key, label: g.label, type: 'simple', fields: g.fields, hasContent: false });
+    });
   }
-  if (wantSection('packSelection') && (locals.groups.packSelection || []).length) {
-    tabs.push({ id: 'packSelection', label: 'Pack Codes', type: 'simple', fields: locals.groups.packSelection, hasContent: false });
-  }
-  if (wantSection('deliverables') && (locals.groups.deliverables || []).length) {
-    tabs.push({ id: 'deliverables', label: 'Deliverable Catalogue', type: 'simple', fields: locals.groups.deliverables, hasContent: false });
+  // CR-091 Part 2 — Profile's own Ch.7 §10 Configuration Parameters. Unlike
+  // Exposable Parameters below (a bespoke candidate-driven grid), these are
+  // ordinary generated fields — 'simple' renders them exactly like the
+  // schema-driven groups above; stays its own name-detected singleton
+  // (formGenerator.js) rather than schema-driven, since its required-ness is
+  // tenant-overridable at render time (CR-091 Part 2), not a schema fact.
+  if (wantSection('groups') && (locals.groups.configurationParameters || []).length) {
+    tabs.push({ id: 'configurationParameters', label: 'Configuration Parameters', type: 'simple', fields: locals.groups.configurationParameters, hasContent: false });
   }
   if (wantSection('exposableParameters') && (locals.groups.exposableParameters || []).length) {
     tabs.push({ id: 'exposableParameters', label: 'Exposable Parameters', type: 'exposableParameters', hasContent: false });
@@ -70,18 +106,6 @@
   // overriding value for the ones it chooses to.
   if (wantSection('parameterOverrides') && (locals.groups.parameterOverrides || []).length) {
     tabs.push({ id: 'parameterOverrides', label: 'Parameter Overrides', type: 'parameterOverrides', hasContent: false });
-  }
-  // CR-091 Part 2 — Profile's own Ch.7 §10 Configuration Parameters. Unlike
-  // Exposable Parameters above (a bespoke candidate-driven grid), these are
-  // ordinary generated fields — 'simple' renders them exactly like
-  // Identity & Metadata/Compatibility already do, just under their own
-  // tab (owner: "Yes Exposed parameters in one tab and Configuration
-  // parameters in another").
-  if (wantSection('configurationParameters') && (locals.groups.configurationParameters || []).length) {
-    tabs.push({ id: 'configurationParameters', label: 'Configuration Parameters', type: 'simple', fields: locals.groups.configurationParameters, hasContent: false });
-  }
-  if (wantSection('compatibility') && (locals.groups.compatibility || []).length) {
-    tabs.push({ id: 'compatibility', label: 'Compatibility', type: 'simple', fields: locals.groups.compatibility, hasContent: false });
   }
   if (wantSection('dependencies') && locals.groups.dependencies) {
     var depField = locals.groups.dependencies;
@@ -166,7 +190,7 @@
               tab at all (Template only — Profile shares this Pack Codes tab
               for its own 4 category fields but has no deliverableCatalogue
               to derive anything from). %>
-          <% if (t.id === 'packSelection' && (locals.groups.deliverables || []).length) { %>
+          <% if (t.id === 'packSelection' && hasDeliverablesGroup) { %>
             <div class="mb-3">
               <label class="form-label small fw-semibold mb-1">Required Capabilities <span class="text-muted fw-normal">— from the Deliverable Catalogue's Capability dependencies, read-only</span></label>
               <% if (!(locals.requiredCapabilityNames || []).length) { %>
@@ -211,7 +235,7 @@
                       must still fill in); meaningless once the page is just
                       showing what was already saved. %>
                   <label class="form-label small fw-semibold"><%= f.label %><% if (f.required && canEdit) { %> <span class="text-danger">*</span><% } %></label>
-                  <%- include('_referentialListGroup', { field: f, canEdit: canEdit, referentialOptions: locals.referentialOptions, ontologyOptions: locals.ontologyOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions, serviceDefinitionOptions: locals.serviceDefinitionOptions, renderMarkdown: locals.renderMarkdown }) %>
+                  <%- include('_referentialListGroup', { field: f, canEdit: canEdit, referentialOptions: locals.referentialOptions, ontologyOptions: locals.ontologyOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions, serviceDefinitionOptions: locals.serviceDefinitionOptions, renderMarkdown: locals.renderMarkdown, fieldValueByName: fieldValueByName }) %>
                   <% if (f.help) { %><div class="form-text small"><%= f.help %></div><% } %>
                 </div>
               <% } else { %>
@@ -310,9 +334,22 @@
                       <% }) %>
                     <% } %>
                   <% } else if (f.kind === 'referential-multi-select') { %>
+                    <%# Owner: "applicabilityDeliverableLifecycle is not
+                        OntologyComposable" — a real, non-Ontology multi-select
+                        (e.g. sourced from live transition_definitions states)
+                        reads from referentialOptions instead of
+                        ontologyOptions; every one of its values is already a
+                        real, valid option (it's a closed dropdown, nothing
+                        free-typed), so no "⚠ unregistered" marker applies. %>
                     <% var _ontOptsMultiView = ((locals.ontologyOptions || {})[f.referentialSource] || []); %>
                     <% if (!f.value.length) { %>
                       <div class="small text-muted">None</div>
+                    <% } else if (!f.ontology) { %>
+                      <div class="d-flex flex-wrap gap-1">
+                        <% f.value.forEach(function(v) { %>
+                          <span class="badge bg-light text-dark border"><%= formatMultiOptionLabel(v) %></span>
+                        <% }) %>
+                      </div>
                     <% } else { %>
                       <div class="d-flex flex-wrap gap-1">
                         <% f.value.forEach(function(v) { %>
@@ -411,7 +448,17 @@
                     // dead-end branch-picker links — so this must only ever
                     // be present on a genuinely new, not-yet-created Draft.
                   %>
-                  <div class="ontology-combo" data-driver-field="<%= f.dynamicSourceField %>" data-driver-values='<%- JSON.stringify(_optionsByDriverValue) %>' <% if (f.name === 'code' && locals.isNew) { %>data-code-versions='<%- JSON.stringify(locals.packCodeVersions || {}) %>'<% } %>>
+                  <%# Bug fix — a raw apostrophe inside an Ontology label
+                      (e.g. "COPPA Children's Privacy Compliance") prematurely
+                      closed this single-quoted attribute, truncating every
+                      driver value that came after it in the JSON (silently
+                      breaking every OTHER category's own suggestion list,
+                      not just the one carrying the apostrophe). HTML-escape
+                      any embedded `'` to `&#39;` — the browser decodes it
+                      back to a literal apostrophe inside the attribute value,
+                      which JSON.parse then reads as an ordinary string
+                      character, no different from any other. %>
+                  <div class="ontology-combo" data-driver-field="<%= f.dynamicSourceField %>" data-driver-values='<%- escapeAttrJson(_optionsByDriverValue) %>' <% if (f.name === 'code' && locals.isNew) { %>data-code-versions='<%- escapeAttrJson(locals.packCodeVersions || {}) %>'<% } %>>
                     <input id="<%= f.name %>-field" name="<%= f.name %>" class="form-control form-control-sm ontology-combo-input" autocomplete="off" value="<%= f.value %>" <%- f.required ? 'required' : '' %> <%- canEdit ? '' : 'disabled' %>>
                     <div class="ontology-combo-menu"></div>
                   </div>
@@ -489,6 +536,94 @@
                     <% }) %>
                   </div>
                   <div class="form-text small">Dimmed policies don't obviously govern a deliverable-name this Pack's own declared Capabilities currently produce — check them anyway if you know better; nothing here is enforced.</div>
+                <% } else if (f.kind === 'referential-multi-select' && f.driverField) { %>
+                  <%# Owner: "what kind of coding is this? isn't this
+                      fundamental?" — a driven multi-select (Policy's own
+                      applicabilityDeliverableNames, by `scope`) must swap
+                      LIVE the instant the driver changes, same standard the
+                      single-value driven referential-select (dynamicOntologyField.js)
+                      already meets — not just correctly-resolved after a
+                      reload. Renders one <fieldset> per variant (each with
+                      its own correct widget shape/options), all present in
+                      the DOM; scopeDrivenMulti.js shows exactly one and
+                      disables the rest — `disabled` on a <fieldset> cascades
+                      to every descendant control, so a hidden variant's
+                      values never submit alongside the visible one's. Only
+                      the variant matching the driver's CURRENT value is
+                      pre-filled with f.value — switching modes starts the
+                      other variant empty rather than showing foreign
+                      selections that don't apply to it. %>
+                  <% var _currentDriverValue = fieldValueByName[f.driverField]; %>
+                  <div class="scope-driven-multi" data-driver-field="<%= f.driverField %>">
+                    <% f.variants.forEach(function(variant) { %>
+                      <% var _namedMatches = f.variants.some(function(x) { return x.matchValue !== null && x.matchValue === _currentDriverValue; }); %>
+                      <% var _isActive = variant.matchValue === null ? !_namedMatches : variant.matchValue === _currentDriverValue; %>
+                      <% var _vOpts = variant.ontology ? ((locals.ontologyOptions || {})[variant.referentialSource] || []) : ((locals.referentialOptions || {})[variant.referentialSource] || []).map(function(s) { return { code: s, label: formatMultiOptionLabel(s) }; }); %>
+                      <% var _vValue = _isActive ? f.value : []; %>
+                      <fieldset class="scope-driven-variant" data-match-value="<%= variant.matchValue === null ? '' : variant.matchValue %>" data-is-default="<%= variant.matchValue === null ? '1' : '' %>" <%- (_isActive || !canEdit) ? '' : 'disabled' %> <%- _isActive ? '' : 'hidden' %>>
+                        <% if (variant.ontology && variant.composable) { %>
+                          <div class="ontology-multi-combo" data-field-name="<%= f.name %>" data-options='<%- escapeAttrJson(_vOpts) %>'>
+                            <div class="ontology-multi-chips">
+                              <% _vValue.forEach(function(v) { %>
+                                <% var _matchedV = _vOpts.find(function(o) { return o.code === v; }); %>
+                                <span class="ontology-chip">
+                                  <input type="hidden" name="<%= f.name %>[]" value="<%= v %>">
+                                  <span class="ontology-chip-label"><%= _matchedV ? _matchedV.label : v %></span>
+                                  <% if (!_matchedV) { %><span class="ontology-chip-flag" title="Not yet in the Ontology — proposing on save">⚠</span><% } %>
+                                  <% if (canEdit) { %><button type="button" class="ontology-chip-remove" aria-label="Remove">&times;</button><% } %>
+                                </span>
+                              <% }) %>
+                            </div>
+                            <% if (canEdit) { %>
+                            <div class="ontology-combo">
+                              <input class="ontology-combo-input form-control form-control-sm" autocomplete="off" placeholder="Pick or type a new value…">
+                              <div class="ontology-combo-menu"></div>
+                            </div>
+                            <% } %>
+                          </div>
+                        <% } else { %>
+                          <select name="<%= f.name %>[]" class="form-select form-select-sm" multiple size="6">
+                            <% _vOpts.forEach(function(opt) { %>
+                              <option value="<%= opt.code %>" <%= _vValue.indexOf(opt.code) !== -1 ? 'selected' : '' %>><%= opt.label %></option>
+                            <% }) %>
+                          </select>
+                        <% } %>
+                      </fieldset>
+                    <% }) %>
+                  </div>
+                <% } else if (f.kind === 'referential-multi-select' && f.composable) { %>
+                  <%# Owner: "flag in the schema that will specify if an
+                      Ontology Composition is allowed" (x-ontology-composable)
+                      — pick any number of existing Ontology options, or type
+                      a value that isn't one yet; an unregistered typed value
+                      proposes an OntologyComposed event on save instead of
+                      being rejected (core/ontology.ts#proposeComposableOntologyValues),
+                      same "propose, don't reject" split Pack's own `code`
+                      combo already has at draft time. Each chip is a real
+                      hidden input, so the field submits as a plain
+                      "<name>[]" array with zero server-side special-casing —
+                      composableMultiSelect.js only manipulates chips
+                      client-side. %>
+                  <div class="ontology-multi-combo" data-field-name="<%= f.name %>" data-options='<%- escapeAttrJson((locals.ontologyOptions || {})[f.referentialSource] || []) %>'>
+                    <div class="ontology-multi-chips">
+                      <% f.value.forEach(function(v) { %>
+                        <% var _matchedChip = ((locals.ontologyOptions || {})[f.referentialSource] || []).find(function(o) { return o.code === v; }); %>
+                        <span class="ontology-chip">
+                          <input type="hidden" name="<%= f.name %>[]" value="<%= v %>">
+                          <span class="ontology-chip-label"><%= _matchedChip ? _matchedChip.label : v %></span>
+                          <% if (!_matchedChip) { %><span class="ontology-chip-flag" title="Not yet in the Ontology — proposing on save">⚠</span><% } %>
+                          <% if (canEdit) { %><button type="button" class="ontology-chip-remove" aria-label="Remove">&times;</button><% } %>
+                        </span>
+                      <% }) %>
+                    </div>
+                    <% if (canEdit) { %>
+                    <div class="ontology-combo">
+                      <input class="ontology-combo-input form-control form-control-sm" autocomplete="off" placeholder="Pick or type a new value…">
+                      <div class="ontology-combo-menu"></div>
+                    </div>
+                    <% } %>
+                  </div>
+                  <div class="form-text small">Pick as many as apply, or type a value that isn't listed yet — it will be proposed to the Ontology when saved, and must be accepted before this Policy can Publish.</div>
                 <% } else if (f.kind === 'referential-multi-select') { %>
                   <%# CR-086/Ch.11 follow-on — Service Definition's own
                       `consumers`: same ontology-backed option source as a
@@ -497,11 +632,24 @@
                       it back to a plain array under the schema's own field
                       name — parseFormBody's generic passthrough (no
                       referential-multi-select-specific branch needed there)
-                      picks it up unchanged. %>
+                      picks it up unchanged.
+                      Owner: "applicabilityDeliverableLifecycle is not
+                      OntologyComposable" — a non-Ontology multi-select
+                      (f.ontology === false) sources its options from
+                      referentialOptions (a plain string[] Registry source,
+                      e.g. live transition_definitions states) instead of
+                      ontologyOptions ({code,label}[]); each option's own
+                      string is both its value and its label. %>
                   <select name="<%= f.name %>[]" class="form-select form-select-sm" multiple size="6" <%- canEdit ? '' : 'disabled' %>>
-                    <% ((locals.ontologyOptions || {})[f.referentialSource] || []).forEach(function(opt) { %>
-                      <option value="<%= opt.code %>" <%= f.value.indexOf(opt.code) !== -1 ? 'selected' : '' %>><%= opt.label %></option>
-                    <% }) %>
+                    <% if (f.ontology) { %>
+                      <% ((locals.ontologyOptions || {})[f.referentialSource] || []).forEach(function(opt) { %>
+                        <option value="<%= opt.code %>" <%= f.value.indexOf(opt.code) !== -1 ? 'selected' : '' %>><%= opt.label %></option>
+                      <% }) %>
+                    <% } else { %>
+                      <% ((locals.referentialOptions || {})[f.referentialSource] || []).forEach(function(opt) { %>
+                        <option value="<%= opt %>" <%= f.value.indexOf(opt) !== -1 ? 'selected' : '' %>><%= formatMultiOptionLabel(opt) %></option>
+                      <% }) %>
+                    <% } %>
                   </select>
                   <div class="form-text small">Ctrl/Cmd-click to select more than one — leave empty for none.</div>
                 <% } else if (f.kind === 'json') { %>
@@ -708,7 +856,7 @@
           <% } else if (t.type === 'json') { %>
             <textarea name="<%= t.field.name %>" class="form-control form-control-sm font-monospace" rows="6" <%- canEdit ? '' : 'disabled' %>><%= t.field.value %></textarea>
           <% } else { %>
-            <%- include('_referentialListGroup', { field: t.field, canEdit: canEdit, referentialOptions: locals.referentialOptions, ontologyOptions: locals.ontologyOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions, serviceDefinitionOptions: locals.serviceDefinitionOptions, renderMarkdown: locals.renderMarkdown }) %>
+            <%- include('_referentialListGroup', { field: t.field, canEdit: canEdit, referentialOptions: locals.referentialOptions, ontologyOptions: locals.ontologyOptions, packDependencyOptions: locals.packDependencyOptions, checklistOptions: locals.checklistOptions, policyOptions: locals.policyOptions, serviceDefinitionOptions: locals.serviceDefinitionOptions, renderMarkdown: locals.renderMarkdown, fieldValueByName: fieldValueByName }) %>
           <% } %>
         <% } %>
 

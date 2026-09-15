@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "lifesciences-lab-notebook-integrity-review",
+        "category": "Compliance",
+        "title": "Electronic lab notebook entries must be periodically reviewed for data integrity",
+        "description": "LIMS/ELN records supporting R&D and regulatory submissions must be periodically reviewed for data-integrity issues (backdating, unexplained edits), not merely retained as an audit trail no one inspects.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "The ELN audit trail is reviewed for integrity issues within the declared cadence, with any issue dispositioned.",
+        "requiredEvidence": {
+          "title": "ELN integrity review record",
+          "category": "Validation Evidence",
+          "description": "Review of the electronic lab notebook's audit trail for data-integrity issues.",
+          "collectionMethod": "LIMS/ELN system audit-trail export."
+        },
+        "classification": "human-attested",
+        "prompt": "Has the ELN audit trail been reviewed for data-integrity issues within the required cadence?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Quality assurance/lab director sign-off.",
+        "externalEvidence": true
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

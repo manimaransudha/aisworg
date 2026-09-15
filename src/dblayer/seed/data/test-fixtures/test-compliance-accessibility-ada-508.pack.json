@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-ada-508-periodic-accessibility-reaudit",
+        "category": "Compliance",
+        "title": "Digital accessibility conformance must be re-audited on a recurring cadence",
+        "description": "ADA Title III / Section 508 / EAA conformance is not a one-time certification; content and UI changes can silently reintroduce accessibility defects, so conformance must be re-verified on a recurring cadence, not assumed permanent from the original audit.",
+        "origin": "Compliance Packs",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "An accessibility conformance re-audit is completed and passed within the declared cadence window.",
+        "requiredEvidence": {
+          "title": "Accessibility conformance audit",
+          "category": "Validation Evidence",
+          "description": "Automated and manual accessibility audit output (WCAG 2.1 AA or equivalent) confirming continued conformance.",
+          "collectionMethod": "Automated accessibility scanning tool plus manual audit."
+        },
+        "classification": "human-attested",
+        "prompt": "Has an accessibility conformance re-audit been completed within the declared cadence and passed?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Accessibility compliance lead sign-off.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

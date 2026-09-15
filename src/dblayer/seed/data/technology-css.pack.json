@@ -154,6 +154,30 @@
         "dimension": "Technology",
         "value": "css"
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "css-unused-style-token-drift-audit",
+        "category": "Engineering",
+        "title": "Stylesheet rules and design tokens must be audited for drift and dead weight",
+        "description": "CSS rules and design tokens accumulate unused/duplicate entries as components change; the stylesheet must be periodically audited to remove dead rules and reconcile tokens with the current design system, not left to grow indefinitely.",
+        "origin": "Quality Gates",
+        "priority": "Low",
+        "severity": "Low",
+        "completionCriteria": "The stylesheet is audited for unused rules/tokens within the declared cadence, with findings remediated.",
+        "requiredEvidence": {
+          "title": "Unused CSS audit",
+          "category": "Validation Evidence",
+          "description": "Tool output identifying unused CSS rules/tokens against live markup usage.",
+          "collectionMethod": "Automated CSS coverage/audit tool output."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated CSS-coverage audit.",
+        "externalEvidence": false
+      }
     ]
   }
 }

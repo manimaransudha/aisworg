@@ -16,7 +16,7 @@ import { badgeAuthorityEngine } from "./badgeAuthorityEngine.js";
 import { qualityGateEngine } from "./qualityGateEngine.js";
 import { eventBus } from "./eventBus.js";
 import { triggerEngine } from "./triggerEngine.js";
-import { evaluateCondition, type PolicyCondition } from "./policyCondition.js";
+import { evaluateCondition, type GoverningCondition } from "./governingCondition.js";
 import type { TransitionEntityType } from "../../dblayer/seuTypes.js";
 
 export type TransitionOutcome =
@@ -124,8 +124,33 @@ export const transitionEngine = {
     if (definition.required_policy_ids.length > 0) {
       const { data: policies } = await policiesDB.findByIds(definition.required_policy_ids);
       for (const policy of policies ?? []) {
-        const satisfied = evaluateCondition(policy.condition as PolicyCondition, input.context ?? {});
-        if (!satisfied && policy.constraint_type === "Policy") {
+        const satisfied = evaluateCondition(policy.condition as GoverningCondition, input.context ?? {});
+        const payload = { policyCode: policy.code, entityType: input.entityType, fromState: input.fromState, toState: input.toState };
+        // Ch.24 §15 — PolicyApplied/PolicyViolated, the platform's own
+        // generic vocabulary for "a policy was checked as part of a
+        // governed transition," alongside (not instead of)
+        // StandardPolicyDeviation below, which telemetry.ts already reads
+        // specifically for sustained-pattern detection.
+        if (satisfied) {
+          await eventBus.publish({
+            eventType: "PolicyApplied",
+            originatingObjectType: "Policy",
+            originatingObjectId: policy.id,
+            seuId: input.seuId ?? null,
+            correlationId: eventBus.newCorrelationId(),
+            payload,
+          });
+          continue;
+        }
+        await eventBus.publish({
+          eventType: "PolicyViolated",
+          originatingObjectType: "Policy",
+          originatingObjectId: policy.id,
+          seuId: input.seuId ?? null,
+          correlationId: eventBus.newCorrelationId(),
+          payload: { ...payload, constraintType: policy.constraint_type },
+        });
+        if (policy.constraint_type === "Policy") {
           return { allowed: false, reason: "policy_blocked", policyCode: policy.code };
         }
         // Standard (non-blocking) deviations proceed — Ch.24 §11: they surface
@@ -137,16 +162,14 @@ export const transitionEngine = {
         // actually happens with sustained repeats of this event (raising an
         // Obligation) is core/telemetry.ts's job, checked from the Telemetry
         // dashboard/API itself, not threaded through every caller of evaluate.
-        if (!satisfied && policy.constraint_type === "Standard") {
-          await eventBus.publish({
-            eventType: "StandardPolicyDeviation",
-            originatingObjectType: "Policy",
-            originatingObjectId: policy.id,
-            seuId: input.seuId ?? null,
-            correlationId: eventBus.newCorrelationId(),
-            payload: { policyCode: policy.code, entityType: input.entityType, fromState: input.fromState, toState: input.toState },
-          });
-        }
+        await eventBus.publish({
+          eventType: "StandardPolicyDeviation",
+          originatingObjectType: "Policy",
+          originatingObjectId: policy.id,
+          seuId: input.seuId ?? null,
+          correlationId: eventBus.newCorrelationId(),
+          payload,
+        });
       }
     }
 

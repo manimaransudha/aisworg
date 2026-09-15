@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-fda-21cfr11-audit-trail-review",
+        "category": "Compliance",
+        "title": "Electronic record audit trails must be periodically reviewed, not merely retained",
+        "description": "21 CFR Part 11 requires that audit trails for electronic records be reviewed for anomalies (unauthorized changes, gaps) on a recurring basis; retaining the audit trail without ever reviewing it does not satisfy the regulation's intent.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "The audit trail is reviewed for anomalies within the declared review cadence, with any anomaly dispositioned.",
+        "requiredEvidence": {
+          "title": "Audit trail review record",
+          "category": "Validation Evidence",
+          "description": "Record of the audit-trail review and any anomalies found/dispositioned.",
+          "collectionMethod": "Electronic quality system audit-trail export."
+        },
+        "classification": "human-attested",
+        "prompt": "Has the electronic record audit trail been reviewed within the required cadence?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Quality assurance sign-off.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

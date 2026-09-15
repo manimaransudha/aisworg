@@ -16,24 +16,31 @@ import { deliverablesDB } from "../../dblayer/deliverablesDB.js";
 import { servicesDB } from "../../dblayer/servicesDB.js";
 import { seuCapabilitiesDB } from "../../dblayer/seuCapabilitiesDB.js";
 import { seusDB } from "../../dblayer/seusDB.js";
-import { ebmsDB } from "../../dblayer/ebmsDB.js";
 import { obligationsDB } from "../../dblayer/obligationsDB.js";
 import { evidenceDB } from "../../dblayer/evidenceDB.js";
 import { decisionsDB } from "../../dblayer/decisionsDB.js";
 import { knowledgeItemsDB } from "../../dblayer/knowledgeItemsDB.js";
 import { transitionDefinitionsDB } from "../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "./eventBus.js";
+import { resolveOwningScope as resolveOwningScopeByEbm } from "./seuCompositionScope.js";
 import type { DependencyDefinitionEntityType, DependencyDefinitionRow, TransitionEntityType } from "../../dblayer/seuTypes.js";
 
-// The SEU's own full scope — its Template, every Pack actually composed into
-// its active EBM (ebms.composed_packs, already real and stored), and its
-// Profile. Returns null only if the SEU itself doesn't exist.
+// CR-104 — the EBM (composed_packs/template_id/profile_id) is what actually
+// owns a composition, not the SEU (seuCompositionScope.ts, shared with
+// qualityGateEngine's own governance materialisation). This module's own
+// public methods still take a bare seuId (their existing, broad API — many
+// callers across core/*.ts use it), so this resolves the SEU's own active
+// EBM first, then delegates. A SEU with no active EBM yet (created directly,
+// bypassing full commissioning — real test fixtures do this) still has a
+// real templateId/profileId of its own; only packIds is empty in that case,
+// same as before this file's own resolveOwningScope was extracted — a
+// Template-owned dependency row is still findable with no Pack composed at
+// all. Returns null only if the SEU itself doesn't exist.
 async function resolveOwningScope(seuId: string): Promise<DependencyOwningScope | null> {
   const { data: seu } = await seusDB.findById(seuId);
   if (!seu) return null;
-  const { data: ebm } = seu.active_ebm_id ? await ebmsDB.findById(seu.active_ebm_id) : { data: null };
-  const packIds = (ebm?.composed_packs ?? []).map((p) => p.packId);
-  return { templateId: seu.template_id, profileId: seu.profile_id, packIds };
+  if (!seu.active_ebm_id) return { templateId: seu.template_id, profileId: seu.profile_id, packIds: [] };
+  return resolveOwningScopeByEbm(seu.active_ebm_id);
 }
 
 // Same "has this state been reached or passed" BFS dependencyEngine.ts uses

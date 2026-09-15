@@ -16,6 +16,26 @@ export interface JsonSchemaDocument {
   type?: string;
   required?: string[];
   properties?: Record<string, JsonSchemaProperty>;
+  // Full redesign (owner: "Policy UI has to be similar to Pack - Metadata tab
+  // and other tabs grouped") — retires METADATA_FIELD_NAMES/
+  // COMPATIBILITY_FIELD_NAMES/PACK_SELECTION_FIELD_NAMES/
+  // DELIVERABLES_FIELD_NAMES/FIELD_DISPLAY_ORDER (hardcoded, name-based, one
+  // shared order across every kind) in favour of the schema itself declaring
+  // which simple-field-grid tabs it has, in order. Each entry becomes one
+  // 'simple' tab in _generatedFieldGroups.ejs; a field joins one by its own
+  // `x-group` (below). Adding a new tab (e.g. Policy's own Applicability/
+  // Governance) is now a schema/data change, not a formGenerator.ts code
+  // change. Exposable/Parameter-Overrides/Configuration-Parameters stay
+  // their own name-detected singleton groups (below) — bespoke or
+  // tenant-overridable-at-render-time enough not to fit this mechanism.
+  "x-groups"?: Array<{ key: string; label: string }>;
+  // Top-level counterpart to items["x-property-order"] below — same reason
+  // (Postgres JSONB doesn't preserve object-key insertion order). Governs
+  // order WITHIN whichever group/tab a field lands in (via x-group), not
+  // across tabs, since tabs already separate fields regardless of their
+  // relative position here. Fields not listed keep their (arbitrary,
+  // post-JSONB-reorder) relative order, appended after every listed one.
+  "x-property-order"?: string[];
 }
 
 export interface JsonSchemaProperty {
@@ -54,6 +74,20 @@ export interface JsonSchemaProperty {
   // Pack/Template/Profile — which fields are ontology-backed is entirely a
   // schema fact, never a per-field-name branch in code.
   "x-ontology"?: boolean;
+  // Owner: "I want to have a flag in the schema that will specify if an
+  // Ontology Composition is allowed instead of a blanket x-referential
+  // option" — a field being Ontology-backed (x-ontology) is a separate fact
+  // from whether a user may propose a NEW value into that Ontology category.
+  // Only meaningful alongside x-widget:"referential-multi-select" (a
+  // multi-value field lets each entry be picked-existing or typed-new, same
+  // shape CR-100's single-value combo box already established, just N
+  // values instead of 1) and x-ontology:true. When true, the widget accepts
+  // free text in addition to picking existing options, and any typed value
+  // that doesn't resolve to a real concept triggers OntologyComposed (Ch.18
+  // §8) instead of being rejected outright. Per-field, not automatic for
+  // every x-ontology field — a closed vocabulary (e.g. Policy's own
+  // `category`) stays reject-on-unregistered with no propose path.
+  "x-ontology-composable"?: boolean;
   // CR-079 step (d) — this field's Ontology concept type isn't fixed; it's
   // derived from another field's CURRENT value on this same schema (Pack's
   // own `code`, driven by `category`: category "Technology" -> concept type
@@ -65,7 +99,30 @@ export interface JsonSchemaProperty {
   // there, code dropdown has to be generated."
   "x-referential-source-by"?: string;
   "x-referential-source-suffix"?: string;
+  // Owner: "If the scope is Transition, the applicable deliverable names
+  // will be ontology driven deliverable names. If the scope is eligibility,
+  // the nouns (SEU, Ontology etc.) should be in the dropdown" — Policy's own
+  // applicabilityDeliverableNames repurposed by scope's current value (CR-104
+  // owner: "is an implementation detail and not in the spec explicitly," so
+  // reusing rather than inventing a second field). Unlike
+  // x-referential-source-by/-suffix (a computed SUFFIX on the driver's own
+  // value — same concept KIND either way, e.g. Pack's code), this is a
+  // discrete jump between entirely different sources — one Ontology-backed,
+  // one a plain Registry list — keyed by the driver field's exact value.
+  // Falls back to `default` for any value not named (including empty/unset).
+  "x-referential-source-by-value"?: {
+    field: string;
+    values: Record<string, { source: string; ontology: boolean; composable?: boolean }>;
+    default: { source: string; ontology: boolean; composable?: boolean };
+  };
   "x-help"?: string;
+  // Owner (Policy condition redesign): "identifier: system generated" —
+  // exceptionRules[].identifier is assigned server-side on save
+  // (sdkAuthoring.ts's toPolicyConditions), never author-typed. Renders
+  // read-only (a hidden input carrying the existing value plus a plain-text
+  // display), same reasoning packVersion's own "Editable text is not the
+  // correct approach" already established for a different generated field.
+  "x-generated"?: boolean;
   // CR-077 — a long-text field authored in Markdown (Checklist/Quality Gate/
   // Review Gate/Obligation Definition's own statement/prompt). Orthogonal to
   // x-widget (which picks the control SHAPE — input/textarea/referential-list);
@@ -81,6 +138,16 @@ export interface JsonSchemaProperty {
   // "compositionStrategy" specifically) — pointing Template's own schema at
   // the same two markers later needs no new route/view/JS code.
   "x-show-when"?: string;
+  // Owner (GoverningCondition structured UI): "make the GoverningCondition
+  // UI user friendly and not a json edit" — x-show-when's existing "named
+  // sibling field is truthy" semantics extended with an exact-value-membership
+  // form: when set alongside x-show-when, this field stays hidden until the
+  // named sibling's CURRENT value is one of these (not merely non-empty) —
+  // e.g. `field`/`operator`/`value`/`values` only show once `type` picks a
+  // real condition type, and only the ones that type actually uses. Reuses
+  // edit.ejs's existing generic [data-show-when] mechanism (extended, not
+  // replaced) rather than a second widget.
+  "x-show-when-values"?: string[];
   // Owner (CR-058 form redesign): "the form is very very poorly designed" —
   // per-item-field help/required/label were previously only meaningful at
   // the top level of a field (e.g. contributionQualityGates' own x-help,
@@ -89,6 +156,13 @@ export interface JsonSchemaProperty {
   // (labelize(fieldName)) when the field name doesn't read well as one
   // (e.g. `statement` -> "Description" for Quality Gates specifically).
   "x-label"?: string;
+  // Which of the schema's own top-level x-groups (above) this field displays
+  // under — e.g. Policy's `code`/`name`/`description`/`category`/
+  // `constraintType` all declare "metadata", `conditions`/`scope`/
+  // `governedTransition`/`governingCondition` declare "governance". A field
+  // with no x-group (or one not declared in x-groups) falls into the
+  // generic "other" catch-all, appended to the first declared group's tab.
+  "x-group"?: string;
   // Postgres JSONB does not preserve object key insertion order — it
   // reorders keys by length then lexicographically (confirmed live: a
   // migration writing category/name/governedTransition/... came back as
@@ -100,6 +174,13 @@ export interface JsonSchemaProperty {
   // fields not listed fall back to whatever (post-JSONB-reorder) order they
   // came in, appended at the end.
   items?: JsonSchemaProperty & { properties?: Record<string, JsonSchemaProperty>; required?: string[]; "x-property-order"?: string[] };
+  // A single nested sub-object (Policy condition's own `requiredEvidence`),
+  // as opposed to `items` above (a repeatable sub-LIST, Checklist's own
+  // `items`). `type: "object"` + `properties` set (no `items`) is what
+  // buildItemFields dispatches on to tell the two apart.
+  properties?: Record<string, JsonSchemaProperty>;
+  required?: string[];
+  "x-property-order"?: string[];
 }
 
 // A referential-list row's fields, generically — referentialSource set means
@@ -123,12 +204,19 @@ export interface JsonSchemaProperty {
 // only meaningful when kind === "nested-list".
 export interface ReferentialListItemField {
   name: string;
-  kind: "string" | "enum" | "boolean" | "referential" | "referential-multi" | "nested-list" | "referential-dynamic";
+  kind: "string" | "enum" | "boolean" | "referential" | "referential-multi" | "nested-list" | "nested-object" | "generated" | "json" | "referential-dynamic" | "referential-by-scope";
   referentialSource?: string;
   options?: string[];
   required?: boolean;
   help?: string;
   label?: string;
+  // "referential-by-scope" only: this item field's own source switches by a
+  // TOP-LEVEL (not sibling-item) field's current value — Policy's own
+  // applicabilityDeliverables[].name, driven by the top-level `scope`
+  // (formGenerator.ts's x-referential-source-by-value at the item level).
+  // Real, live client-side toggle (scopeDrivenMulti.js), same as the
+  // top-level driven multi-select.
+  scopeVariants?: Array<{ matchValue: string | null; referentialSource: string; ontology: boolean }>;
   // CR-100 — "referential-dynamic" only: this field's concept type is driven
   // by a SIBLING item field's current value within the same row (Competency's
   // `value`, driven by its own row's `dimension`) — the item-level analogue
@@ -148,29 +236,43 @@ export interface ReferentialListItemField {
   // field (governedTransition, checklistIds, ...) still uses.
   ontology?: boolean;
   nestedItemFields?: ReferentialListItemField[];
+  // GoverningCondition structured UI — a sibling field NAME within the same
+  // nested-object/nested-list item (bare, unresolved to a full input name;
+  // the view resolves it to this row's own full path the same way it
+  // already computes nestedInputName). showWhenValues, when set, narrows
+  // "sibling is truthy" to "sibling's current value is one of these."
+  showWhen?: string;
+  showWhenValues?: string[];
 }
 
 export type GeneratedField =
-  | { kind: "string"; name: string; label: string; required: boolean; value: string; help?: string; showWhen?: string }
+  | { kind: "string"; name: string; label: string; required: boolean; value: string; help?: string; showWhen?: string; group?: string }
   // Same free-text field as "string" — multi-line box instead of a
   // single-line input (owner: Template's `purpose`, a few sentences of
   // author-written guidance, not a slug).
-  | { kind: "textarea"; name: string; label: string; required: boolean; value: string; help?: string; showWhen?: string }
+  | { kind: "textarea"; name: string; label: string; required: boolean; value: string; help?: string; showWhen?: string; group?: string }
   // Readonly, semver, advanced only by its own "Next version" button — never
   // hand-typed (owner: "Editable text is not the correct approach").
-  | { kind: "version"; name: string; label: string; required: boolean; value: string; help?: string; showWhen?: string }
-  | { kind: "select"; name: string; label: string; required: boolean; value: string; options: string[]; help?: string; showWhen?: string }
+  | { kind: "version"; name: string; label: string; required: boolean; value: string; help?: string; showWhen?: string; group?: string }
+  | { kind: "select"; name: string; label: string; required: boolean; value: string; options: string[]; help?: string; showWhen?: string; group?: string }
   // CR-079 step (d) — dynamicSourceField/dynamicSourceSuffix are set only
   // when x-referential-source-by drives this field's concept type from
   // another field's current value; the view renders a free-text-capable
   // <input list>/<datalist> instead of a fixed <select> and swaps its
   // options client-side when the named driver field changes.
-  | { kind: "referential-select"; name: string; label: string; required: boolean; value: string; referentialSource: string; ontology: boolean; help?: string; showWhen?: string; dynamicSourceField?: string; dynamicSourceSuffix?: string; dynamicSourceDriverConceptType?: string }
+  | { kind: "referential-select"; name: string; label: string; required: boolean; value: string; referentialSource: string; ontology: boolean; help?: string; showWhen?: string; dynamicSourceField?: string; dynamicSourceSuffix?: string; dynamicSourceDriverConceptType?: string; group?: string }
   // CR-086/Ch.11 follow-on — Service Definition's `consumers`: same
   // referential-source/ontology shape as "referential-select", but `value`
   // is the array of every currently-selected code, not just one.
-  | { kind: "referential-multi-select"; name: string; label: string; required: boolean; value: string[]; referentialSource: string; ontology: boolean; help?: string; showWhen?: string }
-  | { kind: "json"; name: string; label: string; required: boolean; value: string; help?: string; showWhen?: string }
+  // driverField/variants: only set when x-referential-source-by-value drives
+  // this field (Policy's applicabilityDeliverableNames, by `scope`) — the
+  // view renders one sub-widget per variant and swaps which is live/visible
+  // client-side the instant the driver field changes, no reload needed (same
+  // standard the single-value driven referential-select already meets).
+  // matchValue: null is the `default` variant (shown whenever the driver's
+  // current value matches no named override).
+  | { kind: "referential-multi-select"; name: string; label: string; required: boolean; value: string[]; referentialSource: string; ontology: boolean; composable: boolean; help?: string; showWhen?: string; group?: string; driverField?: string; variants?: Array<{ matchValue: string | null; referentialSource: string; ontology: boolean; composable: boolean }> }
+  | { kind: "json"; name: string; label: string; required: boolean; value: string; help?: string; showWhen?: string; group?: string }
   // Bug fix (UI redesign, owner: "extremely unfriendly"): `existingCount` marks
   // how many of `rows` are the content's OWN rows vs. blank ones offered so an
   // author has somewhere to add a new one — the view uses this to render
@@ -183,7 +285,7 @@ export type GeneratedField =
   // Array<Record<string, string>> (the sub-item rows, same shape one level
   // down). Every pre-existing item field kind still only ever produces a
   // plain string, so this is additive, not a breaking widen of every field.
-  | { kind: "referential-list"; name: string; label: string; required: boolean; rows: Array<Record<string, string | string[] | Array<Record<string, string>>>>; itemFields: ReferentialListItemField[]; existingCount: number; showWhen?: string };
+  | { kind: "referential-list"; name: string; label: string; required: boolean; rows: Array<Record<string, RowValue>>; itemFields: ReferentialListItemField[]; existingCount: number; showWhen?: string; group?: string };
 
 // Blank slots appended after however many the content already has, so the
 // form always offers a place to add one more without needing client-side JS
@@ -202,7 +304,7 @@ function labelize(name: string): string {
 // one function, not a second hand-copied item-field builder.
 function buildItemFields(itemProps: Record<string, JsonSchemaProperty>, itemRequired: Set<string>): ReferentialListItemField[] {
   return Object.entries(itemProps).map(([fieldName, fieldDef]) => {
-    const common = { required: itemRequired.has(fieldName), help: fieldDef["x-help"], label: fieldDef["x-label"] ?? labelize(fieldName), markdown: fieldDef["x-format"] === "markdown" };
+    const common = { required: itemRequired.has(fieldName), help: fieldDef["x-help"], label: fieldDef["x-label"] ?? labelize(fieldName), markdown: fieldDef["x-format"] === "markdown", showWhen: fieldDef["x-show-when"], showWhenValues: fieldDef["x-show-when-values"] };
     if (fieldDef.type === "array" && fieldDef.items?.properties) {
       const nestedRequired = new Set(fieldDef.items.required ?? []);
       const nestedItemFields = buildItemFields(fieldDef.items.properties, nestedRequired);
@@ -212,6 +314,51 @@ function buildItemFields(itemProps: Record<string, JsonSchemaProperty>, itemRequ
         nestedItemFields.sort((a, b) => (rank.get(a.name) ?? nestedOrder.length) - (rank.get(b.name) ?? nestedOrder.length));
       }
       return { name: fieldName, kind: "nested-list" as const, nestedItemFields, ...common };
+    }
+    // Owner (Policy condition redesign): "Required evidence will be an
+    // object by itself" — a single sub-object, not a repeatable sub-list
+    // (Checklist's own `items` precedent is for an ARRAY of sub-rows; this
+    // is the singular counterpart, one fixed set of sub-fields, no add/
+    // remove). Recurses through buildItemFields exactly like nested-list
+    // does, just keyed by `type: "object"` + `properties` rather than
+    // `type: "array"` + `items.properties`.
+    if (fieldDef.type === "object" && fieldDef.properties) {
+      const nestedRequired = new Set(fieldDef.required ?? []);
+      const nestedItemFields = buildItemFields(fieldDef.properties, nestedRequired);
+      const nestedOrder = fieldDef["x-property-order"];
+      if (nestedOrder?.length) {
+        const rank = new Map(nestedOrder.map((n, i) => [n, i]));
+        nestedItemFields.sort((a, b) => (rank.get(a.name) ?? nestedOrder.length) - (rank.get(b.name) ?? nestedOrder.length));
+      }
+      return { name: fieldName, kind: "nested-object" as const, nestedItemFields, ...common };
+    }
+    if (fieldDef["x-generated"]) return { name: fieldName, kind: "generated" as const, ...common };
+    // Policy condition redesign — governingCondition folded into each
+    // condition row (owner: "Governing condition has to be folded into
+    // condition"). Same shape/purpose as the top-level x-widget:"json"
+    // field kind, just at item-field depth — a small JSON textarea, no
+    // structured decomposition (the value is a variable-shaped union,
+    // {"type":"always_true"} or {"type":"field_in", field, values}).
+    if (fieldDef["x-widget"] === "json") return { name: fieldName, kind: "json" as const, ...common };
+    // Owner: "Add only deliverable name and allow multiple transitions" —
+    // Policy's own applicabilityDeliverables[].name, item-level counterpart
+    // of the top-level x-referential-source-by-value (Policy's old flat
+    // applicabilityDeliverableNames): switches between an Ontology source
+    // and a plain Registry source by the TOP-LEVEL `scope` field's current
+    // value, not a sibling item field's. Checked before x-referential-source-by
+    // (a sibling-driven derivation) and the plain x-referential case below.
+    if (fieldDef["x-referential-source-by-value"]) {
+      const byValue = fieldDef["x-referential-source-by-value"];
+      return {
+        name: fieldName,
+        kind: "referential-by-scope" as const,
+        driverField: byValue.field,
+        scopeVariants: [
+          { matchValue: null, referentialSource: byValue.default.source, ontology: byValue.default.ontology },
+          ...Object.entries(byValue.values).map(([matchValue, v]) => ({ matchValue, referentialSource: v.source, ontology: v.ontology })),
+        ],
+        ...common,
+      };
     }
     // CR-100 — Competency's own `value`: driven by the sibling `dimension`
     // field's current value, not a fixed concept type. Checked before the
@@ -236,23 +383,33 @@ function buildItemFields(itemProps: Record<string, JsonSchemaProperty>, itemRequ
 // template, the rest as real content); "referential-multi" keeps its raw
 // array of selected ids as string[]; everything else stays a plain string,
 // unchanged from before this function was extracted.
+type RowValue = string | string[] | Array<Record<string, RowValue>> | Record<string, RowValue>;
+
 function buildRow(
   row: Record<string, unknown>,
   itemFields: ReferentialListItemField[],
   itemProps?: Record<string, JsonSchemaProperty>
-): Record<string, string | string[] | Array<Record<string, string>>> {
-  const out: Record<string, string | string[] | Array<Record<string, string>>> = {};
+): Record<string, RowValue> {
+  const out: Record<string, RowValue> = {};
   for (const field of itemFields) {
     const raw = row[field.name];
     if (field.kind === "nested-list") {
       const nestedFields = field.nestedItemFields ?? [];
       const nestedRows = Array.isArray(raw)
-        ? (raw as Array<Record<string, unknown>>).map((r) => buildRow(r, nestedFields) as Record<string, string>)
+        ? (raw as Array<Record<string, unknown>>).map((r) => buildRow(r, nestedFields))
         : [];
-      nestedRows.push(buildRow({}, nestedFields) as Record<string, string>);
+      nestedRows.push(buildRow({}, nestedFields));
       out[field.name] = nestedRows;
+    } else if (field.kind === "nested-object") {
+      // Owner: "Required evidence will be an object by itself" — one fixed
+      // sub-object, not a repeatable sub-list; no blank-template-row
+      // convention needed (there's nothing to "+ Add another" of).
+      const nestedFields = field.nestedItemFields ?? [];
+      out[field.name] = buildRow((raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {}), nestedFields);
     } else if (field.kind === "referential-multi") {
       out[field.name] = Array.isArray(raw) ? raw.map(String) : [];
+    } else if (field.kind === "json") {
+      out[field.name] = raw !== undefined && raw !== null ? JSON.stringify(raw, null, 2) : "{}";
     } else {
       out[field.name] = raw !== undefined ? String(raw) : String(itemProps?.[field.name]?.default ?? "");
     }
@@ -264,9 +421,28 @@ export function generateFields(schema: JsonSchemaDocument, content: Record<strin
   const required = new Set(schema.required ?? []);
   const fields: GeneratedField[] = [];
 
-  for (const [name, def] of Object.entries(schema.properties ?? {})) {
+  // Full redesign — top-level x-property-order governs order WITHIN
+  // whichever group a field lands in (groupFieldsForDisplay, below); fields
+  // not listed keep their arbitrary post-JSONB-reorder relative order,
+  // appended after every listed one (Array.sort is stable in Node).
+  let entries = Object.entries(schema.properties ?? {});
+  const topOrder = schema["x-property-order"];
+  if (topOrder?.length) {
+    const rank = new Map(topOrder.map((n, i) => [n, i]));
+    entries = entries
+      .map((entry, i) => ({ entry, i }))
+      .sort((a, b) => {
+        const ra = rank.get(a.entry[0]) ?? topOrder.length + a.i;
+        const rb = rank.get(b.entry[0]) ?? topOrder.length + b.i;
+        return ra - rb;
+      })
+      .map(({ entry }) => entry);
+  }
+
+  for (const [name, def] of entries) {
     const isRequired = required.has(name);
     const rawValue = content[name];
+    const group = def["x-group"];
 
     if (def["x-widget"] === "json") {
       // Bug fix: default to the field's own declared shape — "[]" for an
@@ -276,7 +452,7 @@ export function generateFields(schema: JsonSchemaDocument, content: Record<strin
       // which downstream code that iterates the parsed value (`for...of`)
       // then threw on ("object is not iterable").
       const emptyDefault = def.type === "array" ? "[]" : "{}";
-      fields.push({ kind: "json", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? JSON.stringify(rawValue, null, 2) : emptyDefault, help: def["x-help"], showWhen: def["x-show-when"] });
+      fields.push({ kind: "json", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? JSON.stringify(rawValue, null, 2) : emptyDefault, help: def["x-help"], showWhen: def["x-show-when"], group });
       continue;
     }
 
@@ -295,17 +471,34 @@ export function generateFields(schema: JsonSchemaDocument, content: Record<strin
       for (let i = 0; i < BLANK_ROWS_TO_OFFER; i++) {
         rows.push(buildRow({}, itemFields, itemProps));
       }
-      fields.push({ kind: "referential-list", name, label: labelize(name), required: isRequired, rows, itemFields, existingCount, showWhen: def["x-show-when"] });
+      fields.push({ kind: "referential-list", name, label: labelize(name), required: isRequired, rows, itemFields, existingCount, showWhen: def["x-show-when"], group });
       continue;
     }
 
     if (def["x-widget"] === "referential-multi-select") {
+      // Owner: "If the scope is Transition, the applicable deliverable names
+      // will be ontology driven deliverable names. If the scope is
+      // eligibility, the nouns... should be in the dropdown" — resolved off
+      // the driver field's CURRENT value on this same content, same timing
+      // discipline the single-value driven referential-select already uses.
+      const byValue = def["x-referential-source-by-value"];
+      const resolved = byValue
+        ? (byValue.values[String(content[byValue.field] ?? "")] ?? byValue.default)
+        : { source: def["x-referential-source"] ?? "", ontology: def["x-ontology"] === true, composable: def["x-ontology-composable"] === true };
       fields.push({
         kind: "referential-multi-select", name, label: labelize(name), required: isRequired,
         value: Array.isArray(rawValue) ? rawValue.filter((v): v is string => typeof v === "string") : [],
-        referentialSource: def["x-referential-source"] ?? "",
-        ontology: def["x-ontology"] === true,
-        help: def["x-help"], showWhen: def["x-show-when"],
+        referentialSource: resolved.source,
+        ontology: resolved.ontology,
+        composable: resolved.ontology && resolved.composable === true,
+        help: def["x-help"], showWhen: def["x-show-when"], group,
+        driverField: byValue?.field,
+        variants: byValue
+          ? [
+              { matchValue: null, referentialSource: byValue.default.source, ontology: byValue.default.ontology, composable: byValue.default.ontology && byValue.default.composable === true },
+              ...Object.entries(byValue.values).map(([matchValue, v]) => ({ matchValue, referentialSource: v.source, ontology: v.ontology, composable: v.ontology && v.composable === true })),
+            ]
+          : undefined,
       });
       continue;
     }
@@ -336,26 +529,35 @@ export function generateFields(schema: JsonSchemaDocument, content: Record<strin
         // options-by-driver-value map, without cross-referencing the
         // driver's own generated field.
         dynamicSourceDriverConceptType: driverField ? schema.properties?.[driverField]?.["x-referential-source"] : undefined,
+        group,
       });
       continue;
     }
 
     if (def["x-widget"] === "textarea") {
-      fields.push({ kind: "textarea", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? String(rawValue) : "", help: def["x-help"], showWhen: def["x-show-when"] });
+      fields.push({ kind: "textarea", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? String(rawValue) : "", help: def["x-help"], showWhen: def["x-show-when"], group });
       continue;
     }
 
     if (def["x-widget"] === "version") {
-      fields.push({ kind: "version", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? String(rawValue) : "", help: def["x-help"], showWhen: def["x-show-when"] });
+      fields.push({ kind: "version", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? String(rawValue) : "", help: def["x-help"], showWhen: def["x-show-when"], group });
       continue;
     }
 
     if (def.enum) {
-      fields.push({ kind: "select", name, label: labelize(name), required: isRequired, value: String(rawValue ?? ""), options: def.enum, help: def["x-help"], showWhen: def["x-show-when"] });
+      // Bug fix (owner: "Scope has to default to Transition") — unlike the
+      // referential-list item default (buildRow, above) and parseFormBody's
+      // own default fallback, this top-level enum branch never read
+      // `def.default` at all, so a genuinely new draft always rendered the
+      // blank "— select —" option first, even for a field with a real
+      // schema-declared default — the browser then submits that blank value
+      // untouched, since a native <select> always submits whichever
+      // <option> is marked selected (the first, absent any other).
+      fields.push({ kind: "select", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? String(rawValue) : String(def.default ?? ""), options: def.enum, help: def["x-help"], showWhen: def["x-show-when"], group });
       continue;
     }
 
-    fields.push({ kind: "string", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? String(rawValue) : "", help: def["x-help"], showWhen: def["x-show-when"] });
+    fields.push({ kind: "string", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? String(rawValue) : "", help: def["x-help"], showWhen: def["x-show-when"], group });
   }
 
   return fields;
@@ -385,6 +587,60 @@ function collectOntologyTypesFromItemProps(itemProps: Record<string, JsonSchemaP
       collectOntologyTypesFromItemProps(itemDef.items.properties, types);
     }
   }
+}
+
+// Owner: "flag in the schema that will specify if an Ontology Composition
+// is allowed" — every field a draft-save should check for unregistered
+// entries and propose (rather than reject) via OntologyComposed, generic
+// over kind. Covers both widget shapes: "referential-multi-select" (multi:
+// true — a draft-save call site loops the current content's own array
+// value) and single-value "referential-select" (multi: false — e.g. Pack's
+// own `code`, owner: "Pack's code also has to be marked
+// x-ontology-composable and reuse what is built"). `resolveConceptType`
+// handles both a fixed x-referential-source and a DRIVEN one
+// (x-referential-source-by — Pack's own `code`, driven by `category`),
+// mirroring generateFields' own referential-select resolution above so the
+// two never drift apart.
+export function ontologyComposableFieldsIn(schema: JsonSchemaDocument): Array<{ fieldName: string; multi: boolean; resolveConceptType: (content: Record<string, unknown>) => string }> {
+  const result: Array<{ fieldName: string; multi: boolean; resolveConceptType: (content: Record<string, unknown>) => string }> = [];
+  for (const [name, def] of Object.entries(schema.properties ?? {})) {
+    const multi = def["x-widget"] === "referential-multi-select";
+    if (!multi && def["x-widget"] !== "referential-select") continue;
+    const byValue = def["x-referential-source-by-value"];
+    if (byValue) {
+      // Owner: "the applicable deliverable names will be ontology driven...
+      // If the scope is eligibility, the nouns... should be in the
+      // dropdown" — a field whose Ontology-ness itself switches by a driver
+      // field's value (Policy's applicabilityDeliverableNames: Ontology
+      // deliverable-name for scope=Transition, a plain non-Ontology noun
+      // list for scope=Eligibility) must resolve PER SUBMISSION, never
+      // proposing a noun code as an unregistered deliverable-name.
+      result.push({
+        fieldName: name,
+        multi,
+        resolveConceptType: (content) => {
+          const resolved = byValue.values[String(content[byValue.field] ?? "")] ?? byValue.default;
+          return resolved.ontology && resolved.composable ? resolved.source : "";
+        },
+      });
+      continue;
+    }
+    if (def["x-ontology"] !== true || def["x-ontology-composable"] !== true) continue;
+    const driverField = def["x-referential-source-by"];
+    const driverSuffix = def["x-referential-source-suffix"] ?? "";
+    const fixedSource = (def["x-referential-source"] ?? "").trim();
+    if (!driverField && !fixedSource) continue;
+    result.push({
+      fieldName: name,
+      multi,
+      resolveConceptType: (content) => {
+        if (!driverField) return fixedSource;
+        const driverValue = String(content[driverField] ?? "").trim();
+        return driverValue ? `${driverValue.toLowerCase()}${driverSuffix}` : "";
+      },
+    });
+  }
+  return result;
 }
 
 export function ontologyConceptTypesIn(schema: JsonSchemaDocument): string[] {
@@ -456,138 +712,50 @@ export function dynamicReferentialSourceItemFieldsIn(schema: JsonSchemaDocument)
   return result;
 }
 
-// --- Display grouping (UI redesign, owner: "extremely unfriendly") --------
-// generateFields() returns one flat list in schema-property order — Pack's 23
-// fields interleave Identity/Metadata, Compatibility, Dependencies, and 8
-// separate Contribution types with no visual structure at all. This groups
-// the SAME fields (no schema/DB change) into the sections the authoring page
-// actually renders as separate cards. Purely name-driven, so it's harmless
-// for Template/Profile/the schema-registry's own meta-schema — anything that
-// doesn't match a known Pack field name just lands in `other` and renders
-// exactly as it does today.
+// --- Display grouping ------------------------------------------------------
+// Full redesign (owner: "Policy UI has to be similar to Pack - Metadata tab
+// and other tabs grouped") — generateFields() returns one flat list; this
+// groups the SAME fields into the tabs the authoring page renders as
+// separate panes. Which simple-field-grid tabs a kind has, in what order,
+// and which field belongs to which, is now entirely schema data (a kind's
+// own x-groups/x-group — see JsonSchemaDocument/JsonSchemaProperty above),
+// not a hardcoded per-field-name Set here. Adding a new tab (e.g. Policy's
+// own Applicability/Governance) is a schema/migration change only.
+// Dependencies (a single named field), Contributions (any `contribution(s)X`
+// field, one tab each), and Exposable/Configuration Parameters' two
+// candidate-driven singletons stay name-detected below — they aren't plain
+// field grids to begin with (bespoke widgets or per-field-name-pattern tab
+// fan-out), so schema-driven grouping doesn't apply to them.
 export interface FieldGroup { key: string; label: string; field: GeneratedField }
+export interface SimpleFieldGroup { key: string; label: string; fields: GeneratedField[] }
 export interface FieldGroups {
-  metadata: GeneratedField[];
-  compatibility: GeneratedField[];
+  // One entry per schema-declared x-groups entry, in declared order, each
+  // rendered as its own 'simple' tab (_generatedFieldGroups.ejs).
+  groups: SimpleFieldGroup[];
   dependencies: GeneratedField | null;
-  // Template's own six category-scoped Pack pickers (CR-038) — split into
-  // their own tab (owner: "A tab for pack codes. In this tab show the
-  // categories") rather than crammed into Identity & Metadata alongside
-  // Code/Name/Purpose/Template Version. Profile shares four of these six
-  // field names (its own §7 category pickers) and picks up the same tab for
-  // free — purely name-driven, same "harmless for Template/Profile" grouping
-  // discipline this function already followed before this change.
-  packSelection: GeneratedField[];
-  // Template's deliverableCatalogue + dependencyGraph (CR-038/CR-041) — one
-  // tab, catalogue before graph, since the graph's toName picker resolves
-  // against the catalogue's own rows (owner: "A tab for deliverable
-  // catalogue. This is where the dependency graph should be").
-  deliverables: GeneratedField[];
-  // CR-088 — Template's own exposedParameters (a single x-widget:"json"
-  // field; the real per-candidate authoring UI is bespoke, built directly in
-  // _generatedFieldGroups.ejs off req.vm.opt.exposableParameterRows, not
-  // generated from this field's own schema shape the way every other group
-  // is) — its own tab, not lumped into `other`, so it gets the "Exposable
-  // Parameters" label the owner asked for rather than a generic one.
   exposableParameters: GeneratedField[];
-  // CR-091 Part 2 — Profile's own Ch.7 §10 Configuration Parameters (ten
-  // named fields — eight Ontology-backed referential-selects,
-  // participatingOrganisationCodes, environmentConfiguration) — unlike
-  // exposableParameters above, these ARE generated normally from their own
-  // schema shape (each is a plain field, not a bespoke candidate-driven
-  // grid); just their own tab instead of Identity & Metadata, per the owner:
-  // "Yes Exposed parameters in one tab and Configuration parameters in
-  // another."
   configurationParameters: GeneratedField[];
-  // CR-088 Profile-side completion — Profile's own exposedParameterOverrides
-  // (a single x-widget:"json" field, same non-generated-UI treatment as
-  // Template's own exposableParameters above — the real per-candidate grid is
-  // bespoke, built off req.vm.opt.exposedParameterOverrideRows).
   parameterOverrides: GeneratedField[];
   contributions: FieldGroup[];
+  // A field with no x-group, or one naming a key the schema never declared
+  // in x-groups — appended to the first declared group's tab (or its own
+  // fallback tab, if a kind somehow declares no groups at all), so nothing
+  // silently disappears from the form the way it could before this had a
+  // dedicated place to land.
   other: GeneratedField[];
 }
 
-const METADATA_FIELD_NAMES = new Set([
-  "name", "owner", "category", "publisher", "description", "packVersion", "templateVersion", "installationClassification", "compositionStrategy", "compositionSources", "purpose",
-  // CR-091 Part 2 — `configParameters` retired (replaced by
-  // CONFIGURATION_PARAMETER_FIELD_NAMES's own ten named fields, their own
-  // "Configuration Parameters" tab, below); `category` stays — it's still
-  // Pack's own real field (category:pack Ontology), unaffected by Part 3
-  // retiring Profile's unrelated same-named field (Profile's schema simply
-  // no longer declares one, so this entry is just inert for Profile now).
-  "code", "environment", "baseTemplateCode", "requiredCapabilityCodes", "mandatoryPackCodes", "optionalPackCodes",
-  "profileVersion", "featureFlagCodes", "compositionOptions",
-  // CR-091 — Ch.7 §5/§7 completion: Deployment Targets (distinct from
-  // `environment`) and Optional Capability Enablement, same
-  // declared-alongside-their-siblings bucketing as featureFlagCodes/
-  // compositionOptions just above.
-  "deploymentTargets", "additionalCapabilityCodes",
-  // CR-086/Ch.11 follow-on — Service Definition's own fields, bucketed here
-  // (rather than falling into the unsorted `other` catch-all) so
-  // FIELD_DISPLAY_ORDER below can actually control their order, the same way
-  // it already does for code/name/purpose.
-  "capabilityCode", "serviceLevel", "governance", "consumers", "success", "inputs", "outputs",
-]);
-const COMPATIBILITY_FIELD_NAMES = new Set(["supportedPlatformVersion", "minSupportedPlatformVersion", "maxSupportedPlatformVersion", "incompatiblePackVersions", "migrationGuidance"]);
-// Bug fix in passing: engineeringPackCodes/organisationPackCodes/dependencyGraph
-// were missing from the old METADATA_FIELD_NAMES set entirely (never added
-// alongside their siblings in migrations 077/078/076), so they silently fell
-// into the catch-all `other` bucket instead of Identity & Metadata. Naming
-// them explicitly here, in their own dedicated groups, fixes that too.
-const PACK_SELECTION_FIELD_NAMES = new Set(["compliancePackCodes", "domainPackCodes", "engineeringPackCodes", "integrationPackCodes", "organisationPackCodes", "technologyPackCodes"]);
-const DELIVERABLES_FIELD_NAMES = new Set(["deliverableCatalogue", "dependencyGraph"]);
 const EXPOSABLE_PARAMETERS_FIELD_NAMES = new Set(["exposedParameters"]);
 const PARAMETER_OVERRIDES_FIELD_NAMES = new Set(["exposedParameterOverrides"]);
+// CR-091 Part 2 — Profile's own Ch.7 §10 Configuration Parameters: candidate-
+// driven-adjacent enough (tenant-overridable required-ness, CR-091 Part 2)
+// that it stays its own name-detected singleton group rather than folding
+// into the generic schema-driven mechanism above.
 const CONFIGURATION_PARAMETER_FIELD_NAMES = new Set([
   "targetCloudProvider", "primaryProgrammingLanguage", "sourceControlProvider", "deploymentStrategy",
   "aiProviderPreference", "defaultRepositoryStructure", "documentationLevel", "developmentMethodology",
-  // Owner: "domain as an additional profile-configuration parameter" — ninth
-  // field, same "Configuration Parameters" display group as the other eight
-  // (migration 199).
-  "domain",
-  "participatingOrganisationCodes", "environmentConfiguration",
+  "domain", "participatingOrganisationCodes", "environmentConfiguration",
 ]);
-
-// Owner: "Code, Name, Purpose, Template version" — the display order within
-// a group, independent of schema.properties' own key order (jsonb doesn't
-// preserve object-key insertion order, so generateFields()'s iteration order
-// isn't reliable to author-facing display order). Unlisted fields keep their
-// original relative order, appended after every listed one (Array.sort is
-// stable in Node, so this only ever pulls named fields forward).
-// CR-079 — `category` moved ahead of `code`/`name` (owner: "Category has to
-// be the first field... From what gets chosen there, code dropdown has to be
-// generated") — Pack's own `code` is now Ontology-driven BY category
-// (x-referential-source-by), so category must be authored first for the
-// Code field's options to be anything but empty.
-// CR-081 — `packVersion` moved to sit directly after `code` (owner: "Code
-// and version alongside") — Pack's own code combo box opens a suggestion
-// dropdown that needs the room a full-width category row above frees up, and
-// pairing code with its own computed version keeps the two visually
-// together instead of version landing next to `name` several fields later.
-// Harmless for Template/Profile, which never have a field literally named
-// `packVersion` — their own templateVersion/profileVersion stay exactly
-// where they already were in this same list, further down.
-const FIELD_DISPLAY_ORDER = [
-  "category", "code", "packVersion", "name", "purpose",
-  // CR-086/Ch.11 follow-on — owner-specified order for Service Definition's
-  // own fields (Code/Name/Purpose above are shared with every other kind
-  // already). Harmless for Pack/Template/Profile/Deliverable, none of which
-  // have a field by any of these names.
-  "capabilityCode", "serviceLevel", "governance", "consumers", "success", "inputs", "outputs",
-  "templateVersion", "profileVersion",
-  "owner", "publisher", "description", "environment", "baseTemplateCode",
-  "installationClassification", "compositionStrategy", "compositionSources",
-  "compliancePackCodes", "domainPackCodes", "engineeringPackCodes", "integrationPackCodes", "organisationPackCodes", "technologyPackCodes",
-  "deliverableCatalogue", "dependencyGraph",
-];
-function byDisplayOrder(a: GeneratedField, b: GeneratedField): number {
-  const ia = FIELD_DISPLAY_ORDER.indexOf(a.name);
-  const ib = FIELD_DISPLAY_ORDER.indexOf(b.name);
-  if (ia === -1) return ib === -1 ? 0 : 1;
-  if (ib === -1) return -1;
-  return ia - ib;
-}
 
 // "contributionQualityGates" -> "Quality Gates"; "contributionsCompliance" ->
 // "Compliance" (the one field using the "contributions" — plural — prefix).
@@ -595,23 +763,27 @@ function labelizeContribution(name: string): string {
   return labelize(name.replace(/^contributions?/, ""));
 }
 
-export function groupFieldsForDisplay(fields: GeneratedField[]): FieldGroups {
-  const groups: FieldGroups = { metadata: [], compatibility: [], dependencies: null, packSelection: [], deliverables: [], exposableParameters: [], configurationParameters: [], parameterOverrides: [], contributions: [], other: [] };
+export function groupFieldsForDisplay(schema: JsonSchemaDocument, fields: GeneratedField[]): FieldGroups {
+  const declared = schema["x-groups"] ?? [];
+  const byKey = new Map<string, SimpleFieldGroup>(declared.map((g) => [g.key, { key: g.key, label: g.label, fields: [] }]));
+  const groups: FieldGroups = { groups: declared.map((g) => byKey.get(g.key)!), dependencies: null, exposableParameters: [], configurationParameters: [], parameterOverrides: [], contributions: [], other: [] };
   for (const f of fields) {
     if (f.name === "dependencies") { groups.dependencies = f; continue; }
     if (/^contributions?[A-Z]/.test(f.name)) { groups.contributions.push({ key: f.name, label: labelizeContribution(f.name), field: f }); continue; }
-    if (COMPATIBILITY_FIELD_NAMES.has(f.name)) { groups.compatibility.push(f); continue; }
-    if (PACK_SELECTION_FIELD_NAMES.has(f.name)) { groups.packSelection.push(f); continue; }
-    if (DELIVERABLES_FIELD_NAMES.has(f.name)) { groups.deliverables.push(f); continue; }
+    if (CONFIGURATION_PARAMETER_FIELD_NAMES.has(f.name)) { groups.configurationParameters.push(f); continue; }
     if (EXPOSABLE_PARAMETERS_FIELD_NAMES.has(f.name)) { groups.exposableParameters.push(f); continue; }
     if (PARAMETER_OVERRIDES_FIELD_NAMES.has(f.name)) { groups.parameterOverrides.push(f); continue; }
-    if (CONFIGURATION_PARAMETER_FIELD_NAMES.has(f.name)) { groups.configurationParameters.push(f); continue; }
-    if (METADATA_FIELD_NAMES.has(f.name)) { groups.metadata.push(f); continue; }
+    const bucket = f.group ? byKey.get(f.group) : undefined;
+    if (bucket) { bucket.fields.push(f); continue; }
     groups.other.push(f);
   }
-  groups.metadata.sort(byDisplayOrder);
-  groups.packSelection.sort(byDisplayOrder);
-  groups.deliverables.sort(byDisplayOrder);
+  // Nothing left ungrouped that a viewer would otherwise never see — append
+  // to the first declared tab (or make a fallback "Other" tab, for the
+  // unlikely case a kind declares no x-groups at all).
+  if (groups.other.length) {
+    if (groups.groups.length) groups.groups[0].fields = groups.groups[0].fields.concat(groups.other);
+    else groups.groups.push({ key: "other", label: "Other", fields: groups.other });
+  }
   return groups;
 }
 
@@ -763,6 +935,38 @@ function isFieldFilled(v: unknown): boolean {
   return Array.isArray(v) ? v.length > 0 : v !== "" && v !== false;
 }
 
+// Singular counterpart of parseReferentialListField, for a `type: "object"`
+// item field (Policy condition's own `requiredEvidence`) — one fixed
+// sub-object posted as `...[requiredEvidence][category]` etc., not a
+// repeatable, indexed sub-list.
+// Policy condition redesign — governingCondition, an item field posted as a
+// raw JSON string (a small textarea, same as the top-level x-widget:"json"
+// field kind) rather than individual controls. Shared by both nested-object
+// and nested-list item parsing below.
+function parseJsonItemField(raw: unknown): unknown {
+  if (typeof raw !== "string" || raw.trim() === "") return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+function parseNestedObjectField(def: JsonSchemaProperty, rawValue: unknown): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const row = (rawValue && typeof rawValue === "object" ? rawValue : {}) as Record<string, unknown>;
+  for (const [fieldName, fieldDef] of Object.entries(def.properties ?? {})) {
+    const raw = row[fieldName];
+    if (fieldDef["x-widget"] === "json") out[fieldName] = parseJsonItemField(raw);
+    else if (fieldDef.type === "array" && fieldDef.items?.properties) out[fieldName] = parseReferentialListField(fieldDef, raw);
+    else if (fieldDef.type === "array") out[fieldName] = Array.isArray(raw) ? raw.filter((v) => v !== "") : raw ? [raw] : [];
+    else if (fieldDef.type === "object" && fieldDef.properties) out[fieldName] = parseNestedObjectField(fieldDef, raw);
+    else if (fieldDef.type === "boolean") out[fieldName] = raw === true || raw === "true" || raw === "on";
+    else out[fieldName] = String(raw ?? fieldDef.default ?? "");
+  }
+  return out;
+}
+
 function parseReferentialListField(def: JsonSchemaProperty, rawValue: unknown): Record<string, unknown>[] {
   const itemFieldNames = Object.keys(def.items?.properties ?? {});
   // 2026-09-05 (CR-088 prerequisite) — also require `required`, not
@@ -800,8 +1004,16 @@ function parseReferentialListField(def: JsonSchemaProperty, rawValue: unknown): 
         // field — `[] !== ""` is true no matter what an array holds — so the
         // untouched blank "New item" row Quality/Review Gates always offer
         // could never be recognised as blank and correctly dropped.
-        if (fieldDef?.type === "array" && fieldDef.items?.properties) out[fieldName] = parseReferentialListField(fieldDef, raw);
+        // Policy condition redesign — governingCondition, posted as a raw
+        // JSON string; checked first since it's also `type: "object"`
+        // (would otherwise wrongly match the nested-object case below).
+        if (fieldDef?.["x-widget"] === "json") out[fieldName] = parseJsonItemField(raw);
+        else if (fieldDef?.type === "array" && fieldDef.items?.properties) out[fieldName] = parseReferentialListField(fieldDef, raw);
         else if (fieldDef?.type === "array") out[fieldName] = Array.isArray(raw) ? raw.filter((v) => v !== "") : raw ? [raw] : [];
+        // Policy condition redesign — a single nested sub-object
+        // (requiredEvidence), the singular counterpart of the nested-list
+        // recursion just above.
+        else if (fieldDef?.type === "object" && fieldDef.properties) out[fieldName] = parseNestedObjectField(fieldDef, raw);
         // CR-017: a boolean item field is a checkbox — present/"true" -> true.
         else if (fieldDef?.type === "boolean") out[fieldName] = raw === true || raw === "true" || raw === "on";
         else out[fieldName] = String(raw ?? fieldDef?.default ?? "");

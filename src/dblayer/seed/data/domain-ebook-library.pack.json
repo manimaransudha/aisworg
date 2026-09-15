@@ -3,7 +3,7 @@
   "name": "E-Book Library Domain Practices",
   "category": "Domain",
   "packVersion": "1.0.0",
-  "installationClassification": "Mandatory",
+  "installationClassification": "Optional",
   "dependencies": [
     {
       "packCode": "development",
@@ -37,6 +37,30 @@
       {
         "dimension": "Domain",
         "value": "ebook-library"
+      }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "ebook-license-copy-limit-compliance",
+        "category": "Compliance",
+        "title": "Concurrent loans must never exceed the licensed copy count",
+        "description": "Digital lending must enforce that the number of concurrent active loans for a title never exceeds its licensed copy count; a hold/waitlist queue must gate additional loans once the limit is reached, not silently over-lend.",
+        "origin": "Policies",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "No title's concurrent active loan count exceeds its licensed copy count at any point.",
+        "requiredEvidence": {
+          "title": "Concurrent loan count check",
+          "category": "Validation Evidence",
+          "description": "Comparison of active loan counts against licensed copy counts per title.",
+          "collectionMethod": "Automated circulation system check."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated licensed-copy-limit enforcement check.",
+        "externalEvidence": false
       }
     ]
   }

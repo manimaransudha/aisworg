@@ -77,6 +77,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "openup-requirements-stakeholder-signoff-currency",
+        "category": "Review Finding",
+        "title": "A changed requirement must be re-confirmed with the stakeholder who originally signed it off",
+        "description": "OpenUP's Requirements discipline ties each requirement to stakeholder agreement; when a requirement changes after that agreement, the original sign-off no longer covers the new version and must be re-confirmed, not silently carried forward.",
+        "origin": "Reviews",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Every changed requirement has a re-confirmed stakeholder sign-off before it's treated as agreed.",
+        "requiredEvidence": {
+          "title": "Requirement re-signoff record",
+          "category": "Validation Evidence",
+          "description": "Record of stakeholder re-confirmation for each changed requirement.",
+          "collectionMethod": "Requirements management tool export."
+        },
+        "classification": "human-attested",
+        "prompt": "Has the stakeholder re-confirmed sign-off for this changed requirement?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Requirements analyst / stakeholder sign-off.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

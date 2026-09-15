@@ -12,50 +12,87 @@
   "conditions": [
     {
       "statement": "Lint tool reports zero errors against the active Technology Pack's declared ruleset.",
-      "requiredEvidence": [
+      "severity": "High",
+      "applicabilityDeliverables": [
         {
-          "type": "lint_result",
-          "severity_filter": "error"
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "High",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Lint Result — Error",
+        "category": "Validation Evidence",
+        "description": "Lint tool reports zero errors against the active Technology Pack's declared ruleset.",
+        "collectionMethod": "Lint tool output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "Lint warning count does not exceed the threshold declared by the active governance tier.",
-      "requiredEvidence": [
+      "severity": "Low",
+      "applicabilityDeliverables": [
         {
-          "type": "lint_result",
-          "severity_filter": "warning"
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Low",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Lint Result — Warning",
+        "category": "Validation Evidence",
+        "description": "Lint warning count does not exceed the threshold declared by the active governance tier.",
+        "collectionMethod": "Lint tool output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "Cyclomatic complexity per function does not exceed the Technology Pack's declared ceiling.",
-      "requiredEvidence": [
+      "severity": "Medium",
+      "applicabilityDeliverables": [
         {
-          "type": "complexity_scan_result"
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Complexity Scan Result",
+        "category": "Validation Evidence",
+        "description": "Cyclomatic complexity per function does not exceed the Technology Pack's declared ceiling.",
+        "collectionMethod": "Automated tool/system output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "No block of commented-out code exceeding five lines is present in the Deliverable.",
-      "requiredEvidence": [
+      "severity": "Low",
+      "applicabilityDeliverables": [
         {
-          "type": "lint_result",
-          "rule": "no-dead-code"
+          "name": "source-code",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Low",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Lint Result — No-dead-code",
+        "category": "Validation Evidence",
+        "description": "No block of commented-out code exceeding five lines is present in the Deliverable.",
+        "collectionMethod": "Lint tool output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     }
   ],
   "version": "1.0.0"

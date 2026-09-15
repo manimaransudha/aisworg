@@ -77,6 +77,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "launch-rollback-readiness",
+        "category": "Engineering",
+        "title": "A tested rollback path must exist before Launch proceeds",
+        "description": "Launch may not proceed on the assumption that rollback is possible; the rollback procedure for this Deployment Package must have been exercised, not merely documented.",
+        "origin": "Quality Gates",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "The rollback procedure for the launch deployment package has been executed in a non-production environment with a recorded result.",
+        "requiredEvidence": {
+          "title": "Rollback rehearsal result",
+          "category": "Validation Evidence",
+          "description": "Record of a rollback rehearsal for this Deployment Package.",
+          "collectionMethod": "Rollback drill executed against a staging/pre-prod environment."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Release engineering sign-off on the rollback drill.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

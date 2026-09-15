@@ -6,10 +6,12 @@ import { badgeGrantsDB } from "../../../dblayer/badgeGrantsDB.js";
 import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
+import { policyEngine } from "../../../domain/engine/policyEngine.js";
 import { executionEngine } from "../../../domain/engine/executionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { checkSustainedQualityGateBlocking } from "./telemetry.js";
 import { raiseAttentionItem } from "./attentionItems.js";
+import { raiseObligationForBlockedTransition } from "./obligations.js";
 import { AUTHORING_SCOPE_PACK_CODE } from "../../../domain/sdk/authoringScope.js";
 import { assertCanonicalCategory, resolveLabels } from "./ontology.js";
 import type { DeliverableRow, DependencyDefinitionRow } from "../../../dblayer/seuTypes.js";
@@ -188,6 +190,32 @@ export async function transitionDeliverable(input: {
       relatedObjectId: deliverable.id,
     });
     return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
+  }
+
+  // CR-104 — Policy's own live check, same position as Quality Gate above
+  // (after dependency readiness, before Authority): reads this SEU's EBM-
+  // materialised applicable_policy_ids, not the dead required_policy_ids/
+  // findAllActive paths.
+  const policyResult = await policyEngine.evaluate({
+    entityType: "Deliverable",
+    seuId: deliverable.seu_id,
+    entityId: deliverable.id,
+    fromState,
+    toState: input.targetState,
+    context: { deliverable },
+  });
+  if (policyResult.outcome === "Blocked") {
+    // CR-106 Option C — same treatment as the Quality Gate block above:
+    // raise a real Obligation + Attention Item instead of leaving this
+    // block invisible on the platform-wide inbox. The Deliverable itself
+    // was already never advanced past fromState by a block (this whole
+    // function only calls transitionEngine.evaluate further down, after
+    // this check) — nothing changes there, only that a block now surfaces.
+    await raiseObligationForBlockedTransition({
+      seuId: deliverable.seu_id, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id,
+      fromState, toState: input.targetState, policyCode: policyResult.policyCode,
+    });
+    return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${policyResult.policyCode}` };
   }
 
   let actingBadgeGrantId = input.actingBadgeGrantId ?? null;

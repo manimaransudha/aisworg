@@ -286,7 +286,7 @@ router.post('/users/create', requireRole('super'), async (req, res) => {
 //       return res.redirect('/finanaly/auth/users');
       return res.redirect('/aisworg/auth/users');
     }
-    if (!['power', 'super'].includes(role)) {
+    if (!['power', 'tenant_super', 'super'].includes(role)) {
       req.session.flash = { error: 'Invalid role.' };
 //       return res.redirect('/finanaly/auth/users');
       return res.redirect('/aisworg/auth/users');
@@ -324,7 +324,7 @@ router.post('/users/create', requireRole('super'), async (req, res) => {
 router.post('/users/role', requireRole('super'), async (req, res) => {
   try {
     const { email, role } = req.body;
-    if (!['general', 'power', 'super'].includes(role)) {
+    if (!['general', 'power', 'tenant_super', 'super'].includes(role)) {
       req.session.flash = { error: 'Invalid role.' };
 //       return res.redirect('/finanaly/auth/users');
       return res.redirect('/aisworg/auth/users');

@@ -77,6 +77,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-accessibility-conformance-followup",
+        "category": "Compliance",
+        "title": "Accessibility gaps identified in design review are remediated",
+        "description": "Any accessibility non-conformance noted in the Experience Design Review (WCAG or equivalent) must be tracked and remediated before the design is carried into Technical Discovery & Architecture.",
+        "origin": "Reviews",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "All accessibility findings from the design review are closed or carry an approved exception.",
+        "requiredEvidence": {
+          "title": "Accessibility audit closure",
+          "category": "Validation Evidence",
+          "description": "Evidence that each accessibility finding against the UX/UI Design Specification was closed or exempted.",
+          "collectionMethod": "Design review checklist plus accessibility audit tool output."
+        },
+        "classification": "human-attested",
+        "prompt": "Are all accessibility findings from the design review closed or explicitly exempted?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "UX lead attestation.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

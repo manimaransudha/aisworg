@@ -21,38 +21,267 @@
   "conditions": [
     {
       "statement": "Every Vision or Business Case names at least one measurable business objective.",
-      "requiredEvidence": [
+      "severity": "Medium",
+      "applicabilityDeliverables": [
         {
-          "type": "business_case_review"
+          "name": "vision",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "business-case",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "business-analysis-plan",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "requirements-backlog",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "requirements-analysis-model",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "requirements-prioritisation-record",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "requirements-specification",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "solution-options-analysis",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "reuse-assessment",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "objective-alignment-report",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Business Case Review",
+        "category": "Analytical Evidence",
+        "description": "Every Vision or Business Case names at least one measurable business objective.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "Every Requirements artefact (Backlog, Analysis Model, Prioritisation Record, Specification) has a recorded author and last-review date.",
-      "requiredEvidence": [
+      "severity": "Low",
+      "applicabilityDeliverables": [
         {
-          "type": "artefact_metadata_check"
+          "name": "vision",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "business-case",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "business-analysis-plan",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "requirements-backlog",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "requirements-analysis-model",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "requirements-prioritisation-record",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "requirements-specification",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "solution-options-analysis",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "reuse-assessment",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "objective-alignment-report",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Low",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Artefact Metadata Check",
+        "category": "Validation Evidence",
+        "description": "Every Requirements artefact (Backlog, Analysis Model, Prioritisation Record, Specification) has a recorded author and last-review date.",
+        "collectionMethod": "Automated tool/system output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "A Solution Options Analysis or Reuse Assessment exists before Architecture work begins for a new capability, and an Objective Alignment Report confirms it traces back to a declared Objective.",
-      "requiredEvidence": [
+      "severity": "Medium",
+      "applicabilityDeliverables": [
         {
-          "type": "solution_options_review"
+          "name": "vision",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "business-case",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "business-analysis-plan",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "requirements-backlog",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "requirements-analysis-model",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "requirements-prioritisation-record",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "requirements-specification",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "solution-options-analysis",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "reuse-assessment",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "objective-alignment-report",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Medium",
+      "requiredEvidence": {
+        "title": "Solution Options Review",
+        "category": "Analytical Evidence",
+        "description": "A Solution Options Analysis or Reuse Assessment exists before Architecture work begins for a new capability, and an Objective Alignment Report confirms it traces back to a declared Objective.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
       "exceptionRules": [
-        "A single, mandated solution (regulatory or platform constraint) may document that constraint in place of a comparative options analysis."
-      ],
-      "relatedObligations": []
+        {
+          "identifier": "6a742615-eef6-5efc-b75c-216380fa3267",
+          "exceptionStatement": "A single, mandated solution (regulatory or platform constraint) may document that constraint in place of a comparative options analysis.",
+          "duration": "Permanent for this Deliverable",
+          "exceptionScope": "This Solution Options Analysis / Reuse Assessment only",
+          "exceptionApprovers": [
+            "Deliverable_approve"
+          ],
+          "exceptionComposition": "any",
+          "reviewRequirements": "The mandating constraint must be cited by reference (regulation, platform decision)."
+        }
+      ]
     }
   ],
   "version": "1.0.0"

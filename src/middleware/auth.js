@@ -2,7 +2,12 @@ import { logger } from '../utils/logger.js';
 import { effectivePlatformBadges } from '../dev/actAs.js';
 import { safeBack } from './safeBack.js';
 
-const ROLE_LEVEL = { general: 1, power: 2, super: 3 };
+// tenant_super sits above power, below the real platform super — a
+// tenant_super satisfies requireRole('power') but not requireRole('super')
+// (the platform-wide, unscoped screens stay super-exclusive); a real super
+// still passes requireRole('tenant_super') too, same "higher rank passes any
+// lower gate" ordinal logic as every other level here.
+const ROLE_LEVEL = { general: 1, power: 2, tenant_super: 3, super: 4 };
 
 /**
  * Builds a session user object from a DB user row.

@@ -225,11 +225,24 @@
                   by "every field empty" — CR-024's own fix for the opposite
                   phantom-row bug) before it ever reaches validation
                   server-side, so this client-side block was never actually
-                  protecting anything real. #advance-btn below already works
-                  around the identical problem with formnovalidate; this is
-                  the same fix for the OTHER, far more commonly used submit
-                  button on this same form. %>
-              <button type="submit" formnovalidate class="btn btn-sm btn-primary"><i class="bi bi-save me-1"></i><%= isNew ? 'Create draft' : 'Save draft' %></button>
+                  protecting anything real.
+                  Bug fix (owner: "an action should not happen [without
+                  mandatory information] — that is basic form validation") —
+                  `formnovalidate` is REMOVED here (and on #advance-btn
+                  below): disabling all native validation was itself the
+                  wrong fix for the blank-template-row problem above.
+                  _referentialListGroup.ejs's own isRequiredField/
+                  nestedRequired now gate on isExisting/nestedIsExisting
+                  instead, so the trailing clone-template row this comment
+                  describes never carries `required` in the first place — the
+                  actual bug is fixed, not routed around. The remaining
+                  genuine case (a real required field sitting in a tab that
+                  isn't the active one — e.g. an existing draft whose
+                  hasContent-based default lands on a Contributions tab while
+                  Identity & Metadata's own required fields are blank) is
+                  handled by this same file's own submit-time tab-switch
+                  script, below. %>
+              <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-save me-1"></i><%= isNew ? 'Create draft' : 'Save draft' %></button>
               <a href="/aisworg/seu/sdk/<%= slug %>" class="btn btn-sm btn-outline-secondary">Cancel</a>
             <% } %>
             <% if (canPublish) { %>
@@ -246,7 +259,7 @@
                   happens after an actual Save. %>
               <button type="submit" id="advance-btn"
                 <%- isNew ? 'disabled' : ('formaction="/aisworg/seu/sdk/' + slug + '/' + draft.id + '/publish"') %>
-                formnovalidate class="btn btn-success btn-sm"><i class="bi bi-cloud-upload me-1"></i><%= verbLabel %> <%= kindLabel %></button>
+                class="btn btn-success btn-sm"><i class="bi bi-cloud-upload me-1"></i><%= verbLabel %> <%= kindLabel %></button>
               <span id="advance-hint" class="text-muted small <%= isNew ? '' : 'd-none' %>"><%= isNew ? 'Create the draft first.' : 'Save your changes first.' %></span>
             <% } %>
           </div>
@@ -451,7 +464,18 @@
       function updateShowWhen() {
         document.querySelectorAll('[data-show-when]').forEach(function (el) {
           var controller = form && form.elements[el.getAttribute('data-show-when')];
-          el.style.display = (controller && controller.value) ? '' : 'none';
+          var valuesAttr = el.getAttribute('data-show-when-values');
+          // GoverningCondition structured UI — data-show-when-values narrows
+          // "controller is truthy" to "controller's current value is one of
+          // these" (e.g. field/operator/value only show once `type` picks a
+          // real condition type, and only the ones that type actually uses).
+          if (valuesAttr) {
+            var allowed;
+            try { allowed = JSON.parse(valuesAttr); } catch (e) { allowed = []; }
+            el.style.display = (controller && allowed.indexOf(controller.value) !== -1) ? '' : 'none';
+          } else {
+            el.style.display = (controller && controller.value) ? '' : 'none';
+          }
         });
       }
       updateShowWhen();
@@ -460,10 +484,61 @@
         form.addEventListener('change', updateShowWhen);
       }
     })();
+
+    // Bug fix (owner: "an action should not happen [without mandatory
+    // information] — that is basic form validation") — `formnovalidate`
+    // used to disable native validation form-wide because a required field
+    // sitting in a Bootstrap tab-pane that ISN'T the active one can't be
+    // focused/scrolled into view. Native validation is back on both submit
+    // buttons now, and this switches to whichever tab holds the first
+    // invalid field so the browser's own bubble lands on a visible field
+    // instead of failing silently.
+    // Bug fix, second pass (owner: Policy Definition — switching to a tab
+    // with no required fields then Save Draft showed nothing in the UI, only
+    // a console warning: "invalid form control ... is not focusable") — a
+    // `submit`-event listener is the wrong place for this. Per spec, a
+    // submit button's own "interactively validate the constraints" step
+    // runs BEFORE the `submit` event is even dispatched; when it fails, the
+    // browser aborts right there and `submit` never fires at all — this
+    // previously only looked correct for Pack because Pack's required
+    // fields happen to sit on the tab that's already active by default, so
+    // plain native validation handled it without this script ever running.
+    // Intercepting the button's own `click` runs BEFORE that native step
+    // starts, so `preventDefault()` here actually stops it.
+    (function () {
+      var form = document.getElementById('authoring-form');
+      if (!form) return;
+
+      function interceptIfHiddenInvalid(e) {
+        if (form.checkValidity()) return; // valid, or nothing to intercept — let the button's normal submit run
+        var invalidField = form.querySelector(':invalid');
+        if (!invalidField) return;
+        var pane = invalidField.closest('.tab-pane');
+        if (!pane || pane.classList.contains('active')) return; // already visible — native handling shows its own bubble correctly
+        e.preventDefault();
+        var tabButton = document.querySelector('[data-bs-target="#' + pane.id + '"]');
+        if (tabButton && window.bootstrap) {
+          window.bootstrap.Tab.getOrCreateInstance(tabButton).show();
+        }
+        // Give the pane a frame to actually become visible/focusable before
+        // asking the browser to show its own validation bubble.
+        setTimeout(function () {
+          invalidField.focus();
+          invalidField.reportValidity();
+        }, 50);
+      }
+
+      document.querySelectorAll('#authoring-form button[type="submit"]').forEach(function (btn) {
+        btn.addEventListener('click', interceptIfHiddenInvalid);
+      });
+    })();
   </script>
   <script src="<%= baseUrl %>/js/referentialListGroup.js"></script>
   <script src="<%= baseUrl %>/js/markdownEditor.js"></script>
   <script src="<%= baseUrl %>/js/dynamicOntologyField.js"></script>
+  <script src="<%= baseUrl %>/js/composableMultiSelect.js"></script>
+  <script src="<%= baseUrl %>/js/scopeDrivenMulti.js"></script>
+  <script src="<%= baseUrl %>/js/policyTransitionFilter.js"></script>
 
   <%- include('../../../partials/footer') %>
 </body>

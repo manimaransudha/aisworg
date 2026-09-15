@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-do178c-post-certification-problem-report",
+        "category": "Compliance",
+        "title": "A post-certification problem report must be assessed for re-verification impact",
+        "description": "DO-178C requires that any problem report raised against certified airborne software be assessed for its impact on the certification basis; a fix applied without re-running the affected verification objectives is a certification-integrity gap.",
+        "origin": "Quality Gates",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "Every post-certification problem report has a recorded impact assessment and, where required, re-verification evidence for the affected Software Level's objectives.",
+        "requiredEvidence": {
+          "title": "Problem report impact assessment",
+          "category": "Analytical Evidence",
+          "description": "Assessment of a post-certification problem report's impact on the certification basis and required re-verification.",
+          "collectionMethod": "Certification liaison process (CLP) record."
+        },
+        "classification": "human-attested",
+        "prompt": "Has this problem report's impact on the certification basis been assessed, with re-verification evidence where required?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "DER (Designated Engineering Representative) or equivalent sign-off.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

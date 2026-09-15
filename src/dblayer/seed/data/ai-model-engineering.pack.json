@@ -69,6 +69,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "ai-model-drift-monitoring",
+        "category": "Engineering",
+        "title": "A deployed model must be monitored for performance/bias drift after deployment",
+        "description": "A model's evaluated quality and bias metrics at training time do not guarantee the same behavior once real-world input distribution shifts; deployed models must be monitored for drift on a recurring cadence, with retraining or rollback triggered when drift exceeds threshold.",
+        "origin": "Telemetry and Knowledge Model",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Model performance/bias drift is measured against the training-time baseline within the declared monitoring cadence, with breaches escalated.",
+        "requiredEvidence": {
+          "title": "Model drift monitoring report",
+          "category": "Analytical Evidence",
+          "description": "Comparison of live model performance/bias metrics against the training-time baseline.",
+          "collectionMethod": "Model monitoring platform export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated model-drift monitoring check.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

@@ -11,13 +11,21 @@ export const obligationsDB = {
     title: string;
     description?: string | null;
     severity?: string;
+    origin?: string | null;
+    priority?: string | null;
+    completionCriteria?: string | null;
+    blockedFromState?: string | null;
+    blockedToState?: string | null;
   }): Promise<DbResult<ObligationRow>> {
     try {
       const { rows } = await query<ObligationRow>(
-        `INSERT INTO obligations (seu_id, related_object_type, related_object_id, category, title, description, severity)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO obligations (seu_id, related_object_type, related_object_id, category, title, description, severity, origin, priority, completion_criteria, blocked_from_state, blocked_to_state)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
          RETURNING *`,
-        [input.seuId, input.relatedObjectType, input.relatedObjectId, input.category, input.title, input.description ?? null, input.severity ?? "Medium"]
+        [
+          input.seuId, input.relatedObjectType, input.relatedObjectId, input.category, input.title, input.description ?? null, input.severity ?? "Medium",
+          input.origin ?? null, input.priority ?? null, input.completionCriteria ?? null, input.blockedFromState ?? null, input.blockedToState ?? null,
+        ]
       );
       return { data: rows[0] };
     } catch (err) {

@@ -59,6 +59,30 @@
         "dimension": "Technology",
         "value": "db2"
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "test-db2-catalog-statistics-currency",
+        "category": "Engineering",
+        "title": "DB2 catalog statistics and index health must be refreshed on a recurring cadence",
+        "description": "Stale optimizer statistics and fragmented indexes silently degrade DB2 query performance over time; RUNSTATS/REORG must be run on a recurring cadence, not only reactively once a query regression is reported.",
+        "origin": "Quality Gates",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Catalog statistics and index health are refreshed within the declared maintenance cadence.",
+        "requiredEvidence": {
+          "title": "Catalog statistics refresh record",
+          "category": "Validation Evidence",
+          "description": "DB2 maintenance job log showing RUNSTATS/REORG execution and timing.",
+          "collectionMethod": "DB2 maintenance job scheduler log."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated dependency/vulnerability scan check.",
+        "externalEvidence": false
+      }
     ]
   }
 }

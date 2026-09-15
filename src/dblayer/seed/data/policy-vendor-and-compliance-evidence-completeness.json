@@ -16,36 +16,150 @@
   "conditions": [
     {
       "statement": "Every Compliance Audit Evidence item names the specific control or requirement it evidences, not submitted as undifferentiated supporting material.",
-      "requiredEvidence": [
+      "severity": "High",
+      "applicabilityDeliverables": [
         {
-          "type": "compliance_audit_evidence"
+          "name": "compliance-audit-evidence",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "security-assessment-report",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "vendor-assessment",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "vendor-contract",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "vendor-performance-record",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "High",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Compliance Audit Evidence",
+        "category": "Analytical Evidence",
+        "description": "Every Compliance Audit Evidence item names the specific control or requirement it evidences, not submitted as undifferentiated supporting material.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "A Security Assessment Report exists for any Vendor Assessment covering a vendor with access to sensitive data.",
-      "requiredEvidence": [
+      "severity": "Critical",
+      "applicabilityDeliverables": [
         {
-          "type": "security_assessment_report"
+          "name": "compliance-audit-evidence",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "security-assessment-report",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "vendor-assessment",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "vendor-contract",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "vendor-performance-record",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Critical",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Security Assessment Report",
+        "category": "Analytical Evidence",
+        "description": "A Security Assessment Report exists for any Vendor Assessment covering a vendor with access to sensitive data.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "Vendor Performance Records are reviewed against the Vendor Contract's own declared SLA at least once per contract term.",
-      "requiredEvidence": [
+      "severity": "Medium",
+      "applicabilityDeliverables": [
         {
-          "type": "vendor_performance_record"
+          "name": "compliance-audit-evidence",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "security-assessment-report",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "vendor-assessment",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "vendor-contract",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
+        },
+        {
+          "name": "vendor-performance-record",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "Vendor Performance Record",
+        "category": "Analytical Evidence",
+        "description": "Vendor Performance Records are reviewed against the Vendor Contract's own declared SLA at least once per contract term.",
+        "collectionMethod": "Manual document/analysis review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     }
   ],
   "version": "1.0.0"

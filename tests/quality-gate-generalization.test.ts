@@ -39,10 +39,6 @@ import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 // originating_pack_id is a plain traceability FK — any real Pack id satisfies
 // it; which one doesn't matter for what this file is testing.
 async function anyRealPackId(): Promise<string> {
@@ -64,9 +60,14 @@ async function commissionTestSeu(statementPrefix: string): Promise<string> {
 }
 
 test("qualityGateEngine.evaluate resolves Obligations attached to a non-Deliverable entity (AttentionItem)", async () => {
-  const seuId = await commissionTestSeu("qg-generalization-direct");
-  const attentionItem = await createAttentionItem({ seuId, category: "Action Required", title: "QG generalization test item" });
-
+  // CR-104 — Quality Gates are materialised onto an SEU's own EBM once, at
+  // EBM creation, from whichever Packs are composed at that exact moment
+  // (compositionCompleted.ts) — not re-derived live on every evaluate() call.
+  // This gate must therefore exist BEFORE the SEU below is commissioned, or
+  // that EBM's applicable_quality_gate_ids will never include it (same real
+  // ordering requirement production Pack-authoring already has: a Pack's
+  // contribution exists before any Template/Profile/SEU can compose it).
+  //
   // A gate scoped to AttentionItem, on a fabricated (fromState, toState) pair
   // unique to this test run — this could never collide with any real
   // AttentionItem transition (Created/Delivered/Acknowledged/...).
@@ -82,6 +83,9 @@ test("qualityGateEngine.evaluate resolves Obligations attached to a non-Delivera
     originatingPackId: await anyRealPackId(),
   });
   assert.ok(!gateError && gate, gateError?.message);
+
+  const seuId = await commissionTestSeu("qg-generalization-direct");
+  const attentionItem = await createAttentionItem({ seuId, category: "Action Required", title: "QG generalization test item" });
 
   // No Obligations attached yet — must pass.
   const beforeObligation = await qualityGateEngine.evaluate({ entityType: "AttentionItem", entityId: attentionItem.id, seuId, fromState, toState });
@@ -111,9 +115,10 @@ test("qualityGateEngine.evaluate resolves Obligations attached to a non-Delivera
 });
 
 test("transitionAttentionItem is genuinely wired to qualityGateEngine — a real transition is blocked by an unresolved Obligation attached to the same AttentionItem, and unblocks once resolved", async () => {
-  const seuId = await commissionTestSeu("qg-generalization-wiring");
-  const attentionItem = await createAttentionItem({ seuId, category: "Action Required", title: "QG wiring test item" });
-
+  // CR-104 — same ordering requirement as the direct-evaluate test above:
+  // this Quality Gate must exist before the SEU below is commissioned, or
+  // its EBM's applicable_quality_gate_ids will never include it.
+  //
   // A one-off Transition Definition + Quality Gate for a randomized
   // (fromState, toState) pair, reusing the real, already-seeded baseline
   // Authority Rule/Policy for AttentionItem transitions (safe to reuse —
@@ -136,6 +141,9 @@ test("transitionAttentionItem is genuinely wired to qualityGateEngine — a real
     originatingPackId: packId,
   });
   assert.equal(gateError, undefined);
+
+  const seuId = await commissionTestSeu("qg-generalization-wiring");
+  const attentionItem = await createAttentionItem({ seuId, category: "Action Required", title: "QG wiring test item" });
 
   // Force the AttentionItem into the fabricated fromState directly (test
   // setup only — no governed path is meant to reach a state this test

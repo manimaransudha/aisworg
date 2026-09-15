@@ -10,10 +10,6 @@ import pool from "../src/utils/db.js";
 import { createSchemaVersion, getSchemaDefinition, listSchemaDefinitions } from "../src/routes/seu/core/schemaRegistry.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 
-after(async () => {
-  await pool.end();
-});
-
 // The grammar-authored kinds (Pack/Template/Profile) are all load-bearing — each
 // has a live authoring surface whose generated form reads
 // schema_definitions.findLatest directly — so there is no "safe," permanently-

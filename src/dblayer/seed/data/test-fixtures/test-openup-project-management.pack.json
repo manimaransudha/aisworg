@@ -37,6 +37,30 @@
         ]
       }
     ],
-    "reviewGates": []
+    "reviewGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-openup-risk-list-currency",
+        "category": "Organisational Learning",
+        "title": "The project risk list must be reviewed and refreshed on a recurring cadence",
+        "description": "OpenUP's Project Management discipline maintains a risk list as a living artifact; a risk list last touched at project kickoff and never revisited stops reflecting the project's actual current exposure.",
+        "origin": "EBM",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "The risk list is reviewed and refreshed within the declared cadence, with stale risks retired and new ones added.",
+        "requiredEvidence": {
+          "title": "Risk list refresh record",
+          "category": "Analytical Evidence",
+          "description": "Refreshed risk list with additions/retirements since the last review.",
+          "collectionMethod": "Project management tool export."
+        },
+        "classification": "human-attested",
+        "prompt": "Has the risk list been reviewed and refreshed within the required cadence?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Project manager sign-off.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

@@ -40,6 +40,25 @@
         // touched by that — clear it explicitly so the reset filter and
         // the actually-visible Pack options agree.
         clone.querySelectorAll('.dep-pack-select option[hidden]').forEach(function (opt) { opt.hidden = false; });
+        // GoverningCondition structured UI — [data-show-when] holds a
+        // sibling field's own FULL input name baked in server-side (e.g.
+        // "conditions[0][governingCondition][type]"); cloneNode copies that
+        // attribute verbatim, still pointing at the OLD row's index, unless
+        // fixed up the same way every `name` attribute already is above.
+        clone.querySelectorAll('[data-show-when]').forEach(function (el) {
+          var showWhen = el.getAttribute('data-show-when');
+          if (showWhen) el.setAttribute('data-show-when', showWhen.replace(/\[\d+\]/, '[' + nextIndex + ']'));
+        });
+        group.setAttribute('data-next-index', String(nextIndex + 1));
+        // Bug fix — every init call below does `el.closest('form')` (or
+        // relies on a descendant that does) to find its driver field; a
+        // detached clone has no ancestors at all, so every one of these
+        // silently no-op'd when run before insertion (confirmed: this was
+        // already true of the pre-existing .ontology-combo/.scope-driven-multi
+        // calls, not something newly introduced here — just never
+        // previously reached in a way that surfaced it). Insert FIRST, then
+        // initialise.
+        addBtn.parentNode.insertBefore(clone, addBtn);
         // CR-100 — Competency's own `value` combo (.ontology-combo,
         // dynamicOntologyField.js) carries its driver's row-scoped field
         // name in a data-* attribute, which the input/select/textarea loop
@@ -52,8 +71,29 @@
           if (driverField) combo.setAttribute('data-driver-field', driverField.replace(/\[\d+\]/, '[' + nextIndex + ']'));
           if (typeof window.initOntologyCombo === 'function') window.initOntologyCombo(combo);
         });
-        group.setAttribute('data-next-index', String(nextIndex + 1));
-        addBtn.parentNode.insertBefore(clone, addBtn);
+        // Owner: "Add only deliverable name and allow multiple transitions"
+        // — Policy's own applicabilityDeliverables[].name (item-level,
+        // driven by the TOP-LEVEL `scope`, not row-scoped) is the first
+        // .scope-driven-multi to live inside a repeatable row; its own
+        // data-driver-field names a bare top-level field, so no row-index
+        // fix-up is needed the way .ontology-combo's driver field above
+        // does — only (re-)wiring the clone's own change listener.
+        clone.querySelectorAll('.scope-driven-multi').forEach(function (container) {
+          if (typeof window.initScopeDrivenMulti === 'function') window.initScopeDrivenMulti(container);
+        });
+        clone.querySelectorAll('.ontology-multi-combo').forEach(function (combo) {
+          if (typeof window.initComposableMulti === 'function') window.initComposableMulti(combo);
+        });
+        // Owner: "applicable lifecycle is based on Deliverable (for
+        // scope=transition) and depending on what is selected for
+        // scope=eligibility" — a freshly cloned condition row brings its own
+        // brand new (uninitialised) nested applicabilityDeliverables group
+        // along with it; wire it up the same way every group present at
+        // page load already is (policyTransitionFilter.js). Harmless no-op
+        // for every other .referential-list-row clone with no such group.
+        clone.querySelectorAll('.nested-list-group').forEach(function (nestedGroup) {
+          if (typeof window.initPolicyTransitionFilterGroup === 'function') window.initPolicyTransitionFilterGroup(nestedGroup);
+        });
         notifyDirty();
       });
     }
@@ -124,8 +164,35 @@
       });
       var badge = clone.querySelector('.badge');
       if (badge) { badge.className = 'badge bg-light text-muted border small fw-normal'; badge.textContent = 'New item — fill in to add'; }
+      // GoverningCondition-within-applicabilityDeliverables (migration 219)
+      // — [data-show-when] one level BELOW this nested-list (a nested-object
+      // inside a nested-list row) holds a sibling's own full input name,
+      // e.g. "conditions[0][applicabilityDeliverables][1][governingCondition][type]";
+      // this row's own index is the LAST numeric bracket, same position the
+      // `name` fix-up above already targets.
+      clone.querySelectorAll('[data-show-when]').forEach(function (el) {
+        var showWhen = el.getAttribute('data-show-when');
+        if (showWhen) el.setAttribute('data-show-when', showWhen.replace(/\[(\d+)\](?!.*\[\d+\])/, '[' + nextIndex + ']'));
+      });
       group.setAttribute('data-next-index', String(nextIndex + 1));
+      // Bug fix — insert BEFORE initialising (same reasoning as the
+      // top-level "+ Add another" handler above): every init call below
+      // needs a real ancestor form/group to find its driver field, which a
+      // still-detached clone doesn't have.
       addBtn.parentNode.insertBefore(clone, addBtn);
+      // Migration 216 — applicabilityDeliverables[].name (a scope-driven-multi
+      // one level below a nested-list, the first of its kind) needs its own
+      // clone re-init the same way the top-level "+ Add another" handler
+      // above already gives a freshly cloned top-level row; harmless no-op
+      // for every other .nested-list-row clone (Checklist's own items, ...)
+      // with none of these widgets.
+      clone.querySelectorAll('.scope-driven-multi').forEach(function (container) {
+        if (typeof window.initScopeDrivenMulti === 'function') window.initScopeDrivenMulti(container);
+      });
+      clone.querySelectorAll('.ontology-multi-combo').forEach(function (combo) {
+        if (typeof window.initComposableMulti === 'function') window.initComposableMulti(combo);
+      });
+      if (typeof window.filterPolicyTransitionsRow === 'function') window.filterPolicyTransitionsRow(clone);
       notifyDirty();
       return;
     }

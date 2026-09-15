@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "pci-dss-quarterly-scan-currency",
+        "category": "Security",
+        "title": "Cardholder Data Environment vulnerability scans must stay current on their required cadence",
+        "description": "PCI-DSS v4.0 requires quarterly ASV scans and an annual penetration test of the Cardholder Data Environment; a passing scan result that has aged past its required cadence is no longer valid evidence of compliance.",
+        "origin": "Quality Gates",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "The most recent ASV scan is within the last quarter and the most recent penetration test is within the last year, both passing.",
+        "requiredEvidence": {
+          "title": "ASV scan / pen-test currency record",
+          "category": "Validation Evidence",
+          "description": "Approved Scanning Vendor scan report and penetration test report with dates.",
+          "collectionMethod": "ASV scanning platform and pen-test report."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated scan/pen-test cadence check.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

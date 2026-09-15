@@ -77,6 +77,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "operational-runbook-currency",
+        "category": "Engineering",
+        "title": "Operational runbook must stay current with the live system",
+        "description": "The Runbook / Operational Documentation accepted at the Operational Readiness Review must be revisited on a recurring basis so it does not silently drift out of date with the operated system.",
+        "origin": "EBM",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "The runbook is reviewed and reaffirmed or updated at each defined operational review interval.",
+        "requiredEvidence": {
+          "title": "Runbook currency review",
+          "category": "Analytical Evidence",
+          "description": "A recorded review confirming the runbook still matches the live operated system.",
+          "collectionMethod": "Scheduled operational review, compared against current system configuration."
+        },
+        "classification": "human-attested",
+        "prompt": "Does the Runbook / Operational Documentation still accurately reflect the live operated system?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "assurance": "SRE/Ops lead sign-off at each review interval.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

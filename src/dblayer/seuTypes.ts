@@ -287,6 +287,11 @@ export interface PackContributions {
     // "doesn't by itself determine the outcome" role Ch.47's own Recommended
     // designation always had, just relocated from item to reference.
     recommendedChecklistIds?: string[];
+    // CR-104 — real deliverable-name codes this gate targets (mirrors
+    // policy_definitions.applicability_deliverable_names' own shape). Empty/
+    // omitted = every Deliverable reaching this gate's governedTransition,
+    // unchanged from before this field existed.
+    applicabilityDeliverableNames?: string[];
   } & VerifiableItemFields>;
   // CR-060 (Ch.47) — a Checklist is a real, persisted, cross-Pack-
   // referenceable entity (checklists table) despite having no version or
@@ -318,7 +323,17 @@ export interface PackContributions {
   // (category:obligation/category:obligation-origin). No real Obligation
   // Definition table — nothing cross-references one by id, unlike
   // Checklist/Policy — this stays a JSONB declaration only.
-  obligationDefinitions?: Array<{ code?: string; category?: string; origin?: string } & VerifiableItemFields>;
+  // Migration 222/224 (owner: "ObligationDefinition model has to be created
+  // and used in both the places so changes are sustained all the places
+  // correctly") — this is the same shared ObligationDefinition shape as
+  // Policy's own conditions[].relatedObligations[], plus this Pack-scoped
+  // `code` and the §20 verifiable-item execution-mechanism fields
+  // (classification/prompt/participant/outputContract/assurance/
+  // externalEvidence) layered on top; `statement` is dropped from
+  // VerifiableItemFields here since ObligationDefinition's own `description`
+  // already covers that concept (migration 222 renamed statement ->
+  // description on this exact field for this exact reason).
+  obligationDefinitions?: Array<{ code: string } & ObligationDefinition & Omit<VerifiableItemFields, "statement">>;
   // CR-082 — Ch.5 §9's Engineering Behaviour / Engineering Metrics /
   // Reusable Components / Engineering Templates, unified under one
   // contribution kind rather than four schema fields. Minimal stub (owner:
@@ -517,30 +532,118 @@ export interface ServiceDefinitionRow {
 // in chapter 24 for policy").
 export type PolicyDefinitionStatus = "Draft" | "Validated" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
 
-// One independently-checkable predicate a Policy declares (Ch.24 §8). Kept
-// as its own rich, nested shape (requiredEvidence/exceptionRules/
-// relatedObligations arrays) rather than flattened — `conditions` as a
-// whole is authored as raw JSON (`x-widget: "json"`, schema_definitions
-// Policy v1), not individual form fields, so nothing here needs to fit
-// formGenerator.ts's flat ItemField kinds.
+// Ch.17 §8's Definition-side Evidence shape — Title/Category/Description/
+// Collection Method. Every other §8 field (Identifier, Status, Source,
+// Confidence Level, Timestamp, Related-*, Provenance) is execution-only
+// (owner: "Source is execution side... Evidence is related to an
+// engineering artefact" — Ch.17 §10) — a definition declares what TYPE of
+// evidence is needed; the real Evidence Item, once actually captured and
+// related to a real artefact, carries the rest. Category is Ontology-backed
+// (category:evidence, Ch.17 §7's own 6 named categories). Two real call
+// sites, not a Pack contribution kind of its own (owner: "Pack does not
+// have a contributingEvidence"):
+//   - Policy's own conditions[].requiredEvidence (migration 215, upgraded
+//     from its own narrow {evidenceType, evidenceFormat} shape here).
+//   - ObligationDefinition's own requiredEvidence, below — reaches both of
+//     ObligationDefinition's own call sites (Policy's relatedObligations[]
+//     and Pack's contributionObligationDefinitions[]) without a separate
+//     mechanism.
+export interface EvidenceDefinition {
+  title: string;
+  category: string;
+  description: string;
+  collectionMethod: string;
+}
+
+// Ch.23 §8's Definition-side Obligation shape — Category/Title/Description/
+// Origin/Priority/Severity/Completion Criteria/Required Evidence. Status
+// and every other Related-*/Traceability field are execution-only
+// (CR-106) — an Obligation Definition declares a TYPE of Obligation; the
+// real instance, raised at SEU-execution time, carries the rest. One shared
+// shape, two real call sites (owner: "ObligationDefinition model has to be
+// created and used in both the places so changes are sustained all the
+// places correctly"):
+//   - Policy's own conditions[].relatedObligations[] (migration 216).
+//   - Pack's own contributionObligationDefinitions[] (migration 222) —
+//     layers its own Pack-scoped `code` and the §20 verifiable-item
+//     execution-mechanism fields (classification/prompt/participant/
+//     outputContract/assurance/externalEvidence) on top of this same shape;
+//     those sit outside Ch.23 §8 entirely, not part of this type.
+// Category/Origin/Priority/Severity are Ontology-backed (category:obligation,
+// category:obligation-origin, category:obligation-priority,
+// category:obligation-severity) at every call site.
+export interface ObligationDefinition {
+  category: string;
+  title: string;
+  description: string;
+  origin: string;
+  priority: string;
+  severity: string;
+  completionCriteria: string;
+  requiredEvidence: EvidenceDefinition;
+}
+
+export type PolicyRelatedObligation = ObligationDefinition;
+
+// Owner: "identifier: system generated" — assigned server-side on save
+// (sdkAuthoring.ts's toPolicyConditions), never author-typed.
+// exceptionApprovers holds real Authority Vocabulary badge codes
+// (`{noun}_{verb}`, authority_noun_verbs) — owner: "should have list of
+// badges that are Ontology driven... It means Reference authority_noun_verbs"
+// (not an Ontology concept type; badges have no ontology_concepts row).
+// Migration 220 (Ch.24, lines 388-394 — "An exception shall specify:
+// justification; approving authority; duration; scope; review
+// requirements"): exceptionStatement is justification, exceptionApprovers
+// is approving authority; duration/exceptionScope/reviewRequirements are
+// the three that were missing. exceptionScope is distinct from Policy's own
+// top-level `scope` (Transition/Eligibility) — this is what the exception
+// itself applies to (e.g. "this SEU only"), not the Policy's governance
+// mode. Owner: "Exceptions are defined only when Constraint type='Policy'"
+// — enforced in validatePolicyDefinitionSeed, not this type.
+export interface PolicyExceptionRule {
+  identifier: string;
+  exceptionStatement: string;
+  duration: string;
+  exceptionScope: string;
+  exceptionApprovers: string[];
+  exceptionComposition: "all" | "any" | "";
+  reviewRequirements: string;
+}
+
+// Migration 216 (owner: "I am inclined to move the applicability inside the
+// condition. That is more practical") — replaces the Policy Definition's
+// old top-level applicability_deliverables column: each condition now
+// independently names which deliverable(s)/noun(s) and transition(s) it
+// governs (owner's own example: "2 reviewers required for Code, sign-off
+// required for Deployment Plan" — two conditions, two different scopes, one
+// Policy). Same {name, transitions} shape migration 214 already established.
+//
+// Migration 219 (owner: "The governing condition should be within
+// applicability deliverables") — governingCondition moved OFF the condition
+// itself and into each row here: a condition naming several deliverables/
+// transitions can now give each one its own real governing rule, instead of
+// one rule shared by every row the condition happens to list.
+// null/unset means that row is manual/human-attested, never checked by
+// policyEngine.ts.
+export interface PolicyApplicabilityDeliverable {
+  name: string;
+  transitions: string[];
+  governingCondition: Record<string, unknown> | null;
+}
+
 export interface PolicyCondition {
   statement: string;
-  requiredEvidence: Array<Record<string, unknown>>;
-  severity: "Critical" | "High" | "Medium" | "Low";
-  exceptionRules: string[];
-  relatedObligations: string[];
+  severity: string;
+  applicabilityDeliverables: PolicyApplicabilityDeliverable[];
+  requiredEvidence: EvidenceDefinition;
+  relatedObligations: PolicyRelatedObligation[];
+  exceptionRules: PolicyExceptionRule[];
 }
 
 // `policy_definitions` (167_policy_definitions.sql) — a new, standalone
 // canonical catalog, mirroring ServiceDefinitionRow's own shape, but with NO
 // relationship to any other entity (unlike Service Definition's 1:1 tie to
 // Capability) — owner: "there is no relationship with any other entity."
-// applicability_deliverable_names/applicability_environments/
-// applicability_deliverable_lifecycle are real Postgres TEXT[] columns; the
-// schema's own form-facing shape represents deliverable_lifecycle as a
-// comma-separated string (same convention contributionPolicies[].conditionValues
-// already uses, migration 109) since it has no Ontology backing to drive a
-// multi-select the way the other two do.
 export interface PolicyDefinitionRow {
   id: string;
   code: string;
@@ -548,10 +651,14 @@ export interface PolicyDefinitionRow {
   description: string | null;
   category: string;
   constraint_type: "Policy" | "Standard";
-  applicability_deliverable_names: string[];
   applicability_environments: string[];
-  applicability_deliverable_lifecycle: string[];
+  // Migration 216 — applicabilityDeliverables/governedTransition/
+  // governingCondition all moved OFF this row (dropped as real columns) and
+  // into each element of `conditions` (see PolicyCondition) — owner: "Scope
+  // can be outside the condition. Move it into the metadata... remove the
+  // applicability tab."
   conditions: PolicyCondition[];
+  scope: PolicyScope;
   version: string;
   status: PolicyDefinitionStatus;
   draft_content: Record<string, unknown>;
@@ -652,6 +759,18 @@ export interface EbmRow {
   // same reason seus.composition_report is (dblayer has no business
   // importing domain/engine's PoolEntry shape).
   behaviors: Record<string, unknown> | null;
+  // CR-104 — this EBM's own materialised governance: real Quality Gate/
+  // Policy row ids, resolved once at EBM creation from its composed Packs'
+  // own originating_pack_id (migration 203). The engines read these directly
+  // instead of a bare (entity_type, from_state, to_state) match that ignores
+  // composition entirely.
+  applicable_quality_gate_ids: string[];
+  applicable_policy_ids: string[];
+  // CR-104 — a distinct subset of applicable_policy_ids: Policies governing
+  // the SEU's own lifecycle transition (governed_transition entity type
+  // 'SEU'), read directly by commissioning.ts for its own transitions, never
+  // by policyEngine's entity-scoped check.
+  seu_scoped_policy_ids: string[];
   created_at: string;
 }
 
@@ -856,16 +975,33 @@ export interface AuthorityRuleRow {
 
 export type ConstraintType = "Policy" | "Standard";
 
+// CR-104 — "Transition" (the original, only shape until now): governs a real
+// state-machine hop, named by governed_transition, checked either at that
+// SEU's own lifecycle transition (SEU-scoped) or at an owned entity's own
+// transition (Deliverable/AttentionItem/etc — EBM-scoped). "Eligibility":
+// governs whether a Participant may be selected to fulfil a Capability at
+// all (Ch.12/33's own "who's eligible" question) — no transition involved,
+// governed_transition stays null, checked against a candidate Participant's
+// own behaviour_context instead.
+export type PolicyScope = "Transition" | "Eligibility";
+
 export interface PolicyRow {
   id: string;
   code: string;
   name: string;
   category: string;
   constraint_type: ConstraintType;
-  governed_transition: string;
+  scope: PolicyScope;
+  governed_transition: string | null;
   condition: Record<string, unknown>;
   severity: string;
   originating_pack_id: string | null;
+  // Migration 211 — real runtime enforcement of Policy's own Applicability
+  // Deliverable Names (previously declared on the Definition only, never
+  // copied here or consulted by policyEngine.ts). Same shape/semantics as
+  // quality_gates.applicability_deliverable_names: empty = matches every
+  // Deliverable name; non-empty narrows to just those named.
+  applicability_deliverable_names: string[];
   created_at: string;
 }
 
@@ -1293,6 +1429,18 @@ export interface ObligationRow {
   description: string | null;
   severity: string;
   status: string;
+  // Migration 226 (CR-106 Option C) — Ch.23 §8's Origin/Priority/Completion
+  // Criteria, closing the execution-side gap the Definition-side shape
+  // (ObligationDefinition) already had. Nullable — every Obligation raised
+  // before this migration has none of these.
+  origin: string | null;
+  priority: string | null;
+  completion_criteria: string | null;
+  // Which governed transition this Obligation is blocking, set only by
+  // raiseObligationForBlockedTransition — null for every other Obligation
+  // origin (Telemetry, Knowledge promotion, manual API).
+  blocked_from_state: string | null;
+  blocked_to_state: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1326,6 +1474,11 @@ export interface QualityGateRow {
   // CR-060, revised same day — advisory Checklists; see
   // PackContributions.qualityGates' own recommendedChecklistIds comment.
   recommended_checklist_ids: string[];
+  // CR-104 (migration 203) — real deliverable-name codes this gate targets;
+  // empty = applies to every Deliverable reaching this (entity_type,
+  // from_state, to_state), same as before this field existed. Mirrors
+  // policy_definitions.applicability_deliverable_names' own shape.
+  applicability_deliverable_names: string[];
 }
 
 // CR-059 — Review Gate, real and persisted. No `category`/`criteria`: the

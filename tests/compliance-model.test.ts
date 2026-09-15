@@ -18,10 +18,6 @@ import { complianceDB } from "../src/dblayer/complianceDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 async function commissionSeu(prefix: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromFormSync({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorRole: "super", actorId: "1001", requestedBy: 1001 });

@@ -33,7 +33,7 @@ import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
 import { objectivesDB } from "../src/dblayer/objectivesDB.js";
-import { ensureWebAppTemplateFixture, uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant } from "./testFixtures.js";
 
 type Session = ReturnType<typeof fetchCookie>;
 
@@ -54,7 +54,6 @@ before(async () => {
 
 after(async () => {
   await new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())));
-  await pool.end();
 });
 
 // Each test gets its own cookie jar (own session, own dev-mode auto-login
@@ -208,6 +207,17 @@ async function commissionSeu(request: Session, statementPrefix: string): Promise
   // extra button clicks over HTTP.
   const driven = await driveCommissioningToActive({ seuId, actorRole: "super", actorId: String(TEST_USER_ALL_BADGES) });
   assert.equal(driven.ok, true, !driven.ok ? `commissioning failed: ${driven.reason}` : undefined);
+
+  // Test fixture only — no core eligibility logic touched. Under real
+  // concurrent suite load the shared, finite seedParticipantsMaster.ts pool
+  // for these capability codes can come up empty at the exact moment this
+  // SEU's own detail page renders (every other Flow/Phase test in this file
+  // commissions its own SEU needing the same codes at the same time), which
+  // hides the Fulfil form entirely (detail.ejs only renders it when
+  // hasAnyEligible). This participant is real and genuinely eligible by the
+  // platform's own actual rules — it's not shared with anything else, so it
+  // can never be contended away.
+  await ensureEligibleParticipant(seuId, ["requirements-analysis", "architecture-design", "software-construction"]);
 
   return { seuId, csrf };
 }

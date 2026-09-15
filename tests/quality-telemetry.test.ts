@@ -16,10 +16,6 @@ import { createEvidence, transitionEvidence } from "../src/routes/seu/core/evide
 import { getQualityMetrics } from "../src/routes/seu/core/telemetry.js";
 import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync } from "./testFixtures.js";
 
-after(async () => {
-  await pool.end();
-});
-
 async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
   await ensureCoreEngineeringQualityGates();

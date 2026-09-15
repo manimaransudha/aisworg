@@ -12,65 +12,132 @@
   "conditions": [
     {
       "statement": "An ADR record exists, linked to this Architecture Deliverable.",
-      "requiredEvidence": [
+      "severity": "Critical",
+      "applicabilityDeliverables": [
         {
-          "type": "adr_record"
+          "name": "architecture-decision-record",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Critical",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "ADR Record",
+        "category": "Analytical Evidence",
+        "description": "An ADR record exists, linked to this Architecture Deliverable.",
+        "collectionMethod": "ADR document review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "The ADR documents the problem context motivating the decision.",
-      "requiredEvidence": [
+      "severity": "High",
+      "applicabilityDeliverables": [
         {
-          "type": "adr_record",
-          "field": "context"
+          "name": "architecture-decision-record",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "High",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "ADR Record — Context",
+        "category": "Analytical Evidence",
+        "description": "The ADR documents the problem context motivating the decision.",
+        "collectionMethod": "ADR document review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "The ADR documents at least one alternative that was considered and rejected, with rationale.",
-      "requiredEvidence": [
+      "severity": "Medium",
+      "applicabilityDeliverables": [
         {
-          "type": "adr_record",
-          "field": "alternatives_considered"
+          "name": "architecture-decision-record",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Medium",
+      "requiredEvidence": {
+        "title": "ADR Record — Alternatives Considered",
+        "category": "Analytical Evidence",
+        "description": "The ADR documents at least one alternative that was considered and rejected, with rationale.",
+        "collectionMethod": "ADR document review"
+      },
+      "relatedObligations": [],
       "exceptionRules": [
-        "A decision with no viable alternative (single-vendor constraint, regulatory mandate) may state 'no alternative' explicitly, with justification, in place of a rejected option."
-      ],
-      "relatedObligations": []
+        {
+          "identifier": "5ff83b0c-1b50-57aa-ab50-87b72e9c7f11",
+          "exceptionStatement": "A decision with no viable alternative (single-vendor constraint, regulatory mandate) may state 'no alternative' explicitly, with justification, in place of a rejected option.",
+          "duration": "Permanent for this decision",
+          "exceptionScope": "This ADR only",
+          "exceptionApprovers": [
+            "Deliverable_approve"
+          ],
+          "exceptionComposition": "any",
+          "reviewRequirements": "Justification is recorded in the ADR itself; no separate review required."
+        }
+      ]
     },
     {
       "statement": "The ADR documents both positive and negative consequences of the decision, including identified risk.",
-      "requiredEvidence": [
+      "severity": "High",
+      "applicabilityDeliverables": [
         {
-          "type": "adr_record",
-          "field": "consequences"
+          "name": "architecture-decision-record",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "High",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "requiredEvidence": {
+        "title": "ADR Record — Consequences",
+        "category": "Analytical Evidence",
+        "description": "The ADR documents both positive and negative consequences of the decision, including identified risk.",
+        "collectionMethod": "ADR document review"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "The ADR was reviewed and approved by an Architecture-capability participant other than its author.",
-      "requiredEvidence": [
+      "severity": "Critical",
+      "applicabilityDeliverables": [
         {
-          "type": "review_result"
+          "name": "architecture-decision-record",
+          "transitions": [
+            "Deliverable|In Progress|Approved"
+          ],
+          "governingCondition": null
         }
       ],
-      "severity": "Critical",
+      "requiredEvidence": {
+        "title": "Review Result",
+        "category": "Validation Evidence",
+        "description": "The ADR was reviewed and approved by an Architecture-capability participant other than its author.",
+        "collectionMethod": "Recorded outcome from the review process"
+      },
+      "relatedObligations": [],
       "exceptionRules": [
-        "A single-architect SEU (no second Architecture participant available) may substitute Authority sign-off for peer review, logged as a governance exception."
-      ],
-      "relatedObligations": []
+        {
+          "identifier": "7f860229-cf56-51f6-965e-77884941d841",
+          "exceptionStatement": "A single-architect SEU (no second Architecture participant available) may substitute Authority sign-off for peer review, logged as a governance exception.",
+          "duration": "For the duration of this SEU's single-architect staffing",
+          "exceptionScope": "This SEU's Architecture Deliverables only",
+          "exceptionApprovers": [
+            "Deliverable_approve"
+          ],
+          "exceptionComposition": "any",
+          "reviewRequirements": "Re-evaluated if a second Architecture participant joins the SEU."
+        }
+      ]
     }
   ],
   "version": "1.0.0"

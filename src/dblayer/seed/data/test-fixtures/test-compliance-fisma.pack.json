@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-fisma-ato-continuous-authorization",
+        "category": "Security",
+        "title": "Authorization to Operate must stay current under continuous authorization, not lapse silently",
+        "description": "FISMA/EO 14028 continuous authorization requires the system's security posture (control assessments, risk register) to stay current with its ATO; a system operating past its authorization currency window is operating without valid authorization.",
+        "origin": "EBM",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "The system's ATO currency is confirmed within its continuous-authorization review window.",
+        "requiredEvidence": {
+          "title": "ATO currency check",
+          "category": "Validation Evidence",
+          "description": "Continuous authorization system record confirming ATO currency.",
+          "collectionMethod": "Continuous authorization/ATO tracking system export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated ATO-currency check.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

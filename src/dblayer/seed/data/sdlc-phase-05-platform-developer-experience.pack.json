@@ -77,6 +77,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "platform-readiness-drift-check",
+        "category": "Engineering",
+        "title": "Platform/CI-CD configuration must not drift silently from what was reviewed",
+        "description": "The CI/CD Pipeline Definition accepted at the Platform Readiness Review is the baseline configuration; any later change to pipeline/environment configuration must be tracked back to this baseline, not left as undocumented drift.",
+        "origin": "Quality Gates",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Live pipeline configuration matches the reviewed CI/CD Pipeline Definition, or deviations are recorded and justified.",
+        "requiredEvidence": {
+          "title": "Pipeline configuration diff",
+          "category": "Analytical Evidence",
+          "description": "A comparison of live CI/CD configuration against the reviewed definition.",
+          "collectionMethod": "Automated configuration-diff check."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated pipeline-configuration check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

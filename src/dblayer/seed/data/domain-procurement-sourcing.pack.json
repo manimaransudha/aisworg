@@ -68,6 +68,30 @@
       }
     ],
     "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "procurement-supplier-scorecard-currency",
+        "category": "Engineering",
+        "title": "Supplier performance scorecards must be refreshed on a recurring cadence",
+        "description": "A supplier's risk/performance scorecard used in sourcing decisions must reflect recent delivery, quality, and compliance performance, not the score recorded at initial qualification.",
+        "origin": "Telemetry and Knowledge Model",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Every active supplier's scorecard is refreshed within the declared cadence.",
+        "requiredEvidence": {
+          "title": "Supplier scorecard refresh record",
+          "category": "Analytical Evidence",
+          "description": "Refreshed supplier performance scorecard.",
+          "collectionMethod": "Supplier relationship management system export."
+        },
+        "classification": "human-attested",
+        "prompt": "Has this supplier's performance scorecard been refreshed within the required cadence?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Procurement/sourcing lead sign-off.",
+        "externalEvidence": false
+      }
+    ],
     "competencies": [
       {
         "dimension": "Domain",

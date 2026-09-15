@@ -77,6 +77,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-discovery-findings-traceability",
+        "category": "Review Finding",
+        "title": "Unresolved discovery findings must be tracked to closure",
+        "description": "Any risk, open question, or gap raised during the Product Requirements Review must be tracked until resolved or explicitly accepted, not lost between Discovery and Experience Design.",
+        "origin": "Reviews",
+        "priority": "High",
+        "severity": "Medium",
+        "completionCriteria": "Every finding recorded on the Product Requirements Review reaches a Resolved or Accepted status before Experience Design exit.",
+        "requiredEvidence": {
+          "title": "Discovery finding disposition",
+          "category": "Validation Evidence",
+          "description": "A record showing each discovery review finding's final disposition (resolved/accepted).",
+          "collectionMethod": "Extracted from the Product Requirements Review record."
+        },
+        "classification": "human-attested",
+        "prompt": "Has every finding raised in the Product Requirements Review reached a recorded disposition?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Product Owner sign-off.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

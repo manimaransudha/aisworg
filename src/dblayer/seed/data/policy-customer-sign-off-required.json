@@ -12,39 +12,42 @@
   "conditions": [
     {
       "statement": "A human-attested sign-off record exists from the designated customer authority.",
-      "requiredEvidence": [
-        {
-          "type": "human_attestation",
-          "classification": "human-attested"
-        }
-      ],
       "severity": "Critical",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Human Attestation",
+        "category": "Validation Evidence",
+        "description": "A human-attested sign-off record exists from the designated customer authority.",
+        "collectionMethod": "Manual sign-off recorded by the responsible participant"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "The sign-off record names the specific Deliverable version being accepted.",
-      "requiredEvidence": [
-        {
-          "type": "human_attestation",
-          "field": "accepted_version"
-        }
-      ],
       "severity": "High",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Human Attestation — Accepted Version",
+        "category": "Validation Evidence",
+        "description": "The sign-off record names the specific Deliverable version being accepted.",
+        "collectionMethod": "Manual sign-off recorded by the responsible participant"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "The sign-off timestamp precedes the Baselined transition, not recorded after the fact.",
-      "requiredEvidence": [
-        {
-          "type": "human_attestation",
-          "field": "timestamp"
-        }
-      ],
       "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Human Attestation — Timestamp",
+        "category": "Validation Evidence",
+        "description": "The sign-off timestamp precedes the Baselined transition, not recorded after the fact.",
+        "collectionMethod": "Manual sign-off recorded by the responsible participant"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     }
   ],
   "version": "1.0.0"

@@ -63,6 +63,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-fcpa-third-party-due-diligence-refresh",
+        "category": "Compliance",
+        "title": "Third-party intermediary due diligence must be refreshed on a recurring cadence",
+        "description": "FCPA/UK Bribery Act anti-bribery controls require ongoing due diligence on third-party intermediaries (agents, distributors, consultants) with foreign-official exposure; an initial onboarding check does not cover the life of the relationship.",
+        "origin": "Compliance Packs",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every active third-party intermediary's due diligence is refreshed within its declared cadence.",
+        "requiredEvidence": {
+          "title": "Third-party due diligence refresh record",
+          "category": "Validation Evidence",
+          "description": "Due diligence system record showing the refresh date and outcome for each intermediary.",
+          "collectionMethod": "Third-party risk management system export."
+        },
+        "classification": "human-attested",
+        "prompt": "Has every active third-party intermediary's due diligence been refreshed within its cadence?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Compliance officer sign-off.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

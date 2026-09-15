@@ -77,6 +77,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-architecture-decision-follow-through",
+        "category": "Engineering",
+        "title": "Architecture Decision Records raised during review are honored downstream",
+        "description": "Architecture Decisions accepted at the Architecture Review must be tracked and referenced by Implementation; a decision silently overridden without a superseding ADR is a governance gap, not a normal implementation detail.",
+        "origin": "EBM",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Every ADR accepted at this phase is either implemented as specified or superseded by a later, equally-reviewed ADR.",
+        "requiredEvidence": {
+          "title": "ADR-to-implementation trace",
+          "category": "Analytical Evidence",
+          "description": "A trace linking each accepted ADR to its realization (or supersession) in Source Code.",
+          "collectionMethod": "Automated cross-reference between ADR records and Source Code deliverables."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated ADR-to-code traceability check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

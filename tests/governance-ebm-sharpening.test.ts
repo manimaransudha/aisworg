@@ -24,16 +24,12 @@ import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { ensureWebAppTemplateFixture, uniqueTestPackVersion, commissionFromFormSync, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync } from "./testFixtures.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
-import type { EventRow } from "../src/dblayer/seuTypes.js";
+import type { EventRow, SeuRow } from "../src/dblayer/seuTypes.js";
 
 before(async () => {
   // Must run before this file's own first commissionSeu call — see
   // ensureEventSubscriptionsLoaded's own header comment (testFixtures.ts).
   await ensureEventSubscriptionsLoaded();
-});
-
-after(async () => {
-  await pool.end();
 });
 
 test("FR-3.3: a commissioned SEU's Engineering Behavior Model is versioned (version 1 for the first)", async () => {
@@ -93,9 +89,9 @@ test("FR-3.6/3.7: a composition conflict hard-blocks commissioning; the SEU neve
   const codeA = "conflict-a";
   const codeB = "conflict-b";
   // Two packs contributing authority rules for the SAME governedTransition with DIFFERENT roles.
-  const packA = { code: codeA, name: "Conflict A", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Mandatory",
+  const packA = { code: codeA, name: "Conflict A", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
     contributions: { authorityRules: [{ code: `auth-a-${run}`, governedTransition: `x.transition.${run}`, authorisedRole: "general" }] } };
-  const packB = { code: codeB, name: "Conflict B", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Mandatory",
+  const packB = { code: codeB, name: "Conflict B", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
     contributions: { authorityRules: [{ code: `auth-b-${run}`, governedTransition: `x.transition.${run}`, authorisedRole: "super" }] } };
   const pubA = await publishPack({ seed: packA as any, actorRole: "super", actorId: "1001", activate: true });
   const pubB = await publishPack({ seed: packB as any, actorRole: "super", actorId: "1001", activate: true });
@@ -153,7 +149,7 @@ test("Retry after a failed commission: a Failed SEU does not permanently block i
   // A Compose EBM conflict does NOT (see FR-3.6/3.7 above — it leaves the
   // SEU Pending, awaiting human resolution), so it can't exercise this
   // test's own subject: does a real Failed SEU permanently block retry.
-  const stalePack = { code: "retry-stale-pack-test", name: "Retry Stale Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Mandatory", contributions: {} };
+  const stalePack = { code: "retry-stale-pack-test", name: "Retry Stale Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   const published = await publishPack({ seed: stalePack as any, actorRole: "super", actorId: "1001", activate: true });
   assert.ok(published.ok, "the stale Pack publishes and activates first");
   const { data: activePack } = await packsDB.findActiveByCode(stalePack.code);
@@ -184,14 +180,25 @@ test("Retry after a failed commission: a Failed SEU does not permanently block i
 
   // Validate Request runs asynchronously (validateRequestHandler, off
   // CommissionRequested) — poll for its real CommissionFailed outcome.
+  // CR-104 — validateRequestHandler's own "stale reference" branch (the one
+  // this scenario hits) publishes CommissionFailed BEFORE its own
+  // seusDB.updateLifecycleState(seu.id, "Failed") call (validateRequest.ts)
+  // — the opposite order from its "authority denied" branch just above it.
+  // Polling only on the event (as this used to) can race ahead of the state
+  // write and observe lifecycle_state still "Pending" right after seeing the
+  // event. Wait for the state too, not just the event — same fix already
+  // applied to driveCommissioningToActive's own SEUOperational wait.
   let firstFailedEvent: EventRow | undefined;
+  let firstSeu: SeuRow | null | undefined;
   await waitUntilAsync(async () => {
     const { data: events } = await eventsDB.findByOriginatingObject("SEU", firstAttempt.seu.id);
     firstFailedEvent = (events ?? []).find((e) => e.event_type === "CommissionFailed");
-    return !!firstFailedEvent;
+    if (!firstFailedEvent) return false;
+    const { data: seu } = await seusDB.findById(firstAttempt.seu.id);
+    firstSeu = seu;
+    return seu?.lifecycle_state === "Failed";
   });
   assert.ok(firstFailedEvent, "a retired mandatory Pack must fail Validate Request");
-  const { data: firstSeu } = await seusDB.findById(firstAttempt.seu.id);
   assert.equal(firstSeu?.lifecycle_state, "Failed");
 
   // The Objective must not be permanently stuck on this one Failed attempt —
@@ -219,7 +226,7 @@ test("Validate Request: a Template mandating a since-Retired Pack fails commissi
   // organisation-name) — CR-079: a Pack's own `code` is checked against its
   // category's real Ontology vocabulary at publish time, so a random per-run
   // suffix here would fail validatePackSeed outright, same as it always would.
-  const stalePack = { code: "stale-pack-test", name: "Stale Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Mandatory", contributions: {} };
+  const stalePack = { code: "stale-pack-test", name: "Stale Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   const published = await publishPack({ seed: stalePack as any, actorRole: "super", actorId: "1001", activate: true });
   assert.ok(published.ok, "the stale Pack publishes and activates first");
   const { data: activePack } = await packsDB.findActiveByCode(stalePack.code);

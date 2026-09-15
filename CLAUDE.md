@@ -65,7 +65,11 @@
 
 - Event publishing / subscribing is already implemented and has to be reused. There should  strictly be NO code statements after an event is puclished. 
 
+- Event subscriber rule: `transition_definitions` is scoped `UNIQUE(entity_type, from_state, to_state)` — one row is one hop inside exactly one entity's own state machine, and it has no way to declare an effect on a different entity. Add a real subscriber (HANDLER_REGISTRY entry + event_subscriptions row) ONLY when the effect that must follow an event lands on a different entity_type (or outside transition_definitions entirely, e.g. delivery to a Participant) than the one whose transition produced it. Definition-only, single-entity, linear-lifecycle entities (Objective, Pack, Template, Profile, Service Definition, Ontology) never need a subscriber — their own transition row is the whole effect, start to finish. Do not add a subscriber for a transition that only ever advances its own entity's own state, and do not treat "multi-hop" or "async" alone as a reason for one — the deciding question is strictly whether the consequence crosses an entity_type/chapter boundary.
+
 - If user specifies something as a repeating mistake or a fundamental application aspect or something as reusable, it has to be updated in CLAUDE.md
+
+- NEVER build a parallel/bypass mechanism to route around a gap in the platform's own governed construct (e.g. writing straight to a DB-layer table instead of going through the real authoring/publish path that construct requires). If the real path can't yet do what's needed, that is a gap to flag and fix in the real path (or scope as a proper design change), not something to work around with a shortcut that produces data the platform's own registries/UI can't see or reason about.
 
 ## Architecture & Design
 

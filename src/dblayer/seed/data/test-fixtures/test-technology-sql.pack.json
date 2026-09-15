@@ -59,6 +59,30 @@
         "dimension": "Technology",
         "value": "sql"
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "test-sql-query-performance-regression-tracking",
+        "category": "Engineering",
+        "title": "Query performance regressions must be tracked against their established baseline",
+        "description": "A query's execution plan can regress silently as data volume grows or statistics go stale; query performance must be tracked against its own established baseline on a recurring cadence, not noticed only when users complain.",
+        "origin": "Telemetry and Knowledge Model",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "Key queries are compared against their performance baseline within the declared cadence, with regressions investigated.",
+        "requiredEvidence": {
+          "title": "Query performance regression report",
+          "category": "Validation Evidence",
+          "description": "Query execution time/plan comparison against the established baseline.",
+          "collectionMethod": "Database performance monitoring tool output."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated dependency/vulnerability scan check.",
+        "externalEvidence": false
+      }
     ]
   }
 }

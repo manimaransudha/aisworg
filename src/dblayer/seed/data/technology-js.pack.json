@@ -223,6 +223,30 @@
         "dimension": "Technology",
         "value": "javascript"
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "js-npm-dependency-vulnerability-tracking",
+        "category": "Security",
+        "title": "npm/yarn dependency vulnerabilities must be tracked and remediated within SLA",
+        "description": "A vulnerability disclosed against an npm/yarn dependency (including transitive ones) must be triaged and remediated within its severity's SLA, not left unaddressed once `npm audit` reports it.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every Critical/High dependency vulnerability is remediated or carries an approved waiver within its SLA.",
+        "requiredEvidence": {
+          "title": "npm audit scan",
+          "category": "Validation Evidence",
+          "description": "`npm audit` or equivalent scan output against the dependency tree.",
+          "collectionMethod": "Automated dependency-scanning tool output."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated dependency/vulnerability scan check.",
+        "externalEvidence": false
+      }
     ]
   }
 }

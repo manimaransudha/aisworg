@@ -31,10 +31,6 @@ import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { transitionServiceDefinition } from "../src/routes/seu/core/serviceDefinitions.js";
 
-after(async () => {
-  await pool.end();
-});
-
 // serviceDefinitionsDB.createDraft is a raw DB-layer insert (no
 // validateServiceDefinitionSeed call, no Ontology check on code/
 // capabilityCode) — same "bare Draft, one hop at a time" fixture pattern

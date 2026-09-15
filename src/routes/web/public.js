@@ -15,6 +15,7 @@ import { appConfig } from "../../config/appconfig.js";
 // import { redirects } from "../../middleware/redirects.js";
 import { getArchitectureLayers, getDashboardCounts } from "../seu/core/dashboard.js";
 import { getSeuQuickview } from "../seu/core/seus.js";
+import { getParticipantHomeView } from "../seu/core/participantHome.js";
 
 /** GET / — the SEU Commissioning Platform's home page: the architecture layers + live counts. */
 router.get("/", requireRole('general'), attachVM("seu/dashboard"), async (req, res, next) => {
@@ -86,9 +87,20 @@ router.post("/settings/:key", requireRole('super'), async (req, res, next) => {
   }
 });
 
-/** GET /quickview — post-login landing: progress on every commissioned SEU. */
+/** GET /quickview — post-login landing. CR-103: what's shown depends on the
+ * viewer's own users.role — for 'general' this is their own Participant home
+ * (their participants_master identity + every SEU they're a Participant on,
+ * scoped to their own work); every other role keeps the original
+ * "Commissioned SEUs" progress list. */
 router.get("/quickview", requireRole('general'), attachVM("quickview/index"), async (req, res, next) => {
   try {
+    if (req.session?.user?.role === "general") {
+      req.vm.req.title = "My Work";
+      req.vm.req.participantHome = await getParticipantHomeView(req.session.user.id);
+      req.vm.opt.flash = getFlash(req);
+      return renderView(req, res, "quickview/participant", req.vm);
+    }
+
     req.vm.req.title = "Commissioned SEUs";
     const seus = await getSeuQuickview();
     const params = parseListParams(req.query, { sortable: ["objective", "state", "created"], defaultSort: "created", defaultDir: "desc" });

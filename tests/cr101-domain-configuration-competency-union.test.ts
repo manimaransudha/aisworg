@@ -26,15 +26,11 @@ import { addConcept, type OntologyActor } from "../src/routes/seu/core/ontology.
 import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
 import type { PackContributions } from "../src/dblayer/seuTypes.js";
 
-after(async () => {
-  await pool.end();
-});
-
 const ACTOR: OntologyActor = { isRoot: true, tenantId: null, actorId: "1001" };
 
 async function createPack(contributions: PackContributions = {}): Promise<string> {
   const code = `test-cr101-pack-${randomUUID()}`;
-  const { data: pack, error } = await packsDB.create({ code, name: `CR-101 fixture Pack ${code}`, category: "Engineering", packVersion: "1.0.0", contributions });
+  const { data: pack, error } = await packsDB.create({ code, name: `CR-101 fixture Pack ${code}`, category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", contributions });
   assert.ok(!error && pack, error?.message);
   const { error: activateError } = await packsDB.updateStatus(pack!.id, "Active");
   assert.ok(!activateError, activateError?.message);

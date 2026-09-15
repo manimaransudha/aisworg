@@ -32,7 +32,18 @@ const pool = new Pool({
     // ssl: { rejectUnauthorized: false }, // local db
     max: parseInt(process.env.MAX_CONNECTIONS) || 10,
     connectionTimeoutMillis: parseInt(process.env.DB_TIMEOUT) || 60000,
-    idleTimeoutMillis: 20000
+    idleTimeoutMillis: 20000,
+    // Test-harness fix: every test file used to call pool.end() in its own
+    // after() so the process could exit promptly instead of waiting up to
+    // idleTimeoutMillis. But node --test runs all matched files in one
+    // shared process (this module's `pool` singleton included) — the FIRST
+    // file to finish permanently killed the pool for every file still
+    // running, surfacing as "Cannot use a pool after calling end on the
+    // pool" errors scattered across unrelated modules. allowExitOnIdle lets
+    // the process exit as soon as the pool is idle, without an explicit
+    // end() call, which is what the per-file end() calls were actually
+    // trying to achieve — removed from the test files themselves now.
+    allowExitOnIdle: true
 });
 
 pool.on("error", (err) => {

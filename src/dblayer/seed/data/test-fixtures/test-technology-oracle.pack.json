@@ -59,6 +59,30 @@
         "dimension": "Technology",
         "value": "oracle"
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "test-oracle-patch-cve-currency",
+        "category": "Security",
+        "title": "Oracle Database must be patched against known CVEs on the vendor's quarterly cadence",
+        "description": "Oracle publishes a Critical Patch Update quarterly; a database instance left unpatched past a CPU release carries known, disclosed vulnerabilities. Patch application must be tracked against the CPU release schedule, not applied ad hoc.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every Oracle instance is patched to within one CPU cycle of the current release.",
+        "requiredEvidence": {
+          "title": "CPU patch currency record",
+          "category": "Validation Evidence",
+          "description": "Database patch inventory compared against the current Oracle CPU release.",
+          "collectionMethod": "Automated patch-level inventory check."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated dependency/vulnerability scan check.",
+        "externalEvidence": false
+      }
     ]
   }
 }

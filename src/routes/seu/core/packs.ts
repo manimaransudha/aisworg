@@ -33,7 +33,7 @@ import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsD
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
-import type { PackCategory, PackClassification, PackContributions, PackRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
+import type { PackCategory, PackClassification, PackContributions, PackRow, PolicyCondition, PolicyDefinitionRow, PolicyScope, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 
 // CR-058 — governedTransition is authored as a single delimited value
 // ("EntityType|fromState|toState"), picked from a referential list of real
@@ -67,46 +67,56 @@ async function deliverableNamesFromCapabilityCodes(capabilityCodes: string[], vi
   return names;
 }
 
-// CR-089 follow-on — governedTransition, required on the real Pack-composed
-// `policies` table (Quality Gate's requiredPolicyCodes depends on it), is
-// derived from the canonical Policy Definition's own
-// applicabilityDeliverableLifecycle rather than authored on the Pack (owner:
-// "is not deliverable_lifecycle equivalent of that?") — the transition
-// LANDING on the most-advanced named state, or landing on Baselined (the
-// final gate) when the list is empty ("matches every state" per CR-089's
-// own convention). Every one of the 34 canonical policies derives to
-// Deliverable|Approved|Baselined today (none currently scope to an
-// earlier-only state); the mechanism still generalises correctly the moment
-// one does. Defined has no incoming edge (it's the initial state) — falls
-// back to its own outgoing edge (Defined -> In Progress) in that case,
-// since nothing can govern entry into the very first state.
-const DELIVERABLE_LIFECYCLE_ORDER = ["Defined", "In Progress", "Approved", "Baselined"];
-function deriveGovernedTransitionFromDeliverableLifecycle(states: string[]): string {
-  const mostAdvanced = states.length
-    ? states.reduce((latest, s) => (DELIVERABLE_LIFECYCLE_ORDER.indexOf(s) > DELIVERABLE_LIFECYCLE_ORDER.indexOf(latest) ? s : latest), states[0])
-    : "Baselined";
-  const idx = DELIVERABLE_LIFECYCLE_ORDER.indexOf(mostAdvanced);
-  const [fromState, toState] = idx > 0 ? [DELIVERABLE_LIFECYCLE_ORDER[idx - 1], mostAdvanced] : [DELIVERABLE_LIFECYCLE_ORDER[0], DELIVERABLE_LIFECYCLE_ORDER[1]];
-  return `Deliverable|${fromState}|${toState}`;
+// CR-089 follow-on, superseded by migration 214, then 216, then 219 (owner:
+// "I am inclined to move the applicability inside the condition. That is
+// more practical" — "2 reviewers required for Code, sign-off required for
+// Deployment Plan" is really two independently-scoped conditions, not one
+// condition-set uniformly applied to one shared applicability list; "The
+// governing condition should be within applicability deliverables" — each
+// (name, transitions) row now carries its own real governing rule too, not
+// one rule shared by every row the condition happens to list).
+// applicabilityDeliverables now lives on each CONDITION, not the Definition
+// — this resolves one condition's own {name, transitions, governingCondition}
+// rows into one materialized `policies` row per (name, transition) pair,
+// carrying THAT row's own governingCondition through unchanged. A row
+// naming no transitions falls back to the same single default this
+// mechanism always had ("matches every state") — Deliverable|Approved|Baselined,
+// scoped to that row's own name. A condition with an empty
+// applicabilityDeliverables altogether (no rows at all — the common case
+// for every one of the 34 real seeded Definitions until reseeded) falls
+// back to one unscoped (no name filter) row on that same default
+// transition, no governingCondition. scope=Eligibility never materializes
+// by transition at all (Eligibility policies are resolved live off
+// Template/Profile composition, never EBM-materialised or
+// governedTransition-matched — compositionCompleted.ts) — one row per named
+// noun, governedTransition null, transitions ignored. governedTransition
+// itself is otherwise DROPPED as a separate override (owner: "Applicability
+// already covers this. So drop governing transition") — applicability's own
+// transitions[] are the only source now.
+function governedTransitionsFor(scope: PolicyScope, applicabilityDeliverables: PolicyCondition["applicabilityDeliverables"]): Array<{ governedTransition: string | null; deliverableNames: string[]; governingCondition: Record<string, unknown> | null }> {
+  if (scope === "Eligibility") {
+    if (!applicabilityDeliverables.length) return [{ governedTransition: null, deliverableNames: [], governingCondition: null }];
+    return applicabilityDeliverables.map((row) => ({ governedTransition: null, deliverableNames: [row.name], governingCondition: row.governingCondition }));
+  }
+  if (!applicabilityDeliverables.length) return [{ governedTransition: "Deliverable|Approved|Baselined", deliverableNames: [], governingCondition: null }];
+  return applicabilityDeliverables.flatMap((row) =>
+    row.transitions.length
+      ? row.transitions.map((t) => ({ governedTransition: t, deliverableNames: [row.name], governingCondition: row.governingCondition }))
+      : [{ governedTransition: "Deliverable|Approved|Baselined", deliverableNames: [row.name], governingCondition: row.governingCondition }]
+  );
 }
 
-// CR-089 follow-on — the highest severity among the Definition's own
-// conditions, since the real Pack-composed `policies` table has one flat
-// severity column but a canonical Policy Definition's severity lives per
-// condition (Ch.24 §8 — a Policy-level severity couldn't say which
-// condition's violation it describes once there's more than one). "Worst
-// case this Policy's violation could mean" is a defensible reduction, not a
-// guess at real per-condition evaluation (deferred — the evaluation engine
-// doesn't consult `conditions[]` at all yet, only `always_true`/`field_in`
-// on the old flat shape).
-const SEVERITY_RANK: Record<string, number> = { Critical: 4, High: 3, Medium: 2, Low: 1 };
-function highestConditionSeverity(conditions: Array<{ severity?: string }>): string {
-  let best = "Medium";
-  for (const cond of conditions) {
-    if (cond.severity && (SEVERITY_RANK[cond.severity] ?? 0) > (SEVERITY_RANK[best] ?? 0)) best = cond.severity;
-  }
-  return best;
-}
+// Migration 216 — a Definition authored before this redesign (all 34 real
+// seed Definitions, until reseeded) has an empty `conditions[]` altogether;
+// this one synthetic condition reproduces exactly the pre-216 default
+// materialization (one unscoped Deliverable|Approved|Baselined row,
+// condition {"type":"always_true"}, severity "Medium") so every existing
+// real Definition keeps composing identically. Never persisted — used only
+// as a fan-out placeholder here.
+const DEFAULT_CONDITION: PolicyCondition = {
+  statement: "", severity: "Medium", applicabilityDeliverables: [],
+  requiredEvidence: { title: "", category: "", description: "", collectionMethod: "" }, relatedObligations: [], exceptionRules: [],
+};
 
 // CR-060, corrected same day — a gate's checklistIds entry can arrive in
 // either of two shapes, because a raw Pack seed file and the live SDK
@@ -517,8 +527,52 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
       errors.push(`policy "${policyCode}" does not resolve to an Active Policy Definition visible to this tenant`);
       continue;
     }
-    if (definition.applicability_deliverable_names.length > 0 && !definition.applicability_deliverable_names.some((d) => packDeliverableNames.has(d))) {
+    // Migration 216 dropped policy_definitions.applicability_deliverable_names
+    // as a standalone column — deliverable-name scoping now lives per
+    // condition, in each conditions[].applicabilityDeliverables[].name (see
+    // PolicyDefinitionRow's own comment). Union across every condition to
+    // reproduce the same "any named deliverable this Definition governs"
+    // check the old single column used to answer directly.
+    // This check only means anything for a Definition actually naming real
+    // Deliverable types: scope "Eligibility" names Authority Vocabulary
+    // nouns (e.g. "Participant"), not deliverable-names at all, and an
+    // SEU-scoped scope "Transition" Definition (compositionCompleted.ts's
+    // own `governed_transition?.startsWith("SEU|")` distinguishing signal)
+    // names "SEU" itself, never something this Pack's Capabilities could
+    // "produce" — both are out of scope for this check, same as the old
+    // column's own always-Deliverable-shaped values were.
+    const definitionDeliverableNames =
+      definition.scope === "Eligibility"
+        ? new Set<string>()
+        : new Set(
+            definition.conditions.flatMap((c) =>
+              (c.applicabilityDeliverables ?? [])
+                .filter((row) => !row.transitions.some((t) => t.startsWith("SEU|")) && row.name !== "SEU")
+                .map((row) => row.name)
+            )
+          );
+    if (definitionDeliverableNames.size > 0 && ![...definitionDeliverableNames].some((d) => packDeliverableNames.has(d))) {
       errors.push(`policy "${policyCode}" does not govern any deliverable-name produced by this Pack's own declared Capabilities`);
+    }
+  }
+
+  // CR-104 — a Quality Gate's own applicabilityDeliverableNames. Unlike
+  // Policy's applicability_deliverable_names above, this is NOT scoped to
+  // "produced by this same Pack's own declared Capabilities" — a governance-
+  // only Pack (a customer-signoff gate, say) legitimately targets a named
+  // Deliverable it never produces itself; the Pack that produces a
+  // Deliverable and the Pack that governs one of its transitions need not be
+  // the same Pack. Validated the same way Template's own deliverableCatalogue
+  // entries are (CR-087): each name must be a real, canonical deliverable-name
+  // Ontology concept. Empty list always passes ("matches every deliverable
+  // reaching this transition").
+  for (const gate of seed.contributions.qualityGates ?? []) {
+    for (const name of gate.applicabilityDeliverableNames ?? []) {
+      try {
+        await assertCanonicalCategory("deliverable-name", name, ontologyViewer);
+      } catch (err) {
+        errors.push(`quality gate "${gate.name}"'s applicabilityDeliverableNames: ${(err as Error).message}`);
+      }
     }
   }
 
@@ -842,41 +896,56 @@ async function materializeContributions(pack: PackRow, seed: PackSeedInput): Pro
     await backfillAuthorityRuleCode(rule.code, createdRule.id);
   }
 
-  // CR-089 follow-on — processed before qualityGates: a requires_active_policy
-  // gate resolves its target Policies' real ids from this same map, mirroring
-  // exactly how checklistIdByName/reviewGateIdByCode already work. Every
-  // field but `code` is resolved off the canonical Policy Definition
-  // (validatePackSeed already confirmed it resolves and is applicable) —
-  // governedTransition derived from applicability_deliverable_lifecycle,
-  // severity the highest among the Definition's own conditions, condition
-  // itself always {type: "always_true"} (the real per-condition evaluation
-  // this Definition's own conditions[] describes isn't consulted by the
-  // engine yet — same "declaration only for now" status governedTransition
-  // itself already carried before this session). Policy's identity is
-  // (originating_pack_id, code), not global (owner: "it is not global so no
-  // versioning required similar to checklist") — policiesDB.upsert keeps a
-  // Policy's id stable across every republish of this Pack, same as
-  // checklistsDB.upsert.
-  const policyIdByCode = new Map<string, string>();
+  // CR-089 follow-on, migration 216 — processed before qualityGates: a
+  // requires_active_policy gate resolves its target Policies' real ids from
+  // this same map, mirroring exactly how checklistIdByName/reviewGateIdByCode
+  // already work. Fans out TWO levels now: once per condition (each
+  // condition's own real severity/governingCondition — owner: "they will be
+  // multiple rules on each deliverable. Transition X to Y has condition 1,
+  // condition 2"), then once per that condition's own applicabilityDeliverables
+  // (name, transition) pair (governedTransitionsFor, above). A condition
+  // left without a governingCondition materializes as {"type":"always_true"}
+  // — never blocks automatically, same default as before this redesign,
+  // just per-condition now (owner: "If it is empty, the policy checking
+  // will be manual"). Policy's identity is (originating_pack_id, code), not
+  // global (owner: "it is not global so no versioning required similar to
+  // checklist") — policiesDB.upsert keeps a Policy's id stable across every
+  // republish of this Pack, same as checklistsDB.upsert; a fanned-out row's
+  // own code is suffixed by its condition index and transition so each
+  // stays distinct under that same identity.
+  const policyIdByCode = new Map<string, string[]>();
   for (const policyCode of seed.contributions.policies ?? []) {
     const { data: definition } = await policyDefinitionsDB.findActiveByCodeVisibleTo(policyCode, pack.tenant_id);
     if (!definition) throw new Error(`policy ${policyCode} does not resolve to an Active Policy Definition`);
-    const { data: created, error } = await policiesDB.upsert({
-      code: policyCode,
-      name: definition.name,
-      category: definition.category,
-      constraintType: definition.constraint_type,
-      governedTransition: deriveGovernedTransitionFromDeliverableLifecycle(definition.applicability_deliverable_lifecycle),
-      condition: { type: "always_true" },
-      severity: highestConditionSeverity(definition.conditions),
-      originatingPackId: pack.id,
-    });
-    if (error || !created) throw error ?? new Error(`policy upsert failed: ${policyCode}`);
-    policyIdByCode.set(policyCode, created.id);
-    // 2026-08-25 — same self-heal as authority rules, above.
-    await backfillPolicyCode(policyCode, created.id);
+    const scope: PolicyScope = definition.scope ?? "Transition";
+    const conditions = definition.conditions.length ? definition.conditions : [DEFAULT_CONDITION];
+    const createdIds: string[] = [];
+    for (const [condIndex, cond] of conditions.entries()) {
+      const materializedRows = governedTransitionsFor(scope, cond.applicabilityDeliverables ?? []);
+      const fansOut = conditions.length > 1 || materializedRows.length > 1;
+      for (const { governedTransition, deliverableNames, governingCondition } of materializedRows) {
+        const code = fansOut ? `${policyCode}::${condIndex}::${governedTransition ?? "none"}::${deliverableNames[0] ?? ""}` : policyCode;
+        const { data: created, error } = await policiesDB.upsert({
+          code,
+          name: definition.name,
+          category: definition.category,
+          constraintType: definition.constraint_type,
+          scope,
+          governedTransition,
+          condition: governingCondition ?? { type: "always_true" },
+          severity: cond.severity || "Medium",
+          originatingPackId: pack.id,
+          applicabilityDeliverableNames: deliverableNames,
+        });
+        if (error || !created) throw error ?? new Error(`policy upsert failed: ${code}`);
+        createdIds.push(created.id);
+        // 2026-08-25 — same self-heal as authority rules, above.
+        await backfillPolicyCode(policyCode, created.id);
+      }
+    }
+    policyIdByCode.set(policyCode, createdIds);
   }
-  const resolvePolicyCodes = (refs: string[] | undefined): string[] => (refs ?? []).map((ref) => policyIdByCode.get(ref) ?? ref);
+  const resolvePolicyCodes = (refs: string[] | undefined): string[] => (refs ?? []).flatMap((ref) => policyIdByCode.get(ref) ?? [ref]);
 
   // CR-060 — processed before reviewGates/qualityGates: both may reference
   // a Checklist via checklistIds, resolved from this same map when the
@@ -955,6 +1024,7 @@ async function materializeContributions(pack: PackRow, seed: PackSeedInput): Pro
       originatingPackId: pack.id,
       checklistIds: resolveChecklistIds(gate.checklistIds),
       recommendedChecklistIds: resolveChecklistIds(gate.recommendedChecklistIds),
+      applicabilityDeliverableNames: gate.applicabilityDeliverableNames ?? [],
     });
     if (error) throw error;
   }

@@ -69,6 +69,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "firmware-resource-budget-regression-tracking",
+        "category": "Engineering",
+        "title": "Firmware memory/timing budget regressions must be tracked against the hardware's declared limits",
+        "description": "A firmware change that incrementally grows memory footprint or execution timing can silently approach a hardware-constrained budget (RAM, flash, interrupt latency) until a build finally fails to fit; budget usage must be tracked against the declared limits on every build, not discovered only when it breaks.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every build's memory/timing budget usage is measured against the hardware's declared limits, with any approach-to-limit flagged.",
+        "requiredEvidence": {
+          "title": "Resource budget usage report",
+          "category": "Validation Evidence",
+          "description": "Build-time memory/timing footprint measured against the hardware's declared budget.",
+          "collectionMethod": "Automated build-size/timing analysis tool output."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated resource-budget check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

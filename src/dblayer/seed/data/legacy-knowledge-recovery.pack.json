@@ -69,6 +69,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "legacy-recovered-knowledge-validation",
+        "category": "Review Finding",
+        "title": "Knowledge reconstructed from legacy systems must be validated against a subject-matter expert before being trusted",
+        "description": "Reconstructed requirements, architecture, or business rules recovered from undocumented legacy systems are inferences, not certainties, until a subject-matter expert confirms them; recovered Knowledge must carry a validation step, not be promoted as fact on inference alone.",
+        "origin": "Reviews",
+        "priority": "High",
+        "severity": "Medium",
+        "completionCriteria": "Every recovered Knowledge item has a recorded subject-matter-expert validation before being promoted for reuse.",
+        "requiredEvidence": {
+          "title": "SME validation record",
+          "category": "Analytical Evidence",
+          "description": "Record of subject-matter-expert review and confirmation of recovered knowledge.",
+          "collectionMethod": "Manual SME review, recorded against each recovered Knowledge item."
+        },
+        "classification": "human-attested",
+        "prompt": "Has a subject-matter expert validated this recovered Knowledge item?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Subject-matter expert sign-off.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

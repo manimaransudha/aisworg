@@ -63,6 +63,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "csrd-sustainability-data-assurance",
+        "category": "Compliance",
+        "title": "CSRD sustainability disclosures require independent assurance before filing",
+        "description": "The Corporate Sustainability Reporting Directive requires sustainability data to be assured by an independent auditor before inclusion in the annual report; unassured sustainability figures may not be published as compliant disclosures.",
+        "origin": "External systems",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every CSRD sustainability disclosure has independent assurance recorded before filing.",
+        "requiredEvidence": {
+          "title": "Sustainability assurance report",
+          "category": "Validation Evidence",
+          "description": "Independent auditor's assurance report covering the sustainability disclosures.",
+          "collectionMethod": "External auditor engagement output."
+        },
+        "classification": "human-attested",
+        "prompt": "Has independent assurance been obtained for this filing's sustainability disclosures?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "External auditor sign-off.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

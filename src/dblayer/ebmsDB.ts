@@ -14,6 +14,20 @@ export const ebmsDB = {
     // doesn't yet have it to pass stays valid; null in that case, not an
     // empty object standing in for "resolved nothing."
     behaviors?: Record<string, unknown> | null;
+    // CR-104 — materialised, per-EBM governance: exactly which Quality Gate/
+    // Policy rows this EBM's own composed Packs actually contribute
+    // (originating_pack_id ∈ composed Pack ids), computed once here rather
+    // than re-derived by a bare (entity_type, from_state, to_state) match on
+    // every transition attempt (qualityGateEngine's old findAllActive path,
+    // which matched every SEU platform-wide regardless of composition).
+    applicableQualityGateIds?: string[];
+    applicablePolicyIds?: string[];
+    // CR-104 — a distinct subset of applicablePolicyIds: Policies governing
+    // the SEU's own lifecycle transition (governed_transition entity type
+    // 'SEU'), not any owned entity's. commissioning.ts reads this one
+    // directly for its own transitions; it's never consulted by
+    // policyEngine's entity-scoped check.
+    seuScopedPolicyIds?: string[];
   }): Promise<DbResult<EbmRow>> {
     try {
       // FR-3.3/3.10: versioned per SEU — 1 for the first EBM, prior+1 on a
@@ -24,10 +38,20 @@ export const ebmsDB = {
       // happened; only the separate, later Activate transition (updateStatus
       // below) ever sets 'Active'.
       const { rows } = await query<EbmRow>(
-        `INSERT INTO ebms (seu_id, template_id, profile_id, composed_packs, composition_report, behaviors, status, version)
-         VALUES ($1, $2, $3, $4, $5, $6, 'Composed', (SELECT COALESCE(MAX(version), 0) + 1 FROM ebms WHERE seu_id = $1))
+        `INSERT INTO ebms (seu_id, template_id, profile_id, composed_packs, composition_report, behaviors, applicable_quality_gate_ids, applicable_policy_ids, seu_scoped_policy_ids, status, version)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Composed', (SELECT COALESCE(MAX(version), 0) + 1 FROM ebms WHERE seu_id = $1))
          RETURNING *`,
-        [input.seuId, input.templateId, input.profileId, JSON.stringify(input.composedPacks), JSON.stringify(input.compositionReport), input.behaviors ? JSON.stringify(input.behaviors) : null]
+        [
+          input.seuId,
+          input.templateId,
+          input.profileId,
+          JSON.stringify(input.composedPacks),
+          JSON.stringify(input.compositionReport),
+          input.behaviors ? JSON.stringify(input.behaviors) : null,
+          input.applicableQualityGateIds ?? [],
+          input.applicablePolicyIds ?? [],
+          input.seuScopedPolicyIds ?? [],
+        ]
       );
       return { data: rows[0] };
     } catch (err) {

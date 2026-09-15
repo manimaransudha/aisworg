@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-soc2-control-exception-remediation",
+        "category": "Compliance",
+        "title": "A SOC 2 control exception found during the audit period must be tracked to remediation",
+        "description": "SOC 2 Type II tests controls over a period, not a point in time; an exception found partway through the period must be tracked to remediation and disclosed, not silently fixed without a record that would let the auditor assess the exception's duration and impact.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every control exception identified during the audit period has a recorded remediation date and root cause.",
+        "requiredEvidence": {
+          "title": "Control exception remediation record",
+          "category": "Validation Evidence",
+          "description": "Record of each control exception's identification, root cause, and remediation date.",
+          "collectionMethod": "Internal controls tracking system export."
+        },
+        "classification": "human-attested",
+        "prompt": "Has every control exception in the audit period been tracked to a recorded remediation?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Internal audit / compliance lead sign-off.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

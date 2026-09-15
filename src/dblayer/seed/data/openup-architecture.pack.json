@@ -74,6 +74,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "openup-architecture-notebook-currency",
+        "category": "Engineering",
+        "title": "The Architecture Notebook must stay current as architecturally significant decisions accumulate",
+        "description": "OpenUP's Architecture Notebook is meant to be a living record of architecturally significant decisions and their rationale; a decision made outside a notebook update session must still be folded back in, not left for a future \"catch-up\" pass that never happens.",
+        "origin": "EBM",
+        "priority": "Medium",
+        "severity": "Medium",
+        "completionCriteria": "The Architecture Notebook is reconciled against all architecturally significant decisions made since its last update, within the declared cadence.",
+        "requiredEvidence": {
+          "title": "Architecture Notebook reconciliation",
+          "category": "Analytical Evidence",
+          "description": "Review confirming the Architecture Notebook reflects all architecturally significant decisions to date.",
+          "collectionMethod": "Manual documentation review."
+        },
+        "classification": "human-attested",
+        "prompt": "Does the Architecture Notebook reflect every architecturally significant decision made since its last update?",
+        "participant": "human",
+        "outputContract": "assessment-acceptance",
+        "assurance": "Architect sign-off.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

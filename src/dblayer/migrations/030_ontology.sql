@@ -42,19 +42,26 @@ CREATE TABLE IF NOT EXISTS tenant_concept_aliases (
 -- violation once that's fixed. Explicit Platform tenant_id + the 3-column
 -- ON CONFLICT below restore both, matching every other Platform-seeded
 -- Ontology INSERT added after 055.
+-- Bug fix (found reviewing Ch.17 §7 against the live Ontology data): this
+-- INSERT originally also seeded 'Validation'/'Review'/'Test'/'Technical' —
+-- shorthand duplicates of the two real category:evidence values below,
+-- never matching any of Ch.17 §7's own 6 named categories. Migration 085
+-- later added the missing 4 real ones without removing these; they sat live
+-- ever since, worked around (not fixed) by web/sdkAuthoring.ts's own
+-- CANONICAL_EVIDENCE_CATEGORIES filter on Quality Gate's category picker.
+-- Removed here so a fresh db:clean-slate never reintroduces them; migration
+-- 223 retires the 4 already-live on an existing database.
 INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id) VALUES
   ('category:evidence', 'Validation Evidence', 'Validation Evidence', '11111111-1111-1111-1111-111111111111'),
   ('category:evidence', 'Analytical Evidence', 'Analytical Evidence', '11111111-1111-1111-1111-111111111111'),
-  ('category:evidence', 'Validation', 'Validation', '11111111-1111-1111-1111-111111111111'),
-  ('category:evidence', 'Review', 'Review', '11111111-1111-1111-1111-111111111111'),
-  ('category:evidence', 'Test', 'Test', '11111111-1111-1111-1111-111111111111'),
-  ('category:evidence', 'Technical', 'Technical', '11111111-1111-1111-1111-111111111111'),
   ('category:decision', 'Engineering Decisions', 'Engineering Decisions', '11111111-1111-1111-1111-111111111111'),
   ('category:decision', 'Design Decisions', 'Design Decisions', '11111111-1111-1111-1111-111111111111'),
+  ('category:knowledge', 'Architectural Knowledge', 'Architectural Knowledge', '11111111-1111-1111-1111-111111111111'),
   ('category:knowledge', 'Domain Knowledge', 'Domain Knowledge', '11111111-1111-1111-1111-111111111111'),
   ('category:knowledge', 'Technical Knowledge', 'Technical Knowledge', '11111111-1111-1111-1111-111111111111'),
-  ('category:knowledge', 'Technical', 'Technical', '11111111-1111-1111-1111-111111111111'),
-  ('category:knowledge', 'Test', 'Test', '11111111-1111-1111-1111-111111111111'),
+  ('category:knowledge', 'Operational Knowledge', 'Operational Knowledge', '11111111-1111-1111-1111-111111111111'),
+  ('category:knowledge', 'Governance Knowledge', 'Governance Knowledge', '11111111-1111-1111-1111-111111111111'),
+  ('category:knowledge', 'Process Knowledge', 'Process Knowledge', '11111111-1111-1111-1111-111111111111'),
   ('category:obligation', 'Security', 'Security', '11111111-1111-1111-1111-111111111111'),
   ('category:obligation', 'Engineering', 'Engineering', '11111111-1111-1111-1111-111111111111'),
   ('category:obligation', 'Compliance', 'Compliance', '11111111-1111-1111-1111-111111111111'),

@@ -4,7 +4,8 @@ import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsD
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { assertCanonicalCategory } from "./ontology.js";
-import type { PolicyDefinitionRow, PolicyCondition } from "../../../dblayer/seuTypes.js";
+import { listActiveNouns, activeMappingByNoun } from "./authorityVocabulary.js";
+import type { EvidenceDefinition, PolicyDefinitionRow, PolicyCondition, PolicyScope } from "../../../dblayer/seuTypes.js";
 
 // CR-089 — Policy Definition authoring (Book 3 Ch.24), mirroring
 // core/serviceDefinitions.ts in shape. Two differences from that entity's
@@ -26,10 +27,13 @@ export interface PolicyDefinitionSeedInput {
   description?: string | null;
   category: string;
   constraintType: "Policy" | "Standard";
-  applicabilityDeliverableNames?: string[];
   applicabilityEnvironments?: string[];
-  applicabilityDeliverableLifecycle?: string[];
+  // Migration 216 (owner: "I am inclined to move the applicability inside
+  // the condition") — applicabilityDeliverables/governedTransition/
+  // governingCondition all moved into each element of `conditions`
+  // (PolicyCondition); see seuTypes.ts's own comment.
   conditions?: PolicyCondition[];
+  scope?: PolicyScope;
   version: string;
   tenantId?: string;
   parentPolicyDefinitionId?: string | null;
@@ -38,12 +42,37 @@ export interface PolicyDefinitionSeedInput {
 export type PolicyDefinitionValidationResult = { ok: true } | { ok: false; errors: string[] };
 
 const SEMVER_RE = /^\d+\.\d+\.\d+$/;
-const VALID_SEVERITIES = new Set(["Critical", "High", "Medium", "Low"]);
-// Real transition_definitions states for entity_type = 'Deliverable' (the
-// SEU-execution-instance lifecycle, Ch.24 §9's own "Deliverable Lifecycle
-// State" applicability dimension) — not Ontology-backed, a different
-// canonical source than applicabilityDeliverableNames/applicabilityEnvironments.
-export const VALID_DELIVERABLE_LIFECYCLE_STATES = new Set(["Defined", "In Progress", "Approved", "Baselined"]);
+
+// Bug fix (owner: "applicabilityDeliverableLifecycle is not OntologyComposable"
+// — a real dropdown, not Ontology, not a hardcoded Set either) — this used to
+// be a hardcoded `new Set([...])` of just 4 state names, even though its own
+// comment already claimed "real transition_definitions states." Owner,
+// second pass: "the dropdown should show the applicable transitions so it's
+// more clear" — a bare state NAME is ambiguous (e.g. "Active" is both a
+// from_state and a to_state across several real Deliverable hops; the field
+// also can't distinguish Deliverable's two real lifecycles — its own
+// authoring lifecycle, Draft..Archived, vs. an SEU-execution instance's
+// Defined/In Progress/Approved/Baselined — since nothing on the row marks
+// which is which). Storing/offering the real EDGE (`Deliverable|From|To`,
+// the same shape governedTransition/the "transition-definition" registry
+// key already use) removes the ambiguity entirely and needs no inference —
+// not Ontology-backed (Ch.24 §9's states are the real state machine, not an
+// extensible vocabulary), deliberately not composable (no propose-a-new-one
+// path).
+// Migration 214 (owner: "Scope=Eligibility; Applicable Deliverable Name =
+// SEU. Applicability Deliverable Lifecycle should show the SEU transitions")
+// — generalised from Deliverable-only to any entity type, since
+// applicabilityDeliverables[].name can now be a noun (an entity type in its
+// own right) under scope=Eligibility, each with its own real transitions.
+export async function listTransitionsForEntityType(entityType: string): Promise<string[]> {
+  const { data } = await transitionDefinitionsDB.listAll();
+  const transitions = new Set<string>();
+  for (const row of data ?? []) {
+    if (row.entity_type !== entityType || !row.is_active) continue;
+    transitions.add(`${entityType}|${row.from_state}|${row.to_state}`);
+  }
+  return [...transitions].sort();
+}
 
 async function assertPolicyDefinitionCodeVersionFree(code: string, version: string, tenantId: string, excludeId?: string): Promise<string | null> {
   const { data: existing } = await policyDefinitionsDB.findByCodeAndVersion(code, version, tenantId);
@@ -53,16 +82,191 @@ async function assertPolicyDefinitionCodeVersionFree(code: string, version: stri
   return null;
 }
 
-function validateConditions(conditions: PolicyCondition[] | undefined): string[] {
+const EXCEPTION_COMPOSITIONS = new Set(["all", "any"]);
+
+// Ch.17 §8's Definition-side Evidence shape (seuTypes.ts's EvidenceDefinition)
+// — owner: "Evidence definition has to be a common model and used in Policy
+// [and] Obligations." Two real call sites: a condition's own requiredEvidence
+// directly, and each relatedObligations[] row's own requiredEvidence — both
+// validated through this one function. category is the only field with a
+// real vocabulary to check (category:evidence, Ch.17 §7); title/description/
+// collectionMethod are free text.
+async function validateEvidenceDefinition(evidence: EvidenceDefinition | undefined, label: string): Promise<string[]> {
+  if (!evidence?.category?.trim()) return [];
+  try {
+    await assertCanonicalCategory("category:evidence", evidence.category);
+    return [];
+  } catch (err) {
+    return [`${label}: ${(err as Error).message}`];
+  }
+}
+
+// Migration 218 (owner: "make the GoverningCondition UI user friendly and
+// not a json edit") — per-type field requirements, now that each type has
+// its own real form fields rather than one free-form JSON blob. Migration
+// 219 moved the call site from the condition itself to each
+// applicabilityDeliverables row, unchanged otherwise.
+function validateGoverningCondition(governingCondition: Record<string, unknown> | null | undefined, label: string): string[] {
+  if (governingCondition == null) return [];
   const errors: string[] = [];
-  for (const [i, cond] of (conditions ?? []).entries()) {
-    if (!cond?.statement?.trim()) errors.push(`condition ${i + 1}: statement is required`);
-    if (cond?.severity && !VALID_SEVERITIES.has(cond.severity)) errors.push(`condition ${i + 1}: severity "${cond.severity}" is not one of Critical/High/Medium/Low`);
+  const gc = governingCondition as { type?: unknown; field?: unknown; operator?: unknown; values?: unknown; value?: unknown };
+  if (typeof gc.type !== "string") {
+    errors.push(`${label}: governingCondition must have a "type" (e.g. {"type": "always_true"}), or be left blank for a manual condition`);
+  } else if (gc.type === "field_in") {
+    if (!gc.field) errors.push(`${label}: governingCondition (field_in) requires a field`);
+    if (!Array.isArray(gc.values) || !gc.values.length) errors.push(`${label}: governingCondition (field_in) requires at least one value`);
+  } else if (gc.type === "comparison" || gc.type === "threshold") {
+    if (!gc.field) errors.push(`${label}: governingCondition (${gc.type}) requires a field`);
+    if (gc.value === undefined || gc.value === "") errors.push(`${label}: governingCondition (${gc.type}) requires a value`);
+    const allowedOperators = gc.type === "threshold" ? new Set(["gte", "gt"]) : new Set(["gt", "gte", "lt", "lte", "eq", "neq"]);
+    if (typeof gc.operator !== "string" || !allowedOperators.has(gc.operator)) {
+      errors.push(`${label}: governingCondition (${gc.type}) operator "${gc.operator}" is not one of ${[...allowedOperators].join("/")}`);
+    }
+  } else if (gc.type !== "always_true") {
+    errors.push(`${label}: governingCondition type "${gc.type}" is not one of always_true/field_in/comparison/threshold`);
   }
   return errors;
 }
 
-export async function validatePolicyDefinitionSeed(seed: PolicyDefinitionSeedInput, excludeId?: string): Promise<PolicyDefinitionValidationResult> {
+// Full redesign (migrations 215/216) — Ch.24 §8's Conditions/Required
+// Evidence/Related Obligations/Exception Rules/Severity, structured and
+// (where the owner said so) Ontology-enforced, PLUS applicability and the
+// real governing rule folded in per-condition (owner: "I am inclined to
+// move the applicability inside the condition"; "Governing condition has to
+// be folded into condition"). Every Ontology check here is unconditional
+// (not gated by `draft` the way applicabilityEnvironments' own composable
+// field is) — none of these fields carry x-ontology-composable, so there is
+// no propose-instead-of-reject path for any of them; same treatment
+// `category`'s own unconditional check above already gets. `scope` decides
+// each condition's own applicabilityDeliverables vocabulary exactly the way
+// it used to decide the Policy-level field's vocabulary (migration 214) —
+// Eligibility: real Authority Vocabulary nouns + that noun's own real
+// transitions; Transition/default: deliverable-name Ontology (composable,
+// gated by `draft`) + Deliverable's own real transitions.
+async function validateConditions(conditions: PolicyCondition[] | undefined, scope: PolicyScope | undefined, draft: boolean, constraintType: "Policy" | "Standard"): Promise<string[]> {
+  const errors: string[] = [];
+  const validBadges = new Set(
+    Object.entries(await activeMappingByNoun()).flatMap(([noun, verbs]) => verbs.map((verb) => `${noun}_${verb}`))
+  );
+  const validNouns = scope === "Eligibility" ? new Set((await listActiveNouns()).map((n) => n.code)) : null;
+  const deliverableTransitions = scope === "Eligibility" ? null : new Set(await listTransitionsForEntityType("Deliverable"));
+  for (const [i, cond] of (conditions ?? []).entries()) {
+    const label = `condition ${i + 1}`;
+    if (!cond?.statement?.trim()) errors.push(`${label}: statement is required`);
+    if (cond?.severity) {
+      try {
+        await assertCanonicalCategory("category:policy-condition-severity", cond.severity);
+      } catch (err) {
+        errors.push(`${label}: ${(err as Error).message}`);
+      }
+    }
+    for (const [d, row] of (cond?.applicabilityDeliverables ?? []).entries()) {
+      const dLabel = `${label} applicabilityDeliverables ${d + 1}`;
+      if (!row.name?.trim()) {
+        errors.push(`${dLabel}: name is required`);
+        continue;
+      }
+      if (scope === "Eligibility") {
+        if (!draft && !validNouns!.has(row.name)) {
+          errors.push(`${dLabel}: name "${row.name}" is not one of this platform's real active Authority Vocabulary nouns (${[...validNouns!].join(", ")})`);
+        }
+        if (row.transitions.length) {
+          const validTransitions = new Set(await listTransitionsForEntityType(row.name));
+          for (const transition of row.transitions) {
+            if (!validTransitions.has(transition)) errors.push(`${dLabel}: transition "${transition}" is not one of ${row.name}'s real transitions (${[...validTransitions].join(", ")})`);
+          }
+        }
+      } else {
+        if (!draft) {
+          try {
+            await assertCanonicalCategory("deliverable-name", row.name);
+          } catch (err) {
+            errors.push(`${dLabel}: ${(err as Error).message}`);
+          }
+        }
+        for (const transition of row.transitions) {
+          if (!deliverableTransitions!.has(transition)) errors.push(`${dLabel}: transition "${transition}" is not one of Deliverable's real transitions (${[...deliverableTransitions!].join(", ")})`);
+        }
+      }
+      // Migration 219 (owner: "The governing condition should be within
+      // applicability deliverables") — moved here from the condition level;
+      // per-type field requirements, each type having its own real form
+      // fields rather than one free-form JSON blob (migration 218).
+      errors.push(...validateGoverningCondition(row.governingCondition, dLabel));
+    }
+    errors.push(...(await validateEvidenceDefinition(cond?.requiredEvidence, `${label} requiredEvidence`)));
+    for (const [j, ob] of (cond?.relatedObligations ?? []).entries()) {
+      const obLabel = `${label} relatedObligations ${j + 1}`;
+      if (!ob.category?.trim()) {
+        errors.push(`${obLabel}: category is required`);
+        continue;
+      }
+      try {
+        await assertCanonicalCategory("category:obligation", ob.category);
+      } catch (err) {
+        errors.push(`${obLabel}: ${(err as Error).message}`);
+      }
+      if (ob.origin) {
+        try {
+          await assertCanonicalCategory("category:obligation-origin", ob.origin);
+        } catch (err) {
+          errors.push(`${obLabel}: ${(err as Error).message}`);
+        }
+      }
+      if (ob.priority) {
+        try {
+          await assertCanonicalCategory("category:obligation-priority", ob.priority);
+        } catch (err) {
+          errors.push(`${obLabel}: ${(err as Error).message}`);
+        }
+      }
+      if (ob.severity) {
+        try {
+          await assertCanonicalCategory("category:obligation-severity", ob.severity);
+        } catch (err) {
+          errors.push(`${obLabel}: ${(err as Error).message}`);
+        }
+      }
+      errors.push(...(await validateEvidenceDefinition(ob.requiredEvidence, `${obLabel} requiredEvidence`)));
+    }
+    // Owner: "Exceptions are defined only when Constraint type='Policy'"
+    // (Ch.24 §4 — a Standard's deviations already don't block anything;
+    // there is nothing for an exception to except).
+    if ((cond?.exceptionRules ?? []).length && constraintType !== "Policy") {
+      errors.push(`${label}: exceptionRules can only be declared when constraintType is "Policy" (this Definition is "${constraintType}")`);
+    }
+    for (const [k, ex] of (cond?.exceptionRules ?? []).entries()) {
+      const exLabel = `${label} exceptionRules ${k + 1}`;
+      if (!ex.exceptionStatement?.trim()) errors.push(`${exLabel}: exceptionStatement is required`);
+      if (ex.exceptionComposition && !EXCEPTION_COMPOSITIONS.has(ex.exceptionComposition)) {
+        errors.push(`${exLabel}: exceptionComposition "${ex.exceptionComposition}" is not one of all/any`);
+      }
+      // Owner: "exceptionApprovers[] should have list of badges that are
+      // Ontology driven... Reference authority_noun_verbs" — validated
+      // against the real, active badge vocabulary, same source
+      // exceptionApprovers itself is authored from (web/sdkAuthoring.ts's
+      // "authority-badge" referential option), not Ontology.
+      for (const approver of ex.exceptionApprovers ?? []) {
+        if (!validBadges.has(approver)) {
+          errors.push(`${exLabel}: exceptionApprovers "${approver}" is not one of this platform's real active badges (noun_verb)`);
+        }
+      }
+    }
+  }
+  return errors;
+}
+
+// `draft: true` skips assertCanonicalCategory on the two Ontology-composable
+// Applicability fields (applicabilityDeliverableNames/applicabilityEnvironments,
+// x-ontology-composable — formGenerator.ts) — same split Pack's own draft
+// path already has (createAuthoringDraft's Pack branch never calls
+// validatePackSeed at all; only publishAuthoringDraft's first hop does), one
+// level more precise since Policy's category stays reject-on-unregistered
+// at draft time too (not composable). An unregistered value is proposed via
+// core/ontology.ts#proposeComposableOntologyValues instead of rejected here;
+// the default (false, every publish call site) still rejects it outright —
+// a Policy can never actually Publish while carrying one.
+export async function validatePolicyDefinitionSeed(seed: PolicyDefinitionSeedInput, excludeId?: string, draft = false): Promise<PolicyDefinitionValidationResult> {
   const errors: string[] = [];
   if (!seed.code?.trim()) errors.push("code is required");
   if (!seed.name?.trim()) errors.push("name is required");
@@ -81,26 +285,19 @@ export async function validatePolicyDefinitionSeed(seed: PolicyDefinitionSeedInp
       errors.push((err as Error).message);
     }
   }
-  for (const deliverableName of seed.applicabilityDeliverableNames ?? []) {
-    try {
-      await assertCanonicalCategory("deliverable-name", deliverableName);
-    } catch (err) {
-      errors.push((err as Error).message);
+  if (!draft) {
+    for (const environment of seed.applicabilityEnvironments ?? []) {
+      try {
+        await assertCanonicalCategory("category:environment", environment);
+      } catch (err) {
+        errors.push((err as Error).message);
+      }
     }
   }
-  for (const environment of seed.applicabilityEnvironments ?? []) {
-    try {
-      await assertCanonicalCategory("category:environment", environment);
-    } catch (err) {
-      errors.push((err as Error).message);
-    }
+  if (seed.scope && seed.scope !== "Transition" && seed.scope !== "Eligibility") {
+    errors.push(`scope "${seed.scope}" is not one of Transition/Eligibility`);
   }
-  for (const state of seed.applicabilityDeliverableLifecycle ?? []) {
-    if (!VALID_DELIVERABLE_LIFECYCLE_STATES.has(state)) {
-      errors.push(`applicabilityDeliverableLifecycle "${state}" is not one of Defined/In Progress/Approved/Baselined`);
-    }
-  }
-  errors.push(...validateConditions(seed.conditions));
+  errors.push(...(await validateConditions(seed.conditions, seed.scope, draft, seed.constraintType)));
 
   if (seed.parentPolicyDefinitionId) {
     const { data: parent } = await policyDefinitionsDB.findById(seed.parentPolicyDefinitionId);
@@ -129,28 +326,24 @@ export async function inheritedPolicyDefinitionContent(parentPolicyDefinitionId:
     ok: true,
     content: {
       code: parent.code, name: parent.name, description: parent.description ?? "", category: parent.category, constraintType: parent.constraint_type,
-      applicabilityDeliverableNames: parent.applicability_deliverable_names, applicabilityEnvironments: parent.applicability_environments,
-      applicabilityDeliverableLifecycle: parent.applicability_deliverable_lifecycle.join(", "), conditions: parent.conditions,
+      applicabilityEnvironments: parent.applicability_environments,
+      conditions: parent.conditions,
+      scope: parent.scope,
     },
   };
 }
 
 export type TransitionPolicyDefinitionResult = { ok: true; policyDefinition: PolicyDefinitionRow } | { ok: false; reason: string; detail?: string };
 
-const EVENT_BY_TARGET_STATE: Record<string, string> = {
-  Validated: "PolicyDefinitionValidated",
-  Published: "PolicyDefinitionPublished",
-  Active: "PolicyDefinitionActivated",
-  Deprecated: "PolicyDefinitionDeprecated",
-  Retired: "PolicyDefinitionRetired",
-  Archived: "PolicyDefinitionArchived",
-};
-
+// Version Feature Plan.md — migration 221 populates transition_definitions'
+// event_type/version_event for every real Policy hop (Ch.24 §13); this map
+// is retired in favor of reading gate.eventType straight off that row, same
+// as transitionTemplate/transitionProfile already do.
 export async function transitionPolicyDefinition(input: { policyDefinitionId: string; targetState: PolicyDefinitionRow["status"]; actorRole: string; actorId?: string }): Promise<TransitionPolicyDefinitionResult> {
   const { data: policyDefinition } = await policyDefinitionsDB.findById(input.policyDefinitionId);
   if (!policyDefinition) return { ok: false, reason: "not_found" };
   const fromState = policyDefinition.status;
-  const gate = await transitionEngine.evaluate({ entityType: "Policy", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId, context: { policyDefinition } });
+  const gate = await transitionEngine.evaluate({ entityType: "Policy", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId, entityId: policyDefinition.id, context: { policyDefinition } });
   if (!gate.allowed) {
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Policy ${fromState} -> ${input.targetState}` };
@@ -162,7 +355,7 @@ export async function transitionPolicyDefinition(input: { policyDefinitionId: st
   if (error || !updated) throw error ?? new Error("failed to update Policy Definition status");
 
   await eventBus.publish({
-    eventType: EVENT_BY_TARGET_STATE[input.targetState] ?? "PolicyDefinitionTransitioned",
+    eventType: gate.eventType ?? "PolicyDefinitionTransitioned",
     originatingObjectType: "PolicyDefinition",
     originatingObjectId: updated.id,
     seuId: null, // platform catalog entity, not SEU-scoped
@@ -201,16 +394,16 @@ export async function copyPolicyDefinitionAsNewDraft(policyDefinitionId: string,
     description: source.description,
     category: source.category,
     constraintType: source.constraint_type,
-    applicabilityDeliverableNames: source.applicability_deliverable_names,
     applicabilityEnvironments: source.applicability_environments,
-    applicabilityDeliverableLifecycle: source.applicability_deliverable_lifecycle,
     conditions: source.conditions,
+    scope: source.scope,
     version: source.version,
     authoredBy: Number(actorId),
     draftContent: {
       code: source.code, name: source.name, description: source.description ?? "", category: source.category, constraintType: source.constraint_type,
-      applicabilityDeliverableNames: source.applicability_deliverable_names, applicabilityEnvironments: source.applicability_environments,
-      applicabilityDeliverableLifecycle: source.applicability_deliverable_lifecycle.join(", "), conditions: source.conditions,
+      applicabilityEnvironments: source.applicability_environments,
+      conditions: source.conditions,
+      scope: source.scope,
     },
     tenantId: source.tenant_id,
     parentPolicyDefinitionId: source.parent_policy_definition_id,

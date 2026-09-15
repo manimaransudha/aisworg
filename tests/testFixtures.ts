@@ -77,6 +77,7 @@
 // the Pack-code rename earlier.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
@@ -91,9 +92,12 @@ import { seedAllTestFixturePacks } from "../src/dblayer/seed/seedTestFixturePack
 import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
 import { commissionFromForm, transitionEbm, previewCommissioningValidation } from "../src/routes/seu/core/commissioning.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
+import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
+import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
+import { getSeuCompetencyRequirements } from "../src/routes/seu/core/participantEligibility.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
-import type { DeliverableRow, EventRow, ProfileRow, SeuRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../src/dblayer/seuTypes.js";
+import type { DeliverableRow, EventRow, ObligationRow, ProfileRow, SeuRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../src/dblayer/seuTypes.js";
 
 // Test-only Pack twins (migration 119 / seedTestFixturePacks.ts) — every real
 // seed Pack mirrored under a `test-` prefixed code. NOT used by
@@ -239,7 +243,16 @@ export async function transitionDeliverableSync(input: {
 // fix, matching that exact, already-established pattern.
 export type DriveCommissioningResult = { ok: true; seu: SeuRow } | { ok: false; stage: string; reason: string; seuId?: string };
 
-export async function waitUntilAsync(condition: () => Promise<boolean>, timeoutMs = 5000, intervalMs = 25): Promise<void> {
+// CR-104 — 5000ms was marginal under real concurrent suite load (several
+// test files each driving multiple full commissioning cycles against one
+// shared, ever-growing dev database at once): a background handler
+// (validateRequestHandler/compositionCompletedHandler/ebmActivatedHandler)
+// occasionally didn't finish within the old window, producing a real, if
+// spurious, "no CommissionValidated event found" failure. This only ever
+// extends how long a genuinely slow/stuck case waits before reporting
+// failure — a condition that resolves quickly still returns immediately,
+// so this doesn't slow down any passing run.
+export async function waitUntilAsync(condition: () => Promise<boolean>, timeoutMs = 15000, intervalMs = 25): Promise<void> {
   const start = Date.now();
   while (!(await condition())) {
     if (Date.now() - start > timeoutMs) return; // let the caller's own check report the failure
@@ -265,8 +278,30 @@ export function ensureEventSubscriptionsLoaded(): Promise<void> {
   return subscriptionsLoaded;
 }
 
-export async function driveCommissioningToActive(input: { seuId: string; actorRole: string; actorId?: string }): Promise<DriveCommissioningResult> {
+export async function driveCommissioningToActive(input: {
+  seuId: string;
+  actorRole: string;
+  actorId?: string;
+  // CR-104 — per-call override for the three internal waitUntilAsync polls
+  // below, for callers that drive several full commissioning cycles in one
+  // file (heavier than the "one SEU per test" norm this fixture was sized
+  // for) and need more headroom under real concurrent suite load than the
+  // shared default affords. Defaults to waitUntilAsync's own default when
+  // omitted — every existing caller is unaffected.
+  timeoutMs?: number;
+}): Promise<DriveCommissioningResult> {
   await ensureEventSubscriptionsLoaded();
+  // CR-104 — Quality Gates are now materialised onto the EBM once, at
+  // creation (compositionCompleted.ts), from whichever Packs are actually
+  // composed at that exact moment — not re-derived live on every later
+  // transition attempt. ensureCoreEngineeringQualityGates() must therefore
+  // run BEFORE the EBM this call is about to drive into existence, not
+  // whenever a test happens to call it — some test files called it after
+  // commissionFromFormSync, which was harmless under the old live-query
+  // match but would now silently leave those 2 gates off the EBM entirely.
+  // Idempotent + cached (coreGatesCached), so calling it unconditionally
+  // here is free for every test that doesn't care about these gates.
+  await ensureCoreEngineeringQualityGates();
 
   // design/mvp-build-plan/SEU Composition.md, 2026-09-07 — Validate Request
   // itself is now async too (validateRequestHandler, off CommissionRequested,
@@ -279,7 +314,7 @@ export async function driveCommissioningToActive(input: { seuId: string; actorRo
     const { data: events } = await eventsDB.findByOriginatingObject("SEU", input.seuId);
     requestValidatedOrFailed = (events ?? []).find((e) => e.event_type === "CommissionValidated" || e.event_type === "CommissionFailed");
     return !!requestValidatedOrFailed;
-  });
+  }, input.timeoutMs);
   if (!requestValidatedOrFailed || requestValidatedOrFailed.event_type === "CommissionFailed") {
     const payload = requestValidatedOrFailed?.payload as { reason?: string; references?: string[] } | undefined;
     const reason = payload?.references?.length ? `${payload.reason}: ${payload.references.join("; ")}` : (payload?.reason ?? "no CommissionValidated event found for this SEU — validateRequestHandler must not have run (or failed)");
@@ -336,7 +371,7 @@ export async function driveCommissioningToActive(input: { seuId: string; actorRo
     const { data: eventsAfter } = await eventsDB.findByOriginatingObject("SEU", input.seuId);
     failedEvent = (eventsAfter ?? []).find((e) => e.event_type === "CommissionFailed");
     return !!failedEvent;
-  });
+  }, input.timeoutMs);
 
   if (!seuAfterCompose?.active_ebm_id) {
     const payload = failedEvent?.payload as { conflicts?: string[]; reason?: string } | undefined;
@@ -348,14 +383,7 @@ export async function driveCommissioningToActive(input: { seuId: string; actorRo
   // "Activate" are two separate, independently human-triggered transitions
   // on the EBM (owner: "Validate and Activate are 2 separate events. I can
   // validate an EBM and not yet activate it"), same shape as the SEU detail
-  // page's own real "Apply" form (detail.ejs) — no async handler subscribed
-  // to either event any more (ebmVersioningHandler/seuActivationHandler/
-  // createEngineeringAssetsHandler deleted: "Subscription to an event and
-  // manual trigger of transition definition are 2 different things"). Both
-  // calls are synchronous now — transitionEbm's own Active branch runs
-  // finalizeCommissioning inline (Configured -> Commissioned -> Activated,
-  // Create Engineering Assets, Activated -> Operational), so its own return
-  // value is the real, authoritative outcome — nothing left to poll for.
+  // page's own real "Apply" form (detail.ejs).
   const validateResult = await transitionEbm({ ebmId: seuAfterCompose.active_ebm_id, targetState: "Validated", actorRole: input.actorRole, actorId: input.actorId });
   if (!validateResult.ok) {
     return { ok: false, stage: "validate_engineering_model", reason: validateResult.reason === "not_found" ? "EBM not found" : validateResult.detail, seuId: input.seuId };
@@ -366,11 +394,89 @@ export async function driveCommissioningToActive(input: { seuId: string; actorRo
     return { ok: false, stage: "activate", reason: activateResult.reason === "not_found" ? "EBM not found" : activateResult.detail, seuId: input.seuId };
   }
 
-  const { data: finalSeu } = await seusDB.findById(input.seuId);
+  // CR-102 — Activate only publishes EBMActivated now; finalizeCommissioning
+  // (Configured -> Commissioned -> Activated, Create Engineering Assets,
+  // Activated -> Operational) runs asynchronously in ebmActivatedHandler, off
+  // the bus, no longer inline inside transitionEbm's own return. Wait for the
+  // REAL, already-dispatched handler to finish — same pattern as Compose
+  // EBM's own wait above — never invoke it ourselves.
+  // CR-104 — commissioning.ts's own finalizeCommissioning writes
+  // seus.lifecycle_state = 'Operational' (updateLifecycleState) several
+  // awaits before it publishes the real SEUOperational event
+  // (setCommissioningReport, a findById reload, then eventBus.publish) — a
+  // real, if narrow, window where lifecycle_state already reads Operational
+  // but the event doesn't exist in the events table yet. A caller polling
+  // only on lifecycle_state (as this used to) can race ahead of it and
+  // declare success before SEUOperational is actually recorded — exactly
+  // what seu-ebm-event-lifecycle-table.test.ts's own "DRIVEN" test caught.
+  // Wait for the real event too, not just the state flip.
+  let finalSeu: SeuRow | null = null;
+  let activateFailedEvent: EventRow | undefined;
+  let seuOperationalEvent: EventRow | undefined;
+  let blockingObligation: ObligationRow | undefined;
+  await waitUntilAsync(async () => {
+    const { data: seu } = await seusDB.findById(input.seuId);
+    finalSeu = seu ?? null;
+    if (seu?.lifecycle_state === "Operational") {
+      const { data: eventsAfter } = await eventsDB.findByOriginatingObject("SEU", input.seuId);
+      seuOperationalEvent = (eventsAfter ?? []).find((e) => e.event_type === "SEUOperational");
+      return !!seuOperationalEvent;
+    }
+    if (seu?.lifecycle_state === "Failed") {
+      const { data: eventsAfter } = await eventsDB.findByOriginatingObject("SEU", input.seuId);
+      activateFailedEvent = (eventsAfter ?? []).find((e) => e.event_type === "CommissionFailed" && (e.payload as { stage?: string } | null)?.stage === "finalize_commissioning");
+      return true;
+    }
+    // CR-106 Option C — a Policy block at the SEU's own commence-work hop
+    // leaves the SEU at "Activated" forever (never Operational, never
+    // Failed — Chapter 8's own closed event vocabulary has no "blocked"
+    // event, and once Activated, Chapter 2's own real transition table
+    // names exactly one next event, SEUOperational; nothing invented in
+    // between). The real, already-existing Obligation mechanism is the
+    // actual signal: raiseObligationForBlockedTransition records
+    // blocked_to_state on the Obligation it raises.
+    if (seu?.lifecycle_state === "Activated") {
+      const { data: obligations } = await obligationsDB.findByRelatedObject("SEU", input.seuId);
+      blockingObligation = (obligations ?? []).find((o) => o.blocked_to_state === "Operational");
+      return !!blockingObligation;
+    }
+    return false;
+  }, input.timeoutMs);
+
+  if (blockingObligation) {
+    return { ok: false, stage: "blocked", reason: `blocked, Obligation raised: ${blockingObligation.title}`, seuId: input.seuId };
+  }
   if (!finalSeu || finalSeu.lifecycle_state !== "Operational") {
-    return { ok: false, stage: "activate", reason: `expected Operational after Activate, got ${finalSeu?.lifecycle_state ?? "SEU not found"}`, seuId: input.seuId };
+    const payload = activateFailedEvent?.payload as { reason?: string } | undefined;
+    const reason = payload?.reason ?? `expected Operational after Activate, got ${finalSeu?.lifecycle_state ?? "SEU not found"}`;
+    return { ok: false, stage: "activate", reason, seuId: input.seuId };
   }
   return { ok: true, seu: finalSeu };
+}
+
+// Test-only fixture: a real participants_master row guaranteed eligible for
+// the given Capability codes on this exact SEU, regardless of whichever
+// shared, finite fixture pool (seedParticipantsMaster.ts) is doing under
+// concurrent test load — no core eligibility logic is touched or relaxed;
+// this participant genuinely satisfies findEligibleParticipants' own real
+// checks (capabilities @> code, competency held for every required
+// dimension) by construction. Reads the SEU's own real, already-materialised
+// competencyRequirements (participantEligibility.ts, the same source
+// findEligibleParticipants itself reads) and holds every one of their
+// acceptable values, so matchesCompetency's `values.some(v => held.includes(v))`
+// is trivially true for every dimension this SEU's own EBM actually requires.
+export async function ensureEligibleParticipant(seuId: string, capabilityCodes: string[]): Promise<void> {
+  const { data: seu } = await seusDB.findById(seuId);
+  if (!seu) throw new Error(`ensureEligibleParticipant: SEU not found: ${seuId}`);
+  const competencyRequirements = await getSeuCompetencyRequirements(seu);
+  const { error } = await participantsMasterDB.create({
+    tenantId: seu.tenant_id,
+    type: "Human",
+    displayName: `Test Fixture Participant ${randomUUID()}`,
+    capabilities: capabilityCodes,
+    competency: competencyRequirements,
+  });
+  if (error) throw error;
 }
 
 // Drop-in replacement for the old, fully-synchronous commissionFromForm

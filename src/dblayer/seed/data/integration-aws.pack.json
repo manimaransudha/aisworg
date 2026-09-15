@@ -70,6 +70,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "aws-iam-credential-rotation",
+        "category": "Security",
+        "title": "AWS IAM access keys and role trust policies must be rotated/reviewed on a recurring cadence",
+        "description": "Long-lived AWS IAM access keys and cross-account role trust policies used by this integration must be rotated and reviewed periodically; a credential or trust relationship that's never revisited becomes an unmonitored standing risk.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every IAM access key and role trust policy used by this integration is rotated/reviewed within the declared cadence.",
+        "requiredEvidence": {
+          "title": "IAM credential rotation record",
+          "category": "Validation Evidence",
+          "description": "AWS IAM record showing rotation/review date for each access key and role trust policy.",
+          "collectionMethod": "AWS IAM/CloudTrail export."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated IAM credential-age check.",
+        "externalEvidence": false
+      }
+    ]
   }
 }

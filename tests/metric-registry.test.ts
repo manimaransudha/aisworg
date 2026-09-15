@@ -18,10 +18,6 @@ import { metricRegistryEngine } from "../src/domain/engine/metricRegistryEngine.
 import { metricDefinitionsDB } from "../src/dblayer/metricDefinitionsDB.js";
 import { query } from "../src/utils/db.js";
 
-after(async () => {
-  await pool.end();
-});
-
 test("metricRegistryEngine.compute resolves a real metric_definitions row to its calculation_method and publishes MetricCalculated", async () => {
   const result = await metricRegistryEngine.compute("deliverable-cycle-time");
   assert.equal(result.outcome, "Computed");

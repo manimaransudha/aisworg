@@ -63,6 +63,30 @@
         "dimension": "Technology",
         "value": "python"
       }
+    ],
+    "obligationDefinitions": [
+      {
+        "code": "python-pip-dependency-vulnerability-tracking",
+        "category": "Security",
+        "title": "pip/PyPI dependency vulnerabilities must be tracked and remediated within SLA",
+        "description": "A vulnerability disclosed against a PyPI dependency must be triaged and remediated within its severity's SLA, not left unaddressed once a pip-audit/Safety scan reports it.",
+        "origin": "Quality Gates",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "Every Critical/High dependency vulnerability is remediated or carries an approved waiver within its SLA.",
+        "requiredEvidence": {
+          "title": "pip-audit scan",
+          "category": "Validation Evidence",
+          "description": "`pip-audit` or equivalent scan output against the dependency tree.",
+          "collectionMethod": "Automated dependency-scanning tool output."
+        },
+        "classification": "machine-verifiable",
+        "prompt": "",
+        "participant": "AI",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Automated dependency/vulnerability scan check.",
+        "externalEvidence": false
+      }
     ]
   }
 }

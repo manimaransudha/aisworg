@@ -67,6 +67,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "eu-ai-act-post-market-monitoring",
+        "category": "Compliance",
+        "title": "High-risk AI systems require ongoing post-market monitoring, not a one-time conformity assessment",
+        "description": "The EU AI Act requires a post-market monitoring system for high-risk AI systems that tracks real-world performance and incidents after deployment; a conformity assessment passed at launch does not satisfy this ongoing duty.",
+        "origin": "Telemetry and Knowledge Model",
+        "priority": "Very High",
+        "severity": "Critical",
+        "completionCriteria": "Post-market monitoring data is reviewed on the declared cadence, and any serious incident is reported within the Act's required timeframe.",
+        "requiredEvidence": {
+          "title": "Post-market monitoring report",
+          "category": "Analytical Evidence",
+          "description": "Review of the high-risk AI system's post-market performance and incident data.",
+          "collectionMethod": "Post-market monitoring system export, reviewed on a recurring cadence."
+        },
+        "classification": "human-attested",
+        "prompt": "Has post-market monitoring data been reviewed on schedule, with any serious incident reported on time?",
+        "participant": "AI+human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "AI governance/compliance lead sign-off.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

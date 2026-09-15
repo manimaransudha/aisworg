@@ -63,6 +63,30 @@
         ]
       }
     ],
-    "qualityGates": []
+    "qualityGates": [],
+    "obligationDefinitions": [
+      {
+        "code": "test-osa-illegal-content-risk-assessment-refresh",
+        "category": "Compliance",
+        "title": "Online Safety Act illegal-content risk assessment must be refreshed after material service changes",
+        "description": "The Online Safety Act requires a documented illegal-content and child-safety risk assessment that stays current with the service's actual functionality; a material feature change without a corresponding risk-assessment refresh leaves the compliance record stale.",
+        "origin": "Compliance Packs",
+        "priority": "High",
+        "severity": "High",
+        "completionCriteria": "The OSA risk assessment is refreshed within the declared window after any material service change.",
+        "requiredEvidence": {
+          "title": "OSA risk assessment refresh",
+          "category": "Analytical Evidence",
+          "description": "Updated illegal-content/child-safety risk assessment.",
+          "collectionMethod": "Trust & Safety / legal review."
+        },
+        "classification": "human-attested",
+        "prompt": "Has the OSA risk assessment been refreshed following this service's material change?",
+        "participant": "human",
+        "outputContract": "passed-failed-notes",
+        "assurance": "Trust & Safety / legal compliance sign-off.",
+        "externalEvidence": true
+      }
+    ]
   }
 }

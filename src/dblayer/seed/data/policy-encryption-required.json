@@ -10,50 +10,55 @@
   "conditions": [
     {
       "statement": "Sensitive data fields are encrypted at rest using AES-256 or an approved equivalent.",
-      "requiredEvidence": [
-        {
-          "type": "encryption_at_rest_scan_result"
-        }
-      ],
       "severity": "Critical",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Encryption At Rest Scan Result",
+        "category": "Validation Evidence",
+        "description": "Sensitive data fields are encrypted at rest using AES-256 or an approved equivalent.",
+        "collectionMethod": "Automated encryption-configuration scan output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "Encryption keys are held in an approved key management service, never embedded in code or configuration.",
-      "requiredEvidence": [
-        {
-          "type": "secrets_scan_result",
-          "scope": "encryption_keys"
-        }
-      ],
       "severity": "Critical",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "Secrets Scan Result — Encryption Keys",
+        "category": "Validation Evidence",
+        "description": "Encryption keys are held in an approved key management service, never embedded in code or configuration.",
+        "collectionMethod": "Automated secret-scanning tool output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "All external network communication uses TLS 1.2 or higher.",
-      "requiredEvidence": [
-        {
-          "type": "tls_configuration_scan_result",
-          "scope": "external"
-        }
-      ],
       "severity": "High",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "TLS Configuration Scan Result — External",
+        "category": "Validation Evidence",
+        "description": "All external network communication uses TLS 1.2 or higher.",
+        "collectionMethod": "Automated TLS configuration scan output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     },
     {
       "statement": "Internal service-to-service communication crossing a network segment boundary also uses TLS.",
-      "requiredEvidence": [
-        {
-          "type": "tls_configuration_scan_result",
-          "scope": "internal_cross_segment"
-        }
-      ],
       "severity": "Medium",
-      "exceptionRules": [],
-      "relatedObligations": []
+      "applicabilityDeliverables": [],
+      "requiredEvidence": {
+        "title": "TLS Configuration Scan Result — Internal Cross Segment",
+        "category": "Validation Evidence",
+        "description": "Internal service-to-service communication crossing a network segment boundary also uses TLS.",
+        "collectionMethod": "Automated TLS configuration scan output"
+      },
+      "relatedObligations": [],
+      "exceptionRules": []
     }
   ],
   "version": "1.0.0"
