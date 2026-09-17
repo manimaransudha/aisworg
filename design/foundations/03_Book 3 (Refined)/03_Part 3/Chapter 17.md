@@ -479,7 +479,7 @@ Implementation of this chapter shall produce:
 
 Verified directly against the live codebase (migrations, `seuTypes.ts`, `evidenceDB.ts`, `core/evidence.ts`, `api/evidence.ts`, `web/seus.ts`, `views/seu/seus/detail.ejs`, `transitionDefinitions.json`, `authorityVocabulary.json`, `030_ontology.sql`, `qualityGateEngine.ts`, `core/packs.ts`, `eventBus.ts`, CR-042, and the test suite) — not from memory. Format follows Ch.5 §19's own convention: number, claim, status, at the heading level, so the outline itself shows what's done. Organised around the two-part split the owner drew out while reviewing this: Part A (definition — what needs Evidence) turned out not to be a gap at all; every real gap lives in Part B (wiring — how a specific Evidence row links to what it supports).
 
-## 20.1 Part A ✅ — the definition of what needs Evidence is already generic, not a gap
+## 20.1 ✅ Part A — the definition of what needs Evidence is already generic, not a gap
 
 Declarative, authoring-time, Pack-contributed — not a property of any Evidence row itself. A `quality_gates` row declares its own `(entity_type, from_state, to_state, criteria)` — e.g. `entity_type: "Deliverable", from_state: "Approved", to_state: "Baselined", criteria: {type: "requires_accepted_evidence_or_approved_decision"}`, `originating_pack_id` tying it to the contributing Pack. Confirmed live: `core/knowledge.ts`, `core/decisions.ts`, `core/obligations.ts`, and Evidence's own `core/evidence.ts` (`transitionEvidence`) **all** call `qualityGateEngine.evaluate` with their own `entityType` — the same mechanism gates Deliverable, Knowledge, Decision, Obligation, and Evidence's own transitions alike. `compliance.ts`'s `requires_accepted_evidence` criterion is a second, independent instance of the same shape.
 
@@ -493,7 +493,7 @@ This grounds the chapter's own trust-pipeline language, corrected from an earlie
 
 **Owner's own sequencing decision:** the authoring surface does need fixing eventually ("Yes the authoring surface has to be modified") but deliberately *after* Part B's data structures settle — "I wanted to get the underlying structures correctly first before changing the authoring so we are not in multiple cycles." Neither wrinkle above is in CR-051's own scope as a result.
 
-## 20.2 Part B ⚠️ — multi-relationship + cross-SEU sharing ✅ Built 2026-08-21, provenance/versioning/events remain (CR-051)
+## 20.2 ⚠️ Part B  — multi-relationship + cross-SEU sharing ✅ Built 2026-08-21, provenance/versioning/events remain (CR-051)
 
 This is the runtime/schema mechanism connecting an *already-created* Evidence row to what it backs. Three unreconciled paths exist today:
 
@@ -556,7 +556,7 @@ The chapter's "one Evidence Item may support many engineering artefacts" — see
 
 The chapter's five validation dimensions (authenticity/completeness/consistency/source credibility/engineering relevance) are not recorded anywhere — "Validated" is a bare state transition with no structure for which criteria were checked. Matches an already-accepted platform-wide pattern (CR-049's own Chapter 15 review, "Refinement/Validation... governed by the EBM... not authored as a field anywhere"): EBM-governed criteria are treated as conceptual governance, not concrete per-criterion data, everywhere else in this codebase. Not yet tracked in a CR.
 
-## 20.10 Evidence Provenance ✅ — Built 2026-08-21 (§12; CR-051)
+## 20.10 ✅ Evidence Provenance  — Built 2026-08-21 (§12; CR-051)
 
 Five nullable columns on `evidence`: `originating_deliverable_id`, `originating_participant_id`, `originating_capability_id`, `originating_decision_id`, `originating_activity` — matches originating SEU (already `evidence.seu_id`) plus the five named in §12. All optional at creation time; `originating_deliverable_id` auto-derives from the creating relationship when it's a Deliverable, the rest are only ever set if supplied. The §4 "independent of Participants" tension (resolved against DM-006 — existential independence, not optional attribution) still holds: Evidence's validity doesn't depend on the Participant continuing to exist, but its attribution is now permanently recorded. A structurally similar `ProvenanceEntry` exists in `traceability.ts`, but it's a Deliverable state-history concept, unrelated to Evidence's own record.
 

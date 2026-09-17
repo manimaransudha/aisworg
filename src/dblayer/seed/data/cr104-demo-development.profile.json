@@ -1,10 +1,10 @@
 {
   "code": "cr104-demo-development",
-  "name": "CR-104 Demo Profile (SaaS Product base)",
-  "baseTemplateCode": "saas-product",
+  "name": "CR-104 Demo Profile (Minimal Requirements/Construction/Release base)",
+  "baseTemplateCode": "cr104-demo-minimal",
   "environment": "development",
   "profileVersion": "1.0.0",
-  "description": "CR-104 validation fixture — the SaaS Product Template's own real commissioning path, with cr104-demo-seu-eligibility-policies added as an optional Pack. Commission an SEU against Template 'saas-product' + this Profile to see: (1) cr104-demo-mandatory composed automatically without being selected here, (2) the Activated -> Operational transition blocked by the SEU-scoped Policy, (3) the requirements-analysis Capability Fulfilment's eligible-Participant list filtered by the Eligibility-scoped Policy (a Participant needs a behaviour_context entry {policy: 'cr104-demo-background-check', payload: {cleared: true}} to be eligible).",
+  "description": "CR-104/CR-107 validation fixture — cr104-demo-minimal's own real commissioning path (Requirements -> Construction -> Release, 3 Capabilities), with cr104-demo-seu-eligibility-policies added as an optional Pack. Commission an SEU against Template 'cr104-demo-minimal' + this Profile to see: (1) cr104-demo-mandatory composed automatically without being selected here, (2) the Activated -> Operational transition blocked by the SEU-scoped Policy (CR-104/CR-106), and, once blocked, the head-of-chain Deliverable ('Requirements Analysis Model') itself also refused (CR-107's own fix), (3) the requirements-analysis Capability Fulfilment's eligible-Participant list filtered by the Eligibility-scoped Policy (a Participant needs a behaviour_context entry {policy: 'cr104-demo-background-check', payload: {cleared: true}} to be eligible). Base Template switched from 'saas-product' (19 Packs, 14 Deliverables) to this minimal one (owner, 2026-09-16: a smaller, purpose-built playground for manually exercising CR-107).",
   "developmentMethodology": "scrum",
   "primaryProgrammingLanguage": "typescript",
   "sourceControlProvider": "github",

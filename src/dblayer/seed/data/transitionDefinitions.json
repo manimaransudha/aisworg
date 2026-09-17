@@ -122,6 +122,7 @@
     "toState": "Operational",
     "requiredAuthorityRuleCode": null,
     "requiredPolicyCodes": [],
+    "trigger": "governed",
     "eventType": "SEUOperational"
   },
   {

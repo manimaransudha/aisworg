@@ -18,7 +18,6 @@ import { templatesDB } from "../../dblayer/templatesDB.js";
 import { profilesDB } from "../../dblayer/profilesDB.js";
 import { ebmsDB } from "../../dblayer/ebmsDB.js";
 import { finalizeCommissioning } from "../../routes/seu/core/commissioning.js";
-import { raiseObligationForBlockedTransition } from "../../routes/seu/core/obligations.js";
 import { eventBus } from "./eventBus.js";
 import { logger } from "../../utils/logger.js";
 import type { EventHandler } from "./eventBus.js";
@@ -36,35 +35,6 @@ async function failCommissioning(seuId: string, event: EventRow, reason: string)
     causationId: event.id,
     actorId: event.actor_id,
     payload: { stage: "finalize_commissioning", reason },
-  });
-}
-
-// CR-106 Option C — a Policy not yet satisfied at the SEU's own
-// Activated -> Operational hop is a legitimate, expected gate (a customer
-// sign-off pending, an active contract not yet on file), not a broken
-// commission. Raises a real Obligation + Attention Item and deliberately
-// never touches seus.lifecycle_state — the SEU stays exactly where
-// finalizeCommissioning left it (Activated), never advanced to Operational
-// and never forced into the hard, terminal Failed state failCommissioning
-// uses. Once that Obligation reaches Verified/Closed/Archived,
-// obligationResolved (domain/engine/obligationResolved.ts) re-attempts this
-// same hop.
-//
-// Owner correction: no new event type here. Chapter 8's own Subsystem
-// Events list (Events and Lifecycles.md) is closed — CommissionRequested/
-// Validated/CompositionStarted/CompositionCompleted/RuntimeAllocated/
-// KnowledgeInitialised/ParticipantsRecruited/SEUActivated/
-// CommissionCompleted/CommissionFailed, nothing else — and once the SEU is
-// Activated, Chapter 2's own real transition table names exactly one next
-// event, SEUOperational (row 5); nothing "in between" is spec vocabulary.
-// A block that doesn't happen (the SEU simply staying Activated) needs no
-// event of its own — the real Obligation raised below already is the
-// signal, through the platform's existing Obligation mechanism.
-async function blockCommissioning(seuId: string, policyCode: string): Promise<void> {
-  logger.info(`[ebmActivated] SEU ${seuId} commence-work blocked by policy ${policyCode} — raising Obligation, not failing`);
-  await raiseObligationForBlockedTransition({
-    seuId, relatedObjectType: "SEU", relatedObjectId: seuId,
-    fromState: "Activated", toState: "Operational", policyCode,
   });
 }
 
@@ -98,11 +68,11 @@ export const ebmActivatedHandler: EventHandler = async (event: EventRow) => {
     correlationId: event.correlation_id,
     causationId: event.id,
   });
+  // CR-107 — finalizeCommissioning no longer attempts Activated -> Operational
+  // (the Execution Engine owns that now, off the SEUActivated event it
+  // publishes on success), so it can no longer return a Policy block here —
+  // any !ok result is a genuine build failure.
   if (!finalizeResult.ok) {
-    if (finalizeResult.blockedByPolicyCode) {
-      await blockCommissioning(seu.id, finalizeResult.blockedByPolicyCode);
-    } else {
-      await failCommissioning(seu.id, event, finalizeResult.reason);
-    }
+    await failCommissioning(seu.id, event, finalizeResult.reason);
   }
 };

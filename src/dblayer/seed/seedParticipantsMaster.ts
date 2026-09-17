@@ -61,7 +61,7 @@ const bcrypt = require("bcryptjs");
 // createMany already relies on in this exact file.
 
 // const TENANT_CODES = ["platform", "demo", "default", "Athens", "Babylon", "Cambodia"];
-const TENANT_CODES = ["Babylon"];
+const TENANT_CODES = ["default"];
 const PARTICIPANTS_PER_TENANT_PER_TYPE = 500;
 
 // Still bounded — participantsMasterDB.create is one query per row (the

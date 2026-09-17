@@ -111,8 +111,8 @@ function parseMaterializedPolicyCode(materializedCode: string): { plainCode: str
 // matching Attention Item each (mirroring the existing blocked-Quality-Gate
 // precedent, deliverables.ts), and records exactly which transition is
 // blocked (blocked_from_state/blocked_to_state) on every one so
-// obligationResolved (domain/engine/obligationResolved.ts) knows precisely
-// what to re-attempt once they reach Verified/Closed/Archived — never
+// executionEngineKickoff (domain/engine/executionEngineKickoff.ts) knows
+// precisely what to re-attempt once they reach Verified/Closed/Archived — never
 // re-derived from the entity's own current state, which can have more than
 // one possible next state. A condition with none declared still raises
 // exactly one, generic, so a block is never silently invisible.

@@ -21,11 +21,13 @@ import { RESOLVED_OBLIGATION_STATUSES } from "../../../domain/engine/qualityGate
 import type { PoolEntry } from "../../../domain/engine/profileCompositionUnravel.js";
 import { getSeuEvents } from "./events.js";
 import { listObligationsWithNextStates } from "./obligations.js";
+import { listAttentionItemsBySeu, listAttentionItemsWithNextStates } from "./attentionItems.js";
 import { listEvidenceWithNextStates, listEvidenceRelationships, listEvidenceLinkedToSeu } from "./evidence.js";
 import { listKnowledgeItemsWithNextStates } from "./knowledge.js";
 import { listDecisionsWithNextStates } from "./decisions.js";
 import { listExternalInteractionsWithNextStates } from "./externalInteractions.js";
 import type {
+  AttentionItemRow,
   CommandRow,
   DecisionRow,
   DependencyType,
@@ -250,6 +252,15 @@ export interface SeuDetailObligation {
   possibleNextStates: string[];
 }
 
+// CR-107 follow-up — same shape as SeuDetailObligation, except relatedName
+// can be null: unlike Obligation, an AttentionItem's related_object_type/id
+// are nullable (it can be SEU-level, not tied to any one Deliverable).
+export interface SeuDetailAttentionItem {
+  attentionItem: AttentionItemRow;
+  relatedName: string | null;
+  possibleNextStates: string[];
+}
+
 // Post-MVP Phase 5: Evidence/Knowledge/Decision shown against the Deliverable
 // they're attached to, same shape as Obligations' own display.
 // CR-051 item 1 (Ch.17 §20.2/§20.8) — an Evidence row can now support many
@@ -370,6 +381,7 @@ export interface SeuDetailView {
   deliverables: SeuDetailDeliverable[];
   commands: SeuDetailCommand[];
   obligations: SeuDetailObligation[];
+  attentionItems: SeuDetailAttentionItem[];
   // CR-051 item 3 — options for the Evidence collection form's provenance
   // fields (Participant/Capability/Decision selects).
   participants: Array<{ id: string; displayName: string; type: string }>;
@@ -569,6 +581,17 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     ? { obligationTitle: blockingObligation.obligation.title, toState: blockingObligation.obligation.blocked_to_state! }
     : null;
 
+  // CR-107 follow-up — same pattern as Obligations above, except
+  // related_object_type/id are nullable here (an Attention Item can be
+  // SEU-level, not tied to any one Deliverable).
+  const attentionItemsBySeu = await listAttentionItemsBySeu(seuId);
+  const attentionItemsWithNextStates = await listAttentionItemsWithNextStates(attentionItemsBySeu);
+  const attentionItemViews: SeuDetailAttentionItem[] = attentionItemsWithNextStates.map(({ attentionItem, possibleNextStates }) => ({
+    attentionItem,
+    relatedName: attentionItem.related_object_type && attentionItem.related_object_id ? relatedObjectLabel(attentionItem.related_object_type, attentionItem.related_object_id) : null,
+    possibleNextStates,
+  }));
+
   const [evidenceWithNextStates, knowledgeItemsWithNextStates, decisionsWithNextStates, evidenceSupersedeCandidates] = await Promise.all([
     listEvidenceWithNextStates(seuId),
     listKnowledgeItemsWithNextStates(seuId),
@@ -635,6 +658,7 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     deliverables: deliverableViews,
     commands: commandViews,
     obligations: obligationViews,
+    attentionItems: attentionItemViews,
     participants: (seuParticipants ?? []).map((p) => ({ id: p.id, displayName: p.display_name, type: p.type })),
     evidenceSupersedeCandidates: evidenceSupersedeCandidates.map((e) => ({ id: e.id, title: e.title })),
     evidence: evidenceViews,

@@ -6,7 +6,7 @@ import { assignmentDeliveryHandler } from "../../adapters/assignmentDelivery.js"
 import { validateRequestHandler } from "./validateRequest.js";
 import { compositionCompletedHandler } from "./compositionCompleted.js";
 import { ebmActivatedHandler } from "./ebmActivated.js";
-import { obligationResolvedHandler } from "./obligationResolved.js";
+import { executionEngineKickoffHandler } from "./executionEngineKickoff.js";
 import type { EventHandler } from "./eventBus.js";
 
 // design/mvp-build-plan/SEU Composition.md — ebmVersioningHandler/
@@ -33,5 +33,5 @@ export const HANDLER_REGISTRY: Record<string, EventHandler> = {
   validateRequest: validateRequestHandler,
   compositionCompleted: compositionCompletedHandler,
   ebmActivated: ebmActivatedHandler,
-  obligationResolved: obligationResolvedHandler,
+  executionEngineKickoff: executionEngineKickoffHandler,
 };

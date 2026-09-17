@@ -1,0 +1,17 @@
+{
+  "code": "cr104-demo-minimal",
+  "name": "CR-104 Demo Minimal (Requirements -> Construction -> Release)",
+  "mandatoryPackCodes": ["requirements-analysis", "implementation-engineering", "launch-management"],
+  "deliverableCatalogue": [
+    { "code": "requirements-analysis-model" },
+    { "code": "source-code" },
+    { "code": "deployment-manifest" }
+  ],
+  "dependencyGraph": [
+    { "toCode": "requirements-analysis-model", "fromType": "Capability", "fromCapabilityCode": "requirements-analysis" },
+    { "toCode": "source-code", "fromType": "Deliverable", "fromCode": "requirements-analysis-model" },
+    { "toCode": "source-code", "fromType": "Capability", "fromCapabilityCode": "software-construction" },
+    { "toCode": "deployment-manifest", "fromType": "Deliverable", "fromCode": "source-code" },
+    { "toCode": "deployment-manifest", "fromType": "Capability", "fromCapabilityCode": "software-release" }
+  ]
+}

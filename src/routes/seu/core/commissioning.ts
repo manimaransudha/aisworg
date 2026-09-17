@@ -20,11 +20,14 @@ import type { CompositionSource } from "../../../domain/engine/compositionEngine
 import { unravelComposition, detectCompositionConflicts, formatCompositionConflict } from "../../../domain/engine/profileCompositionUnravel.js";
 import type { UnraveledComposition, CompositionConflict, CompositionConflictOption } from "../../../domain/engine/profileCompositionUnravel.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
+import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
+import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { policyEngine } from "../../../domain/engine/policyEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { logger } from "../../../utils/logger.js";
 import { createObjective, ensureOneShotContainer } from "./objectives.js";
 import { raiseAttentionItem } from "./attentionItems.js";
+import { raiseObligationForBlockedTransition } from "./obligations.js";
 import { findCandidateTemplates } from "./templates.js";
 import { findOrCreateDefaultProfile, extractProfileDetails, getProfilePackSelections, extractExposedParameterOverrides } from "./profiles.js";
 import type { ProfileDetail } from "./profiles.js";
@@ -44,14 +47,17 @@ export type CommissionResult =
 
 // Owner: "let us stick to the order I gave. Chapter 2 is for something else
 // not for definition" — Configured before Commissioned, deliberately not
-// Chapter 2's own documented SEU state graph. Split in two: PRE_ASSETS_STEPS
-// runs before Create Engineering Assets, Activated -> Operational after (Ch.8
-// §12 — Create Engineering Assets is the step right before "Ready for
-// Execution").
+// Chapter 2's own documented SEU state graph.
+//
+// CR-107 — Create Engineering Assets moved from after this cascade to before
+// its last hop (Commissioned -> Activated), so `finalizeCommissioning` ends
+// at the SEUActivated publish with nothing after it (the platform's own
+// "no code after an event publish" rule). PRE_ASSETS_STEPS therefore only
+// covers the two hops genuinely ahead of asset creation; Commissioned ->
+// Activated is applied explicitly, as this function's own last statement.
 const PRE_ASSETS_STEPS: Array<[SeuLifecycleState, SeuLifecycleState]> = [
   ["Pending", "Configured"],
   ["Configured", "Commissioned"],
-  ["Commissioned", "Activated"],
 ];
 
 // Chapter 8 §9 "Validate Request" — real new logic, not pure event-wrapping
@@ -339,7 +345,7 @@ export async function commissionSeu(input: {
 // manual trigger of transition definition are 2 different things").
 export type FinalizeCommissioningResult =
   | { ok: true; seu: SeuRow; report: CommissioningReport }
-  | { ok: false; stage: string; reason: string; seuId?: string; blockedByPolicyCode?: string };
+  | { ok: false; stage: string; reason: string; seuId?: string };
 
 export async function finalizeCommissioning(input: {
   seu: SeuRow;
@@ -358,8 +364,9 @@ export async function finalizeCommissioning(input: {
   const composedPacks = ebm.composed_packs;
   const compositionReport = ebm.composition_report;
 
-  // Ch.37 — Pending -> Configured -> Commissioned -> Activated, in that
-  // deliberately reordered sequence (see PRE_ASSETS_STEPS's own comment).
+  // Ch.37 — Pending -> Configured -> Commissioned, in that deliberately
+  // reordered sequence (see PRE_ASSETS_STEPS's own comment); Commissioned ->
+  // Activated is applied explicitly, below, after Create Engineering Assets.
   // Ungoverned for MVP (no Authority/Policy declared on these rows in the
   // seed data), but still routed through transitionEngine so the mechanism
   // is real, not bypassed for convenience.
@@ -455,36 +462,12 @@ export async function finalizeCommissioning(input: {
     if (deliverable) deliverableIdByName.set(name, deliverable.id);
   }
 
-  // Ch.8 §12's own last hop — Activated -> Operational, only after Create
-  // Engineering Assets has actually run (Ch.30 causation fix: caused by the
-  // previous cascade step's own event, a real chain, not a repeat of
-  // correlationId).
-  const finalStep = await transitionEngine.evaluate({ entityType: "SEU", fromState: "Activated", toState: "Operational", actorRole: input.actorRole, actorId: input.actorId, entityId: seu.id, context: {} });
-  if (!finalStep.allowed) {
-    return { ok: false, stage: "transition_Activated_to_Operational", reason: describeRejection(finalStep), seuId: seu.id };
-  }
-  // CR-104 — the SEU's own commence-work check: Policies a composed Pack
-  // declared on "SEU|Activated|Operational" (a client sign-off, an active
-  // contract, ...), materialised onto this EBM's own seu_scoped_policy_ids
-  // (compositionCompleted.ts) — never applicable_policy_ids, which is
-  // entity-scoped governance for owned Deliverables/AttentionItems/etc, not
-  // the SEU's own transition.
-  const commenceWorkPolicy = await policyEngine.evaluate({ entityType: "SEU", seuId: seu.id, fromState: "Activated", toState: "Operational", context: {} });
-  if (commenceWorkPolicy.outcome === "Blocked") {
-    // CR-106 Option C — a Policy not yet satisfied is a legitimate, expected
-    // gate (a customer sign-off pending, say), not a genuinely broken
-    // commission. blockedByPolicyCode is the discriminant ebmActivatedHandler
-    // uses to raise a real Obligation/Attention Item and leave the SEU in
-    // Activated (never advanced by anything above this point) instead of
-    // forcing the hard, terminal Failed state failCommissioning uses for an
-    // actually broken commission.
-    return {
-      ok: false, stage: "transition_Activated_to_Operational",
-      reason: `blocked by policy ${commenceWorkPolicy.policyCode}`, seuId: seu.id,
-      blockedByPolicyCode: commenceWorkPolicy.policyCode,
-    };
-  }
-
+  // CR-107 — the CommissioningReport is recorded here, right after Create
+  // Engineering Assets, not after an Activated -> Operational attempt (this
+  // function no longer makes one, see below): it describes what
+  // commissioning composed and created, independent of whether/when the SEU
+  // later reaches Operational — the Execution Engine's own job from here,
+  // off the SEUActivated event this function publishes below.
   const report: CommissioningReport = {
     // CR-092 Part 6 — templateCode/profileCode stay the primary (backward
     // compat for anything reading the singular fields); templateCodes/
@@ -500,79 +483,102 @@ export async function finalizeCommissioning(input: {
   };
   await seusDB.setCommissioningReport(seu.id, report);
 
-  const { data: finalSeu, error: finalErr } = await seusDB.findById(seu.id);
-  if (finalErr || !finalSeu) {
-    logger.error("[commissioning] failed to reload SEU after commissioning", finalErr as Error);
-    return { ok: false, stage: "finalise", reason: "SEU commissioned but could not be reloaded", seuId: seu.id };
+  // Ch.8 §12's own last pre-Activated hop, and this function's own last
+  // statement (CR-107 — the platform's own "no code after an event publish"
+  // rule: nothing runs here after SEUActivated is published, not even a
+  // reload). SEU|Activated|Operational is now trigger: "governed" — the
+  // Execution Engine (off SEUActivated, and off ObligationTransitioned for a
+  // later retry) owns attempting that hop from here, including the
+  // SEU-scoped commence-work Policy CR-104/CR-106 introduced. This function
+  // must never attempt Activated -> Operational itself again, or the exact
+  // double-invocation risk the platform's own subscriber comments already
+  // warn about (ebmActivated.ts) returns.
+  const finalStep = await transitionEngine.evaluate({ entityType: "SEU", fromState: "Commissioned", toState: "Activated", actorRole: input.actorRole, actorId: input.actorId, entityId: seu.id, context: {} });
+  if (!finalStep.allowed) {
+    return { ok: false, stage: "transition_Commissioned_to_Activated", reason: describeRejection(finalStep), seuId: seu.id };
   }
-  await seusDB.updateLifecycleState(seu.id, "Operational");
-  
+  const { data: activatedSeu, error: activateErr } = await seusDB.updateLifecycleState(seu.id, "Activated");
+  if (activateErr || !activatedSeu) {
+    return { ok: false, stage: "transition_Commissioned_to_Activated", reason: "failed to persist Activated lifecycle_state", seuId: seu.id };
+  }
   await eventBus.publish({
-    eventType: finalStep.eventType ?? "SEUOperational", originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id, correlationId,
+    eventType: finalStep.eventType ?? "SEUActivated", originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id, correlationId,
     causationId: previousStepEvent.id, actorId: input.actorId ?? null, authorityBadge: finalStep.authorityBadge,
   });
-  return { ok: true, seu: finalSeu, report };
+  return { ok: true, seu: activatedSeu, report };
 }
 
-// CR-106 Option C — re-attempts the SEU's own Activated -> Operational
-// commence-work hop after a blocked-on-it Obligation resolves
-// (obligationResolved, domain/engine/obligationResolved.ts). Deliberately
-// NOT a re-run of finalizeCommissioning itself: that function creates this
-// SEU's Engineering Assets (Deliverables) before ever reaching this hop, and
-// re-running it wholesale on a retry would recreate them a second time.
-// This only re-attempts the hop, re-deriving the CommissioningReport's
-// content fresh from the DB rather than reusing finalizeCommissioning's own
-// in-memory values (long gone by the time a resolved Obligation triggers a
-// retry, possibly much later than the original attempt).
-export async function retrySeuCommenceWork(input: { seuId: string; correlationId: string; causationId: string; actorId?: string }): Promise<{ ok: true } | { ok: false; reason: string; blockedByPolicyCode?: string }> {
+// CR-107 — the Execution Engine's own attempt at the SEU's own
+// Activated -> Operational commence-work hop. The single, shared
+// implementation for both triggers: the first attempt (off SEUActivated,
+// executionEngineKickoff.ts) and every retry after a blocked-on-it
+// Obligation resolves (off ObligationTransitioned, same handler file) — no
+// separate retry function, replacing the old retrySeuCommenceWork.
+// Deliberately NOT a re-run of finalizeCommissioning itself: that function
+// creates this SEU's Engineering Assets (Deliverables), which must never be
+// recreated on a later attempt.
+//
+// Stateless per EE-005 (Ch.31): no watch-list of which SEUs are pending —
+// every call re-checks this one SEU's live lifecycle_state before doing
+// anything, the same self-filter obligationResolvedHandler already used.
+// A SEU no longer at "Activated" (already Operational via another path, or
+// genuinely failed since) is a no-op, not an error.
+export async function attemptSeuCommenceWork(input: { seuId: string; correlationId: string; causationId: string; actorId?: string }): Promise<void> {
   const { data: seu } = await seusDB.findById(input.seuId);
-  if (!seu) return { ok: false, reason: `SEU ${input.seuId} not found` };
-  if (seu.lifecycle_state !== "Activated") {
-    // Already resolved by some other path (or genuinely failed since this
-    // Obligation was raised) — a second Obligation reaching Verified for the
-    // same SEU must not re-fire this hop again.
-    return { ok: true };
+  if (!seu) {
+    logger.error(`[executionEngine] attemptSeuCommenceWork: SEU not found: ${input.seuId}`);
+    return;
   }
-  if (!seu.active_ebm_id) return { ok: false, reason: `SEU ${input.seuId} has no active EBM` };
-  const { data: ebm } = await ebmsDB.findById(seu.active_ebm_id);
-  if (!ebm) return { ok: false, reason: `EBM ${seu.active_ebm_id} not found` };
+  if (seu.lifecycle_state !== "Activated") return;
 
-  const finalStep = await transitionEngine.evaluate({ entityType: "SEU", fromState: "Activated", toState: "Operational", actorRole: "system", actorId: input.actorId, entityId: seu.id, context: {} });
-  if (!finalStep.allowed) {
-    return { ok: false, reason: describeRejection(finalStep) };
+  // CR-107 item 10 — Authority/Policy evaluated directly, not through
+  // transitionEngine.evaluate's own bundled check: that function doesn't
+  // apply state or publish either, so reusing it here would still leave the
+  // apply/publish step to write out separately, for no benefit. The
+  // Activated -> Operational row itself declares no verb today (no badge
+  // required) — this still checks `definition.verb` directly, for the case
+  // a future Pack ever attaches one.
+  const { data: definition } = await transitionDefinitionsDB.find("SEU", "Activated", "Operational");
+  if (!definition) {
+    logger.error(`[executionEngine] attemptSeuCommenceWork: no Transition Definition for SEU Activated -> Operational (SEU ${seu.id})`);
+    return;
   }
+  if (definition.verb) {
+    const requiredBadge = `seu_${definition.verb}`;
+    const auth = await badgeAuthorityEngine.authorise({ actorId: input.actorId ?? "", requiredBadge });
+    if (!auth.allowed) {
+      logger.info(`[executionEngine] attemptSeuCommenceWork: SEU ${seu.id} not authorised under ${requiredBadge} — leaving Activated`);
+      return;
+    }
+  }
+
+  // CR-104 — the SEU's own commence-work check: Policies a composed Pack
+  // declared on "SEU|Activated|Operational" (a client sign-off, an active
+  // contract, ...), materialised onto this EBM's own seu_scoped_policy_ids
+  // (compositionCompleted.ts) — never applicable_policy_ids, which is
+  // entity-scoped governance for owned Deliverables/AttentionItems/etc, not
+  // the SEU's own transition.
   const commenceWorkPolicy = await policyEngine.evaluate({ entityType: "SEU", seuId: seu.id, fromState: "Activated", toState: "Operational", context: {} });
   if (commenceWorkPolicy.outcome === "Blocked") {
-    // A different SEU-scoped Policy (or the same one, re-evaluated) still
-    // blocks — leave the SEU in Activated exactly as before; the caller
-    // (obligationResolved) raises a fresh Obligation for this policyCode.
-    return { ok: false, reason: `blocked by policy ${commenceWorkPolicy.policyCode}`, blockedByPolicyCode: commenceWorkPolicy.policyCode };
+    // CR-106 Option C — a Policy not yet satisfied is a legitimate, expected
+    // gate (a customer sign-off pending, say), not a genuinely broken
+    // commission: raise/reuse the real Obligation + Attention Item (idempotent
+    // against an already-open one) and leave the SEU exactly at Activated —
+    // never forced into the hard, terminal Failed state a genuinely broken
+    // commission uses. Consolidated here (both the first attempt and every
+    // retry raise it the same way) rather than split across a caller.
+    await raiseObligationForBlockedTransition({
+      seuId: seu.id, relatedObjectType: "SEU", relatedObjectId: seu.id,
+      fromState: "Activated", toState: "Operational", policyCode: commenceWorkPolicy.policyCode,
+    });
+    return;
   }
 
-  const { data: template } = await templatesDB.findById(seu.template_id);
-  const { data: profile } = await profilesDB.findById(seu.profile_id);
-  const { data: deliverables } = await deliverablesDB.findBySeuId(seu.id);
-  const { data: seuCapabilities } = await seuCapabilitiesDB.findBySeuId(seu.id);
-
-  const report: CommissioningReport = {
-    identity: {
-      seuId: seu.id, templateCode: template?.code ?? "", profileCode: profile?.code ?? "",
-      templateCodes: template ? [template.code] : [], profileCodes: profile ? [profile.code] : [], ebmId: ebm.id,
-    },
-    composition: { packsUsed: ebm.composed_packs.map((p) => p.packCode), warnings: ebm.composition_report?.warnings ?? [], conflicts: ebm.composition_report?.conflicts ?? [] },
-    validation: { errors: [] },
-    runtime: {
-      initialCapabilities: (seuCapabilities ?? []).map((c) => c.capability_code),
-      initialDeliverables: (deliverables ?? []).map((d) => d.name),
-    },
-  };
-  await seusDB.setCommissioningReport(seu.id, report);
   await seusDB.updateLifecycleState(seu.id, "Operational");
   await eventBus.publish({
-    eventType: finalStep.eventType ?? "SEUOperational", originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id,
-    correlationId: input.correlationId, causationId: input.causationId, actorId: input.actorId ?? null, authorityBadge: finalStep.authorityBadge,
+    eventType: definition.event_type ?? "SEUOperational", originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id,
+    correlationId: input.correlationId, causationId: input.causationId, actorId: input.actorId ?? null,
   });
-  return { ok: true };
 }
 
 function describeRejection(outcome: { reason: string } & Record<string, unknown>): string {

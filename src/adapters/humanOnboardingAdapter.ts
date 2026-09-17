@@ -31,7 +31,24 @@ export const humanOnboardingAdapter: ParticipantOnboardingAdapter = {
       // Owner's own motivating example for Behaviour Context (Ch.13 §14):
       // "some clients have policy that a human participant should have
       // completed a background check to work in their organisation."
-      behaviourContext: [{ policy: "background-verification", payload: { status: "completed" } }],
+      //
+      // CR-107 follow-up (owner: "for a few participants behavior context,
+      // mark them as background cleared") — cr104-demo-seu-eligibility-
+      // policies.pack.json's own scope:'Eligibility' Policy
+      // (policy-cr104-demo-background-check.json) only finds a candidate
+      // eligible with a behaviour_context entry
+      // {policy: 'cr104-demo-background-check', payload: {cleared: true}};
+      // without this, the CR-104 demo profile's own eligibility scenario has
+      // no real eligible Participant to manually pick in the browser. Every
+      // 10th Human (5 per tenant, 15 total across the 3 seeded tenants) gets
+      // it, additive to the baseline entry above, not a replacement.
+      behaviourContext:
+        i % 10 === 0
+          ? [
+              { policy: "background-verification", payload: { status: "completed" } },
+              { policy: "cr104-demo-background-check", payload: { cleared: true } },
+            ]
+          : [{ policy: "background-verification", payload: { status: "completed" } }],
     };
   },
 };

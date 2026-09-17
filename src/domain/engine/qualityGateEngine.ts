@@ -26,10 +26,10 @@ import type { QualityGateRow, TransitionEntityType } from "../../dblayer/seuType
 // Ch.23 §12: an Obligation stops blocking once it's at least Verified —
 // Closed/Archived are further administrative steps past the point governance
 // cares.
-// Exported — CR-106's own resolution-triggered retry subscriber
-// (obligationResolved, domain/engine/obligationResolved.ts) fires on the
-// exact same "resolved enough" set no_unresolved_obligations already uses,
-// so the two never drift apart on what "resolved" means.
+// Exported — CR-107's own resolution-triggered retry subscriber
+// (executionEngineKickoff, domain/engine/executionEngineKickoff.ts) fires on
+// the exact same "resolved enough" set no_unresolved_obligations already
+// uses, so the two never drift apart on what "resolved" means.
 export const RESOLVED_OBLIGATION_STATUSES = new Set(["Verified", "Closed", "Archived"]);
 
 // Ch.17 §9: Evidence counts once it's reached Accepted or is actively

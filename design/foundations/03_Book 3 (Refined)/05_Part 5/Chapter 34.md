@@ -521,3 +521,49 @@ Implementation of this chapter shall produce:
 - Attention registry.
 - Attention APIs.
 - Attention events.
+
+---
+
+# 19. Implementation Specifics
+
+*Recorded 2026-09-16. This section documents how the Attention Management Model is realised in the current build. It does not change the requirements above (AM-001–006, §§1–18); it records what is built, what is partial, and what is still open — the same convention as Chapter 5 §19. Status markers: ✅ built · ⚠️ partial · 🚩 not built.*
+
+## 19.1 🚩 No Attention Evaluation layer exists — AttentionItem creation is called directly from inside governance code (§3, §10, AM-001, FR-34.1)
+
+The architecture in §3 (Events → Attention Evaluation → Attention Items → Routing) has no realised middle stage. `raiseAttentionItem`/`createAttentionItem` (`core/attentionItems.ts`) are plain functions any module can call directly — and do: `obligations.ts`'s `raiseObligationForBlockedTransition`, `deliverables.ts`'s blocked-Quality-Gate path, `commissioning.ts`, `workItems.ts`/`workItemHeartbeat.ts`, `telemetry.ts`, `findings.ts`, `externalInteractions.ts`, and `transitionEngine.ts`/`executionEngine.ts` themselves each call it inline, each call site deciding for itself that a given situation needs attention. There is no independent Attention Engine that receives Events and decides whether attention is required (FR-34.1) — the decision is made at the point of governance action, not by a separate subsystem the governance code merely notifies. AM-002's "not every Event/Obligation creates an Attention Item" is not evaluated anywhere: every call site that calls `raiseAttentionItem` unconditionally gets one (deduplicated per already-open situation, §19.3, but never skipped as "not warranting attention" in the first place).
+
+## 19.2 ✅ Attention Item is a real entity with its own lifecycle (§4, §9)
+
+`attention_items` is a real table (`attentionItemsDB.ts`), and AttentionItem is a first-class `TransitionEntityType` running through the same generic `transitionEngine`/`qualityGateEngine` every other entity uses. Its lifecycle in `transitionDefinitions.json` matches §9 exactly: `Created → Delivered → Acknowledged → In Progress → Resolved → Closed`, each hop authority- and policy-gated (`authority-transition-attentionitem`, `policy-attentionitem-transition-baseline`). `transitionAttentionItem` (`core/attentionItems.ts`) drives the hops and publishes `AttentionItemTransitioned` per hop.
+
+## 19.3 ⚠️ Deduplication realises part of AM-002, not attention decisioning (§4, AM-002)
+
+`raiseAttentionItem` checks `attentionItemsDB.findOpenByRelatedObject(seuId, category, relatedObjectType, relatedObjectId)` before creating, so a repeated block on the same situation doesn't flood the inbox with duplicates — the one piece of AM-002 that is real. This only prevents re-raising an already-decided attention need; it does not decide whether the first raise was ever necessary.
+
+## 19.4 🚩 Structure — only a subset of §8's fields exist (§8)
+
+`AttentionItemRow` carries: id, seu_id, category, priority, title, description, related_object_type/id, triggering_event_id (nullable, never populated by any current caller), status, timestamps. Missing entirely: Intended Recipients, Required Action, Due Context, Escalation Rules — §8 names all four as things every Attention Item shall define; none exist as columns or JSONB.
+
+## 19.5 🚩 Routing — not built (§11, FR-34.6)
+
+There is no routing mechanism. An AttentionItem has no recipient — nothing resolves who should be informed from Authority, engineering responsibility, or participant availability. It is visible only by querying `findBySeuId`/`findAll` (a platform-wide/per-SEU list screen), not delivered or assigned to anyone. `Delivered` exists as a lifecycle status value, but nothing populates who it was delivered to.
+
+## 19.6 🚩 Prioritisation — a free-text default, no algorithm (§12, FR-34.3)
+
+`priority` is stored (defaulting to `"Medium"` when a caller doesn't supply one) but is plain text, not Ontology-backed (no `assertCanonicalCategory` call anywhere in `attentionItems.ts`), and no algorithm weighs engineering/dependency/governance/customer impact or urgency (§12). Whatever the raising call site hardcodes is what's stored.
+
+## 19.7 🚩 Escalation — not built (§13, FR-34.5)
+
+No escalation rules, no elapsed-time/repeated-failure/governance-rule triggers, no `AttentionEscalated` event. `Escalation` exists only as a §7 category value a caller can pass (`category: "Escalation"`), not as the declarative §13 mechanism.
+
+## 19.8 ⚠️ Events — one of six named events built (§15)
+
+Only `AttentionCreated` is published (on `createAttentionItem`), plus the generic per-hop `AttentionItemTransitioned` (not one of the five other named events). `AttentionDelivered`, `AttentionAcknowledged`, `AttentionEscalated`, `AttentionResolved`, `AttentionClosed` are never published by name anywhere in the codebase — a status reaching `Delivered`/`Acknowledged`/etc. only ever emits the generic `AttentionItemTransitioned`.
+
+## 19.9 🚩 Attention rules via Packs — not built (FR-34.2)
+
+No Pack contribution kind exists for attention rules (contrast Ch.5 §19.4's `contributionQualityGates[]`/`contributionPolicies[]`, etc.) — there is nothing analogous for attention evaluation or routing rules.
+
+## 19.10 ✅ Category is a real, open field (§7)
+
+`category` is stored and used meaningfully by call sites (`"Action Required"`, etc.), matching §7's illustrative list, though not Ontology-validated (§19.6) and not yet extended through Packs (§19.9).

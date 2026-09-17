@@ -18,6 +18,7 @@ import { transitionDeliverable } from "../core/deliverables.js";
 import { transitionEbm } from "../core/commissioning.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { createObligation, transitionObligation } from "../core/obligations.js";
+import { createAttentionItem, transitionAttentionItem } from "../core/attentionItems.js";
 import { createEvidence, transitionEvidence, linkEvidenceToObject } from "../core/evidence.js";
 import { createKnowledgeItem, promoteKnowledgeItemScope, transitionKnowledgeItem } from "../core/knowledge.js";
 import { createDecision, transitionDecision } from "../core/decisions.js";
@@ -358,6 +359,60 @@ router.post("/seus/:id/obligations/:obligationId/transition", async (req: Reques
     return flashSuccess(req, res, backTo, `Obligation moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`);
   } catch (err) {
     logger.error("[web/seu/seus] POST /seus/:id/obligations/:obligationId/transition error", err as Error);
+    return flashError(req, res, backTo, (err as Error).message);
+  }
+});
+
+/** POST /aisworg/seu/seus/:id/attention-items — Ch.34: create an Attention Item, optionally against a Deliverable. */
+router.post("/seus/:id/attention-items", async (req: Request, res: Response) => {
+  const seuId = String(req.params.id);
+  const backTo = `/aisworg/seu/seus/${seuId}`;
+  const { deliverableId, category, title, priority } = req.body ?? {};
+
+  if (typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
+    return flashError(req, res, backTo, "Category and title are required.");
+  }
+
+  try {
+    const attentionItem = await createAttentionItem({
+      seuId,
+      relatedObjectType: typeof deliverableId === "string" && deliverableId.trim() ? "Deliverable" : null,
+      relatedObjectId: typeof deliverableId === "string" && deliverableId.trim() ? deliverableId : null,
+      category,
+      title,
+      priority,
+    });
+    return flashSuccess(req, res, backTo, `Attention Item "${attentionItem.title}" created (${attentionItem.category}, ${attentionItem.priority}).`);
+  } catch (err) {
+    logger.error("[web/seu/seus] POST /seus/:id/attention-items error", err as Error);
+    return flashError(req, res, backTo, (err as Error).message);
+  }
+});
+
+/** POST /aisworg/seu/seus/:id/attention-items/:attentionItemId/transition — Ch.34 §9 lifecycle. */
+router.post("/seus/:id/attention-items/:attentionItemId/transition", async (req: Request, res: Response) => {
+  const seuId = String(req.params.id);
+  const backTo = `/aisworg/seu/seus/${seuId}`;
+  const { targetState } = req.body ?? {};
+
+  if (typeof targetState !== "string" || !targetState.trim()) {
+    return flashError(req, res, backTo, "Target state is required.");
+  }
+
+  try {
+    const result = await transitionAttentionItem({
+      attentionItemId: String(req.params.attentionItemId),
+      targetState,
+      actorRole: req.session?.user?.role ?? "general",
+      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+    });
+    if (!result.ok) {
+      const reason = "detail" in result ? result.detail : result.reason;
+      return flashError(req, res, backTo, `Attention Item transition blocked: ${reason}`);
+    }
+    return flashSuccess(req, res, backTo, `Attention Item moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`);
+  } catch (err) {
+    logger.error("[web/seu/seus] POST /seus/:id/attention-items/:attentionItemId/transition error", err as Error);
     return flashError(req, res, backTo, (err as Error).message);
   }
 });

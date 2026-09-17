@@ -13,15 +13,16 @@
     { "eventType": "EBMRetired", "description": "Chapter 3 §15 — a Validate attempt found this EBM's own Template/Profile/composed Packs are no longer all live (checkEbmLiveness); status set to Retired instead of Validated." },
     { "eventType": "SEUConfigured", "description": "Chapter 2/8 — seus.lifecycle_state set to Configured. Published by finalizeCommissioning (CR-102: called from ebmActivatedHandler, off EBMActivated), deliberately ahead of SEUCommissioned (owner: \"let us stick to the order I gave\")." },
     { "eventType": "SEUCommissioned", "description": "Chapter 2/8 — seus.lifecycle_state set to Commissioned. Published by finalizeCommissioning, on the way to Activated." },
-    { "eventType": "SEUActivated", "description": "Chapter 2/8 — seus.lifecycle_state set to Activated. Published by finalizeCommissioning, right before Create Engineering Assets runs. No subscriber — Create Engineering Assets and the final Activated -> Operational hop are the same synchronous call, not a separate async step." },
-    { "eventType": "SEUOperational", "description": "Chapter 2/8 — seus.lifecycle_state set to Operational, the final hop. Published by finalizeCommissioning, after creating the SEU's Deliverable Catalogue/Capability instances." },
-    { "eventType": "ObligationTransitioned", "description": "Chapter 23 §9 — an Obligation moved to a new lifecycle state (payload: fromState/toState). Published by transitionObligation for every hop, not just the terminal ones. CR-106 Option C: obligationResolved subscribes to this and, when toState is Verified/Closed/Archived and the Obligation carries a recorded blocked_from_state/blocked_to_state, re-attempts the transition it was blocking." }
+    { "eventType": "SEUActivated", "description": "Chapter 2/8 — seus.lifecycle_state set to Activated. Published by finalizeCommissioning as its own last statement, right after Create Engineering Assets (CR-107: moved ahead of this hop). SEU|Activated|Operational is now trigger: \"governed\" — executionEngineKickoff subscribes to this and attempts that hop (Transition Definition, Policy, apply + publish), the Execution Engine's own first real reactive decision (Ch.31 §9)." },
+    { "eventType": "SEUOperational", "description": "Chapter 2/8 — seus.lifecycle_state set to Operational, the final hop. Published by attemptSeuCommenceWork (executionEngineKickoff.ts / commissioning.ts) once the SEU-scoped commence-work Policy passes." },
+    { "eventType": "ObligationTransitioned", "description": "Chapter 23 §9 — an Obligation moved to a new lifecycle state (payload: fromState/toState). Published by transitionObligation for every hop, not just the terminal ones. CR-107 (formerly CR-106 Option C's obligationResolved, folded in): executionEngineKickoff subscribes to this and, when toState is Verified/Closed/Archived, the Obligation is related to a SEU, and it carries a recorded blocked_from_state/blocked_to_state, re-attempts the SEU commence-work hop it was blocking." }
   ],
   "subscriptions": [
     { "eventType": "WorkItemDispatched", "handlerName": "assignmentDelivery" },
     { "eventType": "CommissionRequested", "handlerName": "validateRequest" },
     { "eventType": "CompositionCompleted", "handlerName": "compositionCompleted" },
     { "eventType": "EBMActivated", "handlerName": "ebmActivated" },
-    { "eventType": "ObligationTransitioned", "handlerName": "obligationResolved" }
+    { "eventType": "SEUActivated", "handlerName": "executionEngineKickoff" },
+    { "eventType": "ObligationTransitioned", "handlerName": "executionEngineKickoff" }
   ]
 }

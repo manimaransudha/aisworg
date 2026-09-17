@@ -53,6 +53,7 @@
         { key: 'deliverables', label: 'Deliverables', sub: detail.deliverables.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.deliverables.length + '</span>' : '' },
         { key: 'capabilities', label: 'Capability Fulfilment', sub: detail.capabilities.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.capabilities.length + '</span>' : '' },
         { key: 'obligations', label: 'Obligations', sub: detail.obligations.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.obligations.length + '</span>' : '' },
+        { key: 'attentionItems', label: 'Attention Items', sub: detail.attentionItems.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.attentionItems.length + '</span>' : '' },
         { key: 'evidence', label: 'Evidence', sub: detail.evidence.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.evidence.length + '</span>' : '' },
         { key: 'decisions', label: 'Decisions', sub: detail.decisions.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.decisions.length + '</span>' : '' },
         { key: 'knowledge', label: 'Knowledge', sub: detail.knowledgeItems.length ? '<span class="badge bg-secondary-subtle text-secondary">' + detail.knowledgeItems.length + '</span>' : '' },
@@ -284,12 +285,39 @@
                   <% detail.obligations.forEach(function(o) { %>
                     <tr>
                       <td class="small"><%= o.deliverableName %></td>
-                      <td class="small"><%= o.obligation.title %></td>
+                      <td class="small">
+                        <button type="button" class="btn btn-link btn-sm p-0 text-start align-baseline" data-bs-toggle="modal" data-bs-target="#obligationModal"
+                          data-title="<%= o.obligation.title %>"
+                          data-category="<%= o.obligation.category %>"
+                          data-severity="<%= o.obligation.severity %>"
+                          data-status="<%= o.obligation.status %>"
+                          data-origin="<%= o.obligation.origin || '' %>"
+                          data-priority="<%= o.obligation.priority || '' %>"
+                          data-completion-criteria="<%= o.obligation.completion_criteria || '' %>"
+                          data-related="<%= o.deliverableName %>"
+                          data-blocked-from="<%= o.obligation.blocked_from_state || '' %>"
+                          data-blocked-to="<%= o.obligation.blocked_to_state || '' %>"
+                          data-created-at="<%= new Date(o.obligation.created_at).toLocaleString() %>"
+                          data-updated-at="<%= new Date(o.obligation.updated_at).toLocaleString() %>"
+                          data-description="<%= o.obligation.description || '' %>"
+                        ><%= o.obligation.title %></button>
+                      </td>
                       <td class="small"><%= o.obligation.category %> &middot; <%= o.obligation.severity %></td>
                       <td><span class="state-badge state-<%= o.obligation.status.replace(/\s+/g, '-') %>"><%= o.obligation.status %></span></td>
                       <td>
+                        <%# Same fix as the Deliverables tab (owner: "The
+                             styling is so bad. Validate looks like a
+                             button") — a real, unambiguous button for the
+                             common single-next-state case; the select+submit
+                             shape stays only for genuine multi-option. %>
                         <% if (o.possibleNextStates.length === 0) { %>
                           <span class="text-muted small">no further transitions defined</span>
+                        <% } else if (o.possibleNextStates.length === 1) { %>
+                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/obligations/<%= o.obligation.id %>/transition" class="mb-0">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <input type="hidden" name="targetState" value="<%= o.possibleNextStates[0] %>">
+                            <button type="submit" class="btn btn-sm btn-primary"><%= o.possibleNextStates[0] %></button>
+                          </form>
                         <% } else { %>
                           <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/obligations/<%= o.obligation.id %>/transition"
                                 class="d-flex align-items-center gap-2">
@@ -418,6 +446,12 @@
                       <td>
                         <% if (e.possibleNextStates.length === 0) { %>
                           <span class="text-muted small">no further transitions defined</span>
+                        <% } else if (e.possibleNextStates.length === 1) { %>
+                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/evidence/<%= e.evidence.id %>/transition" class="mb-0">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <input type="hidden" name="targetState" value="<%= e.possibleNextStates[0] %>">
+                            <button type="submit" class="btn btn-sm btn-primary"><%= e.possibleNextStates[0] %></button>
+                          </form>
                         <% } else { %>
                           <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/evidence/<%= e.evidence.id %>/transition"
                                 class="d-flex align-items-center gap-2">
@@ -508,6 +542,12 @@
                       <td>
                         <% if (dec.possibleNextStates.length === 0) { %>
                           <span class="text-muted small">no further transitions defined</span>
+                        <% } else if (dec.possibleNextStates.length === 1) { %>
+                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/decisions/<%= dec.decision.id %>/transition" class="mb-0">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <input type="hidden" name="targetState" value="<%= dec.possibleNextStates[0] %>">
+                            <button type="submit" class="btn btn-sm btn-primary"><%= dec.possibleNextStates[0] %></button>
+                          </form>
                         <% } else { %>
                           <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/decisions/<%= dec.decision.id %>/transition"
                                 class="d-flex align-items-center gap-2">
@@ -589,6 +629,12 @@
                       <td>
                         <% if (k.possibleNextStates.length === 0) { %>
                           <span class="text-muted small">no further transitions defined</span>
+                        <% } else if (k.possibleNextStates.length === 1) { %>
+                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/knowledge/<%= k.knowledgeItem.id %>/transition" class="mb-0">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <input type="hidden" name="targetState" value="<%= k.possibleNextStates[0] %>">
+                            <button type="submit" class="btn btn-sm btn-primary"><%= k.possibleNextStates[0] %></button>
+                          </form>
                         <% } else { %>
                           <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/knowledge/<%= k.knowledgeItem.id %>/transition"
                                 class="d-flex align-items-center gap-2">
@@ -712,6 +758,12 @@
                       <td>
                         <% if (ei.possibleNextStates.length === 0) { %>
                           <span class="text-muted small">no further transitions defined</span>
+                        <% } else if (ei.possibleNextStates.length === 1) { %>
+                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/external-interactions/<%= ei.interaction.id %>/transition" class="mb-0">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <input type="hidden" name="targetState" value="<%= ei.possibleNextStates[0] %>">
+                            <button type="submit" class="btn btn-sm btn-primary"><%= ei.possibleNextStates[0] %></button>
+                          </form>
                         <% } else { %>
                           <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/external-interactions/<%= ei.interaction.id %>/transition"
                                 class="d-flex align-items-center gap-2">
@@ -736,15 +788,114 @@
         <%# ---------------------------------------------------------------- Events %>
         <div class="<%= paneClass('events') %>" id="seu-detail-events" role="tabpanel">
           <div class="section-card">
+            <% if (locals.session?.user?.role === 'super') { %>
+              <div class="p-2 border-bottom text-end">
+                <a href="/aisworg/seu/events?seuId=<%= detail.seu.id %>" class="small">Explore full history in Event Bus &rarr;</a>
+              </div>
+            <% } %>
             <div class="table-responsive">
-              <table class="table table-sm mb-0">
-                <thead class="table-light"><tr><th>Type</th><th>Object</th><th>When</th></tr></thead>
+              <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light"><tr><th>Type</th><th>Object</th><th>When</th><th></th></tr></thead>
                 <tbody>
-                  <% detail.events.forEach(function(e) { %>
+                  <% if (detail.events.length === 0) { %>
+                    <tr><td colspan="4" class="text-muted small">No events yet.</td></tr>
+                  <% } %>
+                  <% detail.events.forEach(function(e, i) { %>
                     <tr>
                       <td class="small"><code><%= e.event_type %></code></td>
                       <td class="small text-muted"><%= e.originating_object_type %></td>
                       <td class="small text-muted"><%= new Date(e.occurred_at).toLocaleString() %></td>
+                      <td>
+                        <button type="button" class="btn btn-sm btn-link py-0" data-bs-toggle="collapse" data-bs-target="#seu-event-<%= i %>">view</button>
+                      </td>
+                    </tr>
+                    <tr class="collapse" id="seu-event-<%= i %>">
+                      <td colspan="4">
+                        <pre class="small bg-light rounded p-2 mb-0" style="max-height: 16rem; overflow: auto;"><%= JSON.stringify(e, null, 2) %></pre>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <%# ---------------------------------------------------------------- Attention Items %>
+        <div class="<%= paneClass('attentionItems') %>" id="seu-detail-attentionItems" role="tabpanel">
+          <div class="section-card">
+            <div class="p-3 border-bottom">
+              <%# Basic form for now (owner: "Just a basic tab and form based
+                  on what we have now. But this will expand later") — no
+                  Ontology-backed category vocabulary exists yet for
+                  AttentionItem (unlike Obligation's category:obligation), so
+                  this stays free text rather than inventing one. Related
+                  Deliverable is optional — unlike Obligation, AttentionItem's
+                  related_object_type/id are nullable (an Attention Item can
+                  be SEU-level, not tied to any one Deliverable). %>
+              <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/attention-items" class="row g-2 align-items-center">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <div class="col-auto">
+                  <select name="deliverableId" class="form-select form-select-sm">
+                    <option value="">SEU-level (no Deliverable)</option>
+                    <% detail.deliverables.forEach(function(d) { %>
+                      <option value="<%= d.id %>"><%= d.name %></option>
+                    <% }) %>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <input type="text" name="category" class="form-control form-control-sm" placeholder="Category" required style="width: 160px;">
+                </div>
+                <div class="col-auto">
+                  <input type="text" name="title" class="form-control form-control-sm" placeholder="Title" required style="width: 220px;">
+                </div>
+                <div class="col-auto">
+                  <select name="priority" class="form-select form-select-sm">
+                    <% ['Low','Medium','High','Critical'].forEach(function(p) { %>
+                      <option value="<%= p %>" <%= p === 'Medium' ? 'selected' : '' %>><%= p %></option>
+                    <% }) %>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <button type="submit" class="btn btn-sm btn-primary">Create Attention Item</button>
+                </div>
+              </form>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light"><tr><th>Related</th><th>Title</th><th>Category / Priority</th><th>Status</th><th>Transition</th></tr></thead>
+                <tbody>
+                  <% if (detail.attentionItems.length === 0) { %>
+                    <tr><td colspan="5" class="text-muted small">No Attention Items.</td></tr>
+                  <% } %>
+                  <% detail.attentionItems.forEach(function(a) { %>
+                    <tr>
+                      <td class="small"><%= a.relatedName || '—' %></td>
+                      <td class="small"><%= a.attentionItem.title %></td>
+                      <td class="small"><%= a.attentionItem.category %> &middot; <%= a.attentionItem.priority %></td>
+                      <td><span class="state-badge state-<%= a.attentionItem.status.replace(/\s+/g, '-') %>"><%= a.attentionItem.status %></span></td>
+                      <td>
+                        <% if (a.possibleNextStates.length === 0) { %>
+                          <span class="text-muted small">no further transitions defined</span>
+                        <% } else if (a.possibleNextStates.length === 1) { %>
+                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/attention-items/<%= a.attentionItem.id %>/transition" class="mb-0">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <input type="hidden" name="targetState" value="<%= a.possibleNextStates[0] %>">
+                            <button type="submit" class="btn btn-sm btn-primary"><%= a.possibleNextStates[0] %></button>
+                          </form>
+                        <% } else { %>
+                          <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/attention-items/<%= a.attentionItem.id %>/transition"
+                                class="d-flex align-items-center gap-2">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <select name="targetState" class="form-select form-select-sm" style="width: auto;">
+                              <% a.possibleNextStates.forEach(function(s) { %>
+                                <option value="<%= s %>"><%= s %></option>
+                              <% }) %>
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Transition</button>
+                          </form>
+                        <% } %>
+                      </td>
                     </tr>
                   <% }) %>
                 </tbody>
@@ -756,6 +907,79 @@
       </div>
     </div>
   </main>
+
+  <%# Ch.23 — one shared modal for every Obligation row's "view", populated
+      from the clicked button's own data-* attributes on show.bs.modal (same
+      pattern as sdk/ontology/index.ejs's #descriptionModal). Sectioned into
+      Definition-like fields (category/severity/origin/priority/completion
+      criteria — what this Obligation IS) vs Execution State (status/blocked
+      hop/timestamps — where it stands right now) rather than one flat JSON
+      dump, per the owner's own ask. %>
+  <div class="modal fade" id="obligationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title mb-0" id="obligationModalTitle"></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted mb-3" id="obligationModalDescription"></p>
+
+          <h6 class="text-uppercase text-muted small fw-bold mb-2">Obligation</h6>
+          <table class="table table-sm table-borderless mb-3">
+            <tbody>
+              <tr><th class="text-muted small" style="width: 40%;">Category</th><td class="small" id="obligationModalCategory"></td></tr>
+              <tr><th class="text-muted small">Severity</th><td class="small" id="obligationModalSeverity"></td></tr>
+              <tr><th class="text-muted small">Origin</th><td class="small" id="obligationModalOrigin"></td></tr>
+              <tr><th class="text-muted small">Priority</th><td class="small" id="obligationModalPriority"></td></tr>
+              <tr><th class="text-muted small">Completion Criteria</th><td class="small" id="obligationModalCompletionCriteria"></td></tr>
+              <tr><th class="text-muted small">Related to</th><td class="small" id="obligationModalRelated"></td></tr>
+            </tbody>
+          </table>
+
+          <h6 class="text-uppercase text-muted small fw-bold mb-2">Execution State</h6>
+          <table class="table table-sm table-borderless mb-0">
+            <tbody>
+              <tr><th class="text-muted small" style="width: 40%;">Status</th><td class="small" id="obligationModalStatus"></td></tr>
+              <tr id="obligationModalBlockedRow"><th class="text-muted small">Blocking</th><td class="small" id="obligationModalBlocked"></td></tr>
+              <tr><th class="text-muted small">Created</th><td class="small" id="obligationModalCreatedAt"></td></tr>
+              <tr><th class="text-muted small">Last updated</th><td class="small" id="obligationModalUpdatedAt"></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var modalEl = document.getElementById('obligationModal');
+      if (!modalEl) return;
+      modalEl.addEventListener('show.bs.modal', function (event) {
+        var btn = event.relatedTarget;
+        if (!btn) return;
+        var get = function (name) { return btn.getAttribute('data-' + name) || ''; };
+        document.getElementById('obligationModalTitle').textContent = get('title');
+        document.getElementById('obligationModalDescription').textContent = get('description') || '(no description)';
+        document.getElementById('obligationModalCategory').textContent = get('category') || '—';
+        document.getElementById('obligationModalSeverity').textContent = get('severity') || '—';
+        document.getElementById('obligationModalOrigin').textContent = get('origin') || '—';
+        document.getElementById('obligationModalPriority').textContent = get('priority') || '—';
+        document.getElementById('obligationModalCompletionCriteria').textContent = get('completion-criteria') || '—';
+        document.getElementById('obligationModalRelated').textContent = get('related') || '—';
+        document.getElementById('obligationModalStatus').textContent = get('status');
+        document.getElementById('obligationModalCreatedAt').textContent = get('created-at');
+        document.getElementById('obligationModalUpdatedAt').textContent = get('updated-at');
+        var blockedFrom = get('blocked-from'), blockedTo = get('blocked-to');
+        var blockedRow = document.getElementById('obligationModalBlockedRow');
+        if (blockedTo) {
+          blockedRow.hidden = false;
+          document.getElementById('obligationModalBlocked').textContent = 'blocks ' + (blockedFrom || '?') + ' → ' + blockedTo + ' until resolved';
+        } else {
+          blockedRow.hidden = true;
+        }
+      });
+    })();
+  </script>
 
   <%- include('../../partials/footer') %>
 </body>

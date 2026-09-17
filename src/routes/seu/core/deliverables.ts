@@ -1,20 +1,13 @@
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
-import { deliverableReferencesDB } from "../../../dblayer/deliverableReferencesDB.js";
 import { badgeGrantsDB } from "../../../dblayer/badgeGrantsDB.js";
-import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
-import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
-import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
-import { policyEngine } from "../../../domain/engine/policyEngine.js";
 import { executionEngine } from "../../../domain/engine/executionEngine.js";
+import type { DeliverableGovernanceResult } from "../../../domain/engine/executionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { checkSustainedQualityGateBlocking } from "./telemetry.js";
-import { raiseAttentionItem } from "./attentionItems.js";
-import { raiseObligationForBlockedTransition } from "./obligations.js";
 import { AUTHORING_SCOPE_PACK_CODE } from "../../../domain/sdk/authoringScope.js";
 import { assertCanonicalCategory, resolveLabels } from "./ontology.js";
-import type { DeliverableRow, DependencyDefinitionRow } from "../../../dblayer/seuTypes.js";
+import type { DeliverableRow } from "../../../dblayer/seuTypes.js";
 
 // Phase 10 (badge model) — §10's badge-switcher UI isn't built yet (§17.2,
 // deliberately deferred to when Participant deployment/provisioning is
@@ -84,6 +77,12 @@ export async function createDeliverable(input: { seuId: string; name: string; ca
   return { deliverable };
 }
 
+// CR-107 item 7 — the Execution Engine (domain/engine/executionEngine.ts)
+// now owns every governance decision (dependency readiness, the SEU-blocked
+// and per-Deliverable-Obligation checks, Quality Gate, Policy, Authority);
+// this type just adds the two outcomes that aren't a governance decision —
+// "not_found" (before governance is even reached) and "dispatch_deferred"
+// (after governance passes, a Dispatch Engine/Capability-fulfilment concern).
 export type TransitionDeliverableResult =
   // Model A (Participant Integration Plan, Resolution 1/11): a governed
   // transition is no longer applied synchronously. Governance passes, a Work
@@ -92,40 +91,26 @@ export type TransitionDeliverableResult =
   // this call means "dispatched and outstanding," not "transitioned."
   | { ok: true; dispatched: true; workItemId: string; participantId?: string; pendingTransition: { fromState: string; toState: string } }
   | { ok: false; reason: "not_found" }
-  | { ok: false; reason: "dependency_not_satisfied"; rows: DependencyDefinitionRow[] }
-  | { ok: false; reason: "quality_gate_blocked"; detail: string }
-  | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string }
-  // Empty-centre presence check (Participant Integration Plan, Resolution 4):
-  // an approver cannot approve a Deliverable that has no attached reference —
-  // emptiness cannot be certified.
-  | { ok: false; reason: "empty_centre"; detail: string }
+  | Exclude<DeliverableGovernanceResult, { ok: true }>
   | { ok: false; reason: "dispatch_deferred"; detail: string };
 
-// Post-MVP Phase 3 (Ch.31/32/33): governance still gates first — dependency
-// readiness, then Authority + Policy, unchanged from Phase 0. Once governance
-// allows the transition, it no longer applies directly: the Execution Engine
-// generates a Command, a Work Item is derived from it, and the Dispatch
-// Engine must actually assign that Work Item to a Participant before the
-// Deliverable's lifecycle_state changes. If nobody currently fulfils the
-// Deliverable's producing Capability, the transition is deferred rather than
-// silently applied — a real behavioural change from the direct-POST MVP.
-//
-// Post-MVP Phase 4 (Ch.23/Ch.26): the Quality Gate check sits between
-// dependency readiness and Authority/Policy — a deliberately separate gate
-// from the Dependency Engine (Ch.26 §3's own architectural position: Policies/
-// Reviews/Evidence/Knowledge/Decisions/Obligations feed a Quality Gate, which
-// is itself an input to Governance). Evaluating it here, after dependency
-// readiness has already passed, is what makes an Obligation block
-// independently of the dependency graph testable and true at the same time.
+// Post-MVP Phase 3 (Ch.31/32/33): once governance allows the transition, it
+// no longer applies directly: the Execution Engine generates a Command, a
+// Work Item is derived from it, and the Dispatch Engine must actually assign
+// that Work Item to a Participant before the Deliverable's lifecycle_state
+// changes. If nobody currently fulfils the Deliverable's producing
+// Capability, the transition is deferred rather than silently applied — a
+// real behavioural change from the direct-POST MVP.
 export async function transitionDeliverable(input: {
   deliverableId: string;
   targetState: string;
   // CR-006: authorisation is the `deliverable_<verb>` badge held by actorId
-  // (root bypasses) — see transitionEngine. actorRole is ignored for authority
-  // (kept only because routes still pass it). actingBadgeGrantId is NOT an
-  // authorisation input — it is attribution recorded on the dispatched Work
-  // Item / attestation (which grant certified the action); resolveAutoActingBadge
-  // picks it when unambiguous.
+  // (root bypasses) — see transitionEngine (called from within the Execution
+  // Engine's own evaluateDeliverableTransition now). actorRole is ignored for
+  // authority (kept only because routes still pass it). actingBadgeGrantId is
+  // NOT an authorisation input — it is attribution recorded on the dispatched
+  // Work Item / attestation (which grant certified the action);
+  // resolveAutoActingBadge picks it when unambiguous.
   actorRole?: string;
   actingBadgeGrantId?: string;
   actorId?: string;
@@ -137,133 +122,15 @@ export async function transitionDeliverable(input: {
   const { data: deliverable } = await deliverablesDB.findById(input.deliverableId);
   if (!deliverable) return { ok: false, reason: "not_found" };
 
-  // CR-039/CR-043 — the canonical graph gates by (name, targetState), not by
-  // instance FK, gathered across every scope relevant to this SEU (its
-  // Template, every composed Pack, its Profile), and only carries rows for
-  // the transitions actually declared (today: Defined -> In Progress). A
-  // target state with no rows resolves ready trivially, same as an
-  // ungoverned Deliverable always has.
-  const readiness = await dependencyDefinitionEngine.isTargetReady(deliverable.seu_id, "Deliverable", deliverable.name, input.targetState);
-  if (!readiness.ready) {
-    // CR-042 — mirrors qualityGateEngine.recordAndBlock's own pattern: the
-    // real counterpart to evaluateAndPublishFromTransition's DeliverableReady,
-    // published at the exact point a gated transition is actually refused.
-    const reason = `${readiness.rows.length} governing dependency row(s) not yet satisfied (${readiness.rows.map((r) => `${r.from_entity_type}${r.from_name ? ` "${r.from_name}"` : ""} -> ${r.from_state}`).join(", ")})`;
-    await eventBus.publish({
-      eventType: "DeliverableBlocked",
-      originatingObjectType: "Deliverable",
-      originatingObjectId: deliverable.id,
-      seuId: deliverable.seu_id,
-      correlationId: eventBus.newCorrelationId(),
-      payload: { entityType: "Deliverable", entityId: deliverable.id, reason },
-    });
-    return { ok: false, reason: "dependency_not_satisfied", rows: readiness.rows };
-  }
-
-  const fromState = deliverable.lifecycle_state;
-
-  const qualityGateResult = await qualityGateEngine.evaluate({
-    entityType: "Deliverable",
-    entityId: deliverable.id,
-    seuId: deliverable.seu_id,
-    fromState,
-    toState: input.targetState,
+  const governance = await executionEngine.evaluateDeliverableTransition({
+    deliverable, targetState: input.targetState, actorId: input.actorId,
   });
-  if (qualityGateResult.outcome === "Blocked") {
-    // Ch.35 §11: a sustained pattern of blocking is Telemetry's concern, not
-    // the transition attempt's own — checked here (not inside
-    // qualityGateEngine itself) because raising an Obligation means calling
-    // into routes/seu/core/, and the engine layer never calls back into core
-    // (Build Plan §2.2's one-way "core orchestrates engine" split).
-    await checkSustainedQualityGateBlocking({ qualityGateId: qualityGateResult.gate.id, gateName: qualityGateResult.gate.name, seuId: deliverable.seu_id, deliverableId: deliverable.id });
-    // Ch.34: not every Event needs attention (AM-002) — but a genuinely
-    // blocked governed transition is exactly the "Execution Engine can't
-    // automatically continue" case Ch.34's own worked examples call out as
-    // requiring it. Deduplicated per (SEU, Deliverable) so retries of the
-    // same blocked attempt don't flood the inbox.
-    await raiseAttentionItem({
-      seuId: deliverable.seu_id,
-      category: "Action Required",
-      title: `Deliverable "${deliverable.name}" is blocked by Quality Gate "${qualityGateResult.gate.name}"`,
-      description: qualityGateResult.reason,
-      relatedObjectType: "Deliverable",
-      relatedObjectId: deliverable.id,
-    });
-    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
-  }
-
-  // CR-104 — Policy's own live check, same position as Quality Gate above
-  // (after dependency readiness, before Authority): reads this SEU's EBM-
-  // materialised applicable_policy_ids, not the dead required_policy_ids/
-  // findAllActive paths.
-  const policyResult = await policyEngine.evaluate({
-    entityType: "Deliverable",
-    seuId: deliverable.seu_id,
-    entityId: deliverable.id,
-    fromState,
-    toState: input.targetState,
-    context: { deliverable },
-  });
-  if (policyResult.outcome === "Blocked") {
-    // CR-106 Option C — same treatment as the Quality Gate block above:
-    // raise a real Obligation + Attention Item instead of leaving this
-    // block invisible on the platform-wide inbox. The Deliverable itself
-    // was already never advanced past fromState by a block (this whole
-    // function only calls transitionEngine.evaluate further down, after
-    // this check) — nothing changes there, only that a block now surfaces.
-    await raiseObligationForBlockedTransition({
-      seuId: deliverable.seu_id, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id,
-      fromState, toState: input.targetState, policyCode: policyResult.policyCode,
-    });
-    return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${policyResult.policyCode}` };
-  }
+  if (!governance.ok) return governance;
+  const { fromState } = governance;
 
   let actingBadgeGrantId = input.actingBadgeGrantId ?? null;
   if (!actingBadgeGrantId && input.actorId) {
     actingBadgeGrantId = await resolveAutoActingBadge(input.actorId, deliverable);
-  }
-
-  const gate = await transitionEngine.evaluate({
-    entityType: "Deliverable",
-    fromState,
-    toState: input.targetState,
-    actorRole: input.actorRole ?? "general",
-    actorId: input.actorId, // CR-006 — authorisation is the deliverable_<verb> badge
-    context: { deliverable },
-    // Deliverable's own transition_definitions rows never set
-    // required_quality_gate_ids (Deliverable keeps using its existing
-    // separate qualityGateEngine.evaluate call above), so this never
-    // actually fires for Deliverable today — passed for correctness now
-    // that the generic mechanism exists (SDK UI Layer Plan).
-    entityId: deliverable.id,
-    seuId: deliverable.seu_id,
-  });
-  if (!gate.allowed) {
-    if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Deliverable ${fromState} -> ${input.targetState}` };
-    if (gate.reason === "authority_denied") {
-      const detail = gate.badgeDenialReason
-        ? `acting badge check failed: ${gate.badgeDenialReason}`
-        : `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})`;
-      return { ok: false, reason: "authority_denied", detail };
-    }
-    if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
-    if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
-    return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
-  }
-
-  // Empty-centre presence check (Participant Integration Plan, Resolution 4):
-  // approval certifies produced work, so an approval (In Progress -> Approved)
-  // cannot even be dispatched unless a real reference was attached when the
-  // Deliverable was produced (the Defined -> In Progress completion). This is a
-  // small, separate gate — "you cannot approve nothing" — distinct from the
-  // attestation it makes certifiable. It runs after every other governance
-  // check so the existing quality-gate/authority reasons still win when both
-  // apply.
-  if (fromState === "In Progress" && input.targetState === "Approved") {
-    const { data: existingRef } = await deliverableReferencesDB.findLatestWithReference(deliverable.id, "In Progress");
-    if (!existingRef) {
-      return { ok: false, reason: "empty_centre", detail: "cannot approve a Deliverable with no attached reference — nothing has been produced to approve" };
-    }
   }
 
   const correlationId = eventBus.newCorrelationId();
