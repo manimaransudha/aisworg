@@ -19,7 +19,7 @@
 //      the EBM (onboarding, not engineering behaviour).
 // Run against the real dev database, no mocking.
 import "dotenv/config";
-import { test, after } from "node:test";
+import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
@@ -55,9 +55,6 @@ async function createTestTenant(label: string): Promise<string> {
   return rows[0].id;
 }
 
-after(async () => {
-  await pool.end();
-});
 
 test("CR-104: a Pack marked installation_classification 'Mandatory' composes into every Template automatically — Platform-scoped everywhere, tenant-scoped only within its own tenant", async () => {
   const run = randomUUID().slice(0, 8);

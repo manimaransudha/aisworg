@@ -333,7 +333,15 @@ export interface PackContributions {
   // VerifiableItemFields here since ObligationDefinition's own `description`
   // already covers that concept (migration 222 renamed statement ->
   // description on this exact field for this exact reason).
-  obligationDefinitions?: Array<{ code: string } & ObligationDefinition & Omit<VerifiableItemFields, "statement">>;
+  // Migration 249 (owner: "Pack has to define the Obligation definition
+  // similar to what the Policy Eligibility definition looks") —
+  // applicabilityDeliverables reuses Policy's own scope=Eligibility shape
+  // (PolicyApplicabilityDeliverable, below) verbatim: a Pack never knows
+  // Deliverable identity, so `name` is always a real Authority Vocabulary
+  // noun, never a Deliverable name — this is the trigger CR-108 line 35
+  // found missing (composed into the EBM, never read by anything at
+  // runtime).
+  obligationDefinitions?: Array<{ code: string; applicabilityDeliverables?: PolicyApplicabilityDeliverable[] } & ObligationDefinition & Omit<VerifiableItemFields, "statement">>;
   // CR-082 — Ch.5 §9's Engineering Behaviour / Engineering Metrics /
   // Reusable Components / Engineering Templates, unified under one
   // contribution kind rather than four schema fields. Minimal stub (owner:
@@ -873,10 +881,19 @@ export interface ParticipantMasterRow {
   // Array of capability-name Ontology codes — "Harry can fulfil development
   // and code-review capabilities."
   capabilities: string[];
-  // { <category:pack code>: [<that dimension's own concept_type codes>] } —
-  // CR-099: dimension keys are category:pack's own codes (Domain/Technology/
-  // ...), not a separate competency-dimension concept type.
-  competency: Record<string, string[]>;
+  // { <category:pack code>: [{code, proficiency}] } — CR-099: dimension keys
+  // are category:pack's own codes (Domain/Technology/...), not a separate
+  // competency-dimension concept type. Each code carries its own proficiency
+  // (Ontology-backed, concept type "proficiency-level": Novice/Intermediate/
+  // Expert) — Dispatch Strategy input (Ch.33 §7/§9), a Participant can hold
+  // several competencies at different proficiency levels.
+  competency: Record<string, Array<{ code: string; proficiency: string }>>;
+  // Dispatch Strategy input (Ch.33 §9 Cost Optimisation). Null = no cost
+  // recorded, not zero — a Cost Optimisation attempt with no cost data for a
+  // candidate simply can't rank it, same "no data, no ranking" discipline as
+  // the SLA-less Service Level case (dispatchEngine.ts's own
+  // resolveTurnaroundSeconds).
+  cost: number | null;
   // Ch.13 §14 Behaviour Context — array of {policy, payload}; policy is
   // Ontology-backed (behaviour-context-policy), payload has no fixed shape.
   behaviour_context: Array<{ policy: string; payload: Record<string, unknown> }>;
@@ -918,6 +935,10 @@ export interface DeliverableRow {
   // (core/deliverables.ts's own createDeliverable, its own API-supplied
   // input.category), which is unrelated to Template authoring.
   category: string | null;
+  // The deliverable-name Ontology code this row was created from — canonical,
+  // unlike `name` (a resolved display label). Null for the manual "add a
+  // Deliverable to a live SEU" path, which has no catalogue entry.
+  code: string | null;
   lifecycle_state: string; // not a fixed union — see Build Plan §2.3, validated by transitionEngine, not the DB
   acceptance_criteria: unknown[];
   acquisition_scope: AcquisitionScope;
@@ -1093,6 +1114,42 @@ export interface TransitionDefinitionRow {
   submit_version_event: string | null;
 }
 
+// CR-109 §6.1 — the Governance Evaluation Outcome record. Written once per
+// PASSING evaluateDeliverableTransition call (migration 233's own header
+// comment: a blocked attempt is never recorded here — that history already
+// exists as Obligations/AttentionItems against the Deliverable/SEU
+// directly). Consumed by Command generation (governance_outcome_id) and,
+// downstream, by the Work Item Generator's Execution Context (§6.3).
+export type GovernedEntityType = TransitionEntityType;
+export type GovernanceOutcome = "Approved" | "Approved-with-Conditions" | "Deferred" | "Rejected" | "Escalated" | "Waived";
+export type QualityGateOutcomeCode = "Passed" | "NotApplicable" | "Waived";
+
+export interface GovernanceEvaluationOutcomeRow {
+  id: string;
+  seu_id: string;
+  entity_type: GovernedEntityType;
+  entity_id: string;
+  from_state: string;
+  to_state: string;
+  outcome: GovernanceOutcome;
+  rationale: string;
+  quality_gate_id: string | null;
+  quality_gate_outcome: QualityGateOutcomeCode | null;
+  applicable_authority_rule_id: string | null;
+  satisfied_policy_ids: string[];
+  deviated_policy_ids: string[];
+  consulted_obligation_ids: string[];
+  open_attention_item_ids: string[];
+  originating_pack_id: string | null;
+  evaluated_at: string;
+  created_at: string;
+}
+
+// What evaluateDeliverableTransition builds and returns on its ok:true path
+// — not yet a persisted row. execute() is the write boundary that inserts
+// it (governanceEvaluationOutcomesDB.create) and gets id/evaluated_at back.
+export type GovernanceEvaluationOutcomeInput = Omit<GovernanceEvaluationOutcomeRow, "id" | "created_at" | "evaluated_at">;
+
 export type CommandStatus = "Generated" | "Dispatched" | "Completed" | "Deferred" | "Cancelled" | "Failed";
 
 export interface CommandRow {
@@ -1107,8 +1164,32 @@ export interface CommandRow {
   requested_by: number | null;
   acting_badge_grant_id: string | null;
   correlation_id: string;
+  // CR-109 §6.2 — governanceOutcomeRef: set once at creation, in execute(),
+  // to the governance_evaluation_outcomes row the passing evaluation built.
+  governance_outcome_id: string | null;
+  // Ch.12 §9 / CR-109 §6.2 — eligibleParticipantPoolRef: set once at
+  // creation, to the capability_fulfilment_pools snapshot execute() took of
+  // Ch.12's own real multi-Participant pool. Null when no producing
+  // Capability was declared for this Command at all (dispatchEngine's own
+  // pre-existing NO_CAPABILITY_DECLARED path — no pool concept applies).
+  eligible_participant_pool_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// Ch.12 §9 / CR-109 §6.2 — a snapshot of the eligible-Participant pool
+// (capabilityFulfilmentsDB.findActiveManyBySeuCapabilityId's own result) at
+// the moment a Command was generated for it. `participant_ids` is
+// `participants.id` (the per-SEU-Capability engagement row), the same id
+// space `capability_fulfilments.participant_id` already uses — not
+// `participants_master.id`.
+export interface CapabilityFulfilmentPoolRow {
+  id: string;
+  seu_id: string;
+  seu_capability_id: string | null;
+  capability_id: string | null;
+  participant_ids: string[];
+  resolved_at: string;
 }
 
 // Participant Integration & Attestation — Plan step 2 (Resolution 3). The raw
@@ -1360,6 +1441,8 @@ export interface WorkItemRow {
   participant_id: string | null;
   status: WorkItemStatus;
   dispatch_strategy: string | null;
+  // Ch.33 §14 Redispatch — incremented once per RedispatchRequested attempt.
+  dispatch_attempts: number;
   // Participant Integration — Plan step 1: the raw VCS reference the
   // Participant returns on completion (candidate output; distinct from the
   // attestation minted at an acceptance transition).
@@ -1369,8 +1452,30 @@ export interface WorkItemRow {
   // SLA). Null when no SLA is declared. An outstanding Work Item past this time
   // is stalled and escalates to an Attention Item.
   target_completion_at: string | null;
+  // CR-109 §6.3/Ch.32 §7/§11 — resolved once, at generation, by
+  // workItemGenerator.generate. Null only for Work Items generated before
+  // this column existed.
+  execution_context: WorkItemExecutionContext | null;
   created_at: string;
   updated_at: string;
+}
+
+// Ch.32 §11's list, resolved to actual content (not references the
+// Participant has to chase) — see workItemGenerator.ts.
+export interface WorkItemExecutionContext {
+  engineeringObjective: string;
+  relevantDeliverable: { id: string; name: string; lifecycleState: string };
+  service: { capabilityId: string; code: string; name: string } | null;
+  inputLocation: string | null;
+  outputLocation: string | null;
+  relevantDecisions: Array<{ id: string; title: string; engineeringQuestion: string | null; status: string }>;
+  supportingEvidence: Array<{ id: string; title: string; status: string; confidenceLevel: string | null }>;
+  relevantKnowledge: Array<{ id: string; title: string; status: string }>;
+  governingPolicies: Array<{ id: string; code: string; name: string }>;
+  applicableAuthority: { ruleId: string; code: string } | null;
+  activeObligations: Array<{ id: string; title: string; status: string }>;
+  openAttentionItems: Array<{ id: string; title: string; status: string }>;
+  qualityGate: { id: string; name: string; outcome: string } | null;
 }
 
 export type EventConsumptionStatus = "pending" | "consumed" | "failed";
@@ -1560,22 +1665,36 @@ export interface QualityGateWaiverRow {
 // CR-051 item 1 (Ch.17 §20.2/§20.8) — related_object_type/id moved off this
 // row entirely, onto evidence_relationships (below): one Evidence Item may
 // support many engineering artefacts, not just one.
+// Ch.17 model cleanup (migration 232) — seu_id and the five originating_*
+// provenance columns are retired; every relationship Evidence has,
+// including SEU membership, goes through evidence_relationships instead
+// (owner: "Evidence does not need anything. Evidence is required by
+// others" — the mechanism changed, not the provenance guarantee itself).
+export interface EvidenceValidationAssessment {
+  // evidence-validation-dimension Ontology concept (authenticity/
+  // completeness/consistency/source-credibility/engineering-relevance).
+  dimension: string;
+  // evidence-validation-status Ontology concept (Not Assessed/Pass/
+  // Partial/Fail).
+  status: string;
+  notes: string | null;
+  assessedAt: string;
+}
+
 export interface EvidenceRow {
   id: string;
-  seu_id: string;
   category: string;
   title: string;
   description: string | null;
   source: string | null;
-  confidence_level: string;
+  // Nullable now — computed from validation_dimensions, not author-set; no
+  // value exists until a computation has actually run.
+  confidence_level: string | null;
   status: string;
-  // CR-051 item 3 (Ch.17 §12/§20.10) — provenance. All nullable: captured
-  // when known at creation time, not required.
-  originating_deliverable_id: string | null;
-  originating_participant_id: string | null;
-  originating_capability_id: string | null;
-  originating_decision_id: string | null;
-  originating_activity: string | null;
+  // Append-only — a new entry per assessment, never overwritten in place,
+  // since Validated->Accepted->Referenced->Archived share one row with no
+  // new version minted at each hop.
+  validation_dimensions: EvidenceValidationAssessment[];
   // CR-051 item 4 (Ch.17 §15/§20.13) — supersession chain, nullable.
   supersedes_evidence_id: string | null;
   created_at: string;
@@ -1593,21 +1712,69 @@ export interface EvidenceRelationshipRow {
   created_at: string;
 }
 
+// Ch.16 §10's relationship types, reused as the shared shape for every
+// Knowledge reference field (Evidence/Deliverable/Decision/Knowledge
+// References) — an object keyed by relationship type, each value an array
+// of ids in that field's own target id-space. "supersedes" is reserved for
+// Knowledge-to-Knowledge only (owner: "superseded should stay within
+// knowledge references only"); every other type applies universally
+// (owner: "knowledge can contradict anything").
+export interface KnowledgeRelationshipReferences {
+  "derives from"?: string[];
+  supports?: string[];
+  contradicts?: string[];
+  refines?: string[];
+  references?: string[];
+  "depends upon"?: string[];
+}
+export interface KnowledgeSelfReferences extends KnowledgeRelationshipReferences {
+  supersedes?: string[];
+}
+
 // Post-MVP Phase 5 (Ch.16 Knowledge Model). acquisition_scope reuses
 // AcquisitionScope (Ch.15 §9) — inherited by default from the producing
-// Deliverable.
+// Deliverable. Restructured (migration 239, "firm up the Knowledge
+// structure" session): evidence_id (singular FK) -> evidence_references
+// (§10-shaped JSONB, same treatment Decision's own knowledge_id ->
+// knowledge_ids got in migration 231); deliverable_id stays as the
+// provenance FK (§14's "originating Deliverable," structurally load-bearing
+// — SEU derivation, joins), with deliverable_references added alongside it
+// as the broader, separate §8 "Deliverable References" concept.
+// author_id/authority_badge mirror decisions.participant_id/.authority_badge
+// exactly (captured at creation — ungoverned, no badge yet — and updated on
+// every governed transition thereafter; full history stays in `events`).
 export interface KnowledgeItemRow {
   id: string;
   seu_id: string;
   deliverable_id: string;
-  evidence_id: string | null;
+  deliverable_references: KnowledgeRelationshipReferences;
+  evidence_references: KnowledgeRelationshipReferences;
+  decision_references: KnowledgeRelationshipReferences;
+  knowledge_references: KnowledgeSelfReferences;
   category: string;
   title: string;
   description: string | null;
   acquisition_scope: AcquisitionScope;
   status: string;
+  version: string;
+  confidence_level: string | null;
+  author_id: string | null;
+  authority_badge: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// Ch.16 §11/§14 — append-only validation/review notes, never overwritten.
+// Same discipline as objective_comments/pack_comments (migrations 125/137):
+// a dedicated child table, insert-only, no forced gate on any one transition
+// (owner: "no forced gate" — addable at any point in the Knowledge Item's
+// life, not just on a specific hop).
+export interface KnowledgeValidationNoteRow {
+  id: string;
+  knowledge_item_id: string;
+  note_text: string;
+  actor_id: number | null;
+  created_at: string;
 }
 
 // Post-MVP Phase 6 (Ch.16 §13 / Book 1 Ch.21 §21.6) — a KnowledgeItemRow
@@ -1621,19 +1788,51 @@ export interface EngineeringCapitalRow extends KnowledgeItemRow {
   objective_statement: string;
 }
 
-// Post-MVP Phase 5 (Ch.19 Decision Model).
+// Post-MVP Phase 5 (Ch.19 Decision Model). Restructured this session (Ch.19
+// model cleanup, migration 231) — see that migration's own header for the
+// full reasoning behind each field.
+export interface DecisionRelatedObjectGroup {
+  related_object_type: string;
+  related_object_ids: string[];
+}
+
+export interface DecisionAlternative {
+  statement: string;
+  assumptions: string[];
+  consequences: string[];
+  // decision-alternative-status Ontology concept type — Candidate/
+  // Evaluating/Investigating/Deferred/Rejected/Approved. Not Ch.19 §9's own
+  // Decision-level lifecycle — a separate, smaller vocabulary for the
+  // alternative's own standing within the Decision.
+  status: string;
+  rationale: string | null;
+}
+
 export interface DecisionRow {
   id: string;
   seu_id: string;
-  related_object_type: TransitionEntityType;
-  related_object_id: string;
-  knowledge_id: string | null;
-  evidence_id: string | null;
+  // What gave rise to this Decision (e.g. an AttentionItem) — singular,
+  // distinct from related_object_type/ids below.
+  originating_type: string | null;
+  originating_id: string | null;
+  // What this Decision applies to — multiple entity types, multiple ids per
+  // type.
+  related_objects: DecisionRelatedObjectGroup[];
+  // Propagation beyond this Decision's own originating SEU (Ch.19 §13
+  // Decision Reuse) — entity types 'seu'/'packs'.
+  related_seu: DecisionRelatedObjectGroup[];
+  knowledge_ids: string[];
+  evidence_ids: string[];
+  alternatives: DecisionAlternative[];
+  // Who acted — captured at creation (participant_id only; creation is
+  // ungoverned) and updated on every governed transition thereafter (both
+  // fields). Independent of the Participant means the Participant executing
+  // it is replaceable, not that attribution is absent.
+  participant_id: string | null;
+  authority_badge: string | null;
   category: string;
   title: string;
   engineering_question: string | null;
-  selected_alternative: string | null;
-  rationale: string | null;
   status: string;
   created_at: string;
   updated_at: string;

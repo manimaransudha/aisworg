@@ -13,13 +13,17 @@ export const deliverablesDB = {
     category?: string | null;
     acquisitionScope?: AcquisitionScope;
     producingCapabilityId?: string | null;
+    // The deliverable-name Ontology code this row is created from (canonical
+    // join key — see migration 236). Null for the manual "add a Deliverable
+    // to a live SEU" path, which has no catalogue entry to draw one from.
+    code?: string | null;
   }): Promise<DbResult<DeliverableRow>> {
     try {
       const { rows } = await query<DeliverableRow>(
-        `INSERT INTO deliverables (seu_id, name, category, acquisition_scope, producing_capability_id)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO deliverables (seu_id, name, category, acquisition_scope, producing_capability_id, code)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING *`,
-        [input.seuId, input.name, input.category ?? null, input.acquisitionScope ?? "SEU", input.producingCapabilityId ?? null]
+        [input.seuId, input.name, input.category ?? null, input.acquisitionScope ?? "SEU", input.producingCapabilityId ?? null, input.code ?? null]
       );
       return { data: rows[0] };
     } catch (err) {

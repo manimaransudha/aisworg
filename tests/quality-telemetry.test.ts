@@ -14,37 +14,63 @@ import { transitionDeliverableSync as transitionDeliverable } from "./testFixtur
 import { createObligation, transitionObligation } from "../src/routes/seu/core/obligations.js";
 import { createEvidence, transitionEvidence } from "../src/routes/seu/core/evidence.js";
 import { getQualityMetrics } from "../src/routes/seu/core/telemetry.js";
-import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
 
 async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
   await ensureCoreEngineeringQualityGates();
-  const result = await commissionFromFormSync({
-    statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: "1001", requestedBy: 1001,
-  });
+  const result = await commissionFromFormSync(
+    {
+      statement: `${statementPrefix}-${randomUUID()}`,
+      requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
+      actorRole: "super", actorId: "1001", requestedBy: 1001,
+    },
+    async (seuId) => {
+      const detail = await getSeuDetailView(seuId);
+      const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
+      assert.ok(reqAnalysisCapability);
+      await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
+    }
+  );
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
   const seuId = result.seu.id;
 
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
-  const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
-  assert.ok(requirementsSpec && reqAnalysisCapability);
-  await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantType: "AI", displayName: "Quality telemetry test analyst" });
+  assert.ok(requirementsSpec);
+  await resolveDispatchRejectionObligations(seuId);
   return { seuId, deliverableId: requirementsSpec.id };
 }
 
 test("Quality Telemetry: rework rate distinguishes a first-try pass from a genuinely blocked-then-passed Deliverable", async () => {
   const before = await getQualityMetrics();
 
+  // deliverableKickoffHandler re-scans every Deliverable on every relevant
+  // event and unconditionally attempts its next transition too — so once a
+  // Deliverable reaches "Approved" (however it gets there), the very next
+  // rescan automatically tries Approved -> Baselined as well. That hop is
+  // gated by "Requires Accepted Evidence" (same gate the acceptance-rate test
+  // below satisfies); with no Evidence attached, that automatic attempt gets
+  // a real, permanent QualityGateBlocked recorded against the Deliverable —
+  // contaminating what should be a "genuinely first-try pass" count. Attach
+  // real, Accepted Evidence up front (before either Deliverable reaches
+  // Approved) so that automatic attempt has what it needs and actually
+  // passes, instead of leaving a stray block on the record.
+  async function attachAcceptedEvidence(seuId: string, deliverableId: string): Promise<void> {
+    const evidence = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Validation Evidence", title: "Quality telemetry rework test evidence" });
+    await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorRole: "general", actorId: "1001" });
+    await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorRole: "general", actorId: "1001" });
+  }
+
   const clean = await commissionAndFulfilRequirementsSpec("quality-telemetry-clean");
+  await attachAcceptedEvidence(clean.seuId, clean.deliverableId);
   await transitionDeliverable({ deliverableId: clean.deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
   const cleanPass = await transitionDeliverable({ deliverableId: clean.deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
   assert.equal(cleanPass.ok, true);
 
   const reworked = await commissionAndFulfilRequirementsSpec("quality-telemetry-reworked");
+  await attachAcceptedEvidence(reworked.seuId, reworked.deliverableId);
   await transitionDeliverable({ deliverableId: reworked.deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
   const obligation = await createObligation({ seuId: reworked.seuId, relatedObjectType: "Deliverable", relatedObjectId: reworked.deliverableId, category: "Engineering", title: "Quality telemetry rework test obligation" });
   const blocked = await transitionDeliverable({ deliverableId: reworked.deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });

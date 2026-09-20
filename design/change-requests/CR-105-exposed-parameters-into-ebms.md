@@ -1,7 +1,7 @@
 # CR-104 — Enforce EBM exposed parameters
 
 **Raised:** 2026-09-12 · **Origin:** 
-How do we model the kickoff of the first deliverbale in the chain? **Status:** 🟡 Open by design. Partially built
+How do we model the kickoff of the first deliverbale in the chain? **Status:**  ✅ Closed 2026-09-13
 
 ## Current behavior
 - what is Correctly materialized and consumed in EBM:
@@ -24,4 +24,5 @@ Explicitly declaration-only by design — not a hidden bug, documented as deferr
 - Engineering Capital — same treatment, "minimal stub" per CR-082's own comment.
 Checklists — attached as metadata (checklist_ids) to Quality Gates/Review Gates, not independently enforced; inherits whatever scoping those get, not a separate gap.
 - Authority Rules — dead/superseded; transitionEngine.ts's own comment calls the authority_rules/required_authority_rule_id path "legacy" — real authority is the badge mechanism (badgeAuthorityEngine), which is correctly Layer-1/global by design, not something that should be Pack-composition-scoped at all.
-exposedParameterOverrides has to be written into the EBM .  Obligation , Engg capital , Checkilists and Authority rules also have to be materialised. I am going to ope a seperate CR for this.
+
+Obligation raising by a Participant isn't — and the one related piece that does exist (blocked → AttentionItem) contradicts CR-109's own settled design rather than fulfilling it. That gap belongs to CR-108, which is why it's still 🟡 Raised.

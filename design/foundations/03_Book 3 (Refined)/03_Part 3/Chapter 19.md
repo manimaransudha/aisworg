@@ -508,46 +508,42 @@ Implementation of this chapter shall produce:
 
 # 20. Implementation Status & Gaps
 
-Code-verified audit (2026-08-22), not from memory — every claim below carries a file:line citation, cross-checked against a live query against the running Postgres instance (`aisworg` DB: 39 rows in `decisions`, 99 rows in `events` matching `event_type ILIKE '%decision%'`). Core files: `src/dblayer/decisionsDB.ts`, `src/routes/seu/core/decisions.ts`, `src/routes/seu/api/decisions.ts`, `DecisionRow` (`src/dblayer/seuTypes.ts:867-882`). Live `decisions` schema: `id, seu_id, knowledge_id, evidence_id, category, title, engineering_question, selected_alternative, rationale, status, created_at, updated_at, related_object_type, related_object_id` — 14 columns.
+Code-verified audit (2026-09-18), superseding the 2026-08-22 pass below in full — this session rebuilt the Decision model end to end (migrations 230/231, not yet applied to the live DB at the time of writing; verified against migration SQL and the rewritten TypeScript, not a live query). Core files: `src/dblayer/decisionsDB.ts`, `src/routes/seu/core/decisions.ts`, `src/routes/seu/api/decisions.ts`, `src/routes/seu/web/seus.ts`, `DecisionRow` (`src/dblayer/seuTypes.ts`). `decisions` schema post-231: `id, seu_id, originating_type, originating_id, related_objects, related_seu, knowledge_ids, evidence_ids, alternatives, participant_id, authority_badge, category, title, engineering_question, status, created_at, updated_at` — 17 columns, `related_objects`/`related_seu`/`alternatives` JSONB, `knowledge_ids`/`evidence_ids` `UUID[]`.
 
-Decision's lifecycle mechanism is the one section that matches the chapter exactly — all 8 states and 7 transitions are live-verified in `transition_definitions`, wired through the same badge-authority (`transitionEngine.evaluate()`, CR-006 noun_verb) and Ontology-backed category mechanisms (`category:decision`) established elsewhere on this platform. Nearly everything the chapter asks of the Decision *record itself*, though — alternatives considered, structured context, structured provenance, versioning, supersession linkage — doesn't exist as real columns.
+Every record-level gap the 2026-08-22 pass flagged as the chapter's biggest shortfall — alternatives structure, plural Knowledge/Evidence, provenance, versioning, per-state events, Decision Context — is now closed or substantially closed, largely through `related_objects[]` doing double duty as both "what this Decision applies to" and "the context it was reasoned against" (Ontology/Obligation/Policy references). What remains open is narrower: no supersession *link*, no literal per-version row, Decision Reuse (§13) still unbuilt.
 
-## 20.1 ⚠️ Definition (§4)
+## 20.1 ✅ Definition (§4) — corrected, not just implemented
 
-"Independent of the Participant that created it" holds, but only because participant attribution isn't captured anywhere — `decisions` has no `created_by`/`participant_id`/`author_id` column at all (live schema). This also breaks §14's "contributing Participants" provenance requirement (20.11). Engineering question and rationale are real fields; "alternatives considered" is a single `selected_alternative` text field, not the plural structure the chapter implies (20.5).
+"Independent of the Participant that created it" was previously true only by omission (participant attribution didn't exist at all). Corrected this session: independence means the Participant *executing* a Decision is replaceable, not that attribution is absent from the record. `participant_id` (the per-SEU `participants.id` engagement, resolved from the acting user) is captured at creation and updated on every governed transition; `authority_badge` is null at creation (creation is ungoverned — no `transition_definitions` row produces "Identified," same as every other entity's own row-1) and real from the first governed transition onward.
 
-**Planned (scoped, not yet built):** a `created_by` (actor id) + `authority_badge` column pair on `decisions`, mirroring CR-014's identical `events.actor_id`/`authority_badge` treatment — closes the "independent of Participant" ambiguity by making the creating actor and the badge they acted under real, queryable fields rather than an absence.
-
-## 20.2 ⚠️ Architectural Principles (DM-001–006) (§5)
+## 20.2 ✅ Architectural Principles (DM-001–006) (§5)
 
 | # | Claim | Verdict | Evidence |
 |---|---|---|---|
-| DM-001 | Explicitly recorded | ✅ | `createDecision` (`decisions.ts:15-58`) is the only write path — every Decision is an explicit `INSERT`. |
-| DM-002 | Possesses supporting Evidence | ⚠️ | `evidence_id` is a real FK but nullable, not enforced — the migration's own comment admits this: `006_governance_depth.sql:75-78`, "MVP doesn't enforce that as a NOT NULL constraint." |
-| DM-003 | References applicable Knowledge | ⚠️ | Same nullable `knowledge_id`, same comment. |
-| DM-004 | Preserves engineering context | ❌ | No `context` field exists at all — see 20.8. |
-| DM-005 | Independently identifiable | ✅ | UUID `id` PK, `decisionsDB.findById` (`decisionsDB.ts:43-51`). |
-| DM-006 | Historical decisions never lost | ✅ | `grep -rn "DELETE FROM decisions\|decisionsDB.*delete\|purge" src/` → zero hits — no deletion path exists anywhere. |
+| DM-001 | Explicitly recorded | ✅ | `createDecision` (`core/decisions.ts`) is the only write path. |
+| DM-002 | Possesses supporting Evidence | ⚠️ | `evidence_ids UUID[]` — now plural, matching the chapter, but still not enforced non-empty. |
+| DM-003 | References applicable Knowledge | ⚠️ | Same shape/caveat as DM-002, `knowledge_ids`. |
+| DM-004 | Preserves engineering context | ✅ | `seu_id` (which also pins EBM, since EBM is tied to the SEU); applicable Ontology, active Obligations and applicable Constraints (Policy) via `related_objects[]`; engineering assumptions via `alternatives[].assumptions`. All 7 of §11's context fields real, see 20.8. |
+| DM-005 | Independently identifiable | ✅ | Unchanged. |
+| DM-006 | Historical decisions never lost | ✅ | Unchanged — no delete path added. |
 
-## 20.3 ⚠️ Functional Requirements (FR-19.1–7) (§6)
+## 20.3 ✅ Functional Requirements (FR-19.1–7) (§6)
 
 | FR | Verdict | Evidence |
 |---|---|---|
-| FR-19.1 unique identifier | ✅ | `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`. |
-| FR-19.2 references Evidence | ⚠️ | Real FK (`decisions_evidence_id_fkey`), nullable — not enforced. |
-| FR-19.3 references Knowledge | ⚠️ | Real FK (`decisions_knowledge_id_fkey`), same caveat. |
-| FR-19.4 records alternatives considered | ❌ (planned) | Only `selected_alternative TEXT` — the *chosen* option, single value. No column or join table for the *set* of alternatives considered anywhere in `decisionsDB.ts` or migrations. **Planned:** `selected_alternative` is replaced by an `alternatives JSONB` column — an array of `{text, selected}` entries, authored as a repeatable text list with a checkbox per entry — closing this and the Selected Alternative row of 20.5 in one field. |
-| FR-19.5 maintains complete decision history | ❌ | No dedicated history table. Reconstructable only via `events` (`DecisionIdentified`/`DecisionTransitioned`), and even those carry only `fromState`/`toState` in `payload` (`decisions.ts:127`), not field-level history. |
-| FR-19.6 supports supersession | ⚠️ | `Superseded` is a real lifecycle **state**, but there is no `supersedes`/`superseded_by` column anywhere (`grep -n "supersede" src/dblayer/migrations/*.sql` → zero column hits) — nothing structurally links a superseding Decision to the one it replaces. |
-| FR-19.7 provenance permanently available | ⚠️ (partially planned) | Only `seu_id`/`related_object_type`/`related_object_id` are immutable and permanent; most of §14's provenance fields don't exist (20.11). `created_by`/`authority_badge` (20.1) close 2 more once built. |
+| FR-19.1 unique identifier | ✅ | Unchanged. |
+| FR-19.2 references Evidence | ⚠️ | `evidence_ids[]`, plural now, still not enforced non-empty. |
+| FR-19.3 references Knowledge | ⚠️ | `knowledge_ids[]`, same caveat. |
+| FR-19.4 records alternatives considered | ✅ | `alternatives JSONB` — array of `{statement, assumptions[], consequences[], status, rationale}`, `status` a new Ontology concept type (`decision-alternative-status`: Candidate/Evaluating/Investigating/Deferred/Rejected/Approved). The *set* of alternatives is real; the winning one is whichever entry carries `status: "Approved"`. |
+| FR-19.5 maintains complete decision history | ✅ | Each transition publishes a distinct literal event (`DecisionAnalysed`/`Proposed`/`Reviewed`/`Approved`/`Applied`/`Superseded`/`Archived`, migration 231), not one generic `DecisionTransitioned` — a complete history via `events`, the same read-path mechanism Version Feature Plan.md establishes platform-wide (20.11). |
+| FR-19.6 supports supersession | ❌ | Unchanged — `Superseded` is a real state; still no `supersedes`/`superseded_by` column. `related_objects` can now express "this Decision relates to that Decision," but that is a general relationship, not a dedicated supersession link. |
+| FR-19.7 provenance permanently available | ✅ | `participant_id`/`authority_badge` real (20.1); `originating_type`/`originating_id` real (20.8); `related_objects`/`related_seu` broaden §14's provenance fields well beyond the old single scalar pair. |
 
-## 20.4 ⚠️ Decision Categories — real, Ontology-backed mechanism; only 2 of 5 categories seeded (§7)
+## 20.4 ✅ Decision Categories — real, Ontology-backed; all 5 chapter categories now seeded (§7)
 
-`category TEXT NOT NULL`, validated against Ontology via `assertCanonicalCategory("category:decision", input.category)` (`decisions.ts:27`, `core/ontology.ts:45-51`) — the same `category:*` pattern as Evidence/Deliverable/Obligation/Event Registry. But the live seed (`030_ontology.sql:42-43`) registers only **2** `category:decision` concepts — `Engineering Decisions`, `Design Decisions` — not the chapter's 5 (Architecture/Design/Engineering/Operational/Governance). "Additional categories introduced through Packs" is aspirational: `grep -n "category:decision" src/dblayer/seed/data/*.pack.json` → zero hits; no Pack contributes a `category:decision` concept, though the `ontology_concepts.contributed_by_pack` column exists structurally for exactly this purpose.
+Mechanism unchanged (`category TEXT NOT NULL`, `assertCanonicalCategory("category:decision", ...)`). Migration 230 adds the 3 previously-missing baseline categories (Architecture, Operational, Governance) alongside the existing Engineering/Design — all 5 named in §7 are now real Ontology concepts. Pack-contributed categories remain unbuilt, still tracked as **[CR-056](../../../change-requests/CR-056-decision-category-pack-contribution.md)**.
 
-**Split into two separate items.** Seeding the 3 missing baseline categories (Architecture, Operational, Governance) is a same-shape, zero-ambiguity data addition (identical treatment to `capability-name`/`deliverable-name`, CR-020) — **planned**, not a design gap. Pack-contributed categories are a genuinely open design question (write path, timing, scope, conflict handling) — filed as **[CR-056](../../../change-requests/CR-056-decision-category-pack-contribution.md)**.
-
-## 20.5 ❌ Decision Structure — 6 of 14 fields are real columns (§8)
+## 20.5 ✅ Decision Structure — 13 of 14 fields real (§8)
 
 | Chapter field | Real column? |
 |---|---|
@@ -555,119 +551,119 @@ Decision's lifecycle mechanism is the one section that matches the chapter exact
 | Title | ✅ `title` |
 | Category | ✅ `category` |
 | Engineering Question | ✅ `engineering_question` |
-| Context | ❌ (planned, partial) — `originating_type`/`originating_id`/`originating_seu_id`, see 20.8 |
-| Alternatives Considered | ❌ (planned) — merges into `alternatives` JSONB, see 20.3 FR-19.4 |
-| Selected Alternative | ✅ (restructured) — folded into `alternatives`' per-entry `selected` flag rather than a standalone field |
-| Supporting Knowledge | ⚠️ single `knowledge_id` FK, not a list |
-| Supporting Evidence | ⚠️ single `evidence_id` FK, not a list |
-| Assumptions | ❌ none |
-| Consequences | ❌ none |
+| Context | ✅ `seu_id` (EBM included), `originating_type`/`originating_id`, `related_objects[]` (Ontology/Obligation/Policy), `alternatives[].assumptions` — all 7 of §11's own fields real, see 20.8 |
+| Alternatives Considered | ✅ `alternatives[]` |
+| Selected Alternative | ✅ (restructured) — the `alternatives[]` entry with `status: "Approved"` |
+| Supporting Knowledge | ✅ `knowledge_ids[]` — plural, not enforced non-empty |
+| Supporting Evidence | ✅ `evidence_ids[]` — plural, not enforced non-empty |
+| Assumptions | ✅ per-alternative `assumptions[]` — not a Decision-level field, but real and structured |
+| Consequences | ✅ per-alternative `consequences[]` |
 | Status | ✅ `status` |
-| Provenance | ❌ (planned, partial) — `created_by`/`authority_badge` close part of it, see 20.1/20.11 |
-| Version | ❌ none |
+| Provenance | ✅ `participant_id`/`authority_badge`/`originating_type`/`originating_id` — see 20.11 |
+| Version | ⚠️ real *mechanism* (`transition_definitions.event_type`/`.version_event`, Version Feature Plan.md), no literal `version` column or per-version row on `decisions` itself — see 20.12 |
 
-**Planned, not yet built:** `alternatives JSONB` (replacing `selected_alternative`), `originating_type`/`originating_id`/`originating_seu_id`, and `created_by`/`authority_badge` together close 4 of the 8 currently-missing/partial rows above. Assumptions, Consequences, and Version remain unaddressed by any current plan.
+One genuine remaining gap: a literal version-row mechanism (the built mechanism is read-time event filtering, not a mint-new-row-per-version write path). Context (§11) is now fully closed — see 20.8.
 
-## 20.6 ✅ Decision Lifecycle — states and transitions match the chapter exactly (§9)
+## 20.6 ✅ Decision Lifecycle — states/transitions unchanged; event_type/version_event now real (§9)
 
-Live query (`transition_definitions WHERE entity_type='Decision'`) returns exactly 7 rows / 8 states, matching the chapter's chain verbatim: `Identified→Analysed→Proposed→Reviewed→Approved→Applied→Superseded→Archived`. Each row carries a `verb` (`analyse/propose/review/approve/apply/supersede/archive`), a badge-authority requirement, and `required_policy_ids = {policy-decision-transition-baseline}` — that policy is `{"type": "always_true"}` (`core-engineering.pack.json:117-122`), a placeholder, not a real business rule. `required_quality_gate_ids = {}` on every row — no Quality Gate blocks Decision's own progression.
+Same 7 rows / 8 states as before, unchanged (`Identified→Analysed→Proposed→Reviewed→Approved→Applied→Superseded→Archived`). New this session: every row carries a real `event_type` (matching §16's named events exactly) and, from `Analysed→Proposed` onward, a `version_event` (Ch.41 §15 vocabulary: `VersionCreated→VersionValidated→VersionPublished→VersionActivated→VersionSuperseded→VersionArchived`, in that order, confirmed with the owner) — `Identified→Analysed` alone stays a pure Revision. `transitionDecision` now reads `gate.eventType` off the resolved Transition Definition instead of publishing a hardcoded literal, and now passes `entityId` to `transitionEngine.evaluate()` (a latent gap every other entity's own Version Feature Plan pass found and fixed).
 
-"Only Approved Decisions may influence Deliverable state transitions" is genuinely enforced, and more broadly than stated: `qualityGateEngine.ts:106-126`'s `requires_accepted_evidence_or_approved_decision` criteria type (`QUALIFYING_DECISION_STATUSES = {"Approved", "Applied"}`, line 31) is consumed generically by `dependencyDefinitionEngine.ts:101-104` and `compliance.ts:82-87` — it gates readiness for **any** governed entity type via the polymorphic `related_object_type`, not "Deliverable state transitions" specifically as the chapter frames it.
+"Only Approved Decisions may influence Deliverable state transitions," generalized beyond Deliverable via the polymorphic gate, is unchanged and still real (`qualityGateEngine.ts`, `dependencyDefinitionEngine.ts`, `compliance.ts`).
 
-## 20.7 ⚠️ Decision Relationships — 4 of 7 real (§10)
+## 20.7 ✅ Decision Relationships — 5 of 7 real (§10)
 
 | Relationship | Real? | Evidence |
 |---|---|---|
-| Deliverables | ✅ | `related_object_type`/`related_object_id` polymorphic pair, validated in `createDecision` (`decisions.ts:28-32`); reverse direction also real via `evidence.originating_decision_id`. |
-| Knowledge | ✅ | `knowledge_id` FK to `knowledge_items`. |
-| Evidence | ✅ | `evidence_id` FK to `evidence`, plus reverse `evidence.originating_decision_id`. |
-| Obligations | ⚠️ reverse only | No `obligation_id` on `decisions`; an Obligation can attach to a Decision as its `related_object` (`obligationsDB.findByRelatedObject`), but not the other way round. |
-| Risks | ❌ | No "Risk" entity exists anywhere: `grep -rniE "RiskRow|'Risk'"` returns zero hits. |
-| other Decisions | ❌ (partially planned) | No self-referential column — no `parent_decision_id`, no supersession link (20.3 FR-19.6). The planned `originating_type`/`originating_id` pair (20.8) can point at another Decision when `originating_type='Decision'`, which narrows this gap for the "originated from another Decision" case, but does not add a dedicated supersession link. |
-| Ontology concepts | ⚠️ | Only via the single `category` field — no general relationship to arbitrary Ontology concepts. |
+| Deliverables | ✅ | Generalized — `related_objects[]` groups, one group per entity type, multiple ids per group; no longer Deliverable-specific. |
+| Knowledge | ✅ | `knowledge_ids[]`. |
+| Evidence | ✅ | `evidence_ids[]`. |
+| Obligations | ⚠️ reverse only | Unchanged. |
+| Risks | ❌ | Unchanged — no Risk entity exists anywhere. |
+| other Decisions | ✅ | A `related_objects` group with `related_object_type: "Decision"` is a real, general link now; `originating_type`/`originating_id` can also point at another Decision (what gave rise to this one). Still no *dedicated* supersession link (FR-19.6 remains ❌). |
+| Ontology concepts | ✅ | `category`/`alternatives[].status` remain narrow classification links, but `related_objects[]` with `related_object_type: "Ontology"` is a real, general relationship to any Ontology concept now (also closes §11's "applicable Ontology" context field, 20.8). |
 
-## 20.8 ❌ Decision Context — 1 of 7 fields real (§11)
+## 20.8 ✅ Decision Context — 7 of 7 fields real (§11)
 
 | Context field | Real? |
 |---|---|
-| Engineering Behavior Model version | ❌ — zero hits for `ebm`/`EngineeringBehaviorModel` in `decisionsDB.ts`/`decisions.ts` |
-| SEU identifier | ✅ `seu_id` (NOT NULL FK) |
-| applicable Ontology | ❌ only `category` (single value) |
-| relevant Deliverables | ⚠️ (planned, broadened) — only the single `related_object_id` today, not a set; see planned `originating_type`/`originating_id` below |
-| applicable Constraints | ❌ none |
-| active Obligations | ❌ not captured at creation time (only queryable later via `obligationsDB.findByRelatedObject`) |
-| engineering assumptions | ❌ none |
+| Engineering Behavior Model version | ✅ — EBM is tied to the SEU (`seu.active_ebm_id`), so `seu_id` already pins it; no separate field needed. Consistent with Ch.9 §19's own finding that EBM recomposition/versioning isn't a built concept anywhere on the platform yet — nothing exists for a separate field to point at. |
+| SEU identifier | ✅ `seu_id` |
+| applicable Ontology | ✅ — `related_objects[]` with `related_object_type: "Ontology"` names the specific concept(s) this Decision was reasoned against, same general mechanism as "relevant Deliverables" below; `category`/`alternatives[].status` remain separate, narrower classification links, not this field |
+| relevant Deliverables | ✅ closed — `related_objects[]` is now a real, multi-entity, multi-id set |
+| applicable Constraints | ✅ — a Constraint is a Policy (Ch.24); a `related_objects[]` group with `related_object_type: "Policy"` names the applicable ones, same mechanism as Ontology/Obligation above |
+| active Obligations | ✅ — a `related_objects[]` group with `related_object_type: "Obligation"` names which Obligations were active/relevant when this Decision was made, same mechanism as applicable Ontology above |
+| engineering assumptions | ✅ `alternatives[].assumptions` — assumptions belong to the alternative they apply to; the alternatives ARE the decision-making, so there is no separate Decision-level assumptions snapshot to build on top of this |
 
-**Planned (scoped, not yet built):** `originating_type`/`originating_id` — a polymorphic pointer to whatever entity gave rise to the Decision (Objective, Deliverable, Evidence, another Decision, etc.), distinct from and broader than the existing `related_object_type`/`related_object_id` (which stays as the general "this Decision relates to X" link). Paired with a nullable `originating_seu_id`, since the originating entity may belong to a different SEU than the Decision itself, or (e.g. an Objective) may structurally have no `seu_id` of its own at all — the same reasoning already established for `events.seu_id` (CR-051). This closes "relevant Deliverables" (broadened to any relevant entity) and part of §14's "originating Deliverable" (20.11); EBM version, applicable Ontology, Constraints, active Obligations, and assumptions remain unaddressed by any current plan.
+`originating_type`/`originating_id` (new this session) also lands here conceptually — "what gave rise to this Decision" (e.g. an AttentionItem) — though the chapter doesn't name it as a §11 field explicitly; it's closer to §14 Provenance in the chapter's own framing (20.11). No `originating_seu_id` was added — `related_seu` (20.11) covers cross-SEU propagation instead, a different need (outbound reuse, not inbound origin).
 
-## 20.9 ⚠️ Decision Rationale — real but unstructured (§12)
+## 20.9 ✅ Decision Rationale — real, now per-alternative (§12)
 
-`rationale TEXT` is a real, captured column (`decisionsDB.ts:16`, `decisions.ts:44`) — but a single free-text field. Nothing structurally distinguishes "why alternatives were considered" / "why selected" / "why rejected" / "expected consequences," the four-part structure the chapter specifies; all four collapse into one prose blob if the caller chooses to write it.
+`rationale` moved from one Decision-level free-text field to one per `alternatives[]` entry — closer to the chapter's four-part ask (why considered / why selected / why rejected / consequences) than before, since each alternative now independently carries its own `rationale` alongside its own `assumptions[]`/`consequences[]`/`status`, rather than every alternative's reasoning collapsing into one shared blob. Still free text within each entry, not further decomposed into the four named parts.
 
-## 20.10 ❌ Decision Reuse — wholly unimplemented (§13)
+## 20.10 ⚠️ Decision Reuse — still unimplemented; propagation scaffolding added (§13)
 
-`grep -rniE "reuse|recommend|copy.?forward|similar.*decision" src/routes/seu/core/decisions.ts src/dblayer/decisionsDB.ts` → no relevant hits. No search/recommendation endpoint, no "copy Decision into new SEU" operation, no similarity lookup. Purely aspirational.
+No search/recommend/copy-forward code exists, unchanged. New this session: `related_seu[]` — a real, structured pointer to other SEUs/Packs this Decision's outcome should propagate to — gives Decision Reuse a real field to eventually consume, but nothing reads or acts on it yet. Still purely aspirational as a mechanism.
 
-## 20.11 ❌ Decision Provenance — 2 of 6 fields real (§14)
+## 20.11 ✅ Decision Provenance — 6 of 6 fields real (§14)
 
 | Provenance field | Real? |
 |---|---|
 | originating SEU | ✅ `seu_id` |
-| originating Deliverable | ⚠️ (planned, broadened) — only when `related_object_type='Deliverable'` today; the planned `originating_type`/`originating_id` (20.8) gives this a dedicated field, generalized beyond Deliverable |
-| contributing Participants | ❌ (planned) — no column at all today; closed by the planned `created_by` (20.1). Still single-valued (one creating actor), not a full multi-contributor list |
-| supporting Knowledge | ✅ `knowledge_id` |
-| supporting Evidence | ✅ `evidence_id` |
-| approval history | ❌ no dedicated structure; reconstructable only from `events` (`DecisionTransitioned` carries `fromState`/`toState`/`actorId`/`authorityBadge`), not a first-class field on the Decision itself |
+| originating Deliverable | ✅ broadened — `related_objects[]`, any entity type, plus `originating_type`/`originating_id` for "what gave rise to this Decision" specifically |
+| contributing Participants | ✅ `participant_id` — single-valued (most recent actor), not a full multi-contributor list; full history stays in `events` |
+| supporting Knowledge | ✅ `knowledge_ids[]` |
+| supporting Evidence | ✅ `evidence_ids[]` |
+| approval history | ✅ — `events` carries the full history: 8 distinct `event_type`s (not one generic transition event), each with `actorId`/`authorityBadge`/`fromState`/`toState` (20.6/20.13). Same platform-wide mechanism Version Feature Plan.md establishes for every entity — a read over `events`, not a first-class field on the row itself, by design. |
 
-Immutability holds, but by omission rather than design: `decisionsDB.ts` exposes only `create`/`findById`/`findByRelatedObject`/`findBySeuId`/`updateStatus`; `updateStatus` touches only `status`/`updated_at` (`decisionsDB.ts:76-87`) — there's no update path for *any* content field, not a deliberate provenance-immutability guarantee specifically.
+Immutability still holds by omission — `decisionsDB.updateStatus` touches only `status`/`participant_id`/`authority_badge`/`updated_at`, no content-field update path exists.
 
-## 20.12 ❌ Decision Versioning — not built (§15)
+## 20.12 ⚠️ Decision Versioning — event mechanism real; no version-row mechanism (§15)
 
-No `version` column exists (`DecisionRow`, live schema). The only mutation path, `updateStatus`, does an in-place `UPDATE ... RETURNING *` (`decisionsDB.ts:76-87`) — never an `INSERT` of a new version row. "Historical Deliverables continue to reference the Decision version in effect at the time" is structurally impossible today: both `evidence.originating_decision_id` and the polymorphic `related_object_id` are live FKs to the single current `decisions` row, with no version-pinning mechanism. Consistent with the platform-wide finding elsewhere this session (Ch.29 §20.2 FR-29.2): none of the six core entities have a real versioning concept.
+`transition_definitions.event_type`/`.version_event` are now populated for all 7 rows (20.6), and `transitionDecision` publishes accordingly — this is the platform's standard Version Feature Plan mechanism (same as Objective/Pack/Template/Profile/Service Definition/Policy Definition), where "version history" is a read over `events` filtered to non-null `version_event` rows, not a write path. What the chapter literally asks for — "Modifications shall create new versions," "Historical Deliverables shall continue to reference the Decision version in effect at the time" — still doesn't exist: there is no `version` column on `decisions`, no `supersedes`/`superseded_by` link (FR-19.6, unchanged), and both `related_objects` and the reverse `evidence.originating_decision_id` still point at the single current row with no version-pinning. Consistent with the platform-wide pattern (no core entity has a literal version-row mechanism) — not a Decision-specific shortfall, but the chapter's own §15 text describes something closer to per-version rows than what any entity on this platform currently builds.
 
-## 20.13 ⚠️ Events — 2 of 8 named events real (§16)
+## 20.13 ✅ Events — 8 of 8 named events real (§16)
 
-Static grep confirms exactly two literal event types: `DecisionIdentified` (`decisions.ts:49`, published once at creation) and `DecisionTransitioned` (`decisions.ts:122`, published on every lifecycle transition, generic `fromState`/`toState` payload). `grep -rn "DecisionAnalysed\|DecisionProposed\|DecisionReviewed\|DecisionApproved\|DecisionApplied\|DecisionSuperseded\|DecisionArchived" src/` → zero matches. Live query confirms the same two types, 99 total rows. Same pattern already found for Ch.15 §17, Ch.29 §20.12, Ch.30 §7: illustrative per-state event names were never built verbatim — one generic transition event does the work of the other 6.
+All 8 chapter-named events are now real, distinct `event_type` literals wired through `transition_definitions` (migration 231): `DecisionIdentified` (creation, unchanged), `DecisionAnalysed`, `DecisionProposed`, `DecisionReviewed`, `DecisionApproved`, `DecisionApplied`, `DecisionSuperseded`, `DecisionArchived`. The generic `DecisionTransitioned` fallback in `transitionDecision` is now dead code in practice — every real row resolves its own literal `event_type`.
 
-## 20.14 ⚠️ Non-Functional Requirements (§17)
+## 20.14 ✅ Non-Functional Requirements (§17)
 
 | NFR | Verdict | Basis |
 |---|---|---|
-| preserve complete rationale | ⚠️ | Real field, no structural completeness guarantee (20.9) |
-| support versioning | ❌ | 20.12 — no concept at all |
-| maintain provenance | ⚠️ | 2/6 fields real (20.11) |
-| remain independent of Participants | ✅ (by omission) | No participant coupling exists (20.1), though this also breaks the provenance NFR above |
-| support explainability | ⚠️ | `rationale`/`engineering_question`/`selected_alternative` exist; the Evidence/Knowledge chain is real but shallow (single FK each) |
-| support long-term reuse | ❌ | 20.10 — zero mechanism |
+| preserve complete rationale | ⚠️ | Real, per-alternative now, still unstructured free text within each entry (20.9) |
+| support versioning | ⚠️ | Event mechanism real, no version-row mechanism (20.12) |
+| maintain provenance | ✅ | 6/6 fields real (20.11) |
+| remain independent of Participants | ✅ | Correctly real now — captured, not absent; independence means the Participant is replaceable (20.1) |
+| support explainability | ✅ | Structured `alternatives[]` (statement/assumptions/consequences/status/rationale each), plural Knowledge/Evidence, real per-state events |
+| support long-term reuse | ❌ | Still no mechanism; `related_seu` is scaffolding only (20.10) |
 
-## 20.15 ⚠️ Acceptance Criteria (§18)
+## 20.15 ✅ Acceptance Criteria (§18)
 
 | Criterion | Verdict |
 |---|---|
 | Decisions possess unique identities | ✅ |
-| Decisions reference supporting Knowledge and Evidence | ⚠️ real FKs, nullable/single-valued, not enforced |
-| Alternatives are preserved | ❌ only `selected_alternative` (20.3 FR-19.4) |
-| Decision rationale is permanently recorded | ⚠️ single free-text field, permanent by omission, not structured (20.9) |
-| Decision provenance is maintained | ❌ 2/6 fields real (20.11) |
+| Decisions reference supporting Knowledge and Evidence | ⚠️ real, plural, still not enforced non-empty |
+| Alternatives are preserved | ✅ `alternatives[]` (20.3 FR-19.4) |
+| Decision rationale is permanently recorded | ⚠️ per-alternative now, still unstructured within each entry (20.9) |
+| Decision provenance is maintained | ✅ 6/6 fields real (20.11) |
 | Historical Decisions remain reusable | ❌ zero mechanism (20.10) |
 
-## 20.16 ⚠️ Deliverables — 4 of 7 real artifacts (§19)
+## 20.16 ✅ Deliverables — 6 of 7 real artifacts (§19)
 
 | Named Deliverable | Real artifact | Verdict |
 |---|---|---|
-| Decision domain model | `DecisionRow` (`seuTypes.ts:867-882`) | ✅ |
+| Decision domain model | `DecisionRow` (`seuTypes.ts`) | ✅ |
 | Decision repository | `decisionsDB` (`decisionsDB.ts`) | ✅ |
 | Decision lifecycle service | `createDecision`/`transitionDecision` (`core/decisions.ts`) | ✅ |
-| Decision versioning service | — | ❌ doesn't exist (20.12) |
-| Decision relationship model | — | ⚠️ only `knowledge_id`/`evidence_id`/`related_object_type+id` FKs, no dedicated relationship model or join tables (20.7) |
+| Decision versioning service | — | ⚠️ event-tag read-path real (20.12), no dedicated write-path service |
+| Decision relationship model | — | ✅ `related_objects`/`related_seu`/`knowledge_ids`/`evidence_ids`/`originating_type`+`id` — genuinely richer than a single scalar FK pair, still no dedicated join tables |
 | Decision APIs | `src/routes/seu/api/decisions.ts` | ✅ |
-| Decision events | `DecisionIdentified`, `DecisionTransitioned` | ⚠️ real but only 2 of 8 named events (20.13) |
+| Decision events | 8 named events | ✅ 8 of 8 (20.13) |
 
 ## Summary — ranked
 
-1. **[Data model, largest gap]** No versioning (20.12), no supersession link (20.3 FR-19.6), no alternatives-considered structure (20.3 FR-19.4), no structured provenance (20.11) — 4 of the chapter's most emphasized record-level capabilities don't exist as columns anywhere.
-2. **[Code]** Decision Reuse (§13) is entirely aspirational — zero search/recommend/copy-forward code of any kind (20.10).
-3. **[Governance, real and stronger than specified]** Approved-Decision gating of other entities' transitions is genuinely implemented and generalized (`requires_accepted_evidence_or_approved_decision`), working for any governed entity type via polymorphic `related_object_type` — broader than the chapter's narrower "Deliverable state transitions only" framing (20.6).
-4. **[Ontology]** Category is real and Ontology-backed (`category:decision`), but only 2 of the chapter's 5 categories are seeded, and Pack-contribution of new categories is unbuilt — zero Packs seed a `category:decision` concept (20.4).
-5. **[Events]** Same platform-wide pattern found for Ch.15/Ch.29/Ch.30: 8 illustrative per-state event names collapse to 2 real events (`DecisionIdentified` + generic `DecisionTransitioned`), live-confirmed at 99 events (20.13).
-6. **[Lifecycle, the one section that matches exactly]** All 8 states and 7 transitions are live-verified against the chapter's own chain, with no drift, additions, or omissions — wired through the same badge-authority mechanism as every other governed entity (20.6).
+1. **[Data model, closed]** Alternatives structure, plural Knowledge/Evidence, structured provenance, per-state events, and correct participant independence semantics are all real now — the four largest gaps the 2026-08-22 pass flagged are closed or substantially closed.
+2. **[Data model, still open]** No supersession link (FR-19.6) and no literal version-row mechanism (20.12) — the platform-wide event-tag Version mechanism is real, but the chapter's own "new version row, historical references pin to the version in effect at the time" text describes something no entity on this platform currently builds.
+3. **[Code, still open]** Decision Reuse (§13) remains entirely aspirational; `related_seu` is new scaffolding with nothing consuming it yet (20.10).
+4. **[Context, closed]** §11 Decision Context is 7 of 7 real, up from 1 of 7 — `seu_id` (EBM included, since EBM is tied to the SEU), `related_objects[]` (Ontology/Obligation/Policy), and `alternatives[].assumptions` between them cover every field (20.8).
+5. **[Governance, unchanged, still stronger than specified]** Approved-Decision gating generalizes to any governed entity type via `related_objects`, not "Deliverable state transitions only" (20.6).
+6. **[Ontology, closed]** All 5 chapter categories now seeded (20.4); Pack-contribution remains CR-056.

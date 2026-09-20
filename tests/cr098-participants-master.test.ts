@@ -37,7 +37,7 @@ test("createParticipantMaster: a fully-valid Human resource is created and round
     type: "Human",
     displayName: `CR-098 fixture Human ${randomUUID()}`,
     capabilities: [REAL_CAPABILITY_CODE],
-    competency: { Technology: ["nodejs", "react"], Domain: ["customer-service"] },
+    competency: { Technology: [{ code: "nodejs", proficiency: "Expert" }, { code: "react", proficiency: "Intermediate" }], Domain: [{ code: "customer-service", proficiency: "Novice" }] },
     behaviourContext: [{ policy: "background-verification", payload: { status: "cleared" } }],
   });
   assert.ok(participant.id);
@@ -46,7 +46,7 @@ test("createParticipantMaster: a fully-valid Human resource is created and round
   const { data: reloaded } = await participantsMasterDB.findById(participant.id);
   assert.ok(reloaded);
   assert.deepEqual(reloaded!.capabilities, [REAL_CAPABILITY_CODE]);
-  assert.deepEqual(reloaded!.competency, { Technology: ["nodejs", "react"], Domain: ["customer-service"] });
+  assert.deepEqual(reloaded!.competency, { Technology: [{ code: "nodejs", proficiency: "Expert" }, { code: "react", proficiency: "Intermediate" }], Domain: [{ code: "customer-service", proficiency: "Novice" }] });
   assert.deepEqual(reloaded!.behaviour_context, [{ policy: "background-verification", payload: { status: "cleared" } }]);
 });
 
@@ -77,7 +77,7 @@ test("createParticipantMaster: rejects a competency dimension that is not a real
       tenantId: tenantId(),
       type: "Human",
       displayName: "CR-098 invalid-dimension fixture",
-      competency: { NotARealDimension: ["nodejs"] },
+      competency: { NotARealDimension: [{ code: "nodejs", proficiency: "Expert" }] },
     })
   );
 });
@@ -88,7 +88,7 @@ test("createParticipantMaster: rejects a competency value not seeded under its d
       tenantId: tenantId(),
       type: "Human",
       displayName: "CR-098 invalid-competency-value fixture",
-      competency: { Technology: [`not-a-real-technology-${randomUUID()}`] },
+      competency: { Technology: [{ code: `not-a-real-technology-${randomUUID()}`, proficiency: "Expert" }] },
     })
   );
 });
@@ -123,21 +123,21 @@ test("findEligibleParticipants: competency filter is ANY-within-a-dimension, ALL
     type: "Human",
     displayName: `CR-098 matches-both ${randomUUID()}`,
     capabilities: [capabilityCode],
-    competency: { Technology: ["nodejs"], Domain: ["customer-service"] },
+    competency: { Technology: [{ code: "nodejs", proficiency: "Expert" }], Domain: [{ code: "customer-service", proficiency: "Expert" }] },
   });
   const matchesOnlyTechnology = await createParticipantMaster({
     tenantId: tenantId(),
     type: "Human",
     displayName: `CR-098 matches-only-technology ${randomUUID()}`,
     capabilities: [capabilityCode],
-    competency: { Technology: ["react"] },
+    competency: { Technology: [{ code: "react", proficiency: "Expert" }] },
   });
   const matchesNeither = await createParticipantMaster({
     tenantId: tenantId(),
     type: "Human",
     displayName: `CR-098 matches-neither ${randomUUID()}`,
     capabilities: [capabilityCode],
-    competency: { Technology: ["rust"] },
+    competency: { Technology: [{ code: "rust", proficiency: "Expert" }] },
   });
 
   // Required: Technology in {nodejs, react} AND Domain in {customer-service}.

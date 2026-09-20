@@ -239,6 +239,17 @@ export async function unravelComposition(input: { templateIds: string[]; profile
       additionalCapabilityCodes: draft.additionalCapabilityCodes,
       featureFlagCodes: draft.featureFlagCodes,
       compositionOptions: draft.compositionOptions,
+      // CR-109 Build Plan §1/§4 — carried onto the EBM's own behaviors.pool
+      // the same way every other Configuration Parameter already is; the
+      // Work Item Generator (Build Plan §6) reads knowledgeLocations off
+      // this pool for its Execution Context, and the Dispatch Engine (Build
+      // Plan §9) reads dispatchStrategyPreference the same way.
+      dispatchStrategyPreference: draft.dispatchStrategyPreference,
+      knowledgeLocations: draft.knowledgeLocations,
+      readme: draft.readme,
+      // Ch.33 §14 Redispatch — N/M, same generic pool carry-forward.
+      redispatchMaxAttempts: draft.redispatchMaxAttempts,
+      redispatchAttentionThreshold: draft.redispatchAttentionThreshold,
     };
     for (const [propertyName, value] of Object.entries(simpleFields)) {
       if (value === undefined || value === null) continue;

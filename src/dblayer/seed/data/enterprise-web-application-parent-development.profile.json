@@ -6,6 +6,9 @@
   "developmentMethodology": "scrum",
   "primaryProgrammingLanguage": "typescript",
   "sourceControlProvider": "github",
+  "dispatchStrategyPreference": [{ "strategy": "capability-match", "order": 1 }],
+  "redispatchMaxAttempts": 5,
+  "redispatchAttentionThreshold": 2,
   "optionalPackCodes": ["testing-qa"],
   "technologyPackCodes": ["technology-nodejs", "technology-react"]
 }

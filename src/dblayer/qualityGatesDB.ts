@@ -51,9 +51,12 @@ export const qualityGatesDB = {
       const checklistIds = input.checklistIds ?? [];
       const recommendedChecklistIds = input.recommendedChecklistIds ?? [];
       const applicabilityDeliverableNames = input.applicabilityDeliverableNames ?? [];
+      // Bug fix — scoped by originating_pack_id too (migration 248), so a
+      // different Pack republishing the same content at this identity is
+      // treated as its own row, not a no-op against another Pack's row.
       const { rows: currentRows } = await client.query<QualityGateRow>(
-        "SELECT * FROM quality_gates WHERE entity_type = $1 AND from_state = $2 AND to_state = $3 AND category = $4 AND is_active = true",
-        [input.entityType, input.fromState, input.toState, category]
+        "SELECT * FROM quality_gates WHERE entity_type = $1 AND from_state = $2 AND to_state = $3 AND category = $4 AND originating_pack_id = $5 AND is_active = true",
+        [input.entityType, input.fromState, input.toState, category, input.originatingPackId]
       );
       const current = currentRows[0];
       const unchanged =

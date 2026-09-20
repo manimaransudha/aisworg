@@ -30,10 +30,18 @@ import app from "../src/app.js";
 import { appConfig } from "../src/config/appconfig.js";
 import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { workItemsDB } from "../src/dblayer/workItemsDB.js";
+import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
+import { publishProfile } from "../src/routes/seu/core/profiles.js";
+import { commissionSeu as commissionSeuCore } from "../src/routes/seu/core/commissioning.js";
 import { createObjective } from "../src/routes/seu/core/objectives.js";
 import { objectivesDB } from "../src/dblayer/objectivesDB.js";
-import { ensureWebAppTemplateFixture, uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant } from "./testFixtures.js";
+import { templatesDB } from "../src/dblayer/templatesDB.js";
+import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
+import { profilesDB } from "../src/dblayer/profilesDB.js";
+import { ensureWebAppTemplateFixture, uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, waitUntilAsync, resolveDispatchRejectionObligations } from "./testFixtures.js";
+import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
+import type { CommandRow, WorkItemRow } from "../src/dblayer/seuTypes.js";
 
 type Session = ReturnType<typeof fetchCookie>;
 
@@ -205,8 +213,30 @@ async function commissionSeu(request: Session, statementPrefix: string): Promise
   // so this drives it straight through deterministically rather than relying
   // on eventBus.publish's own fire-and-forget dispatch or simulating the two
   // extra button clicks over HTTP.
-  const driven = await driveCommissioningToActive({ seuId, actorRole: "super", actorId: String(TEST_USER_ALL_BADGES) });
+  // This file commissions a fresh SEU per Flow/Phase test (13+ in one file,
+  // heavier than the "one SEU per test" norm driveCommissioningToActive's own
+  // default timeout was sized for) — under real concurrent full-suite load
+  // the default 15s can run out before finalizeCommissioning's own async
+  // chain reaches Operational, even though it always does eventually. Longer
+  // override, per timeoutMs's own doc comment.
+  const driven = await driveCommissioningToActive({ seuId, actorRole: "super", actorId: String(TEST_USER_ALL_BADGES), timeoutMs: 45000 });
   assert.equal(driven.ok, true, !driven.ok ? `commissioning failed: ${driven.reason}` : undefined);
+
+  // deliverableKickoffHandler's own automatic rescan (off SEUOperational,
+  // and again off every later DeliverableTransitioned/resolved
+  // ObligationTransitioned) hits whichever Deliverable it can reach with an
+  // as-yet-unfulfilled Capability — a real, by-design empty_eligible_pool
+  // Obligation/Attention Item, not any of these Flows' own scenario.
+  //
+  // Deliberately NOT swept here. resolveDispatchRejectionObligations walks
+  // the Obligation all the way to "Verified" — a resolved status
+  // deliverableKickoffHandler is ALSO subscribed to — which re-triggers the
+  // exact same rescan. As long as the Capability is still unfulfilled (true
+  // here: every fulfil happens later, over the web form, in each Flow/Phase
+  // test's own body), that rescan hits empty_eligible_pool again and raises
+  // a NEW Obligation — an oscillation a sweep at this point can chase but
+  // never actually end. Each Flow/Phase test below sweeps for itself, after
+  // its own fulfil step, once the cycle can no longer recur.
 
   // Test fixture only — no core eligibility logic touched. Under real
   // concurrent suite load the shared, finite seedParticipantsMaster.ts pool
@@ -232,11 +262,29 @@ async function commissionSeu(request: Session, statementPrefix: string): Promise
 // governance-blocked transition creates no Work Item and is asserted directly
 // on the form POST instead.
 async function completeOutstanding(request: Session, seuId: string, deliverableId: string, targetState: string): Promise<void> {
-  const { data: commands } = await commandsDB.findBySeuId(seuId);
-  const command = (commands ?? []).find((c) => c.entity_id === deliverableId && c.to_state === targetState && c.status === "Dispatched");
-  assert.ok(command, `expected a Dispatched Command for ${deliverableId} -> ${targetState} (did governance block it?)`);
-  const { data: workItems } = await workItemsDB.findByCommandIds([command!.id]);
-  const workItem = (workItems ?? []).find((w) => w.status === "Dispatched");
+  // Command generation, Work Item generation and Dispatch all run in their
+  // own async consumers now (executionEngine.ts/dispatchEngine.ts's own
+  // header comments) — the form POST's 302 lands before any of that has
+  // necessarily finished, so this must poll rather than assume it's already
+  // Dispatched.
+  let command: CommandRow | undefined;
+  await waitUntilAsync(async () => {
+    const { data: commands } = await commandsDB.findBySeuId(seuId);
+    command = (commands ?? []).find((c) => c.entity_id === deliverableId && c.to_state === targetState && c.status === "Dispatched");
+    return !!command;
+  });
+  assert.ok(command, `expected a Dispatched Command for ${deliverableId} -> ${targetState} (did governance block it, or did Dispatch reject/defer it?)`);
+  // dispatchEngine.dispatch() flips the Command's own status to "Dispatched"
+  // (commandsDB.updateStatus) several awaited steps before the Work Item's
+  // own status follows (workItemsDB.updateStatus) — a real, if normally
+  // tiny, in-process gap. A single un-retried lookup right after the Command
+  // poll above can catch the Work Item still mid-flight; poll it too.
+  let workItem: WorkItemRow | undefined;
+  await waitUntilAsync(async () => {
+    const { data: workItems } = await workItemsDB.findByCommandIds([command!.id]);
+    workItem = (workItems ?? []).find((w) => w.status === "Dispatched");
+    return !!workItem;
+  });
   assert.ok(workItem, `expected an outstanding Work Item for ${targetState}`);
   const res = await request(`${baseUrl}/api/seu/work-items/${workItem!.id}/result`, {
     method: "POST",
@@ -317,9 +365,20 @@ function findAssignedParticipant(html: string, code: string): { participantId: s
   return { participantId: match[1], displayName: match[2].trim() };
 }
 
-function findObligationId(html: string): string {
-  const match = html.match(/obligations\/([a-f0-9-]+)\/transition/);
-  if (!match) throw new Error("could not find an Obligation transition form on the page");
+// Unscoped is unsafe: "Verified -> Closed" is a real, valid hop
+// (transitionDefinitions.json), so a stray Obligation already swept to
+// Verified by resolveDispatchRejectionObligations still renders its own
+// transition form. A bare first-match regex can grab that already-terminal
+// row instead of the one this test just created, if it happens to render
+// earlier on the page. Scope to the row whose title button matches instead —
+// same per-row-scoping idiom as extractCapabilityCard.
+function findObligationId(html: string, title: string): string {
+  const titleIndex = html.indexOf(`>${title}</button>`);
+  if (titleIndex === -1) throw new Error(`could not find an Obligation row titled "${title}" on the page`);
+  const rowEnd = html.indexOf("</tr>", titleIndex);
+  const row = html.slice(titleIndex, rowEnd === -1 ? html.length : rowEnd);
+  const match = row.match(/obligations\/([a-f0-9-]+)\/transition/);
+  if (!match) throw new Error(`could not find a transition form on the Obligation row titled "${title}"`);
   return match[1];
 }
 
@@ -380,9 +439,22 @@ test("Flow 3 — Deliverable transition, valid: a Participant-fulfilled Delivera
 
   // Model A: the form POST dispatches — the flash reports it as dispatched-and-
   // outstanding, and the Deliverable is still "Defined" until a result lands.
+  //
+  // deliverableKickoffHandler's own automatic rescan (off SEUOperational) can
+  // legitimately have already requested this exact governed hop before this
+  // POST lands — the "manual" trigger tag only controls button visibility,
+  // not who/what may attempt the transition. Either this call's own request
+  // dispatches (alert-success, seus.ts's own "requested... until dispatched"
+  // copy) or it collides with one already in flight (alert-danger, "already
+  // {status} (Command ...)" — transitionDeliverable's own already_in_flight
+  // detail text, no literal "flight" substring) — a real Command either way,
+  // just differing in who got there first; completeOutstanding below finds
+  // whichever one is actually outstanding.
   const afterDispatch = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterDispatch.html, /alert-success/);
-  assert.match(afterDispatch.html, /dispatched to a Participant/);
+  assert.ok(
+    /alert-success[\s\S]*?requested\. It stays in/.test(afterDispatch.html) || /alert-danger[\s\S]*?already[\s\S]*?\(Command /.test(afterDispatch.html),
+    afterDispatch.html
+  );
   assert.match(afterDispatch.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-Defined">Defined/, "dispatched, not yet applied");
 
   // The Participant reports `done` -> the result-in callback drives the move.
@@ -434,6 +506,11 @@ test("Flow 5 — Deliverable transition, dependency gating (regression: must nev
   // specifically, the one that actually broke before.
   await postForm(request, `/seu/seus/${seuId}/capabilities/${reqCapabilityId}/fulfil`, csrf, { participantMasterIds: reqParticipantMasterId });
   await postForm(request, `/seu/seus/${seuId}/capabilities/${archCapabilityId}/fulfil`, csrf, { participantMasterIds: archParticipantMasterId });
+  // Now that both Capabilities are genuinely fulfilled, resolving the stray
+  // commissioning-time empty_eligible_pool Obligation can't recur (see
+  // commissionSeu's own comment) — this hop reaches Approved below, gated by
+  // the "No Unresolved Obligations" Quality Gate.
+  await resolveDispatchRejectionObligations(seuId);
 
   // B (Architecture Decision Record) depends on A (Requirements Analysis Model)
   // reaching 'Approved'. A is still 'Defined' — B must be blocked.
@@ -459,32 +536,63 @@ test("Flow 5 — Deliverable transition, dependency gating (regression: must nev
 
 // Post-MVP Phase 3 addition, per the brief's "How this expands" section: the
 // web route's externally-visible contract (form POST -> 302 + flash) is
-// unchanged, but a real Command and Work Item must now exist behind it, and
-// dispatch must genuinely defer — not silently apply the transition — when
-// nobody fulfils the producing Capability yet.
-test("Phase 3 — a dispatched web transition leaves a real Command and Work Item, and dispatch is genuinely deferred without a fulfilled Capability", async () => {
+// unchanged, but a real Command and Work Item must now exist behind it.
+//
+// Rewritten this session for the Ch.33 redesign: governance clearing and
+// dispatch outcome are no longer the same synchronous fact (executionEngine.ts/
+// dispatchEngine.ts's own header comments) — the web form POST always 302s
+// once governance clears, and an empty eligible-Participant pool (nobody
+// fulfils the Capability yet) is Dispatch's own case 1 (DispatchRejected,
+// Command marked Failed, an Obligation + Attention Item raised), not a
+// deferral, so there is no more "no Participant currently fulfils..." error
+// flash on the first attempt — that reason no longer exists.
+test("Phase 3 — a dispatched web transition leaves a real Command and Work Item, and dispatch genuinely rejects without a fulfilled Capability", async () => {
   const request = newSession();
   const { seuId, csrf } = await commissionSeu(request, "webflow-phase3");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
-  // Nobody fulfils the Capability yet — Dispatch must defer, not apply the transition.
-  const deferred = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "In Progress" });
-  assert.equal(deferred.status, 302);
-  const afterDeferred = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterDeferred.html, /no Participant currently fulfils this Deliverable&#39;s producing Capability/);
-  assert.match(afterDeferred.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-Defined">Defined/, "the Deliverable must not have moved while dispatch was deferred");
+  // Nobody fulfils the Capability yet — governance still clears (dependency/
+  // authority/policy are all fine), so the request itself succeeds; Dispatch
+  // rejects the empty pool asynchronously, marking the Command Failed.
+  //
+  // deliverableKickoffHandler (SEUOperational / DeliverableTransitioned /
+  // ObligationTransitioned) re-scans every Deliverable in the SEU and
+  // attempts each one's own next governed transition on its own initiative,
+  // the same governed check this manual POST also runs — the "manual"
+  // trigger tag only controls button visibility, not who/what may attempt
+  // the transition. So the platform's own automatic rescan can legitimately
+  // have already requested (and, with no fulfilled Capability, already had
+  // rejected) this exact hop before this POST lands: either this call's own
+  // request rejects, or it collides with one already in flight
+  // (already_in_flight, still a 302 — flashError also redirects) and the
+  // earlier one rejects instead. Either way there is at least one Failed
+  // Command, never a successful dispatch, before fulfilment — the real
+  // behaviour under test.
+  const rejected = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "In Progress" });
+  assert.equal(rejected.status, 302);
+  await waitUntilAsync(async () => {
+    const { data: commands } = await commandsDB.findBySeuId(seuId);
+    return commands?.some((c) => c.status === "Failed") ?? false;
+  });
+  const afterRejected = await getPage(request, `/seu/seus/${seuId}`);
+  assert.match(afterRejected.html, /Requirements Analysis Model<br[\s\S]*?state-badge state-Defined">Defined/, "the Deliverable must not have moved after Dispatch rejected the empty pool");
 
-  const { data: deferredCommands } = await commandsDB.findBySeuId(seuId);
-  assert.equal(deferredCommands?.length, 1);
-  assert.equal(deferredCommands?.[0]?.status, "Deferred");
-  assert.equal(deferredCommands?.[0]?.from_state, "Defined");
-  assert.equal(deferredCommands?.[0]?.to_state, "In Progress");
+  const { data: rejectedCommands } = await commandsDB.findBySeuId(seuId);
+  assert.ok(rejectedCommands && rejectedCommands.length >= 1, "expected at least one Command for the rejected hop");
+  for (const c of rejectedCommands ?? []) {
+    assert.equal(c.status, "Failed");
+    assert.equal(c.from_state, "Defined");
+    assert.equal(c.to_state, "In Progress");
+  }
+  const priorFailedCount = rejectedCommands!.length;
 
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
   const participantMasterId = findEligibleParticipantMasterId(before1.html, "requirements-analysis");
   await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantMasterIds: participantMasterId });
 
+  // The earlier Command is Failed, not in-flight (commandsDB.findInFlight),
+  // so this retry is free to generate a brand new Command for the same hop.
   const dispatched = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "In Progress" });
   assert.equal(dispatched.status, 302);
 
@@ -493,16 +601,20 @@ test("Phase 3 — a dispatched web transition leaves a real Command and Work Ite
   await completeOutstanding(request, seuId, deliverableId, "In Progress");
 
   const { data: commands } = await commandsDB.findBySeuId(seuId);
-  assert.equal(commands?.length, 2, "one Deferred Command from the first attempt, one Completed Command from the dispatched retry");
+  assert.equal(commands?.length, priorFailedCount + 1, "the earlier rejected attempt(s), plus one Completed Command from the dispatched retry");
   const completed = commands?.find((c) => c.status === "Completed");
   assert.ok(completed, "expected exactly one Completed Command");
   assert.equal(completed?.from_state, "Defined");
   assert.equal(completed?.to_state, "In Progress");
+  assert.equal(commands?.filter((c) => c.status === "Failed").length, priorFailedCount, "every earlier attempt must still be Failed, untouched by the retry");
 
   const { data: workItems } = await workItemsDB.findByCommandIds([completed!.id]);
   assert.equal(workItems?.length, 1, "Ch.32 FR-32.1: exactly one Work Item for this one Command");
   assert.equal(workItems?.[0]?.status, "Disposed", "Ch.32 §13: a completed Work Item is disposed");
-  assert.equal(workItems?.[0]?.dispatch_strategy, "sole-eligible-participant");
+  // Ch.33 §9 — no dispatchStrategyPreference declared for this test's Profile,
+  // so selectParticipant falls back to the baseline "capability-match"
+  // strategy, not the pre-Ch.33-redesign "sole-eligible-participant" literal.
+  assert.equal(workItems?.[0]?.dispatch_strategy, "capability-match");
   assert.ok(workItems?.[0]?.participant_id, "expected the Work Item to be assigned to the fulfilling Participant");
 });
 
@@ -522,8 +634,25 @@ test("Phase 4 — a Quality Gate blocks a Deliverable transition while an Obliga
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
   await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantMasterIds: participantMasterId });
-  await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
+  // Now that the Capability is genuinely fulfilled, resolving the stray
+  // commissioning-time empty_eligible_pool Obligation can't recur (see
+  // commissionSeu's own comment) — done before this test raises its own
+  // Obligation below, so the later "1 unresolved Obligation(s)" count is
+  // exact, not off by the stray one.
+  await resolveDispatchRejectionObligations(seuId);
 
+  // The Obligation must exist before the Deliverable ever reaches "In
+  // Progress" — deliverableKickoffHandler's own automatic rescan (off the
+  // DeliverableTransitioned that completeOutstanding's "In Progress" step
+  // publishes) attempts "In Progress -> Approved" on its own initiative too,
+  // asynchronously and un-awaited (eventBus.publish is fire-and-forget for
+  // its subscribers). The "No Unresolved Obligations" Quality Gate only
+  // blocks what it can actually see: raising the Obligation afterward would
+  // leave a real window where that automatic attempt finds zero unresolved
+  // Obligations and is never blocked, racing the Deliverable to Approved
+  // before this test's own "blocked" check ever runs. Raising it first means
+  // every attempt at that hop — manual or the platform's own — sees the same
+  // Obligation and is blocked the same way, no matter which gets there first.
   const created = await postForm(request, `/seu/seus/${seuId}/obligations`, csrf, {
     deliverableId,
     category: "Security",
@@ -534,7 +663,9 @@ test("Phase 4 — a Quality Gate blocks a Deliverable transition while an Obliga
   const afterCreate = await getPage(request, `/seu/seus/${seuId}`);
   assert.match(afterCreate.html, /alert-success/);
 
-  const obligationId = findObligationId(afterCreate.html);
+  const obligationId = findObligationId(afterCreate.html, "WebFlow Phase4 obligation");
+
+  await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
 
   const blocked = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "Approved" });
   assert.equal(blocked.status, 302, "a blocked transition is still a graceful redirect, not a 500");
@@ -545,10 +676,15 @@ test("Phase 4 — a Quality Gate blocks a Deliverable transition while an Obliga
 
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
     const step = await postForm(request, `/seu/seus/${seuId}/obligations/${obligationId}/transition`, csrf, { targetState });
+    // A 302 alone can't distinguish success from a blocked transition —
+    // flashError also redirects. Verify the real, persisted state directly
+    // instead of trusting the ephemeral session flash a following GET might
+    // not see yet under real concurrent suite load (session-store write/read
+    // timing, unrelated to governance).
     assert.equal(step.status, 302, `Obligation transition to "${targetState}" must succeed`);
+    const { data: obligationAfterStep } = await obligationsDB.findById(obligationId);
+    assert.equal(obligationAfterStep?.status, targetState, `expected the Obligation to actually reach "${targetState}"`);
   }
-  const afterVerified = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterVerified.html, /alert-success/);
 
   await webTransitionAndComplete(request, seuId, csrf, deliverableId, "Approved");
   const afterUnblocked = await getPage(request, `/seu/seus/${seuId}`);
@@ -568,6 +704,11 @@ test("Phase 5 — a Deliverable transition requiring accepted Evidence is blocke
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
   await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantMasterIds: participantMasterId });
+  // Now that the Capability is genuinely fulfilled, resolving the stray
+  // commissioning-time empty_eligible_pool Obligation can't recur (see
+  // commissionSeu's own comment) — this Deliverable reaches Approved below,
+  // gated by the "No Unresolved Obligations" Quality Gate.
+  await resolveDispatchRejectionObligations(seuId);
   await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
   await webTransitionAndComplete(request, seuId, csrf, deliverableId, "Approved");
 
@@ -685,17 +826,19 @@ test("Phase 7 — Flow and Governance Telemetry are real, and a sustained patter
   assert.match(afterSustained.html, /Recurring friction: Quality Gate/);
   assert.match(afterSustained.html, /Organisational Learning &middot; High<\/td>\s*<td><span class="state-badge state-Identified">Identified/);
 
-  // A 4th attempt must not raise a second one. The Organisational Learning
-  // Obligation raised on attempt 3 is itself now an unresolved Obligation on
-  // this same Deliverable, so it correctly appears BY NAME in attempt 4's own
-  // flash message too (the gate is genuinely re-evaluating live data, not a
-  // bug) — fetch the page a second time so that one-off flash has already
-  // been consumed, leaving only the durable table row to count.
+  // A 4th attempt must not raise a second one. Asserted against real data,
+  // not by counting substring occurrences in the rendered HTML: a single
+  // durable Obligation row legitimately appears twice in the markup (the
+  // modal's own data-title attribute alongside the button's visible text,
+  // CR-083), and a blocked attempt's own flash message legitimately names
+  // every unresolved Obligation on the gate (qualityGateEngine.ts's
+  // no_unresolved_obligations reason includes this Obligation's own title
+  // once it exists) — neither is a duplicate raise, so counting raw HTML
+  // matches was never a reliable way to assert "raised exactly once."
   await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "Approved" });
-  await getPage(request, `/seu/seus/${seuId}`);
-  const afterFourth = await getPage(request, `/seu/seus/${seuId}`);
-  const occurrences = afterFourth.html.match(/Recurring friction: Quality Gate/g) ?? [];
-  assert.equal(occurrences.length, 1, "exactly one Organisational Learning Obligation, not one per blocked attempt");
+  const { data: obligationsAfterFourth } = await obligationsDB.findBySeuId(seuId);
+  const sustainedPatternObligations = (obligationsAfterFourth ?? []).filter((o) => o.category === "Organisational Learning" && o.title.startsWith("Recurring friction: Quality Gate"));
+  assert.equal(sustainedPatternObligations.length, 1, "exactly one Organisational Learning Obligation, not one per blocked attempt");
 
   // A real Governance metric: this gate now shows non-zero average latency.
   const telemetryAfter = await getPage(request, "/seu/telemetry");
@@ -708,10 +851,112 @@ function findExternalInteractionId(html: string): string {
   return match[1];
 }
 
-function findAttentionItemId(html: string): string {
-  const match = html.match(/attention\/([a-f0-9-]+)\/transition/);
-  if (!match) throw new Error("could not find an Attention Item transition form on the page");
-  return match[1];
+async function registerOrganisationName(code: string): Promise<void> {
+  await pool.query(
+    "INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id) VALUES ('organisation-name', $1, $2, '11111111-1111-1111-1111-111111111111') ON CONFLICT DO NOTHING",
+    [code, code]
+  );
+}
+
+// Phase 8's own fixture: an isolated, single-Capability Template/Pack/Profile
+// (same minimal idiom cr109-work-item-generator.test.ts's own
+// commissionIsolatedSeu uses), carrying its own "No Unresolved Obligations"
+// Quality Gate contribution — the one gate Phase 8 actually exercises.
+//
+// Not the shared ensureWebAppTemplateFixture Template: that one declares 3
+// required Capabilities (requirements-analysis/architecture-design/
+// software-construction) and every Flow/Phase test in this file only ever
+// fulfils one. resolveDispatchRejectionObligations sweeps stray
+// empty_eligible_pool Obligations/Attention Items SEU-wide, for every
+// Deliverable — including the other two, permanently-unfulfilled ones.
+// Resolving one of THEIR stray Obligations to Verified re-triggers
+// deliverableKickoffHandler's rescan (also subscribed to resolved
+// ObligationTransitioned), which immediately re-attempts that still-
+// unfulfilled Deliverable and raises a brand new stray — a self-
+// perpetuating oscillation no sweep placement can outrun, since the
+// underlying condition (empty pool) never actually changes for a
+// Capability the test never fulfils. Phase 8's own "exactly one Action
+// Required Attention Item" assertion is exactly what that oscillation
+// breaks. One Capability, one Deliverable: nothing left to oscillate.
+async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: string): Promise<{ seuId: string; csrf: string }> {
+  const packSeed = {
+    code: `webflow-phase8-isolated-pack-${randomUUID().slice(0, 8)}`,
+    name: "WebFlow Phase8 Isolated Pack",
+    category: "Organisation",
+    packVersion: uniqueTestPackVersion(),
+    installationClassification: "Optional",
+    contributions: {
+      // qualityGatesDB.upsert's own identity key is (entity_type, from_state,
+      // to_state, category) — NOT scoped by originating_pack_id at all. The
+      // real, platform-wide "No Unresolved Obligations" gate (core-engineering/
+      // openup-development.pack.json) already occupies category "Review
+      // Evidence" on this exact (Deliverable, In Progress, Approved) hop —
+      // declaring the same category here doesn't create a second, this-Pack-
+      // owned row, it silently no-ops the upsert against THAT row, still
+      // owned by ITS originating Pack. Since that Pack is never part of this
+      // isolated SEU's own composition, qualityGateEngine's SEU-scoped match
+      // (ebm.applicable_quality_gate_ids, compositionCompleted.ts) never
+      // finds it — the gate silently never fires, no matter how many times
+      // "Approved" is attempted. A distinct category is a genuinely separate
+      // gate identity, owned by this Pack, composed into this SEU's own EBM.
+      // category must be one of the canonical category:evidence Ontology
+      // concepts (validatePackSeed's assertCanonicalCategory) — "Operational
+      // Evidence" isn't used by any other seeded gate on this exact
+      // (Deliverable, In Progress, Approved) hop, so it's free.
+      qualityGates: [
+        { name: "No Unresolved Obligations", category: "Operational Evidence", governedTransition: "Deliverable|In Progress|Approved", criteriaType: "no_unresolved_obligations" },
+      ],
+    },
+  };
+  await registerOrganisationName(packSeed.code);
+  const published = await publishPack({ seed: packSeed as any, actorRole: "super", actorId: "1001", activate: true });
+  assert.ok(published.ok, `isolated Phase8 pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
+
+  const { data: template } = await templatesDB.upsert({
+    code: `webflow-phase8-isolated-template-${randomUUID().slice(0, 8)}`,
+    name: "WebFlow Phase8 Isolated Template",
+    deliverableCatalogue: [{ code: "requirements-analysis-model" }],
+  });
+  await templatesDB.setMandatoryPacks(template!.id, [packSeed.code]);
+  const { data: requiredCapabilities } = await capabilitiesDB.findByCodes(["requirements-analysis"]);
+  await templatesDB.setRequiredCapabilities(template!.id, (requiredCapabilities ?? []).map((c) => c.id));
+
+  const profilePublish = await publishProfile({
+    seed: {
+      code: `webflow-phase8-isolated-profile-${randomUUID().slice(0, 8)}`,
+      name: "WebFlow Phase8 Isolated Profile",
+      baseTemplateCode: template!.code,
+      environment: "development",
+      profileVersion: "1.0.0",
+      developmentMethodology: "scrum",
+      primaryProgrammingLanguage: "typescript",
+      sourceControlProvider: "github",
+    },
+    actorRole: "super", actorId: "1001",
+  });
+  assert.ok(profilePublish.ok, `isolated Phase8 profile must publish: ${!profilePublish.ok ? JSON.stringify(profilePublish.errors) : ""}`);
+  const { data: profile } = await profilesDB.findById(profilePublish.profileId);
+
+  await ensureEventSubscriptionsLoaded();
+  const { objective: root } = await createObjective({ statement: `${statementPrefix}-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TEST_USER_ALL_BADGES });
+  const { objective } = await createObjective({ statement: `${statementPrefix}-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TEST_USER_ALL_BADGES });
+
+  const commissioned = await commissionSeuCore({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: String(TEST_USER_ALL_BADGES), requestedBy: TEST_USER_ALL_BADGES });
+  assert.equal(commissioned.ok, true, !commissioned.ok ? `Validate Request failed: ${JSON.stringify(commissioned)}` : undefined);
+  if (!commissioned.ok) throw new Error("unreachable");
+  const seuId = commissioned.seu.id;
+
+  const driven = await driveCommissioningToActive({ seuId, actorRole: "super", actorId: String(TEST_USER_ALL_BADGES), timeoutMs: 45000 });
+  assert.equal(driven.ok, true, !driven.ok ? `commissioning failed: ${driven.reason}` : undefined);
+
+  // Web session established here, for this test's own subsequent form
+  // POSTs — same reason commissionSeu's own picker GET establishes one.
+  const page = await getPage(request, `/seu/seus/${seuId}`);
+  const csrf = extractCsrf(page.html);
+
+  await ensureEligibleParticipant(seuId, ["requirements-analysis"]);
+
+  return { seuId, csrf };
 }
 
 // Post-MVP Phase 8 addition (Ch.34 Attention Management, Ch.36 External
@@ -726,15 +971,35 @@ function findAttentionItemId(html: string): string {
 // the Ch.36 §13 -> Ch.34 cross-chapter integration point.
 test("Phase 8 — a blocked Quality Gate and a failed External Interaction both surface real Attention Items on the platform-wide inbox", async () => {
   const request = newSession();
-  const { seuId, csrf } = await commissionSeu(request, "webflow-phase8");
+  const { seuId, csrf } = await commissionIsolatedPhase8Seu(request, "webflow-phase8");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
   const participantMasterId = findEligibleParticipantMasterId(before1.html, "requirements-analysis");
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
 
   await postForm(request, `/seu/seus/${seuId}/capabilities/${capabilityId}/fulfil`, csrf, { participantMasterIds: participantMasterId });
-  await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
+  // Now that the Capability is genuinely fulfilled, resolving the stray
+  // commissioning-time empty_eligible_pool Obligation can't recur (see
+  // commissionIsolatedPhase8Seu's own comment) — safe here specifically
+  // because the Deliverable is still "Defined": no "In Progress -> Approved"
+  // rescan is even possible yet for deliverableKickoffHandler's resolved-
+  // ObligationTransitioned retrigger to race against.
+  await resolveDispatchRejectionObligations(seuId);
 
+  // The Obligation must exist before the Deliverable ever reaches "In
+  // Progress" — same reasoning as Phase 4's own comment, and confirmed by a
+  // real run's own DB state: creating this Obligation right after "In
+  // Progress" (even genuinely before the resulting Command row's own
+  // created_at) still isn't early enough. deliverableKickoffHandler's
+  // rescan off the DeliverableTransitioned that "In Progress" publishes is
+  // fire-and-forget and un-awaited — it can start its own governance read at
+  // any point after that event fires, independent of this test's own
+  // synchronous timeline, and its own multi-step Command/WorkItem/Dispatch
+  // pipeline can simply finish writing later than this test's own Obligation
+  // POST lands, even though it started reading first. Only "before In
+  // Progress exists at all" removes the race outright — every attempt at
+  // that hop, manual or automatic, whichever gets there first, then finds
+  // the same Obligation already in place.
   const createdObligation = await postForm(request, `/seu/seus/${seuId}/obligations`, csrf, {
     deliverableId,
     category: "Engineering",
@@ -742,32 +1007,50 @@ test("Phase 8 — a blocked Quality Gate and a failed External Interaction both 
   });
   assert.equal(createdObligation.status, 302);
 
+  await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
+
   const blocked = await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "Approved" });
   assert.equal(blocked.status, 302, "a blocked transition is still a graceful redirect, not a 500");
 
-  const attentionAfterBlock = await getPage(request, "/seu/attention?pageSize=500");
-  assert.equal(attentionAfterBlock.status, 200);
-  assert.match(attentionAfterBlock.html, /is blocked by Quality Gate/);
-  assert.match(attentionAfterBlock.html, /Action Required/);
+  // The SEU-scoped JSON API, not the platform-wide /seu/attention page: under
+  // real concurrent suite load, every other test file's own real Attention
+  // Items (the automatic Execution Engine now genuinely completes multi-hop
+  // dispatch, so there's a lot more of them than there used to be) compete
+  // for the same shared, paginated inbox, and this SEU's own row isn't
+  // guaranteed to land within any fixed pageSize.
+  const scopedResAfterBlock = await request(`${baseUrl}/api/seu/attention-items?seuId=${seuId}`);
+  assert.equal(scopedResAfterBlock.status, 200);
+  const scopedBodyAfterBlock = (await scopedResAfterBlock.json()) as { attentionItems: Array<{ id: string; category: string; title: string; status: string }> };
+  // The SEU-scoped API returns every Attention Item regardless of status, not
+  // just open ones (listAttentionItemsBySeu has no status filter) — the
+  // already-Closed commissioning-time stray (resolveDispatchRejectionObligations
+  // above) still shows up here and must be excluded, same "open" definition
+  // attentionItemsDB.findOpenByRelatedObjectAny already uses.
+  const actionRequiredAfterBlock = scopedBodyAfterBlock.attentionItems.filter(
+    (a) => a.category === "Action Required" && a.status !== "Resolved" && a.status !== "Closed"
+  );
+  assert.equal(actionRequiredAfterBlock.length, 1, "expected exactly one Action Required Attention Item for this SEU");
+  assert.match(actionRequiredAfterBlock[0]!.title, /is blocked by Quality Gate/);
 
   // A repeated attempt against the same still-unresolved Obligation must not
   // add a second row (AM-002 dedup, same discipline as Phase 7's Obligation
-  // dedup) — asserted through the seuId-scoped JSON API, since the platform-
-  // wide inbox page also carries other tests' fixtures sharing this same
-  // Deliverable name and can't be counted by substring alone.
+  // dedup).
   await postForm(request, `/seu/seus/${seuId}/deliverables/${deliverableId}/transition`, csrf, { targetState: "Approved" });
   const scopedRes = await request(`${baseUrl}/api/seu/attention-items?seuId=${seuId}`);
   assert.equal(scopedRes.status, 200);
-  const scopedBody = (await scopedRes.json()) as { attentionItems: Array<{ category: string; title: string }> };
-  const actionRequired = scopedBody.attentionItems.filter((a) => a.category === "Action Required");
+  const scopedBody = (await scopedRes.json()) as { attentionItems: Array<{ id: string; category: string; title: string; status: string }> };
+  const actionRequired = scopedBody.attentionItems.filter(
+    (a) => a.category === "Action Required" && a.status !== "Resolved" && a.status !== "Closed"
+  );
   assert.equal(actionRequired.length, 1, "one blocked situation must produce exactly one Attention Item, however many times it's retried");
 
-  const attentionAfterSecondBlock = await getPage(request, "/seu/attention?pageSize=500");
-  // Walk that Attention Item through its own lifecycle.
-  const attentionItemId = findAttentionItemId(attentionAfterSecondBlock.html);
-  const attentionStep = await postForm(request, `/seu/attention/${attentionItemId}/transition`, csrf, { targetState: "Delivered" });
+  // Walk that Attention Item through its own lifecycle over the real,
+  // SEU-scoped web route (detail.ejs's own Attention Items pane), not the
+  // platform-wide page's copy of the same form.
+  const attentionItemId = actionRequired[0]!.id;
+  const attentionStep = await postForm(request, `/seu/seus/${seuId}/attention-items/${attentionItemId}/transition`, csrf, { targetState: "Delivered" });
   assert.equal(attentionStep.status, 302);
-  const afterAttentionStep = await getPage(request, "/seu/attention?pageSize=500");
+  const afterAttentionStep = await getPage(request, `/seu/seus/${seuId}`);
   assert.match(afterAttentionStep.html, /alert-success/);
 
   // External Interaction: record one against the same Deliverable, then fail it.

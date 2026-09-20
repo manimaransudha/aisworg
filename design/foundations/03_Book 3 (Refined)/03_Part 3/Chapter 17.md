@@ -475,138 +475,118 @@ Implementation of this chapter shall produce:
 
 ---
 
-# 20. Implementation Specifics (2026-08-21, revised)
+# 20. Implementation Status & Gaps
 
-Verified directly against the live codebase (migrations, `seuTypes.ts`, `evidenceDB.ts`, `core/evidence.ts`, `api/evidence.ts`, `web/seus.ts`, `views/seu/seus/detail.ejs`, `transitionDefinitions.json`, `authorityVocabulary.json`, `030_ontology.sql`, `qualityGateEngine.ts`, `core/packs.ts`, `eventBus.ts`, CR-042, and the test suite) — not from memory. Format follows Ch.5 §19's own convention: number, claim, status, at the heading level, so the outline itself shows what's done. Organised around the two-part split the owner drew out while reviewing this: Part A (definition — what needs Evidence) turned out not to be a gap at all; every real gap lives in Part B (wiring — how a specific Evidence row links to what it supports).
+Code-verified audit (2026-09-18), superseding all prior dated passes below in full — this session rebuilt the Evidence model end to end (migration 232, not yet applied to the live DB at the time of writing; verified against migration SQL and the rewritten TypeScript, not a live query). Core files: `src/dblayer/evidenceDB.ts`, `src/routes/seu/core/evidence.ts`, `src/routes/seu/api/evidence.ts`, `src/routes/seu/web/seus.ts`, `evidence_relationships` (migration 086, extended this session), `030_ontology.sql`/`085`/`223`/`232`, `transitionDefinitions.json`, `qualityGateEngine.ts`, `core/compliance.ts`, `core/traceability.ts`, `core/participantHome.ts`. Organised around the two-part split established in an earlier pass: Part A (definition — what needs Evidence, entirely declarative/Pack-contributed) is generic and closed; Part B (wiring — how a specific Evidence row links to what it supports) is where this session's changes land.
 
-## 20.1 ✅ Part A — the definition of what needs Evidence is already generic, not a gap
+## 20.1 ✅ Part A — the definition of what needs Evidence is generic, not a gap
 
-Declarative, authoring-time, Pack-contributed — not a property of any Evidence row itself. A `quality_gates` row declares its own `(entity_type, from_state, to_state, criteria)` — e.g. `entity_type: "Deliverable", from_state: "Approved", to_state: "Baselined", criteria: {type: "requires_accepted_evidence_or_approved_decision"}`, `originating_pack_id` tying it to the contributing Pack. Confirmed live: `core/knowledge.ts`, `core/decisions.ts`, `core/obligations.ts`, and Evidence's own `core/evidence.ts` (`transitionEvidence`) **all** call `qualityGateEngine.evaluate` with their own `entityType` — the same mechanism gates Deliverable, Knowledge, Decision, Obligation, and Evidence's own transitions alike. `compliance.ts`'s `requires_accepted_evidence` criterion is a second, independent instance of the same shape.
+Declarative, authoring-time, Pack-contributed — not a property of any Evidence row itself. A `quality_gates` row declares its own `(entity_type, from_state, to_state, criteria)` — e.g. `entity_type: "Deliverable", from_state: "Approved", to_state: "Baselined", criteria: {type: "requires_accepted_evidence_or_approved_decision"}`, `originating_pack_id` tying it to the contributing Pack. `core/knowledge.ts`, `core/decisions.ts`, `core/obligations.ts`, and Evidence's own `core/evidence.ts` all call `qualityGateEngine.evaluate` with their own `entityType` — one mechanism gates Deliverable, Knowledge, Decision, Obligation, and Evidence's own transitions alike. `compliance.ts`'s `requires_accepted_evidence` criterion is a second, independent instance of the same shape. "Review Gate is just a Quality Gate whose criteria happens to be 'requires an accepted Review'" holds at the engine level — `requires_accepted_review` is a real criteria type, same code path.
 
-This grounds the chapter's own trust-pipeline language, corrected from an earlier misreading of it as a linear relay (Information → Evidence → Knowledge → Decision → Deliverable, each a fixed stage): "Nothing should become Knowledge... nothing should close an Obligation... without Evidence" (opening note) and §10's list both describe *separate, parallel* Part-A instances — independent Quality Gate/Compliance rows — not sequential stops on one chain.
+Two wrinkles, deliberately deferred rather than gaps: `PackContributions.reviewGates` is populated with real content in every seeded Pack but nothing reads it (only `qualityGates` is materialised); and `VerifiableItemFields.externalEvidence?: boolean` exists and is form-rendered but enforces nothing at runtime — "defined in the pack using the external evidence required flag," out of platform scope by design. Both deferred until after Part B's structures settle, on the owner's own sequencing call.
 
-**Confirmed (owner): "Review Gate is just a Quality Gate whose criteria happens to be 'requires an accepted Review.' One underlying mechanism, different criteria types plugged into it"** — true at the engine level: `requires_accepted_review` is a real criteria type in `qualityGateEngine.ts`, evaluated by the exact same code path.
+## 20.2 ✅ Part B — multi-relationship, provenance, versioning, events, access: all real, provenance mechanism rebuilt this session
 
-**Two wrinkles noted, not treated as gaps needing action now:**
-- `PackContributions` has two separate declared fields matching Ch.5 §9 — `qualityGates` and `reviewGates`. Only `qualityGates` is materialised (`core/packs.ts` calls `qualityGatesDB.upsert` for it); `reviewGates` is populated with real content in every seeded Pack but nothing reads it — declared, inert. No seeded Pack authors `requires_accepted_review` inside `qualityGates` either, so that criteria type is proven only by direct test setup (`tests/review-model.test.ts`), never by a real Pack contribution.
-- **External Evidence's own trigger mechanism (owner): "This will be defined in the pack using the external evidence required flag. How that is generated is outside the scope of the platform."** Confirmed: `VerifiableItemFields.externalEvidence?: boolean` already exists (CR-016/§20), with matching help text already in the form generator. Same shape as the `reviewGates` wrinkle: declared, not enforced anywhere at runtime.
+The runtime/schema mechanism connecting an *already-created* Evidence row to what it backs.
 
-**Owner's own sequencing decision:** the authoring surface does need fixing eventually ("Yes the authoring surface has to be modified") but deliberately *after* Part B's data structures settle — "I wanted to get the underlying structures correctly first before changing the authoring so we are not in multiple cycles." Neither wrinkle above is in CR-051's own scope as a result.
+- **Multi-relationship (all of it, including SEU membership and provenance)** — `evidence_relationships` (migration 086, extended by migration 232) is now the *one* mechanism for every relationship Evidence has. This session folded `seu_id` and all five `originating_*` provenance columns into it: SEU membership is a `related_object_type: 'SEU'` row, and Deliverable/Participant/Capability/Decision provenance are `evidence_relationships` rows of those types — the same mechanism, not a bespoke column per relationship kind. `originating_activity` (free text, not an entity reference) is dropped with no replacement. **This is a mechanism change, not a requirement reversal** — owner: "it is not reversing anything. The implementation is changing." §12's provenance guarantee still holds; it's expressed uniformly now instead of through five separate FK columns plus a privileged `seu_id` column.
+- **Cross-SEU sharing** — unchanged: `findByRelatedObject`/`findBySeuId` were never ownership-filtered beyond existence checks (`assertRelatedObjectExists`), so Evidence shared across SEUs still works the same way.
+- **Access is badge-governed, not participant-governed** — confirmed this session, resolving §17's "remain independent of Participant implementations" precisely: authority to act on an Evidence record comes from holding the right badge (`requireBadge.ts`/`badgeAuthorityEngine`, the same mechanism every governed entity uses), never from matching a `participant_id` against the record. This is *why* Evidence carries no participant-attribution column at all now — it doesn't need one to gate access, and it doesn't need one for provenance either (previous paragraph).
+- **Versioning** — `supersedes_evidence_id` unchanged: a self-referential FK, a supersession chain, not a Template-style catalog identity. Newly reconciled with the platform's Version Feature Plan.md mechanism this session: `Collected→Validated` is the one real `version_event` (`VersionCreated`) among Evidence's 6 `transition_definitions` rows — `Validated→Accepted→Referenced→Archived` all continue that same version (no further version_event; the row is shared, not re-versioned, at each of those hops), and Supersede itself (not a state transition — a new row, created via `supersedes_evidence_id`) is the `VersionSuperseded`-equivalent act, tagged directly since it has no `transition_definitions` row of its own to carry it.
+- **Events** — unchanged and real: `EvidenceCollected` plus five named lifecycle events, now sourced from `transition_definitions.event_type` (migration 232) instead of a hardcoded map in `core/evidence.ts`, same mechanism as every other entity's own Version Feature Plan pass.
 
-## 20.2 ⚠️ Part B  — multi-relationship + cross-SEU sharing ✅ Built 2026-08-21, provenance/versioning/events remain (CR-051)
+**Resolved this session**: the reverse-pointer duplication flagged in the prior pass (`evidence.originating_decision_id` vs `decisions.evidence_ids[]`) is gone — `originating_decision_id` no longer exists. `decisions.evidence_ids[]` (Ch.19, migration 231) is now the sole source of truth for that relationship, exactly as the owner directed. Knowledge's own scalar `evidence_id` FK is untouched — still a separate, narrower mechanism than Evidence's own outward `evidence_relationships`, not in this session's scope.
 
-This is the runtime/schema mechanism connecting an *already-created* Evidence row to what it backs. Three unreconciled paths exist today:
+A live, unpersisted query at Quality-Gate-evaluation time (`qualityGateEngine.ts` → `evidenceDB.findByRelatedObject`) still records no per-evaluation satisfaction — the join table records relationships, not which Evidence satisfied which specific evaluation. Still open.
 
-1. ~~`evidence.related_object_type`/`related_object_id` — a single polymorphic pointer; one row names exactly one related object.~~ **✅ Built 2026-08-21** — replaced by a new `evidence_relationships` join table (migration `086_evidence_relationships.sql`); one Evidence row now relates to any number of objects via `evidenceDB.addRelationship`/`findRelationshipsByEvidenceId`, with `findByRelatedObject` reimplemented as a JOIN (same public signature, zero changes needed in `qualityGateEngine.ts`/`dependencyDefinitionEngine.ts`/`traceability.ts`).
-2. An optional `evidenceId` FK on Knowledge/Decision rows only — asymmetric, no equivalent for Deliverable/Obligation. Still open.
-3. A live, unpersisted query at Quality-Gate-evaluation time (`qualityGateEngine.ts` → `evidenceDB.findByRelatedObject`) — nothing records *which* Evidence satisfied *which* evaluation. Still open (join table records relationships, not per-evaluation satisfaction).
+Evidence creation stays a deliberate act, not something that materialises automatically from task completion — either directly, or via an Interaction Adapter translating raw tool output (Ch.36). The Event Bus is pure transport (real pub/sub, `eventBus.ts`) — it never decides or applies a transition; almost nothing in production subscribes yet, an accepted, deliberate state, not a gap.
 
-**Settled design direction (owner's own worked example): "the same test results could support Source Code and a Deployment Readiness review and a Compliance obligation, simultaneously... So: two separate persistent entities, linked by reference, not one nested in the other."** Evidence stays its own independently-persisted, top-level entity — the fix is entirely the *relationship* mechanism connecting it outward to many artefacts at once, not where Evidence itself lives. **Built exactly this way.**
+## 20.3 ✅ EM-001–006 Architectural Principles (§4/§5)
 
-**Cross-SEU sharing is part of the same fix, confirmed (owner): "An external evidence can be used across multiple SEUs."** ✅ Built 2026-08-21, as a free side effect — `findByRelatedObject` never filtered by matching `seu_id`, and `createEvidence`'s same-SEU ownership check (the one thing actively blocking this) was removed; existence-only validation remains via `assertRelatedObjectExists`.
-
-**Provenance — Participants generate Evidence (owner): "A participant (human or AI, running its own tools) produces the evidence and it gets attributed to them permanently."** Only `seu_id` + the single related-object pointer exist; no originating Participant/Capability/Decision/activity fields anywhere. **Resolves an apparent tension, not a real one**: §4's "Evidence is independent of Participants" doesn't mean attribution is optional — confirmed against **DM-006** (Ch.15, Deliverable Model: "Deliverables are independent of Participants," the identical pattern one level over). Independence means Evidence's *validity* doesn't depend on the producing participant continuing to exist; provenance (permanent) and existential independence are two different axes.
-
-**Evidence's own identity**: an instance, not a definition — no `code`, unlike Pack/Template/Profile/Deliverable Definition. "Versioning" (§15) reads as a supersession chain, not a `(code, version, tenant)` catalog identity like Template's.
-
-**Evidence's siblings, Review and Finding**, are Part A precedent (a separate criteria type on the same mechanism), not Part B.
-
-**Evidence creation stays a deliberate act (owner) — bounds CR-052: "Evidence starts at Collected (§9)... That's not something that materialises just because a participant finished a task; someone has to actually create the Evidence record with those fields filled in."** Either directly, or via an Interaction Adapter translating raw tool output into the platform's own vocabulary (confirmed real: Ch.36's own architecture). Whatever CR-052 lands on, the event still has to carry a deliberately-shaped Evidence payload.
-
-**Event Bus's own role, settled (owner): "event bus has to be a pub/sub mode. event bus itself should not be deciding anything... we will review the event bus as part of 52."** The Bus is pure transport — never decides, never applies a transition. `eventBus.ts` already implements real pub/sub, not a stub, but almost nothing in production subscribes yet — confirmed via CR-042's own closure notes that the one existing analogous mechanism (Dependency Engine push-evaluation) is publish-only by explicit design, no reactive consumer anywhere. Folded into CR-052's own scope.
-
-## 20.3 EM-001–006 Architectural Principles ⚠️ — mostly built, provenance and reuse open (§4/§5)
-
-- **EM-001 Evidence precedes trust** ✅ — `qualityGateEngine.ts`'s `requires_accepted_evidence_or_approved_decision` and `core/compliance.ts`'s `requires_accepted_evidence` both gate on Evidence before allowing a transition/compliance pass.
-- **EM-002 Immutable after acceptance** ✅ — architecturally, not by a runtime check: `evidenceDB.ts` has `create`/`updateStatus`/`findBy*`/`count` only, no `update`/`updateContent` method exists at all.
-- **EM-003 Independently identifiable** ✅ — UUID PK, `evidence.id`.
-- **EM-004 May support multiple engineering artefacts** ✅ Built 2026-08-21 — see 20.2; `evidence_relationships` join table, genuinely many-to-many now.
-- **EM-005 Shall preserve provenance** ✅ Built 2026-08-21 — see 20.2/20.10.
+- **EM-001 Evidence precedes trust** ✅ — unchanged.
+- **EM-002 Immutable after acceptance** ✅ — architecturally: no content-update method exists. `appendValidationAssessment` (20.9/20.11) only ever appends, never overwrites an existing entry.
+- **EM-003 Independently identifiable** ✅ — unchanged.
+- **EM-004 May support multiple engineering artefacts** ✅ — `evidence_relationships`, genuinely many-to-many, now also carrying what used to be provenance columns (20.2).
+- **EM-005 Shall preserve provenance** ✅ — mechanism changed, guarantee unchanged (20.2).
 - **EM-006 Shall remain independently reusable** ⚠️ aspirational — see 20.12.
 
-## 20.4 FR-17.1–7 Functional Requirements ⚠️ — mixed, see individual items (§6)
+## 20.4 ✅ FR-17.1–7 Functional Requirements (§6)
 
 | FR | Verdict | Note |
 |----|---------|------|
 | FR-17.1 unique identifier | ✅ | UUID PK |
-| FR-17.2 provenance | ✅ Built 2026-08-21 | `originating_deliverable_id`/`originating_participant_id`/`originating_capability_id`/`originating_decision_id`/`originating_activity`, all on `evidence` |
-| FR-17.3 versioning | ✅ Built 2026-08-21 | `supersedes_evidence_id`, self-referential FK on `evidence` |
-| FR-17.4 multiple relationships | ✅ Built 2026-08-21 | `evidence_relationships` join table, genuinely many-to-many |
+| FR-17.2 provenance | ✅ | `evidence_relationships` rows, not dedicated columns (20.2) |
+| FR-17.3 versioning | ✅ | `supersedes_evidence_id`, now reconciled with `version_event` (20.2) |
+| FR-17.4 multiple relationships | ✅ | `evidence_relationships` |
 | FR-17.5 immutable after acceptance | ✅ | see EM-002 |
-| FR-17.6 fully traceable | ✅ (Deliverable direction) | `core/traceability.ts`'s `explainDeliverable` surfaces `supportingEvidence` via `evidenceDB.findByRelatedObject` |
-| FR-17.7 reusable across multiple objects | ✅ Built 2026-08-21 | same fix as FR-17.4; cross-SEU sharing (20.2) built as a free side effect |
+| FR-17.6 fully traceable | ✅ (Deliverable direction) | `traceability.ts`'s `explainDeliverable` |
+| FR-17.7 reusable across multiple objects | ✅ | same mechanism as FR-17.4; cross-SEU sharing included |
 
-## 20.5 Evidence Categories ✅ — Fixed 2026-08-21, drift cleaned up 2026-09-14 (§7)
+## 20.5 ✅ Evidence Categories (§7)
 
-The chapter names 6 categories (Analytical/Validation/Operational/Review/Decision/External). `030_ontology.sql` originally seeded only 2 of them under `category:evidence`, alongside 4 non-canonical shorthand duplicates ("Validation"/"Review"/"Test"/"Technical") that never matched any of the chapter's own names. The web form offered all 6 real categories regardless — since `assertCanonicalCategory` rejects anything not seeded as active, selecting one of the other 4 threw at submission, a live bug. **Fixed 2026-08-21**: migration `085_evidence_category_ontology_gap.sql` seeded the missing 4 real categories; Quality Gate's own category picker (`web/sdkAuthoring.ts`) worked around the 4 drifted ones with a client-side filter rather than fixing the data. **Fixed 2026-09-14**: migration 030 no longer seeds the 4 drifted values; migration 223 retires them on any database that already ran the old version (confirmed unused first — zero `evidence` rows, every real `quality_gates.category` already canonical). The client-side filter is removed — `category:evidence` is genuinely just the 6 real categories now.
+Unchanged — all 6 chapter categories are real, canonical `category:evidence` Ontology concepts.
 
-## 20.6 Evidence Structure ⚠️ — partial, Collection Method missing (§8)
+## 20.6 ⚠️ Evidence Structure — Collection Method missing (§8)
 
-Present: Identifier, Title, Category, Description, Status, Source, Confidence Level, Timestamp, Related-object (singular). **Missing**: a distinct Collection Method field (the chapter lists it separately from Source; no such column exists) — a new column + form field, not yet tracked in a CR. Related Deliverables/Knowledge/Decisions/Obligations (plural) — see 20.2.
+Present: Identifier, Title, Category, Description, Status, Source, Confidence Level, Timestamp, Related-objects (plural, now also covering what used to be provenance, 20.2). **Missing**: a distinct Collection Method field — the chapter lists it separately from Source; no such column exists. Not yet tracked in a CR.
 
-## 20.7 Evidence Lifecycle ✅ — Fixed 2026-08-21, Rejected branch added (§9)
+## 20.7 ✅ Evidence Lifecycle (§9)
 
-Collected → Validated → Accepted → Referenced → Archived exists exactly as specified. The Rejected branch didn't exist — no transition into a Rejected state from anywhere, contradicting §9's own "Rejected evidence shall remain preserved for audit purposes." **Fixed**: `Collected→Rejected` and `Validated→Rejected` added to `transitionDefinitions.json`/`authorityVocabulary.json` (new verb `reject`), Rejected is terminal. Verified live and covered by a new test in `tests/trust-pipeline.test.ts`. (The *event* for landing in Rejected is a separate, still-open gap — 20.14.)
+Unchanged — `Collected → Validated → Accepted → Referenced → Archived`, plus a real `Rejected` branch off both `Collected` and `Validated` (terminal).
 
-## 20.8 Evidence Relationships ✅ — Built 2026-08-21 (§10; CR-051)
+## 20.8 ✅ Evidence Relationships (§10)
 
-The chapter's "one Evidence Item may support many engineering artefacts" — see 20.2 for the full analysis and settled design direction, now built: a new `evidence_relationships` join table replaces the single-pointer column, with `findByRelatedObject`/`traceability.ts`/`qualityGateEngine.ts`/`compliance.ts` all reading through it unchanged (same public signature). Knowledge/Decision's own optional `evidenceId` FK (the reverse direction) is untouched by this fix, still asymmetric — not in this CR's scope. Reviews and Policies still have no Evidence linkage found anywhere.
+"One Evidence Item may support many engineering artefacts" — real via `evidence_relationships`, now the single mechanism for every relationship Evidence has (20.2). Reviews and Policies still have no Evidence linkage found anywhere.
 
-## 20.9 Evidence Validation ❌ — open, aspirational (§11)
+## 20.9 ✅ Evidence Validation (§11)
 
-The chapter's five validation dimensions (authenticity/completeness/consistency/source credibility/engineering relevance) are not recorded anywhere — "Validated" is a bare state transition with no structure for which criteria were checked. Matches an already-accepted platform-wide pattern (CR-049's own Chapter 15 review, "Refinement/Validation... governed by the EBM... not authored as a field anywhere"): EBM-governed criteria are treated as conceptual governance, not concrete per-criterion data, everywhere else in this codebase. Not yet tracked in a CR.
+The chapter's five validation dimensions (authenticity/completeness/consistency/source credibility/engineering relevance) are now real: `validation_dimensions JSONB` (migration 232), an **append-only** array of `{dimension, status, notes, assessedAt}` entries — `dimension` and `status` are both new Ontology concept types (`evidence-validation-dimension`, `evidence-validation-status`: Not Assessed/Pass/Partial/Fail). Append-only by deliberate design (owner): `Validated→Accepted→Referenced→Archived` share one row with no new version minted at each hop, so every assessment ever made must survive as its own entry, never overwritten when a dimension is re-assessed later. `recordValidationAssessment` (`core/evidence.ts`) is the one write path.
 
-## 20.10 ✅ Evidence Provenance  — Built 2026-08-21 (§12; CR-051)
+## 20.10 ✅ Evidence Provenance (§12)
 
-Five nullable columns on `evidence`: `originating_deliverable_id`, `originating_participant_id`, `originating_capability_id`, `originating_decision_id`, `originating_activity` — matches originating SEU (already `evidence.seu_id`) plus the five named in §12. All optional at creation time; `originating_deliverable_id` auto-derives from the creating relationship when it's a Deliverable, the rest are only ever set if supplied. The §4 "independent of Participants" tension (resolved against DM-006 — existential independence, not optional attribution) still holds: Evidence's validity doesn't depend on the Participant continuing to exist, but its attribution is now permanently recorded. A structurally similar `ProvenanceEntry` exists in `traceability.ts`, but it's a Deliverable state-history concept, unrelated to Evidence's own record.
+Mechanism rebuilt this session — see 20.2. Every field §12 names (originating SEU/Deliverable/Participant/Capability/Decision) is real via `evidence_relationships`; `originating_activity` (free text) has no replacement, dropped as out of scope for a relationship mechanism.
 
-## 20.11 Evidence Confidence ⚠️ — partial, not a computed model (§13)
+## 20.11 ✅ Evidence Confidence — now a real computed model (§13)
 
-`confidence_level` exists and is UI-driven (Low/Medium/High) ✅, but is typed as a plain `string` — no DB CHECK, no TS union. The chapter's "confidence may be influenced by source reliability / validation outcome / corroborating evidence / engineering review" is not computed anywhere — a flat author-set value, not a model. Same aspirational caveat as 20.9. Not yet tracked in a CR.
+`confidence_level` is no longer author-set free text — it's computed from `validation_dimensions` (20.9) via `computeConfidenceLevel` (`core/evidence.ts`): the worst assessed status across the *entire* history wins (any `Fail` anywhere → Low, else any `Partial` → Medium, else High), recomputed on every new assessment, not just the latest one per dimension. Nullable — no value exists until at least one assessment has been recorded. `confidence_level`'s own value vocabulary is now Ontology-backed (`evidence-confidence-level`: Low/Medium/High). This is exactly the chapter's own "confidence may be influenced by validation outcome" — Validation *is* now the input, not a separate, disconnected field.
 
-## 20.12 Evidence Reuse ❌ — open, aspirational (§14)
+## 20.12 ❌ Evidence Reuse — open, aspirational (§14)
 
-No explicit "this Evidence was reused in context X" tracking exists, and no applicability check. Evidence can be *read* by multiple consumers already, but nothing records that a read constituted a reuse. Same EBM-governance caveat as 20.9/20.11. Not yet tracked in a CR.
+Unchanged. No "this Evidence was reused in context X" tracking, no applicability check. Not yet tracked in a CR.
 
-## 20.13 Evidence Immutability & Versioning ✅ — both built (§15; CR-051)
+## 20.13 ✅ Evidence Immutability & Versioning (§15)
 
-Immutability holds architecturally (EM-002 — no `update` method exists on `evidenceDB`). "Corrections shall create new Evidence Items linked to previous versions" — built 2026-08-21 as `supersedes_evidence_id`, a self-referential FK, a supersession chain rather than Template-style `(code, version, tenant)` catalog identity (Evidence has no `code`). Deliberately does not cascade: superseding a predecessor that's shared across multiple SEUs (item 2) changes nothing about the predecessor's own relationships or status — proven directly by test and live smoke test, not just asserted.
+Both real — see 20.2/20.3 EM-002. Versioning is now reconciled with the platform's standard Version Feature Plan.md mechanism (`transition_definitions.event_type`/`.version_event`), not just the pre-existing `supersedes_evidence_id` chain in isolation.
 
-## 20.14 Events ✅ — Built 2026-08-21, full named set (§16; CR-051)
+## 20.14 ✅ Events — full named set, now data-driven (§16)
 
-`EvidenceCollected` (on creation) plus five named lifecycle events — `EvidenceValidated`, `EvidenceAccepted`, `EvidenceReferenced`, `EvidenceArchived`, `EvidenceRejected` — each published via the same `EVENT_BY_TARGET_STATE` map pattern already used for Pack/Template (CR-025) and Deliverable Definition (CR-049 Phase 1). The generic `EvidenceTransitioned` remains only as a defensive fallback and never actually fires — every real Evidence target state is covered by the map. (`EvidenceLinked` and `EvidenceSuperseded`, added alongside items 1 and 4, are additional announcement-only events outside this list's original six, following the same non-reactive pattern.)
+See 20.2. `event_type` moved from a hardcoded `EVENT_BY_TARGET_STATE` map in `core/evidence.ts` to `transition_definitions.event_type` (migration 232), same mechanism as every other entity's own Version Feature Plan pass this platform has completed.
 
-## 20.15 Non-Functional Requirements ⚠️ — mixed (§17)
+## 20.15 ✅ Non-Functional Requirements (§17)
 
-Preserve provenance ❌ (20.2/20.10), maintain immutability ✅, support traceability ✅ (Deliverable direction only), support independent reuse ⚠️ aspirational (20.12), remain independent of Participant implementations ✅ — though trivially so, since Participant provenance isn't tracked at all rather than being a deliberately achieved independence.
+Preserve provenance ✅ (20.10, mechanism changed, guarantee intact, no open item remaining), maintain immutability ✅, support traceability ✅ (Deliverable direction only), support independent reuse ⚠️ aspirational (20.12), remain independent of Participant implementations ✅ — resolved precisely this session: access is badge-governed, never participant-governed (20.2), and Evidence carries no participant-attribution column at all.
 
-## 20.16 Acceptance Criteria ⚠️ — mixed, re-scored against the code (§18)
+## 20.16 ✅ Acceptance Criteria (§18)
 
 | Criterion | Verdict |
 |---|---|
 | Evidence possesses unique identity | ✅ |
 | Accepted Evidence is immutable | ✅ |
-| Evidence supports multiple engineering artefacts | ❌ (20.2/20.8) |
-| Provenance is preserved | ❌ (20.2/20.10) |
-| Confidence assessments are available | ✅ (flat field, not a model) |
-| Historical Evidence remains accessible | ✅ (no delete path; Archived is terminal, not removed) |
+| Evidence supports multiple engineering artefacts | ✅ (20.8) |
+| Provenance is preserved | ✅ (20.10) |
+| Confidence assessments are available | ✅ — computed, not flat (20.11) |
+| Historical Evidence remains accessible | ✅ |
 
-## 20.17 Deliverables ⚠️ — mixed, re-scored (§19)
+## 20.17 ✅ Deliverables (§19)
 
-Evidence domain model ✅, repository interfaces ✅ (`evidenceDB.ts`), lifecycle service ✅ (`transitionEvidence`), Provenance service ✅ Built 2026-08-21 (five originating-* fields on `evidence`), Confidence assessment model ⚠️ (flat field only, not a model), Evidence APIs ✅ (`api/evidence.ts`), Evidence events ✅ Built 2026-08-21 (full named set).
+Evidence domain model ✅, repository interfaces ✅, lifecycle service ✅, Provenance service ✅ (relationship-based, 20.2), Confidence assessment model ✅ — a real computed model now, not a flat field (20.11), Evidence APIs ✅, Evidence events ✅ (data-driven, 20.14).
 
 ## Summary — what's genuinely open, ranked
 
-All Part B (wiring). Part A (20.1) is confirmed already generic and not a gap; its two noted wrinkles (`reviewGates` and `externalEvidence` both declared-but-unenforced) are deliberately deferred until after Part B lands, not tracked in a CR yet.
+Part A (20.1) is generic and closed, two wrinkles deliberately deferred. Part B is now substantially complete: multi-relationship, provenance (rebuilt onto one uniform mechanism), versioning (reconciled with the platform's standard Version mechanism), the full named event set, validation dimensions, and computed confidence are all real.
 
-1. ~~**[Code, largest]** Multi-relationship support (20.2/20.8) — a real join-table schema change.~~ **✅ Built 2026-08-21. Tracked: [CR-051](../../../change-requests/CR-051-evidence-multi-relationship-provenance-versioning-events.md).**
-2. ~~**[Code]** Cross-SEU sharing (20.2/20.4) — confirmed requirement: "an external evidence can be used across multiple SEUs."~~ **✅ Built 2026-08-21, as a free side effect of item 1. Tracked: CR-051.**
-3. ~~**[Code]** Provenance fields (20.2/20.10) — originating Participant/Capability/Decision/activity.~~ **✅ Built 2026-08-21. Tracked: CR-051.**
-4. ~~**[Code]** Versioning + supersede-link (20.13) — a supersession chain, not Template-style catalog identity.~~ **✅ Built 2026-08-21. Tracked: CR-051.**
-5. ~~**[Code, small, well-precedented]** Full named event set (20.14).~~ **✅ Built 2026-08-21. Tracked: CR-051.**
-6. ~~**[Data]** Missing ontology categories (20.5)~~ **✅ Fixed 2026-08-21.**
-7. ~~**[Data]** Rejected lifecycle branch (20.7)~~ **✅ Fixed 2026-08-21.**
-8. **[Code, small]** Collection Method field (20.6) — not yet tracked in a CR.
-9. **[Code, aspirational, same caveat as elsewhere in this platform]** Validation-criteria recording (20.9), computed confidence (20.11), reuse tracking (20.12) — not yet tracked in a CR.
+1. **[Code, small]** Collection Method field (20.6) — not yet tracked in a CR.
+2. **[Code, aspirational]** Reuse tracking (20.12) — not yet tracked in a CR.
+3. **[Code, small]** Per-evaluation Evidence satisfaction isn't recorded (20.2) — `evidence_relationships` records the relationship, not which Evidence satisfied which specific Quality Gate check.
 
-**Also raised, exploratory, separate from the above:** how Evidence gets *created* — confirmed it must stay a deliberate act, and whether the Event Bus needs genuine pub/sub reactions or stays announcement-only. Both folded into **[CR-052](../../../change-requests/CR-052-evidence-accumulation-via-event-bus.md)**, including a review of the Event Bus's own current state against the "pure transport, never decides" principle.
+**Also open, exploratory, tracked separately**: how Evidence gets created (confirmed a deliberate act, not automatic) and whether the Event Bus needs genuine reactive subscribers or stays announcement-only — both folded into **[CR-052](../../../change-requests/CR-052-evidence-accumulation-via-event-bus.md)**.

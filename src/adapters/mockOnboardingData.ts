@@ -29,3 +29,7 @@ export function mockDomainValues(viewer: OntologyViewer): Promise<string[]> {
 export function mockTechnologyValues(viewer: OntologyViewer): Promise<string[]> {
   return conceptCodes("technology", viewer);
 }
+
+export function mockProficiencyLevels(viewer: OntologyViewer): Promise<string[]> {
+  return conceptCodes("proficiency-level", viewer);
+}

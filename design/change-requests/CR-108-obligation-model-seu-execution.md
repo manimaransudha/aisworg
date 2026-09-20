@@ -25,3 +25,19 @@ Everything — this CR only records where to start reading and what's already kn
 - CR-106 — `design/change-requests/CR-106-blocked-transition-obligation-attention-item.md`, the original Obligation-raising mechanism.
 - CR-062/CR-063 — Chapter 5 (Pack Model) §19.4's own audit trail for the Obligation Definition contribution build and its split-out lifecycle-events follow-up.
 - Chapter 23 — Obligation Model (`design/foundations/03_Book 3 (Refined)/`, exact Part/location not yet confirmed this session — locate and read first).
+
+
+
+-----------
+
+## To build 
+
+1. Standalone Pack contributionObligationDefinitions[] — composed into the EBM, never read by anything at runtime.
+ 
+- Pack Obligation definition same as Policy scope=eligibility. 
+
+2. AttentionItem has no blocked_from_state/blocked_to_state — can't act as a structural gate like Obligation does.
+3. Manual "Create Obligation" form — still live on the SEU detail page; legitimacy never decided.
+4. Participant can't raise an Obligation — completeWorkItem on blocked/failed raises an AttentionItem directly instead, contradicting CR-109's own settled design.
+5. CR-063's remaining 6 named Obligation lifecycle events — only the generic ObligationTransitioned exists.
+6. Checklists / Engineering Capital — same as #1: composed into the EBM, nothing consumes them.

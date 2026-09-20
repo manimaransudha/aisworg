@@ -94,3 +94,18 @@ Pack retiring should notify EBM owners and recomposition updates should be mater
 So: commissioning gets the SEU to Operational, but that only means the SEU is now in the state where its Deliverables are eligible to move. Actual execution starts only when a human (or an API caller) transitions one of this SEU's own Deliverables — e.g. Defined → In Progress — through the SEU detail page or the Deliverables API. That transition is what calls transitionDeliverable, which calls executionEngine.execute, which creates the Command, generates the Work Item, and calls dispatchEngine.dispatch (which then requires an eligible Participant to actually fulfil the producing Capability, or the dispatch is deferred).
 
 One thing I checked and did not find: there's no code-level gate anywhere in transitionDeliverable that requires seus.lifecycle_state === 'Operational' before allowing a Deliverable transition — it's a conceptual precondition (Ch.2's own lifecycle), not an enforced one in the current build. So technically a Deliverable could be dispatched even if the owning SEU weren't Operational yet; nothing checks.
+
+
+-------------
+
+
+The Template commissionIsolatedSeu builds has no required Capabilities at all (setRequiredCapabilities(template.id, [])), so the Deliverable's producing_capability_id is null.
+
+The fixture's own comment (cr109-work-item-generator.test.ts:160) says: "no producing Capability declared, so dispatch is unconditional" — but that's not what dispatchEngine.ts actually does. Case 1a there (!input.producingCapabilityId) calls rejectDispatch — a hard, terminal rejection (Command → Failed, an Obligation + Attention Item raised), not an unconditional pass-through.
+
+So in the failing test (line 320, CR-109 §6.1: ... Approved-with-Conditions), the transitionDeliverable call at line 342 requests the hop, but the resulting Command is rejected immediately (no capability → Case 1a). The test then calls waitForDispatchedWorkItem(deliverableId, "Defined", "In Progress") at line 352, which polls for a Command reaching Dispatched/Deferred — a state it can never reach, since it's already Failed. That's the timeout error in the log.
+
+This is a stale assumption in the fixture, not a bug in dispatchEngine.ts — case 1a's hard-reject behavior is real, documented, intentional design (confirmed earlier this session while fixing the Idle/Available bug). Two ways to fix the fixture, your call:
+
+Give the Template a real required Capability and fulfil it with a genuine eligible Participant (same pattern used everywhere else this session) so the Command actually dispatches for real — closest to what the test's later assertions (execution_context.governingPolicies, .activeObligations) seem to want, since those live on the dispatched Work Item.
+Stop expecting dispatch at all — assert the Command reaches Failed (matching real Case 1a behavior) and check the Work Item's execution_context at whatever status it lands at (if workItemGenerator.ts populates it at generation time, before dispatch is even attempted, it may still be readable off a Disposed/rejected Work Item).

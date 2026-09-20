@@ -17,7 +17,7 @@ import { transitionDeliverableSync as transitionDeliverable } from "./testFixtur
 import { createObligation, transitionObligation } from "../src/routes/seu/core/obligations.js";
 import { getFlowMetrics, getGovernanceMetrics } from "../src/routes/seu/core/telemetry.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
-import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
 
 // Ch.30 Event Bus redesign — publish() still persists every event
 // synchronously (only dispatch/consumption is fire-and-forget), so querying
@@ -33,26 +33,33 @@ async function qualityGateEventTypesForEntity(entityId: string): Promise<string[
   return rows.map((r) => r.event_type);
 }
 
-async function commissionTestSeu(statementPrefix: string) {
+async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>) {
   await ensureWebAppTemplateFixture();
   await ensureCoreEngineeringQualityGates();
-  const result = await commissionFromFormSync({
-    statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: "1001", requestedBy: 1001,
-  });
+  const result = await commissionFromFormSync(
+    {
+      statement: `${statementPrefix}-${randomUUID()}`,
+      requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
+      actorRole: "super", actorId: "1001", requestedBy: 1001,
+    },
+    beforeCommenceWork
+  );
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
   return result.seu.id;
 }
 
 async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
-  const seuId = await commissionTestSeu(statementPrefix);
+  const seuId = await commissionTestSeu(statementPrefix, async (seuId) => {
+    const detail = await getSeuDetailView(seuId);
+    const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
+    assert.ok(reqAnalysisCapability);
+    await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
+  });
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
-  const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
-  assert.ok(requirementsSpec && reqAnalysisCapability);
-  await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantType: "AI", displayName: "Phase7 Test Analyst" });
+  assert.ok(requirementsSpec);
+  await resolveDispatchRejectionObligations(seuId);
   return { seuId, deliverableId: requirementsSpec.id };
 }
 
@@ -84,8 +91,17 @@ test("Governance Telemetry: Quality Gate latency is zero on a first-try pass and
 
   // A second SEU, this time genuinely blocked once before passing.
   const { seuId: seuId2, deliverableId: deliverableId2 } = await commissionAndFulfilRequirementsSpec("phase7-governance-latency-blocked");
-  await transitionDeliverable({ deliverableId: deliverableId2, targetState: "In Progress", actorRole: "super", actorId: "1" });
+
+  // tests/web-flow.e2e.test.ts's own commissionIsolatedPhase8Seu comment:
+  // the Obligation must exist BEFORE the Deliverable ever reaches "In
+  // Progress", not right after — deliverableKickoffHandler's rescan off the
+  // DeliverableTransitioned that "In Progress" publishes is fire-and-forget,
+  // so it can slip through unblocked (no Obligation yet) and record a clean
+  // pass before this test's own createObligation call ever lands, leaving
+  // first_blocked_at unset even though this test's own explicit attempt is
+  // genuinely blocked afterward.
   const obligation = await createObligation({ seuId: seuId2, relatedObjectType: "Deliverable", relatedObjectId: deliverableId2, category: "Engineering", title: "Phase7 latency test obligation" });
+  await transitionDeliverable({ deliverableId: deliverableId2, targetState: "In Progress", actorRole: "super", actorId: "1" });
   const blocked = await transitionDeliverable({ deliverableId: deliverableId2, targetState: "Approved", actorRole: "super", actorId: "1" });
   assert.equal(blocked.ok, false);
 

@@ -25,7 +25,7 @@ import { humanOnUiAdapter } from "../src/adapters/humanOnUiAdapter.js";
 import { externalOrchestratorAdapter } from "../src/adapters/externalOrchestratorAdapter.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
 import type { ParticipantAdapter } from "../src/adapters/participantAdapter.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant } from "./testFixtures.js";
 
 // A local server standing in for a tenant's external orchestrator, capturing
 // every assignment the platform delivers.
@@ -82,20 +82,28 @@ after(async () => {
 
 async function commissionAndFulfil(prefix: string) {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromFormSync({
-    statement: `${prefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: "1001", requestedBy: 1001,
-  });
+  let capabilityId = "";
+  const result = await commissionFromFormSync(
+    {
+      statement: `${prefix}-${randomUUID()}`,
+      requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
+      actorRole: "super", actorId: "1001", requestedBy: 1001,
+    },
+    async (seuId) => {
+      const detail = await getSeuDetailView(seuId);
+      const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
+      assert.ok(capability);
+      capabilityId = capability.capabilityId;
+      await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
+    }
+  );
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
   const seuId = result.seu.id;
   const detail = await getSeuDetailView(seuId);
   const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
-  const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
-  assert.ok(deliverable && capability);
-  await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantType: "AI", displayName: `${prefix} Agent` });
-  return { seuId, deliverableId: deliverable.id, capabilityId: capability.capabilityId };
+  assert.ok(deliverable);
+  return { seuId, deliverableId: deliverable.id, capabilityId };
 }
 
 test("both adapters implement the one contract; the registry resolves by mode; a third adapter needs no core edit", () => {
@@ -122,13 +130,15 @@ test("external-orchestrator: dispatching delivers the assignment to the tenant e
 
   const before = captured.length;
   const dispatched = await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
-  assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : undefined);
-  if (!dispatched.ok) throw new Error("unreachable");
+  if (!dispatched.ok) assert.equal(dispatched.reason, "already_in_flight", JSON.stringify(dispatched));
 
+  // Dispatch itself is async now (WorkItemGenerated -> dispatchEngine); wait
+  // for the real Work Item before also waiting on its delivery.
+  const { workItem } = await waitForDispatchedWorkItem(deliverableId, "Defined", "In Progress");
   // Ch.30 Event Bus redesign — dispatch is fire-and-forget; poll for delivery
   // rather than assuming it's already landed synchronously.
-  await waitUntil(() => captured.slice(before).some((c) => c.workItemId === dispatched.workItemId));
-  const mine = captured.slice(before).find((c) => c.workItemId === dispatched.workItemId);
+  await waitUntil(() => captured.slice(before).some((c) => c.workItemId === workItem.id));
+  const mine = captured.slice(before).find((c) => c.workItemId === workItem.id);
   assert.ok(mine, "the orchestrator endpoint should have received the assignment");
   assert.equal(mine!.body.transition.fromState, "Defined");
   assert.equal(mine!.body.transition.toState, "In Progress");
@@ -146,13 +156,13 @@ test("human-on-UI (default, no execution target): dispatching makes no external 
 
   const before = captured.length;
   const dispatched = await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
-  assert.equal(dispatched.ok, true);
-  if (!dispatched.ok) throw new Error("unreachable");
+  if (!dispatched.ok) assert.equal(dispatched.reason, "already_in_flight", JSON.stringify(dispatched));
 
+  const { workItem } = await waitForDispatchedWorkItem(deliverableId, "Defined", "In Progress");
   // Ch.30 Event Bus redesign — dispatch is fire-and-forget; give a
   // (would-be erroneous) delivery a moment to land before asserting absence.
   await new Promise((resolve) => setTimeout(resolve, 200));
-  const mine = captured.slice(before).find((c) => c.workItemId === dispatched.workItemId);
+  const mine = captured.slice(before).find((c) => c.workItemId === workItem.id);
   assert.equal(mine, undefined, "the human-on-UI path makes no wire call — the item is fulfilled through the platform UI");
 });
 
@@ -161,15 +171,14 @@ test("the platform-side flow is identical either way: the Deliverable is dispatc
   const external = await commissionAndFulfil("adapter-invariance-ext");
   await executionTargetsDB.upsert({ tenantId: defaultTenantId, capabilityId: external.capabilityId, mode: "external-orchestrator", adapterEndpoint: captureUrl });
   const d1 = await transitionDeliverable({ deliverableId: external.deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
+  if (!d1.ok) assert.equal(d1.reason, "already_in_flight", JSON.stringify(d1));
 
   const human = await commissionAndFulfil("adapter-invariance-hum");
   const d2 = await transitionDeliverable({ deliverableId: human.deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
+  if (!d2.ok) assert.equal(d2.reason, "already_in_flight", JSON.stringify(d2));
 
-  assert.equal(d1.ok, true);
-  assert.equal(d2.ok, true);
-  if (!d1.ok || !d2.ok) throw new Error("unreachable");
-  // Both dispatched, both pending the same transition — the platform behaves
-  // identically; only the edge differed.
-  assert.deepEqual(d1.pendingTransition, { fromState: "Defined", toState: "In Progress" });
-  assert.deepEqual(d2.pendingTransition, { fromState: "Defined", toState: "In Progress" });
+  // Both dispatched, both requesting the same transition — the platform
+  // behaves identically; only the edge differed.
+  await waitForDispatchedWorkItem(external.deliverableId, "Defined", "In Progress");
+  await waitForDispatchedWorkItem(human.deliverableId, "Defined", "In Progress");
 });

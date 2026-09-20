@@ -800,53 +800,44 @@ The Deliverable subsystem shall publish:
 ### 1. Entity Overview
 - **Chapter:** [Chapter 16.md](file:///Volumes/Chennai/gitrepo/aisworg/design/foundations/03_Book 3 (Refined)/03_Part 3/Chapter 16.md)
 
-### 2. Lifecycle States & Transitions
+### 2. Lifecycle States & Transitions (Version Feature Plan.md pass, migration 238)
 
-Knowledge shall transition through the following lifecycle.
+Row 1 (birth into `Observed`) is ungoverned — no `transition_definitions` row exists for it, the same "creation authority is not a transition" discipline as Objective/Ontology's own row 1. `KnowledgeObserved` fires as a direct literal from `createKnowledgeItem`, not off a resolved transition. Only Published Knowledge may be reused across SEUs by default (enforced narrowly, in `promoteKnowledgeItemScope` only — see Ch.16 §20.6).
 
-```
-Observed
+| Row | Transition | Domain event | Version event |
+|---|---|---|---|
+| 1 New | — (birth into Observed) | `KnowledgeObserved` | — (ungoverned) |
+| 2 Propose | Observed→Proposed | `KnowledgeProposed` | `VersionCreated` |
+| 3 Validate | Proposed→Validated | `KnowledgeValidated` | `VersionValidated` |
+| 4 Accept | Validated→Accepted | `KnowledgeAccepted` | `VersionActivated` |
+| 5 Publish | Accepted→Published | `KnowledgePublished` | `VersionPublished` |
+| 6 Deprecate | Published→Deprecated | `KnowledgeDeprecated` | `VersionDeprecated` |
+| 7 Archive | Deprecated→Archived | `KnowledgeArchived` | `VersionArchived` |
 
-↓
+Rows 4/2 are the two owner-confirmed judgment calls (no name match against Ch.41 §15's 7-name vocabulary): row 2 (Observed→Proposed) is the first real governed hop, same placement reasoning as Decision's own Analysed→Proposed; row 4 (Validated→Accepted) takes the remaining `VersionActivated` slot. Rows 3/5/6/7 are direct name matches against the chapter's own state names.
 
-Proposed
+**Acquisition Scope promotion (§12) is a separate track, `entity_type = 'KnowledgeScope'`, deliberately NOT version-significant** (owner: "No new version. Existing version's scope is broadened.") — every hop gets `event_type = KnowledgeScopePromoted`, `version_event = NULL`, the same treatment SEU/EBM's runtime lifecycle got in Chapter 8's own pass:
 
-↓
-
-Validated
-
-↓
-
-Accepted
-
-↓
-
-Published
-
-↓
-
-Deprecated
-
-↓
-
-Archived
-```
-
-Only Published Knowledge may be reused across SEUs by default. Published state governs whether a Knowledge Item is validated enough to reuse at all; Acquisition Scope (§12) governs how far, once Published, it is entitled to propagate.
+| Row | Transition | Domain event | Version event |
+|---|---|---|---|
+| 1 | SEU→Capability | `KnowledgeScopePromoted` | — (not version-significant) |
+| 2 | Capability→Enterprise | `KnowledgeScopePromoted` | — (not version-significant) |
+| 3 | Enterprise→Platform | `KnowledgeScopePromoted` | — (not version-significant) |
 
 ### 3. Subsystem Events
 
-The Knowledge subsystem shall publish:
+The Knowledge subsystem publishes:
 
-- KnowledgeObserved
+- KnowledgeObserved (ungoverned, row 1)
 - KnowledgeProposed
 - KnowledgeValidated
 - KnowledgeAccepted
 - KnowledgePublished
-- KnowledgeUpdated
-- KnowledgeScopePromoted
 - KnowledgeDeprecated
 - KnowledgeArchived
+- KnowledgeScopePromoted (KnowledgeScope track, all 3 hops)
+
+`KnowledgeUpdated` (the old generic catch-all every governed transition used to emit) is retired — `transitionKnowledgeItem` now reads `gate.eventType` off the resolved `transition_definitions` row instead.
 
 ---
 

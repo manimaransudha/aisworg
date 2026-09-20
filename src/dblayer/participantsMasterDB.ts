@@ -8,7 +8,8 @@ type ParticipantMasterInput = {
   type: ParticipantType;
   displayName: string;
   capabilities?: string[];
-  competency?: Record<string, string[]>;
+  competency?: Record<string, Array<{ code: string; proficiency: string }>>;
+  cost?: number | null;
   behaviourContext?: Array<{ policy: string; payload: Record<string, unknown> }>;
   isActive?: boolean;
   userId?: number | null;
@@ -20,6 +21,7 @@ const PARTICIPANTS_MASTER_COLUMNS = [
   "display_name",
   "capabilities",
   "competency",
+  "cost",
   "behaviour_context",
   "is_active",
   "user_id",
@@ -32,6 +34,7 @@ function toRow(input: ParticipantMasterInput): unknown[] {
     input.displayName,
     JSON.stringify(input.capabilities ?? []),
     JSON.stringify(input.competency ?? {}),
+    input.cost ?? null,
     JSON.stringify(input.behaviourContext ?? []),
     input.isActive ?? true,
     input.userId ?? null,

@@ -28,7 +28,12 @@ export interface OnboardParticipantRequest {
 export interface OnboardedParticipant {
   displayName: string;
   capabilities: string[];
-  competency: Record<string, string[]>;
+  // Dispatch Strategy input (Ch.33 §7/§9) — proficiency per competency code,
+  // Ontology-backed (proficiency-level: Novice/Intermediate/Expert).
+  competency: Record<string, Array<{ code: string; proficiency: string }>>;
+  // Dispatch Strategy input (Ch.33 §9 Cost Optimisation). Null = no cost
+  // recorded for this identity.
+  cost: number | null;
   behaviourContext: Array<{ policy: string; payload: Record<string, unknown> }>;
   userId?: number | null;
 }

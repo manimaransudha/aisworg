@@ -4,6 +4,8 @@
 
 - ASK INSTEAD OF ASSUMING IF YOU SEE ANY DEVIATIONS FROM WHAT IS STATED HERE. 
 
+- Answers are terse by default — state the finding/decision, not the investigation path already visible in tool calls. No restating prior turns' context.
+
 - Use tools that use minimum tokens. Even if it takes a little longer, it is fine. Time is not a constraint. Tokens are. 
 
 - design/tbi.md and notes.md are the user's personal scratchpad. Do not read or load them into the context. 

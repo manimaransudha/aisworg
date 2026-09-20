@@ -17,18 +17,21 @@ import { transitionDeliverableSync as transitionDeliverable } from "./testFixtur
 import { createEvidence, transitionEvidence, linkEvidenceToObject, listEvidenceRelationships, listEvidenceLinkedToSeu } from "../src/routes/seu/core/evidence.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { evidenceDB } from "../src/dblayer/evidenceDB.js";
-import { createKnowledgeItem, transitionKnowledgeItem } from "../src/routes/seu/core/knowledge.js";
+import { addKnowledgeValidationNote, createKnowledgeItem, listKnowledgeValidationNotes, transitionKnowledgeItem, updateKnowledgeReferences } from "../src/routes/seu/core/knowledge.js";
 import { createDecision, transitionDecision } from "../src/routes/seu/core/decisions.js";
-import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
 
-async function commissionTestSeu(statementPrefix: string) {
+async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>) {
   await ensureWebAppTemplateFixture();
   await ensureCoreEngineeringQualityGates();
-  const result = await commissionFromFormSync({
-    statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: "1001", requestedBy: 1001,
-  });
+  const result = await commissionFromFormSync(
+    {
+      statement: `${statementPrefix}-${randomUUID()}`,
+      requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
+      actorRole: "super", actorId: "1001", requestedBy: 1001,
+    },
+    beforeCommenceWork
+  );
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
   return result.seu.id;
@@ -39,13 +42,21 @@ async function commissionTestSeu(statementPrefix: string) {
 // Quality Gate on "In Progress" -> "Approved" passes trivially, isolating
 // Phase 5's new "Approved" -> "Baselined" gate as the only thing under test.
 async function commissionAndApproveRequirementsSpec(statementPrefix: string) {
-  const seuId = await commissionTestSeu(statementPrefix);
+  const seuId = await commissionTestSeu(statementPrefix, async (seuId) => {
+    const detail = await getSeuDetailView(seuId);
+    const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
+    assert.ok(reqAnalysisCapability);
+    await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
+  });
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
-  const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
-  assert.ok(requirementsSpec && reqAnalysisCapability);
+  assert.ok(requirementsSpec);
+  // The automatic commence-work rescan (off SEUOperational) has already hit
+  // this Deliverable's own then-unfulfilled Capability by the time
+  // fulfilCapability above could possibly run — a real, by-design
+  // empty_eligible_pool Obligation, not part of this test's own scenario.
+  await resolveDispatchRejectionObligations(seuId);
 
-  await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantType: "AI", displayName: "Phase5 Test Analyst" });
   const toInProgress = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: "1" });
   assert.equal(toInProgress.ok, true, !toInProgress.ok ? JSON.stringify(toInProgress) : undefined);
   const toApproved = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "Approved", actorRole: "super", actorId: "1" });
@@ -91,7 +102,7 @@ test("Quality Gate blocks 'Approved' -> 'Baselined' until Evidence is Accepted, 
 test("Quality Gate also accepts an Approved Decision as satisfying the same precondition (the 'or' in Evidence-or-Decision)", async () => {
   const { seuId, deliverableId } = await commissionAndApproveRequirementsSpec("phase5-decision-gate");
 
-  const decision = await createDecision({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering Decisions", title: "Phase5 test: baseline readiness", selectedAlternative: "Proceed to baseline" });
+  const decision = await createDecision({ seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }], category: "Engineering Decisions", title: "Phase5 test: baseline readiness" });
   assert.equal(decision.status, "Identified");
 
   for (const targetState of ["Analysed", "Proposed", "Reviewed", "Approved"]) {
@@ -116,7 +127,7 @@ test("Evidence, Knowledge and Decision each run their own governed lifecycle and
   assert.equal(knowledgeInvalid.ok, false);
   if (!knowledgeInvalid.ok) assert.equal(knowledgeInvalid.reason, "no_transition_definition");
 
-  const decision = await createDecision({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Design Decisions", title: "Phase5 lifecycle test decision" });
+  const decision = await createDecision({ seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }], category: "Design Decisions", title: "Phase5 lifecycle test decision" });
   const decisionInvalid = await transitionDecision({ decisionId: decision.id, targetState: "Approved", actorRole: "super", actorId: "1001" });
   assert.equal(decisionInvalid.ok, false);
   if (!decisionInvalid.ok) assert.equal(decisionInvalid.reason, "no_transition_definition");
@@ -163,6 +174,72 @@ test("Knowledge Item inherits Acquisition Scope from its producing Deliverable b
   assert.equal(overridden.acquisition_scope, "Capability");
 });
 
+// "Firm up the Knowledge structure" session (2026-09-19, migration 239) —
+// §8/§10/§14's structured reference fields, version, author/badge tracking,
+// and append-only validation notes are all real columns/mechanisms now, not
+// gaps. Owner-confirmed design: the 4 reference fields (Evidence/Deliverable/
+// Decision/Knowledge References) share one §10-relationship-type-keyed JSON
+// shape; "supersedes" is valid only inside knowledge_references ("knowledge
+// can contradict anything" but supersession "should stay within knowledge
+// references only"); validation notes aggregate, never overwrite, with no
+// forced gate on any one transition.
+test("Knowledge Item captures §8/§10/§14 structure: structured references, version default, author/badge tracking, self-reference guard, and aggregated validation notes", async () => {
+  const { seuId, deliverableId } = await commissionAndApproveRequirementsSpec("phase5-knowledge-structure");
+
+  const evidence = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: "Phase5 structure test evidence" });
+  const decision = await createDecision({ seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }], category: "Design Decisions", title: "Phase5 structure test decision" });
+  const otherKnowledge = await createKnowledgeItem({ seuId, deliverableId, category: "Domain Knowledge", title: "Phase5 structure test - other knowledge item" });
+
+  const knowledgeItem = await createKnowledgeItem({
+    seuId,
+    deliverableId,
+    category: "Technical Knowledge",
+    title: "Phase5 structure test knowledge",
+    evidenceReferences: { supports: [evidence.id] },
+    deliverableReferences: { "derives from": [deliverableId] },
+    decisionReferences: { supports: [decision.id] },
+    knowledgeReferences: { "derives from": [otherKnowledge.id] },
+    confidenceLevel: "Medium",
+    userId: 1001,
+  });
+
+  // §8/§10: each reference field lands exactly as given, in its own §10-shaped object.
+  assert.deepEqual(knowledgeItem.evidence_references, { supports: [evidence.id] });
+  assert.deepEqual(knowledgeItem.deliverable_references, { "derives from": [deliverableId] });
+  assert.deepEqual(knowledgeItem.decision_references, { supports: [decision.id] });
+  assert.deepEqual(knowledgeItem.knowledge_references, { "derives from": [otherKnowledge.id] });
+  assert.equal(knowledgeItem.confidence_level, "Medium");
+
+  // §15/FR-41.1: version starts at 1.0.0 — no bump logic yet, since no Edit path exists.
+  assert.equal(knowledgeItem.version, "1.0.0");
+
+  // Creation is ungoverned — no badge yet (mirrors decisions.authority_badge's own treatment).
+  assert.equal(knowledgeItem.authority_badge, null);
+
+  // §10: Related Knowledge must never refer to itself.
+  await assert.rejects(() => updateKnowledgeReferences(knowledgeItem.id, { supports: [knowledgeItem.id] }), /own id/);
+
+  // A real, non-self update succeeds and persists.
+  const withUpdatedReferences = await updateKnowledgeReferences(knowledgeItem.id, { "derives from": [otherKnowledge.id], supersedes: [otherKnowledge.id] });
+  assert.deepEqual(withUpdatedReferences.knowledge_references, { "derives from": [otherKnowledge.id], supersedes: [otherKnowledge.id] });
+
+  // author_id/authority_badge update on every governed transition thereafter
+  // — the row always reflects the most recent actor, full history stays in `events`.
+  const toProposed = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: "Proposed", actorRole: "super", actorId: "1001", userId: 1001 });
+  assert.equal(toProposed.ok, true, !toProposed.ok ? JSON.stringify(toProposed) : undefined);
+  if (toProposed.ok) assert.equal(toProposed.knowledgeItem.authority_badge, "knowledge_propose");
+
+  // §11 Validation / §14 "validation history" — aggregates, never overwrites
+  // (owner: "no forced gate" — addable at any point, not tied to one hop).
+  await addKnowledgeValidationNote({ knowledgeItemId: knowledgeItem.id, noteText: "First pass: terminology confirmed against domain glossary." });
+  await addKnowledgeValidationNote({ knowledgeItemId: knowledgeItem.id, noteText: "Second pass: cross-checked against Requirements Analysis Model." });
+  const notes = await listKnowledgeValidationNotes(knowledgeItem.id);
+  assert.deepEqual(
+    notes.map((n) => n.note_text),
+    ["First pass: terminology confirmed against domain glossary.", "Second pass: cross-checked against Requirements Analysis Model."]
+  );
+});
+
 // CR-051 item 1 (Ch.17 §20.2/§20.8) — one Evidence Item may support many
 // engineering artefacts. Proves the join-table redesign: linking to a
 // second object, findByRelatedObject finding it via both, cross-SEU sharing
@@ -174,17 +251,20 @@ test("Evidence can be linked to more than one object, findByRelatedObject finds 
 
   const evidence = await createEvidence({ seuId: seuA, relatedObjectType: "Deliverable", relatedObjectId: deliverableA, category: "Validation Evidence", title: "Shared test results" });
 
-  // Only one relationship so far — from creation.
+  // Two relationships so far — from creation: the explicit Deliverable plus
+  // the implicit SEU membership row evidenceDB.create always adds (Ch.17
+  // model cleanup, migration 232).
   const relationshipsBefore = await listEvidenceRelationships(evidence.id);
-  assert.equal(relationshipsBefore.length, 1);
-  assert.equal(relationshipsBefore[0].related_object_id, deliverableA);
+  assert.equal(relationshipsBefore.length, 2);
+  assert.ok(relationshipsBefore.some((r) => r.related_object_type === "Deliverable" && r.related_object_id === deliverableA));
+  assert.ok(relationshipsBefore.some((r) => r.related_object_type === "SEU" && r.related_object_id === seuA));
 
   // Link to a SECOND Deliverable belonging to a DIFFERENT SEU entirely.
   const linked = await linkEvidenceToObject(evidence.id, "Deliverable", deliverableB);
   assert.equal(linked.ok, true, !linked.ok ? linked.detail : undefined);
 
   const relationshipsAfter = await listEvidenceRelationships(evidence.id);
-  assert.equal(relationshipsAfter.length, 2, "one Evidence Item now supports two artefacts");
+  assert.equal(relationshipsAfter.length, 3, "one Evidence Item now supports two artefacts, plus its own SEU membership row");
 
   // findByRelatedObject finds the SAME Evidence row via EITHER relationship.
   const { data: foundViaA } = await evidenceDB.findByRelatedObject("Deliverable", deliverableA);
@@ -196,7 +276,7 @@ test("Evidence can be linked to more than one object, findByRelatedObject finds 
   const relinked = await linkEvidenceToObject(evidence.id, "Deliverable", deliverableB);
   assert.equal(relinked.ok, true);
   const relationshipsAfterRelink = await listEvidenceRelationships(evidence.id);
-  assert.equal(relationshipsAfterRelink.length, 2, "re-linking the same object is idempotent");
+  assert.equal(relationshipsAfterRelink.length, 3, "re-linking the same object is idempotent");
 
   // Linking a non-existent Deliverable is rejected.
   const invalid = await linkEvidenceToObject(evidence.id, "Deliverable", randomUUID());
@@ -209,10 +289,15 @@ test("Evidence can be linked to more than one object, findByRelatedObject finds 
   if (!notFound.ok) assert.equal(notFound.reason, "not_found");
 });
 
-// CR-051 item 3 (Ch.17 §12/§20.10) — Evidence Provenance: originating
-// Deliverable/Participant/Capability/Decision/activity, all preserved and
-// surfaced through the SEU detail view's provenance labels.
-test("Evidence preserves its full provenance — originating Deliverable, Participant, Capability, Decision and activity", async () => {
+// Ch.17 model cleanup (migration 232, this session) retired the bespoke
+// originating_participant_id/originating_capability_id/originating_decision_id/
+// originating_activity columns outright — "Evidence does not need anything.
+// Evidence is required by others." Every relationship (including what these
+// used to be) is now just another evidence_relationships row, added via
+// linkEvidenceToObject, surfaced through SeuDetailEvidence.relationships/
+// relatedObjectLabels instead of a bespoke provenance sub-object. Rewritten
+// from the old originating_*-column version to match.
+test("Evidence preserves its full provenance as evidence_relationships rows — Deliverable, Participant, Capability and Decision all resolve to real labels", async () => {
   const seuId = await commissionTestSeu("phase5-evidence-provenance");
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
@@ -220,47 +305,48 @@ test("Evidence preserves its full provenance — originating Deliverable, Partic
   assert.ok(requirementsSpec && reqAnalysisCapability);
 
   const { participant } = await fulfilCapability({
-    seuId, capabilityId: reqAnalysisCapability.capabilityId, participantType: "AI", displayName: "Phase5 Provenance Analyst",
+    seuId, capabilityId: reqAnalysisCapability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]),
   });
 
   const decision = await createDecision({
-    seuId, relatedObjectType: "Deliverable", relatedObjectId: requirementsSpec.id,
+    seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [requirementsSpec.id] }],
     category: "Engineering Decisions", title: "Phase5 provenance test decision",
   });
 
   const evidence = await createEvidence({
     seuId, relatedObjectType: "Deliverable", relatedObjectId: requirementsSpec.id,
     category: "Validation Evidence", title: "Provenance-tagged evidence",
-    originatingParticipantId: participant.id,
-    originatingCapabilityId: reqAnalysisCapability.capabilityId,
-    originatingDecisionId: decision.id,
-    originatingActivity: "ran the requirements validation suite",
   });
 
-  // originatingDeliverableId auto-derives from relatedObjectType/Id (Deliverable case).
-  assert.equal(evidence.originating_deliverable_id, requirementsSpec.id);
-  assert.equal(evidence.originating_participant_id, participant.id);
-  assert.equal(evidence.originating_capability_id, reqAnalysisCapability.capabilityId);
-  assert.equal(evidence.originating_decision_id, decision.id);
-  assert.equal(evidence.originating_activity, "ran the requirements validation suite");
+  const linkedParticipant = await linkEvidenceToObject(evidence.id, "Participant", participant.id);
+  assert.equal(linkedParticipant.ok, true);
+  const linkedCapability = await linkEvidenceToObject(evidence.id, "Capability", reqAnalysisCapability.capabilityId);
+  assert.equal(linkedCapability.ok, true);
+  const linkedDecision = await linkEvidenceToObject(evidence.id, "Decision", decision.id);
+  assert.equal(linkedDecision.ok, true);
+
+  const relationships = await listEvidenceRelationships(evidence.id);
+  const relatedTypes = relationships.map((r) => r.related_object_type);
+  assert.ok(relatedTypes.includes("SEU"), "every Evidence carries its SEU membership relationship");
+  assert.ok(relatedTypes.includes("Deliverable"));
+  assert.ok(relatedTypes.includes("Participant"));
+  assert.ok(relatedTypes.includes("Capability"));
+  assert.ok(relatedTypes.includes("Decision"));
+  assert.ok(relationships.some((r) => r.related_object_type === "Decision" && r.related_object_id === decision.id));
 
   const refreshed = await getSeuDetailView(seuId);
   const evidenceView = refreshed?.evidence.find((e) => e.evidence.id === evidence.id);
   assert.ok(evidenceView);
-  assert.equal(evidenceView.provenance.deliverableName, "Requirements Analysis Model");
-  assert.equal(evidenceView.provenance.participantName, "Phase5 Provenance Analyst (AI)");
-  assert.ok(evidenceView.provenance.capabilityName?.includes("requirements-analysis"));
-  assert.equal(evidenceView.provenance.decisionTitle, "Phase5 provenance test decision");
-  assert.equal(evidenceView.provenance.activity, "ran the requirements validation suite");
+  assert.ok(evidenceView.relatedObjectLabels.some((l) => l === "Requirements Analysis Model"));
+  assert.ok(evidenceView.relatedObjectLabels.some((l) => l === `${participant.display_name} (${participant.type})`));
+  assert.ok(evidenceView.relatedObjectLabels.some((l) => l.includes("requirements-analysis")));
 
-  // Provenance is entirely optional — Evidence created without any of it has null fields, not an error.
-  const bareEvidence = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: requirementsSpec.id, category: "Validation Evidence", title: "No provenance supplied" });
-  assert.equal(bareEvidence.originating_participant_id, null);
-  assert.equal(bareEvidence.originating_capability_id, null);
-  assert.equal(bareEvidence.originating_decision_id, null);
-  assert.equal(bareEvidence.originating_activity, null);
-  // ...except originating Deliverable, which still auto-derives.
-  assert.equal(bareEvidence.originating_deliverable_id, requirementsSpec.id);
+  // A relationship is entirely optional — Evidence created with only its
+  // required Deliverable relationship has no Participant/Capability/Decision
+  // relationships at all, not an error.
+  const bareEvidence = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: requirementsSpec.id, category: "Validation Evidence", title: "No extra relationships supplied" });
+  const bareRelationships = await listEvidenceRelationships(bareEvidence.id);
+  assert.deepEqual(new Set(bareRelationships.map((r) => r.related_object_type)), new Set(["SEU", "Deliverable"]));
 });
 
 // CR-051 item 4 (Ch.17 §15/§20.13) — versioning + supersede link. Owner's own
@@ -287,9 +373,11 @@ test("Superseding an Evidence Item does not cascade — the predecessor's own re
   });
   assert.equal(v2.supersedes_evidence_id, v1.id);
 
-  // V1's own relationships are completely unchanged — still both SEU1's and SEU2's original Deliverables.
+  // V1's own relationships are completely unchanged — still its own SEU1
+  // membership row plus both SEU1's and SEU2's Deliverables.
   const v1Relationships = await listEvidenceRelationships(v1.id);
-  assert.equal(v1Relationships.length, 2, "V2's existence must not add, remove, or alter any of V1's own relationships");
+  assert.equal(v1Relationships.length, 3, "V2's existence must not add, remove, or alter any of V1's own relationships");
+  assert.ok(v1Relationships.some((r) => r.related_object_type === "SEU" && r.related_object_id === seu1));
   assert.ok(v1Relationships.some((r) => r.related_object_id === seu1Deliverable));
   assert.ok(v1Relationships.some((r) => r.related_object_id === seu2Deliverable));
 

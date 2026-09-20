@@ -16,7 +16,7 @@ import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { sweepStalledWorkItems } from "../src/routes/seu/core/workItemHeartbeat.js";
 import { servicesDB } from "../src/dblayer/servicesDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant } from "./testFixtures.js";
 
 const SLA_SECONDS = 60;
 
@@ -59,7 +59,7 @@ async function commissionDispatchAndDeclareSla(prefix: string, opts?: { slaSecon
     originatingPackId: svc.originating_pack_id!,
   });
 
-  await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantType: "AI", displayName: `${prefix} Analyst` });
+  await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
 
   // Dispatch and DO NOT complete — the Work Item is now genuinely outstanding.
   // The target is the SLA-derived default unless the caller overrides it.
@@ -67,7 +67,8 @@ async function commissionDispatchAndDeclareSla(prefix: string, opts?: { slaSecon
   assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : undefined);
   if (!dispatched.ok) throw new Error("unreachable");
 
-  return { seuId, deliverableId: deliverable.id, workItemId: dispatched.workItemId };
+  const { workItem } = await waitForDispatchedWorkItem(deliverable.id, "Defined", "In Progress");
+  return { seuId, deliverableId: deliverable.id, workItemId: workItem.id };
 }
 
 test("an outstanding Work Item within its SLA is not escalated; past its SLA it raises exactly one Escalation Attention Item, unattended", async () => {

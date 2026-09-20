@@ -5,28 +5,41 @@ const router = express.Router();
 
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
-import { createEvidence, listEvidenceBySeu, transitionEvidence, linkEvidenceToObject } from "../core/evidence.js";
+import { createEvidence, listEvidenceBySeu, transitionEvidence, linkEvidenceToObject, recordValidationAssessment } from "../core/evidence.js";
 import type { TransitionEntityType } from "../../../dblayer/seuTypes.js";
 
 /** POST /evidence — Ch.17: collect an Evidence Item against any governed entity (relatedObjectType/relatedObjectId — polymorphic, Open Design Questions.md #3). */
 router.post("/evidence", async (req: Request, res: Response) => {
   try {
-    const {
-      seuId, relatedObjectType, relatedObjectId, category, title, description, source, confidenceLevel,
-      originatingDeliverableId, originatingParticipantId, originatingCapabilityId, originatingDecisionId, originatingActivity,
-      supersedesEvidenceId,
-    } = req.body ?? {};
+    const { seuId, relatedObjectType, relatedObjectId, category, title, description, source, supersedesEvidenceId } = req.body ?? {};
     if (typeof seuId !== "string" || typeof relatedObjectType !== "string" || typeof relatedObjectId !== "string" || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
       return res.status(400).json({ error: "seuId, relatedObjectType, relatedObjectId, category and title are required" });
     }
     const evidence = await createEvidence({
-      seuId, relatedObjectType: relatedObjectType as TransitionEntityType, relatedObjectId, category, title, description, source, confidenceLevel,
-      originatingDeliverableId, originatingParticipantId, originatingCapabilityId, originatingDecisionId, originatingActivity,
+      seuId, relatedObjectType: relatedObjectType as TransitionEntityType, relatedObjectId, category, title, description, source,
       supersedesEvidenceId,
     });
     res.status(201).json({ evidence });
   } catch (err) {
     logger.error("[api/seu/evidence] POST error", err as Error);
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** POST /evidence/:id/validate — Ch.17 §11/§13: record one validation-
+ *  dimension assessment. Append-only; confidence_level is recomputed from
+ *  the full history each time. */
+router.post("/evidence/:id/validate", async (req: Request, res: Response) => {
+  try {
+    const { dimension, status, notes } = req.body ?? {};
+    if (typeof dimension !== "string" || !dimension.trim() || typeof status !== "string" || !status.trim()) {
+      return res.status(400).json({ error: "dimension and status are required" });
+    }
+    const result = await recordValidationAssessment({ evidenceId: String(req.params.id), dimension, status, notes });
+    if (!result.ok) return res.status(404).json({ error: "Evidence not found" });
+    res.status(200).json({ evidence: result.evidence });
+  } catch (err) {
+    logger.error("[api/seu/evidence] POST /:id/validate error", err as Error);
     res.status(400).json({ error: (err as Error).message });
   }
 });

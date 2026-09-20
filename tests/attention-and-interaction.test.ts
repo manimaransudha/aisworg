@@ -19,33 +19,60 @@ import { transitionDeliverableSync as transitionDeliverable } from "./testFixtur
 import { createObligation, transitionObligation } from "../src/routes/seu/core/obligations.js";
 import { createAttentionItem, listAttentionItemsBySeu, transitionAttentionItem } from "../src/routes/seu/core/attentionItems.js";
 import { createExternalInteraction, listExternalInteractionsBySeu, transitionExternalInteraction } from "../src/routes/seu/core/externalInteractions.js";
-import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
 
 async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
   await ensureCoreEngineeringQualityGates();
-  const result = await commissionFromFormSync({
-    statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: "1001", requestedBy: 1001,
-  });
+  const result = await commissionFromFormSync(
+    {
+      statement: `${statementPrefix}-${randomUUID()}`,
+      requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
+      actorRole: "super", actorId: "1001", requestedBy: 1001,
+    },
+    // Fulfil before the Execution Engine's own automatic commence-work
+    // attempt (executionEngineKickoff, off SEUActivated) reaches Dispatch —
+    // otherwise it races an unfulfilled Capability into a real, spurious
+    // empty_eligible_pool Obligation that pollutes this test's own Obligation
+    // count (see driveCommissioningToActive's own beforeCommenceWork comment).
+    async (seuId) => {
+      const detail = await getSeuDetailView(seuId);
+      const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
+      assert.ok(reqAnalysisCapability);
+      const participantMasterId = await ensureEligibleParticipant(seuId, ["requirements-analysis"]);
+      await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantMasterId });
+    }
+  );
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
   const seuId = result.seu.id;
 
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
-  const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
-  assert.ok(requirementsSpec && reqAnalysisCapability);
-  await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantType: "AI", displayName: "Phase8 Test Analyst" });
+  assert.ok(requirementsSpec);
+  // The automatic commence-work rescan (off SEUOperational) already hit this
+  // Deliverable's own then-unfulfilled Capability — a real, by-design
+  // empty_eligible_pool Obligation/Attention Item, not this test's own AM-002
+  // scenario (which cares about exactly one Attention Item: its own).
+  await resolveDispatchRejectionObligations(seuId);
   return { seuId, deliverableId: requirementsSpec.id };
 }
 
 test("a Quality Gate block raises exactly one 'Action Required' Attention Item, deduplicated across repeated attempts (AM-002)", async () => {
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("phase8-attention-dedup");
-  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
 
+  // tests/web-flow.e2e.test.ts's own commissionIsolatedPhase8Seu comment:
+  // the Obligation must exist BEFORE the Deliverable ever reaches "In
+  // Progress", not right after — deliverableKickoffHandler's rescan off the
+  // DeliverableTransitioned that "In Progress" publishes is fire-and-forget
+  // (eventBus.publish never awaits dispatch), so it can run its own
+  // governance read at any point afterward, independent of this test's own
+  // synchronous timeline, and race a still-unblocked pass in ahead of this
+  // test's own createObligation call. Creating it first means every attempt
+  // at that hop, automatic or manual, whichever gets there first, finds the
+  // same Obligation already in place.
   const obligation = await createObligation({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase8 attention-dedup blocker (left unresolved)" });
+  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
 
   for (let i = 0; i < 3; i++) {
     const attempt = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
@@ -62,9 +89,11 @@ test("a Quality Gate block raises exactly one 'Action Required' Attention Item, 
 
 test("a sustained pattern of Quality Gate blocking raises a High-priority 'Escalation' Attention Item alongside the Organisational Learning Obligation", async () => {
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("phase8-attention-escalation");
-  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
 
+  // Same ordering fix as the AM-002 dedup test above — Obligation before
+  // "In Progress", not after (see that test's own comment for why).
   await createObligation({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase8 escalation blocker (left unresolved)" });
+  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
 
   // Threshold is 3 (SUSTAINED_BLOCK_THRESHOLD) — cross it.
   for (let i = 0; i < 4; i++) {

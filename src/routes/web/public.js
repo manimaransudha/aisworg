@@ -15,7 +15,8 @@ import { appConfig } from "../../config/appconfig.js";
 // import { redirects } from "../../middleware/redirects.js";
 import { getArchitectureLayers, getDashboardCounts } from "../seu/core/dashboard.js";
 import { getSeuQuickview } from "../seu/core/seus.js";
-import { getParticipantHomeView } from "../seu/core/participantHome.js";
+import { getParticipantHomeView, completeMyWorkItem } from "../seu/core/participantHome.js";
+import { flashError, flashSuccess } from "../../utils/flash.js";
 
 /** GET / — the SEU Commissioning Platform's home page: the architecture layers + live counts. */
 router.get("/", requireRole('general'), attachVM("seu/dashboard"), async (req, res, next) => {
@@ -114,6 +115,37 @@ router.get("/quickview", requireRole('general'), attachVM("quickview/index"), as
   } catch (err) {
     logger.error("[QuickView] GET error:", err);
     next(err);
+  }
+});
+
+/** POST /quickview/work-items/:workItemId/complete — CR-109 Build Plan §7:
+ * a Participant reports a result on their OWN Work Item, from their own "My
+ * Work" page. Ownership is re-checked inside completeMyWorkItem (core/
+ * participantHome.js) against the caller's own participants_master identity
+ * — never trusted off the form alone. */
+router.post("/quickview/work-items/:workItemId/complete", requireRole('general'), async (req, res) => {
+  const backTo = "/aisworg/quickview";
+  const { outcome, reference } = req.body ?? {};
+  if (typeof outcome !== "string" || !["done", "failed", "blocked"].includes(outcome)) {
+    return flashError(req, res, backTo, "Outcome must be done, failed or blocked.");
+  }
+  try {
+    const result = await completeMyWorkItem({
+      userId: req.session.user.id,
+      workItemId: String(req.params.workItemId),
+      outcome,
+      reference: typeof reference === "string" && reference.trim() !== "" ? reference : null,
+    });
+    if (!result.ok) {
+      return flashError(req, res, backTo, `Could not record result: ${result.detail}`);
+    }
+    if (result.outcome === "done") {
+      return flashSuccess(req, res, backTo, `Result recorded — Deliverable moved "${result.appliedTransition.fromState}" → "${result.appliedTransition.toState}".`);
+    }
+    return flashSuccess(req, res, backTo, `Reported "${result.outcome}" — the transition was not applied and an Attention Item was raised.`);
+  } catch (err) {
+    logger.error("[QuickView] POST work-item complete error:", err);
+    return flashError(req, res, backTo, err.message);
   }
 });
 

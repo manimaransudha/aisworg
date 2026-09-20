@@ -34,6 +34,7 @@ import type {
   EbmComposedPack,
   EventRow,
   EvidenceRow,
+  EvidenceRelationshipRow,
   ExternalInteractionRow,
   KnowledgeItemRow,
   ObligationRow,
@@ -230,6 +231,13 @@ export interface SeuDetailWorkItem {
   status: WorkItemRow["status"];
   dispatchStrategy: string | null;
   participantLabel: string | null;
+  // CR-109 Build Plan §7 — the raw Participant engagement id (participants.id),
+  // alongside participantLabel's display form, so a Participant-scoped view
+  // (core/participantHome.ts) can filter down to its own rows instead of
+  // just displaying every Work Item on a shared Command.
+  participantId: string | null;
+  // CR-109 §6.3/Ch.32 §11 — resolved once at generation (workItemGenerator.ts).
+  executionContext: WorkItemRow["execution_context"];
 }
 
 export interface SeuDetailCommand {
@@ -268,17 +276,15 @@ export interface SeuDetailAttentionItem {
 // deliverableName to show all of them, not just the first.
 export interface SeuDetailEvidence {
   evidence: EvidenceRow;
+  // Ch.17 model cleanup (migration 232) — every relationship Evidence has,
+  // including SEU membership and what used to be bespoke provenance columns
+  // (Deliverable/Participant/Capability/Decision), is now one uniform
+  // evidence_relationships list. relatedObjectLabels is the display form;
+  // relationships is the raw form (participant-scoping needs the ids, not
+  // just labels).
   relatedObjectLabels: string[];
+  relationships: EvidenceRelationshipRow[];
   possibleNextStates: string[];
-  // CR-051 item 3 (Ch.17 §12/§20.10) — resolved provenance labels for
-  // display; null where that provenance field wasn't captured.
-  provenance: {
-    deliverableName: string | null;
-    participantName: string | null;
-    capabilityName: string | null;
-    decisionTitle: string | null;
-    activity: string | null;
-  };
   // CR-051 item 4 (Ch.17 §15/§20.13) — title of the Evidence Item this one
   // corrects, if any. Deliberately one-directional: the predecessor's own
   // row shows nothing (no cross-SEU signal, per the owner's own decision).
@@ -294,7 +300,11 @@ export interface SeuDetailKnowledgeItem {
 
 export interface SeuDetailDecision {
   decision: DecisionRow;
-  deliverableName: string;
+  // Ch.19 model cleanup (migration 231) — related_objects is now an array
+  // of groups (multiple entity types, multiple ids each); one display label
+  // per resolved id, same "Evidence's relatedObjectLabels" pattern already
+  // used above for SeuDetailEvidence.
+  relatedObjectLabels: string[];
   possibleNextStates: string[];
 }
 
@@ -547,6 +557,8 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
         status: w.status,
         dispatchStrategy: w.dispatch_strategy,
         participantLabel: w.participant_id ? participantLabelById.get(w.participant_id) ?? null : null,
+        participantId: w.participant_id,
+        executionContext: w.execution_context,
       })),
   }));
 
@@ -557,6 +569,12 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
   // label otherwise, same pattern SeuDetailCommand.entityLabel already uses.
   function relatedObjectLabel(relatedObjectType: string, relatedObjectId: string): string {
     if (relatedObjectType === "Deliverable") return deliverableNameById.get(relatedObjectId) ?? "(unknown Deliverable)";
+    // Ch.17 model cleanup (migration 232) — Evidence's own former
+    // originating_participant_id/originating_capability_id provenance
+    // columns are now just more evidence_relationships rows of these two
+    // types, resolved the same way Deliverable already was.
+    if (relatedObjectType === "Participant") return participantNameById.get(relatedObjectId) ?? "(unknown Participant)";
+    if (relatedObjectType === "Capability") return capabilityNameById.get(relatedObjectId) ?? "(unknown Capability)";
     return `${relatedObjectType} ${relatedObjectId.slice(0, 8)}`;
   }
 
@@ -601,11 +619,9 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
     // "Corrects" select and resolves predecessorTitle below.
     listEvidenceLinkedToSeu(seuId),
   ]);
-  // CR-051 item 3 — decision titles, for Evidence provenance display.
-  const decisionTitleById = new Map(decisionsWithNextStates.map(({ decision }) => [decision.id, decision.title]));
-  // CR-051 item 4 — this SEU's own Evidence plus every cross-SEU candidate
-  // covers every Evidence Item that could legitimately appear as a
-  // predecessor from this SEU's own page.
+  // This SEU's own Evidence plus every cross-SEU candidate covers every
+  // Evidence Item that could legitimately appear as a predecessor from this
+  // SEU's own page.
   const evidenceTitleById = new Map([
     ...evidenceWithNextStates.map(({ evidence }) => [evidence.id, evidence.title] as const),
     ...evidenceSupersedeCandidates.map((e) => [e.id, e.title] as const),
@@ -615,15 +631,9 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
       const relationships = await listEvidenceRelationships(evidence.id);
       return {
         evidence,
-        relatedObjectLabels: relationships.map((r) => relatedObjectLabel(r.related_object_type, r.related_object_id)),
+        relatedObjectLabels: relationships.filter((r) => r.related_object_type !== "SEU").map((r) => relatedObjectLabel(r.related_object_type, r.related_object_id)),
+        relationships,
         possibleNextStates,
-        provenance: {
-          deliverableName: evidence.originating_deliverable_id ? deliverableNameById.get(evidence.originating_deliverable_id) ?? "(unknown Deliverable)" : null,
-          participantName: evidence.originating_participant_id ? participantNameById.get(evidence.originating_participant_id) ?? "(unknown Participant)" : null,
-          capabilityName: evidence.originating_capability_id ? capabilityNameById.get(evidence.originating_capability_id) ?? "(unknown Capability)" : null,
-          decisionTitle: evidence.originating_decision_id ? decisionTitleById.get(evidence.originating_decision_id) ?? "(unknown Decision)" : null,
-          activity: evidence.originating_activity,
-        },
         predecessorTitle: evidence.supersedes_evidence_id ? evidenceTitleById.get(evidence.supersedes_evidence_id) ?? "(unknown Evidence)" : null,
       };
     })
@@ -636,7 +646,7 @@ export async function getSeuDetailView(seuId: string): Promise<SeuDetailView | n
   }));
   const decisionViews: SeuDetailDecision[] = decisionsWithNextStates.map(({ decision, possibleNextStates }) => ({
     decision,
-    deliverableName: relatedObjectLabel(decision.related_object_type, decision.related_object_id),
+    relatedObjectLabels: decision.related_objects.flatMap((group) => group.related_object_ids.map((id) => relatedObjectLabel(group.related_object_type, id))),
     possibleNextStates,
   }));
 

@@ -80,27 +80,18 @@ export async function createDeliverable(input: { seuId: string; name: string; ca
 // CR-107 item 7 — the Execution Engine (domain/engine/executionEngine.ts)
 // now owns every governance decision (dependency readiness, the SEU-blocked
 // and per-Deliverable-Obligation checks, Quality Gate, Policy, Authority);
-// this type just adds the two outcomes that aren't a governance decision —
-// "not_found" (before governance is even reached) and "dispatch_deferred"
-// (after governance passes, a Dispatch Engine/Capability-fulfilment concern).
+// this type just adds "not_found" (before governance is even reached).
+//
+// execute() is now an event-boundary function (void return, CommandGenerated
+// onward runs in its own consumers) — transitionDeliverable can no longer
+// report dispatched/workItemId/participantId, because those facts don't
+// exist yet when this call returns. Success here means only "governance
+// cleared, Command requested" — dispatch outcome (WorkItemDispatched /
+// DispatchDeferred) is visible only through events from here on.
 export type TransitionDeliverableResult =
-  // Model A (Participant Integration Plan, Resolution 1/11): a governed
-  // transition is no longer applied synchronously. Governance passes, a Work
-  // Item is dispatched, and the Deliverable stays in its *current* state until
-  // the Participant's result callback lands (completeWorkItem). The success of
-  // this call means "dispatched and outstanding," not "transitioned."
-  | { ok: true; dispatched: true; workItemId: string; participantId?: string; pendingTransition: { fromState: string; toState: string } }
+  | { ok: true; fromState: string; toState: string }
   | { ok: false; reason: "not_found" }
-  | Exclude<DeliverableGovernanceResult, { ok: true }>
-  | { ok: false; reason: "dispatch_deferred"; detail: string };
-
-// Post-MVP Phase 3 (Ch.31/32/33): once governance allows the transition, it
-// no longer applies directly: the Execution Engine generates a Command, a
-// Work Item is derived from it, and the Dispatch Engine must actually assign
-// that Work Item to a Participant before the Deliverable's lifecycle_state
-// changes. If nobody currently fulfils the Deliverable's producing
-// Capability, the transition is deferred rather than silently applied — a
-// real behavioural change from the direct-POST MVP.
+  | Exclude<DeliverableGovernanceResult, { ok: true }>;
 export async function transitionDeliverable(input: {
   deliverableId: string;
   targetState: string;
@@ -134,7 +125,7 @@ export async function transitionDeliverable(input: {
   }
 
   const correlationId = eventBus.newCorrelationId();
-  const execution = await executionEngine.execute({
+  await executionEngine.execute({
     seuId: deliverable.seu_id,
     entityType: "Deliverable",
     entityId: deliverable.id,
@@ -145,27 +136,13 @@ export async function transitionDeliverable(input: {
     actingBadgeGrantId,
     targetCompletionAt: input.targetCompletionAt ?? null,
     correlationId,
+    governanceOutcome: governance.governanceOutcome,
   });
 
-  if (!execution.dispatched) {
-    return {
-      ok: false,
-      reason: "dispatch_deferred",
-      detail: "no Participant currently fulfils this Deliverable's producing Capability — assign one before this transition can be dispatched",
-    };
-  }
-
-  // Dispatched and outstanding. The Deliverable's lifecycle_state is
-  // deliberately NOT changed here — the DeliverableTransitioned event and the
-  // state change are emitted by completeWorkItem when the Participant reports a
-  // `done` result. This is the async control-flow inversion Model A requires:
-  // core dispatches, then waits for the result-in callback to drive the
-  // transition (Participant Integration Plan, Resolution 11).
-  return {
-    ok: true,
-    dispatched: true,
-    workItemId: execution.workItemId,
-    participantId: execution.participantId,
-    pendingTransition: { fromState, toState: input.targetState },
-  };
+  // Governance cleared and a Command was requested — that's all this call
+  // can report now. Whether it actually gets dispatched, deferred, or fails
+  // is decided later, asynchronously, by commandGeneratedHandler /
+  // workItemGeneratedHandler / dispatchEngine, and is visible only through
+  // their own events (CommandGenerated, WorkItemDispatched, DispatchDeferred).
+  return { ok: true, fromState, toState: input.targetState };
 }

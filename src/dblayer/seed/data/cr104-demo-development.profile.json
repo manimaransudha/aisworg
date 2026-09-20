@@ -8,5 +8,22 @@
   "developmentMethodology": "scrum",
   "primaryProgrammingLanguage": "typescript",
   "sourceControlProvider": "github",
+  "dispatchStrategyPreference": [
+    { "strategy": "capability-match", "order": 1 },
+    { "strategy": "specialist-preference", "order": 2 },
+    { "strategy": "cost-optimisation", "order": 3 },
+    { "strategy": "confidence-optimisation", "order": 4 },
+    { "strategy": "load-balancing", "order": 5 },
+    { "strategy": "locality-preference", "order": 6 },
+    { "strategy": "organisation-preference", "order": 7 }
+  ],
+  "redispatchMaxAttempts": 5,
+  "redispatchAttentionThreshold": 2,
+  "knowledgeLocations": [
+    { "deliverableCode": "requirements-analysis-model", "inputLocation": "s3://cr104-demo/requirements-backlog.md", "outputLocation": "s3://cr104-demo/requirements-analysis-model.md" },
+    { "deliverableCode": "source-code", "outputLocation": "https://github.com/cr104-demo/source-code" },
+    { "deliverableCode": "deployment-manifest", "outputLocation": "s3://cr104-demo/deployment-manifest.yaml" }
+  ],
+  "readme": "CR-109 fixture — Input/Output Knowledge Location per Deliverable, plus a Capability Match Dispatch Strategy preference, for exercising the Work Item Generator/Dispatch Engine build.",
   "optionalPackCodes": ["cr104-demo-seu-eligibility-policies"]
 }

@@ -16,35 +16,48 @@ import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { explainDeliverable, impactOfDeliverable } from "../src/routes/seu/core/traceability.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
+import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
 
 async function dispatchAndComplete(deliverableId: string, targetState: string, reference: string | null) {
+  const { data: deliverable } = await deliverablesDB.findById(deliverableId);
+  const fromState = deliverable!.lifecycle_state;
   const dispatched = await transitionDeliverable({ deliverableId, targetState, actorRole: "super", actorId: "1" });
-  assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : undefined);
-  if (!dispatched.ok) throw new Error("unreachable");
-  const completed = await completeWorkItem({ workItemId: dispatched.workItemId, outcome: "done", reference });
+  // deliverableKickoffHandler (off SEUOperational) may already have this
+  // exact hop in flight from its own automatic rescan, now that fulfilment
+  // happens before commence-work.
+  if (!dispatched.ok) assert.equal(dispatched.reason, "already_in_flight", JSON.stringify(dispatched));
+  const { workItem } = await waitForDispatchedWorkItem(deliverableId, fromState, targetState);
+  const completed = await completeWorkItem({ workItemId: workItem.id, outcome: "done", reference });
   assert.equal(completed.ok, true, !completed.ok ? JSON.stringify(completed) : undefined);
 }
 
-async function commissionWebApp(prefix: string) {
+async function commissionWebApp(prefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>) {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromFormSync({
-    statement: `${prefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: "1001", requestedBy: 1001,
-  });
+  const result = await commissionFromFormSync(
+    {
+      statement: `${prefix}-${randomUUID()}`,
+      requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
+      actorRole: "super", actorId: "1001", requestedBy: 1001,
+    },
+    beforeCommenceWork
+  );
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
   return result.seu.id;
 }
 
 test("backward navigation + provenance (FR-20.4/20.6/20.7): a Deliverable can be navigated to the commit and Participant that produced each state", async () => {
-  const seuId = await commissionWebApp("trace-explain");
+  const seuId = await commissionWebApp("trace-explain", async (seuId) => {
+    const detail = await getSeuDetailView(seuId);
+    const reqCap = detail?.capabilities.find((c) => c.code === "requirements-analysis");
+    assert.ok(reqCap);
+    await fulfilCapability({ seuId, capabilityId: reqCap.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
+  });
   const detail = await getSeuDetailView(seuId);
   const reqSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
-  const reqCap = detail?.capabilities.find((c) => c.code === "requirements-analysis");
-  assert.ok(reqSpec && reqCap);
-  await fulfilCapability({ seuId, capabilityId: reqCap.capabilityId, participantType: "AI", displayName: "Trace Analyst" });
+  assert.ok(reqSpec);
+  await resolveDispatchRejectionObligations(seuId);
 
   await dispatchAndComplete(reqSpec.id, "In Progress", "vcs://trace/req@prod");
   await dispatchAndComplete(reqSpec.id, "Approved", "vcs://trace/req@approved");
@@ -64,7 +77,9 @@ test("backward navigation + provenance (FR-20.4/20.6/20.7): a Deliverable can be
   assert.equal(acceptance!.reference, "vcs://trace/req@approved");
   assert.equal(acceptance!.certified, true, "the In Progress -> Approved acceptance is attested");
   assert.ok(acceptance!.actingAuthorityGrantId, "the certified state records the authority that produced it");
-  assert.match(production!.participantLabel ?? "", /Trace Analyst \(AI\)/);
+  // ensureEligibleParticipant mints a real participants_master row (type
+  // Human, a random display name), not the old ad-hoc "Trace Analyst (AI)".
+  assert.match(production!.participantLabel ?? "", /^Test Fixture Participant .+ \(Human\)$/);
 });
 
 test("forward navigation + impact analysis (FR-20.3/20.5): a Deliverable surfaces every downstream Deliverable it impacts", async () => {

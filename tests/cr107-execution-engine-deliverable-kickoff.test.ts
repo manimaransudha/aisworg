@@ -8,7 +8,7 @@
 // "Activated" with a real, open commence-work Obligation on record (CR-104/
 // CR-106's own mechanism). Run against the real dev database, no mocking.
 import "dotenv/config";
-import { test, after } from "node:test";
+import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
@@ -23,6 +23,7 @@ import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
+import { publishProfile } from "../src/routes/seu/core/profiles.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync } from "./testFixtures.js";
@@ -35,9 +36,6 @@ async function registerOrganisationName(code: string): Promise<void> {
   );
 }
 
-after(async () => {
-  await pool.end();
-});
 
 // Shared setup: a Template whose Template carries an always-unsatisfied
 // SEU-scoped Policy on "SEU|Activated|Operational" (same mechanism CR-104's
@@ -70,7 +68,25 @@ async function commissionBlockedSeu(run: string) {
   await ensureEventSubscriptionsLoaded();
   const { objective: root } = await createObjective({ statement: `cr107-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed" });
   const { objective } = await createObjective({ statement: `cr107-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: 1001 });
-  const { data: profile } = await profilesDB.upsert({ code: `cr107-profile-${run}`, name: "CR-107 Profile", baseTemplateId: template!.id, environment: "development" });
+  const profilePublish = await publishProfile({
+    seed: {
+      code: `cr107-profile-${run}`,
+      name: "CR-107 Profile",
+      baseTemplateCode: template!.code,
+      environment: "development",
+      profileVersion: `1.0.${Date.now()}${process.pid}`,
+      developmentMethodology: "scrum",
+      primaryProgrammingLanguage: "typescript",
+      sourceControlProvider: "github",
+      redispatchMaxAttempts: 5,
+      redispatchAttentionThreshold: 2,
+    },
+    actorRole: "super",
+    actorId: "1001",
+  });
+  assert.equal(profilePublish.ok, true, !profilePublish.ok ? JSON.stringify(profilePublish.errors) : undefined);
+  if (!profilePublish.ok) throw new Error("unreachable");
+  const { data: profile } = await profilesDB.findById(profilePublish.profileId);
   const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: "1001" });
   assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : undefined);
   if (!requested.ok) throw new Error("unreachable");

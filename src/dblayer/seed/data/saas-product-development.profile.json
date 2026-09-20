@@ -12,6 +12,9 @@
   "aiProviderPreference": "openai",
   "defaultRepositoryStructure": "monorepo",
   "documentationLevel": "standard",
+  "dispatchStrategyPreference": [{ "strategy": "capability-match", "order": 1 }],
+  "redispatchMaxAttempts": 5,
+  "redispatchAttentionThreshold": 2,
   "optionalPackCodes": ["testing-qa", "integration-github", "integration-sonarqube", "technology-nodejs"],
   "technologyPackCodes": ["technology-react"]
 }

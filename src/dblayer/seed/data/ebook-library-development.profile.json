@@ -3,5 +3,8 @@
   "name": "E-Book Library Development Profile",
   "baseTemplateCode": "enterprise-web-application",
   "environment": "development",
+  "dispatchStrategyPreference": [{ "strategy": "capability-match", "order": 1 }],
+  "redispatchMaxAttempts": 5,
+  "redispatchAttentionThreshold": 2,
   "optionalPackCodes": ["testing-qa"]
 }

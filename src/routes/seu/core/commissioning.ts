@@ -457,6 +457,7 @@ export async function finalizeCommissioning(input: {
     const { data: deliverable } = await deliverablesDB.create({
       seuId: seu.id,
       name,
+      code: seed.code,
       producingCapabilityId: producingCapability?.id ?? null,
     });
     if (deliverable) deliverableIdByName.set(name, deliverable.id);

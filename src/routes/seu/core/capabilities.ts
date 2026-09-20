@@ -119,6 +119,7 @@ async function fulfilOne(
     payload: { participantType: resolved.type, participantMasterId: resolved.participantMasterId },
   });
 
+  console.log(`[capabilities] fulfilOne complete seuId=${seu.id} capabilityId=${seuCapability.capability_id} participantId=${participant.id} at t=${Date.now()}`);
   await eventBus.publish({
     eventType: "CapabilityFulfilled",
     originatingObjectType: "SEU",

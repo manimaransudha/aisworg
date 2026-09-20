@@ -7,6 +7,11 @@ import { validateRequestHandler } from "./validateRequest.js";
 import { compositionCompletedHandler } from "./compositionCompleted.js";
 import { ebmActivatedHandler } from "./ebmActivated.js";
 import { executionEngineKickoffHandler } from "./executionEngineKickoff.js";
+import { commandGeneratedHandler } from "./commandGenerated.js";
+import { workItemGeneratedHandler } from "./workItemGenerated.js";
+import { deliverableKickoffHandler } from "./deliverableKickoff.js";
+import { redispatchRequestHandler } from "./redispatchRequest.js";
+import { redispatchHandler } from "./redispatch.js";
 import type { EventHandler } from "./eventBus.js";
 
 // design/mvp-build-plan/SEU Composition.md — ebmVersioningHandler/
@@ -34,4 +39,9 @@ export const HANDLER_REGISTRY: Record<string, EventHandler> = {
   compositionCompleted: compositionCompletedHandler,
   ebmActivated: ebmActivatedHandler,
   executionEngineKickoff: executionEngineKickoffHandler,
+  commandGenerated: commandGeneratedHandler,
+  workItemGenerated: workItemGeneratedHandler,
+  deliverableKickoff: deliverableKickoffHandler,
+  redispatchRequest: redispatchRequestHandler,
+  redispatch: redispatchHandler,
 };

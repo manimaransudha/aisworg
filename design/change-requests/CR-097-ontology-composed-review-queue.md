@@ -43,3 +43,9 @@ These fill the gaps the owner's own spec leaves open, reasoned from how the rest
 - `composeConcept`'s own `OntologyComposed` (`originatingObjectType: "Ontology"`) — a tenant's direct, already-reviewed Specialization/Override action; it keeps writing immediately, no review queue.
 - CR-056's own gap (how a Pack *declares* a new category concept in the first place, e.g. `pack.contributions.ontologyCategories`) — a different, still-fully-undesigned problem one layer upstream of this one. This CR assumes the proposal already exists as an `OntologyComposed` event (which `emitOntologyComposedIfUnregistered` already produces today for the 9 existing Ontology-checked Pack fields) and is only about reviewing it.
 - `OntologyComposed`'s own emission logic itself — already built (CR-079 step (d), event-name-corrected this session) — this CR is entirely about the missing consumer/reader side.
+
+
+# OntologyConsumer Design
+
+OntologyCompose should read the EventBus and create a decision record for creating the alternative. 
+OntologyConsumer should follow the DecisionLifecycle. And if the decision is approved, insert a record in the Ontology. This should allow transition to publish. 

@@ -88,6 +88,25 @@ export const attentionItemsDB = {
     }
   },
 
+  // CR-109 §6.1 — Governance Evaluation Outcome's open_attention_item_ids:
+  // every still-open AttentionItem against an entity, regardless of
+  // category (unlike findOpenByRelatedObject's dedup-check use, which
+  // narrows to one category on purpose).
+  async findOpenByRelatedObjectAny(relatedObjectType: string, relatedObjectId: string): Promise<DbResult<AttentionItemRow[]>> {
+    try {
+      const { rows } = await query<AttentionItemRow>(
+        `SELECT * FROM attention_items
+         WHERE related_object_type = $1 AND related_object_id = $2 AND status NOT IN ('Resolved', 'Closed')
+         ORDER BY created_at DESC`,
+        [relatedObjectType, relatedObjectId]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[attentionItemsDB] findOpenByRelatedObjectAny error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async updateStatus(id: string, status: string): Promise<DbResult<AttentionItemRow>> {
     try {
       const { rows } = await query<AttentionItemRow>(

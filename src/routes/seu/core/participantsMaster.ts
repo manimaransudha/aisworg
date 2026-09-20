@@ -11,7 +11,8 @@ export async function createParticipantMaster(input: {
   type: ParticipantType;
   displayName: string;
   capabilities?: string[];
-  competency?: Record<string, string[]>;
+  competency?: Record<string, Array<{ code: string; proficiency: string }>>;
+  cost?: number | null;
   behaviourContext?: Array<{ policy: string; payload: Record<string, unknown> }>;
   isActive?: boolean;
   userId?: number | null;
@@ -29,10 +30,13 @@ export async function createParticipantMaster(input: {
   // type; a concept_type's own name must be lowercase-hyphenated, so the
   // dimension's real value vocabulary is looked up under its lower-cased
   // form (e.g. dimension "Technology" -> concept_type "technology").
-  for (const [dimension, values] of Object.entries(input.competency ?? {})) {
+  // Dispatch Strategy input (Ch.33 §7/§9) — each entry's own proficiency is
+  // Ontology-backed (proficiency-level: Novice/Intermediate/Expert).
+  for (const [dimension, entries] of Object.entries(input.competency ?? {})) {
     await assertCanonicalCategory("category:pack", dimension, viewer);
-    for (const value of values) {
-      await assertCanonicalCategory(dimension.toLowerCase(), value, viewer);
+    for (const entry of entries) {
+      await assertCanonicalCategory(dimension.toLowerCase(), entry.code, viewer);
+      await assertCanonicalCategory("proficiency-level", entry.proficiency, viewer);
     }
   }
 

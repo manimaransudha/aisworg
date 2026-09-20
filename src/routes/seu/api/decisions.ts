@@ -6,16 +6,28 @@ const router = express.Router();
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { createDecision, listDecisionsBySeu, transitionDecision } from "../core/decisions.js";
-import type { TransitionEntityType } from "../../../dblayer/seuTypes.js";
 
-/** POST /decisions — Ch.19: identify a Decision against any governed entity (relatedObjectType/relatedObjectId — polymorphic, Open Design Questions.md #3). */
+/** POST /decisions — Ch.19: identify a Decision against any governed entity(ies). relatedObjects: [{related_object_type, related_object_ids[]}, ...] — polymorphic and multiple (Ch.19 model cleanup, migration 231). */
 router.post("/decisions", async (req: Request, res: Response) => {
   try {
-    const { seuId, relatedObjectType, relatedObjectId, knowledgeId, evidenceId, category, title, engineeringQuestion, selectedAlternative, rationale } = req.body ?? {};
-    if (typeof seuId !== "string" || typeof relatedObjectType !== "string" || typeof relatedObjectId !== "string" || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
-      return res.status(400).json({ error: "seuId, relatedObjectType, relatedObjectId, category and title are required" });
+    const { seuId, originatingType, originatingId, relatedObjects, relatedSeu, knowledgeIds, evidenceIds, category, title, engineeringQuestion, alternatives } = req.body ?? {};
+    if (typeof seuId !== "string" || !Array.isArray(relatedObjects) || relatedObjects.length === 0 || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
+      return res.status(400).json({ error: "seuId, relatedObjects (non-empty array), category and title are required" });
     }
-    const decision = await createDecision({ seuId, relatedObjectType: relatedObjectType as TransitionEntityType, relatedObjectId, knowledgeId, evidenceId, category, title, engineeringQuestion, selectedAlternative, rationale });
+    const decision = await createDecision({
+      seuId,
+      userId: req.session?.user?.id,
+      originatingType,
+      originatingId,
+      relatedObjects,
+      relatedSeu,
+      knowledgeIds,
+      evidenceIds,
+      category,
+      title,
+      engineeringQuestion,
+      alternatives,
+    });
     res.status(201).json({ decision });
   } catch (err) {
     logger.error("[api/seu/decisions] POST error", err as Error);

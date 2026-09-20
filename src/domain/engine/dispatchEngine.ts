@@ -1,28 +1,28 @@
-// Ch.33 minimal instance — trivial "whoever's assigned" strategy (Post-MVP
-// Build Sequence Phase 3 "Done when"). Capability Fulfilment (Ch.12,
-// seuCapabilitiesDB + capabilityFulfilmentsDB) is the eligible-Participant
-// pool Ch.33 §7/§3 says Dispatch consumes; today it's 1:1 per SEU Capability,
-// so there's nothing to optimise yet. A real Dispatch Strategy framework
-// (Ch.33 §9: cost/load/locality/etc, Pack-contributed) is future scope once
-// more than one Participant can fulfil the same Capability.
-//
-// Participant Integration & Attestation — Plan, step 1 (Model A): dispatch no
-// longer simulates execution synchronously. It selects the Participant,
-// assigns the Work Item, marks it Dispatched (outstanding), and returns. The
-// Work Item then *waits* for an out-of-process result callback — the platform
-// is deliberately blind to what the Participant does in its own environment
-// (Book 1: govern behaviour, not competence). Completion (apply the
-// transition, dispose the Work Item, return the Participant to Idle) happens
-// in routes/seu/core/workItems.ts's completeWorkItem, driven by the callback,
-// not here — the engine layer never applies a governed Deliverable transition
-// (that is core's job).
-import { seuCapabilitiesDB } from "../../dblayer/seuCapabilitiesDB.js";
-import { capabilityFulfilmentsDB } from "../../dblayer/capabilityFulfilmentsDB.js";
+// Ch.33 — this session's redesign. Cases (Ch.33 §14 events):
+//   1. No producing Capability declared, or the eligible-Participant pool is
+//      empty -> Obligation + Action-Required Attention Item -> DispatchRejected.
+//   2. Candidates ARE Available, but no Dispatch Strategy (Ch.33 §9,
+//      dispatchStrategies.ts) matches any of them -> ParticipantUnavailable
+//      (same Obligation + Attention treatment as case 1) — structural, needs
+//      a human (relax the strategy, or add a qualifying Participant).
+//   3. A Dispatch Strategy matches an Available candidate -> assign,
+//      ParticipantSelected + WorkItemDispatched (+ RedispatchCompleted if
+//      this call is itself a retry). Participant takes over, no consumer.
+//   4. Pool has entries, none currently Available at all (transient) ->
+//      DispatchDeferred. Consumed by redispatchRequest.ts ->
+//      RedispatchRequested -> redispatch.ts, which tracks attempts against
+//      the Profile's N/M Configuration Parameters and calls back into
+//      dispatch() with isRedispatch: true.
+import { capabilityFulfilmentPoolsDB } from "../../dblayer/capabilityFulfilmentPoolsDB.js";
 import { workItemsDB } from "../../dblayer/workItemsDB.js";
 import { participantsDB } from "../../dblayer/participantsDB.js";
+import { commandsDB } from "../../dblayer/commandsDB.js";
 import { servicesDB } from "../../dblayer/servicesDB.js";
 import { eventBus } from "./eventBus.js";
-import type { ServiceRow, WorkItemRow } from "../../dblayer/seuTypes.js";
+import { createObligation } from "../../routes/seu/core/obligations.js";
+import { raiseAttentionItem } from "../../routes/seu/core/attentionItems.js";
+import { loadAvailableCandidates, selectParticipant } from "./dispatchStrategies.js";
+import type { CommandRow, ServiceRow, WorkItemRow } from "../../dblayer/seuTypes.js";
 
 // The stall SLA is declared per Capability on its Service's Service Level
 // (Ch.11 §8, Resolution 9). NOT hardcoded: a Capability whose Service
@@ -31,10 +31,7 @@ import type { ServiceRow, WorkItemRow } from "../../dblayer/seuTypes.js";
 // author declares (e.g. label "Onsite turnaround," target "1 day"), not a
 // flat object — matches on any item whose label mentions "turnaround".
 // `target` is only recognised here if it's a bare number of seconds; a
-// human duration string ("3 days") doesn't parse (same as before this CR,
-// when service_level was never populated at all — not a regression, just
-// not yet built, same "starting minimal" discipline Policy's own condition
-// field used).
+// human duration string ("3 days") doesn't parse.
 function resolveTurnaroundSeconds(services: ServiceRow[]): number | null {
   for (const service of services) {
     const item = (service.service_level ?? []).find((i) => /turnaround/i.test(i.label));
@@ -45,13 +42,45 @@ function resolveTurnaroundSeconds(services: ServiceRow[]): number | null {
   return null;
 }
 
-const SOLE_ELIGIBLE_PARTICIPANT = "sole-eligible-participant";
-const NO_CAPABILITY_DECLARED = "no-producing-capability-declared";
-
-export interface DispatchResult {
-  dispatched: boolean;
-  participantId?: string;
-  deferredReason?: "no_producing_capability_fulfilled" | "no_eligible_participant";
+async function rejectDispatch(input: { workItem: WorkItemRow; command: CommandRow | null; seuId: string; correlationId: string }, eventType: "DispatchRejected" | "ParticipantUnavailable", reason: string): Promise<void> {
+  console.log(`[dispatchEngine] rejectDispatch seuId=${input.seuId} entityType=${input.command?.entity_type} entityId=${input.command?.entity_id} fromState=${input.command?.from_state} toState=${input.command?.to_state} reason=${reason} workItemId=${input.workItem.id}`);
+  // Ch.32 §8 — this Work Item was never assigned and never will be; straight
+  // to Disposed (Cancelled is just a route there, no distinct behaviour of
+  // its own). Retained for traceability, per the chapter's own words — a
+  // retry after the Obligation resolves mints an entirely new Work Item,
+  // never reuses this one.
+  await workItemsDB.updateStatus(input.workItem.id, "Disposed");
+  if (input.command) {
+    // Terminal, not in-flight (commandsDB.findInFlight): a human resolving
+    // the Obligation below must be able to re-attempt this exact hop, which
+    // a Command stuck at Generated/Dispatched/Deferred forever would block.
+    await commandsDB.updateStatus(input.command.id, "Failed");
+    await createObligation({
+      seuId: input.seuId,
+      relatedObjectType: input.command.entity_type,
+      relatedObjectId: input.command.entity_id,
+      category: "Operational",
+      title: `Dispatch could not find a Participant for Work Item ${input.workItem.id} (${reason})`,
+      description: `Command ${input.command.id} (${input.command.from_state} -> ${input.command.to_state}): ${reason}.`,
+    });
+    await raiseAttentionItem({
+      seuId: input.seuId,
+      category: "Action Required",
+      priority: "High",
+      title: `Work Item ${input.workItem.id} could not be dispatched (${reason})`,
+      description: `Command ${input.command.id} (${input.command.from_state} -> ${input.command.to_state}) needs a Participant, and none is available (${reason}). Resolve the Obligation once addressed.`,
+      relatedObjectType: input.command.entity_type,
+      relatedObjectId: input.command.entity_id,
+    });
+  }
+  await eventBus.publish({
+    eventType,
+    originatingObjectType: "WorkItem",
+    originatingObjectId: input.workItem.id,
+    seuId: input.seuId,
+    correlationId: input.correlationId,
+    payload: { reason },
+  });
 }
 
 export const dispatchEngine = {
@@ -59,49 +88,71 @@ export const dispatchEngine = {
     workItem: WorkItemRow;
     seuId: string;
     producingCapabilityId: string | null;
+    // Ch.12 §9 / CR-109 §6.2 — the capability_fulfilment_pools snapshot
+    // executionEngine.execute() already took of the real eligible-Participant
+    // pool for this Command's producing Capability. Read, never re-resolved
+    // live here (CR-109 §5's "connective tissue" principle) — null exactly
+    // when producingCapabilityId is null (no Capability declared at all).
+    eligibleParticipantPoolId: string | null;
     // Participant Integration — Plan step 4: an explicit target completion time
     // the assigner supplied, overriding the SLA-derived default. Null/absent =
     // use the default.
     targetCompletionAt?: Date | null;
     correlationId: string;
-  }): Promise<DispatchResult> {
-    // No Capability declared for this Deliverable at all: nothing for Dispatch
-    // to gate on, so the Work Item is dispatched unassigned and left
-    // outstanding, to be completed by a callback the same way an assigned one
-    // is — rather than deferring forever on a requirement that was never
-    // declared.
+    // Ch.33 §14 Redispatch — true when redispatch.ts is calling this as a
+    // retry, so a successful outcome also publishes RedispatchCompleted.
+    isRedispatch?: boolean;
+    // Ch.33 §9 — the Profile's own dispatchStrategyPreference, resolved by
+    // the caller (workItemGeneratedHandler / redispatch.ts, off the SEU's
+    // EBM) and tried here in order. Empty/absent -> Capability Match alone.
+    strategies?: Array<{ strategy: string; order: number }>;
+  }): Promise<void> {
+    const { data: command } = await commandsDB.findById(input.workItem.command_id);
+
+    // Case 1a: no Capability declared for this Deliverable at all.
     if (!input.producingCapabilityId) {
-      await workItemsDB.assign(input.workItem.id, null, NO_CAPABILITY_DECLARED);
-      await workItemsDB.updateStatus(input.workItem.id, "Dispatched");
-      await eventBus.publish({
-        eventType: "WorkItemDispatched",
-        originatingObjectType: "WorkItem",
-        originatingObjectId: input.workItem.id,
-        seuId: input.seuId,
-        correlationId: input.correlationId,
-        payload: { participantId: null },
-      });
-      return { dispatched: true, participantId: undefined };
+      await rejectDispatch({ ...input, command }, "DispatchRejected", "no_producing_capability_declared");
+      return;
     }
 
-    const { data: seuCapabilities } = await seuCapabilitiesDB.findBySeuId(input.seuId);
-    const seuCapability = (seuCapabilities ?? []).find((c) => c.capability_id === input.producingCapabilityId);
-    const fulfilment = seuCapability ? await capabilityFulfilmentsDB.findActiveBySeuCapabilityId(seuCapability.id) : { data: null };
-    const participantId = fulfilment.data?.participant_id ?? null;
+    const pool = input.eligibleParticipantPoolId ? await capabilityFulfilmentPoolsDB.findById(input.eligibleParticipantPoolId) : { data: null };
+    const candidateIds = pool.data?.participant_ids ?? [];
 
-    if (!participantId) {
+    // Case 1b: the eligible-Participant pool is empty.
+    if (candidateIds.length === 0) {
+      await rejectDispatch({ ...input, command }, "DispatchRejected", "empty_eligible_pool");
+      return;
+    }
+
+    const available = await loadAvailableCandidates(candidateIds);
+
+    // Case 4: qualified candidates exist, none currently Available (transient).
+    if (available.length === 0) {
+      if (command) await commandsDB.updateStatus(command.id, "Deferred");
       await eventBus.publish({
         eventType: "DispatchDeferred",
         originatingObjectType: "WorkItem",
         originatingObjectId: input.workItem.id,
         seuId: input.seuId,
         correlationId: input.correlationId,
-        payload: { reason: "no_eligible_participant" },
+        payload: { reason: "no_available_participant" },
       });
-      return { dispatched: false, deferredReason: "no_eligible_participant" };
+      return;
     }
 
-    await workItemsDB.assign(input.workItem.id, participantId, SOLE_ELIGIBLE_PARTICIPANT);
+    // Case 2: candidates ARE Available, but no Dispatch Strategy (Ch.33 §9)
+    // matched any of them — structural (needs a human: relax the strategy,
+    // or add a properly-qualified Participant), not transient.
+    const selection = await selectParticipant(available, input.strategies ?? [], input.seuId);
+    if (!selection) {
+      await rejectDispatch({ ...input, command }, "ParticipantUnavailable", "no_candidate_matched_dispatch_strategy");
+      return;
+    }
+    const { participantId, strategy } = selection;
+
+    // Case 3: assign.
+    if (command) await commandsDB.updateStatus(command.id, "Dispatched");
+    await workItemsDB.assign(input.workItem.id, participantId, strategy);
 
     // Participant Integration — Plan step 4: the assignment-out contract's
     // deadline, a commitment fixed at assignment (not re-derived later). The
@@ -141,7 +192,7 @@ export const dispatchEngine = {
       originatingObjectId: input.workItem.id,
       seuId: input.seuId,
       correlationId: input.correlationId,
-      payload: { participantId, strategy: SOLE_ELIGIBLE_PARTICIPANT },
+      payload: { participantId, strategy },
     });
     await eventBus.publish({
       eventType: "WorkItemDispatched",
@@ -151,7 +202,15 @@ export const dispatchEngine = {
       correlationId: input.correlationId,
       payload: { participantId },
     });
-
-    return { dispatched: true, participantId };
+    if (input.isRedispatch) {
+      await eventBus.publish({
+        eventType: "RedispatchCompleted",
+        originatingObjectType: "WorkItem",
+        originatingObjectId: input.workItem.id,
+        seuId: input.seuId,
+        correlationId: input.correlationId,
+        payload: { participantId },
+      });
+    }
   },
 };

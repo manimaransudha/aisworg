@@ -21,7 +21,7 @@ import { badgeTypesDB } from "../src/dblayer/badgeTypesDB.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { userDB } from "../src/dblayer/userDB.js";
 import { badgeAuthorityEngine } from "../src/domain/engine/badgeAuthorityEngine.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
 
 // Bug fix (owner, 2026-08-17): "are you cleaning up the test data after the
 // tests are done?" — this file wasn't. Every createTestUser() call left a
@@ -84,16 +84,40 @@ async function createTestParentBadgeType(label: string): Promise<string> {
   return code;
 }
 
-async function commissionTestSeu(statementPrefix: string): Promise<string> {
+async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>): Promise<string> {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromFormSync({
-    statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: "1001", requestedBy: 1001,
-  });
+  const result = await commissionFromFormSync(
+    {
+      statement: `${statementPrefix}-${randomUUID()}`,
+      requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
+      actorRole: "super", actorId: "1001", requestedBy: 1001,
+    },
+    beforeCommenceWork
+  );
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
   return result.seu.id;
+}
+
+// The badge-authority test below needs its OWN explicit transitionDeliverable
+// call to be the first attempt on the hop it's checking, not raced by the
+// Execution Engine's own automatic commence-work attempt — fulfilling via
+// beforeCommenceWork makes the automatic engine dispatch concurrently and win
+// an in-flight Command for the same hop, which transitionDeliverableSync then
+// tolerates as
+// already_in_flight and silently adopts as success, masking whatever this
+// test's own actorId/badge would actually have produced. Instead: let
+// commissioning's own automatic first attempt fail terminally
+// (empty_eligible_pool, no eligible Participant yet), resolve the Obligation
+// it raises, then fulfil for real — nothing is racing the hop after that, so
+// the test's own calls see genuine governance outcomes.
+async function fulfilRequirementsAnalysisAfterCommissioning(seuId: string): Promise<void> {
+  await resolveDispatchRejectionObligations(seuId);
+  const { data: deliverables } = await deliverablesDB.findBySeuId(seuId);
+  const deliverable = (deliverables ?? []).find((d) => d.lifecycle_state === "Defined" && d.name === "Requirements Analysis Model");
+  if (!deliverable?.producing_capability_id) throw new Error("expected Requirements Analysis Model still Defined after commissioning");
+  const participantMasterId = await ensureEligibleParticipant(seuId, ["requirements-analysis"]);
+  await fulfilCapability({ seuId, capabilityId: deliverable.producing_capability_id, participantMasterId });
 }
 
 test("badgeGrantsDB single writer function enforces the scope_id/scope_kind invariant", async () => {
@@ -177,49 +201,79 @@ test("badgeTypesDB single writer function enforces §8.1's Tenant-customization 
 });
 
 test("transitionDeliverable authorises on noun_verb: denied without the badge, deliverable_create allows create, deliverable_approve required to approve (distinct authority), root bypasses", async () => {
-  const holderId = await createTestUser("deliverable-wiring");
-  const seuId = await commissionTestSeu("badge-deliverable-wiring");
-  const { data: deliverables } = await deliverablesDB.findBySeuId(seuId);
-  assert.ok(deliverables && deliverables.length > 0);
-  const deliverable = deliverables!.find((d) => d.lifecycle_state === "Defined");
-  assert.ok(deliverable, "expected at least one Deliverable still in Defined state right after commissioning");
-  // Dispatch (Ch.31-33) needs a Participant fulfilling the producing
-  // Capability before a transition can actually complete — unrelated to the
-  // badge/authority check itself, which runs before dispatch and is what
-  // this test is actually about.
-  await fulfilCapability({ seuId, capabilityId: deliverable!.producing_capability_id!, participantType: "AI", displayName: "Badge test participant" });
+  // Commissioning and the Execution Engine's own automatic rescans
+  // (deliverableKickoffHandler, resolveDispatchRejectionObligations) all run
+  // as actorId "1001" (TESTER_ALL_ID, seedIdentityBaseline.ts — holds every
+  // noun_verb badge). Testing authority with a SEPARATE, zero-badge holder
+  // means this test's own call and any racing automatic rescan can disagree
+  // (the rescan, using 1001's full authority, can complete a hop the test
+  // expected to see denied — transitionDeliverableSync then tolerates that
+  // as "someone else's legitimate in-flight work" and silently adopts it).
+  // Testing on 1001's OWN grants instead removes the divergence: whichever
+  // one actually performs the hop, it does so under the exact authority state
+  // this test just set up, so the outcome is always the one being asserted.
+  const ACTOR = "1001";
+  // fulfilRequirementsAnalysisAfterCommissioning resolves the commissioning
+  // kickoff's own empty_eligible_pool Obligation, whose full lifecycle walk
+  // (also run as "1001") triggers deliverableKickoffHandler rescans of its
+  // own. If 1001 still holds its default deliverable_create/deliverable_approve
+  // grants at that moment, that automatic cascade can complete the ENTIRE
+  // Defined -> In Progress -> Approved lifecycle on its own, well before this
+  // test's own explicit calls run — toggling the grants only around each
+  // check below is too late to catch that. Removed up front instead, so
+  // every automatic attempt hits authority_denied and the Deliverable stays
+  // put until this test explicitly grants each badge back.
+  await query("DELETE FROM badge_grants WHERE holder_id = $1 AND badge_type IN ('deliverable_create', 'deliverable_approve')", [ACTOR]);
+  try {
+    const seuId = await commissionTestSeu("badge-deliverable-wiring");
+    await fulfilRequirementsAnalysisAfterCommissioning(seuId);
+    const { data: deliverables } = await deliverablesDB.findBySeuId(seuId);
+    assert.ok(deliverables && deliverables.length > 0);
+    const deliverable = deliverables!.find((d) => d.lifecycle_state === "Defined" && d.name === "Requirements Analysis Model");
+    assert.ok(deliverable, "expected Requirements Analysis Model still Defined right after fulfilment");
 
-  // No acting badge declared, and the holder has none — must be denied, not silently allowed.
-  const deniedNoBadge = await transitionDeliverable({ deliverableId: deliverable!.id, targetState: "In Progress", actorId: holderId });
-  assert.equal(deniedNoBadge.ok, false);
-  assert.equal(!deniedNoBadge.ok && deniedNoBadge.reason, "authority_denied");
+    // Neither badge held -> denied, not silently allowed.
+    const deniedNoBadge = await transitionDeliverable({ deliverableId: deliverable!.id, targetState: "In Progress", actorId: ACTOR });
+    assert.equal(deniedNoBadge.ok, false);
+    assert.equal(!deniedNoBadge.ok && deniedNoBadge.reason, "authority_denied");
 
-  // CR-006: authority is the noun_verb badge. deliverable_create → Defined -> In Progress allowed.
-  await query("INSERT INTO badge_grants (holder_type, holder_id, badge_type, status) VALUES ('User', $1, 'deliverable_create', 'Active')", [holderId]);
+    // CR-006: authority is the noun_verb badge. deliverable_create → Defined -> In Progress allowed.
+    // badge_grants has no unique constraint on (holder_id, badge_type) — the
+    // up-front DELETE above already guarantees no existing row, so a plain
+    // INSERT is safe (no ON CONFLICT target to name).
+    await query("INSERT INTO badge_grants (holder_type, holder_id, badge_type, status) VALUES ('User', $1, 'deliverable_create', 'Active')", [ACTOR]);
+    const allowedByCreator = await transitionDeliverable({ deliverableId: deliverable!.id, targetState: "In Progress", actorId: ACTOR });
+    assert.equal(allowedByCreator.ok, true, !allowedByCreator.ok ? JSON.stringify(allowedByCreator) : undefined);
 
-  const allowedByCreator = await transitionDeliverable({ deliverableId: deliverable!.id, targetState: "In Progress", actorId: holderId });
-  assert.equal(allowedByCreator.ok, true, !allowedByCreator.ok ? JSON.stringify(allowedByCreator) : undefined);
+    // Approver's job, not Creator's (§8.0's genuinely separate authority) —
+    // In Progress -> Approved must be denied without deliverable_approve,
+    // still absent since the up-front delete above.
+    const deniedWrongBadge = await transitionDeliverable({ deliverableId: deliverable!.id, targetState: "Approved", actorId: ACTOR });
+    assert.equal(deniedWrongBadge.ok, false);
+    assert.equal(!deniedWrongBadge.ok && deniedWrongBadge.reason, "authority_denied");
 
-  // Same holder, same Creator badge, attempting In Progress -> Approved —
-  // Approver's job, not Creator's (§8.0's genuinely separate authority).
-  // Must be denied even though the holder is "active" on this Deliverable.
-  const deniedWrongBadge = await transitionDeliverable({ deliverableId: deliverable!.id, targetState: "Approved", actorId: holderId });
-  assert.equal(deniedWrongBadge.ok, false);
-  assert.equal(!deniedWrongBadge.ok && deniedWrongBadge.reason, "authority_denied");
-
-  // deliverable_approve is a DISTINCT badge (separate authority, §8.0) → In Progress -> Approved now allowed.
-  await query("INSERT INTO badge_grants (holder_type, holder_id, badge_type, status) VALUES ('User', $1, 'deliverable_approve', 'Active')", [holderId]);
-
-  const allowedByApprover = await transitionDeliverable({ deliverableId: deliverable!.id, targetState: "Approved", actorId: holderId });
-  assert.equal(allowedByApprover.ok, true, !allowedByApprover.ok ? JSON.stringify(allowedByApprover) : undefined);
+    // deliverable_approve is a DISTINCT badge (separate authority, §8.0) → In Progress -> Approved now allowed.
+    await query("INSERT INTO badge_grants (holder_type, holder_id, badge_type, status) VALUES ('User', $1, 'deliverable_approve', 'Active')", [ACTOR]);
+    const allowedByApprover = await transitionDeliverable({ deliverableId: deliverable!.id, targetState: "Approved", actorId: ACTOR });
+    assert.equal(allowedByApprover.ok, true, !allowedByApprover.ok ? JSON.stringify(allowedByApprover) : undefined);
+  } finally {
+    // Restore 1001's default full badge set for every other (concurrently
+    // running) test file that relies on it — delete first so a badge already
+    // re-granted above (e.g. deliverable_create) doesn't end up duplicated.
+    await query("DELETE FROM badge_grants WHERE holder_id = $1 AND badge_type IN ('deliverable_create', 'deliverable_approve')", [ACTOR]);
+    await query(
+      "INSERT INTO badge_grants (holder_type, holder_id, badge_type, status) VALUES ('User', $1, 'deliverable_create', 'Active'), ('User', $1, 'deliverable_approve', 'Active')",
+      [ACTOR]
+    );
+  }
 
   // Root bypass (§11a, unchanged): a holder with only `root` — no noun_verb grant — may still transition.
   const rootHolderId = await createTestUser("root-bypass");
   const seu2 = await commissionTestSeu("badge-root-bypass");
+  await fulfilRequirementsAnalysisAfterCommissioning(seu2);
   const { data: d2 } = await deliverablesDB.findBySeuId(seu2);
-  const deliverable2 = d2!.find((d) => d.lifecycle_state === "Defined");
+  const deliverable2 = d2!.find((d) => d.lifecycle_state === "Defined" && d.name === "Requirements Analysis Model");
   assert.ok(deliverable2);
-  await fulfilCapability({ seuId: seu2, capabilityId: deliverable2!.producing_capability_id!, participantType: "AI", displayName: "Badge test participant (root)" });
   await query("INSERT INTO badge_grants (holder_type, holder_id, badge_type, status) VALUES ('User', $1, 'root', 'Active')", [rootHolderId]);
   const rootAllowed = await transitionDeliverable({ deliverableId: deliverable2!.id, targetState: "In Progress", actorId: rootHolderId });
   assert.equal(rootAllowed.ok, true, !rootAllowed.ok ? JSON.stringify(rootAllowed) : undefined);

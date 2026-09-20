@@ -136,6 +136,28 @@ export interface ProfileSeedInput {
   // be a json that is free text written by the user. Similar to deployment
   // targets"), no Ontology concept type behind it at all.
   environmentConfiguration?: Record<string, unknown>;
+  // CR-109 Build Plan §1, revised — no longer a single-value Configuration
+  // Parameter (CONFIGURATION_PARAMETER_FIELDS): a Profile can prefer more
+  // than one Dispatch Strategy, in order, so the Dispatch Engine has a real
+  // fallback chain to try. Same no-real-column, bespoke-array treatment as
+  // knowledgeLocations below.
+  dispatchStrategyPreference?: DispatchStrategyPreferenceEntry[];
+  // CR-109 Build Plan §1 — "just Input Location + Output Location, generic —
+  // one {deliverableCode or capabilityCode, inputLocation, outputLocation}
+  // entry per Deliverable/Capability that needs one." No real column, lives
+  // only in draft_content (same treatment as deploymentTargets), migration
+  // 229.
+  knowledgeLocations?: KnowledgeLocation[];
+  // CR-109 Build Plan §1 — per-SEU README.md-style free-form field, no
+  // Ontology concept type behind it (migration 229).
+  readme?: string;
+  // Ch.33 §14 Redispatch — N and M (migration 246). Plain numbers, no
+  // Ontology concept type (a canonical vocabulary makes no sense for a bare
+  // integer, same treatment as environmentConfiguration/readme). N is the
+  // hard cap on automatic retry attempts; M (< N) is the attempt at which an
+  // informational Attention Item is raised while retries continue.
+  redispatchMaxAttempts?: number;
+  redispatchAttentionThreshold?: number;
   // CR-088 Profile-side completion (owner, 2026-09-05: "the overrides have to
   // be saved in the profile") — this Profile's own value for whichever of its
   // base Template's exposed parameters the Template flagged overridable. No
@@ -160,6 +182,28 @@ export interface ExposedParameterOverride {
   sourceCode: string;
   parameterName: string;
   value: string;
+}
+
+// CR-109 Build Plan §1 — one entry per Deliverable or Capability that needs
+// an Input/Output Knowledge Location (migration 229). Exactly one of
+// deliverableCode/capabilityCode is expected per entry (validateProfileSeed
+// enforces it) — which kind of code an entry names depends on whether the
+// location is scoped to a specific Deliverable or to a Capability generally.
+export interface KnowledgeLocation {
+  deliverableCode?: string;
+  capabilityCode?: string;
+  inputLocation?: string;
+  outputLocation?: string;
+}
+
+// Dispatch Strategy input (Ch.33 §9) — a Profile may declare more than one
+// strategy, tried in ascending `order`; the Dispatch Engine falls through to
+// the next entry if a strategy finds no viable Participant. `strategy` is
+// Ontology-backed (dispatch-strategy-preference, migration 229's own 7
+// values) — same picker the field used when it was a single value.
+export interface DispatchStrategyPreferenceEntry {
+  strategy: string;
+  order: number;
 }
 
 // CR-092 Part 6 — exposedParameterOverrides lives only in draft_content (same
@@ -289,6 +333,11 @@ export async function extractProfileDetails(profile: ProfileRow): Promise<Profil
     participatingOrganisationCodes: d.participatingOrganisationCodes,
     deploymentTargets: d.deploymentTargets,
     environmentConfiguration: d.environmentConfiguration,
+    dispatchStrategyPreference: d.dispatchStrategyPreference,
+    knowledgeLocations: d.knowledgeLocations,
+    readme: d.readme,
+    redispatchMaxAttempts: d.redispatchMaxAttempts,
+    redispatchAttentionThreshold: d.redispatchAttentionThreshold,
     exposedParameterOverrides: extractExposedParameterOverrides(profile.draft_content),
   };
   const fields: Record<string, unknown> = {};
@@ -469,6 +518,53 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
   for (const code of seed.participatingOrganisationCodes ?? []) {
     const { data: concept } = await ontologyDB.findConcept("participating-organisations", code, ontologyViewer);
     if (!concept) errors.push(`participatingOrganisationCodes references unknown participating-organisations code "${code}"`);
+  }
+
+  // CR-109 Build Plan §1 — each entry names exactly one of
+  // deliverableCode/capabilityCode, and that code must resolve to a real,
+  // active deliverable-name or capability-name concept respectively (same
+  // baseline check as every other Ontology-backed field).
+  for (const [i, loc] of (seed.knowledgeLocations ?? []).entries()) {
+    const hasDeliverable = !!loc.deliverableCode?.trim();
+    const hasCapability = !!loc.capabilityCode?.trim();
+    if (hasDeliverable === hasCapability) {
+      errors.push(`knowledgeLocations[${i}] must name exactly one of deliverableCode/capabilityCode`);
+      continue;
+    }
+    if (hasDeliverable) {
+      const { data: concept } = await ontologyDB.findConcept("deliverable-name", loc.deliverableCode!.trim(), ontologyViewer);
+      if (!concept) errors.push(`knowledgeLocations[${i}] references unknown deliverable-name code "${loc.deliverableCode}"`);
+    } else {
+      const { data: concept } = await ontologyDB.findConcept("capability-name", loc.capabilityCode!.trim(), ontologyViewer);
+      if (!concept) errors.push(`knowledgeLocations[${i}] references unknown capability-name code "${loc.capabilityCode}"`);
+    }
+  }
+
+  // Dispatch Strategy input (Ch.33 §9), revised from a single value to an
+  // ordered array — each entry's strategy must resolve to a real, active
+  // dispatch-strategy-preference concept, and order values must be distinct
+  // (the Dispatch Engine's fallback chain has no meaning if two entries tie).
+  const seenOrders = new Set<number>();
+  for (const [i, entry] of (seed.dispatchStrategyPreference ?? []).entries()) {
+    if (!entry.strategy?.trim()) {
+      errors.push(`dispatchStrategyPreference[${i}] must name a strategy`);
+    } else {
+      const { data: concept } = await ontologyDB.findConcept("dispatch-strategy-preference", entry.strategy.trim(), ontologyViewer);
+      if (!concept) errors.push(`dispatchStrategyPreference[${i}] references unknown dispatch-strategy-preference code "${entry.strategy}"`);
+    }
+    if (seenOrders.has(entry.order)) errors.push(`dispatchStrategyPreference[${i}] duplicates order ${entry.order} — each entry needs a distinct order`);
+    seenOrders.add(entry.order);
+  }
+
+  // Ch.33 §14 Redispatch — N (redispatchMaxAttempts) must exceed M
+  // (redispatchAttentionThreshold); either may be omitted (no automatic
+  // retry limit / no informational heads-up configured), but if both are
+  // set, N > M is the only combination that makes sense (M is a checkpoint
+  // reached WHILE retrying, not a stopping point).
+  if (seed.redispatchMaxAttempts != null && seed.redispatchAttentionThreshold != null) {
+    if (seed.redispatchMaxAttempts <= seed.redispatchAttentionThreshold) {
+      errors.push(`redispatchMaxAttempts (${seed.redispatchMaxAttempts}) must be greater than redispatchAttentionThreshold (${seed.redispatchAttentionThreshold})`);
+    }
   }
 
   // Ch.7 §9 Profile Inheritance (owner, 2026-08-19: "19.2 and 19.3 has to be
@@ -670,6 +766,12 @@ async function reactivateAsNewVersion(profile: ProfileRow, actorRole: string, ac
     // column either, same treatment as compositionOptions.
     deploymentTargets: typeof priorContent.deploymentTargets === "object" && priorContent.deploymentTargets ? (priorContent.deploymentTargets as Record<string, unknown>) : undefined,
     environmentConfiguration: typeof priorContent.environmentConfiguration === "object" && priorContent.environmentConfiguration ? (priorContent.environmentConfiguration as Record<string, unknown>) : undefined,
+    // CR-109 Build Plan §1 — readme, same no-real-column treatment as
+    // description.
+    readme: typeof priorContent.readme === "string" ? priorContent.readme : undefined,
+    // Ch.33 §14 Redispatch — N/M, same no-real-column treatment, plain numbers.
+    redispatchMaxAttempts: typeof priorContent.redispatchMaxAttempts === "number" ? priorContent.redispatchMaxAttempts : undefined,
+    redispatchAttentionThreshold: typeof priorContent.redispatchAttentionThreshold === "number" ? priorContent.redispatchAttentionThreshold : undefined,
     ...packSelections,
   };
   // featureFlagCodes has no real column/join table of its own to re-derive
@@ -686,9 +788,17 @@ async function reactivateAsNewVersion(profile: ProfileRow, actorRole: string, ac
   seed.participatingOrganisationCodes = Array.isArray(priorContent.participatingOrganisationCodes)
     ? (priorContent.participatingOrganisationCodes as unknown[]).map((v) => (typeof v === "string" ? v : (v as { organisationCode?: string })?.organisationCode ?? "")).filter((v) => v !== "")
     : [];
-  // CR-091 Part 2 — the eight single-value Configuration Parameters, same
-  // no-real-column treatment, one field at a time (each a plain string, not
-  // an array/object needing the map/filter dance the fields above do).
+  // CR-109 Build Plan §1 — knowledgeLocations, same no-real-column
+  // treatment; already an array of objects in draft_content, no
+  // string|object normalisation needed.
+  seed.knowledgeLocations = Array.isArray(priorContent.knowledgeLocations) ? (priorContent.knowledgeLocations as KnowledgeLocation[]) : [];
+  // CR-109 Build Plan §1, revised — dispatchStrategyPreference, same
+  // no-real-column array treatment as knowledgeLocations above.
+  seed.dispatchStrategyPreference = Array.isArray(priorContent.dispatchStrategyPreference) ? (priorContent.dispatchStrategyPreference as DispatchStrategyPreferenceEntry[]) : [];
+  // CR-091 Part 2 / CR-109 — the single-value Configuration Parameters
+  // (CONFIGURATION_PARAMETER_FIELDS), same no-real-column treatment, one
+  // field at a time (each a plain string, not an array/object needing the
+  // map/filter dance the fields above do).
   for (const cp of CONFIGURATION_PARAMETER_FIELDS) {
     const priorValue = priorContent[cp.field as string];
     if (typeof priorValue === "string") (seed as unknown as Record<string, unknown>)[cp.field as string] = priorValue;
@@ -755,6 +865,12 @@ export async function copyProfileAsNewDraft(profileId: string, actorId: string):
   const participatingOrganisationCodes = Array.isArray(priorContent.participatingOrganisationCodes)
     ? (priorContent.participatingOrganisationCodes as unknown[]).map((v) => (typeof v === "string" ? v : (v as { organisationCode?: string })?.organisationCode ?? "")).filter((v) => v !== "")
     : [];
+  // CR-109 Build Plan §1 — knowledgeLocations, same no-real-column
+  // treatment; already an array of objects in draft_content.
+  const knowledgeLocations = Array.isArray(priorContent.knowledgeLocations) ? (priorContent.knowledgeLocations as KnowledgeLocation[]) : [];
+  // CR-109 Build Plan §1, revised — dispatchStrategyPreference, same
+  // no-real-column array treatment as knowledgeLocations above.
+  const dispatchStrategyPreference = Array.isArray(priorContent.dispatchStrategyPreference) ? (priorContent.dispatchStrategyPreference as DispatchStrategyPreferenceEntry[]) : [];
   const draftContent: Record<string, unknown> = {
     code: source.code,
     name: source.name,
@@ -766,12 +882,21 @@ export async function copyProfileAsNewDraft(profileId: string, actorId: string):
     // no-real-column treatment.
     deploymentTargets: typeof priorContent.deploymentTargets === "object" && priorContent.deploymentTargets ? (priorContent.deploymentTargets as Record<string, unknown>) : undefined,
     environmentConfiguration: typeof priorContent.environmentConfiguration === "object" && priorContent.environmentConfiguration ? (priorContent.environmentConfiguration as Record<string, unknown>) : undefined,
+    // CR-109 Build Plan §1 — readme, same no-real-column treatment as
+    // description.
+    readme: typeof priorContent.readme === "string" ? priorContent.readme : undefined,
+    // Ch.33 §14 Redispatch — N/M, same no-real-column treatment, plain numbers.
+    redispatchMaxAttempts: typeof priorContent.redispatchMaxAttempts === "number" ? priorContent.redispatchMaxAttempts : undefined,
+    redispatchAttentionThreshold: typeof priorContent.redispatchAttentionThreshold === "number" ? priorContent.redispatchAttentionThreshold : undefined,
     ...packSelections,
     featureFlagCodes,
     additionalCapabilityCodes,
     participatingOrganisationCodes,
+    knowledgeLocations,
+    dispatchStrategyPreference,
   };
-  // CR-091 Part 2 — the eight single-value Configuration Parameters.
+  // CR-091 Part 2 / CR-109 — the single-value Configuration Parameters
+  // (CONFIGURATION_PARAMETER_FIELDS).
   for (const cp of CONFIGURATION_PARAMETER_FIELDS) {
     const priorValue = priorContent[cp.field as string];
     if (typeof priorValue === "string") draftContent[cp.field as string] = priorValue;

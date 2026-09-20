@@ -40,9 +40,9 @@ export interface EligibilityCriteria {
   excludeParticipantMasterIds?: string[];
 }
 
-function matchesCompetency(participantCompetency: Record<string, string[]>, required: Record<string, string[]>): boolean {
+function matchesCompetency(participantCompetency: Record<string, Array<{ code: string; proficiency: string }>>, required: Record<string, string[]>): boolean {
   return Object.entries(required).every(([dimension, values]) => {
-    const held = participantCompetency[dimension] ?? [];
+    const held = (participantCompetency[dimension] ?? []).map((entry) => entry.code);
     return values.some((v) => held.includes(v));
   });
 }

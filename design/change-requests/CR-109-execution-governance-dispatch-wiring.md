@@ -2,7 +2,7 @@
 
 **Raised:** 2026-09-17· **Origin:** how WorkItem, Deliverable, Command, Dispatch Engine, Evidence, Decision, Knowledge, Governance and Obligation connect, per the governing chapters
 
-**Status:** 🟡 Raised — scope not yet agreed, no design started.
+**Status:** ✅ Closed 2026-09-20.
 
 
 # Execution / Governance / Dispatch Wiring — Design Note
@@ -308,7 +308,7 @@ Rethought per correction — Source control provider (Ch.6 §13's own named exam
 
 5. Design the Decision authoring. 
 
-5a. Wire Decision Dependency (Ch.9 §8) into the Execution Engine's readiness check — an Approved Decision becomes an actual precondition for Command generation, alongside the existing Capability Dependency. Without this, Decisions get authored but nothing gates on them.
+5a. Wire Decision Dependency (Ch.9 §8) into the Execution Engine's readiness check — an Approved Decision becomes an actual precondition for Command generation, alongside the existing Deliverable Dependency. Without this, Decisions get authored but nothing gates on them.
 
 6. Design the Work Item Generator. 
 
@@ -318,4 +318,239 @@ Rethought per correction — Source control provider (Ch.6 §13's own named exam
 
 9. Update test suite. 
 
-9. Test the flow for CR104 profile. 
+10. Test the flow for CR104 profile. 
+
+
+### Decision authoring design 
+
+- Chapter 19 §4/§17's "independent of the Participant" is being corrected — it doesn't mean participant attribution is absent from the record. It means the Decision's validity/meaning doesn't depend on which Participant executed it — the Participant is a replaceable executor of the badge/authority, not the thing that gives the Decision its identity. The record itself still captures who actually did it.
+
+- So decisions needs both participant_id and the authority_badge captured at creation (and presumably at each transition, same as events.actor_id/authority_badge already does) — not just a bare actor/user id. participant_id here means the per-SEU participants.id engagement (consistent with how Work Item/Evidence already reference it), not users.id directly.
+
+- On the Participant's own page ("My Work"), the Decisions shown are no longer scoped by "which Deliverable is mine" (today's indirect myDeliverableIds filter in participantHome.ts). They're scoped directly: decisions carrying (this participant's badge) + (this SEU) — i.e. any Decision made under an authority badge this Participant holds, within an SEU they're engaged on, regardless of which specific Deliverable it's attached to or who the acting Participant actually was at the time.
+
+- category:decisions has to be made composable. Where in the schema ? And categories have sub-categories - where is this defined in the Ontology?  (open)
+
+- Modify decision structure as below:
+        - add originating_type/originating_id new polymorphic pointer, e.g. ('AttentionItem', <id>). related_object_type/related_object_id pair should show what entities within the decision applies to. originating_type/originating_id will be singular. related_object_type/related_object_id pair has to be multiple. [{related_object_type: deliverable, related_object_ids: [id1, id2..]}, {related_object_type: decision, related_object_ids: [id3,id4..]}]
+        - add related_seu/related seu_id pair for propagation outside the current seu. related_seu/related seu_id pair has to be multiple [{related_object_type: seu, related_object_ids: [id1,id2..]}, {related_object_type: packs, related_object_id: [id3,id4..]}]
+        - knowledge_id and evidence_id should be array of ids. 
+        - alternatives has to be array of objects with the selection/rejected property, has to be object having the assumptions, consequences.  against it.  
+        [{statement: "dependency engine should be used for checking this",  assumptions: ["assumes there is going to be no room for another entity", "this was discussed as part of proposal, but defered",...], consequences:["multiple SEUs are impacted", "Future design will become easier"], status:"proposed", rationale: "Rational for rejecting/accepting"}, {statement: "a second alternative"}]
+        - the status (chapter 19 section 9) on alternatives has to be Ontology driven. 
+        - Add participant_id/authority_badge/ 
+        - Version is required, otherwise traceability cannot be established. This should decide the instate or new version. Refer design/mvp-build-plan/Version Feature Plan.md
+
+- Versioning / Event transitions
+
+Row	Transition	version_event
+1	Identified → Analysed	Revision — none
+2	Analysed → Proposed	VersionCreated
+3	Proposed → Reviewed	VersionValidated
+4	Reviewed → Approved	VersionPublished
+5	Approved → Applied	VersionActivated
+6	Applied → Superseded	VersionSuperseded
+7	Superseded → Archived	VersionArchived
+All 7 Ch.41 §15 names now used exactly once, in order. That resolves the Version question fully.
+
+
+- In the seu details page, when an seu is in the activated state and onwards, in the decision tab, show the approved decisions if this seu_id is in any of the related_seuids of other decisions. This has to be scoped to lie within an objective hierarchy
+
+- every version creates a new row.  And evidence should not be pointing to decision. Decision should hold the evidence ids.
+
+
+### Evidence updates
+
+1. Structure changes: 
+
+- related_object_type, related_object_ids should be used for seu, seuid. So, no separate seu_id column is required. 
+category, title, description, confidence_level(has to be ontology driven), status(has to be ontology driven). 
+- originating_deliverable_id, originating_participant_id, originating_capability_id, originating_decision_id, originating_activity — provenance (all nullable) will not be required. Evidence does not need anything. Evidence is required by others 
+
+2. Events and transitions: 
+
+Confirmed mapping:
+
+Transition	version_event
+(creation → Collected)	Revision — none
+Collected → Validated	VersionCreated
+Validated → Accepted	none — same version continues
+Accepted → Referenced	none — same version
+Referenced → Archived	none — same version
+Collected → Rejected	none — still pre-version (Revision side, inferred — same as Collected)
+Validated → Rejected	none — same version, terminal outcome (inferred, not stated explicitly — flag if wrong)
+Supersede (already-built, not a transition_definitions row — a new Evidence row created via supersedes_evidence_id)	VersionSuperseded
+
+3. Evidence validation and confidence level: 
+- authenticity/completeness/consistency/sourceCredibility/engineeringRelevance, each holding its own assessment), or an open array like Decision's alternatives[] — {dimension, status, notes} per entry, dimension itself Ontology-backed so a Pack could contribute a 6th dimension later, matching §11's "Validation may include" (non-exhaustive) framing rather than a closed list?
+
+If it's the array form, status per dimension would also be Ontology-driven (e.g. Pass/Fail/Partial/Not Assessed) — the same pattern as alternatives[].status, and the "rules for how these are evaluated" you mentioned building next would be what populates each dimension's status/notes when Evidence moves toward Validated.
+- confidence_level stops being a free author-set field and becomes derived from the §11 validation dimensions (20.9), computed together as one piece of work rather than two separate fields. This makes the earlier "Ontology-driven" note about confidence_level narrower than I first read it: the value vocabulary (Low/Medium/High or whatever set) is still Ontology-backed, but the value itself is no longer author-input — it's the output of the same rules that evaluate the 5 dimensions.
+
+-------------
+
+
+
+### Work iten generator 
+
+The Work Item Generator resolves and writes the actual content into Execution Context at generation time — not references the Participant has to go chase, actual data:
+
+For Requirements Model → Source (this specific Deliverable, this specific transition):
+
+- Inputs — the Deliverable's Template-declared input refs
+- Input location — from the EBM's knowledgeLocations entry for this Deliverable
+- Decisions — decisionsDB.findByRelatedObject("Deliverable", deliverableId), the actual Decision records (statement/rationale/alternatives), not just ids
+- Evidence — evidenceDB.findByRelatedObject("Deliverable", deliverableId), actual records
+- Knowledge — Knowledge tied to this Deliverable/Capability, actual records
+- Outputs — Template-declared expected outputs
+- Output location — EBM knowledgeLocations output entry
+- Constraints/Authority — from governance_outcome_id (the Policies actually checked, the Authority applied)
+- Active Obligations — non-blocking ones still relevant, from the same governance outcome
+So all of it — resolved once, at generation, into one Execution Context payload stored on the Work Item — not five separate lookups the Participant has to perform later. That's the concrete shape of §11, correctly understood now.
+
+Your three corrections, noted:
+
+1. Capability Fulfilment persists the eligibility pool — new, separate build item; eligibleParticipantPoolRef becomes real (not scoped into this Work Item Generator pass itself, but a prerequisite it will reference once built).
+2. governanceOutcomeRef — confirmed, building it.
+3. requiredCapability — not a new column; already resolvable indirectly through the Deliverable's own producing Capability + the Profile's configuration parameters. No new field needed for it.
+
+governance_evaluation_outcomes table — new. Persists 6.1's record: outcome, rationale, governingRule, satisfiedPolicyIds, deviatedPolicyIds, consultedObligationIds, applicableAuthority, evaluatedAt.
+
+evaluateDeliverableTransition — on the ok: true path, build that record from checks it already runs (quality gate, policy, obligation, authority) and return it. No new checks, just capture instead of discard. Stays read-only.
+
+execute() — insert the governance_evaluation_outcomes row first, get its id, then create the Command with governance_outcome_id set to it.
+
+commands table / CommandRow — add governance_outcome_id column. Migration.
+
+Capability Fulfilment — persist the eligibility pool it resolves for a Capability, instead of resolving it live each time. Makes eligibleParticipantPoolRef real.
+
+commands table / CommandRow — add eligible_participant_pool_id referencing that pool.
+
+workItemGenerator.generate — real logic, replacing the stub. Resolves, at generation time: Decisions/Evidence/Knowledge tied to the Deliverable (actual records), input/output locations off the EBM's knowledgeLocations, Template-declared inputs/outputs/objective, and constraints/authority/obligations off the Command's governance_outcome_id. Assembles all of it into one Execution Context payload.
+
+work_items table / WorkItemRow — add execution_context JSONB column to store that payload.
+
+Display surfaces (core/workItems.ts, Participant page) — show the Execution Context to the Participant instead of the current chase-command_id-yourself path.
+
+## Dispatch Engine
+
+
+### Dispatch Engine
+
+1. Profile Configuration Parameter  dispatchStrategyPreference (Ontology driven; dispatch-strategy-preference, section 9) - that is where this has to go, but not a plain text. 
+
+2. Work Item Generator reads the dispatch strategy from the Profile and sets it on the Work Item (extends what we just started).
+Dispatch Engine receives an ordered list of strategies, tries each in turn, falls through to the next if a strategy finds no viable participant.
+Each strategy is its own function in Dispatch Engine, composable.
+
+## Profile
+
+
+1. **Deferred Assignment**  should create an AttentionItem. 
+
+------
+## What was built
+
+### Steps 1-4 & 8 
+
+- Migration 229: new dispatch-strategy-preference Configuration Parameter (7 values from Ch.33 §9), plus schema properties for dispatchStrategyPreference, knowledgeLocations (Input/Output Knowledge Location per Deliverable/Capability, reusing existing deliverable-name/capability-name Ontology), and readme (free-form).
+- profiles.ts: ProfileSeedInput/KnowledgeLocation types, CONFIGURATION_PARAMETER_FIELDS entry, validateProfileSeed checks, extractProfileDetails, and the two carry-forward paths (reactivateAsNewVersion, copyProfileAsNewDraft) all updated. Authoring UI needed no code change — it's schema-driven off migration 229.
+- profileCompositionUnravel.ts: the three fields added to the pool that becomes ebm.behaviors.pool — EBM composition/persistence covered automatically.
+- ebm.ejs: display allowlist extended to show the new fields.
+- CR-104 seed: cr104-demo-development.profile.json now sets dispatchStrategyPreference, knowledgeLocations (all 3 Deliverables), and readme.
+
+### Step 7
+
+- seus.ts: SeuDetailWorkItem now carries participantId (the raw participants.id), not just the display label.
+- participantHome.ts: scopeToParticipant now also filters each retained Command's workItems down to the viewer's own rows (previously it scoped Commands but leaked every Work Item on a shared Command, including other Participants'). Added completeMyWorkItem — re-verifies the Work Item's participant_id actually belongs to the caller's own participants_master identity, then delegates to the existing governed completeWorkItem core (no new transition logic).
+- public.js: new POST /quickview/work-items/:workItemId/complete, gated by requireRole('general'), calling completeMyWorkItem.
+- participant.ejs: each of the Participant's own Dispatched Work Items now gets a "Report Result" form (done/failed/blocked + optional reference), reusing the same result contract workQueue.ts's stub already uses.
+- Note on scope: I deliberately did not reuse workQueue.ts's existing POST route — it's explicitly labelled a SEU-wide, unscoped "placeholder" stub with no ownership check, wrong to link to from a Participant's own restricted page. I added a separate, ownership-checked path instead. Flagging this since it's a design call beyond the literal "show work items" ask.
+
+### Step 5 & 5a: Decision authoring 
+
+1. Migration 230 adds the missing 3 category:decision concepts (Architecture, Operational, Governance Decisions)
+
+2. Decision Structure changes and definitions
+
+3. Migration 231 (src/dblayer/migrations/231_decision_model_cleanup.sql) — restructures decisions: adds originating_type/originating_id, related_objects/related_seu (JSONB arrays of {related_object_type, related_object_ids[]} groups), knowledge_ids/evidence_ids (arrays), alternatives (JSONB array with per-entry status/rationale), participant_id/authority_badge; drops the old scalar related_object_type/id, knowledge_id, evidence_id, selected_alternative, rationale; carries forward existing row data into the new shapes before dropping. Also seeds the new decision-alternative-status Ontology concept type (Candidate/Evaluating/Investigating/Deferred/Rejected/Approved) and wires transition_definitions.event_type/.version_event for all 7 real Decision transitions per the mapping we settled.
+
+4. Code changes for the decision structure:
+        - seuTypes.ts — DecisionRow rebuilt, new DecisionRelatedObjectGroup/DecisionAlternative types.
+        - decisionsDB.ts — create/updateStatus rewritten for the new columns; findByRelatedObject now queries the JSONB array via jsonb_array_elements, same external signature so every caller (dependencyDefinitionEngine.ts, qualityGateEngine.ts, traceability.ts) needed no change.
+        - core/decisions.ts — createDecision resolves participant_id from the acting user's own Participant engagement on this SEU (badge stays null — creation is ungoverned, same as every other entity's row-1); transitionDecision now passes entityId to transitionEngine.evaluate (fixes the same latent gap every other entity's Version Plan pass found), publishes gate.eventType, and updates participant_id/authority_badge on every governed hop.
+        - core/seus.ts — SeuDetailDecision.relatedObjectLabels: string[] replaces the old scalar deliverableName.
+        - core/participantHome.ts — Decisions on the Participant's own page are now scoped by badge + SEU (any Decision whose authority_badge is among the badges this Participant's user holds), not by Deliverable ownership, per the correction earlier in this session.
+        - web/seus.ts, api/decisions.ts — updated request shapes; web form captures one alternative up front (statement + rationale), API accepts the full relatedObjects/alternatives arrays directly.
+        - detail.ejs — form and table updated for the new fields.
+        - transitionDefinitions.json — same event_type/version_event values as the migration, so a future db:clean-slate picks them up.
+
+- 5a: Dependency authoring is already in place. Add decision to from state. The Deliverable A → Deliverable B transitivity falls out for free, no extra mechanism needed. B's own dependency row already checks "has A reached the state B's rule requires" (e.g. Approved). If a Decision opened against A blocks A's own transition, A simply never reaches that state while the Decision is open — so B stays blocked too, purely because A hasn't advanced, not because anything new was added to B's own row or to the graph. The existing dependency chain already propagates it.
+
+So concretely: open a Decision against Deliverable A → A's next transition attempt fails the new check → A stays put → B's existing dependency row on A is naturally still unsatisfied → B stays blocked. One new check, in one place, and the graph itself never needs to change.
+
+Concretely, this is the change:
+
+executionEngine.evaluateDeliverableTransition (domain/engine/executionEngine.ts) — one new check, same shape as the existing seu_blocked/obligation_blocked checks already there: fetch every Decision related to this Deliverable (decisionsDB.findByRelatedObject("Deliverable", deliverable.id)), and if any of them hasn't reached-or-passed Approved in its own lifecycle, block with a new reason decision_blocked.
+dependencyDefinitionEngine.ts — export its existing private isReachedOrPassed helper so executionEngine.ts can reuse the same "has this Decision's status reached-or-passed Approved" logic rather than re-deriving it.
+DeliverableGovernanceResult type — add the decision_blocked reason variant, same pattern as seu_blocked/obligation_blocked.
+
+
+### Evidence stabilisation
+
+1. Migration 232 — Ontology: evidence-validation-dimension (5 values), evidence-validation-status (Not Assessed/Pass/Partial/Fail), evidence-confidence-level (Low/Medium/High). Schema: migrates existing seu_id values into evidence_relationships (type 'SEU') before dropping the column; drops the five originating_* provenance columns; confidence_level becomes nullable (no author-set default); adds validation_dimensions JSONB DEFAULT '[]'. Wires event_type/version_event on all 6 real transition rows per the confirmed mapping (Collected→Validated = VersionCreated, rest of the forward chain unversioned, both →Rejected hops unversioned).
+
+2: Code:
+- seuTypes.ts / evidenceDB.ts / core/evidence.ts — rewritten for the new shape. findBySeuId/count now query through evidence_relationships instead of a column. New recordValidationAssessment — append-only (never overwrites an existing entry), recomputes confidence_level from the full history each time (worst dimension wins: any Fail → Low, else any Partial → Medium, else High). transitionEvidence now reads gate.eventType instead of the old hardcoded map, resolves seuId from relationships for event publishing, and passes entityId to transitionEngine.evaluate (same latent gap fixed for every other entity this cycle).
+- core/seus.ts — SeuDetailEvidence drops the provenance sub-object, adds raw relationships[] alongside relatedObjectLabels; relatedObjectLabel now resolves Participant/Capability too, not just Deliverable.
+- core/participantHome.ts — Evidence scoping rewritten against relationships (Deliverable/Participant match) since the old FK columns are gone.
+- web/seus.ts / api/evidence.ts — create route drops provenance/confidence params; new POST .../evidence/:id/validate route.
+- detail.ejs — collection form drops Participant/Capability/Decision/confidence fields; table gets a Validation column with per-dimension history display + an Assess form.
+participant.ejs — new: Evidence now has a collection form and per-row transition form (previously read-only), mirroring the Decisions authoring pattern; also fixed a stale dec.deliverableName reference left over from the Decision rename earlier this session (would have been a runtime error).
+- dependencyDefinitionEngine.ts — exports its existing isReachedOrPassed helper.
+- executionEngine.ts — new standing check in evaluateDeliverableTransition: any Decision related to the Deliverable that hasn't reached-or-passed Approved blocks its next transition (decision_blocked, same shape as the existing seu_blocked/obligation_blocked checks). New decision_blocked variant on DeliverableGovernanceResult; TransitionDeliverableResult's Exclude<..., {ok:true}> picks it up automatically, and the existing generic "detail" in result fallback in web/seus.ts already surfaces it — no other callers needed changes.
+
+### Step 7: Work item generator
+
+- Steps 1–4 done: table, Ontology concept types, evaluateDeliverableTransition returning the outcome, execute() persisting it and stamping commands.governance_outcome_id. Not run — migrations 233/234 are yours to apply.
+
+- Next is step 5: Capability Fulfilment persisting the eligibility pool (currently resolved live, nowhere stored) — this is what makes eligibleParticipantPoolRef real. Want me to look at the current Capability Fulfilment code first and report what's there before designing the change, same as before?
+
+- Step 7: Migration 235: work_items.execution_context JSONB.
+WorkItemExecutionContext type added to seuTypes.ts, matching Ch.32 §11's list resolved to real content.
+workItemsDB.create accepts and persists it.
+workItemGenerator.generate now does the real work: resolves the Deliverable, its producing Capability, EBM knowledgeLocations (input/output), related Decisions/Evidence/Knowledge, and — via command.governance_outcome_id — the governing Policies, applicable Authority, active Obligations, open AttentionItems, and Quality Gate outcome that already passed. All of it assembled once, at generation, into one stored payload.
+- Both display surfaces shown
+
+
+## Knowledge updates 
+
+1. src/dblayer/migrations/237_seed_missing_knowledge_categories.sql inserts the 4 missing category:knowledge values (Architectural, Operational, Governance, Process Knowledge), idempotently, matching migration 030's exact labels.
+2. Version, event transitions, states implemented. 
+3. Knowledge structure updated.
+4. Build the UI for the participant. 
+
+## Dispatch engine 
+
+1. Participant assignment strategies built and participant seeding altered. 
+- Migration 245: participants_master.cost column + proficiency-level Ontology concept type (Novice/Intermediate/Expert).
+- seuTypes.ts, participantsMasterDB.ts, core/participantsMaster.ts, participantEligibility.ts (matchesCompetency): updated to the new competency: {dimension: [{code, proficiency}]} shape + cost field, all Ontology-validated, no hardcoded literals.
+- mockOnboardingData.ts: new mockProficiencyLevels(), same live-Ontology-query pattern as the existing 3 helpers.
+- All 4 onboarding adapters (Human/AI/Automated/External): now emit varied cost (deterministic spread by seed, different price bands per type) and varied proficiency per competency code.
+- Fixed a real display bug this surfaced: participants/index.ejs was still calling .join(', ') directly on the competency array — updated to render code (proficiency).
+
+2. Profile schema changes: 
+
+profiles.ts: dispatchStrategyPreference type → DispatchStrategyPreferenceEntry[] ({strategy, order}), removed from CONFIGURATION_PARAMETER_FIELDS (that mechanism is single-value only), new validation (strategy must resolve to a real dispatch-strategy-preference concept, order values must be distinct), carried forward in both reactivateAsNewVersion and copyProfileAsNewDraft the same way knowledgeLocations already is.
+- Migration 245: Profile SDK authoring schema's dispatchStrategyPreference field changes from a single referential-select to a referential-list of {strategy, order} objects (same widget pattern as knowledgeLocations); also deletes the now-orphaned profile-configuration Ontology row for it.
+- EBM Composition (profileCompositionUnravel.ts): checked — no change needed. It already carries dispatchStrategyPreference onto the - EBM's behaviors.pool as an opaque value, generically, the same way it does for knowledgeLocations (already an array). Composition doesn't care about its shape.
+- EBM detail view (ebm.ejs): checked — also no change needed. Its parameter renderer already does JSON.stringify for any object/array value, so it displays the new array-of-objects shape the same way it already displays knowledgeLocations.
+
+
+## Dry run 
+
+1. First attempt (SEUActivated fires attemptSeuCommenceWork): dependency/authority checks pass, but policyEngine.evaluate() for SEU|Activated|Operational comes back Blocked (CR-104's own policy, e.g. a pending client sign-off).
+2. On that block, it calls raiseObligationForBlockedTransition — idempotent, so it either creates one open Obligation or reuses the existing one if this is a repeat — and returns without touching seus.lifecycle_state. The SEU stays at Activated.
+3. Retry isn't automatic/timer-driven — it's triggered specifically by ObligationTransitioned events on that same Obligation (handleObligationTransitioned). Each time that Obligation transitions to any status, the handler re-runs attemptSeuCommenceWork from scratch (stateless — re-checks dependency, authority, and the policy again, live).
+4. As long as the policy still evaluates Blocked, it re-raises/reuses the same Obligation (idempotent — no duplicate) and returns again. SEU stays Activated through every one of these no-op retries.
+5. Only when the Obligation reaches a status in RESOLVED_OBLIGATION_STATUSES and the policy itself now evaluates non-Blocked does the SEU actually move to Operational and publish the event.

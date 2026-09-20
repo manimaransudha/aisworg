@@ -4,30 +4,37 @@
 // the participants_master registry has plausible Human resources to seed
 // with, end to end, without a real HR integration.
 import type { OnboardParticipantRequest, OnboardedParticipant, ParticipantOnboardingAdapter } from "./participantOnboardingAdapter.js";
-import { mockCapabilityCodes, mockDomainValues, mockTechnologyValues } from "./mockOnboardingData.js";
+import { mockCapabilityCodes, mockDomainValues, mockTechnologyValues, mockProficiencyLevels } from "./mockOnboardingData.js";
 
 export const humanOnboardingAdapter: ParticipantOnboardingAdapter = {
   type: "Human",
   async onboard(request: OnboardParticipantRequest): Promise<OnboardedParticipant> {
     const i = request.seed;
     const viewer = { isRoot: false, tenantId: request.tenantId };
-    const [capabilityCodes, domainValues, technologyValues] = await Promise.all([
+    const [capabilityCodes, domainValues, technologyValues, proficiencyLevels] = await Promise.all([
       mockCapabilityCodes(viewer),
       mockDomainValues(viewer),
       mockTechnologyValues(viewer),
+      mockProficiencyLevels(viewer),
     ]);
     const capability = capabilityCodes[i % capabilityCodes.length];
     return {
       displayName: `${request.tenantLabel} H_${i + 1} (${capability})`,
       capabilities: [capability],
-      // CR-099 — dimension keys are category:pack's own codes.
+      // CR-099 — dimension keys are category:pack's own codes. Proficiency
+      // (Ch.33 Dispatch Strategy input) spread deterministically across the
+      // real proficiency-level vocabulary by seed, so the mock population has
+      // real variety to rank on.
       competency: {
-        Domain: [domainValues[i % domainValues.length]],
+        Domain: [{ code: domainValues[i % domainValues.length], proficiency: proficiencyLevels[i % proficiencyLevels.length] }],
         Technology: [
-          technologyValues[i % technologyValues.length],
-          technologyValues[(i + 1) % technologyValues.length],
+          { code: technologyValues[i % technologyValues.length], proficiency: proficiencyLevels[(i + 1) % proficiencyLevels.length] },
+          { code: technologyValues[(i + 1) % technologyValues.length], proficiency: proficiencyLevels[(i + 2) % proficiencyLevels.length] },
         ],
       },
+      // Dispatch Strategy input (Ch.33 §9 Cost Optimisation) — a LABELLED
+      // MOCK day-rate spread, same discipline as the rest of this adapter.
+      cost: 400 + (i % 10) * 50,
       // Owner's own motivating example for Behaviour Context (Ch.13 §14):
       // "some clients have policy that a human participant should have
       // completed a background check to work in their organisation."

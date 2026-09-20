@@ -367,44 +367,15 @@
                   <input type="text" name="source" class="form-control form-control-sm" placeholder="Source" style="width: 140px;">
                 </div>
                 <div class="col-auto">
-                  <select name="confidenceLevel" class="form-select form-select-sm">
-                    <% ['Low','Medium','High'].forEach(function(c) { %>
-                      <option value="<%= c %>" <%= c === 'Medium' ? 'selected' : '' %>><%= c %></option>
-                    <% }) %>
-                  </select>
-                </div>
-                <div class="col-auto">
                   <button type="submit" class="btn btn-sm btn-primary">Collect Evidence</button>
                 </div>
-                <%# CR-051 item 3 (Ch.17 §12/§20.10) — provenance, all optional:
-                    who/what produced this Evidence. %>
-                <div class="col-auto">
-                  <select name="participantId" class="form-select form-select-sm">
-                    <option value="">Participant&hellip;</option>
-                    <% detail.participants.forEach(function(p) { %>
-                      <option value="<%= p.id %>"><%= p.displayName %> (<%= p.type %>)</option>
-                    <% }) %>
-                  </select>
-                </div>
-                <div class="col-auto">
-                  <select name="capabilityId" class="form-select form-select-sm">
-                    <option value="">Capability&hellip;</option>
-                    <% detail.capabilities.forEach(function(c) { %>
-                      <option value="<%= c.capabilityId %>"><%= c.name %> (<%= c.code %>)</option>
-                    <% }) %>
-                  </select>
-                </div>
-                <div class="col-auto">
-                  <select name="decisionId" class="form-select form-select-sm">
-                    <option value="">Decision&hellip;</option>
-                    <% detail.decisions.forEach(function(d) { %>
-                      <option value="<%= d.decision.id %>"><%= d.decision.title %></option>
-                    <% }) %>
-                  </select>
-                </div>
-                <div class="col-auto">
-                  <input type="text" name="activity" class="form-control form-control-sm" placeholder="Engineering activity" style="width: 160px;">
-                </div>
+                <%# Ch.17 model cleanup (migration 232) — Participant/Capability/
+                    Decision/activity provenance is no longer captured at collection
+                    time; Evidence doesn't declare who/what produced it, it's
+                    required BY others (linked the same way any other related
+                    object is, via the Link form below the table). confidence_level
+                    is no longer author-set here either — it's computed from
+                    validation-dimension assessments (see the Validate form per row). %>
                 <%# CR-051 item 4 (Ch.17 §15/§20.13) — versioning: this new Evidence
                     Item corrects an earlier one. Includes cross-SEU-shared
                     candidates, not just this SEU's own Evidence. %>
@@ -420,27 +391,46 @@
             </div>
             <div class="table-responsive">
               <table class="table table-sm mb-0 align-middle">
-                <thead class="table-light"><tr><th>Supports</th><th>Title</th><th>Category / Confidence</th><th>Provenance</th><th>Status</th><th>Transition</th><th>Link another</th></tr></thead>
+                <thead class="table-light"><tr><th>Supports</th><th>Title</th><th>Category / Confidence</th><th>Validation</th><th>Status</th><th>Transition</th><th>Link another</th></tr></thead>
                 <tbody>
                   <% if (detail.evidence.length === 0) { %>
                     <tr><td colspan="7" class="text-muted small">No Evidence collected yet — the "Approved" &rarr; "Baselined" Quality Gate needs at least one Accepted Evidence Item or an approved Decision.</td></tr>
                   <% } %>
                   <% detail.evidence.forEach(function(e) { %>
                     <tr>
-                      <%# CR-051 item 1 (Ch.17 §20.2/§20.8) — one Evidence Item may
-                          support many artefacts; relatedObjectLabels lists all of
-                          them, not just the first. %>
+                      <%# Ch.17 model cleanup (migration 232) — one Evidence Item may
+                          support many artefacts, including its own SEU membership
+                          (filtered out of this display list); relatedObjectLabels
+                          lists all the non-SEU ones. %>
                       <td class="small"><%= e.relatedObjectLabels.join(', ') || '—' %></td>
                       <%# CR-051 item 4 (Ch.17 §15/§20.13) — shown only on the
                           correcting row itself; nothing added to the predecessor's
                           own row (no cross-SEU signal, deliberately). %>
                       <td class="small"><%= e.evidence.title %><% if (e.predecessorTitle) { %> <span class="text-muted">(corrects: <%= e.predecessorTitle %>)</span><% } %></td>
-                      <td class="small"><%= e.evidence.category %> &middot; <%= e.evidence.confidence_level %></td>
-                      <%# CR-051 item 3 (Ch.17 §12/§20.10) — provenance, whichever
-                          fields were captured; a bare '—' when none were. %>
+                      <td class="small"><%= e.evidence.category %> &middot; <%= e.evidence.confidence_level || 'unassessed' %></td>
+                      <%# Ch.17 model cleanup — validation_dimensions is append-only;
+                          show the most recent assessment per dimension plus a form to
+                          record another. Full history lives on the record, not just
+                          what's rendered here. %>
                       <td class="small">
-                        <% var prov = [e.provenance.deliverableName, e.provenance.participantName, e.provenance.capabilityName, e.provenance.decisionTitle, e.provenance.activity].filter(function(x) { return x; }); %>
-                        <%= prov.join(', ') || '—' %>
+                        <% e.evidence.validation_dimensions.forEach(function(v) { %>
+                          <div><%= v.dimension %>: <%= v.status %><% if (v.notes) { %> <span class="text-muted" style="font-size:0.7rem;">(<%= v.notes %>)</span><% } %></div>
+                        <% }) %>
+                        <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/evidence/<%= e.evidence.id %>/validate" class="d-flex flex-wrap gap-1 align-items-center mt-1">
+                          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                          <select name="dimension" class="form-select form-select-sm" style="width:auto;">
+                            <% ['authenticity','completeness','consistency','source-credibility','engineering-relevance'].forEach(function(dim) { %>
+                              <option value="<%= dim %>"><%= dim %></option>
+                            <% }) %>
+                          </select>
+                          <select name="status" class="form-select form-select-sm" style="width:auto;">
+                            <% ['Pass','Partial','Fail','Not Assessed'].forEach(function(s) { %>
+                              <option value="<%= s %>"><%= s %></option>
+                            <% }) %>
+                          </select>
+                          <input type="text" name="notes" class="form-control form-control-sm" style="width:auto;" placeholder="notes (optional)">
+                          <button type="submit" class="btn btn-sm btn-outline-primary">Assess</button>
+                        </form>
                       </td>
                       <td><span class="state-badge state-<%= e.evidence.status %>"><%= e.evidence.status %></span></td>
                       <td>
@@ -519,7 +509,10 @@
                   <input type="text" name="title" class="form-control form-control-sm" placeholder="Title" required style="width: 200px;">
                 </div>
                 <div class="col-auto">
-                  <input type="text" name="selectedAlternative" class="form-control form-control-sm" placeholder="Selected alternative" style="width: 180px;">
+                  <input type="text" name="alternativeStatement" class="form-control form-control-sm" placeholder="First alternative" style="width: 180px;">
+                </div>
+                <div class="col-auto">
+                  <input type="text" name="alternativeRationale" class="form-control form-control-sm" placeholder="Rationale" style="width: 180px;">
                 </div>
                 <div class="col-auto">
                   <button type="submit" class="btn btn-sm btn-primary">Identify Decision</button>
@@ -535,8 +528,8 @@
                   <% } %>
                   <% detail.decisions.forEach(function(dec) { %>
                     <tr>
-                      <td class="small"><%= dec.deliverableName %></td>
-                      <td class="small"><%= dec.decision.title %><% if (dec.decision.selected_alternative) { %><br><span class="text-muted" style="font-size:0.72rem;">&rarr; <%= dec.decision.selected_alternative %></span><% } %></td>
+                      <td class="small"><%= dec.relatedObjectLabels.join(', ') %></td>
+                      <td class="small"><%= dec.decision.title %><% dec.decision.alternatives.forEach(function(alt) { %><br><span class="text-muted" style="font-size:0.72rem;">&rarr; <%= alt.statement %> (<%= alt.status %>)</span><% }) %></td>
                       <td class="small"><%= dec.decision.category %></td>
                       <td><span class="state-badge state-<%= dec.decision.status %>"><%= dec.decision.status %></span></td>
                       <td>
@@ -696,6 +689,26 @@
                               <span class="state-badge state-<%= wi.status %>"><%= wi.status %></span>
                               <% if (wi.participantLabel) { %> &rarr; <%= wi.participantLabel %><% } %>
                               <% if (wi.dispatchStrategy) { %> <span class="text-muted" style="font-size:0.7rem;">(<%= wi.dispatchStrategy %>)</span><% } %>
+                              <% if (wi.executionContext) { %>
+                                <% var ec = wi.executionContext; %>
+                                <details style="font-size:0.72rem;">
+                                  <summary class="text-muted">Execution Context</summary>
+                                  <div class="ps-2">
+                                    <div><strong>Objective:</strong> <%= ec.engineeringObjective %></div>
+                                    <% if (ec.service) { %><div><strong>Service:</strong> <%= ec.service.name %> (<%= ec.service.code %>)</div><% } %>
+                                    <div><strong>Input location:</strong> <%= ec.inputLocation || '—' %></div>
+                                    <div><strong>Output location:</strong> <%= ec.outputLocation || '—' %></div>
+                                    <div><strong>Decisions:</strong> <%= ec.relevantDecisions.map(function(d){ return d.title + ' (' + d.status + ')'; }).join(', ') || 'none' %></div>
+                                    <div><strong>Evidence:</strong> <%= ec.supportingEvidence.map(function(e){ return e.title + ' (' + e.status + ')'; }).join(', ') || 'none' %></div>
+                                    <div><strong>Knowledge:</strong> <%= ec.relevantKnowledge.map(function(k){ return k.title; }).join(', ') || 'none' %></div>
+                                    <div><strong>Governing Policies:</strong> <%= ec.governingPolicies.map(function(p){ return p.name; }).join(', ') || 'none' %></div>
+                                    <div><strong>Applicable Authority:</strong> <%= ec.applicableAuthority ? ec.applicableAuthority.code : 'none' %></div>
+                                    <div><strong>Active Obligations:</strong> <%= ec.activeObligations.map(function(o){ return o.title + ' (' + o.status + ')'; }).join(', ') || 'none' %></div>
+                                    <div><strong>Open Attention Items:</strong> <%= ec.openAttentionItems.map(function(a){ return a.title; }).join(', ') || 'none' %></div>
+                                    <% if (ec.qualityGate) { %><div><strong>Quality Gate:</strong> <%= ec.qualityGate.name %> (<%= ec.qualityGate.outcome %>)</div><% } %>
+                                  </div>
+                                </details>
+                              <% } %>
                             </div>
                           <% }) %>
                         <% } %>

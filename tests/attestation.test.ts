@@ -19,35 +19,58 @@ import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { attestationsDB } from "../src/dblayer/attestationsDB.js";
 import { deliverableReferencesDB } from "../src/dblayer/deliverableReferencesDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
+import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
 
 async function commissionAndFulfil(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromFormSync({
-    statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: "1001", requestedBy: 1001,
-  });
+  const result = await commissionFromFormSync(
+    {
+      statement: `${statementPrefix}-${randomUUID()}`,
+      requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
+      actorRole: "super", actorId: "1001", requestedBy: 1001,
+    },
+    async (seuId) => {
+      const detail = await getSeuDetailView(seuId);
+      const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
+      assert.ok(capability);
+      const participantMasterId = await ensureEligibleParticipant(seuId, ["requirements-analysis"]);
+      await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantMasterId });
+    }
+  );
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
   const seuId = result.seu.id;
   const detail = await getSeuDetailView(seuId);
   const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
-  const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
-  assert.ok(deliverable && capability);
-  await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantType: "AI", displayName: `${statementPrefix} Analyst` });
+  assert.ok(deliverable);
+  // The automatic commence-work rescan (off SEUOperational) already hit this
+  // Deliverable's own then-unfulfilled Capability — a real, by-design
+  // empty_eligible_pool Obligation/Attention Item, not this test's own scenario.
+  await resolveDispatchRejectionObligations(seuId);
   return { seuId, deliverableId: deliverable.id };
 }
 
 // Dispatch + report `done` in one step, for setup where the async round-trip
 // isn't itself under test.
 async function dispatchAndComplete(deliverableId: string, targetState: string, reference: string | null) {
+  const { data: deliverable } = await deliverablesDB.findById(deliverableId);
+  const fromState = deliverable!.lifecycle_state;
+  console.log(`[dispatchAndComplete] START ${deliverableId} ${fromState} -> ${targetState}`);
   const dispatched = await transitionDeliverable({ deliverableId, targetState, actorRole: "super", actorId: "1" });
-  assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : undefined);
-  if (!dispatched.ok) throw new Error("unreachable");
-  const completed = await completeWorkItem({ workItemId: dispatched.workItemId, outcome: "done", reference });
+  console.log(`[dispatchAndComplete] transitionDeliverable returned`, dispatched);
+  // deliverableKickoffHandler (off SEUOperational) may already have this
+  // exact hop in flight from its own automatic rescan, now that fulfilment
+  // happens before commence-work — same tolerance tenant-contract.test.ts's
+  // own commissionAndDispatch uses.
+  if (!dispatched.ok) assert.equal(dispatched.reason, "already_in_flight", JSON.stringify(dispatched));
+  console.log(`[dispatchAndComplete] waiting for dispatched Work Item...`);
+  const { command, workItem } = await waitForDispatchedWorkItem(deliverableId, fromState, targetState);
+  console.log(`[dispatchAndComplete] got command ${command.id} status=${command.status}, workItem ${workItem.id} status=${workItem.status}`);
+  const completed = await completeWorkItem({ workItemId: workItem.id, outcome: "done", reference });
+  console.log(`[dispatchAndComplete] completeWorkItem returned ok=${completed.ok}`);
   assert.equal(completed.ok, true, !completed.ok ? JSON.stringify(completed) : undefined);
-  return dispatched.workItemId;
+  return workItem.id;
 }
 
 test("a reference is recorded at every completion, but an attestation is minted only at acceptance transitions", async () => {

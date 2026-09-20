@@ -148,6 +148,14 @@ async function isRowSatisfied(seuId: string, row: DependencyDefinitionRow): Prom
 }
 
 export const dependencyDefinitionEngine = {
+  // Exposed so executionEngine.ts's own open-Decision block (Ch.9 §10
+  // Decision Dependency, CR-109 §5a) can reuse the same "has this status
+  // reached-or-passed X" reasoning instead of re-deriving it — that check
+  // isn't expressed as a dependency_definitions row at all (no Template/
+  // Profile authoring surface for it, deliberately — see the CR-109 design
+  // note), so it can't go through isTargetReady/isRowSatisfied above.
+  isReachedOrPassed,
+
   // Pull/gating check — "is (toEntityType, toName) ready to reach toState?" —
   // the direct generalisation of dependencyEngine.isDeliverableReady, called
   // before a governed transition is allowed to proceed. Gathers rules from

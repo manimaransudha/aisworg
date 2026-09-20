@@ -18,9 +18,16 @@
 // Work Item/event writes) before this CR, same orchestrator category as the
 // handler files above, not the pure-engine one.
 import { commandsDB } from "../../dblayer/commandsDB.js";
+import { governanceEvaluationOutcomesDB } from "../../dblayer/governanceEvaluationOutcomesDB.js";
+import { seuCapabilitiesDB } from "../../dblayer/seuCapabilitiesDB.js";
+import { capabilityFulfilmentsDB } from "../../dblayer/capabilityFulfilmentsDB.js";
+import { capabilityFulfilmentPoolsDB } from "../../dblayer/capabilityFulfilmentPoolsDB.js";
 import { eventBus } from "./eventBus.js";
-import { workItemGenerator } from "./workItemGenerator.js";
-import { dispatchEngine } from "./dispatchEngine.js";
+// workItemGenerator/dispatchEngine calls moved to commandGenerated.ts /
+// workItemGenerated.ts (CommandGenerated / WorkItemGenerated consumers) — no
+// longer called inline from execute() itself.
+// import { workItemGenerator } from "./workItemGenerator.js";
+// import { dispatchEngine } from "./dispatchEngine.js";
 import { dependencyDefinitionEngine } from "./dependencyDefinitionEngine.js";
 import { qualityGateEngine, RESOLVED_OBLIGATION_STATUSES } from "./qualityGateEngine.js";
 import { policyEngine } from "./policyEngine.js";
@@ -28,31 +35,34 @@ import { badgeAuthorityEngine } from "./badgeAuthorityEngine.js";
 import { triggerEngine } from "./triggerEngine.js";
 import { transitionDefinitionsDB } from "../../dblayer/transitionDefinitionsDB.js";
 import { obligationsDB } from "../../dblayer/obligationsDB.js";
+import { decisionsDB } from "../../dblayer/decisionsDB.js";
 import { deliverableReferencesDB } from "../../dblayer/deliverableReferencesDB.js";
 import { checkSustainedQualityGateBlocking } from "../../routes/seu/core/telemetry.js";
 import { raiseAttentionItem } from "../../routes/seu/core/attentionItems.js";
 import { raiseObligationForBlockedTransition } from "../../routes/seu/core/obligations.js";
-import type { CommandRow, DeliverableRow, DependencyDefinitionRow, TransitionEntityType } from "../../dblayer/seuTypes.js";
+import { attentionItemsDB } from "../../dblayer/attentionItemsDB.js";
+import { authorityRulesDB } from "../../dblayer/authorityRulesDB.js";
+import type { CommandRow, DeliverableRow, DependencyDefinitionRow, GovernanceEvaluationOutcomeInput, TransitionEntityType } from "../../dblayer/seuTypes.js";
 
-export interface ExecutionResult {
-  command: CommandRow;
-  dispatched: boolean;
-  participantId?: string;
-  workItemId: string;
-  deferredReason?: "no_eligible_participant";
-}
+// ExecutionResult removed: execute() is now an event-boundary function, not a
+// return-value function. Its caller must be an event consumer (nothing else
+// in the platform calls a Command/Work Item/Dispatch step and reads a return
+// value back — every HANDLER_REGISTRY entry is typed void|Promise<void>).
+// Whatever execute() decides is visible only through the events it publishes
+// (CommandGenerated onward), never through what it hands back to a caller.
 
 // CR-107 item 7 — the same discriminated shape deliverables.ts's own
 // TransitionDeliverableResult already used for these reasons (that type now
 // re-exports this one for its "not ok, not dispatched" cases); kept here
 // since this is now where each of these outcomes is actually decided.
 export type DeliverableGovernanceResult =
-  | { ok: true; fromState: string }
+  | { ok: true; fromState: string; governanceOutcome: GovernanceEvaluationOutcomeInput }
   | { ok: false; reason: "dependency_not_satisfied"; rows: DependencyDefinitionRow[] }
-  | { ok: false; reason: "seu_blocked" | "obligation_blocked"; detail: string }
+  | { ok: false; reason: "seu_blocked" | "obligation_blocked" | "decision_blocked"; detail: string }
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string }
-  | { ok: false; reason: "empty_centre"; detail: string };
+  | { ok: false; reason: "empty_centre"; detail: string }
+  | { ok: false; reason: "already_in_flight"; detail: string };
 
 export const executionEngine = {
   // CR-107 — moved from transitionDeliverable (deliverables.ts) verbatim,
@@ -110,7 +120,35 @@ export const executionEngine = {
       return { ok: false, reason: "obligation_blocked", detail: `blocked by an open Obligation ("${openDeliverableBlock.title}")` };
     }
 
+    // Ch.9 §10 Decision Dependency ("Execution requires an approved
+    // decision"), CR-109 §5a — a standing rule, not a dependency_definitions
+    // row: any Decision related to this Deliverable that hasn't yet reached
+    // Approved (Ch.19 §9: "Only Approved Decisions may influence Deliverable
+    // state transitions") blocks its own next transition. Opening a Decision
+    // against Deliverable A therefore also blocks any Deliverable B that
+    // already depends on A reaching a later state — B's own existing
+    // dependency row never sees A reach it while A is held here, no new
+    // graph edge needed. A Decision related to several Deliverables at once
+    // (related_objects naming more than one) blocks each of them directly,
+    // the same check run independently per Deliverable.
+    const { data: deliverableDecisions } = await decisionsDB.findByRelatedObject("Deliverable", deliverable.id);
+    for (const decision of deliverableDecisions ?? []) {
+      if (!(await dependencyDefinitionEngine.isReachedOrPassed("Decision", "Approved", decision.status))) {
+        return { ok: false, reason: "decision_blocked", detail: `blocked by an open Decision ("${decision.title}") not yet Approved` };
+      }
+    }
+
     const fromState = deliverable.lifecycle_state;
+
+    // deliverableKickoffHandler (DeliverableTransitioned/SEUOperational) rescans
+    // every Deliverable in the SEU on each hop and re-attempts each one's next
+    // transition — a Deliverable already Dispatched-and-outstanding for this
+    // exact hop would otherwise pass every other check below again and get a
+    // second Command/Work Item/Dispatch for work already underway.
+    const { data: inFlight } = await commandsDB.findInFlight("Deliverable", deliverable.id, fromState, targetState);
+    if (inFlight) {
+      return { ok: false, reason: "already_in_flight", detail: `a Command for this exact hop is already ${inFlight.status} (Command ${inFlight.id})` };
+    }
 
     const qualityGateResult = await qualityGateEngine.evaluate({
       entityType: "Deliverable",
@@ -177,12 +215,15 @@ export const executionEngine = {
     if (!definition) {
       return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Deliverable ${fromState} -> ${targetState}` };
     }
+    let applicableAuthorityRuleId: string | null = null;
     if (definition.verb) {
       const requiredBadge = `deliverable_${definition.verb}`;
       const auth = await badgeAuthorityEngine.authorise({ actorId: input.actorId ?? "", requiredBadge });
       if (!auth.allowed) {
         return { ok: false, reason: "authority_denied", detail: `acting badge check failed: ${auth.reason}` };
       }
+      const { data: authorityRule } = await authorityRulesDB.findByCode(requiredBadge);
+      applicableAuthorityRuleId = authorityRule?.id ?? null;
     }
     // CR-072 — a manual transition whose row declares submit_verb cannot be
     // attempted until its own from_state has actually been submitted
@@ -209,7 +250,61 @@ export const executionEngine = {
       }
     }
 
-    return { ok: true, fromState };
+    // CR-109 §6.1 — the Governance Evaluation Outcome. Built here, from
+    // exactly the checks this function already ran above (qualityGateResult,
+    // policyResult, applicableAuthorityRuleId), instead of discarding them.
+    // Not persisted yet — execute() is the write boundary (migration 233's
+    // own header: a blocked attempt is never recorded, only this, the
+    // passing evaluation about to become a Command).
+    //
+    // consultedObligationIds/openAttentionItemIds are NOT "what happened
+    // during this run" — they're every Obligation/AttentionItem still open
+    // against this Deliverable or its owning SEU right now, none of which
+    // blocked this transition, so the Work Item Generator can still surface
+    // them to the Participant (Ch.32 §11 activeObligations).
+    const consultedObligationIds = [...(seuObligations ?? []), ...(deliverableObligations ?? [])]
+      .filter((o) => !RESOLVED_OBLIGATION_STATUSES.has(o.status))
+      .map((o) => o.id);
+    const [{ data: deliverableAttentionItems }, { data: seuAttentionItems }] = await Promise.all([
+      attentionItemsDB.findOpenByRelatedObjectAny("Deliverable", deliverable.id),
+      attentionItemsDB.findOpenByRelatedObjectAny("SEU", deliverable.seu_id),
+    ]);
+    const openAttentionItemIds = [...(deliverableAttentionItems ?? []), ...(seuAttentionItems ?? [])].map((a) => a.id);
+
+    // qualityGateEngine.evaluate returns QualityGateListEvaluationResult, NOT
+    // the single-gate QualityGateEvaluationResult: "Passed" here means every
+    // candidate gate passed (there may have been several, or none), and
+    // carries no single `.gate` — only "Blocked" (already returned above)
+    // and "Waived" (the one short-circuiting gate) ever carry one.
+    const qualityGateOutcome = qualityGateResult.outcome === "NotApplicable" ? "NotApplicable" : qualityGateResult.outcome === "Waived" ? "Waived" : "Passed";
+    const waivedGate = qualityGateResult.outcome === "Waived" ? qualityGateResult.gate : null;
+    const outcome: GovernanceEvaluationOutcomeInput["outcome"] =
+      qualityGateOutcome === "Waived" ? "Waived" : policyResult.deviatedPolicyIds.length > 0 ? "Approved-with-Conditions" : "Approved";
+    const rationaleParts = [
+      qualityGateOutcome === "NotApplicable" ? "no applicable Quality Gate" : waivedGate ? `Quality Gate "${waivedGate.name}": Waived` : `Quality Gate(s): ${qualityGateOutcome}`,
+      policyResult.outcome === "NotApplicable" ? "no applicable Policy" : `${policyResult.satisfiedPolicyIds.length} Policy(ies) satisfied, ${policyResult.deviatedPolicyIds.length} deviated`,
+      applicableAuthorityRuleId ? "Authority check passed" : "no Authority rule required",
+    ];
+
+    const governanceOutcome: GovernanceEvaluationOutcomeInput = {
+      seu_id: deliverable.seu_id,
+      entity_type: "Deliverable",
+      entity_id: deliverable.id,
+      from_state: fromState,
+      to_state: targetState,
+      outcome,
+      rationale: rationaleParts.join("; "),
+      quality_gate_id: waivedGate?.id ?? null,
+      quality_gate_outcome: qualityGateOutcome,
+      applicable_authority_rule_id: applicableAuthorityRuleId,
+      satisfied_policy_ids: policyResult.satisfiedPolicyIds,
+      deviated_policy_ids: policyResult.deviatedPolicyIds,
+      consulted_obligation_ids: consultedObligationIds,
+      open_attention_item_ids: openAttentionItemIds,
+      originating_pack_id: waivedGate?.originating_pack_id ?? null,
+    };
+
+    return { ok: true, fromState, governanceOutcome };
   },
 
   async execute(input: {
@@ -223,7 +318,43 @@ export const executionEngine = {
     actingBadgeGrantId?: string | null;
     targetCompletionAt?: Date | null;
     correlationId: string;
-  }): Promise<ExecutionResult> {
+    // CR-109 §6.1/§6.2 — the record evaluateDeliverableTransition built on
+    // its ok:true path. execute() is the write boundary: it persists this
+    // first, then stamps the Command with the resulting id
+    // (governanceOutcomeRef). Optional/null for command types that don't
+    // route through evaluateDeliverableTransition yet.
+    governanceOutcome?: GovernanceEvaluationOutcomeInput | null;
+  }): Promise<void> {
+    let governanceOutcomeId: string | null = null;
+    if (input.governanceOutcome) {
+      const { data: outcome, error: outcomeError } = await governanceEvaluationOutcomesDB.create(input.governanceOutcome);
+      if (outcomeError || !outcome) throw outcomeError ?? new Error("failed to record governance evaluation outcome");
+      governanceOutcomeId = outcome.id;
+    }
+
+    // Ch.12 §9 / CR-109 §6.2 — snapshot the real eligible-Participant pool
+    // (capabilityFulfilmentsDB.findActiveManyBySeuCapabilityId, Ch.12 §18.2)
+    // now, at Command generation, so Dispatch reads what Fulfilment already
+    // decided instead of re-resolving it live (CR-109 §5's "connective
+    // tissue" principle). No producing Capability declared at all -> no pool
+    // concept applies, same as dispatchEngine's own pre-existing
+    // NO_CAPABILITY_DECLARED path; eligibleParticipantPoolId stays null.
+    let eligibleParticipantPoolId: string | null = null;
+    if (input.producingCapabilityId) {
+      const { data: seuCapability } = await seuCapabilitiesDB.findBySeuIdAndCapabilityId(input.seuId, input.producingCapabilityId);
+      const { data: fulfilments } = seuCapability
+        ? await capabilityFulfilmentsDB.findActiveManyBySeuCapabilityId(seuCapability.id)
+        : { data: [] };
+      const { data: pool, error: poolError } = await capabilityFulfilmentPoolsDB.create({
+        seuId: input.seuId,
+        seuCapabilityId: seuCapability?.id ?? null,
+        capabilityId: input.producingCapabilityId,
+        participantIds: (fulfilments ?? []).map((f) => f.participant_id),
+      });
+      if (poolError || !pool) throw poolError ?? new Error("failed to persist eligible-Participant pool");
+      eligibleParticipantPoolId = pool.id;
+    }
+
     const { data: command, error } = await commandsDB.create({
       seuId: input.seuId,
       entityType: input.entityType,
@@ -234,41 +365,50 @@ export const executionEngine = {
       requestedBy: input.requestedBy,
       actingBadgeGrantId: input.actingBadgeGrantId ?? null,
       correlationId: input.correlationId,
+      governanceOutcomeId,
+      eligibleParticipantPoolId,
     });
     if (error || !command) throw error ?? new Error("failed to generate command");
 
-    const commandGeneratedEvent = await eventBus.publish({
+    // No code follows this publish (platform event-publishing rule). Work Item
+    // generation and Dispatch used to run inline here, synchronously, in the
+    // same call stack as whatever requested this Command (an HTTP transition
+    // request) — that violated the rule and made execute() a plain function
+    // call disguised as an event boundary. commandGeneratedHandler
+    // (event_subscriptions row on CommandGenerated) now owns everything that
+    // used to run below this line.
+    await eventBus.publish({
       eventType: "CommandGenerated",
       originatingObjectType: "Command",
       originatingObjectId: command.id,
       seuId: input.seuId,
       correlationId: input.correlationId,
-      payload: { entityType: input.entityType, entityId: input.entityId, fromState: input.fromState, toState: input.toState },
+      payload: {
+        entityType: input.entityType,
+        entityId: input.entityId,
+        fromState: input.fromState,
+        toState: input.toState,
+        targetCompletionAt: input.targetCompletionAt ? input.targetCompletionAt.toISOString() : null,
+      },
     });
 
-    // Ch.30 causation fix — WorkItemGenerated is genuinely caused by this
-    // CommandGenerated event, threaded through explicitly rather than
-    // workItemGenerator.ts fabricating a reference from the Command's own id.
-    const workItem = await workItemGenerator.generate({ command, seuId: input.seuId, correlationId: input.correlationId, causationEventId: commandGeneratedEvent.id });
-
-    const dispatch = await dispatchEngine.dispatch({
-      workItem,
-      seuId: input.seuId,
-      producingCapabilityId: input.producingCapabilityId,
-      targetCompletionAt: input.targetCompletionAt ?? null,
-      correlationId: input.correlationId,
-    });
-
-    if (!dispatch.dispatched) {
-      const { data: deferred } = await commandsDB.updateStatus(command.id, "Deferred");
-      return { command: deferred ?? command, dispatched: false, workItemId: workItem.id, deferredReason: dispatch.deferredReason as "no_eligible_participant" };
-    }
-
-    // Participant Integration — Plan step 1 (Model A): the Command is now
-    // Dispatched-and-outstanding, not Completed. It reaches Completed only
-    // when the Work Item's result callback lands (completeWorkItem), which is
-    // also where the governed Deliverable transition is applied.
-    const { data: dispatched } = await commandsDB.updateStatus(command.id, "Dispatched");
-    return { command: dispatched ?? command, dispatched: true, participantId: dispatch.participantId, workItemId: workItem.id };
+    // const workItem = await workItemGenerator.generate({ command, seuId: input.seuId, correlationId: input.correlationId, causationEventId: commandGeneratedEvent.id });
+    //
+    // const dispatch = await dispatchEngine.dispatch({
+    //   workItem,
+    //   seuId: input.seuId,
+    //   producingCapabilityId: input.producingCapabilityId,
+    //   eligibleParticipantPoolId,
+    //   targetCompletionAt: input.targetCompletionAt ?? null,
+    //   correlationId: input.correlationId,
+    // });
+    //
+    // if (!dispatch.dispatched) {
+    //   const { data: deferred } = await commandsDB.updateStatus(command.id, "Deferred");
+    //   return { command: deferred ?? command, dispatched: false, workItemId: workItem.id, deferredReason: dispatch.deferredReason as "no_eligible_participant" };
+    // }
+    //
+    // const { data: dispatched } = await commandsDB.updateStatus(command.id, "Dispatched");
+    // return { command: dispatched ?? command, dispatched: true, participantId: dispatch.participantId, workItemId: workItem.id };
   },
 };

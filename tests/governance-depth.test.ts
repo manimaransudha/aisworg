@@ -22,18 +22,32 @@ import { transitionEngine } from "../src/domain/engine/transitionEngine.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
 
-async function commissionTestSeu(statementPrefix: string) {
+async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>) {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromFormSync({
-    statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: "1001", requestedBy: 1001,
-  });
+  const result = await commissionFromFormSync(
+    {
+      statement: `${statementPrefix}-${randomUUID()}`,
+      requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
+      actorRole: "super", actorId: "1001", requestedBy: 1001,
+    },
+    beforeCommenceWork
+  );
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
   return result.seu.id;
+}
+
+// Fulfils "requirements-analysis" before the Execution Engine's own
+// automatic commence-work attempt reaches Dispatch — see
+// driveCommissioningToActive's own beforeCommenceWork comment.
+async function fulfilRequirementsAnalysis(seuId: string): Promise<void> {
+  const detail = await getSeuDetailView(seuId);
+  const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
+  if (!capability) return;
+  const participantMasterId = await ensureEligibleParticipant(seuId, ["requirements-analysis"]);
+  await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantMasterId });
 }
 
 // Walks an Obligation all the way to 'Verified' — the point Ch.23 §12 says
@@ -48,11 +62,14 @@ async function verifyObligation(obligationId: string) {
 
 test("Quality Gate blocks a Deliverable transition while an Obligation is unresolved, and allows it once Verified — independently of the Dependency Engine", async () => {
   await ensureCoreEngineeringQualityGates();
-  const seuId = await commissionTestSeu("phase4-quality-gate");
+  const seuId = await commissionTestSeu("phase4-quality-gate", fulfilRequirementsAnalysis);
   const detail = await getSeuDetailView(seuId);
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
-  const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
-  assert.ok(requirementsSpec && reqAnalysisCapability);
+  assert.ok(requirementsSpec);
+  // The automatic commence-work rescan (off SEUOperational) already hit this
+  // Deliverable's own then-unfulfilled Capability — a real, by-design
+  // empty_eligible_pool Obligation, not this test's own scenario.
+  await resolveDispatchRejectionObligations(seuId);
 
   // Requirements Analysis Model has no dependsOnDeliverableCodes/
   // dependsOnCapabilityServiceCodes in the seeded Template — confirm the
@@ -61,8 +78,6 @@ test("Quality Gate blocks a Deliverable transition while an Obligation is unreso
   const readiness = await dependencyDefinitionEngine.isTargetReady(seuId, "Deliverable", "Requirements Analysis Model", "In Progress");
   assert.equal(readiness.ready, true);
   assert.equal(readiness.rows.length, 0);
-
-  await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantType: "AI", displayName: "Phase4 Test Analyst" });
 
   const toInProgress = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: "1" });
   assert.equal(toInProgress.ok, true, !toInProgress.ok ? JSON.stringify(toInProgress) : undefined);

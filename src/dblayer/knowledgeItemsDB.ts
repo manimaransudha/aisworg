@@ -1,23 +1,33 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import type { AcquisitionScope, DbResult, EngineeringCapitalRow, KnowledgeItemRow } from "./seuTypes.js";
+import type { AcquisitionScope, DbResult, EngineeringCapitalRow, KnowledgeItemRow, KnowledgeRelationshipReferences, KnowledgeSelfReferences, KnowledgeValidationNoteRow } from "./seuTypes.js";
 
 export const knowledgeItemsDB = {
   async create(input: {
     seuId: string;
     deliverableId: string;
-    evidenceId?: string | null;
     category: string;
     title: string;
     description?: string | null;
     acquisitionScope: AcquisitionScope;
+    deliverableReferences?: KnowledgeRelationshipReferences;
+    evidenceReferences?: KnowledgeRelationshipReferences;
+    decisionReferences?: KnowledgeRelationshipReferences;
+    knowledgeReferences?: KnowledgeSelfReferences;
+    confidenceLevel?: string | null;
+    authorId?: string | null;
   }): Promise<DbResult<KnowledgeItemRow>> {
     try {
       const { rows } = await query<KnowledgeItemRow>(
-        `INSERT INTO knowledge_items (seu_id, deliverable_id, evidence_id, category, title, description, acquisition_scope)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO knowledge_items (seu_id, deliverable_id, category, title, description, acquisition_scope, deliverable_references, evidence_references, decision_references, knowledge_references, confidence_level, author_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11, $12)
          RETURNING *`,
-        [input.seuId, input.deliverableId, input.evidenceId ?? null, input.category, input.title, input.description ?? null, input.acquisitionScope]
+        [
+          input.seuId, input.deliverableId, input.category, input.title, input.description ?? null, input.acquisitionScope,
+          JSON.stringify(input.deliverableReferences ?? {}), JSON.stringify(input.evidenceReferences ?? {}),
+          JSON.stringify(input.decisionReferences ?? {}), JSON.stringify(input.knowledgeReferences ?? {}),
+          input.confidenceLevel ?? null, input.authorId ?? null,
+        ]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -56,11 +66,18 @@ export const knowledgeItemsDB = {
     }
   },
 
-  async updateStatus(id: string, status: string): Promise<DbResult<KnowledgeItemRow>> {
+  // author_id/authority_badge mirror decisionsDB's own participant_id/
+  // authority_badge update-on-every-governed-transition treatment (migration
+  // 231) — the row always reflects the most recent actor, full history
+  // stays in `events`.
+  async updateStatus(id: string, status: string, authorId?: string | null, authorityBadge?: string | null): Promise<DbResult<KnowledgeItemRow>> {
     try {
       const { rows } = await query<KnowledgeItemRow>(
-        "UPDATE knowledge_items SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
-        [status, id]
+        `UPDATE knowledge_items
+            SET status = $1, updated_at = NOW(),
+                author_id = COALESCE($3, author_id), authority_badge = COALESCE($4, authority_badge)
+          WHERE id = $2 RETURNING *`,
+        [status, id, authorId ?? null, authorityBadge ?? null]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -69,15 +86,61 @@ export const knowledgeItemsDB = {
     }
   },
 
-  async updateAcquisitionScope(id: string, acquisitionScope: AcquisitionScope): Promise<DbResult<KnowledgeItemRow>> {
+  async updateAcquisitionScope(id: string, acquisitionScope: AcquisitionScope, authorId?: string | null, authorityBadge?: string | null): Promise<DbResult<KnowledgeItemRow>> {
     try {
       const { rows } = await query<KnowledgeItemRow>(
-        "UPDATE knowledge_items SET acquisition_scope = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
-        [acquisitionScope, id]
+        `UPDATE knowledge_items
+            SET acquisition_scope = $1, updated_at = NOW(),
+                author_id = COALESCE($3, author_id), authority_badge = COALESCE($4, authority_badge)
+          WHERE id = $2 RETURNING *`,
+        [acquisitionScope, id, authorId ?? null, authorityBadge ?? null]
       );
       return { data: rows[0] };
     } catch (err) {
       logger.error("[knowledgeItemsDB] updateAcquisitionScope error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async updateKnowledgeReferences(id: string, knowledgeReferences: KnowledgeSelfReferences): Promise<DbResult<KnowledgeItemRow>> {
+    try {
+      const { rows } = await query<KnowledgeItemRow>(
+        "UPDATE knowledge_items SET knowledge_references = $1::jsonb, updated_at = NOW() WHERE id = $2 RETURNING *",
+        [JSON.stringify(knowledgeReferences), id]
+      );
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[knowledgeItemsDB] updateKnowledgeReferences error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // Ch.16 §11/§14 — append-only validation/review notes (knowledge_validation_notes,
+  // migration 239), never overwritten. Same discipline as objective_comments/
+  // pack_comments — no forced gate on any one transition (owner: "no forced gate").
+  async addValidationNote(input: { knowledgeItemId: string; noteText: string; actorId?: number | null }): Promise<DbResult<KnowledgeValidationNoteRow>> {
+    try {
+      const { rows } = await query<KnowledgeValidationNoteRow>(
+        `INSERT INTO knowledge_validation_notes (knowledge_item_id, note_text, actor_id)
+         VALUES ($1, $2, $3) RETURNING *`,
+        [input.knowledgeItemId, input.noteText, input.actorId ?? null]
+      );
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[knowledgeItemsDB] addValidationNote error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async listValidationNotes(knowledgeItemId: string): Promise<DbResult<KnowledgeValidationNoteRow[]>> {
+    try {
+      const { rows } = await query<KnowledgeValidationNoteRow>(
+        "SELECT * FROM knowledge_validation_notes WHERE knowledge_item_id = $1 ORDER BY created_at",
+        [knowledgeItemId]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[knowledgeItemsDB] listValidationNotes error", err as Error);
       return { error: err as Error };
     }
   },

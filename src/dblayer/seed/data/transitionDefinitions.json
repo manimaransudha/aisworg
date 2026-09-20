@@ -347,7 +347,9 @@
     "requiredAuthorityRuleCode": "authority-transition-evidence",
     "requiredPolicyCodes": [
       "policy-evidence-transition-baseline"
-    ]
+    ],
+    "eventType": "EvidenceValidated",
+    "versionEvent": "VersionCreated"
   },
   {
     "entityType": "Evidence",
@@ -356,7 +358,8 @@
     "requiredAuthorityRuleCode": "authority-transition-evidence",
     "requiredPolicyCodes": [
       "policy-evidence-transition-baseline"
-    ]
+    ],
+    "eventType": "EvidenceAccepted"
   },
   {
     "entityType": "Evidence",
@@ -365,7 +368,8 @@
     "requiredAuthorityRuleCode": "authority-transition-evidence",
     "requiredPolicyCodes": [
       "policy-evidence-transition-baseline"
-    ]
+    ],
+    "eventType": "EvidenceReferenced"
   },
   {
     "entityType": "Evidence",
@@ -374,7 +378,8 @@
     "requiredAuthorityRuleCode": "authority-transition-evidence",
     "requiredPolicyCodes": [
       "policy-evidence-transition-baseline"
-    ]
+    ],
+    "eventType": "EvidenceArchived"
   },
   {
     "entityType": "Evidence",
@@ -383,7 +388,8 @@
     "requiredAuthorityRuleCode": "authority-transition-evidence",
     "requiredPolicyCodes": [
       "policy-evidence-transition-baseline"
-    ]
+    ],
+    "eventType": "EvidenceRejected"
   },
   {
     "entityType": "Evidence",
@@ -392,119 +398,148 @@
     "requiredAuthorityRuleCode": "authority-transition-evidence",
     "requiredPolicyCodes": [
       "policy-evidence-transition-baseline"
-    ]
+    ],
+    "eventType": "EvidenceRejected"
   },
   {
     "entityType": "Knowledge",
     "fromState": "Observed",
     "toState": "Proposed",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "KnowledgeProposed",
+    "versionEvent": "VersionCreated"
   },
   {
     "entityType": "Knowledge",
     "fromState": "Proposed",
     "toState": "Validated",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "KnowledgeValidated",
+    "versionEvent": "VersionValidated"
   },
   {
     "entityType": "Knowledge",
     "fromState": "Validated",
     "toState": "Accepted",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "KnowledgeAccepted",
+    "versionEvent": "VersionActivated"
   },
   {
     "entityType": "Knowledge",
     "fromState": "Accepted",
     "toState": "Published",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "KnowledgePublished",
+    "versionEvent": "VersionPublished"
   },
   {
     "entityType": "Knowledge",
     "fromState": "Published",
     "toState": "Deprecated",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "KnowledgeDeprecated",
+    "versionEvent": "VersionDeprecated"
   },
   {
     "entityType": "Knowledge",
     "fromState": "Deprecated",
     "toState": "Archived",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "KnowledgeArchived",
+    "versionEvent": "VersionArchived"
   },
   {
     "entityType": "Decision",
     "fromState": "Identified",
     "toState": "Analysed",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "DecisionAnalysed"
   },
   {
     "entityType": "Decision",
     "fromState": "Analysed",
     "toState": "Proposed",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "DecisionProposed",
+    "versionEvent": "VersionCreated"
   },
   {
     "entityType": "Decision",
     "fromState": "Proposed",
     "toState": "Reviewed",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "DecisionReviewed",
+    "versionEvent": "VersionValidated"
   },
   {
     "entityType": "Decision",
     "fromState": "Reviewed",
     "toState": "Approved",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "DecisionApproved",
+    "versionEvent": "VersionPublished"
   },
   {
     "entityType": "Decision",
     "fromState": "Approved",
     "toState": "Applied",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "DecisionApplied",
+    "versionEvent": "VersionActivated"
   },
   {
     "entityType": "Decision",
     "fromState": "Applied",
     "toState": "Superseded",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "DecisionSuperseded",
+    "versionEvent": "VersionSuperseded"
   },
   {
     "entityType": "Decision",
     "fromState": "Superseded",
     "toState": "Archived",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "DecisionArchived",
+    "versionEvent": "VersionArchived"
   },
   {
     "entityType": "KnowledgeScope",
     "fromState": "SEU",
     "toState": "Capability",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "KnowledgeScopePromoted"
   },
   {
     "entityType": "KnowledgeScope",
     "fromState": "Capability",
     "toState": "Enterprise",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "KnowledgeScopePromoted"
   },
   {
     "entityType": "KnowledgeScope",
     "fromState": "Enterprise",
     "toState": "Platform",
     "requiredAuthorityRuleCode": null,
-    "requiredPolicyCodes": []
+    "requiredPolicyCodes": [],
+    "eventType": "KnowledgeScopePromoted"
   },
   {
     "entityType": "AttentionItem",

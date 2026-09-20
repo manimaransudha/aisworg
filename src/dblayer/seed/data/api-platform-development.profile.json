@@ -12,6 +12,9 @@
   "aiProviderPreference": "openai",
   "defaultRepositoryStructure": "polyrepo",
   "documentationLevel": "comprehensive",
+  "dispatchStrategyPreference": [{ "strategy": "capability-match", "order": 1 }],
+  "redispatchMaxAttempts": 5,
+  "redispatchAttentionThreshold": 2,
   "optionalPackCodes": ["testing-qa", "integration-github", "integration-sonarqube", "integration-aws", "integration-jira"],
   "exposedParameterOverrides": [
     { "sourceType": "dependency", "sourceCode": "source-code::Deliverable::architecture-decision-record", "parameterName": "requiredState", "value": "Validated" }

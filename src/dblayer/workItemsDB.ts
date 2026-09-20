@@ -1,13 +1,16 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import type { DbResult, OutstandingWorkItemDetail, WorkItemRow, WorkItemStatus } from "./seuTypes.js";
+import type { DbResult, OutstandingWorkItemDetail, WorkItemExecutionContext, WorkItemRow, WorkItemStatus } from "./seuTypes.js";
 
 export const workItemsDB = {
-  async create(input: { commandId: string }): Promise<DbResult<WorkItemRow>> {
+  // CR-109 §6.3 — executionContext is resolved by workItemGenerator.generate
+  // before this insert, so it's written once, at creation, not patched in
+  // afterward.
+  async create(input: { commandId: string; executionContext?: WorkItemExecutionContext | null }): Promise<DbResult<WorkItemRow>> {
     try {
       const { rows } = await query<WorkItemRow>(
-        "INSERT INTO work_items (command_id) VALUES ($1) RETURNING *",
-        [input.commandId]
+        "INSERT INTO work_items (command_id, execution_context) VALUES ($1, $2) RETURNING *",
+        [input.commandId, input.executionContext ? JSON.stringify(input.executionContext) : null]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -146,6 +149,37 @@ export const workItemsDB = {
       return { data: rows };
     } catch (err) {
       logger.error("[workItemsDB] findOutstandingBySeuDetailed error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // Ch.33 §14 Redispatch — incremented once per RedispatchRequested attempt,
+  // compared against the Profile's N/M Configuration Parameters by the
+  // redispatch handler.
+  async incrementDispatchAttempts(id: string): Promise<DbResult<WorkItemRow>> {
+    try {
+      const { rows } = await query<WorkItemRow>(
+        "UPDATE work_items SET dispatch_attempts = dispatch_attempts + 1, updated_at = NOW() WHERE id = $1 RETURNING *",
+        [id]
+      );
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[workItemsDB] incrementDispatchAttempts error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // Ch.33 §9 Load Balancing strategy — how many non-terminal Work Items this
+  // Participant (the participants.id engagement row) currently holds.
+  async countActiveByParticipantId(participantId: string): Promise<DbResult<number>> {
+    try {
+      const { rows } = await query<{ count: string }>(
+        "SELECT COUNT(*) AS count FROM work_items WHERE participant_id = $1 AND status NOT IN ('Completed', 'Failed', 'Cancelled', 'Disposed')",
+        [participantId]
+      );
+      return { data: Number(rows[0]?.count ?? 0) };
+    } catch (err) {
+      logger.error("[workItemsDB] countActiveByParticipantId error", err as Error);
       return { error: err as Error };
     }
   },

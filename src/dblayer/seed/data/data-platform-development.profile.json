@@ -12,6 +12,9 @@
   "aiProviderPreference": "google",
   "defaultRepositoryStructure": "monorepo",
   "documentationLevel": "standard",
+  "dispatchStrategyPreference": [{ "strategy": "capability-match", "order": 1 }],
+  "redispatchMaxAttempts": 5,
+  "redispatchAttentionThreshold": 2,
   "optionalPackCodes": ["testing-qa", "integration-github", "integration-gcp"],
   "exposedParameterOverrides": [
     { "sourceType": "service", "sourceCode": "architectural-review-service", "parameterName": "compliance-with-architecture-principle", "value": "75" }

@@ -91,13 +91,20 @@ import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { seedAllTestFixturePacks } from "../src/dblayer/seed/seedTestFixturePacks.js";
 import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
 import { commissionFromForm, transitionEbm, previewCommissioningValidation } from "../src/routes/seu/core/commissioning.js";
+import { publishProfile, type ProfileSeedInput } from "../src/routes/seu/core/profiles.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { getSeuCompetencyRequirements } from "../src/routes/seu/core/participantEligibility.js";
+import { transitionObligation } from "../src/routes/seu/core/obligations.js";
+import { transitionAttentionItem } from "../src/routes/seu/core/attentionItems.js";
+import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
-import type { DeliverableRow, EventRow, ObligationRow, ProfileRow, SeuRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../src/dblayer/seuTypes.js";
+import { commandsDB } from "../src/dblayer/commandsDB.js";
+import { workItemsDB } from "../src/dblayer/workItemsDB.js";
+import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
+import type { CommandRow, DeliverableRow, EventRow, ObligationRow, ProfileRow, SeuRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../src/dblayer/seuTypes.js";
 
 // Test-only Pack twins (migration 119 / seedTestFixturePacks.ts) — every real
 // seed Pack mirrored under a `test-` prefixed code. NOT used by
@@ -168,13 +175,7 @@ interface TemplateSeed {
   dependencyGraph?: TemplateDependencyGraphEntry[];
 }
 
-interface ProfileSeed {
-  code: string;
-  name: string;
-  baseTemplateCode: string;
-  environment: string;
-  optionalPackCodes?: string[];
-}
+type ProfileSeed = ProfileSeedInput;
 
 // CR-006 — the seeded fixture actors (seedIdentityBaseline). Holder ids are
 // TEXT; these hold noun_verb grants so tests act as a non-root, badge-holding
@@ -196,6 +197,55 @@ export const TESTER_APPROVER_ID = "1003";
 // never reach completion). Tests that assert the async mechanics themselves
 // (command-pipeline, participant-lifecycle) call transitionDeliverable +
 // completeWorkItem directly instead.
+// Rewritten for the event-driven Execution Engine pipeline (CommandGenerated
+// -> WorkItemGenerated -> Dispatch, all async consumers now — see
+// executionEngine.ts/dispatchEngine.ts's own header comments). transitionDeliverable
+// itself only reports "governance cleared, Command requested" (fromState/
+// toState) — it can no longer report workItemId/dispatched/participantId
+// synchronously, since those facts don't exist yet when it returns. This
+// polls for the real Command this call produced to reach Dispatched
+// (commandsDB.findInFlight already returns exactly one non-terminal Command
+// per (entityType, entityId, fromState, toState) — the duplicate-dispatch
+// guard's own invariant makes this a safe, unambiguous lookup), then
+// completes its Work Item the same way a Participant's real callback would.
+// Lower-level than transitionDeliverableSync: requests the transition and
+// polls for the real Command/Work Item the async pipeline produced, WITHOUT
+// completing it — for tests that need to inspect the Work Item (execution
+// context, dispatch_strategy, pool) before/instead of finishing it.
+// Recognises both a successful dispatch (Dispatched) and a deferred one
+// (Deferred, e.g. an empty eligible-Participant pool) — both leave a real
+// Work Item behind; only a Failed (rejected) Command has none worth finding.
+export async function waitForDispatchedWorkItem(deliverableId: string, fromState: string, toState: string): Promise<{ command: CommandRow; workItem: import("../src/dblayer/seuTypes.js").WorkItemRow }> {
+  console.log(`[waitForDispatchedWorkItem] stage 1: polling for Command ${deliverableId} ${fromState} -> ${toState} to reach Dispatched/Deferred`);
+  let command: CommandRow | null = null;
+  await waitUntilAsync(async () => {
+    const { data } = await commandsDB.findInFlight("Deliverable", deliverableId, fromState, toState);
+    command = data;
+    return data?.status === "Dispatched" || data?.status === "Deferred";
+  });
+  console.log(`[waitForDispatchedWorkItem] stage 1 result: command=${command ? `${(command as CommandRow).id} status=${(command as CommandRow).status}` : "null (not found / timed out)"}`);
+  if (!command) throw new Error(`waitForDispatchedWorkItem: no Command reached Dispatched/Deferred for ${deliverableId} ${fromState} -> ${toState}`);
+
+  // dispatchEngine.dispatch() writes the Command's own status to "Dispatched"
+  // (dispatchEngine.ts:153) several awaited DB writes BEFORE it writes the
+  // Work Item's own status to "Dispatched" too (dispatchEngine.ts:187) — a
+  // real window where the Command already reads Dispatched but its Work Item
+  // hasn't caught up yet. A Deferred Command never assigns a Participant at
+  // all (dispatchEngine.ts's own Case 4), so its Work Item legitimately never
+  // reaches "Dispatched" — only wait for that when the Command itself did.
+  console.log(`[waitForDispatchedWorkItem] stage 2: polling for Work Item under Command ${(command as CommandRow).id}`);
+  let workItem: import("../src/dblayer/seuTypes.js").WorkItemRow | undefined;
+  await waitUntilAsync(async () => {
+    const { data: workItems } = await workItemsDB.findByCommandIds([(command as CommandRow).id]);
+    workItem = (workItems ?? [])[0];
+    if ((command as CommandRow).status === "Deferred") return !!workItem;
+    return workItem?.status === "Dispatched";
+  });
+  console.log(`[waitForDispatchedWorkItem] stage 2 result: workItem=${workItem ? `${workItem.id} status=${workItem.status}` : "undefined (not found / timed out)"}`);
+  if (!workItem) throw new Error(`waitForDispatchedWorkItem: no Work Item found for Command ${(command as CommandRow).id}`);
+  return { command: command as CommandRow, workItem };
+}
+
 export async function transitionDeliverableSync(input: {
   deliverableId: string;
   targetState: string;
@@ -204,16 +254,73 @@ export async function transitionDeliverableSync(input: {
   actingBadgeGrantId?: string;
   requestedBy?: number | null;
 }): Promise<{ ok: true; deliverable: DeliverableRow; appliedTransition: { fromState: string; toState: string } } | Extract<TransitionDeliverableResult, { ok: false }>> {
-  const dispatched = await transitionDeliverable({ ...input, actorId: input.actorId ?? TESTER_ALL_ID });
-  if (!dispatched.ok) return dispatched;
+  // Captured before the request, not read off its own ok:true result — so
+  // this still has a real fromState even when deliverableKickoffHandler's
+  // own automatic rescan (off SEUOperational) already has this exact hop in
+  // flight and this call comes back already_in_flight instead of ok:true.
+  const { data: deliverableBefore } = await deliverablesDB.findById(input.deliverableId);
+  const fromState = deliverableBefore!.lifecycle_state;
+
+  // already_in_flight only means SOME Command already exists for this hop —
+  // not that it will reach Dispatched. The automatic rescan's own first
+  // attempt reliably hits an empty eligible-Participant pool and goes
+  // Failed (terminal), same as this file's own header comment already
+  // covers — so "in flight" can resolve away with nothing dispatched. Retry
+  // this exact request a few times: once the blocking Command leaves
+  // Generated/Dispatched/Deferred without ever reaching Dispatched, this
+  // hop is free again and a fresh request should succeed for real.
+  let command: CommandRow | null = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const requested = await transitionDeliverable({ ...input, actorId: input.actorId ?? TESTER_ALL_ID });
+    if (!requested.ok && requested.reason !== "already_in_flight") return requested;
+    const waitingOnSomeoneElse = !requested.ok; // reason === "already_in_flight"
+
+    command = null;
+    await waitUntilAsync(async () => {
+      const { data } = await commandsDB.findInFlight("Deliverable", input.deliverableId, fromState, input.targetState);
+      command = data;
+      if (data?.status === "Dispatched") return true;
+      // Only bail early to retry when we know SOMEONE ELSE's Command is what
+      // we're waiting on — it can resolve away (Failed) with nothing ever
+      // dispatched. Never bail on our own freshly requested Command just
+      // because it briefly reads null before CommandGenerated's own handler
+      // has written the row yet — that's the normal, no-retry-needed path.
+      return waitingOnSomeoneElse && data === null;
+    });
+    if ((command as CommandRow | null)?.status === "Dispatched") break;
+    if (!waitingOnSomeoneElse) break;
+  }
+  if (!command || (command as CommandRow).status !== "Dispatched") {
+    throw new Error(`test transitionDeliverableSync: Command for ${input.deliverableId} ${fromState} -> ${input.targetState} did not reach Dispatched in time (status: ${(command as CommandRow | null)?.status ?? "not found"})`);
+  }
+  // See waitForDispatchedWorkItem's own comment above: the Command's own
+  // status reaches "Dispatched" several awaited writes before its Work
+  // Item's own status does (dispatchEngine.ts:153 vs :187) — wait for the
+  // Work Item itself, not just the Command, before handing it to completeWorkItem.
+  let workItem: import("../src/dblayer/seuTypes.js").WorkItemRow | undefined;
+  await waitUntilAsync(async () => {
+    const { data: workItems } = await workItemsDB.findByCommandIds([(command as CommandRow).id]);
+    workItem = (workItems ?? [])[0];
+    return workItem?.status === "Dispatched";
+  });
+  if (!workItem) throw new Error(`test transitionDeliverableSync: no Work Item found for Command ${(command as CommandRow).id}`);
+
   const completed = await completeWorkItem({
-    workItemId: dispatched.workItemId,
+    workItemId: workItem.id,
     outcome: "done",
-    reference: `vcs://test/${input.deliverableId}@${dispatched.pendingTransition.toState}`,
+    reference: `vcs://test/${input.deliverableId}@${input.targetState}`,
   });
   if (!completed.ok || completed.outcome !== "done") {
     throw new Error(`test transitionDeliverableSync: completion failed: ${completed.ok ? completed.outcome : completed.detail}`);
   }
+  // completeWorkItem just published DeliverableTransitioned, fire-and-forget
+  // — deliverableKickoffHandler (subscribed to it, same handler SEUOperational
+  // uses) is about to unprompted-attempt whichever next hop this unblocked,
+  // same race every earlier hop already ran. Give it a moment to actually
+  // fire, then sweep whatever stray artifact it left, before this call hands
+  // control back to the test's own next scenario step.
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  await resolveDispatchRejectionObligations(completed.deliverable.seu_id);
   return { ok: true, deliverable: completed.deliverable, appliedTransition: completed.appliedTransition };
 }
 
@@ -289,6 +396,21 @@ export async function driveCommissioningToActive(input: {
   // shared default affords. Defaults to waitUntilAsync's own default when
   // omitted — every existing caller is unaffected.
   timeoutMs?: number;
+  // Called as soon as polling observes the SEU has reached "Activated" —
+  // Create Engineering Assets (Ch.8 §12: Capabilities + Deliverables) has
+  // already run by then, but the Execution Engine's own automatic
+  // Activated -> Operational attempt (executionEngineKickoff, off the same
+  // SEUActivated event this polls for) hasn't necessarily reached Dispatch
+  // yet. Lets a caller fulfil the producing Capability here, before that
+  // automatic attempt, so it dispatches for real instead of racing an
+  // as-yet-unfulfilled Capability into a spurious empty_eligible_pool
+  // Obligation (dispatchEngine.ts Case 1) that then pollutes every later
+  // Obligation/Attention-Item count in the test. executionEngineKickoff is
+  // itself fire-and-forget off SEUActivated, so this is still a race, just
+  // entered from the winning side (this poll's own first check, synchronous
+  // with no DB round trip of its own) instead of always losing it (the old
+  // shape: fulfil only after already polling all the way to Operational).
+  beforeCommenceWork?: (seuId: string) => Promise<void>;
 }): Promise<DriveCommissioningResult> {
   await ensureEventSubscriptionsLoaded();
   // CR-104 — Quality Gates are now materialised onto the EBM once, at
@@ -394,6 +516,37 @@ export async function driveCommissioningToActive(input: {
     return { ok: false, stage: "activate", reason: activateResult.reason === "not_found" ? "EBM not found" : activateResult.detail, seuId: input.seuId };
   }
 
+  if (input.beforeCommenceWork) {
+    // Poll for the SEU's own required-Capabilities rows (seuCapabilitiesDB),
+    // not lifecycle_state — finalizeCommissioning writes those (Ch.8 §12
+    // Create Engineering Assets) several awaited DB writes BEFORE it
+    // publishes SEUActivated, the event executionEngineKickoff's own
+    // automatic commence-work attempt is subscribed to. Racing lifecycle_state
+    // == "Activated" itself lost every time under real suite load — that
+    // state write and the SEUActivated publish are adjacent statements, no
+    // real buffer between them. Capabilities existing has a real buffer
+    // (Deliverable creation + CommissioningReport write still sit between it
+    // and SEUActivated), so this actually wins the race instead of guessing.
+    // Deliverables (with their own producing_capability_id already resolved)
+    // are created a few statements AFTER seuCapabilitiesDB, still inside the
+    // same finalizeCommissioning call, still well before SEUActivated —
+    // waiting on capabilities alone let this hook fire before any caller
+    // that looks the Capability up via the Deliverable (deliverablesDB.
+    // findBySeuId, as badge-model.test.ts's own fulfilRequirementsAnalysis
+    // does) had anything to find, so it silently fulfilled nothing.
+    let seu: SeuRow | null = null;
+    await waitUntilAsync(async () => {
+      const { data: found } = await seusDB.findById(input.seuId);
+      seu = found ?? null;
+      if (seu?.lifecycle_state === "Failed") return true;
+      const { data: deliverables } = await deliverablesDB.findBySeuId(input.seuId);
+      return !!deliverables && deliverables.length > 0;
+    }, input.timeoutMs);
+    console.log(`[driveCommissioningToActive] beforeCommenceWork firing seuId=${input.seuId} lifecycle_state=${seu?.lifecycle_state} at t=${Date.now()}`);
+    await input.beforeCommenceWork(input.seuId);
+    console.log(`[driveCommissioningToActive] beforeCommenceWork done seuId=${input.seuId} at t=${Date.now()}`);
+  }
+
   // CR-102 — Activate only publishes EBMActivated now; finalizeCommissioning
   // (Configured -> Commissioned -> Activated, Create Engineering Assets,
   // Activated -> Operational) runs asynchronously in ebmActivatedHandler, off
@@ -465,18 +618,86 @@ export async function driveCommissioningToActive(input: {
 // findEligibleParticipants itself reads) and holds every one of their
 // acceptable values, so matchesCompetency's `values.some(v => held.includes(v))`
 // is trivially true for every dimension this SEU's own EBM actually requires.
-export async function ensureEligibleParticipant(seuId: string, capabilityCodes: string[]): Promise<void> {
+export async function ensureEligibleParticipant(seuId: string, capabilityCodes: string[]): Promise<string> {
   const { data: seu } = await seusDB.findById(seuId);
   if (!seu) throw new Error(`ensureEligibleParticipant: SEU not found: ${seuId}`);
   const competencyRequirements = await getSeuCompetencyRequirements(seu);
-  const { error } = await participantsMasterDB.create({
+  // getSeuCompetencyRequirements returns the REQUIRED shape (bare codes,
+  // Record<string, string[]>) — participants_master.competency is now the
+  // HELD shape (Record<string, {code, proficiency}[]>, this session's own
+  // proficiency addition). "Expert" so this fixture participant definitely
+  // qualifies for any Specialist-Preference-style Dispatch Strategy too.
+  const heldCompetency: Record<string, Array<{ code: string; proficiency: string }>> = {};
+  for (const [dimension, codes] of Object.entries(competencyRequirements)) {
+    heldCompetency[dimension] = codes.map((code) => ({ code, proficiency: "Expert" }));
+  }
+  const { data: participant, error } = await participantsMasterDB.create({
     tenantId: seu.tenant_id,
     type: "Human",
     displayName: `Test Fixture Participant ${randomUUID()}`,
     capabilities: capabilityCodes,
-    competency: competencyRequirements,
+    competency: heldCompetency,
   });
-  if (error) throw error;
+  if (error || !participant) throw error ?? new Error("ensureEligibleParticipant: failed to create participants_master row");
+  return participant.id;
+}
+
+// This is a real, event-driven platform (pub/sub, not a linear call chain):
+// deliverableKickoffHandler's own automatic rescan (off SEUOperational) and
+// a test's own later fulfilCapability call are two independent chains with
+// no ordering guarantee between them, and nothing ever retries a Case 1
+// dispatch rejection (CapabilityFulfilled has zero subscribers) — so the
+// automatic rescan reliably hits an empty eligible-Participant pool on the
+// SEU's own head-of-chain Deliverable and raises a real, by-design
+// Obligation + Attention Item (dispatchEngine.ts's own Case 1) before any
+// test can possibly fulfil the Capability first. Not a bug, not a race to
+// win — just a fact of this SEU's history a test must account for before
+// asserting an exact Obligation count or an exact Quality Gate message.
+// Walks any such stray, still-open Obligation on the given Deliverable to
+// Verified (the same governed walk governance-depth.test.ts's own
+// verifyObligation already uses), leaving only Obligations the test itself
+// created.
+async function resolveDispatchRejectionObligationsForDeliverable(deliverableId: string): Promise<void> {
+  const { data: obligations } = await obligationsDB.findByRelatedObject("Deliverable", deliverableId);
+  const strayObligations = (obligations ?? []).filter(
+    (o) => o.status !== "Verified" && o.status !== "Closed" && /empty_eligible_pool/.test(o.title)
+  );
+  for (const obligation of strayObligations) {
+    for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
+      const result = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: "1001" });
+      if (!result.ok) throw new Error(`resolveDispatchRejectionObligations: ${obligation.id} -> ${targetState} failed: ${JSON.stringify(result)}`);
+    }
+  }
+
+  // dispatchEngine.ts's own Case 1 raises a matching "Action Required"
+  // Attention Item alongside the Obligation above — dismiss that too, or it
+  // sits in AM-002 dedup counts/titles this test never created.
+  const { data: attentionItems } = await attentionItemsDB.findOpenByRelatedObjectAny("Deliverable", deliverableId);
+  const strayAttentionItems = (attentionItems ?? []).filter((a) => /could not be dispatched/.test(a.title));
+  for (const item of strayAttentionItems) {
+    for (const targetState of ["Delivered", "Acknowledged", "In Progress", "Resolved", "Closed"]) {
+      const result = await transitionAttentionItem({ attentionItemId: item.id, targetState, actorRole: "super", actorId: "1001" });
+      if (!result.ok) throw new Error(`resolveDispatchRejectionObligations: attention item ${item.id} -> ${targetState} failed: ${JSON.stringify(result)}`);
+    }
+  }
+}
+
+// This is a real, event-driven platform: deliverableKickoffHandler re-fires
+// on EVERY DeliverableTransitioned, not just SEUOperational (Ch.32/33's own
+// "succession mechanism" — see eventSubscriptions.json's own description).
+// So it isn't only the SEU's head-of-chain Deliverable that can race an
+// unfulfilled Capability into a stray empty_eligible_pool Obligation before
+// a test's own explicit call — any Deliverable the automatic rescan reaches
+// right after a completed hop can too. Sweeps every Deliverable on the SEU,
+// not just one — call this right before a test's own scenario-specific
+// assertions (Obligation/Attention-Item counts, Quality Gate messages), and
+// again after driving any hop whose own completion could unblock the next
+// one the automatic rescan will immediately, unprompted, attempt.
+export async function resolveDispatchRejectionObligations(seuId: string): Promise<void> {
+  const { data: deliverables } = await deliverablesDB.findBySeuId(seuId);
+  for (const deliverable of deliverables ?? []) {
+    await resolveDispatchRejectionObligationsForDeliverable(deliverable.id);
+  }
 }
 
 // Drop-in replacement for the old, fully-synchronous commissionFromForm
@@ -484,11 +705,14 @@ export async function ensureEligibleParticipant(seuId: string, capabilityCodes: 
 // SEU" fixture (not to test commissioning's own mechanics) should call this
 // instead. commissionFromForm itself now only gets through the shallow gate
 // (see its own header comment); this drives the rest through.
-export async function commissionFromFormSync(input: Parameters<typeof commissionFromForm>[0]): Promise<DriveCommissioningResult> {
+export async function commissionFromFormSync(
+  input: Parameters<typeof commissionFromForm>[0],
+  beforeCommenceWork?: (seuId: string) => Promise<void>
+): Promise<DriveCommissioningResult> {
   await ensureEventSubscriptionsLoaded();
   const requested = await commissionFromForm(input);
   if (!requested.ok) return requested;
-  return driveCommissioningToActive({ seuId: requested.seu.id, actorRole: input.actorRole, actorId: input.actorId });
+  return driveCommissioningToActive({ seuId: requested.seu.id, actorRole: input.actorRole, actorId: input.actorId, beforeCommenceWork });
 }
 
 let cached: Promise<{ template: TemplateRow; profile: ProfileRow }> | null = null;
@@ -592,19 +816,38 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
     });
   }
 
-  const { data: profile, error: profileErr } = await profilesDB.upsert({
-    code: profileSeed.code,
-    name: profileSeed.name,
-    baseTemplateId: template.id,
-    environment: profileSeed.environment,
-  });
-  if (profileErr || !profile) throw profileErr ?? new Error(`profile upsert failed: ${profileSeed.code}`);
-
-  const { data: existingOptional } = await profilesDB.getOptionalPackCodes(profile.id);
-  const targetOptional = profileSeed.optionalPackCodes ?? [];
-  if (!sameSet(existingOptional ?? [], targetOptional)) {
-    await profilesDB.setOptionalPacks(profile.id, targetOptional);
+  // Real authoring path (publishProfile), not a raw profilesDB.upsert — the
+  // raw insert only ever wrote code/name/base_template_id/environment,
+  // silently dropping every draft_content-only field (dispatchStrategyPreference,
+  // redispatchMaxAttempts/redispatchAttentionThreshold, etc.) the seed JSON
+  // declares. Idempotent (findByCodeAndVersion + materialiseProfileDraft on
+  // an existing row), same as ensureWebAppTemplateFixture's own memoization —
+  // code AND profileVersion both stay fixed (the seed JSON's own "1.0.0") so
+  // every caller sharing this fixture (e.g. dependency-definition-engine.test.ts's
+  // own profilesDB.findByCode("test-profile-default-development")) keeps
+  // resolving the same stable, Active row all run. A per-process-unique
+  // version was tried instead and reverted: publishProfile's own
+  // Draft->...->Active walk auto-Deprecates whatever Profile previously held
+  // Active for that code (profiles.ts's own supersede step), so every new
+  // version minted mid-suite silently deprecated another file's already-in-
+  // flight reference underneath it ("Profile ... status: Deprecated" /
+  // "does not target any of the given Templates" failures, output.txt).
+  //
+  // publishProfile's own idempotency (findByCodeAndVersion then createDraft)
+  // is find-then-create, not atomic — two `node --test` processes racing
+  // seed() for the very first time can both miss the find and collide on
+  // createDraft's (code, profile_version, tenant_id) unique constraint. Retry
+  // once on exactly that: by the time the retry's own findByCodeAndVersion
+  // runs, the winner's row exists, so this becomes the ordinary "already
+  // exists" branch (materialiseProfileDraft on the existing row) instead of a
+  // second create attempt.
+  let profileResult = await publishProfile({ seed: profileSeed, actorRole: "super", actorId: "1" });
+  if (!profileResult.ok && profileResult.errors.some((e) => e.includes("profiles_code_version_tenant_key"))) {
+    profileResult = await publishProfile({ seed: profileSeed, actorRole: "super", actorId: "1" });
   }
+  if (!profileResult.ok) throw new Error(`profile publish failed: ${profileSeed.code}: ${profileResult.errors.join("; ")}`);
+  const { data: profile, error: profileErr } = await profilesDB.findById(profileResult.profileId);
+  if (profileErr || !profile) throw profileErr ?? new Error(`profile not found after publish: ${profileSeed.code}`);
 
   return { template, profile };
 }

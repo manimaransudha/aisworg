@@ -76,6 +76,7 @@ interface CanonicalSets {
   categoryPackDimensions: Set<string>;
   dimensionValues: Map<string, Set<string>>; // lower-cased dimension -> its concept type's codes
   behaviourContextPolicies: Set<string>;
+  proficiencyLevels: Set<string>;
 }
 
 async function codesOf(conceptType: string, viewer: OntologyViewer): Promise<Set<string>> {
@@ -87,11 +88,12 @@ async function codesOf(conceptType: string, viewer: OntologyViewer): Promise<Set
 // calls would have looked up (core/ontology.ts / core/participantsMaster.ts)
 // — same 4 concept types, fetched once instead of once per participant.
 async function loadCanonicalSets(viewer: OntologyViewer): Promise<CanonicalSets> {
-  const [participantTypes, capabilityCodes, categoryPackDimensions, behaviourContextPolicies] = await Promise.all([
+  const [participantTypes, capabilityCodes, categoryPackDimensions, behaviourContextPolicies, proficiencyLevels] = await Promise.all([
     codesOf("participant-types", viewer),
     codesOf("capability-name", viewer),
     codesOf("category:pack", viewer),
     codesOf("behaviour-context-policy", viewer),
+    codesOf("proficiency-level", viewer),
   ]);
   const dimensionValues = new Map<string, Set<string>>();
   await Promise.all(
@@ -99,7 +101,7 @@ async function loadCanonicalSets(viewer: OntologyViewer): Promise<CanonicalSets>
       dimensionValues.set(dimension.toLowerCase(), await codesOf(dimension.toLowerCase(), viewer));
     })
   );
-  return { participantTypes, capabilityCodes, categoryPackDimensions, dimensionValues, behaviourContextPolicies };
+  return { participantTypes, capabilityCodes, categoryPackDimensions, dimensionValues, behaviourContextPolicies, proficiencyLevels };
 }
 
 function assertCanonicalLocal(conceptType: string, value: string, allowed: Set<string>): void {
@@ -111,10 +113,13 @@ function assertCanonicalLocal(conceptType: string, value: string, allowed: Set<s
 function validateOnboarded(type: string, onboarded: OnboardedParticipant, canon: CanonicalSets): void {
   assertCanonicalLocal("participant-types", type, canon.participantTypes);
   for (const code of onboarded.capabilities) assertCanonicalLocal("capability-name", code, canon.capabilityCodes);
-  for (const [dimension, values] of Object.entries(onboarded.competency)) {
+  for (const [dimension, entries] of Object.entries(onboarded.competency)) {
     assertCanonicalLocal("category:pack", dimension, canon.categoryPackDimensions);
     const valueSet = canon.dimensionValues.get(dimension.toLowerCase()) ?? new Set();
-    for (const value of values) assertCanonicalLocal(dimension.toLowerCase(), value, valueSet);
+    for (const entry of entries) {
+      assertCanonicalLocal(dimension.toLowerCase(), entry.code, valueSet);
+      assertCanonicalLocal("proficiency-level", entry.proficiency, canon.proficiencyLevels);
+    }
   }
   for (const entry of onboarded.behaviourContext) assertCanonicalLocal("behaviour-context-policy", entry.policy, canon.behaviourContextPolicies);
 }
@@ -172,6 +177,7 @@ export async function seedParticipantsMaster(): Promise<void> {
           displayName: onboarded.displayName,
           capabilities: onboarded.capabilities,
           competency: onboarded.competency,
+          cost: onboarded.cost,
           behaviourContext: onboarded.behaviourContext,
           isActive: true,
           userId: onboarded.userId ?? null,

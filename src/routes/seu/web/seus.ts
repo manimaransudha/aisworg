@@ -19,7 +19,7 @@ import { transitionEbm } from "../core/commissioning.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { createObligation, transitionObligation } from "../core/obligations.js";
 import { createAttentionItem, transitionAttentionItem } from "../core/attentionItems.js";
-import { createEvidence, transitionEvidence, linkEvidenceToObject } from "../core/evidence.js";
+import { createEvidence, transitionEvidence, linkEvidenceToObject, recordValidationAssessment } from "../core/evidence.js";
 import { createKnowledgeItem, promoteKnowledgeItemScope, transitionKnowledgeItem } from "../core/knowledge.js";
 import { createDecision, transitionDecision } from "../core/decisions.js";
 import { createExternalInteraction, transitionExternalInteraction } from "../core/externalInteractions.js";
@@ -264,10 +264,11 @@ router.post("/seus/:id/deliverables/:deliverableId/transition", async (req: Requ
       const reason = result.reason === "dependency_not_satisfied" ? "one or more dependencies aren't Satisfied yet" : "detail" in result ? result.detail : result.reason;
       return flashError(req, res, backTo, `Transition blocked: ${reason}`);
     }
-    // Model A: the transition is dispatched, not applied — the Deliverable
-    // stays put until a Participant reports a result. The message reflects the
-    // real async state so a user doesn't expect the state to have already moved.
-    return flashSuccess(req, res, backTo, `Deliverable "${result.pendingTransition.fromState}" → "${result.pendingTransition.toState}" dispatched to a Participant. It stays in "${result.pendingTransition.fromState}" until a result is reported.`);
+    // Governance cleared and a Command was requested — dispatch outcome
+    // (assigned / deferred) is decided later, asynchronously, and isn't known
+    // yet at this point. The Deliverable stays put until a Participant
+    // reports a result.
+    return flashSuccess(req, res, backTo, `Deliverable "${result.fromState}" → "${result.toState}" requested. It stays in "${result.fromState}" until dispatched and a result is reported.`);
   } catch (err) {
     logger.error("[web/seu/seus] POST /seus/:id/deliverables/:deliverableId/transition error", err as Error);
     return flashError(req, res, backTo, (err as Error).message);
@@ -421,7 +422,7 @@ router.post("/seus/:id/attention-items/:attentionItemId/transition", async (req:
 router.post("/seus/:id/evidence", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}`;
-  const { deliverableId, category, title, description, source, confidenceLevel, participantId, capabilityId, decisionId, activity, predecessorEvidenceId } = req.body ?? {};
+  const { deliverableId, category, title, description, source, predecessorEvidenceId } = req.body ?? {};
 
   if (typeof deliverableId !== "string" || !deliverableId.trim() || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
     return flashError(req, res, backTo, "Deliverable, category and title are required.");
@@ -429,16 +430,34 @@ router.post("/seus/:id/evidence", async (req: Request, res: Response) => {
 
   try {
     const evidence = await createEvidence({
-      seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category, title, description, source, confidenceLevel,
-      originatingParticipantId: participantId || null,
-      originatingCapabilityId: capabilityId || null,
-      originatingDecisionId: decisionId || null,
-      originatingActivity: activity || null,
+      seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category, title, description, source,
       supersedesEvidenceId: predecessorEvidenceId || null,
     });
-    return flashSuccess(req, res, backTo, `Evidence "${evidence.title}" collected (${evidence.category}, confidence ${evidence.confidence_level}).`);
+    return flashSuccess(req, res, backTo, `Evidence "${evidence.title}" collected (${evidence.category}).`);
   } catch (err) {
     logger.error("[web/seu/seus] POST /seus/:id/evidence error", err as Error);
+    return flashError(req, res, backTo, (err as Error).message);
+  }
+});
+
+/** POST /aisworg/seu/seus/:id/evidence/:evidenceId/validate — Ch.17 §11/§13:
+ *  record one validation-dimension assessment. Append-only — confidence_level
+ *  is recomputed from the full history, never overwritten in place. */
+router.post("/seus/:id/evidence/:evidenceId/validate", async (req: Request, res: Response) => {
+  const seuId = String(req.params.id);
+  const backTo = `/aisworg/seu/seus/${seuId}`;
+  const { dimension, status, notes } = req.body ?? {};
+
+  if (typeof dimension !== "string" || !dimension.trim() || typeof status !== "string" || !status.trim()) {
+    return flashError(req, res, backTo, "Dimension and status are required.");
+  }
+
+  try {
+    const result = await recordValidationAssessment({ evidenceId: String(req.params.evidenceId), dimension, status, notes: notes || null });
+    if (!result.ok) return flashError(req, res, backTo, "Evidence not found.");
+    return flashSuccess(req, res, backTo, `Recorded "${dimension}" assessment (${status}) — confidence now ${result.evidence.confidence_level ?? "unassessed"}.`);
+  } catch (err) {
+    logger.error("[web/seu/seus] POST /seus/:id/evidence/:evidenceId/validate error", err as Error);
     return flashError(req, res, backTo, (err as Error).message);
   }
 });
@@ -511,11 +530,15 @@ router.post("/seus/:id/knowledge", async (req: Request, res: Response) => {
     const knowledgeItem = await createKnowledgeItem({
       seuId,
       deliverableId,
-      evidenceId: evidenceId || null,
+      // The form's single "supporting Evidence" picker maps onto the new
+      // §10-shaped evidenceReferences object under the "supports" key —
+      // the literal relationship this field has always meant.
+      evidenceReferences: evidenceId ? { supports: [evidenceId] } : undefined,
       category,
       title,
       description,
       acquisitionScope: acquisitionScope as AcquisitionScope | undefined,
+      userId: req.session?.user?.id != null ? Number(req.session.user.id) : undefined,
     });
     return flashSuccess(req, res, backTo, `Knowledge Item "${knowledgeItem.title}" observed (${knowledgeItem.category}, ${knowledgeItem.acquisition_scope} scope).`);
   } catch (err) {
@@ -540,6 +563,7 @@ router.post("/seus/:id/knowledge/:knowledgeItemId/transition", async (req: Reque
       targetState,
       actorRole: req.session?.user?.role ?? "general",
       actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      userId: req.session?.user?.id != null ? Number(req.session.user.id) : undefined,
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
@@ -568,6 +592,7 @@ router.post("/seus/:id/knowledge/:knowledgeItemId/promote-scope", async (req: Re
       targetScope: targetScope as AcquisitionScope,
       actorRole: req.session?.user?.role ?? "general",
       actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      userId: req.session?.user?.id != null ? Number(req.session.user.id) : undefined,
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
@@ -589,7 +614,7 @@ router.post("/seus/:id/knowledge/:knowledgeItemId/promote-scope", async (req: Re
 router.post("/seus/:id/decisions", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}`;
-  const { deliverableId, knowledgeId, evidenceId, category, title, engineeringQuestion, selectedAlternative, rationale } = req.body ?? {};
+  const { deliverableId, knowledgeId, evidenceId, category, title, engineeringQuestion, alternativeStatement, alternativeRationale } = req.body ?? {};
 
   if (typeof deliverableId !== "string" || !deliverableId.trim() || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
     return flashError(req, res, backTo, "Deliverable, category and title are required.");
@@ -598,15 +623,21 @@ router.post("/seus/:id/decisions", async (req: Request, res: Response) => {
   try {
     const decision = await createDecision({
       seuId,
-      relatedObjectType: "Deliverable",
-      relatedObjectId: deliverableId,
-      knowledgeId: knowledgeId || null,
-      evidenceId: evidenceId || null,
+      userId: req.session?.user?.id,
+      relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }],
+      knowledgeIds: knowledgeId ? [knowledgeId] : [],
+      evidenceIds: evidenceId ? [evidenceId] : [],
       category,
       title,
       engineeringQuestion,
-      selectedAlternative,
-      rationale,
+      // The web form captures one alternative up front (Ch.19 §9's
+      // "Candidate" starting point) — further alternatives are added by
+      // re-identifying, same as any other repeatable-row authoring surface
+      // on this platform; no dedicated multi-alternative form yet.
+      alternatives:
+        typeof alternativeStatement === "string" && alternativeStatement.trim()
+          ? [{ statement: alternativeStatement, assumptions: [], consequences: [], status: "Candidate", rationale: alternativeRationale || null }]
+          : [],
     });
     return flashSuccess(req, res, backTo, `Decision "${decision.title}" identified (${decision.category}).`);
   } catch (err) {

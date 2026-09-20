@@ -3,5 +3,12 @@
   "name": "Default Development Profile",
   "baseTemplateCode": "test-enterprise-web-application",
   "environment": "development",
+  "profileVersion": "1.0.0",
+  "developmentMethodology": "scrum",
+  "primaryProgrammingLanguage": "typescript",
+  "sourceControlProvider": "github",
+  "dispatchStrategyPreference": [{ "strategy": "capability-match", "order": 1 }],
+  "redispatchMaxAttempts": 5,
+  "redispatchAttentionThreshold": 2,
   "optionalPackCodes": ["testing-qa"]
 }

@@ -38,6 +38,24 @@ export const seuCapabilitiesDB = {
     }
   },
 
+  // Ch.12 §9 / CR-109 §6.2 — the one resolution both executionEngine.ts
+  // (persisting the eligible-Participant pool) and dispatchEngine.ts (before
+  // this pass, live-resolving it) need: which seu_capabilities row a
+  // Deliverable's producing capabilities.id actually corresponds to, for
+  // this SEU. Factored out so both stay in agreement.
+  async findBySeuIdAndCapabilityId(seuId: string, capabilityId: string): Promise<DbResult<SeuCapabilityRow | null>> {
+    try {
+      const { rows } = await query<SeuCapabilityRow>(
+        "SELECT * FROM seu_capabilities WHERE seu_id = $1 AND capability_id = $2",
+        [seuId, capabilityId]
+      );
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[seuCapabilitiesDB] findBySeuIdAndCapabilityId error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async findBySeuId(seuId: string): Promise<DbResult<SeuCapabilityWithCode[]>> {
     try {
       const { rows } = await query<SeuCapabilityWithCode>(

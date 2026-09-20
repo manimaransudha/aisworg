@@ -28,7 +28,7 @@ import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.
 import { participantsDB } from "../src/dblayer/participantsDB.js";
 import { capabilityFulfilmentsDB } from "../src/dblayer/capabilityFulfilmentsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant } from "./testFixtures.js";
 
 // Ch.30 Event Bus redesign — publish() still persists every event
 // synchronously (only dispatch/consumption is fire-and-forget), so querying
@@ -41,19 +41,25 @@ async function participantEventTypes(participantId: string): Promise<string[]> {
 
 async function commissionAndFulfil(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromFormSync({
-    statement: `${statementPrefix}-${randomUUID()}`,
-    requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: "1001", requestedBy: 1001,
-  });
+  let fulfilled: Awaited<ReturnType<typeof fulfilCapability>> | undefined;
+  const result = await commissionFromFormSync(
+    {
+      statement: `${statementPrefix}-${randomUUID()}`,
+      requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
+      actorRole: "super", actorId: "1001", requestedBy: 1001,
+    },
+    async (seuId) => {
+      const detail = await getSeuDetailView(seuId);
+      const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
+      assert.ok(reqAnalysisCapability);
+      fulfilled = await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
+    }
+  );
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
   const seuId = result.seu.id;
-
-  const detail = await getSeuDetailView(seuId);
-  const reqAnalysisCapability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
-  assert.ok(reqAnalysisCapability);
-  const { participant, seuCapabilityId } = await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantType: "AI", displayName: "Participant lifecycle test analyst" });
+  assert.ok(fulfilled);
+  const { participant, seuCapabilityId } = fulfilled;
   return { seuId, participant, seuCapabilityId };
 }
 
@@ -125,11 +131,12 @@ test("Build order step 3: dispatchEngine moves the fulfilling Participant's own 
   assert.ok(requirementsSpec);
 
   const result = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: "1" });
-  assert.equal(result.ok, true, !result.ok ? JSON.stringify(result) : undefined);
-  if (!result.ok) throw new Error("unreachable");
+  if (!result.ok) assert.equal(result.reason, "already_in_flight", JSON.stringify(result));
 
   // Model A: dispatch alone moves the Participant to Assigned and stops there —
-  // it is holding an outstanding Work Item, not yet done.
+  // it is holding an outstanding Work Item, not yet done. Dispatch itself is
+  // now async (WorkItemGenerated -> dispatchEngine), so wait for it.
+  const { workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "Defined", "In Progress");
   const { data: assigned } = await participantsDB.findById(participant.id);
   assert.equal(assigned?.state, "Assigned", "dispatched: the Participant is Assigned, holding the outstanding Work Item");
   assert.ok((await participantEventTypes(participant.id)).includes("ParticipantAssigned"), "expected Assigned on dispatch");
@@ -137,7 +144,7 @@ test("Build order step 3: dispatchEngine moves the fulfilling Participant's own 
   // The result callback disposes the Work Item and returns the Participant to
   // Idle, not Available (Ch.13 §9) — still held by the open Capability
   // Fulfilment, just between Work Items now that it has actually done one.
-  const completed = await completeWorkItem({ workItemId: result.workItemId, outcome: "done", reference: "vcs://participant-lifecycle/req-spec@1" });
+  const completed = await completeWorkItem({ workItemId: workItem.id, outcome: "done", reference: "vcs://participant-lifecycle/req-spec@1" });
   assert.equal(completed.ok, true, !completed.ok ? JSON.stringify(completed) : undefined);
 
   const { data: after } = await participantsDB.findById(participant.id);

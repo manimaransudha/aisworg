@@ -130,7 +130,7 @@
       // --- Parameters: the Profile's own simple scalar fields (development
       // methodology etc.) — a fixed allowlist, same names
       // profileCompositionUnravel.ts's own simpleFields object declares.
-      var PARAMETER_KEYS = ['environment', 'developmentMethodology', 'primaryProgrammingLanguage', 'sourceControlProvider', 'targetCloudProvider', 'deploymentStrategy', 'aiProviderPreference', 'defaultRepositoryStructure', 'documentationLevel', 'participatingOrganisationCodes', 'environmentConfiguration', 'deploymentTargets', 'featureFlagCodes', 'compositionOptions'];
+      var PARAMETER_KEYS = ['environment', 'developmentMethodology', 'primaryProgrammingLanguage', 'sourceControlProvider', 'targetCloudProvider', 'deploymentStrategy', 'aiProviderPreference', 'defaultRepositoryStructure', 'documentationLevel', 'participatingOrganisationCodes', 'environmentConfiguration', 'deploymentTargets', 'featureFlagCodes', 'compositionOptions', 'dispatchStrategyPreference', 'knowledgeLocations', 'readme'];
       var parameterEntries = pool.filter(function(e) { return PARAMETER_KEYS.indexOf(e.propertyName) !== -1; });
 
       // --- Engineering Practices: checklistItem::<packCode>::<checklistName>::<json>

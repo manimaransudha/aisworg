@@ -76,10 +76,27 @@ async function cleanupPriorRuns(): Promise<void> {
     await pool.query("DELETE FROM quality_gate_evaluations WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM quality_gate_waivers WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM reviews WHERE seu_id = ANY($1::uuid[])", [seuIds]);
-    await pool.query("DELETE FROM evidence WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    // Ch.17 model cleanup (migration 232) retired evidence.seu_id outright —
+    // SEU membership is just another evidence_relationships row now (same
+    // mechanism as every other relationship Evidence has). knowledge_items
+    // must go first: its own evidence_id FK (migration 007, NO ACTION) would
+    // otherwise block deleting the Evidence rows it references.
+    const { rows: seuEvidenceRows } = await pool.query<{ evidence_id: string }>(
+      "SELECT evidence_id FROM evidence_relationships WHERE related_object_type = 'SEU' AND related_object_id = ANY($1::uuid[])",
+      [seuIds]
+    );
+    const evidenceIds = seuEvidenceRows.map((r) => r.evidence_id);
+    await pool.query("DELETE FROM knowledge_items WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    if (evidenceIds.length > 0) {
+      // Clear the self-referential supersede link both directions before
+      // deleting — a superseding/superseded row outside this exact set could
+      // otherwise still hold a NO ACTION FK to one inside it.
+      await pool.query("UPDATE evidence SET supersedes_evidence_id = NULL WHERE id = ANY($1::uuid[]) OR supersedes_evidence_id = ANY($1::uuid[])", [evidenceIds]);
+      await pool.query("DELETE FROM evidence_relationships WHERE evidence_id = ANY($1::uuid[])", [evidenceIds]);
+      await pool.query("DELETE FROM evidence WHERE id = ANY($1::uuid[])", [evidenceIds]);
+    }
     await pool.query("DELETE FROM decisions WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM obligations WHERE seu_id = ANY($1::uuid[])", [seuIds]);
-    await pool.query("DELETE FROM knowledge_items WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM attention_items WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM external_interactions WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM deliverable_references WHERE seu_id = ANY($1::uuid[])", [seuIds]);
@@ -92,6 +109,11 @@ async function cleanupPriorRuns(): Promise<void> {
     // when this cleanup chain was first written from a real
     // information_schema query; a later full migration replay correctly
     // dropped it, making this line reference a table that no longer exists.
+    // work_items.command_id and commands.governance_outcome_id are both NO
+    // ACTION FKs (migrations 005/234) — must clear both before commands
+    // itself, same discipline as every other table in this chain.
+    await pool.query("DELETE FROM work_items WHERE command_id IN (SELECT id FROM commands WHERE seu_id = ANY($1::uuid[]))", [seuIds]);
+    await pool.query("DELETE FROM governance_evaluation_outcomes WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM commands WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     // Bug fix (owner: "let us fix the test suite") — capability_fulfilments
     // has no seu_id of its own (only seu_capability_id -> seu_capabilities,

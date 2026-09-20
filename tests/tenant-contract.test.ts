@@ -21,13 +21,14 @@ import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { createObjective, submitObjective, transitionObjective } from "../src/routes/seu/core/objectives.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
+import { publishProfile } from "../src/routes/seu/core/profiles.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { tenantContractsDB } from "../src/dblayer/tenantContractsDB.js";
 import { executionTargetsDB } from "../src/dblayer/executionTargetsDB.js";
 import { deriveDedupedCapabilitiesFromPackCodes } from "../src/routes/seu/core/templates.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync, driveCommissioningToActive } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, driveCommissioningToActive, waitForDispatchedWorkItem, ensureEligibleParticipant } from "./testFixtures.js";
 
 const captured: Array<{ url: string; body: any; auth: string | undefined }> = [];
 let captureServer: http.Server;
@@ -78,7 +79,25 @@ async function commissionAndDispatch(prefix: string, tenantId: string) {
   // than this test's own flow (fulfil requirements-analysis, transition
   // Requirements Analysis Model directly) drives through.
   const { template: fixtureTemplate } = await ensureWebAppTemplateFixture();
-  const { data: profile } = await profilesDB.upsert({ code: `tenant-contract-profile-${randomUUID()}`, name: "Tenant Contract Profile", baseTemplateId: fixtureTemplate.id, environment: "development" });
+  const profilePublish = await publishProfile({
+    seed: {
+      code: `tenant-contract-profile-${randomUUID()}`,
+      name: "Tenant Contract Profile",
+      baseTemplateCode: fixtureTemplate.code,
+      environment: "development",
+      profileVersion: `1.0.${Date.now()}${process.pid}`,
+      developmentMethodology: "scrum",
+      primaryProgrammingLanguage: "typescript",
+      sourceControlProvider: "github",
+      redispatchMaxAttempts: 5,
+      redispatchAttentionThreshold: 2,
+    },
+    actorRole: "super",
+    actorId: "1001",
+  });
+  assert.equal(profilePublish.ok, true, !profilePublish.ok ? JSON.stringify(profilePublish.errors) : undefined);
+  if (!profilePublish.ok) throw new Error("unreachable");
+  const { data: profile } = await profilesDB.findById(profilePublish.profileId);
   const { objective: tcRoot } = await createObjective({ statement: `tenant-contract-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed" });
   const { objective } = await createObjective({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], tier: "Engineering", parentObjectiveId: tcRoot.id, requestedBy: 1001, status: "Proposed" });
   await submitObjective(objective.id, 1001);
@@ -101,12 +120,20 @@ async function commissionAndDispatch(prefix: string, tenantId: string) {
   const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
   assert.ok(deliverable && capability);
-  await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantType: "AI", displayName: `${prefix} Agent` });
+  await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
 
+  // deliverableKickoffHandler (SEUOperational / DeliverableTransitioned /
+  // ObligationTransitioned) re-scans every Deliverable in the SEU and
+  // attempts each one's own next governed transition unprompted — the same
+  // governed check this manual call also runs, and the "manual" trigger tag
+  // only controls button visibility, not who/what may attempt the
+  // transition. So this hop can legitimately already have a Command in
+  // flight from that automatic rescan (already_in_flight) before this call
+  // lands — a real Command either way, just differing in who got there first.
   const dispatched = await transitionDeliverable({ deliverableId: deliverable.id, targetState: "In Progress", actorRole: "super", actorId: "1" });
-  assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : undefined);
-  if (!dispatched.ok) throw new Error("unreachable");
-  return dispatched.workItemId;
+  if (!dispatched.ok) assert.equal(dispatched.reason, "already_in_flight", JSON.stringify(dispatched));
+  const { workItem } = await waitForDispatchedWorkItem(deliverable.id, "Defined", "In Progress");
+  return workItem.id;
 }
 
 test("two tenants sharing no edge choice run on the same core; each Work Item routes to its own tenant's edge", async () => {

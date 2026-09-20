@@ -16,12 +16,29 @@ import fetchCookie from "fetch-cookie";
 import pool from "../src/utils/db.js";
 import app from "../src/app.js";
 import { appConfig } from "../src/config/appconfig.js";
-import { ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, waitForDispatchedWorkItem } from "./testFixtures.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 
 let server: ReturnType<typeof app.listen>;
 let baseUrl: string;
+let webBaseUrl: string;
 let request: ReturnType<typeof fetchCookie>;
+
+// Capability Fulfilment has no JSON API surface for a real participants_master
+// Participant — only src/routes/seu/api/seus.ts's own ad-hoc {type,displayName}
+// shape, which dispatchStrategies.ts's loadAvailableCandidates can never
+// select (it requires a real participant_id master reference by design, not a
+// bug — an ad-hoc Participant was never meant to be dispatchable). The web
+// form route is the real, documented Capability Fulfilment path (Integration
+// Test Handoff Brief.md) and already accepts participantMasterIds, so this
+// one step goes through it instead of the JSON API.
+function extractCsrf(html: string): string {
+  const field = html.match(/name="_csrf" value="([^"]+)"/);
+  if (field) return field[1];
+  const meta = html.match(/name="csrf-token" content="([^"]+)"/);
+  if (meta) return meta[1];
+  throw new Error("no _csrf token found on the page — page markup may have changed since this test was written");
+}
 
 // (owner: "root was used in legacy test suite as we did not build the
 // demarcation between tenants etc.") — this file used the NODE_ENV=test
@@ -46,6 +63,7 @@ before(async () => {
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("failed to determine the ephemeral port the app bound to");
   baseUrl = `http://127.0.0.1:${address.port}/aisworg/api/seu`;
+  webBaseUrl = `http://127.0.0.1:${address.port}/aisworg/seu`;
   const jarFetch = fetchCookie(fetch, new CookieJar());
   request = (async (input: any, init?: any) =>
     jarFetch(input, { ...init, headers: { ...(init?.headers ?? {}), "x-test-user-id": String(TESTER_ALL_ID) } })) as unknown as typeof jarFetch;
@@ -140,15 +158,28 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
   assert.ok(requirementsCapability);
   assert.equal(requirementsCapability.status, "Unfulfilled");
 
-  // 6 — assign a Participant to a Capability (Ch.12, direct assignment — no Dispatch Engine)
-  const fulfilRes = await request(`${baseUrl}/seus/${seuId}/capabilities/${requirementsCapability.capabilityId}/fulfil`, {
+  // 6 — assign a Participant to a Capability (Ch.12, direct assignment — no Dispatch Engine).
+  // A real participants_master Participant, not an ad-hoc one (dispatchEngine's
+  // loadAvailableCandidates requires a real master reference to ever select a
+  // candidate) — via the web form route, the real documented Fulfilment path.
+  const participantMasterId = await ensureEligibleParticipant(seuId, ["requirements-analysis"]);
+  const detailPage = await request(`${webBaseUrl}/seus/${seuId}`);
+  assert.equal(detailPage.status, 200);
+  const csrf = extractCsrf(await detailPage.text());
+  const fulfilParams = new URLSearchParams({ _csrf: csrf, participantMasterIds: participantMasterId });
+  const fulfilRes = await request(`${webBaseUrl}/seus/${seuId}/capabilities/${requirementsCapability.capabilityId}/fulfil`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ participant: { type: "AI", displayName: "Acceptance Test Requirements Analyst" } }),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: fulfilParams.toString(),
+    redirect: "manual",
   });
-  const fulfilment = await fulfilRes.json();
-  assert.equal(fulfilRes.status, 200, JSON.stringify(fulfilment));
-  assert.equal(fulfilment.seuCapability.status, "Fulfilled");
+  assert.equal(fulfilRes.status, 302, "the web fulfil form must redirect, success or error");
+
+  const statusAfterFulfil = await request(`${baseUrl}/seus/${seuId}`);
+  assert.equal(statusAfterFulfil.status, 200);
+  const statusAfterFulfilBody = await statusAfterFulfil.json();
+  const requirementsCapabilityAfterFulfil = statusAfterFulfilBody.capabilities.find((c: { code: string }) => c.code === "requirements-analysis");
+  assert.equal(requirementsCapabilityAfterFulfil.status, "Fulfilled", JSON.stringify(requirementsCapabilityAfterFulfil));
 
   // 7/8 — progress a Deliverable through its lifecycle (Ch.15/Ch.29), gated by dependency readiness + Authority/Policy
   const requirementsSpec = status.deliverables.find((d: { name: string }) => d.name === "Requirements Analysis Model");
@@ -161,20 +192,44 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
     body: JSON.stringify({ targetState: "In Progress" }),
   });
   const transitioned = await transitionRes.json();
-  // Model A (Participant Integration Plan): a successful transition is a
-  // *dispatch* (202 Accepted, outstanding), not an applied state change.
-  assert.equal(transitionRes.status, 202, JSON.stringify(transitioned));
-  assert.equal(transitioned.dispatched, true);
-  assert.ok(transitioned.workItemId, "expected a Work Item id to report a result against");
+  // Model A (Participant Integration Plan): a successful transition is
+  // "governance cleared, Command requested" (202 Accepted), not an applied
+  // state change — dispatch outcome is decided later, asynchronously
+  // (CommandGenerated -> WorkItemGenerated -> dispatchEngine), so the HTTP
+  // response itself carries no workItemId/dispatched any more; poll for it.
+  //
+  // The "manual" trigger tag on this row only controls whether it renders as
+  // a clickable button — it is not a restriction on who/what may attempt the
+  // transition. The Execution Engine is the sole governance arbiter, and it
+  // re-attempts every Deliverable's own next governed transition on its own
+  // initiative too (deliverableKickoffHandler, off SEUOperational, same
+  // governed check this manual POST runs). For a head-of-chain Deliverable
+  // like this one (no incoming dependency), that automatic attempt can
+  // legitimately win the race and already have a Command in flight before
+  // this call lands — a real 202 ("Command requested" by this call) and a
+  // real 409 already_in_flight ("Command requested" by the platform's own
+  // kickoff) are both a correct outcome of the SAME governed transition,
+  // differing only in who got there first. Any other block reason is a real
+  // failure here.
+  if (transitionRes.status === 202) {
+    assert.equal(transitioned.fromState, "Defined");
+    assert.equal(transitioned.toState, "In Progress");
+  } else {
+    assert.equal(transitionRes.status, 409, JSON.stringify(transitioned));
+    assert.equal(transitioned.reason, "already_in_flight", JSON.stringify(transitioned));
+  }
+  const { command: dispatchedCommand, workItem } = await waitForDispatchedWorkItem(requirementsSpec.id, "Defined", "In Progress");
+  console.log("[DEBUG dispatched]", JSON.stringify({ commandId: dispatchedCommand.id, commandStatus: dispatchedCommand.status, workItemId: workItem.id, workItemStatus: workItem.status }));
 
   // The Participant reports the result to the result-in callback, which drives
   // the governed transition.
-  const resultRes = await request(`${baseUrl}/work-items/${transitioned.workItemId}/result`, {
+  const resultRes = await request(`${baseUrl}/work-items/${workItem.id}/result`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ outcome: "done", reference: "vcs://acceptance/req-spec@1" }),
   });
   const resulted = await resultRes.json();
+  console.log("[DEBUG result response]", resultRes.status, JSON.stringify(resulted));
   assert.equal(resultRes.status, 200, JSON.stringify(resulted));
   assert.equal(resulted.deliverable.lifecycle_state, "In Progress");
 
@@ -182,7 +237,7 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
   // Item is no longer outstanding, so a replayed result is rejected (409),
   // an unknown Work Item is a 404, and an invalid outcome is a 400 — the edge
   // adapter's error surface a real Participant integration depends on.
-  const replayRes = await request(`${baseUrl}/work-items/${transitioned.workItemId}/result`, {
+  const replayRes = await request(`${baseUrl}/work-items/${workItem.id}/result`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ outcome: "done" }),
@@ -197,7 +252,7 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
   });
   assert.equal(unknownRes.status, 404);
 
-  const badOutcomeRes = await request(`${baseUrl}/work-items/${transitioned.workItemId}/result`, {
+  const badOutcomeRes = await request(`${baseUrl}/work-items/${workItem.id}/result`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ outcome: "totally-not-valid" }),

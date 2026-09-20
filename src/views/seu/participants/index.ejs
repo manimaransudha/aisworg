@@ -78,7 +78,7 @@
                   <p class="small text-muted mb-1">
                     <% Object.keys(p.competency).forEach(function(dim, i) { %>
                       <% if (i > 0) { %> &middot; <% } %>
-                      <strong><%= dim %>:</strong> <%= p.competency[dim].join(', ') %>
+                      <strong><%= dim %>:</strong> <%= p.competency[dim].map(function(e) { return e.code + ' (' + e.proficiency + ')'; }).join(', ') %>
                     <% }) %>
                   </p>
                 <% } %>

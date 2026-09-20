@@ -41,9 +41,13 @@ pnpm seed:identity-baseline
 
 pnpm test
 
+
 If you ever need to run a single file directly instead of the whole suite, keep the same env var:
 NODE_ENV=test npx tsx --test tests/<file>.test.ts
  
+Restricting concurrency:
+NODE_ENV=test node --import tsx --test --test-concurrency=1 tests/**/*.test.ts > output.txt 2>&1
+
 ----------
 
 ## Seed data 

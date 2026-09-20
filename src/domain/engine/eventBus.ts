@@ -53,7 +53,9 @@ export interface PublishInput {
 export async function dispatch(event: EventRow, handlers: RegisteredHandler[]): Promise<void> {
   for (const { name, handler } of handlers) {
     try {
+      console.log(`[eventBus] dispatching '${event.event_type}' (${event.id}) to handler '${name}'`);
       await handler(event);
+      console.log(`[eventBus] handler '${name}' consumed '${event.event_type}' (${event.id})`);
       await eventsDB.updateConsumptionState(event.id, name, "consumed");
     } catch (err) {
       logger.error(`[eventBus] handler '${name}' failed for event ${event.id} (${event.event_type})`, err as Error);
@@ -96,6 +98,7 @@ export const eventBus = {
     const { data: event, error } = await eventsDB.append({ ...input, consumptionState });
     if (error || !event) throw error ?? new Error(`failed to publish event ${input.eventType}`);
 
+    console.log(`[eventBus] published '${input.eventType}' (${event.id}) seuId=${input.seuId ?? ""} originatingObjectId=${input.originatingObjectId ?? ""} at t=${Date.now()} — ${handlers.length} handler(s): ${handlers.map((h) => h.name).join(", ") || "none"}`);
     if (handlers.length > 0) {
       dispatch(event, handlers).catch((err) => {
         logger.error(`[eventBus] dispatch failed for event ${event.id} (${event.event_type})`, err as Error);
