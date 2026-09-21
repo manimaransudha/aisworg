@@ -94,7 +94,6 @@ test("qualityGateEngine.evaluate resolves Obligations attached to a non-Delivera
   // Attach a real, unresolved Obligation directly to the AttentionItem (not a
   // Deliverable) — the exact case that used to be impossible.
   const obligation = await createObligation({
-    seuId,
     relatedObjectType: "AttentionItem",
     relatedObjectId: attentionItem.id,
     category: "Engineering",
@@ -151,7 +150,6 @@ test("transitionAttentionItem is genuinely wired to qualityGateEngine — a real
   await attentionItemsDB.updateStatus(attentionItem.id, fromState);
 
   const obligation = await createObligation({
-    seuId,
     relatedObjectType: "AttentionItem",
     relatedObjectId: attentionItem.id,
     category: "Engineering",

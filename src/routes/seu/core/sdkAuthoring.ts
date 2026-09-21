@@ -358,7 +358,7 @@ function toPolicyExceptionRules(value: unknown): PolicyCondition["exceptionRules
       duration: typeof v.duration === "string" ? v.duration : "",
       exceptionScope: typeof v.exceptionScope === "string" ? v.exceptionScope : "",
       exceptionApprovers: Array.isArray(v.exceptionApprovers) ? v.exceptionApprovers.filter((a): a is string => typeof a === "string") : [],
-      exceptionComposition: (v.exceptionComposition === "all" || v.exceptionComposition === "any") ? v.exceptionComposition : "",
+      exceptionComposition: (v.exceptionComposition === "all" || v.exceptionComposition === "any" ? v.exceptionComposition : "") as "all" | "any" | "",
       reviewRequirements: typeof v.reviewRequirements === "string" ? v.reviewRequirements : "",
     }))
     .filter((row) => row.exceptionStatement.trim() !== "");

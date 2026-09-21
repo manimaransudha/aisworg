@@ -25,14 +25,23 @@
     return '';
   }
 
-  function entityTypeForRow(row, scopeValue) {
-    return scopeValue === 'Eligibility' ? activeNameValue(row) : 'Deliverable';
+  function entityTypeForRow(row, scopeValue, hasScopeField) {
+    // Migration 249 — this same .nested-list-group[data-field-name="applicabilityDeliverables"]
+    // selector also matches Pack's own contributionObligationDefinitions[].applicabilityDeliverables,
+    // whose form carries no top-level `scope` field at all (a Pack is never
+    // Deliverable-targeted — `name` is always a noun, same as Policy's own
+    // scope=Eligibility case). Absence of `scope` on this form must behave
+    // like scope=Eligibility (row's own name), never fall back to the
+    // scope=Transition default of "Deliverable".
+    return (!hasScopeField || scopeValue === 'Eligibility') ? activeNameValue(row) : 'Deliverable';
   }
 
   function filterRow(row, scopeValue) {
     var transitionsSelect = row.querySelector('select[name$="[transitions][]"]');
     if (!transitionsSelect) return;
-    var entityType = entityTypeForRow(row, scopeValue);
+    var form = row.closest('form');
+    var hasScopeField = !!(form && form.elements.scope);
+    var entityType = entityTypeForRow(row, scopeValue, hasScopeField);
     Array.from(transitionsSelect.options).forEach(function (opt) {
       var optEntityType = opt.value.split('|')[0];
       opt.hidden = !!entityType && optEntityType !== entityType;

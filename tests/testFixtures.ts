@@ -98,6 +98,7 @@ import { seusDB } from "../src/dblayer/seusDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { getSeuCompetencyRequirements } from "../src/routes/seu/core/participantEligibility.js";
 import { transitionObligation } from "../src/routes/seu/core/obligations.js";
+import { policyDefinitionsDB } from "../src/dblayer/policyDefinitionsDB.js";
 import { transitionAttentionItem } from "../src/routes/seu/core/attentionItems.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
@@ -657,14 +658,14 @@ export async function ensureEligibleParticipant(seuId: string, capabilityCodes: 
 // Verified (the same governed walk governance-depth.test.ts's own
 // verifyObligation already uses), leaving only Obligations the test itself
 // created.
-async function resolveDispatchRejectionObligationsForDeliverable(deliverableId: string): Promise<void> {
+async function resolveDispatchRejectionObligationsForDeliverable(deliverableId: string, actorId: string): Promise<void> {
   const { data: obligations } = await obligationsDB.findByRelatedObject("Deliverable", deliverableId);
   const strayObligations = (obligations ?? []).filter(
     (o) => o.status !== "Verified" && o.status !== "Closed" && /empty_eligible_pool/.test(o.title)
   );
   for (const obligation of strayObligations) {
     for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-      const result = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: "1001" });
+      const result = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId });
       if (!result.ok) throw new Error(`resolveDispatchRejectionObligations: ${obligation.id} -> ${targetState} failed: ${JSON.stringify(result)}`);
     }
   }
@@ -676,10 +677,59 @@ async function resolveDispatchRejectionObligationsForDeliverable(deliverableId: 
   const strayAttentionItems = (attentionItems ?? []).filter((a) => /could not be dispatched/.test(a.title));
   for (const item of strayAttentionItems) {
     for (const targetState of ["Delivered", "Acknowledged", "In Progress", "Resolved", "Closed"]) {
-      const result = await transitionAttentionItem({ attentionItemId: item.id, targetState, actorRole: "super", actorId: "1001" });
+      const result = await transitionAttentionItem({ attentionItemId: item.id, targetState, actorRole: "super", actorId });
       if (!result.ok) throw new Error(`resolveDispatchRejectionObligations: attention item ${item.id} -> ${targetState} failed: ${JSON.stringify(result)}`);
     }
   }
+}
+
+// Owner: "Why raise an obligation when a policy has none?" — settled:
+// raiseObligationForBlockedTransition (core/obligations.ts) now raises
+// nothing at all when the blocking Policy's own Definition declared no
+// relatedObligations[]. Every test Policy created via a bare policiesDB.upsert
+// call has no matching policy_definitions row at all (raiseObligationForBlockedTransition
+// reads relatedObligations off policyDefinitionsDB.findActiveByCodeVisibleTo,
+// a separate table from the materialized `policies` row), so it needs a real,
+// Active Policy Definition alongside it to get a real Obligation raised.
+// `code` must match the plain code of the materialized `policies` row a test
+// separately creates via policiesDB.upsert (same code, no "::" suffix — an
+// unfanned Policy resolves conditionIndex 0, so exactly one condition here).
+export async function ensurePolicyDefinitionWithObligation(input: {
+  code: string;
+  name: string;
+  category: string;
+  title: string;
+}): Promise<void> {
+  const blankEvidence = { title: "", category: "", description: "", collectionMethod: "" };
+  const { data: draft, error } = await policyDefinitionsDB.createDraft({
+    code: input.code,
+    name: input.name,
+    category: input.category,
+    scope: "Transition",
+    conditions: [
+      {
+        statement: input.title,
+        severity: "High",
+        applicabilityDeliverables: [],
+        requiredEvidence: blankEvidence,
+        relatedObligations: [
+          {
+            category: "Compliance",
+            title: input.title,
+            description: input.title,
+            origin: "Policies",
+            priority: "Medium",
+            severity: "High",
+            completionCriteria: input.title,
+            requiredEvidence: blankEvidence,
+          },
+        ],
+        exceptionRules: [],
+      },
+    ],
+  });
+  if (error || !draft) throw error ?? new Error(`ensurePolicyDefinitionWithObligation: failed to create draft for ${input.code}`);
+  await policyDefinitionsDB.updateStatus(draft.id, "Active");
 }
 
 // This is a real, event-driven platform: deliverableKickoffHandler re-fires
@@ -693,10 +743,10 @@ async function resolveDispatchRejectionObligationsForDeliverable(deliverableId: 
 // assertions (Obligation/Attention-Item counts, Quality Gate messages), and
 // again after driving any hop whose own completion could unblock the next
 // one the automatic rescan will immediately, unprompted, attempt.
-export async function resolveDispatchRejectionObligations(seuId: string): Promise<void> {
+export async function resolveDispatchRejectionObligations(seuId: string, actorId = "1001"): Promise<void> {
   const { data: deliverables } = await deliverablesDB.findBySeuId(seuId);
   for (const deliverable of deliverables ?? []) {
-    await resolveDispatchRejectionObligationsForDeliverable(deliverable.id);
+    await resolveDispatchRejectionObligationsForDeliverable(deliverable.id, actorId);
   }
 }
 

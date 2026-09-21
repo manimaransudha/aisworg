@@ -117,7 +117,6 @@ export async function convertFindingToObligation(input: { findingId: string; cat
   if (finding.obligation_id) return { ok: false, reason: "already_converted", detail: `finding ${finding.id} is already linked to Obligation ${finding.obligation_id}` };
 
   const obligation = await createObligation({
-    seuId: finding.seu_id,
     relatedObjectType: finding.related_object_type,
     relatedObjectId: finding.related_object_id,
     category: input.category ?? "Review Finding",

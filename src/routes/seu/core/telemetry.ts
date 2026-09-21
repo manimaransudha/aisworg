@@ -189,6 +189,12 @@ async function raiseSustainedPatternObligation(input: {
   attentionTitle: string;
   attentionDescription: string;
   eventPayload: Record<string, unknown>;
+  // Ch.23 §10 category:obligation-origin — which of the 11 named sources
+  // this particular sustained pattern is really about, not a fixed value
+  // for the shared helper: the 3 real callers below are genuinely different
+  // sources (a Quality Gate, a Policy, a Capability shortage), even though
+  // all 3 are detected by the same Telemetry mechanism.
+  origin: string;
 }): Promise<SustainedPatternCheckResult> {
   const { data: existingObligations } =
     input.dedupScope === "platform" ? await obligationsDB.findByCategory("Organisational Learning") : await obligationsDB.findBySeuId(input.seuId);
@@ -196,13 +202,15 @@ async function raiseSustainedPatternObligation(input: {
   if (alreadyRaised) return { raised: false };
 
   const obligation = await createObligation({
-    seuId: input.seuId,
     relatedObjectType: input.relatedObjectType,
     relatedObjectId: input.relatedObjectId,
     category: "Organisational Learning",
     title: input.title,
     description: input.description,
     severity: "High",
+    origin: input.origin,
+    originatingEntityType: input.originatingObjectType,
+    originatingEntityId: input.originatingObjectId,
   });
 
   await eventBus.publish({
@@ -259,6 +267,7 @@ export async function checkSustainedQualityGateBlocking(input: {
     attentionTitle: `Sustained pattern: Quality Gate "${input.gateName}" needs review`,
     attentionDescription: `Organisational Learning Obligation was raised after ${blockedCount} Blocked evaluations of this gate in this SEU.`,
     eventPayload: { seuId: input.seuId, blockedCount, threshold: SUSTAINED_BLOCK_THRESHOLD },
+    origin: "Quality Gates",
   });
 }
 
@@ -289,6 +298,7 @@ export async function checkSustainedPolicyWaivers(): Promise<SustainedPatternChe
       attentionTitle: `Sustained pattern: Policy "${waiver.policy_name}" needs review`,
       attentionDescription: `Organisational Learning Obligation was raised after ${waiver.count} waivers of this Policy in this SEU.`,
       eventPayload: { seuId: waiver.seu_id, policyCode: waiver.policy_code, waivedCount: waiver.count, threshold: SUSTAINED_BLOCK_THRESHOLD },
+      origin: "Policies",
     });
     results.push(result);
   }
@@ -330,6 +340,7 @@ export async function checkSustainedCapabilityShortages(): Promise<SustainedPatt
       attentionTitle: `Sustained pattern: Capability "${shortage.capability_name}" is chronically short`,
       attentionDescription: `Organisational Learning Obligation was raised after this Capability sat Unfulfilled across ${shortage.seu_ids.length} SEUs.`,
       eventPayload: { capabilityCode: shortage.capability_code, affectedSeuIds: shortage.seu_ids, threshold: SUSTAINED_BLOCK_THRESHOLD },
+      origin: "Telemetry and Knowledge Model",
     });
     results.push(result);
   }

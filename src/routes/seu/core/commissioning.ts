@@ -27,7 +27,7 @@ import { eventBus } from "../../../domain/engine/eventBus.js";
 import { logger } from "../../../utils/logger.js";
 import { createObjective, ensureOneShotContainer } from "./objectives.js";
 import { raiseAttentionItem } from "./attentionItems.js";
-import { raiseObligationForBlockedTransition } from "./obligations.js";
+import { raiseObligationForBlockedTransition, raiseObligationsForPackDefinitions } from "./obligations.js";
 import { findCandidateTemplates } from "./templates.js";
 import { findOrCreateDefaultProfile, extractProfileDetails, getProfilePackSelections, extractExposedParameterOverrides } from "./profiles.js";
 import type { ProfileDetail } from "./profiles.js";
@@ -573,6 +573,22 @@ export async function attemptSeuCommenceWork(input: { seuId: string; correlation
       fromState: "Activated", toState: "Operational", policyCode: commenceWorkPolicy.policyCode,
     });
     return;
+  }
+
+  // Migration 249 (owner: "look at the SEUActivated-SEUOperational event
+  // handler. This is where the Policy obligations are instantiated for the
+  // particular EBM. This should have a step to do the same for the pack
+  // obligations") — same governed-transition check as the Policy one above,
+  // for this EBM's own composed, standalone Pack Obligation Definitions
+  // whose applicabilityDeliverables name this exact hop ("SEU|Activated|Operational").
+  // active_ebm_id is always set by this point — the same assumption
+  // policyEngine.evaluate above already relies on for this call site.
+  if (seu.active_ebm_id) {
+    const packObligations = await raiseObligationsForPackDefinitions({
+      seuId: seu.id, ebmId: seu.active_ebm_id, relatedObjectType: "SEU", relatedObjectId: seu.id,
+      fromState: "Activated", toState: "Operational",
+    });
+    if (packObligations.obligations.length > 0) return;
   }
 
   await seusDB.updateLifecycleState(seu.id, "Operational");

@@ -15,8 +15,9 @@ import { appConfig } from "../../config/appconfig.js";
 // import { redirects } from "../../middleware/redirects.js";
 import { getArchitectureLayers, getDashboardCounts } from "../seu/core/dashboard.js";
 import { getSeuQuickview } from "../seu/core/seus.js";
-import { getParticipantHomeView, completeMyWorkItem } from "../seu/core/participantHome.js";
+import { getParticipantHomeView, completeMyWorkItem, raiseMyObligation } from "../seu/core/participantHome.js";
 import { flashError, flashSuccess } from "../../utils/flash.js";
+import { listConceptsForType } from "../seu/core/ontology.js";
 
 /** GET / — the SEU Commissioning Platform's home page: the architecture layers + live counts. */
 router.get("/", requireRole('general'), attachVM("seu/dashboard"), async (req, res, next) => {
@@ -98,6 +99,19 @@ router.get("/quickview", requireRole('general'), attachVM("quickview/index"), as
     if (req.session?.user?.role === "general") {
       req.vm.req.title = "My Work";
       req.vm.req.participantHome = await getParticipantHomeView(req.session.user.id);
+      // Owner: "In the UI are the entities dropdown tied to ontology?" — the
+      // Raise Obligation form's Category/Severity options were a hardcoded
+      // array; category:obligation and category:obligation-severity are
+      // both real, live Ontology concept types (same ones the SDK authoring
+      // form already uses for Pack-side Obligation Definitions).
+      const isRoot = (req.session.user.platformBadges ?? []).includes("root");
+      const tenantId = req.session.user.tenant_id ?? null;
+      const [obligationCategories, obligationSeverities] = await Promise.all([
+        listConceptsForType("category:obligation", { isRoot, tenantId }, false),
+        listConceptsForType("category:obligation-severity", { isRoot, tenantId }, false),
+      ]);
+      req.vm.req.obligationCategoryOptions = [...new Set(obligationCategories.map((c) => c.code))].sort();
+      req.vm.req.obligationSeverityOptions = [...new Set(obligationSeverities.map((c) => c.code))].sort();
       req.vm.opt.flash = getFlash(req);
       return renderView(req, res, "quickview/participant", req.vm);
     }
@@ -145,6 +159,41 @@ router.post("/quickview/work-items/:workItemId/complete", requireRole('general')
     return flashSuccess(req, res, backTo, `Reported "${result.outcome}" — the transition was not applied and an Attention Item was raised.`);
   } catch (err) {
     logger.error("[QuickView] POST work-item complete error:", err);
+    return flashError(req, res, backTo, err.message);
+  }
+});
+
+/** POST /quickview/seus/:seuId/obligations — owner: "Remove the add form on
+ * the SEU detail page. The Participant should have an Obligation form...
+ * the obligation has to be on the SEU that the participant is assigned to,
+ * on a deliverable within the SEU." Ownership (this Deliverable is actually
+ * assigned to the caller's own Participant engagement on this SEU) is
+ * re-checked inside raiseMyObligation (core/participantHome.js), same
+ * discipline as the Work Item completion route above — never trusted off
+ * the form alone. */
+router.post("/quickview/seus/:seuId/obligations", requireRole('general'), async (req, res) => {
+  const backTo = "/aisworg/quickview";
+  const { deliverableId, category, title, description, severity, completionCriteria } = req.body ?? {};
+  if (typeof deliverableId !== "string" || !deliverableId.trim() || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
+    return flashError(req, res, backTo, "Deliverable, category and title are required.");
+  }
+  try {
+    const result = await raiseMyObligation({
+      userId: req.session.user.id,
+      seuId: String(req.params.seuId),
+      deliverableId,
+      category,
+      title,
+      description,
+      severity,
+      completionCriteria,
+    });
+    if (!result.ok) {
+      return flashError(req, res, backTo, result.detail);
+    }
+    return flashSuccess(req, res, backTo, `Obligation "${result.obligation.title}" created (${result.obligation.category}, ${result.obligation.severity}).`);
+  } catch (err) {
+    logger.error("[QuickView] POST obligations error:", err);
     return flashError(req, res, backTo, err.message);
   }
 });

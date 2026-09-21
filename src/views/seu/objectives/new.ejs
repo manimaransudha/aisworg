@@ -33,39 +33,48 @@
     <% if (capabilities.length === 0) { %>
       <div class="alert alert-warning">No capability-name Ontology concepts are loaded yet — run the ontology migrations (046, 150) first.</div>
     <% } else { %>
-      <form method="POST" action="/aisworg/seu/objectives" class="card border-0 shadow-sm p-4">
+      <form method="POST" action="/aisworg/seu/objectives" class="mb-4">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <input type="hidden" name="tier" value="<%= tier %>">
         <% if (locals.parent) { %><input type="hidden" name="parentObjectiveId" value="<%= parent.id %>"><% } %>
 
-        <div class="mb-3">
-          <label for="statement" class="form-label fw-semibold">Statement</label>
-          <textarea id="statement" name="statement" rows="3" class="form-control" required
-                    placeholder="e.g. Stand up a claims-processing platform for a retail insurance client"><%= locals.statement || '' %></textarea>
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Required Capabilities</label>
-          <% if (locals.parent) { %>
-            <p class="text-muted small mb-2">Inherited from the parent Objective — adjust as needed before saving.</p>
-          <% } %>
-          <div id="capability-list">
-            <% capabilities.forEach(function(c) { %>
-              <div class="form-check mb-1">
-                <input class="form-check-input" type="checkbox" name="requiredCapabilityCodes" value="<%= c.code %>"
-                       data-code="<%= c.code %>" id="cap-<%= c.code %>"
-                       <%= (locals.selectedCodes || []).includes(c.code) ? 'checked' : '' %>>
-                <label class="form-check-label" for="cap-<%= c.code %>">
-                  <%= c.name %> <code class="text-muted small"><%= c.code %></code>
-                  <% if (c.description) { %><div class="text-muted small"><%= c.description %></div><% } %>
-                </label>
-              </div>
-            <% }) %>
+        <div class="mb-3" style="position: sticky; top: 0; z-index: 10; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); padding: .85rem 1.25rem;">
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Create <%= tier %> Objective</button>
+            <a href="<%= locals.parent ? ('/aisworg/seu/objectives/' + parent.id) : '/aisworg/seu/objectives' %>" class="btn btn-link text-muted">Cancel</a>
           </div>
         </div>
 
-        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Create <%= tier %> Objective</button>
-        <a href="<%= locals.parent ? ('/aisworg/seu/objectives/' + parent.id) : '/aisworg/seu/objectives' %>" class="btn btn-link text-muted">Cancel</a>
+        <div class="section-card">
+          <div class="section-header">New <%= tier %> Objective</div>
+          <div class="p-3">
+            <div class="mb-3">
+              <label for="statement" class="form-label fw-semibold">Statement</label>
+              <textarea id="statement" name="statement" rows="3" class="form-control" required
+                        placeholder="e.g. Stand up a claims-processing platform for a retail insurance client"><%= locals.statement || '' %></textarea>
+            </div>
+
+            <div class="mb-0">
+              <label class="form-label fw-semibold">Required Capabilities</label>
+              <% if (locals.parent) { %>
+                <p class="text-muted small mb-2">Inherited from the parent Objective — adjust as needed before saving.</p>
+              <% } %>
+              <div id="capability-list" style="max-height: 320px; overflow-y: auto;" class="border rounded p-2">
+                <% capabilities.forEach(function(c) { %>
+                  <div class="form-check mb-1">
+                    <input class="form-check-input" type="checkbox" name="requiredCapabilityCodes" value="<%= c.code %>"
+                           data-code="<%= c.code %>" id="cap-<%= c.code %>"
+                           <%= (locals.selectedCodes || []).includes(c.code) ? 'checked' : '' %>>
+                    <label class="form-check-label" for="cap-<%= c.code %>">
+                      <%= c.name %> <code class="text-muted small"><%= c.code %></code>
+                      <% if (c.description) { %><div class="text-muted small"><%= c.description %></div><% } %>
+                    </label>
+                  </div>
+                <% }) %>
+              </div>
+            </div>
+          </div>
+        </div>
       </form>
     <% } %>
   </main>

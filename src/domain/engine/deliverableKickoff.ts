@@ -11,7 +11,7 @@ import { seusDB } from "../../dblayer/seusDB.js";
 import { deliverablesDB } from "../../dblayer/deliverablesDB.js";
 import { transitionDefinitionsDB } from "../../dblayer/transitionDefinitionsDB.js";
 import { transitionDeliverable } from "../../routes/seu/core/deliverables.js";
-import { RESOLVED_OBLIGATION_STATUSES } from "./qualityGateEngine.js";
+import { RESOLVED_OBLIGATION_STATUSES, RESOLVED_ATTENTION_STATUSES } from "./qualityGateEngine.js";
 import { logger } from "../../utils/logger.js";
 import type { EventHandler } from "./eventBus.js";
 import type { EventRow } from "../../dblayer/seuTypes.js";
@@ -26,6 +26,18 @@ export const deliverableKickoffHandler: EventHandler = async (event: EventRow) =
   if (event.event_type === "ObligationTransitioned") {
     const payload = event.payload as { toState?: string } | null;
     if (!payload?.toState || !RESOLVED_OBLIGATION_STATUSES.has(payload.toState)) return;
+  }
+  // Owner: "Participants transition the attention items and provide evidence
+  // etc. There should be AttentionTransition that should be published and
+  // the execution engine handler should be the subscriber (same handler as
+  // the ObligationTransitioned)" — same blanket rescan, own resolved-status
+  // set (Ch.34 §9's Resolved/Closed, not Obligation's Verified/Closed/Archived).
+  // No related_object_type filter needed here (unlike executionEngineKickoff's
+  // SEU-scoped handler): this rescan is already unconditional per-Deliverable,
+  // exactly as it already is for a resolved ObligationTransitioned.
+  if (event.event_type === "AttentionItemTransitioned") {
+    const payload = event.payload as { toState?: string } | null;
+    if (!payload?.toState || !RESOLVED_ATTENTION_STATUSES.has(payload.toState)) return;
   }
 
   const { data: seu } = await seusDB.findById(event.seu_id);

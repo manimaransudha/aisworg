@@ -73,7 +73,6 @@ export const redispatchHandler: EventHandler = async (event: EventRow) => {
     // Obligation below must be able to re-attempt this exact hop.
     await commandsDB.updateStatus(command.id, "Failed");
     await createObligation({
-      seuId: command.seu_id,
       relatedObjectType: command.entity_type,
       relatedObjectId: command.entity_id,
       category: "Operational",

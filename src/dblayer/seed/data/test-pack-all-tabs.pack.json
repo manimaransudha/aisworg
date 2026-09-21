@@ -95,7 +95,10 @@
         "participant": "human",
         "outputContract": "passed-failed-notes",
         "assurance": "Test-fixture maintainer sign-off.",
-        "externalEvidence": false
+        "externalEvidence": false,
+        "applicabilityDeliverables": [
+          { "name": "SEU", "transitions": ["SEU|Activated|Operational"], "governingCondition": null }
+        ]
       }
     ],
     "authorityRules": [

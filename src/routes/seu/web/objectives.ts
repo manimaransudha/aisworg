@@ -8,6 +8,7 @@ import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess, stashFormInput, takeFormInput } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
+import { renderMarkdown } from "../../../domain/sdk/markdownRender.js";
 import {
   createObjective,
   deleteObjective,
@@ -336,6 +337,7 @@ router.get("/objectives/:id", requireBadge(["None"]), attachVM("seu/objectives/d
     // .alreadySubmitted (getObjectiveDetail) say what's structurally
     // possible; this says whether this specific viewer can act on it.
     req.vm.req.canSubmitObjective = hasObjectiveBadge(detail.submitVerb);
+    req.vm.opt.renderMarkdown = renderMarkdown;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/objectives/detail", req.vm);
   } catch (err) {

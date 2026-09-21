@@ -110,11 +110,11 @@ async function cleanupPriorRuns(): Promise<void> {
     // information_schema query; a later full migration replay correctly
     // dropped it, making this line reference a table that no longer exists.
     // work_items.command_id and commands.governance_outcome_id are both NO
-    // ACTION FKs (migrations 005/234) — must clear both before commands
-    // itself, same discipline as every other table in this chain.
+    // ACTION FKs (migrations 005/234) — work_items go before commands, and
+    // commands go before the governance_evaluation_outcomes they reference.
     await pool.query("DELETE FROM work_items WHERE command_id IN (SELECT id FROM commands WHERE seu_id = ANY($1::uuid[]))", [seuIds]);
-    await pool.query("DELETE FROM governance_evaluation_outcomes WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM commands WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    await pool.query("DELETE FROM governance_evaluation_outcomes WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     // Bug fix (owner: "let us fix the test suite") — capability_fulfilments
     // has no seu_id of its own (only seu_capability_id -> seu_capabilities,
     // participant_id -> participants), so it was never cleared here at all;

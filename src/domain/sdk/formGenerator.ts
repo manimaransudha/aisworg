@@ -383,7 +383,10 @@ function buildItemFields(itemProps: Record<string, JsonSchemaProperty>, itemRequ
 // template, the rest as real content); "referential-multi" keeps its raw
 // array of selected ids as string[]; everything else stays a plain string,
 // unchanged from before this function was extracted.
-type RowValue = string | string[] | Array<Record<string, RowValue>> | Record<string, RowValue>;
+type RowValue = string | string[] | RowValueMap[] | RowValueMap;
+interface RowValueMap {
+  [key: string]: RowValue;
+}
 
 function buildRow(
   row: Record<string, unknown>,

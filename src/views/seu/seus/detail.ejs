@@ -242,39 +242,12 @@
         <%# ---------------------------------------------------------------- Obligations %>
         <div class="<%= paneClass('obligations') %>" id="seu-detail-obligations" role="tabpanel">
           <div class="section-card">
-            <div class="p-3 border-bottom">
-              <form method="POST" action="/aisworg/seu/seus/<%= detail.seu.id %>/obligations" class="row g-2 align-items-center">
-                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <div class="col-auto">
-                  <select name="deliverableId" class="form-select form-select-sm" required>
-                    <option value="" disabled selected>Deliverable&hellip;</option>
-                    <% detail.deliverables.forEach(function(d) { %>
-                      <option value="<%= d.id %>"><%= d.name %></option>
-                    <% }) %>
-                  </select>
-                </div>
-                <div class="col-auto">
-                  <select name="category" class="form-select form-select-sm">
-                    <% ['Engineering','Risk','Compliance','Audit','Security','Operational','Customer','Organisational Learning'].forEach(function(cat) { %>
-                      <option value="<%= cat %>"><%= cat %></option>
-                    <% }) %>
-                  </select>
-                </div>
-                <div class="col-auto">
-                  <input type="text" name="title" class="form-control form-control-sm" placeholder="Title" required style="width: 220px;">
-                </div>
-                <div class="col-auto">
-                  <select name="severity" class="form-select form-select-sm">
-                    <% ['Low','Medium','High','Critical'].forEach(function(sev) { %>
-                      <option value="<%= sev %>" <%= sev === 'Medium' ? 'selected' : '' %>><%= sev %></option>
-                    <% }) %>
-                  </select>
-                </div>
-                <div class="col-auto">
-                  <button type="submit" class="btn btn-sm btn-primary">Create Obligation</button>
-                </div>
-              </form>
-            </div>
+            <%# Owner: "Remove the add form on the SEU detail page. The
+                Participant should have an Obligation form... on a
+                deliverable within the SEU." — manual creation now happens
+                from the Participant's own "My Work" page
+                (quickview/participant.ejs), scoped to their own assigned
+                Deliverables, never here. %>
             <div class="table-responsive">
               <table class="table table-sm mb-0 align-middle">
                 <thead class="table-light"><tr><th>Deliverable</th><th>Title</th><th>Category / Severity</th><th>Status</th><th>Transition</th></tr></thead>
@@ -300,6 +273,12 @@
                           data-created-at="<%= new Date(o.obligation.created_at).toLocaleString() %>"
                           data-updated-at="<%= new Date(o.obligation.updated_at).toLocaleString() %>"
                           data-description="<%= o.obligation.description || '' %>"
+                          data-version="<%= o.obligation.version %>"
+                          data-originating-entity-type="<%= o.obligation.originating_entity_type || '' %>"
+                          data-originating-entity-id="<%= o.obligation.originating_entity_id || '' %>"
+                          data-assigned-entity-type="<%= o.obligation.assigned_entity_type || '' %>"
+                          data-assigned-entity-id="<%= o.obligation.assigned_entity_id || '' %>"
+                          data-id="<%= o.obligation.id %>"
                         ><%= o.obligation.title %></button>
                       </td>
                       <td class="small"><%= o.obligation.category %> &middot; <%= o.obligation.severity %></td>
@@ -706,6 +685,10 @@
                                     <div><strong>Active Obligations:</strong> <%= ec.activeObligations.map(function(o){ return o.title + ' (' + o.status + ')'; }).join(', ') || 'none' %></div>
                                     <div><strong>Open Attention Items:</strong> <%= ec.openAttentionItems.map(function(a){ return a.title; }).join(', ') || 'none' %></div>
                                     <% if (ec.qualityGate) { %><div><strong>Quality Gate:</strong> <%= ec.qualityGate.name %> (<%= ec.qualityGate.outcome %>)</div><% } %>
+                                    <% if ((ec.applicableChecklists || []).length > 0) { %><div><strong>Checklist:</strong> <%= ec.applicableChecklists.map(function(c){ return c.statement; }).join('; ') %></div><% } %>
+                                    <% if ((ec.engineeringCapital || []).length > 0) { %><div><strong>Engineering Capital:</strong> <%= ec.engineeringCapital.map(function(c){ return c.type ? (c.type + (c.url ? ': ' + c.url : '')) : (c.url || ''); }).join(', ') %></div><% } %>
+                                    <% var pc = ec.profileConfiguration || {}; var pcEntries = Object.keys(pc).filter(function(k){ return pc[k] !== undefined && pc[k] !== null && pc[k] !== ''; }); %>
+                                    <% if (pcEntries.length > 0) { %><div><strong>Profile:</strong> <%= pcEntries.map(function(k){ var v = pc[k]; return k + ': ' + (Array.isArray(v) ? v.join('/') : (typeof v === 'object' ? JSON.stringify(v) : v)); }).join(', ') %></div><% } %>
                                   </div>
                                 </details>
                               <% } %>
@@ -936,25 +919,41 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
-          <p class="small text-muted mb-3" id="obligationModalDescription"></p>
+          <%# migration 252 — a pure Revision (no transition, no event; Ch.23
+              §9's governed lifecycle is untouched by this form). Posts to
+              /obligations/:id/revise, which diffs against the live row and
+              appends only the fields that actually changed to
+              revision_history, so a later viewer can still see the old
+              description/severity/priority/completion criteria. %>
+          <form method="POST" id="obligationReviseForm" class="mb-3">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <div class="mb-2">
+              <label class="form-label small text-muted mb-1">Description</label>
+              <textarea class="form-control form-control-sm" name="description" id="obligationModalDescription" rows="2"></textarea>
+            </div>
 
-          <h6 class="text-uppercase text-muted small fw-bold mb-2">Obligation</h6>
-          <table class="table table-sm table-borderless mb-3">
-            <tbody>
-              <tr><th class="text-muted small" style="width: 40%;">Category</th><td class="small" id="obligationModalCategory"></td></tr>
-              <tr><th class="text-muted small">Severity</th><td class="small" id="obligationModalSeverity"></td></tr>
-              <tr><th class="text-muted small">Origin</th><td class="small" id="obligationModalOrigin"></td></tr>
-              <tr><th class="text-muted small">Priority</th><td class="small" id="obligationModalPriority"></td></tr>
-              <tr><th class="text-muted small">Completion Criteria</th><td class="small" id="obligationModalCompletionCriteria"></td></tr>
-              <tr><th class="text-muted small">Related to</th><td class="small" id="obligationModalRelated"></td></tr>
-            </tbody>
-          </table>
+            <h6 class="text-uppercase text-muted small fw-bold mb-2">Obligation</h6>
+            <table class="table table-sm table-borderless mb-1">
+              <tbody>
+                <tr><th class="text-muted small" style="width: 40%;">Category</th><td class="small" id="obligationModalCategory"></td></tr>
+                <tr><th class="text-muted small">Severity</th><td class="small"><input type="text" class="form-control form-control-sm" name="severity" id="obligationModalSeverity"></td></tr>
+                <tr><th class="text-muted small">Origin</th><td class="small" id="obligationModalOrigin"></td></tr>
+                <tr><th class="text-muted small">Priority</th><td class="small"><input type="text" class="form-control form-control-sm" name="priority" id="obligationModalPriority"></td></tr>
+                <tr><th class="text-muted small">Completion Criteria</th><td class="small"><textarea class="form-control form-control-sm" name="completionCriteria" id="obligationModalCompletionCriteria" rows="2"></textarea></td></tr>
+                <tr><th class="text-muted small">Related to</th><td class="small" id="obligationModalRelated"></td></tr>
+              </tbody>
+            </table>
+            <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+          </form>
 
           <h6 class="text-uppercase text-muted small fw-bold mb-2">Execution State</h6>
           <table class="table table-sm table-borderless mb-0">
             <tbody>
               <tr><th class="text-muted small" style="width: 40%;">Status</th><td class="small" id="obligationModalStatus"></td></tr>
+              <tr><th class="text-muted small">Version</th><td class="small" id="obligationModalVersion"></td></tr>
               <tr id="obligationModalBlockedRow"><th class="text-muted small">Blocking</th><td class="small" id="obligationModalBlocked"></td></tr>
+              <tr><th class="text-muted small">Originating entity</th><td class="small" id="obligationModalOriginatingEntity"></td></tr>
+              <tr><th class="text-muted small">Assigned to</th><td class="small" id="obligationModalAssignedEntity"></td></tr>
               <tr><th class="text-muted small">Created</th><td class="small" id="obligationModalCreatedAt"></td></tr>
               <tr><th class="text-muted small">Last updated</th><td class="small" id="obligationModalUpdatedAt"></td></tr>
             </tbody>
@@ -972,16 +971,22 @@
         if (!btn) return;
         var get = function (name) { return btn.getAttribute('data-' + name) || ''; };
         document.getElementById('obligationModalTitle').textContent = get('title');
-        document.getElementById('obligationModalDescription').textContent = get('description') || '(no description)';
+        document.getElementById('obligationModalDescription').value = get('description');
         document.getElementById('obligationModalCategory').textContent = get('category') || '—';
-        document.getElementById('obligationModalSeverity').textContent = get('severity') || '—';
+        document.getElementById('obligationModalSeverity').value = get('severity');
         document.getElementById('obligationModalOrigin').textContent = get('origin') || '—';
-        document.getElementById('obligationModalPriority').textContent = get('priority') || '—';
-        document.getElementById('obligationModalCompletionCriteria').textContent = get('completion-criteria') || '—';
+        document.getElementById('obligationModalPriority').value = get('priority');
+        document.getElementById('obligationModalCompletionCriteria').value = get('completion-criteria');
         document.getElementById('obligationModalRelated').textContent = get('related') || '—';
+        document.getElementById('obligationReviseForm').action = '/aisworg/seu/seus/<%= detail.seu.id %>/obligations/' + get('id') + '/revise';
         document.getElementById('obligationModalStatus').textContent = get('status');
+        document.getElementById('obligationModalVersion').textContent = get('version') || '1';
         document.getElementById('obligationModalCreatedAt').textContent = get('created-at');
         document.getElementById('obligationModalUpdatedAt').textContent = get('updated-at');
+        var originatingType = get('originating-entity-type'), originatingId = get('originating-entity-id');
+        document.getElementById('obligationModalOriginatingEntity').textContent = originatingType ? (originatingType + (originatingId ? ' (' + originatingId + ')' : '')) : '—';
+        var assignedType = get('assigned-entity-type'), assignedId = get('assigned-entity-id');
+        document.getElementById('obligationModalAssignedEntity').textContent = assignedType ? (assignedType + (assignedId ? ' (' + assignedId + ')' : '')) : 'Unassigned';
         var blockedFrom = get('blocked-from'), blockedTo = get('blocked-to');
         var blockedRow = document.getElementById('obligationModalBlockedRow');
         if (blockedTo) {

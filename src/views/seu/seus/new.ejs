@@ -108,9 +108,9 @@
         <form method="POST" action="/aisworg/seu/objectives/<%= fromObjective.objective.id %>/validate-commission">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <div class="d-flex align-items-center justify-content-between gap-3 mb-3" style="position: sticky; top: 0; z-index: 10; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); padding: .85rem 1.25rem;">
-            <span class="small text-muted">Choose one Profile below, then Queue to Validate.</span>
+            <span class="small text-muted">Choose one Profile below, then Submit.</span>
             <div class="d-flex gap-2 flex-shrink-0">
-              <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-clipboard-check me-1"></i>Queue to Validate</button>
+              <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-clipboard-check me-1"></i>Submit</button>
               <a href="/aisworg/seu/objectives/<%= fromObjective.objective.id %>" class="btn btn-link text-muted btn-sm">Cancel</a>
             </div>
           </div>

@@ -1044,6 +1044,24 @@
                                   <option value="<%= nestedValue %>" selected>&#9888; <%= nestedValue %> (not currently active)</option>
                                 <% } %>
                               </select>
+                            <% } else if (nestedField.kind === 'referential') { %>
+                              <%# Pack Obligation Definition's own applicabilityDeliverables[].name
+                                  (migration 249) — a plain, fixed, non-ontology
+                                  single-select at this same depth Policy's own
+                                  applicabilityDeliverables[].name sits at, but a
+                                  Pack has no `scope` field to switch on (it is
+                                  never Deliverable-targeted), so this is a real,
+                                  always-noun-sourced field, not a scope-driven
+                                  one — same flat referentialOptions map the
+                                  itemField-level 'referential' branch already
+                                  reads (line ~1339 above), one level deeper. %>
+                              <% var _nestedRefOpts = (locals.referentialOptions || {})[nestedField.referentialSource] || []; %>
+                              <select name="<%= nestedInputName %>" class="form-select form-select-sm" <%- canEdit ? '' : 'disabled' %> <%- nestedRequired ? 'required' : '' %>>
+                                <option value="">— <%= nestedLabel %> —</option>
+                                <% _nestedRefOpts.forEach(function(opt) { %>
+                                  <option value="<%= opt %>" <%= nestedValue === opt ? 'selected' : '' %>><%= opt %></option>
+                                <% }) %>
+                              </select>
                             <% } else if (nestedField.kind === 'boolean') { %>
                               <div class="form-check mt-1">
                                 <input type="checkbox" class="form-check-input" name="<%= nestedInputName %>" value="true" <%= nestedValue === 'true' ? 'checked' : '' %> <%- canEdit ? '' : 'disabled' %>>

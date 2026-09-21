@@ -17,7 +17,7 @@ import { replaceParticipant } from "../core/participants.js";
 import { transitionDeliverable } from "../core/deliverables.js";
 import { transitionEbm } from "../core/commissioning.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
-import { createObligation, transitionObligation } from "../core/obligations.js";
+import { transitionObligation, reviseObligation } from "../core/obligations.js";
 import { createAttentionItem, transitionAttentionItem } from "../core/attentionItems.js";
 import { createEvidence, transitionEvidence, linkEvidenceToObject, recordValidationAssessment } from "../core/evidence.js";
 import { createKnowledgeItem, promoteKnowledgeItemScope, transitionKnowledgeItem } from "../core/knowledge.js";
@@ -317,25 +317,6 @@ router.post("/seus/:id/ebm/transition", async (req: Request, res: Response) => {
   }
 });
 
-/** POST /aisworg/seu/seus/:id/obligations — Ch.23: create an Obligation against a Deliverable. */
-router.post("/seus/:id/obligations", async (req: Request, res: Response) => {
-  const seuId = String(req.params.id);
-  const backTo = `/aisworg/seu/seus/${seuId}`;
-  const { deliverableId, category, title, description, severity } = req.body ?? {};
-
-  if (typeof deliverableId !== "string" || !deliverableId.trim() || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
-    return flashError(req, res, backTo, "Deliverable, category and title are required.");
-  }
-
-  try {
-    const obligation = await createObligation({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category, title, description, severity });
-    return flashSuccess(req, res, backTo, `Obligation "${obligation.title}" created (${obligation.category}, ${obligation.severity}).`);
-  } catch (err) {
-    logger.error("[web/seu/seus] POST /seus/:id/obligations error", err as Error);
-    return flashError(req, res, backTo, (err as Error).message);
-  }
-});
-
 /** POST /aisworg/seu/seus/:id/obligations/:obligationId/transition — Ch.23 §9 lifecycle. */
 router.post("/seus/:id/obligations/:obligationId/transition", async (req: Request, res: Response) => {
   const seuId = String(req.params.id);
@@ -360,6 +341,32 @@ router.post("/seus/:id/obligations/:obligationId/transition", async (req: Reques
     return flashSuccess(req, res, backTo, `Obligation moved from "${result.appliedTransition.fromState}" to "${result.appliedTransition.toState}".`);
   } catch (err) {
     logger.error("[web/seu/seus] POST /seus/:id/obligations/:obligationId/transition error", err as Error);
+    return flashError(req, res, backTo, (err as Error).message);
+  }
+});
+
+/** POST /aisworg/seu/seus/:id/obligations/:obligationId/revise — Ch.23, migration 252: a pure Revision (no transition, no event) — the Save button on the Obligation modal. */
+router.post("/seus/:id/obligations/:obligationId/revise", async (req: Request, res: Response) => {
+  const seuId = String(req.params.id);
+  const backTo = `/aisworg/seu/seus/${seuId}`;
+  const { title, description, category, severity, priority, completionCriteria, assignedEntityType, assignedEntityId } = req.body ?? {};
+
+  try {
+    await reviseObligation({
+      obligationId: String(req.params.obligationId),
+      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      title: typeof title === "string" ? title : undefined,
+      description: typeof description === "string" ? description : undefined,
+      category: typeof category === "string" ? category : undefined,
+      severity: typeof severity === "string" ? severity : undefined,
+      priority: typeof priority === "string" ? priority : undefined,
+      completionCriteria: typeof completionCriteria === "string" ? completionCriteria : undefined,
+      assignedEntityType: typeof assignedEntityType === "string" ? assignedEntityType : undefined,
+      assignedEntityId: typeof assignedEntityId === "string" ? assignedEntityId : undefined,
+    });
+    return flashSuccess(req, res, backTo, "Obligation saved.");
+  } catch (err) {
+    logger.error("[web/seu/seus] POST /seus/:id/obligations/:obligationId/revise error", err as Error);
     return flashError(req, res, backTo, (err as Error).message);
   }
 });

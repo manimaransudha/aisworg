@@ -1147,56 +1147,50 @@ The Authority subsystem shall publish:
 ### 1. Entity Overview
 - **Chapter:** [Chapter 23.md](file:///Volumes/Chennai/gitrepo/aisworg/design/foundations/03_Book 3 (Refined)/04_Part 4/Chapter 23.md)
 
-### 2. Lifecycle States & Transitions
+### 2. Lifecycle States & Transitions (built, migration 252)
 
-Every Obligation shall transition through the following lifecycle.
+Every Obligation shall transition through the following lifecycle. Closure shall require verification — no `Resolved→Closed` or `In Progress→Closed` row exists.
 
-```
-Identified
+| Row | Transition | Domain event | Version event |
+|---|---|---|---|
+| 1 Create | — (Identified is the initial state) | `ObligationCreated` | — (Revision) |
+| 2 Analyse | Identified → Analysed | `ObligationUpdated` | `VersionCreated` |
+| 3 Assign | Analysed → Assigned | `ObligationAssigned` | `VersionCreated` |
+| 4 Begin work | Assigned → In Progress | `ObligationProcessing` | `VersionCreated` |
+| 5 Resolve | In Progress → Resolved | `ObligationResolved` | `VersionCreated` |
+| 6 Verify | Resolved → Verified | `ObligationVerified` | `VersionCreated` |
+| 7 Close | Verified → Closed | `ObligationClosed` | `VersionCreated` |
+| 8 Archive | Closed → Archived | `ObligationArchived` | `VersionCreated` |
+| 9 Reopen | Closed → Reopened | `ObligationReopened` | `VersionCreated` |
+| 10 Resume after reopen | Reopened → In Progress | `ObligationProcessing` | `VersionCreated` |
+| 11 Escalate | {Identified, Analysed, Assigned, In Progress, Resolved, Verified} → Escalated | `ObligationEscalated` | `VersionCreated` |
 
-↓
+Rows 2–11 also publish the generic `ObligationTransitioned` (`fromState`/`toState` payload) alongside their own named event — owner, explicit: this fires on every hop in addition to, never instead of, the named event.
 
-Analysed
+Every real transition is `VersionCreated` (owner: "reopened is equivalent to created", generalised to every hop) rather than a position/name match against Ch.41 §15's 7-item Version vocabulary — that vocabulary was built for a Draft→Validated→Published→Active→Deprecated→Superseded→Archived authoring chain and doesn't fit an 11-hop execution-with-verification lifecycle without forcing wrong names (e.g. `VersionDeprecated` onto `Verified→Closed`).
 
-↓
+Row 11's own trigger conditions (Ch.23 §14: severity, prolonged unresolved state, repeated verification failures, approaching milestones, dependency impact) are not built — this row only wires the state and event; nothing raises it automatically yet (same "row exists, driving logic deferred" pattern as Ontology's own CR-097 rows).
 
-Assigned
-
-↓
-
-In Progress
-
-↓
-
-Resolved
-
-↓
-
-Verified
-
-↓
-
-Closed
-
-↓
-
-Archived
-```
-
-Closure shall require verification.
+A plain field edit (title/description/category/severity/priority/completion criteria/assignment) is a pure Revision — no transition, no event of any kind — but is not untraceable: `obligations.revision_history` (JSONB, append-only, migration 252) records the old value of every field a Revision actually changes, written only by the revise/save path, never by a transition.
 
 ### 3. Subsystem Events
 
-The Obligation subsystem shall publish:
+The Obligation subsystem shall publish (built column added, migration 252):
 
-- ObligationCreated
-- ObligationAssigned
-- ObligationUpdated
-- ObligationResolved
-- ObligationVerified
-- ObligationClosed
-- ObligationEscalated
-- ObligationReopened
+| Event | Built? |
+|---|---|
+| ObligationCreated | ✅ |
+| ObligationAssigned | ✅ |
+| ObligationUpdated | ✅ (Identified→Analysed hop) |
+| ObligationResolved | ✅ |
+| ObligationVerified | ✅ |
+| ObligationClosed | ✅ |
+| ObligationEscalated | ✅ (state + event wired; trigger logic deferred) |
+| ObligationReopened | ✅ |
+| ObligationTransitioned *(not named by §15)* | ✅ generic, fires on every hop alongside the named event above |
+| ObligationProcessing *(not named by §15)* | ✅ (Assigned→In Progress, Reopened→In Progress) |
+| ObligationArchived *(not named by §15)* | ✅ (Closed→Archived) |
+| SustainedPatternDetected *(not named by §15)* | ✅ (`telemetry.ts`) |
 
 ---
 

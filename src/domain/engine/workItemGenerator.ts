@@ -11,11 +11,13 @@
 // execution_context, same as before this design.
 //
 // governance_outcome_id (CR-109 §6.1/§6.2) is read here, not re-derived:
-// constraints/activeObligations come off the Governance Evaluation Outcome
-// executionEngine.execute() already persisted, per §6.3's own field mapping
-// — everything else (objective, input/output location, Decisions/Evidence/
-// Knowledge) is resolved fresh against the Deliverable, since none of that
-// was ever Governance's concern to decide.
+// governingPolicies/applicableAuthority/openAttentionItems/qualityGate come
+// off the Governance Evaluation Outcome executionEngine.execute() already
+// persisted, per §6.3's own field mapping — everything else (objective,
+// input/output location, Decisions/Evidence/Knowledge, and — CR-108
+// follow-on — Obligations/Checklists/Engineering Capital/Profile
+// Configuration) is resolved fresh against the Deliverable, since none of
+// that was ever Governance's concern to decide.
 import { workItemsDB } from "../../dblayer/workItemsDB.js";
 import { deliverablesDB } from "../../dblayer/deliverablesDB.js";
 import { seusDB } from "../../dblayer/seusDB.js";
@@ -42,20 +44,90 @@ interface KnowledgeLocationEntry {
   outputLocation?: string;
 }
 
+// Local mirror of profileCompositionUnravel.ts's own PoolEntry/PoolSource
+// shape (not imported — dblayer's own EbmRow.behaviors is deliberately typed
+// loosely for the same reason, seuTypes.ts's own comment on that field).
+interface PoolEntry {
+  propertyName: string;
+  value: unknown;
+  source?: { code?: string };
+}
+
+async function loadEbmPool(seuId: string): Promise<PoolEntry[]> {
+  const { data: seu } = await seusDB.findById(seuId);
+  if (!seu?.active_ebm_id) return [];
+  const { data: ebm } = await ebmsDB.findById(seu.active_ebm_id);
+  return (ebm?.behaviors as { pool?: PoolEntry[] } | null)?.pool ?? [];
+}
+
 // Migration 229/profileCompositionUnravel.ts — one {deliverableCode |
 // capabilityCode, inputLocation, outputLocation} entry per Deliverable/
 // Capability that needs one, carried on the EBM's own behaviors.pool. Keyed
 // by canonical Ontology codes (migration 236's own header: labels/names are
 // never canonical — deliverable.name is a resolved display label, not a
 // join key), so this matches against deliverable.code, not deliverable.name.
-async function resolveKnowledgeLocation(seuId: string, deliverableCode: string | null, capabilityCode: string | null): Promise<{ inputLocation: string | null; outputLocation: string | null }> {
-  const { data: seu } = await seusDB.findById(seuId);
-  if (!seu?.active_ebm_id) return { inputLocation: null, outputLocation: null };
-  const { data: ebm } = await ebmsDB.findById(seu.active_ebm_id);
-  const pool = (ebm?.behaviors as { pool?: Array<{ propertyName: string; value: unknown }> } | null)?.pool ?? [];
+function resolveKnowledgeLocation(pool: PoolEntry[], deliverableCode: string | null, capabilityCode: string | null): { inputLocation: string | null; outputLocation: string | null } {
   const entries = (pool.find((e) => e.propertyName === "knowledgeLocations")?.value as KnowledgeLocationEntry[] | undefined) ?? [];
   const match = (deliverableCode ? entries.find((e) => e.deliverableCode === deliverableCode) : undefined) ?? (capabilityCode ? entries.find((e) => e.capabilityCode === capabilityCode) : undefined);
   return { inputLocation: match?.inputLocation ?? null, outputLocation: match?.outputLocation ?? null };
+}
+
+// Owner: "Engineering Capital and Checklists are part of a pack which shows
+// contributing capability. If deliverable corresponds to the capability, it
+// gets included in the workitem." Every pool entry a composed Pack
+// contributes (its own Capability code included) carries that Pack's own
+// code as source.code (profileCompositionUnravel.ts) — no new link needed,
+// just matching on data the pool already carries: find which Pack(s)
+// contributed this Deliverable's own producing Capability code, then collect
+// those same Packs' checklistItem::/engineeringCapital:: entries.
+function resolvePackContributedContent(pool: PoolEntry[], capabilityCode: string | null): { applicableChecklists: WorkItemExecutionContext["applicableChecklists"]; engineeringCapital: WorkItemExecutionContext["engineeringCapital"] } {
+  if (!capabilityCode) return { applicableChecklists: [], engineeringCapital: [] };
+  const contributingPackCodes = new Set(
+    pool.filter((e) => e.propertyName === capabilityCode && e.source?.code).map((e) => e.source!.code!)
+  );
+  if (contributingPackCodes.size === 0) return { applicableChecklists: [], engineeringCapital: [] };
+
+  const applicableChecklists: WorkItemExecutionContext["applicableChecklists"] = [];
+  const engineeringCapital: WorkItemExecutionContext["engineeringCapital"] = [];
+  for (const entry of pool) {
+    const packCode = entry.source?.code;
+    if (!packCode || !contributingPackCodes.has(packCode)) continue;
+    if (entry.propertyName.startsWith("checklistItem::")) {
+      // packCode comes off the entry's own source.code (reliable); checklistName
+      // is the 3rd "::" segment — same convention ebm.ejs's own view already
+      // established (safe even if the trailing JSON blob itself contains "::").
+      const checklistName = entry.propertyName.split("::")[2];
+      const item = entry.value as { statement?: string };
+      if (item?.statement) applicableChecklists.push({ packCode, checklistName: checklistName ?? "", statement: item.statement });
+    } else if (entry.propertyName.startsWith("engineeringCapital::")) {
+      const ec = entry.value as { type?: string; url?: string };
+      engineeringCapital.push({ packCode, type: ec?.type, url: ec?.url });
+    }
+  }
+  return { applicableChecklists, engineeringCapital };
+}
+
+// Owner: "The relevant profile configuration parameters have to be in the
+// work item. Like methodology, environment etc. dispatch_strategy is not
+// relevant to a participant." Only the fields that describe how the work
+// should actually be done — never Execution/Dispatch Engine or
+// EBM-composition mechanics (dispatchStrategyPreference, redispatch*,
+// compositionOptions, featureFlagCodes, additionalCapabilityCodes), which
+// this Participant never acts on directly.
+const PROFILE_CONFIGURATION_KEYS = [
+  "developmentMethodology", "environment", "primaryProgrammingLanguage", "sourceControlProvider",
+  "targetCloudProvider", "deploymentStrategy", "aiProviderPreference", "defaultRepositoryStructure",
+  "documentationLevel", "readme", "domain", "participatingOrganisationCodes",
+  "environmentConfiguration", "deploymentTargets",
+] as const;
+
+function resolveProfileConfiguration(pool: PoolEntry[]): WorkItemExecutionContext["profileConfiguration"] {
+  const configuration: WorkItemExecutionContext["profileConfiguration"] = {};
+  for (const key of PROFILE_CONFIGURATION_KEYS) {
+    const entry = pool.find((e) => e.propertyName === key);
+    if (entry !== undefined && entry.value !== undefined && entry.value !== null) (configuration as Record<string, unknown>)[key] = entry.value;
+  }
+  return configuration;
 }
 
 async function buildDeliverableExecutionContext(command: CommandRow): Promise<WorkItemExecutionContext | null> {
@@ -63,32 +135,40 @@ async function buildDeliverableExecutionContext(command: CommandRow): Promise<Wo
   if (!deliverable) return null;
 
   const service = deliverable.producing_capability_id ? (await capabilitiesDB.findById(deliverable.producing_capability_id)).data ?? null : null;
-  const { inputLocation, outputLocation } = await resolveKnowledgeLocation(command.seu_id, deliverable.code, service?.code ?? null);
+  const pool = await loadEbmPool(command.seu_id);
+  const { inputLocation, outputLocation } = resolveKnowledgeLocation(pool, deliverable.code, service?.code ?? null);
+  const { applicableChecklists, engineeringCapital } = resolvePackContributedContent(pool, service?.code ?? null);
+  const profileConfiguration = resolveProfileConfiguration(pool);
 
-  const [{ data: decisions }, { data: evidence }, { data: knowledge }] = await Promise.all([
+  // Owner: "all associated with the deliverable" — activeObligations is
+  // every Obligation raised against this Deliverable (open or resolved),
+  // the same unscoped findByRelatedObject query relevantDecisions/
+  // supportingEvidence/relevantKnowledge already use below, not just the
+  // ones a specific Governance Evaluation Outcome happened to consult for
+  // one particular transition attempt.
+  const [{ data: decisions }, { data: evidence }, { data: knowledge }, { data: allObligations }] = await Promise.all([
     decisionsDB.findByRelatedObject("Deliverable", deliverable.id),
     evidenceDB.findByRelatedObject("Deliverable", deliverable.id),
     knowledgeItemsDB.findByDeliverableId(deliverable.id),
+    obligationsDB.findByRelatedObject("Deliverable", deliverable.id),
   ]);
+  const activeObligations: WorkItemExecutionContext["activeObligations"] = (allObligations ?? []).map((o) => ({ id: o.id, title: o.title, status: o.status }));
 
   let governingPolicies: WorkItemExecutionContext["governingPolicies"] = [];
   let applicableAuthority: WorkItemExecutionContext["applicableAuthority"] = null;
-  let activeObligations: WorkItemExecutionContext["activeObligations"] = [];
   let openAttentionItems: WorkItemExecutionContext["openAttentionItems"] = [];
   let qualityGate: WorkItemExecutionContext["qualityGate"] = null;
 
   if (command.governance_outcome_id) {
     const { data: outcome } = await governanceEvaluationOutcomesDB.findById(command.governance_outcome_id);
     if (outcome) {
-      const [{ data: policies }, authorityRule, obligations, attentionItems] = await Promise.all([
+      const [{ data: policies }, authorityRule, attentionItems] = await Promise.all([
         policiesDB.findByIds(outcome.satisfied_policy_ids),
         outcome.applicable_authority_rule_id ? authorityRulesDB.findById(outcome.applicable_authority_rule_id) : Promise.resolve({ data: null }),
-        Promise.all(outcome.consulted_obligation_ids.map((id) => obligationsDB.findById(id))),
         Promise.all(outcome.open_attention_item_ids.map((id) => attentionItemsDB.findById(id))),
       ]);
       governingPolicies = (policies ?? []).map((p) => ({ id: p.id, code: p.code, name: p.name }));
       applicableAuthority = authorityRule?.data ? { ruleId: authorityRule.data.id, code: authorityRule.data.code } : null;
-      activeObligations = obligations.map((o) => o.data).filter((o): o is NonNullable<typeof o> => !!o).map((o) => ({ id: o.id, title: o.title, status: o.status }));
       openAttentionItems = attentionItems.map((a) => a.data).filter((a): a is NonNullable<typeof a> => !!a).map((a) => ({ id: a.id, title: a.title, status: a.status }));
       if (outcome.quality_gate_id && outcome.quality_gate_outcome) {
         const { data: gates } = await qualityGatesDB.findByIds([outcome.quality_gate_id]);
@@ -112,6 +192,9 @@ async function buildDeliverableExecutionContext(command: CommandRow): Promise<Wo
     activeObligations,
     openAttentionItems,
     qualityGate,
+    applicableChecklists,
+    engineeringCapital,
+    profileConfiguration,
   };
 }
 

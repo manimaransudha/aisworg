@@ -83,7 +83,6 @@ test("Quality Gate blocks a Deliverable transition while an Obligation is unreso
   assert.equal(toInProgress.ok, true, !toInProgress.ok ? JSON.stringify(toInProgress) : undefined);
 
   const obligation = await createObligation({
-    seuId,
     relatedObjectType: "Deliverable",
     relatedObjectId: requirementsSpec.id,
     category: "Security",
@@ -120,7 +119,7 @@ test("Obligation lifecycle runs through the generic transitionEngine (Ch.23 §9)
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec);
 
-  const obligation = await createObligation({ seuId, relatedObjectType: "Deliverable", relatedObjectId: requirementsSpec.id, category: "Compliance", title: "Phase4 test: lifecycle walk", severity: "Medium" });
+  const obligation = await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: requirementsSpec.id, category: "Compliance", title: "Phase4 test: lifecycle walk", severity: "Medium" });
 
   // Skipping straight from Identified to Assigned has no Transition Definition.
   const invalid = await transitionObligation({ obligationId: obligation.id, targetState: "Assigned", actorRole: "super", actorId: "1001" });

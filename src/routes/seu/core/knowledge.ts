@@ -249,13 +249,15 @@ export async function promoteKnowledgeItemScope(input: { knowledgeItemId: string
   // this raises. Attached to the Knowledge Item's own originating
   // Deliverable, the only FK Obligation supports (Phase 4 scope).
   const obligation = await createObligation({
-    seuId: knowledgeItem.seu_id,
     relatedObjectType: "Deliverable",
     relatedObjectId: knowledgeItem.deliverable_id,
     category: "Organisational Learning",
     title: `Codify "${knowledgeItem.title}" now that it is ${input.targetScope}-scoped Engineering Capital`,
     description: `Knowledge Item ${knowledgeItem.id} was promoted from ${fromScope} to ${input.targetScope} Acquisition Scope. Ch.16 §13: understanding at this scope should be formally codified into a Capability, Service or Policy rather than left as a queryable Knowledge Item.`,
     severity: PROMOTION_SEVERITY[input.targetScope],
+    origin: "Telemetry and Knowledge Model",
+    originatingEntityType: "Knowledge",
+    originatingEntityId: knowledgeItem.id,
   });
 
   return { ok: true, knowledgeItem: updated, appliedTransition: { fromState: fromScope, toState: input.targetScope }, obligation };

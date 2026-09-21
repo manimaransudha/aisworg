@@ -30,6 +30,8 @@ import { qualityGatesDB } from "../../../dblayer/qualityGatesDB.js";
 import { reviewGatesDB } from "../../../dblayer/reviewGatesDB.js";
 import { checklistsDB } from "../../../dblayer/checklistsDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
+import { listActiveNouns } from "./authorityVocabulary.js";
+import { listTransitionsForEntityType } from "./policyDefinitions.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
@@ -584,6 +586,11 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
   // nothing cross-references one by id (unlike Checklist/Policy), so this
   // stays declaration-only validation, no materializeContributions upsert.
   const seenObligationCodes = new Set<string>();
+  // Migration 249 — applicabilityDeliverables reuses Policy's own
+  // scope=Eligibility vocabulary exactly (validateConditions,
+  // policyDefinitions.ts): a Pack never knows Deliverable identity, so name
+  // is always a real Authority Vocabulary noun, never a Deliverable name.
+  const validNouns = new Set((await listActiveNouns()).map((n) => n.code));
   for (const ob of seed.contributions.obligationDefinitions ?? []) {
     if (!ob.code?.trim()) errors.push("obligation definition is missing a code");
     else if (seenObligationCodes.has(ob.code)) errors.push(`duplicate obligation definition code within Pack: "${ob.code}"`);
@@ -598,6 +605,22 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
         await assertCanonicalCategory("category:obligation-origin", ob.origin, ontologyViewer);
       } catch (err) {
         errors.push((err as Error).message);
+      }
+    }
+    for (const [d, row] of (ob.applicabilityDeliverables ?? []).entries()) {
+      const dLabel = `obligation definition "${ob.code ?? "?"}" applicabilityDeliverables ${d + 1}`;
+      if (!row.name?.trim()) {
+        errors.push(`${dLabel}: name is required`);
+        continue;
+      }
+      if (!validNouns.has(row.name)) {
+        errors.push(`${dLabel}: name "${row.name}" is not one of this platform's real active Authority Vocabulary nouns (${[...validNouns].join(", ")})`);
+      }
+      if (row.transitions.length) {
+        const validTransitions = new Set(await listTransitionsForEntityType(row.name));
+        for (const transition of row.transitions) {
+          if (!validTransitions.has(transition)) errors.push(`${dLabel}: transition "${transition}" is not one of ${row.name}'s real transitions (${[...validTransitions].join(", ")})`);
+        }
       }
     }
   }

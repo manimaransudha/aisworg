@@ -72,7 +72,7 @@ test("Quality Telemetry: rework rate distinguishes a first-try pass from a genui
   const reworked = await commissionAndFulfilRequirementsSpec("quality-telemetry-reworked");
   await attachAcceptedEvidence(reworked.seuId, reworked.deliverableId);
   await transitionDeliverable({ deliverableId: reworked.deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
-  const obligation = await createObligation({ seuId: reworked.seuId, relatedObjectType: "Deliverable", relatedObjectId: reworked.deliverableId, category: "Engineering", title: "Quality telemetry rework test obligation" });
+  const obligation = await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: reworked.deliverableId, category: "Engineering", title: "Quality telemetry rework test obligation" });
   const blocked = await transitionDeliverable({ deliverableId: reworked.deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
   assert.equal(blocked.ok, false);
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {

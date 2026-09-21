@@ -94,7 +94,6 @@ test("transitionEngine.evaluate itself enforces an authored Transition Definitio
   assert.equal(beforeObligation.allowed, true);
 
   const obligation = await createObligation({
-    seuId,
     relatedObjectType: "AttentionItem",
     relatedObjectId: attentionItem.id,
     category: "Engineering",

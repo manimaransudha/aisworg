@@ -10,7 +10,8 @@ import { workItemsDB } from "../../../dblayer/workItemsDB.js";
 import { badgeGrantsDB } from "../../../dblayer/badgeGrantsDB.js";
 import { getSeuDetailView, type SeuDetailView } from "./seus.js";
 import { completeWorkItem, type CompleteWorkItemResult, type WorkItemOutcome } from "./workItems.js";
-import type { ParticipantMasterRow, ParticipantRow } from "../../../dblayer/seuTypes.js";
+import { createObligation } from "./obligations.js";
+import type { ObligationRow, ParticipantMasterRow, ParticipantRow } from "../../../dblayer/seuTypes.js";
 
 export type ParticipantScopedSeuView = Omit<SeuDetailView, "capabilities" | "participantTypes" | "requiredTechnologyPacks" | "requiredDomainPacks" | "evidenceSupersedeCandidates">;
 
@@ -86,6 +87,8 @@ async function scopeToParticipant(detail: SeuDetailView, participantId: string, 
     decisions,
     externalInteractions,
     events,
+    blockedTransition: detail.blockedTransition,
+    attentionItems: detail.attentionItems.filter((a) => a.attentionItem.related_object_id != null && relevantObjectIds.has(a.attentionItem.related_object_id)),
   };
 }
 
@@ -131,4 +134,60 @@ export async function completeMyWorkItem(input: { userId: number; workItemId: st
   }
 
   return completeWorkItem({ workItemId: input.workItemId, outcome: input.outcome, reference: input.reference });
+}
+
+// Owner: "Remove the add form on the SEU detail page. The Participant
+// should have an Obligation form... the obligation has to be on the SEU
+// that the participant is assigned to, on a deliverable within the SEU. And
+// the condition, evidence required - whatever is relevant from an execution
+// side" — settled to: Category/Title/Description/Severity/governing
+// Condition, no evidence field, no origin label (owner, final). "Governing
+// Condition" here is authored free text, stored on the existing
+// `completionCriteria` column (Ch.23 §8) — no schema change; it is not the
+// structured {type,field,operator,value} rule migration 250 added to Pack's
+// own Obligation Definitions, which stays a Definition-side-only concept.
+// Same ownership re-check discipline as completeMyWorkItem above: the
+// Deliverable must be one this caller's own participants_master identity is
+// actually assigned to within this SEU (same myDeliverableIds derivation
+// scopeToParticipant already uses), never trusted off the form alone.
+export type RaiseMyObligationResult = { ok: true; obligation: ObligationRow } | { ok: false; reason: "not_mine"; detail: string };
+
+export async function raiseMyObligation(input: {
+  userId: number;
+  seuId: string;
+  deliverableId: string;
+  category: string;
+  title: string;
+  description?: string;
+  severity?: string;
+  completionCriteria?: string;
+}): Promise<RaiseMyObligationResult> {
+  const { data: master } = await participantsMasterDB.findByUserId(input.userId);
+  if (!master) return { ok: false, reason: "not_mine", detail: "No Participant identity is registered for your account." };
+
+  const { data: engagementRows } = await participantsDB.findByParticipantMasterId(master.id);
+  const engagement = (engagementRows ?? []).find((p) => p.seu_id === input.seuId);
+  if (!engagement) return { ok: false, reason: "not_mine", detail: "You are not a Participant on this SEU." };
+
+  const { data: commands } = await commandsDB.findBySeuId(input.seuId);
+  const { data: workItems } = await workItemsDB.findByCommandIds((commands ?? []).map((c) => c.id));
+  const myCommandIds = new Set((workItems ?? []).filter((w) => w.participant_id === engagement.id).map((w) => w.command_id));
+  const myDeliverableIds = new Set((commands ?? []).filter((c) => myCommandIds.has(c.id) && c.entity_type === "Deliverable").map((c) => c.entity_id));
+  if (!myDeliverableIds.has(input.deliverableId)) {
+    return { ok: false, reason: "not_mine", detail: "This Deliverable is not assigned to you." };
+  }
+
+  const obligation = await createObligation({
+    relatedObjectType: "Deliverable",
+    relatedObjectId: input.deliverableId,
+    category: input.category,
+    title: input.title,
+    description: input.description,
+    severity: input.severity,
+    completionCriteria: input.completionCriteria,
+    origin: "Participants",
+    originatingEntityType: "Participant",
+    originatingEntityId: engagement.id,
+  });
+  return { ok: true, obligation };
 }

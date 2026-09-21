@@ -31,6 +31,7 @@ import { appConfig } from "../src/config/appconfig.js";
 import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
+import { createObligation } from "../src/routes/seu/core/obligations.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
 import { publishProfile } from "../src/routes/seu/core/profiles.js";
 import { commissionSeu as commissionSeuCore } from "../src/routes/seu/core/commissioning.js";
@@ -365,22 +366,6 @@ function findAssignedParticipant(html: string, code: string): { participantId: s
   return { participantId: match[1], displayName: match[2].trim() };
 }
 
-// Unscoped is unsafe: "Verified -> Closed" is a real, valid hop
-// (transitionDefinitions.json), so a stray Obligation already swept to
-// Verified by resolveDispatchRejectionObligations still renders its own
-// transition form. A bare first-match regex can grab that already-terminal
-// row instead of the one this test just created, if it happens to render
-// earlier on the page. Scope to the row whose title button matches instead —
-// same per-row-scoping idiom as extractCapabilityCard.
-function findObligationId(html: string, title: string): string {
-  const titleIndex = html.indexOf(`>${title}</button>`);
-  if (titleIndex === -1) throw new Error(`could not find an Obligation row titled "${title}" on the page`);
-  const rowEnd = html.indexOf("</tr>", titleIndex);
-  const row = html.slice(titleIndex, rowEnd === -1 ? html.length : rowEnd);
-  const match = row.match(/obligations\/([a-f0-9-]+)\/transition/);
-  if (!match) throw new Error(`could not find a transition form on the Obligation row titled "${title}"`);
-  return match[1];
-}
 
 function findEvidenceId(html: string): string {
   const match = html.match(/evidence\/([a-f0-9-]+)\/transition/);
@@ -653,17 +638,18 @@ test("Phase 4 — a Quality Gate blocks a Deliverable transition while an Obliga
   // before this test's own "blocked" check ever runs. Raising it first means
   // every attempt at that hop — manual or the platform's own — sees the same
   // Obligation and is blocked the same way, no matter which gets there first.
-  const created = await postForm(request, `/seu/seus/${seuId}/obligations`, csrf, {
-    deliverableId,
-    category: "Security",
-    title: "WebFlow Phase4 obligation",
-    severity: "High",
+  // CR-108 item 3 — the manual "Create Obligation" web form/route was
+  // removed (owner: "I am unsure whether we need the ability to manually
+  // create an obligation"; settled to Participant-facing raiseMyObligation
+  // only, quickview/participant.ejs). This test only needs a real,
+  // pre-existing Obligation to block the Deliverable transition below —
+  // creating it directly via the same core function the removed route and
+  // raiseMyObligation both call.
+  const createdObligation = await createObligation({
+    relatedObjectType: "Deliverable", relatedObjectId: deliverableId,
+    category: "Security", title: "WebFlow Phase4 obligation", severity: "High",
   });
-  assert.equal(created.status, 302);
-  const afterCreate = await getPage(request, `/seu/seus/${seuId}`);
-  assert.match(afterCreate.html, /alert-success/);
-
-  const obligationId = findObligationId(afterCreate.html, "WebFlow Phase4 obligation");
+  const obligationId = createdObligation.id;
 
   await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
 
@@ -808,12 +794,12 @@ test("Phase 7 — Flow and Governance Telemetry are real, and a sustained patter
   assert.equal(telemetryBefore.status, 200);
   assert.match(telemetryBefore.html, /Requirements Analysis Model/);
 
-  const created = await postForm(request, `/seu/seus/${seuId}/obligations`, csrf, {
-    deliverableId,
-    category: "Engineering",
-    title: "WebFlow Phase7 sustained blocker",
+  // CR-108 item 3 — manual create route removed; see Phase 4's own comment
+  // above for why this now calls the core function directly.
+  await createObligation({
+    relatedObjectType: "Deliverable", relatedObjectId: deliverableId,
+    category: "Engineering", title: "WebFlow Phase7 sustained blocker",
   });
-  assert.equal(created.status, 302);
 
   // Block the same gate 3 times in this SEU (the Obligation above is
   // deliberately never resolved) — the 3rd attempt crosses the threshold.
@@ -1000,12 +986,12 @@ test("Phase 8 — a blocked Quality Gate and a failed External Interaction both 
   // Progress exists at all" removes the race outright — every attempt at
   // that hop, manual or automatic, whichever gets there first, then finds
   // the same Obligation already in place.
-  const createdObligation = await postForm(request, `/seu/seus/${seuId}/obligations`, csrf, {
-    deliverableId,
-    category: "Engineering",
-    title: "WebFlow Phase8 blocker",
+  // CR-108 item 3 — manual create route removed; see Phase 4's own comment
+  // above for why this now calls the core function directly.
+  await createObligation({
+    relatedObjectType: "Deliverable", relatedObjectId: deliverableId,
+    category: "Engineering", title: "WebFlow Phase8 blocker",
   });
-  assert.equal(createdObligation.status, 302);
 
   await webTransitionAndComplete(request, seuId, csrf, deliverableId, "In Progress");
 

@@ -60,7 +60,7 @@ test("compliance is evaluated per-SEU from engineering state: a required obligat
   assertStatusConsistentWithCounts(first.status, first.counts);
 
   // An unresolved Security obligation makes this requirement unsatisfied, so the SEU can no longer be Compliant.
-  const obligation = await createObligation({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Security", title: "Encrypt data at rest", severity: "High" });
+  const obligation = await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Security", title: "Encrypt data at rest", severity: "High" });
   const second = await evaluateCompliance(seuId);
   assert.equal(second.results.find((r) => r.requirementCode === reqCode)?.state, "unsatisfied");
   assert.notEqual(second.status, "Compliant");

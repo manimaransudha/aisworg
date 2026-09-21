@@ -32,6 +32,15 @@ import type { QualityGateRow, TransitionEntityType } from "../../dblayer/seuType
 // uses, so the two never drift apart on what "resolved" means.
 export const RESOLVED_OBLIGATION_STATUSES = new Set(["Verified", "Closed", "Archived"]);
 
+// Ch.34 §9: Created -> Delivered -> Acknowledged -> In Progress -> Resolved
+// -> Closed. Owner: "Participants transition the attention items and provide
+// evidence etc. There should be AttentionTransition that should be published
+// and the execution engine handler should be the subscriber (same handler
+// as the ObligationTransitioned)" — a Participant resolving/closing an
+// AttentionItem (raised alongside a blocking Obligation, or standalone) is
+// as legitimate a retry trigger as the Obligation itself resolving.
+export const RESOLVED_ATTENTION_STATUSES = new Set(["Resolved", "Closed"]);
+
 // Ch.17 §9: Evidence counts once it's reached Accepted or is actively
 // Referenced; Archived means retired from active use, so a newly-requested
 // transition shouldn't lean on it. Ch.19 §9: only Approved/Applied Decisions

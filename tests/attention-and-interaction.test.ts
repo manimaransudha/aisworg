@@ -71,7 +71,7 @@ test("a Quality Gate block raises exactly one 'Action Required' Attention Item, 
   // test's own createObligation call. Creating it first means every attempt
   // at that hop, automatic or manual, whichever gets there first, finds the
   // same Obligation already in place.
-  const obligation = await createObligation({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase8 attention-dedup blocker (left unresolved)" });
+  const obligation = await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase8 attention-dedup blocker (left unresolved)" });
   await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
 
   for (let i = 0; i < 3; i++) {
@@ -80,7 +80,7 @@ test("a Quality Gate block raises exactly one 'Action Required' Attention Item, 
   }
 
   const items = await listAttentionItemsBySeu(seuId);
-  const actionRequired = items.filter((a) => a.category === "Action Required" && a.related_object_type === "Deliverable" && a.related_object_id === deliverableId);
+  const actionRequired = items.filter((a) => a.category === "Action Required" && a.related_object_type === "Deliverable" && a.related_object_id === deliverableId && a.status !== "Closed" && a.status !== "Resolved");
   assert.equal(actionRequired.length, 1, "repeated blocked attempts against the same situation must not flood the inbox");
   assert.match(actionRequired[0]!.title, /blocked by Quality Gate/);
 
@@ -92,7 +92,7 @@ test("a sustained pattern of Quality Gate blocking raises a High-priority 'Escal
 
   // Same ordering fix as the AM-002 dedup test above — Obligation before
   // "In Progress", not after (see that test's own comment for why).
-  await createObligation({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase8 escalation blocker (left unresolved)" });
+  await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase8 escalation blocker (left unresolved)" });
   await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
 
   // Threshold is 3 (SUSTAINED_BLOCK_THRESHOLD) — cross it.

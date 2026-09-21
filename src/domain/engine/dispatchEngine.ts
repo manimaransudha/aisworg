@@ -56,7 +56,6 @@ async function rejectDispatch(input: { workItem: WorkItemRow; command: CommandRo
     // a Command stuck at Generated/Dispatched/Deferred forever would block.
     await commandsDB.updateStatus(input.command.id, "Failed");
     await createObligation({
-      seuId: input.seuId,
       relatedObjectType: input.command.entity_type,
       relatedObjectId: input.command.entity_id,
       category: "Operational",
@@ -107,7 +106,7 @@ export const dispatchEngine = {
     // EBM) and tried here in order. Empty/absent -> Capability Match alone.
     strategies?: Array<{ strategy: string; order: number }>;
   }): Promise<void> {
-    const { data: command } = await commandsDB.findById(input.workItem.command_id);
+    const command = (await commandsDB.findById(input.workItem.command_id)).data ?? null;
 
     // Case 1a: no Capability declared for this Deliverable at all.
     if (!input.producingCapabilityId) {

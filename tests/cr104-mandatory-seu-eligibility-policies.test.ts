@@ -38,7 +38,7 @@ import { packsDB } from "../src/dblayer/packsDB.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
-import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded } from "./testFixtures.js";
+import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensurePolicyDefinitionWithObligation } from "./testFixtures.js";
 
 async function registerOrganisationName(code: string): Promise<void> {
   await pool.query(
@@ -120,6 +120,7 @@ test("CR-104/CR-106: an SEU-scoped Policy ('SEU|Activated|Operational') blocks t
     originatingPackId: packRow!.id,
   });
   assert.ok(seuPolicy);
+  await ensurePolicyDefinitionWithObligation({ code: `cr104-seu-commence-work-${run}`, name: `CR-104 commence-work policy ${run}`, category: "Compliance", title: `CR-104 commence-work blocker ${run}` });
 
   const { data: template } = await templatesDB.upsert({ code: `cr104-seu-policy-tpl-${run}`, name: "CR-104 SEU Policy Template", deliverableCatalogue: [] });
   await templatesDB.setMandatoryPacks(template!.id, [seuPolicyPack.code]);

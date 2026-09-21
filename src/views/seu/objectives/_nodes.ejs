@@ -35,6 +35,15 @@
 
         <!-- 4. BUTTONS (Tier Buttons | Manage Buttons separated by a vertical divider line) -->
         <td class="align-middle text-end pe-3" style="width: 360px;">
+          <%
+            const hasCommissioned = !!node.commissioned;
+            const hasCommission = !hasCommissioned && !!node.commissionable;
+            const hasQueue = !!(node.submitVerb && !node.alreadySubmitted && hasObjectiveBadge(node.submitVerb));
+            const hasNextTransition = !!(node.submitVerb && node.alreadySubmitted && hasObjectiveBadge(node.nextTransitionVerb));
+            const hasEdit = canProposeObjective && !node.editLocked;
+            const hasDelete = node.deletable && canProposeObjective;
+            const hasRetire = !hasDelete && node.retirable && canRetireObjective;
+          %>
           <div class="d-inline-flex align-items-center justify-content-end">
             <!-- Tier Buttons -->
             <div class="d-inline-flex gap-1 align-items-center me-2 pe-2 border-end border-secondary-subtle">
@@ -42,58 +51,69 @@
                 <% (childTiers[node.tier] || []).forEach(function(ct) { %>
                   <a href="/aisworg/seu/objectives/new?parent=<%= node.id %>&tier=<%= ct %>" class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-plus-lg"></i> <%= ct %></a>
                 <% }) %>
-              <% } else if (node.commissioned) { %>
-                <a href="/aisworg/seu/seus/<%= node.commissionedSeuId %>" class="badge bg-success-subtle text-success-emphasis border border-success-subtle text-decoration-none">Commissioned</a>
-              <% } else if (node.commissionable) { %>
-                <a href="/aisworg/seu/seus/new?objectiveId=<%= node.id %>" class="btn btn-sm btn-primary py-0"><i class="bi bi-diagram-3 me-1"></i>Commission SEU</a>
-              <% } %>
-
-              <% if (node.submitVerb && !node.alreadySubmitted && hasObjectiveBadge(node.submitVerb)) { %>
-                <div class="d-inline-flex gap-1 align-items-center border rounded px-1 py-0 bg-light ms-1" style="font-size:0.75rem;">
-                  <span class="text-muted" style="font-size:0.65rem; text-transform:uppercase;">Queue</span>
-                  <form method="POST" action="/aisworg/seu/objectives/<%= node.id %>/submit" class="d-inline">
-                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                    <button type="submit" class="btn btn-sm btn-outline-secondary py-0 border-0 fw-semibold text-primary"><i class="bi bi-send me-1"></i>Queue to <%= node.nextTransitionToState %></button>
-                  </form>
-                </div>
-              <% } %>
-
-              <% if (node.submitVerb && node.alreadySubmitted && hasObjectiveBadge(node.nextTransitionVerb)) { %>
-                <form method="POST" action="/aisworg/seu/objectives/<%= node.id %>/transition/<%= node.nextTransitionVerb %>" class="d-inline ms-1">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <button type="submit" class="btn btn-sm btn-success py-0"><i class="bi bi-play-fill me-1"></i><%= node.nextTransitionVerb.charAt(0).toUpperCase() + node.nextTransitionVerb.slice(1) %></button>
-                </form>
               <% } %>
             </div>
 
             <!-- Manage Buttons -->
             <div class="d-inline-flex gap-1 align-items-center">
               <a href="/aisworg/seu/objectives/<%= node.id %>" class="btn btn-sm btn-outline-primary py-0 me-1">View</a>
-              <% if ((canProposeObjective && !node.editLocked) || (node.deletable && canProposeObjective) || (node.retirable && canRetireObjective)) { %>
+              <% if (hasCommissioned || hasCommission || hasQueue || hasNextTransition || hasEdit || hasDelete || hasRetire) { %>
                 <div class="dropdown d-inline">
                   <button class="btn btn-sm btn-outline-secondary py-0 px-2 dropdown-toggle-no-caret" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Options">
                     <i class="bi bi-three-dots-vertical"></i>
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                    <% if (canProposeObjective && !node.editLocked) { %>
+                    <% if (hasCommissioned) { %>
+                      <li>
+                        <a class="dropdown-item small" href="/aisworg/seu/seus/<%= node.commissionedSeuId %>">
+                          <i class="bi bi-check-circle me-2 text-success"></i>Commissioned &mdash; view SEU
+                        </a>
+                      </li>
+                    <% } else if (hasCommission) { %>
+                      <li>
+                        <a class="dropdown-item small" href="/aisworg/seu/seus/new?objectiveId=<%= node.id %>">
+                          <i class="bi bi-diagram-3 me-2 text-primary"></i>Commission SEU
+                        </a>
+                      </li>
+                    <% } %>
+                    <% if (hasQueue) { %>
+                      <% if (hasCommissioned || hasCommission) { %><li><hr class="dropdown-divider"></li><% } %>
+                      <li>
+                        <form method="POST" action="/aisworg/seu/objectives/<%= node.id %>/submit" class="d-inline w-100">
+                          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                          <button type="submit" class="dropdown-item small"><i class="bi bi-send me-2 text-primary"></i>Submit</button>
+                        </form>
+                      </li>
+                    <% } %>
+                    <% if (hasNextTransition) { %>
+                      <% if (hasCommissioned || hasCommission) { %><li><hr class="dropdown-divider"></li><% } %>
+                      <li>
+                        <form method="POST" action="/aisworg/seu/objectives/<%= node.id %>/transition/<%= node.nextTransitionVerb %>" class="d-inline w-100">
+                          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                          <button type="submit" class="dropdown-item small"><i class="bi bi-play-fill me-2 text-success"></i><%= node.nextTransitionVerb.charAt(0).toUpperCase() + node.nextTransitionVerb.slice(1) %></button>
+                        </form>
+                      </li>
+                    <% } %>
+                    <% if (hasEdit) { %>
+                      <% if (hasCommissioned || hasCommission || hasQueue || hasNextTransition) { %><li><hr class="dropdown-divider"></li><% } %>
                       <li>
                         <a class="dropdown-item small" href="/aisworg/seu/objectives/<%= node.id %>/edit">
                           <i class="bi bi-pencil me-2 text-secondary"></i>Edit Objective
                         </a>
                       </li>
                     <% } %>
-                    <% if (node.deletable && canProposeObjective) { %>
-                      <% if (canProposeObjective && !node.editLocked) { %><li><hr class="dropdown-divider"></li><% } %>
+                    <% if (hasDelete) { %>
+                      <% if (hasEdit) { %><li><hr class="dropdown-divider"></li><% } %>
                       <li>
-                        <form method="POST" action="/aisworg/seu/objectives/<%= node.id %>/delete" class="d-inline" onsubmit="return confirm('Delete this Proposed Objective? This cannot be undone.');">
+                        <form method="POST" action="/aisworg/seu/objectives/<%= node.id %>/delete" class="d-inline w-100" onsubmit="return confirm('Delete this Proposed Objective? This cannot be undone.');">
                           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                           <button type="submit" class="dropdown-item small text-danger"><i class="bi bi-trash me-2"></i>Delete</button>
                         </form>
                       </li>
-                    <% } else if (node.retirable && canRetireObjective) { %>
-                      <% if (canProposeObjective && !node.editLocked) { %><li><hr class="dropdown-divider"></li><% } %>
+                    <% } else if (hasRetire) { %>
+                      <% if (hasEdit) { %><li><hr class="dropdown-divider"></li><% } %>
                       <li>
-                        <form method="POST" action="/aisworg/seu/objectives/<%= node.id %>/retire" class="d-inline" onsubmit="return confirm('Retire this Objective and its subtree? Retired Objectives keep their history and SEUs.');">
+                        <form method="POST" action="/aisworg/seu/objectives/<%= node.id %>/retire" class="d-inline w-100" onsubmit="return confirm('Retire this Objective and its subtree? Retired Objectives keep their history and SEUs.');">
                           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                           <button type="submit" class="dropdown-item small text-warning"><i class="bi bi-archive me-2"></i>Retire Objective</button>
                         </form>

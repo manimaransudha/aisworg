@@ -76,6 +76,12 @@
                 <td>
                   <% if (a.possibleNextStates.length === 0) { %>
                     <span class="text-muted small">no further transitions defined</span>
+                  <% } else if (a.possibleNextStates.length === 1) { %>
+                    <form method="POST" action="/aisworg/seu/attention/<%= a.attentionItem.id %>/transition" class="mb-0">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <input type="hidden" name="targetState" value="<%= a.possibleNextStates[0] %>">
+                      <button type="submit" class="btn btn-sm btn-primary"><%= a.possibleNextStates[0] %></button>
+                    </form>
                   <% } else { %>
                     <form method="POST" action="/aisworg/seu/attention/<%= a.attentionItem.id %>/transition"
                           class="d-flex align-items-center gap-2">

@@ -41,46 +41,53 @@
       <% if (capabilities.length === 0) { %>
         <div class="alert alert-warning">No capability-name Ontology concepts are loaded yet — run the ontology migrations (046, 150) first.</div>
       <% } else { %>
-        <form method="POST" action="/aisworg/seu/objectives/<%= objective.id %>/update" class="card border-0 shadow-sm p-4 mb-4">
+        <form method="POST" action="/aisworg/seu/objectives/<%= objective.id %>/update" class="mb-4">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
-          <div class="mb-3">
-            <label for="statement" class="form-label fw-semibold">Statement</label>
-            <textarea id="statement" name="statement" rows="3" class="form-control" required><%= locals.statement || '' %></textarea>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Required Capabilities</label>
-            <div id="capability-list">
-              <% capabilities.forEach(function(c) { %>
-                <div class="form-check mb-1">
-                  <input class="form-check-input" type="checkbox" name="requiredCapabilityCodes" value="<%= c.code %>"
-                         id="cap-<%= c.code %>"
-                         <%= (locals.selectedCodes || []).includes(c.code) ? 'checked' : '' %>>
-                  <label class="form-check-label" for="cap-<%= c.code %>">
-                    <%= c.name %> <code class="text-muted small"><%= c.code %></code>
-                    <% if (c.description) { %><div class="text-muted small"><%= c.description %></div><% } %>
-                  </label>
-                </div>
-              <% }) %>
+          <div class="mb-3" style="position: sticky; top: 0; z-index: 10; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); padding: .85rem 1.25rem;">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <button type="submit" name="action" value="save" class="btn btn-primary"><i class="bi bi-send me-1"></i>Submit</button>
+              <button type="submit" name="action" value="save_no_version" class="btn btn-outline-secondary" formnovalidate><i class="bi bi-save me-1"></i>Save</button>
+              <a href="/aisworg/seu/objectives/<%= objective.id %>" class="btn btn-link text-muted">Cancel</a>
+            </div>
+            <div class="form-text mt-2 mb-0">
+              Click Save to save the revisions. Revisions are not traceable. Click Submit to send it for validation.
             </div>
           </div>
 
-          <div class="d-flex align-items-center gap-2 flex-wrap">
-            <button type="submit" name="action" value="save" class="btn btn-primary"><i class="bi bi-save me-1"></i>Save</button>
-            <button type="submit" name="action" value="save_no_version" class="btn btn-outline-secondary" formnovalidate>Save without versioning</button>
-            <a href="/aisworg/seu/objectives/<%= objective.id %>" class="btn btn-link text-muted">Cancel</a>
-          </div>
-          <div class="form-text mt-2">
-            <strong>Save</strong> advances the version (v<%= objective.version %> &rarr; next patch). <strong>Save without versioning</strong> keeps it at v<%= objective.version %>.
+          <div class="section-card">
+            <div class="section-header">Edit Objective</div>
+            <div class="p-3">
+              <div class="mb-3">
+                <label for="statement" class="form-label fw-semibold">Statement</label>
+                <textarea id="statement" name="statement" rows="3" class="form-control" required><%= locals.statement || '' %></textarea>
+              </div>
+
+              <div class="mb-0">
+                <label class="form-label fw-semibold">Required Capabilities</label>
+                <div id="capability-list" style="max-height: 320px; overflow-y: auto;" class="border rounded p-2">
+                  <% capabilities.forEach(function(c) { %>
+                    <div class="form-check mb-1">
+                      <input class="form-check-input" type="checkbox" name="requiredCapabilityCodes" value="<%= c.code %>"
+                             id="cap-<%= c.code %>"
+                             <%= (locals.selectedCodes || []).includes(c.code) ? 'checked' : '' %>>
+                      <label class="form-check-label" for="cap-<%= c.code %>">
+                        <%= c.name %> <code class="text-muted small"><%= c.code %></code>
+                        <% if (c.description) { %><div class="text-muted small"><%= c.description %></div><% } %>
+                      </label>
+                    </div>
+                  <% }) %>
+                </div>
+              </div>
+            </div>
           </div>
         </form>
       <% } %>
 
       <% if ((locals.childTiers || []).length > 0) { %>
-        <div class="card border-0 shadow-sm p-4 mb-4">
-          <div class="fw-semibold mb-2">Add a child</div>
-          <div class="d-inline-flex gap-1 flex-wrap">
+        <div class="section-card">
+          <div class="section-header">Add a Child</div>
+          <div class="p-3 d-inline-flex gap-1 flex-wrap">
             <% childTiers.forEach(function(ct) { %>
               <a href="/aisworg/seu/objectives/new?parent=<%= objective.id %>&tier=<%= ct %>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-plus-lg"></i> Add <%= ct %></a>
             <% }) %>
@@ -89,22 +96,24 @@
       <% } %>
 
       <% if (objective.tier !== 'Strategic') { %>
-        <div class="card border-0 shadow-sm p-4">
-          <div class="fw-semibold mb-2">Move to a different parent</div>
-          <% if ((locals.reParentOptions || []).length === 0) { %>
-            <span class="text-muted small">No other valid parent available.</span>
-          <% } else { %>
-            <form method="POST" action="/aisworg/seu/objectives/<%= objective.id %>/move" class="d-flex align-items-center gap-2 flex-wrap">
-              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-              <select name="newParentId" class="form-select form-select-sm" style="width: auto; max-width: 100%;">
-                <% reParentOptions.forEach(function(p) { %>
-                  <option value="<%= p.id %>" <%= objective.parent_objective_id === p.id ? 'selected' : '' %>><%= p.displayId ? (p.displayId + ' — ') : '' %><%= p.tier %>: <%= p.statement.slice(0, 60) %></option>
-                <% }) %>
-              </select>
-              <button type="submit" class="btn btn-sm btn-outline-secondary">Move</button>
-            </form>
-            <div class="form-text">The whole subtree moves with it. New parent can't be more strategic, itself, or one of its descendants.</div>
-          <% } %>
+        <div class="section-card">
+          <div class="section-header">Move to a Different Parent</div>
+          <div class="p-3">
+            <% if ((locals.reParentOptions || []).length === 0) { %>
+              <span class="text-muted small">No other valid parent available.</span>
+            <% } else { %>
+              <form method="POST" action="/aisworg/seu/objectives/<%= objective.id %>/move" class="d-flex align-items-center gap-2 flex-wrap">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <select name="newParentId" class="form-select form-select-sm" style="width: auto; max-width: 100%;">
+                  <% reParentOptions.forEach(function(p) { %>
+                    <option value="<%= p.id %>" <%= objective.parent_objective_id === p.id ? 'selected' : '' %>><%= p.displayId ? (p.displayId + ' — ') : '' %><%= p.tier %>: <%= p.statement.slice(0, 60) %></option>
+                  <% }) %>
+                </select>
+                <button type="submit" class="btn btn-sm btn-outline-secondary">Move</button>
+              </form>
+              <div class="form-text">The whole subtree moves with it. New parent can't be more strategic, itself, or one of its descendants.</div>
+            <% } %>
+          </div>
         </div>
       <% } %>
     <% } %>
@@ -115,27 +124,29 @@
          regardless of status above (owner: "any time... independent of the
          Objective's current status") — a separate rule from the Proposed-only
          gate on everything else on this page. %>
-    <div class="card border-0 shadow-sm p-4 mt-4">
-      <div class="fw-semibold mb-2">Comments</div>
-      <% if ((locals.comments || []).length === 0) { %>
-        <p class="text-muted small mb-3">No comments yet.</p>
-      <% } else { %>
-        <ul class="list-unstyled mb-3">
-          <% comments.forEach(function(c) { %>
-            <li class="mb-2 pb-2 border-bottom">
-              <div class="small text-muted"><%= new Date(c.created_at).toLocaleString() %><% if (c.actor_id) { %> &middot; user <%= c.actor_id %><% } %></div>
-              <div class="small"><%= c.comment_text %></div>
-            </li>
-          <% }) %>
-        </ul>
-      <% } %>
-      <% if (locals.canComment) { %>
-        <form method="POST" action="/aisworg/seu/objectives/<%= objective.id %>/comments" class="d-flex align-items-start gap-2">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <textarea name="comment" rows="2" class="form-control form-control-sm" placeholder="Add a comment" required></textarea>
-          <button type="submit" class="btn btn-sm btn-outline-secondary">Post</button>
-        </form>
-      <% } %>
+    <div class="section-card">
+      <div class="section-header">Comments</div>
+      <div class="p-3">
+        <% if ((locals.comments || []).length === 0) { %>
+          <p class="text-muted small mb-3">No comments yet.</p>
+        <% } else { %>
+          <ul class="list-unstyled mb-3">
+            <% comments.forEach(function(c) { %>
+              <li class="mb-2 pb-2 border-bottom">
+                <div class="small text-muted"><%= new Date(c.created_at).toLocaleString() %><% if (c.actor_id) { %> &middot; user <%= c.actor_id %><% } %></div>
+                <div class="small"><%= c.comment_text %></div>
+              </li>
+            <% }) %>
+          </ul>
+        <% } %>
+        <% if (locals.canComment) { %>
+          <form method="POST" action="/aisworg/seu/objectives/<%= objective.id %>/comments" class="d-flex align-items-start gap-2">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <textarea name="comment" rows="2" class="form-control form-control-sm" placeholder="Add a comment" required></textarea>
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Post</button>
+          </form>
+        <% } %>
+      </div>
     </div>
   </main>
 

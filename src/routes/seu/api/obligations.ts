@@ -5,17 +5,17 @@ const router = express.Router();
 
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
-import { createObligation, listObligationsBySeu, transitionObligation } from "../core/obligations.js";
+import { createObligation, listObligationsBySeu, transitionObligation, reviseObligation } from "../core/obligations.js";
 import type { TransitionEntityType } from "../../../dblayer/seuTypes.js";
 
 /** POST /obligations — Ch.23: create an Obligation against any governed entity (relatedObjectType/relatedObjectId — polymorphic, Open Design Questions.md #3). */
 router.post("/obligations", async (req: Request, res: Response) => {
   try {
-    const { seuId, relatedObjectType, relatedObjectId, category, title, description, severity } = req.body ?? {};
-    if (typeof seuId !== "string" || typeof relatedObjectType !== "string" || typeof relatedObjectId !== "string" || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
-      return res.status(400).json({ error: "seuId, relatedObjectType, relatedObjectId, category and title are required" });
+    const { relatedObjectType, relatedObjectId, category, title, description, severity } = req.body ?? {};
+    if (typeof relatedObjectType !== "string" || typeof relatedObjectId !== "string" || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
+      return res.status(400).json({ error: "relatedObjectType, relatedObjectId, category and title are required" });
     }
-    const obligation = await createObligation({ seuId, relatedObjectType: relatedObjectType as TransitionEntityType, relatedObjectId, category, title, description, severity });
+    const obligation = await createObligation({ relatedObjectType: relatedObjectType as TransitionEntityType, relatedObjectId, category, title, description, severity });
     res.status(201).json({ obligation });
   } catch (err) {
     logger.error("[api/seu/obligations] POST error", err as Error);
@@ -53,6 +53,20 @@ router.post("/obligations/:id/transition", async (req: Request, res: Response) =
     res.status(200).json({ obligation: result.obligation, appliedTransition: result.appliedTransition });
   } catch (err) {
     logger.error("[api/seu/obligations] POST /:id/transition error", err as Error);
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** PATCH /obligations/:id — migration 252: a pure Revision (no transition, no event); appends the diff to revision_history. */
+router.patch("/obligations/:id", async (req: Request, res: Response) => {
+  try {
+    const { title, description, category, severity, priority, completionCriteria, assignedEntityType, assignedEntityId } = req.body ?? {};
+    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
+    const obligation = await reviseObligation({ obligationId: String(req.params.id), actorId, title, description, category, severity, priority, completionCriteria, assignedEntityType, assignedEntityId });
+    if (!obligation) return res.status(404).json({ error: "Obligation not found" });
+    res.status(200).json({ obligation });
+  } catch (err) {
+    logger.error("[api/seu/obligations] PATCH /:id error", err as Error);
     res.status(400).json({ error: (err as Error).message });
   }
 });

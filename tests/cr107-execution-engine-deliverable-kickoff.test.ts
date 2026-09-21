@@ -26,7 +26,7 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { publishProfile } from "../src/routes/seu/core/profiles.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
-import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync } from "./testFixtures.js";
+import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync, ensurePolicyDefinitionWithObligation } from "./testFixtures.js";
 import type { SeuRow } from "../src/dblayer/seuTypes.js";
 
 async function registerOrganisationName(code: string): Promise<void> {
@@ -50,13 +50,19 @@ async function commissionBlockedSeu(run: string) {
   assert.ok(published.ok, `seu policy pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
   const { data: packRow } = await packsDB.findActiveByCode(pack.code);
 
+  const policyCode = `cr107-seu-commence-work-${run}`;
   const { data: seuPolicy } = await policiesDB.upsert({
-    code: `cr107-seu-commence-work-${run}`, name: `CR-107 commence-work policy ${run}`, constraintType: "Policy",
+    code: policyCode, name: `CR-107 commence-work policy ${run}`, constraintType: "Policy",
     scope: "Transition", governedTransition: "SEU|Activated|Operational",
     condition: { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] },
     originatingPackId: packRow!.id,
   });
   assert.ok(seuPolicy);
+  // raiseObligationForBlockedTransition now raises nothing at all unless the
+  // blocking Policy's own Definition declares a relatedObligations[] entry —
+  // a bare policiesDB.upsert row (no policy_definitions counterpart) used to
+  // rely on a since-removed generic fallback.
+  await ensurePolicyDefinitionWithObligation({ code: policyCode, name: `CR-107 commence-work policy ${run}`, category: "Compliance", title: `CR-107 commence-work blocker ${run}` });
 
   const { data: template } = await templatesDB.upsert({
     code: `cr107-tpl-${run}`, name: "CR-107 Template",

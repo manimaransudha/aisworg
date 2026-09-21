@@ -7,6 +7,7 @@
 // competency (dimension = category:pack, CR-099), behavioural compatibility
 // with the EBM, required knowledge, required authority, engineering
 // constraints, Pack-specific requirements — without touching either caller.
+import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
@@ -70,7 +71,7 @@ function matchesRequiredPolicies(participant: ParticipantMasterRow, policies: Po
 // directly — the same real composition logic (including CR-104's own
 // Mandatory-Pack folding) commissioning itself runs, not a re-derived copy.
 export async function resolveEligibilityPolicies(seu: SeuRow): Promise<PolicyRow[]> {
-  const { composedPacks } = await unravelComposition({ templateIds: [seu.template_id], profileIds: [seu.profile_id] }, seu.tenant_id);
+  const { composedPacks } = await unravelComposition({ templateIds: [seu.template_id], profileIds: [seu.profile_id] }, seu.tenant_id ?? PLATFORM_TENANT_ID);
   const packIds = composedPacks.map((p) => p.packId);
   const { data: policies } = await policiesDB.findByPackIds(packIds);
   return (policies ?? []).filter((p) => p.scope === "Eligibility");

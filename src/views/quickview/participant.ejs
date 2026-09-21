@@ -100,17 +100,53 @@
               </div>
 
               <div class="tab-pane fade" id="<%= prefix %>-obligations" role="tabpanel">
+                <%# Owner: "Remove the add form on the SEU detail page. The
+                    Participant should have an Obligation form. The
+                    obligation has to be on the SEU that the participant is
+                    assigned to, on a deliverable within the SEU." —
+                    Deliverable options are this engagement's own d.deliverables
+                    (already scoped to this Participant's own assignments by
+                    getParticipantHomeView), never the full SEU list.
+                    Governing Condition is free text here (stored on the
+                    existing completionCriteria column) — not the structured
+                    Pack-Definition rule. No evidence field, no origin label
+                    (owner, final). %>
+                <form method="POST" action="/aisworg/quickview/seus/<%= d.seu.id %>/obligations" class="d-flex flex-wrap gap-1 align-items-center mb-2">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <select name="deliverableId" class="form-select form-select-sm" style="width:auto;" required>
+                    <option value="" disabled selected>Deliverable&hellip;</option>
+                    <% d.deliverables.forEach(function(item) { %>
+                      <option value="<%= item.id %>"><%= item.name %></option>
+                    <% }) %>
+                  </select>
+                  <select name="category" class="form-select form-select-sm" style="width:auto;">
+                    <% (locals.obligationCategoryOptions || []).forEach(function(cat) { %>
+                      <option value="<%= cat %>"><%= cat %></option>
+                    <% }) %>
+                  </select>
+                  <input type="text" name="title" class="form-control form-control-sm" style="width:auto;" placeholder="Title" required>
+                  <input type="text" name="description" class="form-control form-control-sm" style="width:auto;" placeholder="Description (optional)">
+                  <select name="severity" class="form-select form-select-sm" style="width:auto;">
+                    <% (locals.obligationSeverityOptions || []).forEach(function(sev) { %>
+                      <option value="<%= sev %>" <%= sev === 'Medium' ? 'selected' : '' %>><%= sev %></option>
+                    <% }) %>
+                  </select>
+                  <input type="text" name="completionCriteria" class="form-control form-control-sm" style="width:auto;" placeholder="Governing Condition (optional)">
+                  <button type="submit" class="btn btn-sm btn-primary">Raise Obligation</button>
+                </form>
                 <div class="table-responsive">
                   <table class="table table-sm mb-0 align-middle">
-                    <thead class="table-light"><tr><th>Deliverable</th><th>Title</th><th>Category / Severity</th><th>Status</th></tr></thead>
+                    <thead class="table-light"><tr><th>Deliverable</th><th>Title</th><th>Category / Severity</th><th>Status</th><th>Origin</th><th>Assigned</th></tr></thead>
                     <tbody>
-                      <% if (d.obligations.length === 0) { %><tr><td colspan="4" class="text-muted small">None.</td></tr><% } %>
+                      <% if (d.obligations.length === 0) { %><tr><td colspan="6" class="text-muted small">None.</td></tr><% } %>
                       <% d.obligations.forEach(function(o) { %>
                         <tr>
                           <td class="small"><%= o.deliverableName %></td>
                           <td class="small"><%= o.obligation.title %></td>
                           <td class="small"><%= o.obligation.category %> &middot; <%= o.obligation.severity %></td>
                           <td><span class="state-badge state-<%= o.obligation.status.replace(/\s+/g, '-') %>"><%= o.obligation.status %></span></td>
+                          <td class="small text-muted"><%= o.obligation.originating_entity_type || '—' %></td>
+                          <td class="small text-muted"><%= o.obligation.assigned_entity_type || 'Unassigned' %></td>
                         </tr>
                       <% }) %>
                     </tbody>
@@ -148,7 +184,13 @@
                           <td class="small"><%= e.evidence.category %> &middot; <%= e.evidence.confidence_level || 'unassessed' %></td>
                           <td><span class="state-badge state-<%= e.evidence.status %>"><%= e.evidence.status %></span></td>
                           <td>
-                            <% if (e.possibleNextStates.length > 0) { %>
+                            <% if (e.possibleNextStates.length === 1) { %>
+                              <form method="POST" action="/aisworg/seu/seus/<%= d.seu.id %>/evidence/<%= e.evidence.id %>/transition" class="mb-0">
+                                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                <input type="hidden" name="targetState" value="<%= e.possibleNextStates[0] %>">
+                                <button type="submit" class="btn btn-sm btn-primary"><%= e.possibleNextStates[0] %></button>
+                              </form>
+                            <% } else if (e.possibleNextStates.length > 1) { %>
                               <form method="POST" action="/aisworg/seu/seus/<%= d.seu.id %>/evidence/<%= e.evidence.id %>/transition" class="d-flex align-items-center gap-1">
                                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                 <select name="targetState" class="form-select form-select-sm" style="width:auto;">
@@ -226,7 +268,13 @@
                           <td class="small"><%= k.knowledgeItem.category %> &middot; <%= k.knowledgeItem.acquisition_scope %></td>
                           <td><span class="state-badge state-<%= k.knowledgeItem.status %>"><%= k.knowledgeItem.status %></span></td>
                           <td>
-                            <% if (k.possibleNextStates.length > 0) { %>
+                            <% if (k.possibleNextStates.length === 1) { %>
+                              <form method="POST" action="/aisworg/seu/seus/<%= d.seu.id %>/knowledge/<%= k.knowledgeItem.id %>/transition" class="mb-0">
+                                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                <input type="hidden" name="targetState" value="<%= k.possibleNextStates[0] %>">
+                                <button type="submit" class="btn btn-sm btn-primary"><%= k.possibleNextStates[0] %></button>
+                              </form>
+                            <% } else if (k.possibleNextStates.length > 1) { %>
                               <form method="POST" action="/aisworg/seu/seus/<%= d.seu.id %>/knowledge/<%= k.knowledgeItem.id %>/transition" class="d-flex align-items-center gap-1">
                                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                 <select name="targetState" class="form-select form-select-sm" style="width:auto;">
@@ -289,6 +337,10 @@
                                       <div><strong>Knowledge:</strong> <%= ec.relevantKnowledge.map(function(k){ return k.title; }).join(', ') || 'none' %></div>
                                       <div><strong>Constraints:</strong> <%= ec.governingPolicies.map(function(p){ return p.name; }).join(', ') || 'none' %></div>
                                       <div><strong>Active Obligations:</strong> <%= ec.activeObligations.map(function(o){ return o.title + ' (' + o.status + ')'; }).join(', ') || 'none' %></div>
+                                      <% if ((ec.applicableChecklists || []).length > 0) { %><div><strong>Checklist:</strong> <%= ec.applicableChecklists.map(function(c){ return c.statement; }).join('; ') %></div><% } %>
+                                      <% if ((ec.engineeringCapital || []).length > 0) { %><div><strong>Engineering Capital:</strong> <%= ec.engineeringCapital.map(function(c){ return c.type ? (c.type + (c.url ? ': ' + c.url : '')) : (c.url || ''); }).join(', ') %></div><% } %>
+                                      <% var pc = ec.profileConfiguration || {}; var pcEntries = Object.keys(pc).filter(function(k){ return pc[k] !== undefined && pc[k] !== null && pc[k] !== ''; }); %>
+                                      <% if (pcEntries.length > 0) { %><div><strong>Profile:</strong> <%= pcEntries.map(function(k){ var v = pc[k]; return k + ': ' + (Array.isArray(v) ? v.join('/') : (typeof v === 'object' ? JSON.stringify(v) : v)); }).join(', ') %></div><% } %>
                                     </div>
                                   </details>
                                 <% } %>

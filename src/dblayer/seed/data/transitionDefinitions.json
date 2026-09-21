@@ -281,6 +281,8 @@
     "entityType": "Obligation",
     "fromState": "Identified",
     "toState": "Analysed",
+    "eventType": "ObligationUpdated",
+    "versionEvent": "VersionCreated",
     "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"
@@ -290,6 +292,8 @@
     "entityType": "Obligation",
     "fromState": "Analysed",
     "toState": "Assigned",
+    "eventType": "ObligationAssigned",
+    "versionEvent": "VersionCreated",
     "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"
@@ -299,6 +303,8 @@
     "entityType": "Obligation",
     "fromState": "Assigned",
     "toState": "In Progress",
+    "eventType": "ObligationProcessing",
+    "versionEvent": "VersionCreated",
     "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"
@@ -308,6 +314,8 @@
     "entityType": "Obligation",
     "fromState": "In Progress",
     "toState": "Resolved",
+    "eventType": "ObligationResolved",
+    "versionEvent": "VersionCreated",
     "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"
@@ -317,6 +325,8 @@
     "entityType": "Obligation",
     "fromState": "Resolved",
     "toState": "Verified",
+    "eventType": "ObligationVerified",
+    "versionEvent": "VersionCreated",
     "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"
@@ -326,6 +336,8 @@
     "entityType": "Obligation",
     "fromState": "Verified",
     "toState": "Closed",
+    "eventType": "ObligationClosed",
+    "versionEvent": "VersionCreated",
     "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"
@@ -335,6 +347,96 @@
     "entityType": "Obligation",
     "fromState": "Closed",
     "toState": "Archived",
+    "eventType": "ObligationArchived",
+    "versionEvent": "VersionCreated",
+    "requiredAuthorityRuleCode": "authority-transition-obligation",
+    "requiredPolicyCodes": [
+      "policy-obligation-transition-baseline"
+    ]
+  },
+  {
+    "entityType": "Obligation",
+    "fromState": "Closed",
+    "toState": "Reopened",
+    "eventType": "ObligationReopened",
+    "versionEvent": "VersionCreated",
+    "requiredAuthorityRuleCode": "authority-transition-obligation",
+    "requiredPolicyCodes": [
+      "policy-obligation-transition-baseline"
+    ]
+  },
+  {
+    "entityType": "Obligation",
+    "fromState": "Reopened",
+    "toState": "In Progress",
+    "eventType": "ObligationProcessing",
+    "versionEvent": "VersionCreated",
+    "requiredAuthorityRuleCode": "authority-transition-obligation",
+    "requiredPolicyCodes": [
+      "policy-obligation-transition-baseline"
+    ]
+  },
+  {
+    "entityType": "Obligation",
+    "fromState": "Identified",
+    "toState": "Escalated",
+    "eventType": "ObligationEscalated",
+    "versionEvent": "VersionCreated",
+    "requiredAuthorityRuleCode": "authority-transition-obligation",
+    "requiredPolicyCodes": [
+      "policy-obligation-transition-baseline"
+    ]
+  },
+  {
+    "entityType": "Obligation",
+    "fromState": "Analysed",
+    "toState": "Escalated",
+    "eventType": "ObligationEscalated",
+    "versionEvent": "VersionCreated",
+    "requiredAuthorityRuleCode": "authority-transition-obligation",
+    "requiredPolicyCodes": [
+      "policy-obligation-transition-baseline"
+    ]
+  },
+  {
+    "entityType": "Obligation",
+    "fromState": "Assigned",
+    "toState": "Escalated",
+    "eventType": "ObligationEscalated",
+    "versionEvent": "VersionCreated",
+    "requiredAuthorityRuleCode": "authority-transition-obligation",
+    "requiredPolicyCodes": [
+      "policy-obligation-transition-baseline"
+    ]
+  },
+  {
+    "entityType": "Obligation",
+    "fromState": "In Progress",
+    "toState": "Escalated",
+    "eventType": "ObligationEscalated",
+    "versionEvent": "VersionCreated",
+    "requiredAuthorityRuleCode": "authority-transition-obligation",
+    "requiredPolicyCodes": [
+      "policy-obligation-transition-baseline"
+    ]
+  },
+  {
+    "entityType": "Obligation",
+    "fromState": "Resolved",
+    "toState": "Escalated",
+    "eventType": "ObligationEscalated",
+    "versionEvent": "VersionCreated",
+    "requiredAuthorityRuleCode": "authority-transition-obligation",
+    "requiredPolicyCodes": [
+      "policy-obligation-transition-baseline"
+    ]
+  },
+  {
+    "entityType": "Obligation",
+    "fromState": "Verified",
+    "toState": "Escalated",
+    "eventType": "ObligationEscalated",
+    "versionEvent": "VersionCreated",
     "requiredAuthorityRuleCode": "authority-transition-obligation",
     "requiredPolicyCodes": [
       "policy-obligation-transition-baseline"

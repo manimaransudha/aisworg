@@ -1476,6 +1476,26 @@ export interface WorkItemExecutionContext {
   activeObligations: Array<{ id: string; title: string; status: string }>;
   openAttentionItems: Array<{ id: string; title: string; status: string }>;
   qualityGate: { id: string; name: string; outcome: string } | null;
+  // CR-108 follow-on (owner: "WorkItem Generator has to include everything in
+  // the EBM relevant to that deliverable including obligations, evidences,
+  // knowledge") — Engineering Practices (Checklist items) and Engineering
+  // Capital from every Pack that contributed this Deliverable's own
+  // producing Capability (matched via the EBM pool's source.code, the same
+  // link the pool already carries — see workItemGenerator.ts).
+  applicableChecklists: Array<{ packCode: string; checklistName: string; statement: string }>;
+  engineeringCapital: Array<{ packCode: string; type?: string; url?: string }>;
+  // The Profile's own execution-relevant Configuration Parameters (owner:
+  // "like methodology, environment etc" — explicitly NOT
+  // dispatchStrategyPreference/redispatchMaxAttempts/redispatchAttentionThreshold/
+  // compositionOptions/featureFlagCodes/additionalCapabilityCodes, which are
+  // Execution/Dispatch Engine and EBM-composition mechanics, not work
+  // content). Any field the Profile never set is simply absent.
+  profileConfiguration: Partial<{
+    developmentMethodology: string; environment: string; primaryProgrammingLanguage: string; sourceControlProvider: string;
+    targetCloudProvider: string; deploymentStrategy: string; aiProviderPreference: string; defaultRepositoryStructure: string;
+    documentationLevel: string; readme: string; domain: string; participatingOrganisationCodes: string[];
+    environmentConfiguration: unknown; deploymentTargets: unknown;
+  }>;
 }
 
 export type EventConsumptionStatus = "pending" | "consumed" | "failed";
@@ -1546,6 +1566,25 @@ export interface ObligationRow {
   // origin (Telemetry, Knowledge promotion, manual API).
   blocked_from_state: string | null;
   blocked_to_state: string | null;
+  // Migration 251 — execution-side additions, distinct from the Definition.
+  // version: a plain revision counter, bumped on every real transition
+  // (obligationsDB.updateStatus), same convention as Objective/Pack/Template/
+  // Profile's own real `version` field (Version Feature Plan.md).
+  version: number;
+  // Which specific entity raised this Obligation — a real pointer, unlike
+  // `origin`'s own categorical label. Defaults to ("EBM", the SEU's own
+  // active_ebm_id) at creation when no more specific one is known.
+  originating_entity_type: string | null;
+  originating_entity_id: string | null;
+  // Who/what this Obligation is currently assigned to for resolution — a
+  // Participant or a SEU, or null (unassigned; real assignment workflow is
+  // not yet built, Ch.23 §19.10).
+  assigned_entity_type: string | null;
+  assigned_entity_id: string | null;
+  // Migration 252 — append-only diff log of plain field edits (Revisions),
+  // each { occurred_at, actor_id, changes: { field: { from, to } } }. Written
+  // only by reviseObligation, never by a transition.
+  revision_history: Array<Record<string, unknown>>;
   created_at: string;
   updated_at: string;
 }
