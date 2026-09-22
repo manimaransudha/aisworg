@@ -101,6 +101,32 @@ export function configurePassport() {
         }
 
         if (!user.password_hash) {
+          // ─── DEV/TEST BYPASS — remove this block to revert ─────────────────
+          // Owner: "I created a test user and I get a Account not yet
+          // activated... I want to override this in the dev and test
+          // environment." Root-created accounts (Identity Management's own
+          // "Create user" form) sit pending — real password_hash, is_active,
+          // verification_token/expires — until the emailed verification link
+          // is used (routes/web/auth.js's activation flow). Same
+          // NODE_ENV !== 'production' gate every other dev-only bypass in
+          // this app already uses (requireBadge/requireRole's root bypass,
+          // dev/actAs.js). Whatever password is submitted here becomes the
+          // account's real password, via the SAME userDB.activateWithPassword
+          // the real verification-link flow calls — this only skips having to
+          // click the emailed link first, nothing about activation itself.
+          if (process.env.NODE_ENV !== 'production') {
+            const hash = await bcrypt.hash(password, 12);
+            const activated = await userDB.activateWithPassword(user.email, hash);
+            if (activated) {
+              applyRoleOverride(activated);
+              if (!activated.is_active) {
+                return done(null, false, { message: 'disabled' });
+              }
+              await userDB.updateLastLogin(activated.email);
+              return done(null, activated);
+            }
+          }
+          // ─── end dev/test bypass ────────────────────────────────────────────
           return done(null, false, { message: 'Account not yet activated. Check your verification email.' });
         }
 

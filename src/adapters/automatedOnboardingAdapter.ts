@@ -3,7 +3,7 @@
 // internal deterministic systems (a CI/CD pipeline, a static analysis
 // platform, a security scanner, a cloud deployment service — Ch.13 §7).
 import type { OnboardParticipantRequest, OnboardedParticipant, ParticipantOnboardingAdapter } from "./participantOnboardingAdapter.js";
-import { mockCapabilityCodes, mockTechnologyValues, mockProficiencyLevels } from "./mockOnboardingData.js";
+import { mockCapabilityCodes, mockTechnologyValues, mockProficiencyLevels, mockDefaultAuthorisedRole } from "./mockOnboardingData.js";
 
 export const automatedOnboardingAdapter: ParticipantOnboardingAdapter = {
   type: "Automated",
@@ -29,6 +29,7 @@ export const automatedOnboardingAdapter: ParticipantOnboardingAdapter = {
       // MOCK compute-cost spread, generally the cheapest Participant type.
       cost: 5 + (i % 10) * 2,
       behaviourContext: [],
+      authorisedRole: mockDefaultAuthorisedRole(),
     };
   },
 };

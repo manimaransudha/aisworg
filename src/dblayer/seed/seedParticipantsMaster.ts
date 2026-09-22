@@ -77,6 +77,7 @@ interface CanonicalSets {
   dimensionValues: Map<string, Set<string>>; // lower-cased dimension -> its concept type's codes
   behaviourContextPolicies: Set<string>;
   proficiencyLevels: Set<string>;
+  authorisedRoles: Set<string>;
 }
 
 async function codesOf(conceptType: string, viewer: OntologyViewer): Promise<Set<string>> {
@@ -88,12 +89,13 @@ async function codesOf(conceptType: string, viewer: OntologyViewer): Promise<Set
 // calls would have looked up (core/ontology.ts / core/participantsMaster.ts)
 // — same 4 concept types, fetched once instead of once per participant.
 async function loadCanonicalSets(viewer: OntologyViewer): Promise<CanonicalSets> {
-  const [participantTypes, capabilityCodes, categoryPackDimensions, behaviourContextPolicies, proficiencyLevels] = await Promise.all([
+  const [participantTypes, capabilityCodes, categoryPackDimensions, behaviourContextPolicies, proficiencyLevels, authorisedRoles] = await Promise.all([
     codesOf("participant-types", viewer),
     codesOf("capability-name", viewer),
     codesOf("category:pack", viewer),
     codesOf("behaviour-context-policy", viewer),
     codesOf("proficiency-level", viewer),
+    codesOf("authorised-role", viewer),
   ]);
   const dimensionValues = new Map<string, Set<string>>();
   await Promise.all(
@@ -101,7 +103,7 @@ async function loadCanonicalSets(viewer: OntologyViewer): Promise<CanonicalSets>
       dimensionValues.set(dimension.toLowerCase(), await codesOf(dimension.toLowerCase(), viewer));
     })
   );
-  return { participantTypes, capabilityCodes, categoryPackDimensions, dimensionValues, behaviourContextPolicies, proficiencyLevels };
+  return { participantTypes, capabilityCodes, categoryPackDimensions, dimensionValues, behaviourContextPolicies, proficiencyLevels, authorisedRoles };
 }
 
 function assertCanonicalLocal(conceptType: string, value: string, allowed: Set<string>): void {
@@ -122,6 +124,7 @@ function validateOnboarded(type: string, onboarded: OnboardedParticipant, canon:
     }
   }
   for (const entry of onboarded.behaviourContext) assertCanonicalLocal("behaviour-context-policy", entry.policy, canon.behaviourContextPolicies);
+  for (const entry of onboarded.authorisedRole) assertCanonicalLocal("authorised-role", entry.role, canon.authorisedRoles);
 }
 
 async function runWithConcurrency<T>(items: T[], worker: (item: T) => Promise<void>): Promise<void> {
@@ -179,6 +182,7 @@ export async function seedParticipantsMaster(): Promise<void> {
           competency: onboarded.competency,
           cost: onboarded.cost,
           behaviourContext: onboarded.behaviourContext,
+          authorisedRole: onboarded.authorisedRole,
           isActive: true,
           userId: onboarded.userId ?? null,
         });

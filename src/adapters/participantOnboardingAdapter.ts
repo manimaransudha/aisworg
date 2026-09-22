@@ -35,6 +35,12 @@ export interface OnboardedParticipant {
   // recorded for this identity.
   cost: number | null;
   behaviourContext: Array<{ policy: string; payload: Record<string, unknown> }>;
+  // Standing authorisation grants (migration 254/255) — role is
+  // Ontology-backed (authorised-role). Every onboarded identity gets at
+  // least the standing, unscoped 'general' grant (owner: "provide all
+  // participants with general role... effective till 31/12/9999... seu_id
+  // is empty array").
+  authorisedRole: Array<{ role: string; effective_till: string; seu_ids: string[] }>;
   userId?: number | null;
 }
 

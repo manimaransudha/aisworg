@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+</head>
+<body>
+  <%- include('../../partials/helpers') %>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <p class="text-muted small mb-1"><a href="/aisworg/seu/route-authority">&larr; Route Authority</a></p>
+      <h2 class="h3 mb-1 text-dark fw-bold"><%= row ? `Edit ${row.method} ${row.path}` : 'New route authority row' %></h2>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body">
+        <form method="POST" action="<%= row ? `/aisworg/seu/route-authority/${row.id}/update` : '/aisworg/seu/route-authority' %>">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+          <div class="row g-3 mb-3">
+            <div class="col-sm-3">
+              <label class="form-label small mb-1">Method</label>
+              <select name="method" class="form-select form-select-sm">
+                <% ['GET', 'POST', 'PUT', 'DELETE'].forEach(function(m) { %>
+                  <option value="<%= m %>" <%= row && row.method === m ? 'selected' : '' %>><%= m %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="col-sm-9">
+              <label class="form-label small mb-1">Path</label>
+              <input type="text" name="path" class="form-control form-control-sm font-monospace" placeholder="/aisworg/seu/objectives/:id/edit" value="<%= row ? row.path : '' %>" required>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6">
+              <label class="form-label small mb-1">Badges (Ontology-driven — noun&times;verb &cup; platform/tenant admin-surface)</label>
+              <select name="badges[]" class="form-select form-select-sm" multiple size="8">
+                <% badgeCodes.forEach(function(code) { %>
+                  <option value="<%= code %>" <%= row && row.badges.includes(code) ? 'selected' : '' %>><%= code %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label small mb-1">Roles (Ontology <code>authorised-role</code>)</label>
+              <select name="roles[]" class="form-select form-select-sm" multiple size="8">
+                <% roleCodes.forEach(function(code) { %>
+                  <option value="<%= code %>" <%= row && row.roles.includes(code) ? 'selected' : '' %>><%= code %></option>
+                <% }) %>
+              </select>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-sm-3">
+              <label class="form-label small mb-1">Badge match mode</label>
+              <select name="matchMode" class="form-select form-select-sm">
+                <option value="all" <%= !row || row.match_mode === 'all' ? 'selected' : '' %>>all (AND)</option>
+                <option value="any" <%= row && row.match_mode === 'any' ? 'selected' : '' %>>any (OR)</option>
+              </select>
+            </div>
+            <div class="col-sm-9">
+              <label class="form-label small mb-1">Description (optional)</label>
+              <input type="text" name="description" class="form-control form-control-sm" value="<%= row && row.description ? row.description : '' %>">
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-sm btn-primary"><%= row ? 'Save' : 'Create' %></button>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

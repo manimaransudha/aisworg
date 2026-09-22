@@ -33,7 +33,10 @@ router.get("/seus", attachVM("seu/seus/index"), async (req: Request, res: Respon
     const params = parseListParams(req.query, { sortable: ["objective", "state", "created"], defaultSort: "created", defaultDir: "desc" });
     const list = await listSeusPaginated(params, {
       userId: req.session?.user?.id ?? null,
-      isAdmin: platformBadges.includes("root") || platformBadges.includes("tenant_admin"),
+      // tenant_manage (badges:tenant, migration 256) is the Ontology-registered
+      // successor to the old badge_grants-based tenant_admin — getPlatformBadges
+      // no longer reads badge_grants at all, so both are checked here.
+      isAdmin: platformBadges.includes("root") || platformBadges.includes("tenant_admin") || platformBadges.includes("tenant_manage"),
     });
     // Same badge-filter pass as web/objectives.ts's own hasObjectiveBadge —
     // core already restricted possibleNextStates to real, manual-triggered

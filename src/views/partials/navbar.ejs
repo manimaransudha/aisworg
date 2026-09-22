@@ -14,10 +14,13 @@
         <%
           const _u         = locals.session?.user;
           const _role      = _u?.role || 'none';
+          // Authentication gate only ('general' is the floor role every
+          // account has) — not a per-link authorization check. Per-link
+          // visibility for the two links that actually need one (Event Bus,
+          // Tenant User Management) is CR-110's route_authority-driven
+          // locals.navRouteVisible, computed in app.js, below.
           const _isGeneral = ['general','power','tenant_super','super'].includes(_role);
-          const _isPower   = ['power','tenant_super','super'].includes(_role);
-          const _isSuper   = _role === 'super';
-          const _isTenantSuper = _role === 'tenant_super';
+          const _navRouteVisible = locals.navRouteVisible || {};
         %>
 
         <% if (_isGeneral) { %>
@@ -252,6 +255,15 @@
                     <% _da.badgeTypes.forEach(function(bt) { if (bt.code === 'root') return; %>
                       <option value="<%= bt.code %>" <%= _curBadge === bt.code ? 'selected' : '' %>><%= bt.name %> (<%= bt.code %> · <%= bt.scope_kind %>)</option>
                     <% }) %>
+                    <%# Owner: "Dropdown should have the nounxverb in the
+                        transition definition mapping" — the real, live
+                        noun_verb vocabulary (dev/actAs.ts's
+                        listNounVerbBadgeCodes), not the badge_types catalog
+                        above. Simulating one now writes it directly onto the
+                        real acting user's own participants_master.authorised_badges. %>
+                    <% (_da.nounVerbBadgeCodes || []).forEach(function(code) { %>
+                      <option value="<%= code %>" <%= _curBadge === code ? 'selected' : '' %>><%= code %></option>
+                    <% }) %>
                   </select>
                   <button type="submit" class="btn btn-sm btn-warning w-100">Apply</button>
                 </form>
@@ -265,7 +277,7 @@
 
           <!-- Settings / user menu -->
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle <%= ['settings','stocks','stockListManager','user-management','seu-identity','seu-events'].includes(currentPage) ? 'active' : '' %>"
+            <a class="nav-link dropdown-toggle <%= ['seu-identity','seu-tenant-admin-users','seu-events'].includes(currentPage) ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Settings">
               <% if (_u?.avatar_url) { %>
                 <img src="<%= _u.avatar_url %>" width="24" height="24"
@@ -284,18 +296,12 @@
               <li><a class="dropdown-item <%= currentPage === 'seu-identity' ? 'active' : '' %>" href="/aisworg/seu/identity">
                 <i class="bi bi-person-badge me-2"></i>Identity Management
               </a></li>
-              <% if (_isTenantSuper) { %>
+              <% if (_navRouteVisible['GET /aisworg/seu/tenant-admin/users']) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-tenant-admin-users' ? 'active' : '' %>" href="/aisworg/seu/tenant-admin/users">
                 <i class="bi bi-people-fill me-2"></i>Tenant User Management
               </a></li>
               <% } %>
-              <% if (_isSuper) { %>
-              <li><a class="dropdown-item <%= currentPage === 'settings' ? 'active' : '' %>"href="/aisworg/settings">
-                <i class="bi bi-gear me-2"></i>Settings
-              </a></li>
-              <li><a class="dropdown-item <%= currentPage === 'user-management' ? 'active' : '' %>"href="/aisworg/auth/users">
-                <i class="bi bi-people me-2"></i>Users
-              </a></li>
+              <% if (_navRouteVisible['GET /aisworg/seu/events']) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-events' ? 'active' : '' %>" href="/aisworg/seu/events">
                 <i class="bi bi-broadcast me-2"></i>Event Bus
               </a></li>

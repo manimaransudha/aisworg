@@ -8,18 +8,17 @@ const require = createRequire(import.meta.url);
 const crypto = require("crypto");
 
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { badgeTypesDB } from "../../../dblayer/badgeTypesDB.js";
-import { badgeGrantsDB } from "../../../dblayer/badgeGrantsDB.js";
 import { userDB } from "../../../dblayer/userDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { authorityVocabularyDB } from "../../../dblayer/authorityVocabularyDB.js";
 import { emailService } from "../../../domain/auth/emailService.js";
 import { query } from "../../../utils/db.js";
-import type { BadgeGrantRow, BadgeScopeKind, BadgeTypeRow, TenantRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
-
-export interface BadgeGrantView extends BadgeGrantRow {
-  holderEmail: string | null;
-}
+import { ontologyDB, type OntologyViewer } from "../../../dblayer/ontologyDB.js";
+import { assertCanonicalCategory } from "./ontology.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
+import { createParticipantMaster } from "./participantsMaster.js";
+import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
+import type { BadgeTypeRow, TenantRow } from "../../../dblayer/seuTypes.js";
 
 export interface PlatformUserView {
   id: number;
@@ -28,14 +27,32 @@ export interface PlatformUserView {
   role: string;
   is_active: boolean;
   created_at: string;
-  platformBadges: string[]; // every Active badge this user holds (Layer 1 root/tenant_admin/… AND noun x verb pack_define/objective_propose/…), distinct from the legacy role column — field name kept for the session's own (unrelated, Layer-1-only) req.session.user.platformBadges cache; this is User Management's own display rollup
+  tenantId: string | null;
+  tenantName: string | null;
+  // Owner: "actions dropdown should be from ontology authorised-role...
+  // Existing grant should be in a selected state." Unscoped (seu_ids: [])
+  // and unexpired authorised_role codes only — this platform-wide screen
+  // has no SEU context, so a SEU-scoped grant is neither shown nor
+  // touchable here (setAuthorisedRoles below leaves those alone).
+  authorisedRoles: string[];
+  // Owner: "badge_grants on the user management should be replaced with the
+  // new badges implementation" — same unscoped/unexpired-only display rule
+  // as authorisedRoles above, read from participants_master.authorised_badges
+  // (migration 257) instead of badge_grants.
+  authorisedBadges: string[];
 }
 
 export interface IdentityDashboardView {
   tenants: TenantRow[];
   badgeTypes: BadgeTypeRow[]; // Platform-recommended + every Tenant's overrides/additions, for this pass's single-page view
-  grants: BadgeGrantView[];
   users: PlatformUserView[];
+  // Ontology "authorised-role" concept codes, for the Actions column's
+  // multi-select — root sees the full Platform-recommended vocabulary.
+  authorisedRoleCodes: string[];
+  // The live noun x verb vocabulary (authority_noun_verbs), for the new
+  // Badges multi-select — same source listUsersForTenant's own grant form
+  // already uses (listGrantableNounVerbBadges, below).
+  authorisedBadgeCodes: string[];
 }
 
 // Tenant Management only needs the tenant list — it must NOT pay for the whole
@@ -52,43 +69,53 @@ export async function listTenantsForManagement(): Promise<TenantRow[]> {
 export async function getIdentityDashboardView(): Promise<IdentityDashboardView> {
   const [{ data: tenants }, badgeTypesResult] = await Promise.all([tenantsDB.findAll(), query<BadgeTypeRow>("SELECT * FROM badge_types ORDER BY tenant_id NULLS FIRST, code")]);
 
-  // Load every user once, up front, and index by id — the grant list below
-  // resolves each holder's email from this map instead of a per-grant
-  // SELECT (the old N+1: up to 200 serial round-trips, ~8s on a remote DB).
-  const { rows: userRows } = await query<{ id: number; email: string; name: string | null; role: string; is_active: boolean; created_at: string }>(
-    "SELECT id, email, name, role, is_active, created_at FROM users ORDER BY created_at DESC"
+  const { rows: userRows } = await query<{ id: number; email: string; name: string | null; role: string; is_active: boolean; created_at: string; tenant_id: string | null }>(
+    "SELECT id, email, name, role, is_active, created_at, tenant_id FROM users ORDER BY created_at DESC"
   );
-  const emailById = new Map<string, string>(userRows.map((u) => [String(u.id), u.email]));
+  const tenantNameById = new Map<string, string>((tenants ?? []).map((t) => [t.id, t.name]));
 
-  const { rows: grantRows } = await query<BadgeGrantRow>("SELECT * FROM badge_grants ORDER BY created_at DESC LIMIT 200");
-  const grants: BadgeGrantView[] = grantRows.map((grant) => ({
-    ...grant,
-    holderEmail: grant.holder_type === "User" ? emailById.get(grant.holder_id) ?? null : null,
+  // authorised_role (migration 254/255) — one participants_master row per
+  // user, at most, via user_id (participantsMasterDB.findByUserId's own
+  // "only ever set for a Human-type master" convention). Batch-loaded here,
+  // same discipline every other seed/dashboard read in this codebase uses
+  // for a list this size — never a per-row live query.
+  const { rows: masterRows } = await query<{ user_id: number; authorised_role: Array<{ role: string; effective_till: string; seu_ids: string[] }> }>(
+    "SELECT user_id, authorised_role FROM participants_master WHERE user_id IS NOT NULL"
+  );
+  const now = new Date();
+  const authorisedRolesByUserId = new Map<number, string[]>(
+    masterRows.map((m) => [
+      m.user_id,
+      m.authorised_role.filter((e) => e.seu_ids.length === 0 && new Date(e.effective_till).getTime() >= now.getTime()).map((e) => e.role),
+    ])
+  );
+
+  const { data: authorisedRoleConcepts } = await ontologyDB.findConceptsByType("authorised-role", { isRoot: true, tenantId: null });
+  const authorisedRoleCodes = (authorisedRoleConcepts ?? []).map((c) => c.code);
+
+  // authorised_badges (migration 257) — same batch-load discipline as
+  // authorised_role above.
+  const { rows: masterBadgeRows } = await query<{ user_id: number; authorised_badges: Array<{ badge: string; effective_till: string; seu_ids: string[] }> }>(
+    "SELECT user_id, authorised_badges FROM participants_master WHERE user_id IS NOT NULL"
+  );
+  const authorisedBadgesByUserId = new Map<number, string[]>(
+    masterBadgeRows.map((m) => [
+      m.user_id,
+      m.authorised_badges.filter((e) => e.seu_ids.length === 0 && new Date(e.effective_till).getTime() >= now.getTime()).map((e) => e.badge),
+    ])
+  );
+  const [nounVerbBadgeCodes, adminSurfaceBadgeCodes] = await Promise.all([listGrantableNounVerbBadges(), listAdminSurfaceBadgeCodes()]);
+  const authorisedBadgeCodes = [...new Set([...nounVerbBadgeCodes, ...adminSurfaceBadgeCodes])].sort();
+
+  const users: PlatformUserView[] = userRows.map((u) => ({
+    ...u,
+    tenantId: u.tenant_id,
+    tenantName: u.tenant_id ? tenantNameById.get(u.tenant_id) ?? null : null,
+    authorisedRoles: authorisedRolesByUserId.get(u.id) ?? [],
+    authorisedBadges: authorisedBadgesByUserId.get(u.id) ?? [],
   }));
 
-  // Bug fix: this used to JOIN against badge_types and require scope_kind
-  // 'None' — a badge holds a badge_types row (and that scope_kind) ONLY under
-  // the old Layer 1 model. Noun x verb badges (CR-006 — pack_define,
-  // objective_propose, …) have no badge_types row at all by design (they're
-  // governed by authority_nouns/verbs/mapping, not that catalog), so every
-  // one of them was silently excluded — the column showed empty for every
-  // seeded noun x verb authoring user regardless of how many real grants they
-  // held. Fixed: every Active grant counts, badge_types or not; only 'viewer'
-  // (registration-default noise on every account) is excluded. sdk_creator/
-  // sdk_approver/creator/reviewer/approver never appear here going forward —
-  // migration 043 retired them (nothing has enforced them since CR-006).
-  const { rows: badgeRows } = await query<{ holder_id: string; badge_type: string }>(
-    "SELECT holder_id, badge_type FROM badge_grants WHERE holder_type = 'User' AND status = 'Active' AND badge_type != 'viewer' ORDER BY badge_type"
-  );
-  const badgesByHolder = new Map<string, string[]>();
-  for (const row of badgeRows) {
-    const list = badgesByHolder.get(row.holder_id) ?? [];
-    list.push(row.badge_type);
-    badgesByHolder.set(row.holder_id, list);
-  }
-  const users: PlatformUserView[] = userRows.map((u) => ({ ...u, platformBadges: badgesByHolder.get(String(u.id)) ?? [] }));
-
-  return { tenants: tenants ?? [], badgeTypes: badgeTypesResult.rows, grants, users };
+  return { tenants: tenants ?? [], badgeTypes: badgeTypesResult.rows, users, authorisedRoleCodes, authorisedBadgeCodes };
 }
 
 export type CreatePlatformUserResult = { ok: true; email: string; verificationLink: string | null } | { ok: false; detail: string };
@@ -103,50 +130,52 @@ export type CreatePlatformUserResult = { ok: true; email: string; verificationLi
 // column is left at its default ('general') — that axis is untouched by
 // Phase 10 (design doc §5) and irrelevant to what badges this account can
 // later be granted.
-export async function createPlatformUser(input: { email: string; name?: string; type: "Platform" | "Tenant"; tenantId?: string }): Promise<CreatePlatformUserResult> {
+// Owner: "Type should be renamed to Tenant. The dropdown should have the
+// tenants list. Include a authorised_role dropdown" — collapses the old
+// Type (Platform/Tenant) + conditional tenant picker into one dropdown of
+// every real tenant, Platform's own reserved row included; `type` is no
+// longer a human choice, it's derived from which tenant was picked
+// (tenant.is_system — true only for the reserved 'platform' row today).
+export async function createPlatformUser(input: { email: string; name?: string; tenantId: string; authorisedRoles?: string[] }): Promise<CreatePlatformUserResult> {
   const existing = await userDB.findByEmail(input.email);
   if (existing) return { ok: false, detail: `a user already exists for ${input.email}` };
 
-  // CR-004: resolve the user's home. Platform users live in the reserved
-  // 'platform' tenant; Tenant users go to the chosen (operational) tenant.
-  let tenantId: string;
-  if (input.type === "Platform") {
-    const { data: platformTenant } = await tenantsDB.findByCode("platform");
-    if (!platformTenant) return { ok: false, detail: "platform tenant not found — run migrations" };
-    tenantId = platformTenant.id;
-  } else {
-    if (!input.tenantId) return { ok: false, detail: "a tenant must be selected for a Tenant user" };
-    const { data: tenant } = await tenantsDB.findById(input.tenantId);
-    if (!tenant) return { ok: false, detail: `tenant not found: ${input.tenantId}` };
-    if (tenant.is_system) return { ok: false, detail: "cannot assign a user to a reserved system tenant" };
-    tenantId = tenant.id;
+  const { data: tenant } = await tenantsDB.findById(input.tenantId);
+  if (!tenant) return { ok: false, detail: `tenant not found: ${input.tenantId}` };
+  const type: "Platform" | "Tenant" = tenant.is_system ? "Platform" : "Tenant";
+
+  const viewer: OntologyViewer = { isRoot: true, tenantId: null };
+  for (const role of input.authorisedRoles ?? []) {
+    await assertCanonicalCategory("authorised-role", role, viewer);
   }
 
   const token = crypto.randomBytes(32).toString("hex");
   const expires = new Date(Date.now() + 48 * 60 * 60 * 1000);
-  await userDB.createLocalPending({ email: input.email, name: input.name || input.email, role: "general", verification_token: token, verification_expires: expires, type: input.type, tenant_id: tenantId });
+  const created = await userDB.createLocalPending({ email: input.email, name: input.name || input.email, role: "general", verification_token: token, verification_expires: expires, type, tenant_id: tenant.id });
+
+  // Owner: "I said badge has to be empty. badge is in participants_master."
+  // — authorised_role is exactly whatever the admin selected on the create
+  // form, nothing implied. No forced 'general' here; NON_REVOCABLE_ROLES
+  // (setAuthorisedRoles below) only ever stops a HELD 'general' grant from
+  // being revoked later — it doesn't grant one on creation.
+  const rolesResult = await setAuthorisedRoles({ id: created.id, roles: input.authorisedRoles ?? [], actingUserEmail: null });
+  if (!rolesResult.ok) return { ok: false, detail: `user created, but authorised roles failed: ${rolesResult.detail}` };
+
   const result = await emailService.sendVerification({ to: input.email, name: input.name || input.email, token });
   return { ok: true, email: input.email, verificationLink: result.link ?? null };
 }
 
-const EDITABLE_ROLES = new Set(["general", "power", "tenant_super", "super"]);
-
 export type UpdatePlatformUserResult = { ok: true } | { ok: false; detail: string };
 
 // Owner: "In aisworg/seu/identity/users page, add an action button to edit
-// the users." The legacy /auth/users page already edits exactly these two
-// columns (role, is_active) — userDB.updateRole/setActive already exist,
-// keyed by email; this just adds the id-keyed lookup so the newer Identity
-// Management surface (root-gated via requirePlatformBadge, not the legacy
-// page's own requireRole) can reach them without a second, ID-based DB
-// method. Deliberately NOT email/name/avatar_url/type/tenant_id — those are
-// either the OAuth-identity key or set once at creation (see
-// createPlatformUser above); no existing admin action anywhere in this app
-// has ever touched them, so this doesn't start now. Badges are a separate,
-// already-built flow (issueBadgeGrant/revokeBadgeGrant, Badge Management) —
-// not duplicated here.
-export async function updatePlatformUser(input: { id: number; role: string; isActive: boolean; actingUserEmail: string | null }): Promise<UpdatePlatformUserResult> {
-  if (!EDITABLE_ROLES.has(input.role)) return { ok: false, detail: `invalid role "${input.role}"` };
+// the users." Active is still edited here (userDB.setActive, keyed by
+// email — see the self-edit guard comment below for why email not id).
+// Role editing moved to setAuthorisedRoles below (owner: "omit the legacy
+// role column... actions dropdown should be from ontology authorised-role")
+// — the legacy `role` column itself is untouched, just no longer editable
+// from this page. Badges are a separate, already-built flow
+// (issueBadgeGrant/revokeBadgeGrant, Badge Management) — not duplicated here.
+export async function updatePlatformUser(input: { id: number; isActive: boolean; actingUserEmail: string | null }): Promise<UpdatePlatformUserResult> {
   const user = await userDB.findById(input.id);
   if (!user) return { ok: false, detail: "user not found" };
   // Self-edit guard, by EMAIL not id — same as the legacy /auth/users page's
@@ -158,8 +187,103 @@ export async function updatePlatformUser(input: { id: number; role: string; isAc
   // always correctly identifies who's actually acting, in the shim and in
   // real OAuth login alike.
   if (input.actingUserEmail && user.email === input.actingUserEmail) return { ok: false, detail: "you can't edit your own account from here" };
-  await userDB.updateRole(user.email, input.role);
   await userDB.setActive(user.email, input.isActive);
+  return { ok: true };
+}
+
+// Owner: "provide all participants with general role... to denote always" —
+// 'general' is the platform's own default standing grant (migration 255's
+// column default; every onboarding adapter sets it). Owner, this session:
+// "Don't allow revoke of general because that is a default" — once a user
+// holds it unscoped, it's never dropped here even if deselected.
+const NON_REVOCABLE_ROLES = new Set(["general"]);
+
+// Owner: "dropdown is multi-select. Existing grant should be in a selected
+// state. so add or revoke will work" — reconciles this user's UNSCOPED
+// (seu_ids: []) authorised_role grants to exactly the given set: adds a
+// standing grant (effective_till 9999-12-31, seu_ids: []) for any newly
+// selected role, drops any unscoped grant whose role was deselected (except
+// NON_REVOCABLE_ROLES), and leaves any SEU-scoped grant untouched (this
+// platform-wide screen has no SEU context to revoke one correctly). Same
+// self-edit guard as updatePlatformUser — deselecting your own only
+// `superuser` grant here would otherwise lock the acting admin out.
+export async function setAuthorisedRoles(input: { id: number; roles: string[]; actingUserEmail: string | null }): Promise<UpdatePlatformUserResult> {
+  const user = await userDB.findById(input.id);
+  if (!user) return { ok: false, detail: "user not found" };
+  if (input.actingUserEmail && user.email === input.actingUserEmail) return { ok: false, detail: "you can't edit your own account from here" };
+
+  const viewer: OntologyViewer = { isRoot: true, tenantId: null };
+  for (const role of input.roles) {
+    await assertCanonicalCategory("authorised-role", role, viewer);
+  }
+
+  const { data: existingMaster } = await participantsMasterDB.findByUserId(input.id);
+  const master = existingMaster ?? (await createParticipantMaster({
+    tenantId: user.tenant_id ?? PLATFORM_TENANT_ID,
+    type: "Human",
+    displayName: user.name || user.email,
+    userId: input.id,
+  }));
+
+  const selected = new Set(input.roles);
+  const kept = master.authorised_role.filter((entry) => entry.seu_ids.length > 0 || selected.has(entry.role) || NON_REVOCABLE_ROLES.has(entry.role));
+  const alreadyKeptRoles = new Set(kept.filter((entry) => entry.seu_ids.length === 0).map((entry) => entry.role));
+  const added = [...selected].filter((role) => !alreadyKeptRoles.has(role)).map((role) => ({ role, effective_till: "9999-12-31", seu_ids: [] as string[] }));
+
+  const { error } = await participantsMasterDB.setAuthorisedRole(master.id, [...kept, ...added]);
+  if (error) return { ok: false, detail: error.message };
+  return { ok: true };
+}
+
+// Owner (2026-09-22): "web/ontology.ts should have badge ontology_manage" —
+// the Ontology-registered admin-surface badges (concept_types
+// badges:platform/badges:tenant, migration 256: identity_manage,
+// tenant_manage, ontology_manage, platform_manage), alongside the real
+// noun_verb vocabulary. Unioned, not scoped per platform/tenant — "badge
+// does not need seuid" (owner) already settled authorised_badges as
+// unscoped, same discipline here.
+export async function listAdminSurfaceBadgeCodes(): Promise<string[]> {
+  const viewer: OntologyViewer = { isRoot: true, tenantId: null };
+  const [{ data: platformConcepts }, { data: tenantConcepts }] = await Promise.all([
+    ontologyDB.findConceptsByType("badges:platform", viewer),
+    ontologyDB.findConceptsByType("badges:tenant", viewer),
+  ]);
+  return [...new Set([...(platformConcepts ?? []), ...(tenantConcepts ?? [])].map((c) => c.code))].sort();
+}
+
+// Owner: "badge_grants on the user management should be replaced with the
+// new badges implementation" — same reconcile shape as setAuthorisedRoles
+// above (add newly selected, drop deselected, leave any SEU-scoped entry
+// untouched), validated against the real noun x verb vocabulary
+// (listGrantableNounVerbBadges) plus the Ontology-registered admin-surface
+// badges above. No NON_REVOCABLE_ROLES equivalent — badges have no sticky
+// default.
+export async function setAuthorisedBadges(input: { id: number; badges: string[]; actingUserEmail: string | null }): Promise<UpdatePlatformUserResult> {
+  const user = await userDB.findById(input.id);
+  if (!user) return { ok: false, detail: "user not found" };
+  if (input.actingUserEmail && user.email === input.actingUserEmail) return { ok: false, detail: "you can't edit your own account from here" };
+
+  const [nounVerbBadges, adminSurfaceBadges] = await Promise.all([listGrantableNounVerbBadges(), listAdminSurfaceBadgeCodes()]);
+  const grantable = new Set([...nounVerbBadges, ...adminSurfaceBadges]);
+  for (const badge of input.badges) {
+    if (!grantable.has(badge)) return { ok: false, detail: `"${badge}" is not a real badge. Allowed: ${[...grantable].join(", ") || "(none registered)"}` };
+  }
+
+  const { data: existingMaster } = await participantsMasterDB.findByUserId(input.id);
+  const master = existingMaster ?? (await createParticipantMaster({
+    tenantId: user.tenant_id ?? PLATFORM_TENANT_ID,
+    type: "Human",
+    displayName: user.name || user.email,
+    userId: input.id,
+  }));
+
+  const selected = new Set(input.badges);
+  const kept = master.authorised_badges.filter((entry) => entry.seu_ids.length > 0 || selected.has(entry.badge));
+  const alreadyKeptBadges = new Set(kept.filter((entry) => entry.seu_ids.length === 0).map((entry) => entry.badge));
+  const added = [...selected].filter((badge) => !alreadyKeptBadges.has(badge)).map((badge) => ({ badge, effective_till: "9999-12-31", seu_ids: [] as string[] }));
+
+  const { error } = await participantsMasterDB.setAuthorisedBadges(master.id, [...kept, ...added]);
+  if (error) return { ok: false, detail: error.message };
   return { ok: true };
 }
 
@@ -179,54 +303,6 @@ export async function createTenant(input: { code: string; name: string }): Promi
   return { ok: true, tenant };
 }
 
-export type IssueBadgeGrantResult = { ok: true; grant: BadgeGrantRow } | { ok: false; reason: "email_not_found" | "validation_failed"; detail: string };
-
-export async function issueBadgeGrant(input: {
-  holderEmail: string;
-  badgeType: string;
-  governedEntityType?: TransitionEntityType | null;
-  capabilityId?: string | null;
-  scopeId?: string | null;
-}): Promise<IssueBadgeGrantResult> {
-  const holder = await userDB.findByEmail(input.holderEmail);
-  if (!holder) return { ok: false, reason: "email_not_found", detail: `no user found for ${input.holderEmail}` };
-
-  const result = await badgeGrantsDB.create({
-    holderId: String(holder.id),
-    badgeType: input.badgeType,
-    governedEntityType: input.governedEntityType ?? null,
-    capabilityId: input.capabilityId ?? null,
-    scopeId: input.scopeId ?? null,
-  });
-  if ("validationErrors" in result) return { ok: false, reason: "validation_failed", detail: result.validationErrors.join("; ") };
-  if (result.error || !result.data) return { ok: false, reason: "validation_failed", detail: result.error?.message ?? "failed to create grant" };
-  return { ok: true, grant: result.data };
-}
-
-export async function revokeBadgeGrant(id: string): Promise<{ ok: true } | { ok: false; detail: string }> {
-  const { data, error } = await badgeGrantsDB.revoke(id);
-  if (error || !data) return { ok: false, detail: error?.message ?? "grant not found" };
-  return { ok: true };
-}
-
-export type CreateTenantBadgeResult = { ok: true; badgeType: BadgeTypeRow } | { ok: false; detail: string };
-
-// §8.1: rename (same code, this Tenant's own name) or add a genuinely new,
-// derived badge (new code, must declare derived_from) — both go through
-// badgeTypesDB.create, which enforces §8.1's boundaries (single writer
-// function, design doc §9's Enforcement point).
-export async function createOrRenameTenantBadge(input: { tenantId: string; code: string; name: string; scopeKind: BadgeScopeKind; derivedFrom?: string | null }): Promise<CreateTenantBadgeResult> {
-  const result = await badgeTypesDB.create({
-    tenantId: input.tenantId,
-    code: input.code,
-    name: input.name,
-    scopeKind: input.scopeKind,
-    derivedFrom: input.derivedFrom ?? null,
-  });
-  if ("validationErrors" in result) return { ok: false, detail: result.validationErrors.join("; ") };
-  if (result.error || !result.data) return { ok: false, detail: result.error?.message ?? "failed to create badge type" };
-  return { ok: true, badgeType: result.data };
-}
 
 // --- Tenant Admin (tenant_super role) — a separate, tenant-scoped view. ----
 // Owner: "there has to be a separate view for tenant_admins... user
@@ -241,49 +317,44 @@ export async function createOrRenameTenantBadge(input: { tenantId: string; code:
 // Same PlatformUserView shape as the platform-wide dashboard, filtered to one
 // tenant — deliberately not a call to getIdentityDashboardView (that loads
 // every tenant's users/grants; a tenant_super only ever needs its own).
-export interface TenantUserView extends PlatformUserView {
-  // The subset of platformBadges that are real, revocable noun_verb grants
-  // (per listGrantableNounVerbBadges — the same live authority_noun_verbs
-  // vocabulary this screen grants from), carrying the real badge_grants.id —
-  // platformBadges (inherited) stays a flat display list for everything else
-  // (root/tenant_admin/pack_all/…, not grantable from this screen so not
-  // revocable from it either), but revoking needs the actual grant row, not
-  // just the badge_type string (two different users could each hold
-  // "deliverable_approve" as two distinct grant rows).
-  revocableGrants: Array<{ id: string; badgeType: string }>;
-}
+export type TenantUserView = PlatformUserView;
 
+// Owner (2026-09-22): "write to participants_master and remove badge_grants"
+// — authorisedBadges (participants_master, migration 257) replaces the old
+// badge_grants-based revocableGrants entirely; there's no per-grant id to
+// revoke by any more, just a reconcile-to-selection (setTenantUserAuthorisedBadges
+// below), same shape as Identity Management's own setAuthorisedBadges.
 export async function listUsersForTenant(tenantId: string): Promise<TenantUserView[]> {
   const { rows: userRows } = await query<{ id: number; email: string; name: string | null; role: string; is_active: boolean; created_at: string }>(
     "SELECT id, email, name, role, is_active, created_at FROM users WHERE tenant_id = $1 ORDER BY created_at DESC",
     [tenantId]
   );
   if (userRows.length === 0) return [];
-  const holderIds = userRows.map((u) => String(u.id));
-  const [{ rows: badgeRows }, grantableBadges] = await Promise.all([
-    query<{ id: string; holder_id: string; badge_type: string }>(
-      "SELECT id, holder_id, badge_type FROM badge_grants WHERE holder_type = 'User' AND status = 'Active' AND holder_id = ANY($1::text[]) AND badge_type != 'viewer' ORDER BY badge_type",
-      [holderIds]
-    ),
-    listGrantableNounVerbBadges(),
-  ]);
-  const grantableSet = new Set(grantableBadges);
-  const badgesByHolder = new Map<string, string[]>();
-  const revocableGrantsByHolder = new Map<string, Array<{ id: string; badgeType: string }>>();
-  for (const row of badgeRows) {
-    const list = badgesByHolder.get(row.holder_id) ?? [];
-    list.push(row.badge_type);
-    badgesByHolder.set(row.holder_id, list);
-    if (grantableSet.has(row.badge_type)) {
-      const grants = revocableGrantsByHolder.get(row.holder_id) ?? [];
-      grants.push({ id: row.id, badgeType: row.badge_type });
-      revocableGrantsByHolder.set(row.holder_id, grants);
-    }
-  }
+
+  const now = new Date();
+  const { rows: masterBadgeRows } = await query<{ user_id: number; authorised_badges: Array<{ badge: string; effective_till: string; seu_ids: string[] }> }>(
+    "SELECT user_id, authorised_badges FROM participants_master WHERE user_id = ANY($1::int[])",
+    [userRows.map((u) => u.id)]
+  );
+  const authorisedBadgesByUserId = new Map<number, string[]>(
+    masterBadgeRows.map((m) => [
+      m.user_id,
+      m.authorised_badges.filter((e) => e.seu_ids.length === 0 && new Date(e.effective_till).getTime() >= now.getTime()).map((e) => e.badge),
+    ])
+  );
+
+  // tenantId is this function's own input (every row shares it); tenantName
+  // and authorisedRoles are Identity Management's own (getIdentityDashboardView)
+  // concern, deliberately not loaded here — this function stays the
+  // lightweight, this-tenant-only read its own header comment describes.
+  const { data: tenant } = await tenantsDB.findById(tenantId);
   return userRows.map((u) => ({
     ...u,
-    platformBadges: badgesByHolder.get(String(u.id)) ?? [],
-    revocableGrants: revocableGrantsByHolder.get(String(u.id)) ?? [],
+    platformBadges: [],
+    tenantId,
+    tenantName: tenant?.name ?? null,
+    authorisedRoles: [],
+    authorisedBadges: authorisedBadgesByUserId.get(u.id) ?? [],
   }));
 }
 
@@ -302,47 +373,20 @@ export async function listGrantableNounVerbBadges(): Promise<string[]> {
   return [...new Set((data ?? []).map((r) => `${r.noun_code.toLowerCase()}_${r.verb_code}`))].sort();
 }
 
-export type IssueTenantBadgeResult =
-  | { ok: true; grant: BadgeGrantRow }
-  | { ok: false; detail: string };
-
-// Any real noun_verb badge (owner: "should include all entity_types", not
-// just Deliverable), restricted to a user already confirmed to belong to the
-// acting tenant_super's own tenant — a userId picked from that tenant's own
-// User Management list, not a free-typed email, so there's no cross-tenant
-// grant path to begin with; checked again here regardless, since the route
-// boundary is the only real enforcement point.
-export async function issueNounVerbBadgeToTenantUser(input: { actingTenantId: string; userId: number; badgeType: string }): Promise<IssueTenantBadgeResult> {
-  const allowedBadges = await listGrantableNounVerbBadges();
-  if (!allowedBadges.includes(input.badgeType)) return { ok: false, detail: `"${input.badgeType}" is not a real, active noun x verb badge` };
-
+// Owner (2026-09-22): "write to participants_master and remove badge_grants"
+// — reconciles this tenant user's noun_verb authorised_badges to exactly the
+// given set (same add/drop-by-selection shape as setAuthorisedBadges),
+// restricted to a user already confirmed to belong to the acting
+// tenant_super's own tenant — a userId picked from that tenant's own User
+// Management list, not a free-typed email, so there's no cross-tenant path
+// to begin with; checked again here regardless, since the route boundary is
+// the only real enforcement point. Delegates to setAuthorisedBadges itself
+// (root of Identity Management's own Badge Management) rather than
+// re-implementing the same reconcile logic a second time.
+export async function setTenantUserAuthorisedBadges(input: { actingTenantId: string; userId: number; badges: string[] }): Promise<UpdatePlatformUserResult> {
   const holder = await userDB.findById(input.userId);
   if (!holder) return { ok: false, detail: "user not found" };
   if (holder.tenant_id !== input.actingTenantId) return { ok: false, detail: "that user is not in your tenant" };
 
-  const result = await badgeGrantsDB.create({
-    holderId: String(holder.id),
-    badgeType: input.badgeType,
-    governedEntityType: null,
-    capabilityId: null,
-    scopeId: null,
-  });
-  if ("validationErrors" in result) return { ok: false, detail: result.validationErrors.join("; ") };
-  if (result.error || !result.data) return { ok: false, detail: result.error?.message ?? "failed to create grant" };
-  return { ok: true, grant: result.data };
-}
-
-// Same tenant-membership check as issuing, the other direction: revoking a
-// grant a tenant_super didn't grant (a different tenant's holder) is refused,
-// not just hidden from the list.
-export async function revokeTenantBadgeGrant(input: { actingTenantId: string; grantId: string }): Promise<{ ok: true } | { ok: false; detail: string }> {
-  const { data: grant, error: findErr } = await badgeGrantsDB.findById(input.grantId);
-  if (findErr || !grant) return { ok: false, detail: "grant not found" };
-  if (grant.holder_type !== "User") return { ok: false, detail: "not a user grant" };
-  const holder = await userDB.findById(Number(grant.holder_id));
-  if (!holder || holder.tenant_id !== input.actingTenantId) return { ok: false, detail: "that grant is not in your tenant" };
-
-  const { data, error } = await badgeGrantsDB.revoke(input.grantId);
-  if (error || !data) return { ok: false, detail: error?.message ?? "grant not found" };
-  return { ok: true };
+  return setAuthorisedBadges({ id: input.userId, badges: input.badges, actingUserEmail: null });
 }

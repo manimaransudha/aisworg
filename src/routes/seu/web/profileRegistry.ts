@@ -10,6 +10,7 @@ const router = express.Router();
 
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
+import { requireRole } from "../../../middleware/requireRole.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
@@ -22,7 +23,7 @@ import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngin
 const PROFILE_STATES = ["Draft", "Validated", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
 /** GET /aisworg/seu/profiles — every published Version of every Profile. */
-router.get("/profiles", attachVM("seu/profiles/index"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/profiles", requireRole(["participant"], { redirectTo: "/aisworg" }), attachVM("seu/profiles/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Profiles";
     const params = parseListParams(req.query, { sortable: ["name", "version", "status"], defaultSort: "name", defaultDir: "asc" });
@@ -78,7 +79,7 @@ router.get("/profiles", attachVM("seu/profiles/index"), async (req: Request, res
 });
 
 /** POST /aisworg/seu/profiles/:id/copy — Registry "Copy" action: a new, editable Draft at the next available version. */
-router.post("/profiles/:id/copy", async (req: Request, res: Response) => {
+router.post("/profiles/:id/copy", requireRole(["participant"], { redirectTo: "/aisworg" }), async (req: Request, res: Response) => {
   const backTo = "/aisworg/seu/profiles";
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
   if (!actorId) return flashError(req, res, backTo, "Sign in required.");

@@ -16,15 +16,15 @@ export const attestationsDB = {
     fromState: string;
     toState: string;
     reference: string | null;
-    actingBadgeGrantId: string | null;
+    actingBadgeType: string | null;
     requestedBy: number | null;
   }): Promise<DbResult<AttestationRow>> {
     try {
       const { rows } = await query<AttestationRow>(
-        `INSERT INTO attestations (seu_id, deliverable_id, work_item_id, participant_id, from_state, to_state, reference, acting_badge_grant_id, requested_by)
+        `INSERT INTO attestations (seu_id, deliverable_id, work_item_id, participant_id, from_state, to_state, reference, acting_badge_type, requested_by)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING *`,
-        [input.seuId, input.deliverableId, input.workItemId, input.participantId, input.fromState, input.toState, input.reference, input.actingBadgeGrantId, input.requestedBy]
+        [input.seuId, input.deliverableId, input.workItemId, input.participantId, input.fromState, input.toState, input.reference, input.actingBadgeType, input.requestedBy]
       );
       return { data: rows[0] };
     } catch (err) {

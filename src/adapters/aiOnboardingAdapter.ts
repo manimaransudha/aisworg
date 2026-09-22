@@ -3,7 +3,7 @@
 // (which model/provider backs the agent, its tool scope, etc. — Ch.13 §7
 // notes implementation technology is outside this platform's own scope).
 import type { OnboardParticipantRequest, OnboardedParticipant, ParticipantOnboardingAdapter } from "./participantOnboardingAdapter.js";
-import { mockCapabilityCodes, mockDomainValues, mockTechnologyValues, mockProficiencyLevels } from "./mockOnboardingData.js";
+import { mockCapabilityCodes, mockDomainValues, mockTechnologyValues, mockProficiencyLevels, mockDefaultAuthorisedRole } from "./mockOnboardingData.js";
 
 export const aiOnboardingAdapter: ParticipantOnboardingAdapter = {
   type: "AI",
@@ -36,6 +36,7 @@ export const aiOnboardingAdapter: ParticipantOnboardingAdapter = {
       // Nothing in the mock Behaviour Context vocabulary (background-
       // verification, qualitygate) applies to an AI Participant yet.
       behaviourContext: [],
+      authorisedRole: mockDefaultAuthorisedRole(),
     };
   },
 };

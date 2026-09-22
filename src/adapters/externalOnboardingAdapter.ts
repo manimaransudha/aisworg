@@ -3,7 +3,7 @@
 // lookup (an auditor roster, a certifying authority's own directory —
 // Ch.13 §7's "outside oversight/authority parties").
 import type { OnboardParticipantRequest, OnboardedParticipant, ParticipantOnboardingAdapter } from "./participantOnboardingAdapter.js";
-import { mockCapabilityCodes, mockDomainValues, mockProficiencyLevels } from "./mockOnboardingData.js";
+import { mockCapabilityCodes, mockDomainValues, mockProficiencyLevels, mockDefaultAuthorisedRole } from "./mockOnboardingData.js";
 
 export const externalOnboardingAdapter: ParticipantOnboardingAdapter = {
   type: "External",
@@ -29,6 +29,7 @@ export const externalOnboardingAdapter: ParticipantOnboardingAdapter = {
       // MOCK engagement-fee spread, generally the priciest Participant type.
       cost: 600 + (i % 10) * 75,
       behaviourContext: [],
+      authorisedRole: mockDefaultAuthorisedRole(),
     };
   },
 };

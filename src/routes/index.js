@@ -4,7 +4,7 @@ const express = require("express");
 const router = express.Router();
 
 import { attachVM } from "../middleware/attachVM.js";
-import { requireRole } from "../middleware/auth.js";
+import { requireRole } from "../middleware/requireRole.js";
 import { renderView } from "../utils/viewModel.js";
 import { getFlash } from "../utils/flash.js";
 import { userStocksDB } from "../dblayer/userStocks.js";
@@ -25,8 +25,8 @@ import {userPreferencesDB} from "../dblayer/userPreferences.js";
 
 
 
-/** GET / - Decision Storyboard (power and above) */
-router.get("/", requireRole('power'), attachVM("dashboard"), async (req, res) => {
+/** GET / - Decision Storyboard (general) */
+router.get("/", requireRole(['general'], { redirectTo: "/aisworg" }), attachVM("dashboard"), async (req, res) => {
   const flash = getFlash(req);
   const query = (req.query.q || "").toLowerCase().trim();
 

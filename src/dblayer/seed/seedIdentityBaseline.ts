@@ -258,6 +258,43 @@ export async function seedIdentityBaseline(): Promise<void> {
     }
     logger.info(`[seed:identity-baseline] upserted ${USERS.length} users.`);
 
+    // Owner: "In clean-slate when root is populated, the authorised_role for
+    // this id has to be superuser." User id 1 is root (migration 012's own
+    // idempotent badge_grants row, holder_id '1' -> 'root'). requireRole
+    // (middleware/requireRole.ts) reads authorised_role off the actor's OWN
+    // participants_master row (participantsMasterDB.findByUserId) — root has
+    // none by default, so without this it would need the dev-only root-badge
+    // bypass to pass any requireRole check; this gives it the real,
+    // production-safe 'superuser' grant instead (migration 254/255). No
+    // unique constraint on participants_master.user_id (CR-098 never needed
+    // one), so idempotency is explicit: create the row only if none exists
+    // for user 1, then separately ensure 'superuser' is present on whichever
+    // row does exist — same idempotent-append shape migration 255's own
+    // backfill already uses.
+    await client.query(
+      `INSERT INTO participants_master (tenant_id, type, display_name, capabilities, competency, behaviour_context, authorised_role, authorised_badges, is_active, user_id)
+       SELECT $1, 'Human', 'Root', '[]'::jsonb, '{}'::jsonb, '[]'::jsonb, '[{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}]'::jsonb, '[{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}]'::jsonb, TRUE, 1
+       WHERE NOT EXISTS (SELECT 1 FROM participants_master WHERE user_id = 1)`,
+      [PLATFORM_TENANT_ID]
+    );
+    await client.query(
+      `UPDATE participants_master
+       SET authorised_role = authorised_role || '[{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}]'::jsonb
+       WHERE user_id = 1
+         AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(authorised_role) AS entry WHERE entry->>'role' = 'superuser')`
+    );
+    // Owner: "clean-slate root should include the badge root" —
+    // badgeAuthorityEngine.getHeldBadges (domain/engine/badgeAuthorityEngine.ts)
+    // now reads authorised_badges instead of badge_grants, so root's own
+    // bypass needs this the same way it needed the superuser role above.
+    await client.query(
+      `UPDATE participants_master
+       SET authorised_badges = authorised_badges || '[{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}]'::jsonb
+       WHERE user_id = 1
+         AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(authorised_badges) AS entry WHERE entry->>'badge' = 'root')`
+    );
+    logger.info(`[seed:identity-baseline] ensured root (user 1) holds the superuser authorised_role and root authorised_badge.`);
+
     // CR-006 — Objective-authority users for Athens & Babylon: one per objective
     // verb (single objective_<verb> badge) + one "objective_all" (all of them).
     // Local login, password "password"; role general (authority comes from the
@@ -364,7 +401,10 @@ export async function seedIdentityBaseline(): Promise<void> {
       // scope-less badge_grants insert loop below (built from this same
       // array's own `badges` field) can't express. Granted separately, after
       // that loop, once these users' own rows already exist.
-      ...TENANT_ADMIN_USERS.map((u) => ({ ...u, badges: [] as string[] })),
+      // Owner (2026-09-22): "tenant_admin will have identity_manage" — the
+      // Ontology-registered badges:tenant successor (migration 256), not the
+      // old badge_grants-scoped tenant_admin badge_types row.
+      ...TENANT_ADMIN_USERS.map((u) => ({ ...u, badges: ["identity_manage"] as string[] })),
       platformPackAllUser,
     ];
     for (const u of authorityUsers) {
@@ -380,12 +420,14 @@ export async function seedIdentityBaseline(): Promise<void> {
     }
     logger.info(`[seed:identity-baseline] upserted ${objectiveUsers.length} Objective-authority + ${packUsers.length} Pack-authority (Tenant) + 1 Pack-authority (Platform) + ${participantUsers.length} Participant fixture users + ${TENANT_ADMIN_USERS.length} Tenant Admin users (password "password").`);
 
-    // CR-006 — fixture noun_verb grants for the test users. badge_grants.badge_type
-    // is free TEXT (no FK), so a grant of "deliverable_approve" needs no badge_types
-    // row; authorise() matches the string. governed_entity_type/scope stay NULL
-    // (retired). Idempotent: clear these holders' grants, then re-insert (clean-slate
-    // truncates users but not badge_grants).
-    const fixtureGrants: Array<{ holderId: number; badges: string[] }> = [
+    // Owner (2026-09-22): "fix the test seed to use participants_masters
+    // badge column... I want the table dropped" — fixture noun_verb badges
+    // move from badge_grants to each holder's own
+    // participants_master.authorised_badges (migration 257), unscoped
+    // (seu_ids: [] — "badge does not need seuid"). Idempotent: overwrite
+    // (not append) each holder's authorised_badges every run, same as the
+    // old DELETE-then-reinsert did.
+    const fixtureGrants: Array<{ holderId: number; tenantId: string; badges: string[] }> = [
       // CR-072 — objective_propose governs Objective creation/Submit, not a
       // transition_definitions row (Objective's own genesis state, Proposed,
       // has no incoming transition to derive a verb from) — nounVerbBadges()
@@ -401,39 +443,44 @@ export async function seedIdentityBaseline(): Promise<void> {
       // transitions-graph verbs and nounVerbBadges() already covers them —
       // only the authoring verb needed the same manual addition as
       // objective_propose.
-      { holderId: TESTER_ALL_ID, badges: [...nounVerbBadges(), "objective_propose", "ontology_define"].sort() },
-      { holderId: TESTER_CREATOR_ID, badges: nounVerbBadges((v) => v === "create") },
-      { holderId: TESTER_APPROVER_ID, badges: nounVerbBadges((v) => v === "approve") },
-      ...authorityUsers.map((u) => ({ holderId: u.id, badges: u.badges })),
+      { holderId: TESTER_ALL_ID, tenantId: DEFAULT_TENANT_ID, badges: [...nounVerbBadges(), "objective_propose", "ontology_define"].sort() },
+      { holderId: TESTER_CREATOR_ID, tenantId: DEFAULT_TENANT_ID, badges: nounVerbBadges((v) => v === "create") },
+      { holderId: TESTER_APPROVER_ID, tenantId: DEFAULT_TENANT_ID, badges: nounVerbBadges((v) => v === "approve") },
+      // TENANT_ADMIN_USERS' own badges is already ["identity_manage"] (set
+      // above, in authorityUsers) — the Ontology badges:tenant successor to
+      // the old badge_grants-scoped tenant_admin (owner: "tenant_admin will
+      // have identity_manage").
+      ...authorityUsers.map((u) => ({ holderId: u.id, tenantId: u.tenantId, badges: u.badges })),
     ];
-    const fixtureHolderIds = fixtureGrants.map((g) => String(g.holderId));
-    await client.query("DELETE FROM badge_grants WHERE holder_id = ANY($1::text[])", [fixtureHolderIds]);
     let grantCount = 0;
-    for (const { holderId, badges } of fixtureGrants) {
-      for (const badge of badges) {
-        await client.query(
-          "INSERT INTO badge_grants (holder_type, holder_id, badge_type, status) VALUES ('User', $1, $2, 'Active')",
-          [String(holderId), badge]
-        );
-        grantCount++;
-      }
+    for (const { holderId, tenantId, badges } of fixtureGrants) {
+      const authorisedBadgesJson = JSON.stringify(badges.map((badge) => ({ badge, effective_till: "9999-12-31", seu_ids: [] as string[] })));
+      await client.query(
+        `INSERT INTO participants_master (tenant_id, type, display_name, capabilities, competency, behaviour_context, authorised_badges, is_active, user_id)
+         SELECT $1, 'Human', 'Fixture', '[]'::jsonb, '{}'::jsonb, '[]'::jsonb, $2::jsonb, TRUE, $3
+         WHERE NOT EXISTS (SELECT 1 FROM participants_master WHERE user_id = $3)`,
+        [tenantId, authorisedBadgesJson, holderId]
+      );
+      await client.query("UPDATE participants_master SET authorised_badges = $1::jsonb WHERE user_id = $2", [authorisedBadgesJson, holderId]);
+      grantCount += badges.length;
     }
-    logger.info(`[seed:identity-baseline] seeded ${grantCount} fixture noun_verb grants across ${fixtureGrants.length} test users.`);
+    logger.info(`[seed:identity-baseline] seeded ${grantCount} fixture noun_verb/admin badges across ${fixtureGrants.length} test users' own participants_master rows.`);
 
-    // tenant_admin (badge_types.scope_kind 'Tenant', migration 012) needs a
-    // real scope_id — the tenant's own id — which the flat, scope-less loop
-    // above can't express (it only ever writes holder_type/holder_id/
-    // badge_type/status). These holders' prior grants were already cleared
-    // by the DELETE above (TENANT_ADMIN_USERS is part of authorityUsers, so
-    // its ids are in fixtureHolderIds too); this just adds the one real,
-    // scoped row per tenant admin.
+    // CR-110 — /tenant-admin/users moved off the legacy users.role==='tenant_super'
+    // check onto the modern requireRole(['tenant_admin']) (participants_master.
+    // authorised_role), same shape as root's own 'superuser' grant above. Without
+    // this, TENANT_ADMIN_USERS keep the identity_manage BADGE (granted above) but
+    // have no matching authorised_role ROLE entry, and would be locked out of
+    // their own tenant User Management screen on the very next clean-slate.
     for (const u of TENANT_ADMIN_USERS) {
       await client.query(
-        "INSERT INTO badge_grants (holder_type, holder_id, badge_type, scope_id, status) VALUES ('User', $1, 'tenant_admin', $2, 'Active')",
-        [String(u.id), u.tenantId]
+        `UPDATE participants_master SET authorised_role = authorised_role || '[{"role":"tenant_admin","effective_till":"9999-12-31","seu_ids":[]}]'::jsonb
+         WHERE user_id = $1
+           AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(authorised_role) AS entry WHERE entry->>'role' = 'tenant_admin')`,
+        [u.id]
       );
     }
-    logger.info(`[seed:identity-baseline] granted tenant_admin (scoped) to ${TENANT_ADMIN_USERS.length} tenant admin users, one per tenant.`);
+    logger.info(`[seed:identity-baseline] ensured ${TENANT_ADMIN_USERS.length} Tenant Admin users hold the tenant_admin authorised_role.`);
 
     // Advance the serial past the highest seeded id so the next UI-created user
     // doesn't collide with a seeded id (clean-slate's RESTART IDENTITY leaves

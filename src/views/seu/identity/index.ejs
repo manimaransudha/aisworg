@@ -34,7 +34,7 @@
     </div>
 
     <div class="row g-3">
-      <div class="col-md-4">
+      <div class="col-md-3">
         <a href="/aisworg/seu/identity/tenants" class="hub-card">
           <i class="bi bi-building hub-icon"></i>
           <h3>Tenant Management</h3>
@@ -43,16 +43,14 @@
           <div class="hub-count-label">Tenants</div>
         </a>
       </div>
-      <div class="col-md-4">
+      <div class="col-md-3">
         <a href="/aisworg/seu/identity/badges" class="hub-card">
           <i class="bi bi-patch-check hub-icon"></i>
           <h3>Badge Management</h3>
-          <p>Badge Catalog (Platform/Tenant/SEU-scoped types) and Badge Grants (issue, revoke).</p>
-          <div class="hub-count"><%= counts.badgeTypes %> <span class="fs-6 text-muted">/ <%= counts.grants %></span></div>
-          <div class="hub-count-label">Badge types / Grants</div>
+          <p>Noun &times; verb badges, per identity (participants_master.authorised_badges).</p>
         </a>
       </div>
-      <div class="col-md-4">
+      <div class="col-md-3">
         <a href="/aisworg/seu/identity/users" class="hub-card">
           <i class="bi bi-people hub-icon"></i>
           <h3>User Management</h3>
@@ -61,6 +59,15 @@
           <div class="hub-count-label">Users</div>
         </a>
       </div>
+      <% if (showRouteAuthorityCard) { %>
+        <div class="col-md-3">
+          <a href="/aisworg/seu/route-authority" class="hub-card">
+            <i class="bi bi-shield-lock hub-icon"></i>
+            <h3>Route Authority</h3>
+            <p>Which badge(s)/role(s) each route requires (CR-110) — data, not a literal in the route file.</p>
+          </a>
+        </div>
+      <% } %>
     </div>
   </main>
 

@@ -56,7 +56,7 @@ import type { CommandRow, DeliverableRow, DependencyDefinitionRow, GovernanceEva
 // re-exports this one for its "not ok, not dispatched" cases); kept here
 // since this is now where each of these outcomes is actually decided.
 export type DeliverableGovernanceResult =
-  | { ok: true; fromState: string; governanceOutcome: GovernanceEvaluationOutcomeInput }
+  | { ok: true; fromState: string; governanceOutcome: GovernanceEvaluationOutcomeInput; actingBadgeType: string | null }
   | { ok: false; reason: "dependency_not_satisfied"; rows: DependencyDefinitionRow[] }
   | { ok: false; reason: "seu_blocked" | "obligation_blocked" | "decision_blocked"; detail: string }
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
@@ -216,12 +216,21 @@ export const executionEngine = {
       return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Deliverable ${fromState} -> ${targetState}` };
     }
     let applicableAuthorityRuleId: string | null = null;
+    // Owner (2026-09-22): "why do we even need this? the intent is to log
+    // the badge along with the actor_id" — the real authority check right
+    // here already knows exactly which badge authorised this transition
+    // (root, or requiredBadge itself, since Deliverable has no alternates);
+    // captured and returned below so the caller (transitionDeliverable)
+    // doesn't need a second, separate lookup (the old resolveAutoActingBadge,
+    // now removed) to re-derive the same answer.
+    let actingBadgeType: string | null = null;
     if (definition.verb) {
       const requiredBadge = `deliverable_${definition.verb}`;
       const auth = await badgeAuthorityEngine.authorise({ actorId: input.actorId ?? "", requiredBadge });
       if (!auth.allowed) {
         return { ok: false, reason: "authority_denied", detail: `acting badge check failed: ${auth.reason}` };
       }
+      actingBadgeType = auth.via === "root" ? "root" : (auth.matchedBadge ?? requiredBadge);
       const { data: authorityRule } = await authorityRulesDB.findByCode(requiredBadge);
       applicableAuthorityRuleId = authorityRule?.id ?? null;
     }
@@ -304,7 +313,7 @@ export const executionEngine = {
       originating_pack_id: waivedGate?.originating_pack_id ?? null,
     };
 
-    return { ok: true, fromState, governanceOutcome };
+    return { ok: true, fromState, governanceOutcome, actingBadgeType };
   },
 
   async execute(input: {
@@ -315,7 +324,7 @@ export const executionEngine = {
     toState: string;
     producingCapabilityId: string | null;
     requestedBy: number | null;
-    actingBadgeGrantId?: string | null;
+    actingBadgeType?: string | null;
     targetCompletionAt?: Date | null;
     correlationId: string;
     // CR-109 §6.1/§6.2 — the record evaluateDeliverableTransition built on
@@ -363,7 +372,7 @@ export const executionEngine = {
       fromState: input.fromState,
       toState: input.toState,
       requestedBy: input.requestedBy,
-      actingBadgeGrantId: input.actingBadgeGrantId ?? null,
+      actingBadgeType: input.actingBadgeType ?? null,
       correlationId: input.correlationId,
       governanceOutcomeId,
       eligibleParticipantPoolId,

@@ -40,7 +40,7 @@ export interface ProvenanceEntry {
   reference: string | null;
   participantLabel: string | null;
   certified: boolean; // true when this state change also minted an attestation (an acceptance transition)
-  actingAuthorityGrantId: string | null;
+  actingBadgeType: string | null;
   at: string;
 }
 
@@ -142,7 +142,7 @@ export async function explainDeliverable(deliverableId: string): Promise<Deliver
       reference: ref.reference,
       participantLabel: await participantLabel(ref.participant_id),
       certified: Boolean(att),
-      actingAuthorityGrantId: att?.acting_badge_grant_id ?? null,
+      actingBadgeType: att?.acting_badge_type ?? null,
       at: ref.created_at,
     });
   }

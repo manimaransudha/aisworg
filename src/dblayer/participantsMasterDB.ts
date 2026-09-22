@@ -11,6 +11,8 @@ type ParticipantMasterInput = {
   competency?: Record<string, Array<{ code: string; proficiency: string }>>;
   cost?: number | null;
   behaviourContext?: Array<{ policy: string; payload: Record<string, unknown> }>;
+  authorisedRole?: Array<{ role: string; effective_till: string; seu_ids: string[] }>;
+  authorisedBadges?: Array<{ badge: string; effective_till: string; seu_ids: string[] }>;
   isActive?: boolean;
   userId?: number | null;
 };
@@ -23,6 +25,8 @@ const PARTICIPANTS_MASTER_COLUMNS = [
   "competency",
   "cost",
   "behaviour_context",
+  "authorised_role",
+  "authorised_badges",
   "is_active",
   "user_id",
 ];
@@ -36,6 +40,8 @@ function toRow(input: ParticipantMasterInput): unknown[] {
     JSON.stringify(input.competency ?? {}),
     input.cost ?? null,
     JSON.stringify(input.behaviourContext ?? []),
+    JSON.stringify(input.authorisedRole ?? []),
+    JSON.stringify(input.authorisedBadges ?? []),
     input.isActive ?? true,
     input.userId ?? null,
   ];
@@ -90,6 +96,41 @@ export const participantsMasterDB = {
       return { data: rows[0] ?? null };
     } catch (err) {
       logger.error("[participantsMasterDB] findByUserId error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // Identity Management's own authorised-role multi-select (owner: "dropdown
+  // is multi-select. Existing grant should be in a selected state. so add or
+  // revoke will work") — the one write path for authorised_role after
+  // create. Replaces the whole array; the caller (core/identity.ts's
+  // setAuthorisedRoles) is responsible for preserving any SEU-scoped entry
+  // this platform-wide screen has no business touching.
+  async setAuthorisedRole(id: string, authorisedRole: Array<{ role: string; effective_till: string; seu_ids: string[] }>): Promise<DbResult<ParticipantMasterRow>> {
+    try {
+      const { rows } = await query<ParticipantMasterRow>(
+        "UPDATE participants_master SET authorised_role = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
+        [JSON.stringify(authorisedRole), id]
+      );
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[participantsMasterDB] setAuthorisedRole error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // Owner: "badge_grants on the user management should be replaced with the
+  // new badges implementation" — same shape/discipline as setAuthorisedRole
+  // above, for noun x verb badges instead of standing roles.
+  async setAuthorisedBadges(id: string, authorisedBadges: Array<{ badge: string; effective_till: string; seu_ids: string[] }>): Promise<DbResult<ParticipantMasterRow>> {
+    try {
+      const { rows } = await query<ParticipantMasterRow>(
+        "UPDATE participants_master SET authorised_badges = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
+        [JSON.stringify(authorisedBadges), id]
+      );
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[participantsMasterDB] setAuthorisedBadges error", err as Error);
       return { error: err as Error };
     }
   },

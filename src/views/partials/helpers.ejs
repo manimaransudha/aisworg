@@ -34,6 +34,9 @@ listQueryString = function(list, overrides = {}) {
     templateCode: overrides.templateCode !== undefined ? overrides.templateCode : (list ? list.templateCode : ""),
     // Registry state filter — same no-op-elsewhere treatment as category above.
     status: overrides.status !== undefined ? overrides.status : (list ? list.status : ""),
+    // Identity Management's own Tenant filter (User Management) — same
+    // no-op-elsewhere treatment as status/category above.
+    tenant: overrides.tenant !== undefined ? overrides.tenant : (list ? list.tenant : ""),
   };
   const p = new URLSearchParams();
   if (state.q) p.set("q", state.q);
@@ -44,6 +47,7 @@ listQueryString = function(list, overrides = {}) {
   if (state.category) p.set("category", state.category);
   if (state.templateCode) p.set("templateCode", state.templateCode);
   if (state.status) p.set("status", state.status);
+  if (state.tenant) p.set("tenant", state.tenant);
   const s = p.toString();
   return s ? ("?" + s) : "";
 };

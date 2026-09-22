@@ -18,16 +18,16 @@ import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
-import { requireRole } from "../../../middleware/auth.js";
+import { requireRole } from "../../../middleware/requireRole.js";
 import { safeBack } from "../../../middleware/safeBack.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { logger } from "../../../utils/logger.js";
-import { listUsersForTenant, listGrantableNounVerbBadges, issueNounVerbBadgeToTenantUser, revokeTenantBadgeGrant } from "../core/identity.js";
+import { listUsersForTenant, listGrantableNounVerbBadges, setTenantUserAuthorisedBadges } from "../core/identity.js";
 
 const usersBackTo = "/aisworg/seu/tenant-admin/users";
 
 /** GET /aisworg/seu/tenant-admin/users — Tenant Admin's own User Management: users scoped to their own tenant, Deliverable-verb badge grants only. */
-router.get("/tenant-admin/users", requireRole("tenant_super"), attachVM("seu/tenantAdmin/users"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/tenant-admin/users", requireRole(["tenant_admin"], { redirectTo: "/aisworg" }), attachVM("seu/tenantAdmin/users"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const tenantId = req.session?.user?.tenant_id;
     if (!tenantId) {
@@ -56,49 +56,32 @@ router.get("/tenant-admin/users", requireRole("tenant_super"), attachVM("seu/ten
   }
 });
 
-/** POST /aisworg/seu/tenant-admin/grants — issue one or more real noun_verb badges (multi-select) to a user in the acting tenant_super's own tenant. */
-router.post("/tenant-admin/grants", requireRole("tenant_super"), async (req: Request, res: Response) => {
+/** POST /aisworg/seu/tenant-admin/users/:id/badges — owner: "write to
+ *  participants_master and remove badge_grants" — reconciles a tenant user's
+ *  noun_verb authorised_badges (multi-select) to exactly what's selected,
+ *  same shape as Identity Management's own /identity/badges/:id/update. */
+router.post("/tenant-admin/users/:id/badges", requireRole(["tenant_admin"], { redirectTo: usersBackTo }), async (req: Request, res: Response) => {
   const tenantId = req.session?.user?.tenant_id;
-  const { userId, badgeType } = req.body ?? {};
   // Redirect back to wherever this form was submitted from (the list page's
   // own current ?q=/sort=/page=), not the bare list path — a grant shouldn't
   // reset the tenant_super's search/filter/sort state.
   const back = safeBack(req, usersBackTo);
   if (!tenantId) return flashError(req, res, back, "Your account has no tenant assigned.");
-  // A <select multiple> posts one badgeType per selection under the same
-  // key — express's urlencoded parser gives an array for 2+, but a single
-  // selection arrives as a bare string, so both shapes need normalising.
-  const badgeTypes = (Array.isArray(badgeType) ? badgeType : badgeType ? [badgeType] : [])
+  const userId = Number(req.params.id);
+  if (!Number.isInteger(userId)) return flashError(req, res, back, "Invalid user id.");
+  // A <select multiple> posts one badge per selection under the same key —
+  // express's urlencoded parser gives an array for 2+, a single selection
+  // arrives as a bare string, so both shapes need normalising.
+  const rawBadges = req.body?.badges;
+  const badges = (Array.isArray(rawBadges) ? rawBadges : rawBadges ? [rawBadges] : [])
     .filter((v: unknown): v is string => typeof v === "string" && v.trim().length > 0)
     .map((v: string) => v.trim());
-  if (!userId || badgeTypes.length === 0) {
-    return flashError(req, res, back, "A user and at least one badge are required.");
-  }
   try {
-    const failures: string[] = [];
-    for (const bt of badgeTypes) {
-      const result = await issueNounVerbBadgeToTenantUser({ actingTenantId: tenantId, userId: Number(userId), badgeType: bt });
-      if (!result.ok) failures.push(`${bt}: ${result.detail}`);
-    }
-    if (failures.length > 0) return flashError(req, res, back, `Could not issue: ${failures.join("; ")}`);
-    return flashSuccess(req, res, back, `${badgeTypes.map((b) => `"${b}"`).join(", ")} granted.`);
+    const result = await setTenantUserAuthorisedBadges({ actingTenantId: tenantId, userId, badges });
+    if (!result.ok) return flashError(req, res, back, `Could not update badges: ${result.detail}`);
+    return flashSuccess(req, res, back, "Badges updated.");
   } catch (err) {
-    logger.error("[web/seu/tenantAdmin] POST /tenant-admin/grants error", err as Error);
-    return flashError(req, res, back, (err as Error).message);
-  }
-});
-
-/** POST /aisworg/seu/tenant-admin/grants/:id/revoke — revoke a grant, tenant-checked. */
-router.post("/tenant-admin/grants/:id/revoke", requireRole("tenant_super"), async (req: Request, res: Response) => {
-  const tenantId = req.session?.user?.tenant_id;
-  const back = safeBack(req, usersBackTo);
-  if (!tenantId) return flashError(req, res, back, "Your account has no tenant assigned.");
-  try {
-    const result = await revokeTenantBadgeGrant({ actingTenantId: tenantId, grantId: String(req.params.id) });
-    if (!result.ok) return flashError(req, res, back, `Could not revoke grant: ${result.detail}`);
-    return flashSuccess(req, res, back, "Badge grant revoked.");
-  } catch (err) {
-    logger.error("[web/seu/tenantAdmin] POST /tenant-admin/grants/:id/revoke error", err as Error);
+    logger.error("[web/seu/tenantAdmin] POST /tenant-admin/users/:id/badges error", err as Error);
     return flashError(req, res, back, (err as Error).message);
   }
 });

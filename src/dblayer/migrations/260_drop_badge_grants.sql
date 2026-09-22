@@ -1,0 +1,11 @@
+-- Owner (2026-09-22): "Remove badge_grant. clean-slate: remove badge_grant.
+-- I want the table dropped." Every real caller has been migrated onto
+-- participants_master.authorised_badges / authorised_role this session:
+-- badgeAuthorityEngine.getHeldBadges (the one noun x verb authority check),
+-- getPlatformBadges (Layer-1 session badges), the Identity Management Badge
+-- Management page, and the tenant_super Tenant User Management page.
+-- commands.acting_badge_type / attestations.acting_badge_type (migration
+-- 259) are plain TEXT, no FK here any more. dev/actAs.ts's own synthetic
+-- Act-As holder no longer writes badge_grants either (participants_master
+-- directly, same session).
+DROP TABLE IF EXISTS badge_grants;

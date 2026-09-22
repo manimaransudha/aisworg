@@ -310,37 +310,13 @@ async function run(): Promise<void> {
     await client.query("TRUNCATE TABLE users RESTART IDENTITY CASCADE");
     logger.info("[db:clean-slate] step 1b — truncated users (RESTART IDENTITY); god user re-created on next login.");
 
-    // Step 1c — badge_grants. Bug fix (real regression, hit 3 times): a grant
-    // is meaningless without the holder it names, but badge_grants.holder_id
-    // is a polymorphic column (not an FK to users), so step 1b's CASCADE never
-    // touches it — every grant survived a "clean slate" untouched. Combined
-    // with RESTART IDENTITY resetting the users serial, a freshly-created user
-    // could be assigned an id a PRE-RESET grant still names and silently
-    // inherit authority (sometimes `root`) it never earned — exactly the
-    // accountability failure this platform's own noun×verb model exists to
-    // prevent. Same discipline step 5 already applies to transition_definitions
-    // below ("wipe the accumulated graph, reseed fresh, self-healing"): wipe
-    // every grant here; steps 4/6 (identity baseline + authority vocab
-    // back-fill) reseed the real fixture grants fresh afterward.
-    // CASCADE: commands.acting_badge_grant_id FKs into badge_grants —
-    // Postgres's TRUNCATE FK-check is structural, not content-based, so this
-    // is required even though step 1 (above) already emptied commands.
-    await client.query("TRUNCATE TABLE badge_grants RESTART IDENTITY CASCADE");
-    // Restore the ONE row this truncate takes out that nothing downstream
-    // reseeds: 012_badge_model.sql's own idempotent `holder_id '1' -> root`
-    // grant, which only runs during `migrate:seu` (not on every clean-slate)
-    // — the step 1b comment above already documents every other piece of code
-    // that assumes this row survives (NODE_ENV=test's auto-login shim acts as
-    // actorId "1" directly, with no real login/badgeBootstrap to (re)grant it).
-    // Without this, root's bypass vanishes and every test/dev session that
-    // relies on it fails `authority_denied` platform-wide. Same exact INSERT
-    // migration 012 uses.
-    await client.query(`
-      INSERT INTO badge_grants (holder_type, holder_id, badge_type)
-      SELECT 'User', '1', 'root'
-      WHERE NOT EXISTS (SELECT 1 FROM badge_grants WHERE holder_id = '1' AND badge_type = 'root')
-    `);
-    logger.info("[db:clean-slate] step 1c — truncated badge_grants (RESTART IDENTITY) and restored the holder '1' root grant; fixture grants reseeded in step 4.");
+    // Step 1c retired (owner, 2026-09-22: "Remove badge_grant. clean-slate:
+    // remove badge_grant. I want the table dropped" — migration 260 drops
+    // badge_grants outright). Root's own authority for holder '1' no longer
+    // lives there at all — seedIdentityBaseline.ts's own step re-seeds user
+    // 1's participants_master.authorised_badges ([{"badge":"root",...}])
+    // every run, which badgeAuthorityEngine.getHeldBadges reads directly; no
+    // separate post-truncate restore is needed any more.
 
     // Step 1d-2 — CR-079 step (a): the six new category-scoped Pack-identity
     // concepts (migration 132), same idempotent-insert treatment as step 1d

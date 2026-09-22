@@ -1,0 +1,11 @@
+-- Owner: "that is the reason i wanted the badges on participants_master" —
+-- rather than repointing badge_grants.holder_id at participants_master.id
+-- (a large, invasive change touching every badge/authority call site and
+-- requiring a participants_master row for every existing User), noun x verb
+-- badges get their own standing-grant column here, same shape as
+-- authorised_role (migration 254): an array of
+-- {"badge": <noun_verb code>, "effective_till": <date>, "seu_ids": [...]}.
+-- badge_grants itself is untouched — a separate table, still the User-keyed
+-- mechanism it always was (owner: "if badge_grants is a separate table that
+-- is fine. it addresses what is required").
+ALTER TABLE participants_master ADD COLUMN IF NOT EXISTS authorised_badges JSONB NOT NULL DEFAULT '[]';

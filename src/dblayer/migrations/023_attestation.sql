@@ -17,13 +17,16 @@
 -- both tables — the core never parses or resolves it (§0.1 core-invariance:
 -- reference resolution lives in the VCS-binding edge module, not here).
 
--- The acting authority (badge grant) is resolved at dispatch time in
+-- The acting authority (badge) is resolved at dispatch time in
 -- transitionDeliverable; persist it on the Command so completeWorkItem can mint
 -- the attestation with the authority that actually drove the transition.
+-- Migration 259 — acting_badge_type, not acting_badge_grant_id: the badge
+-- CODE the actor used, not a live FK to a specific badge_grants row (owner:
+-- "the intent is to log the badge along with the actor_id").
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'commands' AND column_name = 'acting_badge_grant_id') THEN
-    ALTER TABLE commands ADD COLUMN acting_badge_grant_id UUID REFERENCES badge_grants(id);
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'commands' AND column_name = 'acting_badge_type') THEN
+    ALTER TABLE commands ADD COLUMN acting_badge_type TEXT;
   END IF;
 END $$;
 
@@ -50,7 +53,7 @@ CREATE TABLE IF NOT EXISTS attestations (
   from_state            TEXT NOT NULL,
   to_state              TEXT NOT NULL,                  -- the acceptance state certified (Approved | Baselined)
   reference             TEXT,                           -- opaque commit reference the acceptance certifies
-  acting_badge_grant_id UUID REFERENCES badge_grants(id),
+  acting_badge_type     TEXT,                            -- the badge code the actor used, not a live grant-row FK (migration 259)
   requested_by          INTEGER REFERENCES users(id),
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

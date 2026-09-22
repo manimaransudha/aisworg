@@ -46,7 +46,10 @@ import { ensureWebAppTemplateFixture } from "./testFixtures.js";
 // grant it issues, and delete them all in `after()` — the dev database comes
 // out of running this file exactly as it went in.
 const createdUserIds: string[] = [];
-const createdGrantIds: string[] = [];
+// Owner (2026-09-22): "Fix sdk-authoring.test" — badge_grants is dropped
+// (migration 260); fixture badges now live on each holder's own
+// participants_master.authorised_badges row instead (see grant() below).
+const createdParticipantMasterIds: string[] = [];
 // CR-026 — inheritance tests can't rely on a randomUUID()'d `code` the way
 // every other test here does (an inherited Draft's code is FORCED to match
 // its parent's — that's the whole point) — so a rerun against the same,
@@ -82,7 +85,9 @@ const createdOntologyConceptCodes: string[] = [];
 const REAL_PACK_CODE = "test-sdk-pack";
 
 after(async () => {
-  if (createdGrantIds.length) await pool.query("DELETE FROM badge_grants WHERE id = ANY($1::uuid[])", [createdGrantIds]);
+  // participants_master.user_id FKs into users — must delete before
+  // createdUserIds' own cleanup below.
+  if (createdParticipantMasterIds.length) await pool.query("DELETE FROM participants_master WHERE id = ANY($1::uuid[])", [createdParticipantMasterIds]);
   if (createdUserIds.length) await pool.query("DELETE FROM users WHERE id = ANY($1::bigint[])", [createdUserIds]);
   if (createdOntologyConceptCodes.length) {
     await pool.query("DELETE FROM ontology_concepts WHERE concept_type = 'deliverable-name' AND code = ANY($1::text[])", [createdOntologyConceptCodes]);
@@ -133,9 +138,31 @@ async function createTestUser(label: string): Promise<string> {
   return String(user.id);
 }
 
+// Owner (2026-09-22): "Fix sdk-authoring.test" — writes/appends to the
+// holder's own participants_master.authorised_badges (migration 257)
+// instead of the now-dropped badge_grants; find-or-create, since a holder
+// can be granted more than one badge across several calls (e.g. the Pack
+// lifecycle loop below).
 async function grant(holderId: string, badgeType: string): Promise<void> {
-  const { rows } = await pool.query<{ id: string }>("INSERT INTO badge_grants (holder_type, holder_id, badge_type, status) VALUES ('User', $1, $2, 'Active') RETURNING id", [holderId, badgeType]);
-  createdGrantIds.push(rows[0].id);
+  const entry = { badge: badgeType, effective_till: "9999-12-31", seu_ids: [] as string[] };
+  const { rows: existing } = await pool.query<{ id: string; authorised_badges: Array<{ badge: string; effective_till: string; seu_ids: string[] }> }>(
+    "SELECT id, authorised_badges FROM participants_master WHERE user_id = $1",
+    [Number(holderId)]
+  );
+  if (existing.length > 0) {
+    const badges = existing[0].authorised_badges;
+    if (!badges.some((b) => b.badge === badgeType)) {
+      await pool.query("UPDATE participants_master SET authorised_badges = $1::jsonb WHERE id = $2", [JSON.stringify([...badges, entry]), existing[0].id]);
+    }
+    return;
+  }
+  const { rows } = await pool.query<{ id: string }>(
+    `INSERT INTO participants_master (tenant_id, type, display_name, capabilities, competency, behaviour_context, authorised_badges, is_active, user_id)
+     VALUES ($1, 'Human', 'SDK Authoring Test Fixture', '[]'::jsonb, '{}'::jsonb, '[]'::jsonb, $2::jsonb, TRUE, $3)
+     RETURNING id`,
+    [PLATFORM_TENANT_ID, JSON.stringify([entry]), Number(holderId)]
+  );
+  createdParticipantMasterIds.push(rows[0].id);
 }
 
 // Bug fix (separation of duties): publishAuthoringDraft now advances exactly

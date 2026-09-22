@@ -4,7 +4,7 @@
 // the participants_master registry has plausible Human resources to seed
 // with, end to end, without a real HR integration.
 import type { OnboardParticipantRequest, OnboardedParticipant, ParticipantOnboardingAdapter } from "./participantOnboardingAdapter.js";
-import { mockCapabilityCodes, mockDomainValues, mockTechnologyValues, mockProficiencyLevels } from "./mockOnboardingData.js";
+import { mockCapabilityCodes, mockDomainValues, mockTechnologyValues, mockProficiencyLevels, mockDefaultAuthorisedRole } from "./mockOnboardingData.js";
 
 export const humanOnboardingAdapter: ParticipantOnboardingAdapter = {
   type: "Human",
@@ -56,6 +56,7 @@ export const humanOnboardingAdapter: ParticipantOnboardingAdapter = {
               { policy: "cr104-demo-background-check", payload: { cleared: true } },
             ]
           : [{ policy: "background-verification", payload: { status: "completed" } }],
+      authorisedRole: mockDefaultAuthorisedRole(),
     };
   },
 };

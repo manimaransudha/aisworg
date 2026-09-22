@@ -30,7 +30,7 @@ import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { listConceptTypes, listConceptsForType, addConcept, deprecateConcept, retireConcept, archiveConcept, composeConcept, updateConceptMeta, quickRetireConcept, listAllConceptsForPicker, listDistinctUiGroupings, getConceptTypeNav, tabsForActiveType, type OntologyActor } from "../core/ontology.js";
-import { badgeGrantsDB } from "../../../dblayer/badgeGrantsDB.js";
+import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { renderMarkdown } from "../../../domain/sdk/markdownRender.js";
 
@@ -39,12 +39,18 @@ const backTo = "/aisworg/seu/sdk/ontology";
 // Same heldBadges/gate shape as sdkAuthoring.ts's own (not shared/exported
 // from there — small, self-contained per-route-file checks are the existing
 // convention, e.g. schemaRegistry.ts's own root-only gate).
+//
+// Owner (2026-09-22): "the root bypass should be in the requireBadge, not
+// anywhere else in the code" — the noun_verb/root portion is resolved via
+// badgeAuthorityEngine.getHeldBadges, the ONE canonical check
+// (participants_master.authorised_badges), not a hand-rolled badge_grants
+// query re-deriving it here.
 async function heldBadges(req: Request): Promise<Set<string>> {
   const set = new Set<string>(req.session?.user?.platformBadges ?? []);
   const userId = req.session?.user?.id;
   if (userId != null) {
-    const { data: grants } = await badgeGrantsDB.findActiveForHolder(String(userId));
-    for (const g of grants ?? []) set.add(g.badge_type);
+    const { badgeTypes } = await badgeAuthorityEngine.getHeldBadges(String(userId));
+    for (const b of badgeTypes) set.add(b);
   }
   return set;
 }
@@ -54,9 +60,12 @@ function actorFrom(req: Request, held: Set<string>): OntologyActor {
   return { isRoot: held.has("root"), tenantId: req.session?.user?.tenant_id ?? null, actorId: userId != null ? String(userId) : null };
 }
 
+// Owner (2026-09-22): "web/ontology.ts should have badge ontology_manage" —
+// the Ontology-registered admin badge (badges:platform/badges:tenant,
+// migration 256), alongside the existing ontology_define (CR-022) gate.
 async function requireOntologyAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
   const held = await heldBadges(req);
-  if (held.has("root") || held.has("ontology_define")) return next();
+  if (held.has("root") || held.has("ontology_define") || held.has("ontology_manage")) return next();
   if (req.session) {
     (req.session as unknown as { flash?: { type: string; message: string } }).flash = {
       type: "error",

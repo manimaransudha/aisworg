@@ -7,7 +7,7 @@ import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { commandsDB } from "../../../dblayer/commandsDB.js";
 import { workItemsDB } from "../../../dblayer/workItemsDB.js";
-import { badgeGrantsDB } from "../../../dblayer/badgeGrantsDB.js";
+import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { getSeuDetailView, type SeuDetailView } from "./seus.js";
 import { completeWorkItem, type CompleteWorkItemResult, type WorkItemOutcome } from "./workItems.js";
 import { createObligation } from "./obligations.js";
@@ -68,8 +68,11 @@ async function scopeToParticipant(detail: SeuDetailView, participantId: string, 
   // by Deliverable ownership: any Decision acted on under a badge this
   // Participant could itself hold is theirs to see, regardless of which
   // Deliverable it attaches to or which Participant actually acted.
-  const { data: badgeGrants } = await badgeGrantsDB.findActiveForHolder(String(userId));
-  const myBadges = new Set((badgeGrants ?? []).map((g) => g.badge_type));
+  // Owner (2026-09-22): "the root bypass should be in the requireBadge, not
+  // anywhere else in the code" — resolved via badgeAuthorityEngine.getHeldBadges,
+  // the ONE canonical check (participants_master.authorised_badges), not a
+  // hand-rolled badge_grants query re-deriving it here.
+  const { badgeTypes: myBadges } = await badgeAuthorityEngine.getHeldBadges(String(userId));
   const decisions = detail.decisions.filter((d) => d.decision.authority_badge != null && myBadges.has(d.decision.authority_badge));
   const externalInteractions = detail.externalInteractions.filter((ei) => ei.interaction.deliverable_id != null && myDeliverableIds.has(ei.interaction.deliverable_id));
   const relevantObjectIds = new Set<string>([...myDeliverableIds, ...myCommandIds]);

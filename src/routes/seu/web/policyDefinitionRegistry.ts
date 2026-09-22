@@ -7,6 +7,7 @@ const router = express.Router();
 
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
+import { requireRole } from "../../../middleware/requireRole.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
@@ -18,7 +19,7 @@ import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngin
 const POLICY_DEFINITION_STATES = ["Draft", "Validated", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
 /** GET /aisworg/seu/policy-definitions — every published Version of every Policy Definition. */
-router.get("/policy-definitions", attachVM("seu/policy-definitions/index"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/policy-definitions", requireRole(["participant"], { redirectTo: "/aisworg" }), attachVM("seu/policy-definitions/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Policy Definitions";
     const params = parseListParams(req.query, { sortable: ["code", "version", "status"], defaultSort: "code", defaultDir: "asc" });
@@ -49,7 +50,7 @@ router.get("/policy-definitions", attachVM("seu/policy-definitions/index"), asyn
 });
 
 /** POST /aisworg/seu/policy-definitions/:id/copy — Registry "Copy" action: a new, editable Definition at the same version, ready to re-author. */
-router.post("/policy-definitions/:id/copy", async (req: Request, res: Response) => {
+router.post("/policy-definitions/:id/copy", requireRole(["participant"], { redirectTo: "/aisworg" }), async (req: Request, res: Response) => {
   const backTo = "/aisworg/seu/policy-definitions";
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
   if (!actorId) return flashError(req, res, backTo, "Sign in required.");

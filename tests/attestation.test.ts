@@ -97,7 +97,7 @@ test("a reference is recorded at every completion, but an attestation is minted 
   assert.equal(att?.to_state, "Approved");
   assert.equal(att?.reference, "vcs://attest/req-spec@approved1", "the attestation binds the acceptance to its commit reference");
   assert.ok(att?.participant_id, "the attestation records the Participant that produced the accepted state");
-  assert.ok(att?.acting_badge_grant_id, "the attestation records the authority that certified the state");
+  assert.ok(att?.acting_badge_type, "the attestation records the authority that certified the state");
 
   const allRefs = (await deliverableReferencesDB.findByDeliverableId(deliverableId)).data ?? [];
   assert.equal(allRefs.length, 2, "both completions recorded a reference");

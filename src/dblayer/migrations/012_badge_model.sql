@@ -110,11 +110,15 @@ BEGIN
   END IF;
 END $$;
 
--- Seed the recommended badge catalog (§9's six named rows): Viewer (universal
--- registration default), root (the one seed Layer 1/Platform badge), Tenant
--- Admin (Layer 2a), Creator/Reviewer/Approver (Layer 2b).
+-- Seed the recommended badge catalog (§9's six named rows): root (the one
+-- seed Layer 1/Platform badge), Tenant Admin (Layer 2a),
+-- Creator/Reviewer/Approver (Layer 2b).
+-- Owner (2026-09-22): "comment out only the viewer insert" — viewer (the
+-- universal registration default) is not a real badge in the current model
+-- (not in the authorised-role/authorised_badges vocabulary, never checked
+-- by badgeAuthorityEngine/getHeldBadges) — dead Layer-1 scaffolding.
 INSERT INTO badge_types (tenant_id, code, name, scope_kind, tiered, is_registration_default) VALUES
-  (NULL, 'viewer',        'Viewer',       'None',        FALSE, TRUE),
+  -- (NULL, 'viewer',        'Viewer',       'None',        FALSE, TRUE),
   (NULL, 'root',          'Root',         'None',        FALSE, FALSE),
   (NULL, 'tenant_admin',  'Tenant Admin', 'Tenant',      FALSE, FALSE),
   (NULL, 'creator',       'Creator',      'SEU_or_Pack', FALSE, FALSE),

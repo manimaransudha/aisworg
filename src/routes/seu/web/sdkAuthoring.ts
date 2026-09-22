@@ -29,7 +29,7 @@ import { profilesDB } from "../../../dblayer/profilesDB.js";
 import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
 import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
 import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
-import { badgeGrantsDB } from "../../../dblayer/badgeGrantsDB.js";
+import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import {
   generateFields, parseFormBody, validateAgainstSchema, groupFieldsForDisplay, ontologyConceptTypesIn, dynamicReferentialSourceFieldsIn, dynamicReferentialSourceItemFieldsIn,
   CONTRIBUTION_SECTION_HELP, VERIFIABLE_ITEM_FIELD_HELP, type JsonSchemaDocument,
@@ -89,13 +89,27 @@ function authoringBadge(kind: SchemaDefinitionEntityKind, level: "define" | "pub
 
 // The actor's full set of held badges: platform-scoped (root, etc.) plus every
 // active noun_verb grant. One query per request on this admin surface.
+//
+// Owner (2026-09-22): "the root bypass should be in the requireBadge, not
+// anywhere else in the code" — the noun_verb/root portion is resolved via
+// badgeAuthorityEngine.getHeldBadges, the ONE canonical check
+// (participants_master.authorised_badges), not a hand-rolled badge_grants
+// query re-deriving it here.
+//
+// "web/sdkAuthoring.ts - requireBadge should be platform_manage" —
+// platform_manage (badges:platform, migration 256) is a root-equivalent
+// bypass for this whole admin surface. Every gate in this file already
+// follows the `held.has("root")` pattern, so injecting "root" into the
+// returned set here covers every one of them in one place, rather than
+// editing each call site individually.
 async function heldBadges(req: Request): Promise<Set<string>> {
   const set = new Set<string>(req.session?.user?.platformBadges ?? []);
   const userId = req.session?.user?.id;
   if (userId != null) {
-    const { data: grants } = await badgeGrantsDB.findActiveForHolder(String(userId));
-    for (const g of grants ?? []) set.add(g.badge_type);
+    const { badgeTypes } = await badgeAuthorityEngine.getHeldBadges(String(userId));
+    for (const b of badgeTypes) set.add(b);
   }
+  if (set.has("platform_manage")) set.add("root");
   return set;
 }
 

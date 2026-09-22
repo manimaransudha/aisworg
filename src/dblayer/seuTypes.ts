@@ -897,6 +897,18 @@ export interface ParticipantMasterRow {
   // Ch.13 §14 Behaviour Context — array of {policy, payload}; policy is
   // Ontology-backed (behaviour-context-policy), payload has no fixed shape.
   behaviour_context: Array<{ policy: string; payload: Record<string, unknown> }>;
+  // Migration 254 — standing authorisation grants distinct from the
+  // noun_verb badge model (requireBadge.ts governs transition authority;
+  // this is which standing role(s), if any, this identity holds and until
+  // when). role is Ontology-backed (authorised-role). seu_ids empty means
+  // the role applies across every SEU (tenant/platform-wide).
+  authorised_role: Array<{ role: string; effective_till: string; seu_ids: string[] }>;
+  // Migration 257 — noun x verb badges, standing-grant shape mirroring
+  // authorised_role above. Separate from (not a replacement for) the
+  // existing User-keyed badge_grants table (owner: "if badge_grants is a
+  // separate table that is fine. it addresses what is required") — this is
+  // the Participant identity's own record, not a re-key of that table.
+  authorised_badges: Array<{ badge: string; effective_till: string; seu_ids: string[] }>;
   is_active: boolean;
   // Only ever set for a Human-type master — the real login this identity
   // corresponds to (carries forward participants.user_id's old purpose,
@@ -1162,7 +1174,7 @@ export interface CommandRow {
   to_state: string;
   status: CommandStatus;
   requested_by: number | null;
-  acting_badge_grant_id: string | null;
+  acting_badge_type: string | null;
   correlation_id: string;
   // CR-109 §6.2 — governanceOutcomeRef: set once at creation, in execute(),
   // to the governance_evaluation_outcomes row the passing evaluation built.
@@ -1428,7 +1440,7 @@ export interface AttestationRow {
   from_state: string;
   to_state: string;
   reference: string | null;
-  acting_badge_grant_id: string | null;
+  acting_badge_type: string | null;
   requested_by: number | null;
   created_at: string;
 }
@@ -1979,21 +1991,6 @@ export interface BadgeTierRow {
   code: string;
   name: string;
   rank: number;
-  created_at: string;
-}
-
-export type BadgeGrantStatus = "Active" | "Suspended" | "Revoked";
-
-export interface BadgeGrantRow {
-  id: string;
-  holder_type: string; // "User" is the only real value built now (§9)
-  holder_id: string;
-  badge_type: string; // badge_types.code — not a real FK, see badgeTypesDB.ts
-  governed_entity_type: TransitionEntityType | null;
-  capability_id: string | null;
-  tier: string | null; // reserved, unused for now
-  scope_id: string | null;
-  status: BadgeGrantStatus;
   created_at: string;
 }
 

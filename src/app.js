@@ -14,7 +14,8 @@ import { logger } from "./utils/logger.js";
 import { requestLogger } from "./middleware/requestLogger.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { gatekeeper } from "./middleware/gatekeeper.js";
-import { requireRole, buildSessionUser } from "./middleware/auth.js";
+import { buildSessionUser } from "./middleware/auth.js";
+import { requireRole } from "./middleware/requireRole.js";
 import { appConfig } from "./config/appconfig.js";
 // import { attachVM } from "./middleware/attachVM.js";
 // import { renderView } from "./utils/viewModel.js";
@@ -27,10 +28,11 @@ import { router as demoRouter } from "./routes/web/demo.js";
 import { router as seuApiRouter } from "./routes/seu/api/index.js";
 import { router as seuWebRouter } from "./routes/seu/web/index.js";
 import { eventBus } from "./domain/engine/eventBus.js";
-import { devActAsAvailable, currentActAs, listTenants, listBadgeTypes } from "./dev/actAs.js";
+import { devActAsAvailable, currentActAs, listTenants, listBadgeTypes, listNounVerbBadgeCodes } from "./dev/actAs.js";
 import { userDB } from "./dblayer/userDB.js";
 import { ensureBadgeBootstrap, getPlatformBadges } from "./domain/identity/badgeBootstrap.js";
 import { getConceptTypeNav } from "./routes/seu/core/ontology.js";
+import { resolveNavRouteVisibility } from "./domain/identity/navRouteAccess.js";
 
 // Ch.30 Event Bus redesign — loads event_subscriptions into the in-memory
 // routing map once at module load (same unconditional placement the old
@@ -244,6 +246,25 @@ app.use(async (req, res, next) => {
         logger.warn('[navbar] ontology concept types fetch failed', err);
     }
 
+    // CR-110 — navbar link visibility for the handful of links whose target
+    // route has a real roles[] requirement in route_authority (Event Bus,
+    // Tenant User Management), replacing the old hardcoded
+    // _isSuper/_isTenantSuper (legacy users.role) checks navbar.ejs used to
+    // do this with. Computed here, not per-route, same reasoning as
+    // ontologyConceptTypes above — the navbar renders on every page.
+    res.locals.navRouteVisible = {};
+    try {
+        const su = req.session?.user;
+        if (su) {
+            res.locals.navRouteVisible = await resolveNavRouteVisibility(su.id, [
+                { method: "GET", path: "/aisworg/seu/events" },
+                { method: "GET", path: "/aisworg/seu/tenant-admin/users" },
+            ]);
+        }
+    } catch (err) {
+        logger.warn('[navbar] route authority visibility fetch failed', err);
+    }
+
     // CR-001 — dev-only "Act As" switcher (design/Change Requests.md). Only
     // assembled when the feature is live for this caller (dev + not off + the
     // single god identity); otherwise res.locals.devActAs stays null and the
@@ -254,7 +275,8 @@ app.use(async (req, res, next) => {
             const current = currentActAs(req) || { tenantId: null, badgeType: 'root' };
             const tenants = await listTenants();
             const badgeTypes = await listBadgeTypes(current.tenantId);
-            res.locals.devActAs = { current, tenants, badgeTypes };
+            const nounVerbBadgeCodes = await listNounVerbBadgeCodes();
+            res.locals.devActAs = { current, tenants, badgeTypes, nounVerbBadgeCodes };
         }
     } catch (err) {
         logger.warn('[dev/actAs] navbar context assembly failed', err);
@@ -270,7 +292,7 @@ app.use(requestLogger);
 // ── Public routes ─────────────────────────────────────────────────────────────
 app.use("/aisworg", publicRouter);
 app.use("/aisworg/auth", authRouter);
-app.use("/aisworg/demo", requireRole('general'), demoRouter);
+app.use("/aisworg/demo", requireRole(['general'], { redirectTo: "/aisworg" }), demoRouter);
 // CR-006 — the functional SEU surface is NOT role-gated: authentication is the
 // gatekeeper's job (enforces login for every non-public route), and authority
 // is badge-based per action (noun_verb). The legacy requireRole('general') here

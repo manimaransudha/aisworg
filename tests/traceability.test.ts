@@ -76,7 +76,7 @@ test("backward navigation + provenance (FR-20.4/20.6/20.7): a Deliverable can be
   assert.equal(production!.certified, false, "a production completion is not a certified (attested) state change");
   assert.equal(acceptance!.reference, "vcs://trace/req@approved");
   assert.equal(acceptance!.certified, true, "the In Progress -> Approved acceptance is attested");
-  assert.ok(acceptance!.actingAuthorityGrantId, "the certified state records the authority that produced it");
+  assert.ok(acceptance!.actingBadgeType, "the certified state records the authority that produced it");
   // ensureEligibleParticipant mints a real participants_master row (type
   // Human, a random display name), not the old ad-hoc "Trace Analyst (AI)".
   assert.match(production!.participantLabel ?? "", /^Test Fixture Participant .+ \(Human\)$/);

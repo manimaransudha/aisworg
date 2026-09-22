@@ -7,7 +7,6 @@ import { triggerEngine } from "../../../domain/engine/triggerEngine.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { eventsDB } from "../../../dblayer/eventsDB.js";
 import { userDB } from "../../../dblayer/userDB.js";
-import { badgeGrantsDB } from "../../../dblayer/badgeGrantsDB.js";
 import { findCandidateTemplates } from "./templates.js";
 import { listRealProfilesForTemplate } from "./profiles.js";
 import { listConceptsForType, resolveLabels } from "./ontology.js";
@@ -125,8 +124,12 @@ export async function createObjective(input: {
     // api/objectives.ts). Fails closed on a legacy parent with no
     // sponsoring_authority yet, same "NULL never matches" rule those use too.
     if (!input.skipParentValidation) {
-      const { data: grants } = await badgeGrantsDB.findActiveForHolder(String(input.requestedBy));
-      const isRoot = (grants ?? []).some((g) => g.status === "Active" && g.badge_type === "root");
+      // Owner (2026-09-22): "the root bypass should be in the requireBadge,
+      // not anywhere else in the code" — isRoot is resolved through
+      // badgeAuthorityEngine.getHeldBadges, the ONE canonical check
+      // requireBadge's own resolveHeldBadges also delegates to, not a
+      // second, hand-rolled badge_grants query re-deriving root here.
+      const { isRoot } = await badgeAuthorityEngine.getHeldBadges(String(input.requestedBy));
       if (!isRoot) {
         const requester = await userDB.findById(input.requestedBy);
         const requesterTenantId = requester?.tenant_id ?? null;

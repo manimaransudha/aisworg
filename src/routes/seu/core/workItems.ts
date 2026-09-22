@@ -155,7 +155,7 @@ export async function completeWorkItem(input: {
       fromState: command.from_state,
       toState: command.to_state,
       reference: input.reference ?? null,
-      actingBadgeGrantId: command.acting_badge_grant_id,
+      actingBadgeType: command.acting_badge_type,
       requestedBy: command.requested_by,
     });
   }

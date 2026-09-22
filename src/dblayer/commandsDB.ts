@@ -11,10 +11,12 @@ export const commandsDB = {
     fromState: string;
     toState: string;
     requestedBy: number | null;
-    // Participant Integration & Attestation — Plan step 2: the authority that
-    // drove this transition, resolved at dispatch and carried so the acceptance
-    // attestation can record who certified the state (completeWorkItem).
-    actingBadgeGrantId?: string | null;
+    // Participant Integration & Attestation — Plan step 2: the badge code
+    // that authorised this transition, resolved at dispatch and carried so
+    // the acceptance attestation can record who certified the state
+    // (completeWorkItem). Migration 259 — a badge code, not a live FK to a
+    // badge_grants row.
+    actingBadgeType?: string | null;
     correlationId: string;
     // CR-109 §6.2 — governanceOutcomeRef: the governance_evaluation_outcomes
     // row the passing evaluation built (executionEngine.execute() inserts
@@ -29,10 +31,10 @@ export const commandsDB = {
   }): Promise<DbResult<CommandRow>> {
     try {
       const { rows } = await query<CommandRow>(
-        `INSERT INTO commands (seu_id, entity_type, entity_id, command_type, from_state, to_state, requested_by, acting_badge_grant_id, correlation_id, governance_outcome_id, eligible_participant_pool_id)
+        `INSERT INTO commands (seu_id, entity_type, entity_id, command_type, from_state, to_state, requested_by, acting_badge_type, correlation_id, governance_outcome_id, eligible_participant_pool_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING *`,
-        [input.seuId, input.entityType, input.entityId, input.commandType, input.fromState, input.toState, input.requestedBy, input.actingBadgeGrantId ?? null, input.correlationId, input.governanceOutcomeId ?? null, input.eligibleParticipantPoolId ?? null]
+        [input.seuId, input.entityType, input.entityId, input.commandType, input.fromState, input.toState, input.requestedBy, input.actingBadgeType ?? null, input.correlationId, input.governanceOutcomeId ?? null, input.eligibleParticipantPoolId ?? null]
       );
       return { data: rows[0] };
     } catch (err) {

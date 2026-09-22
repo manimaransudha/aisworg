@@ -14,6 +14,7 @@ export async function createParticipantMaster(input: {
   competency?: Record<string, Array<{ code: string; proficiency: string }>>;
   cost?: number | null;
   behaviourContext?: Array<{ policy: string; payload: Record<string, unknown> }>;
+  authorisedRole?: Array<{ role: string; effective_till: string; seu_ids: string[] }>;
   isActive?: boolean;
   userId?: number | null;
 }): Promise<ParticipantMasterRow> {
@@ -42,6 +43,10 @@ export async function createParticipantMaster(input: {
 
   for (const entry of input.behaviourContext ?? []) {
     await assertCanonicalCategory("behaviour-context-policy", entry.policy, viewer);
+  }
+
+  for (const entry of input.authorisedRole ?? []) {
+    await assertCanonicalCategory("authorised-role", entry.role, viewer);
   }
 
   const { data, error } = await participantsMasterDB.create(input);

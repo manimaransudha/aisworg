@@ -7,8 +7,6 @@ import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { createDeliverable, transitionDeliverable } from "../core/deliverables.js";
 import { explainDeliverable, impactOfDeliverable } from "../core/traceability.js";
-import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
-import { devActAsAvailable, currentActAs, findOrMintGrant } from "../../../dev/actAs.js";
 
 /** POST /seus/:id/deliverables — Ch.15: create a Deliverable beyond whatever the Template catalogue pre-seeded. */
 router.post("/seus/:id/deliverables", async (req: Request, res: Response) => {
@@ -35,32 +33,17 @@ router.post("/deliverables/:id/transition", async (req: Request, res: Response) 
     const actorRole = req.session?.user?.role ?? "general";
     const requestedBy = req.session?.user?.id ?? null;
     const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
-    const actingBadgeGrantId = typeof req.body?.actingBadgeGrantId === "string" ? req.body.actingBadgeGrantId : undefined;
+    const actingBadgeType = typeof req.body?.actingBadgeType === "string" ? req.body.actingBadgeType : undefined;
 
-    // CR-001 dev Act-As × CR-006 — entirely dev-gated, no core change. When the
-    // god user acts-as a non-root badge, authorise as a SYNTHETIC dev holder
-    // that holds ONLY the assumed badge; the core auth then finds no root grant
-    // and applies the real noun_verb denial. requestedBy stays the real user —
-    // only the authorisation identity is swapped. No-op unless the switcher is live.
-    let effectiveActorId = actorId;
-    if (actorId && devActAsAvailable(req)) {
-      const actAs = currentActAs(req);
-      if (actAs && actAs.badgeType !== "root") {
-        const { data: deliverable } = await deliverablesDB.findById(String(req.params.id));
-        if (deliverable) {
-          const synthHolder = `dev-actas:${actorId}:${actAs.badgeType}`;
-          await findOrMintGrant(req, {
-            holderId: synthHolder,
-            badgeType: actAs.badgeType,
-            tenantId: actAs.tenantId,
-            entityType: "Deliverable",
-            capabilityId: deliverable.producing_capability_id,
-            scopeId: deliverable.seu_id,
-          });
-          effectiveActorId = synthHolder;
-        }
-      }
-    }
+    // Owner (2026-09-22): "dev/actAs.ts should add the badge to the user in
+    // participants_master" — Act-As now writes the assumed badge directly
+    // onto the real acting user's own participants_master.authorised_badges
+    // (dev/actAs.ts's POST /dev/act-as route, at the point the switcher is
+    // set), not a synthetic per-request holder. badgeAuthorityEngine.
+    // getHeldBadges reads that same row for this actorId unchanged, so no
+    // identity swap is needed here any more — the real actorId already
+    // carries whatever's being simulated.
+    const effectiveActorId = actorId;
 
     // Participant Integration — Plan step 4: the assigner may override the
     // SLA-derived default deadline with an explicit target completion time.
@@ -71,7 +54,7 @@ router.post("/deliverables/:id/transition", async (req: Request, res: Response) 
       targetCompletionAt = parsed;
     }
 
-    const result = await transitionDeliverable({ deliverableId: String(req.params.id), targetState, actorRole, actorId: effectiveActorId, actingBadgeGrantId, requestedBy, targetCompletionAt });
+    const result = await transitionDeliverable({ deliverableId: String(req.params.id), targetState, actorRole, actorId: effectiveActorId, actingBadgeType, requestedBy, targetCompletionAt });
 
     if (!result.ok) {
       if (result.reason === "not_found") return res.status(404).json({ error: "deliverable not found" });

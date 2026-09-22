@@ -43,6 +43,9 @@ export interface ListResult<T> {
   // state: Active, Deprecated etc.") — same no-op-elsewhere treatment as
   // category above.
   status?: string;
+  // Identity Management's own Tenant filter (User Management) — same
+  // no-op-elsewhere treatment as status/category above.
+  tenant?: string;
 }
 
 const DEFAULT_PAGE_SIZE = clampInt(process.env.LIST_PAGE_SIZE_DEFAULT, 20, 1, 500);

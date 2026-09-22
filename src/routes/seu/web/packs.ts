@@ -11,6 +11,7 @@ import { logger } from "../../../utils/logger.js";
 import { listPacksWithNextStates } from "../core/packs.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { requireBadge } from "../../../middleware/requireBadge.js";
+import { requireRole } from "../../../middleware/requireRole.js";
 
 // CR-080 — Deprecated dropped from Pack's own lifecycle (never actually
 // distinguished from Retired at runtime; migration 137).
@@ -25,7 +26,7 @@ const PACK_STATES = ["Draft", "Validated", "Published", "Active", "Retired", "Ar
 // change to be a tabbed one") — every category actually present among the
 // Packs this viewer can see, plus an "All" tab; ?category= scopes the list
 // before pagination, same as `q` already does.
-router.get("/packs", requireBadge(["None"]), attachVM("seu/packs/index"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/packs", requireBadge(["None"]), requireRole(["participant"], { redirectTo: "/aisworg" }), attachVM("seu/packs/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Packs";
     const params = parseListParams(req.query, { sortable: ["name", "version", "status", "category"], defaultSort: "name", defaultDir: "asc" });

@@ -33,3 +33,11 @@ export function mockTechnologyValues(viewer: OntologyViewer): Promise<string[]> 
 export function mockProficiencyLevels(viewer: OntologyViewer): Promise<string[]> {
   return conceptCodes("proficiency-level", viewer);
 }
+
+// Owner: "provide all participants with general role date set to 31/12/9999
+// (to denote always), seu_id is empty array" — the standing, unscoped
+// authorised_role grant (migration 255's own column default) every one of
+// the 4 mock onboarding adapters returns for every identity it onboards.
+export function mockDefaultAuthorisedRole(): Array<{ role: string; effective_till: string; seu_ids: string[] }> {
+  return [{ role: "general", effective_till: "9999-12-31", seu_ids: [] }];
+}

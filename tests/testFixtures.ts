@@ -252,7 +252,7 @@ export async function transitionDeliverableSync(input: {
   targetState: string;
   actorRole?: string;
   actorId?: string;
-  actingBadgeGrantId?: string;
+  actingBadgeType?: string;
   requestedBy?: number | null;
 }): Promise<{ ok: true; deliverable: DeliverableRow; appliedTransition: { fromState: string; toState: string } } | Extract<TransitionDeliverableResult, { ok: false }>> {
   // Captured before the request, not read off its own ok:true result — so

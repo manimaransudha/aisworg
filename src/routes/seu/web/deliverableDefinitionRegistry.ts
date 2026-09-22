@@ -9,6 +9,7 @@ const router = express.Router();
 
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
+import { requireRole } from "../../../middleware/requireRole.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
@@ -20,7 +21,7 @@ import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngin
 const DELIVERABLE_DEFINITION_STATES = ["Draft", "Validated", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
 /** GET /aisworg/seu/deliverable-definitions — every published Version of every Deliverable Definition. */
-router.get("/deliverable-definitions", attachVM("seu/deliverable-definitions/index"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/deliverable-definitions", requireRole(["participant"], { redirectTo: "/aisworg" }), attachVM("seu/deliverable-definitions/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Deliverable Definitions";
     const params = parseListParams(req.query, { sortable: ["code", "version", "status"], defaultSort: "code", defaultDir: "asc" });
@@ -51,7 +52,7 @@ router.get("/deliverable-definitions", attachVM("seu/deliverable-definitions/ind
 });
 
 /** POST /aisworg/seu/deliverable-definitions/:id/copy — Registry "Copy" action: a new, editable Draft at the next available version. */
-router.post("/deliverable-definitions/:id/copy", async (req: Request, res: Response) => {
+router.post("/deliverable-definitions/:id/copy", requireRole(["participant"], { redirectTo: "/aisworg" }), async (req: Request, res: Response) => {
   const backTo = "/aisworg/seu/deliverable-definitions";
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
   if (!actorId) return flashError(req, res, backTo, "Sign in required.");

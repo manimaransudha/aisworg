@@ -12,7 +12,7 @@ const router = express.Router();
 import type { Request, Response, NextFunction } from "express";
 import { flashError, flashSuccess } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
-import { devActAsAvailable, findOrMintGrant, isAssumableBadgeCode } from "../../../dev/actAs.js";
+import { devActAsAvailable, currentActAs, setActingNounVerbBadge, isAssumableBadgeCode } from "../../../dev/actAs.js";
 
 // Gate: the whole router is invisible unless the feature is live for this
 // caller. 404 (not 403) so its very existence isn't disclosed otherwise.
@@ -33,20 +33,21 @@ router.post("/dev/act-as", async (req: Request, res: Response) => {
 
     // Validate the badge type is a real vocabulary entry for the tenant —
     // either a Layer 1/2 badge_types row (root is always valid) or a live
-    // CR-006 noun_verb work badge (e.g. "deliverable_approve").
+    // noun_verb badge named by a real transition_definitions row.
     if (!(await isAssumableBadgeCode(badgeType, tenantId))) {
       return flashError(req, res, back, `Unknown badge type "${badgeType}" for the selected tenant.`);
     }
 
+    // The previously-simulated badge (if any) — setActingNounVerbBadge below
+    // removes exactly this one before adding the new one, so switching badges
+    // never leaves a stale one behind on the real user's own row.
+    const previous = currentActAs(req);
+
     (req.session as unknown as { actAs?: { tenantId: string | null; badgeType: string } }).actAs = { tenantId, badgeType };
 
-    // Eagerly mint unscoped / tenant-scoped grants now (root, or Platform/
-    // Tenant-layer badges). SEU/Pack-scoped grants (creator/approver/…) are
-    // minted lazily at the point of use, where the target SEU/Pack scope is
-    // known — see resolveAutoActingBadge in core/deliverables.ts.
-    const holderId = req.session?.user?.id != null ? String(req.session.user.id) : null;
-    if (holderId && badgeType !== "root") {
-      await findOrMintGrant(req, { holderId, badgeType, tenantId });
+    const userId = req.session?.user?.id != null ? Number(req.session.user.id) : null;
+    if (userId != null && Number.isInteger(userId)) {
+      await setActingNounVerbBadge(req, { userId, tenantId, badgeType, previousBadgeType: previous?.badgeType ?? null });
     }
 
     const label = badgeType === "root" ? "root (full access)" : `badge "${badgeType}"`;
@@ -58,8 +59,13 @@ router.post("/dev/act-as", async (req: Request, res: Response) => {
 });
 
 /** POST /aisworg/seu/dev/act-as/reset — clear the acting context (back to root). */
-router.post("/dev/act-as/reset", (req: Request, res: Response) => {
+router.post("/dev/act-as/reset", async (req: Request, res: Response) => {
   const back = (req.headers.referer as string) || "/aisworg";
+  const previous = currentActAs(req);
+  const userId = req.session?.user?.id != null ? Number(req.session.user.id) : null;
+  if (userId != null && Number.isInteger(userId) && previous) {
+    await setActingNounVerbBadge(req, { userId, tenantId: previous.tenantId, badgeType: null, previousBadgeType: previous.badgeType });
+  }
   delete (req.session as unknown as { actAs?: unknown }).actAs;
   return flashSuccess(req, res, back, "Acting context reset to root (full access).");
 });

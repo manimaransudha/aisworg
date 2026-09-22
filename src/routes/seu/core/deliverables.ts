@@ -1,41 +1,11 @@
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
-import { badgeGrantsDB } from "../../../dblayer/badgeGrantsDB.js";
 import { executionEngine } from "../../../domain/engine/executionEngine.js";
 import type { DeliverableGovernanceResult } from "../../../domain/engine/executionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { AUTHORING_SCOPE_PACK_CODE } from "../../../domain/sdk/authoringScope.js";
 import { assertCanonicalCategory, resolveLabels } from "./ontology.js";
 import type { DeliverableRow } from "../../../dblayer/seuTypes.js";
-
-// Phase 10 (badge model) — §10's badge-switcher UI isn't built yet (§17.2,
-// deliberately deferred to when Participant deployment/provisioning is
-// revisited). Interim, honest resolution for this pass: if the actor holds
-// exactly one badge that could plausibly satisfy this Deliverable transition
-// (root, or a Creator/Approver grant scoped to this SEU+Capability), use it
-// without asking — real per-action selection among *multiple* qualifying
-// badges is the piece still deferred, not this auto-resolution itself.
-async function resolveAutoActingBadge(actorId: string, deliverable: DeliverableRow): Promise<string | null> {
-  const { data: grants } = await badgeGrantsDB.findActiveForHolder(actorId);
-  if (!grants) return null;
-
-  const root = grants.find((g) => g.badge_type === "root");
-  if (root) return root.id;
-
-  const qualifying = grants.filter(
-    (g) =>
-      (g.badge_type === "creator" || g.badge_type === "approver") &&
-      g.governed_entity_type === "Deliverable" &&
-      g.capability_id === deliverable.producing_capability_id &&
-      // SDK UI Layer Plan — an authoring Deliverable's grant is scoped to the
-      // shared sdk-authoring-scope placeholder Pack, not this one bootstrap
-      // SEU's id (014_sdk_authoring.sql's header comment: one grant should
-      // cover every bootstrap SEU an author touches, not just this one).
-      (g.scope_id === deliverable.seu_id || g.scope_id === AUTHORING_SCOPE_PACK_CODE)
-  );
-  return qualifying.length === 1 ? qualifying[0].id : null;
-}
 
 // CR-039 — a Deliverable created beyond commissioning ("beyond whatever the
 // Template catalogue pre-seeded," Ch.15) must still be a real member of its
@@ -98,12 +68,16 @@ export async function transitionDeliverable(input: {
   // CR-006: authorisation is the `deliverable_<verb>` badge held by actorId
   // (root bypasses) — see transitionEngine (called from within the Execution
   // Engine's own evaluateDeliverableTransition now). actorRole is ignored for
-  // authority (kept only because routes still pass it). actingBadgeGrantId is
+  // authority (kept only because routes still pass it). actingBadgeType is
   // NOT an authorisation input — it is attribution recorded on the dispatched
-  // Work Item / attestation (which grant certified the action);
-  // resolveAutoActingBadge picks it when unambiguous.
+  // Work Item / attestation (which badge certified the action). Owner
+  // (2026-09-22): "why do we even need this? the intent is to log the badge
+  // along with the actor_id" — evaluateDeliverableTransition's own real
+  // authority check already knows the answer (governance.actingBadgeType
+  // below); no separate resolution needed unless a caller explicitly
+  // overrides it.
   actorRole?: string;
-  actingBadgeGrantId?: string;
+  actingBadgeType?: string;
   actorId?: string;
   requestedBy?: number | null;
   // Participant Integration — Plan step 4: the assigner may override the SLA-
@@ -119,10 +93,7 @@ export async function transitionDeliverable(input: {
   if (!governance.ok) return governance;
   const { fromState } = governance;
 
-  let actingBadgeGrantId = input.actingBadgeGrantId ?? null;
-  if (!actingBadgeGrantId && input.actorId) {
-    actingBadgeGrantId = await resolveAutoActingBadge(input.actorId, deliverable);
-  }
+  const actingBadgeType = input.actingBadgeType ?? governance.actingBadgeType;
 
   const correlationId = eventBus.newCorrelationId();
   await executionEngine.execute({
@@ -133,7 +104,7 @@ export async function transitionDeliverable(input: {
     toState: input.targetState,
     producingCapabilityId: deliverable.producing_capability_id,
     requestedBy: input.requestedBy ?? null,
-    actingBadgeGrantId,
+    actingBadgeType,
     targetCompletionAt: input.targetCompletionAt ?? null,
     correlationId,
     governanceOutcome: governance.governanceOutcome,

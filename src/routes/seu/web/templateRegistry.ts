@@ -10,6 +10,7 @@ const router = express.Router();
 
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
+import { requireRole } from "../../../middleware/requireRole.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
@@ -21,7 +22,7 @@ import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngin
 const TEMPLATE_STATES = ["Draft", "Validated", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
 /** GET /aisworg/seu/templates — every published Version of every Template. */
-router.get("/templates", attachVM("seu/templates/index"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/templates", requireRole(["participant"], { redirectTo: "/aisworg" }), attachVM("seu/templates/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Templates";
     const params = parseListParams(req.query, { sortable: ["name", "version", "status", "code"], defaultSort: "name", defaultDir: "asc" });
@@ -60,7 +61,7 @@ router.get("/templates", attachVM("seu/templates/index"), async (req: Request, r
 });
 
 /** POST /aisworg/seu/templates/:id/copy — Registry "Copy" action: a new, editable Draft at the next available version. */
-router.post("/templates/:id/copy", async (req: Request, res: Response) => {
+router.post("/templates/:id/copy", requireRole(["participant"], { redirectTo: "/aisworg" }), async (req: Request, res: Response) => {
   const backTo = "/aisworg/seu/templates";
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
   if (!actorId) return flashError(req, res, backTo, "Sign in required.");

@@ -29,6 +29,8 @@ import {seu_identity_tenantsVM} from "./seu_identity_tenants.js";
 import {seu_identity_badgesVM} from "./seu_identity_badges.js";
 import {seu_identity_usersVM} from "./seu_identity_users.js";
 import {seu_tenantAdmin_usersVM} from "./seu_tenantAdmin_users.js";
+import {seu_route_authority_indexVM} from "./seu_route_authority_index.js";
+import {seu_route_authority_editVM} from "./seu_route_authority_edit.js";
 import {seu_sdk_authoring_indexVM} from "./seu_sdk_authoring_index.js";
 import {seu_sdk_authority_indexVM} from "./seu_sdk_authority_index.js";
 import {seu_sdk_authority_detailVM} from "./seu_sdk_authority_detail.js";
@@ -91,6 +93,8 @@ export const viewModels = {
   "seu/sdk/schema-registry/new": seu_sdk_schema_registry_newVM,
   "seu/sdk/ontology/index": seu_sdk_ontology_indexVM,
   "seu/sdk/ontology/metadata": seu_sdk_ontology_metadataVM,
+  "seu/route-authority/index": seu_route_authority_indexVM,
+  "seu/route-authority/edit": seu_route_authority_editVM,
   "seu/workqueue/index": seu_workqueue_indexVM,
   "seu/reviews/index": seu_reviews_indexVM,
   "seu/compliance/index": seu_compliance_indexVM,
