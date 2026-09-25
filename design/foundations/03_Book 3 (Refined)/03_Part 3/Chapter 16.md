@@ -1,46 +1,6 @@
-
 # Chapter 16 – Knowledge Model
-[Sudha: Because we've just made Work Items **ephemeral**, the next persistent concept is no longer Work Items.
 
-It's **Knowledge**.
-
-In fact, I now think Knowledge is the **second most important object** in the platform after Deliverables.
-
-The platform exists to produce software today.
-
-But it exists to preserve engineering knowledge forever.
-
-That was one of the original themes of Book 1.
-
-So I think we should now begin the Knowledge section.
-
-----------------
-
-While writing this chapter, I realised we've been using the word **Knowledge** rather loosely throughout both Book 1 and Book 3.
-
-I think we now need to distinguish three different concepts that are often conflated:
-
-|Concept|Meaning|
-|---|---|
-|**Information**|Raw engineering data or observations.|
-|**Knowledge**|Information that has been validated and accepted for reuse.|
-|**Wisdom**|Engineering judgement applied to a specific context.|
-
-The platform should permanently store **Information** and **Knowledge**, but **Wisdom** is different. Wisdom is contextual. It is the application of Knowledge, the current Engineering Behavior Model, the active Deliverables, Dependencies, Obligations and Objectives to make an engineering decision.
-
-That means Wisdom is **computed**, not stored.
-
-This distinction is important because it prevents the platform from trying to preserve every engineering decision as a universal truth. Instead, it preserves the underlying Knowledge and allows future SEUs to apply that Knowledge differently depending on their context.
-
-I think this is a very AI-native way of thinking about organisational learning. It also opens the door to future reasoning services that can explain _why_ a recommendation was made, based on the Knowledge available at that point in time, rather than simply replaying past decisions. I suspect this distinction between Information, Knowledge and Wisdom will become a recurring theme in the remaining chapters on Evidence, Decisions and the Knowledge Graph.
-
-And where does this all fit into the engineering capital definition. 
-
-]
-
----
-
-# 1. Purpose
+## 1. Purpose
 
 The Knowledge Model defines how engineering knowledge is represented, organised, validated, preserved and reused within the AI Software Organisation Platform.
 
@@ -52,27 +12,27 @@ Knowledge shall survive the lifecycle of an SEU and remain available for future 
 
 ---
 
-# 2. Scope
+## 2. Scope
 
 This chapter defines:
 
-- Knowledge abstraction;
-- Knowledge lifecycle;
-- Knowledge relationships;
-- Knowledge validation;
-- Knowledge ownership;
-- Knowledge reuse.
+- Knowledge abstraction
+- Knowledge lifecycle
+- Knowledge relationships
+- Knowledge validation
+- Knowledge ownership
+- Knowledge reuse
 
 This chapter does not define:
 
-- ontology implementation;
-- storage technologies;
-- AI memory models;
-- knowledge extraction algorithms.
+- ontology implementation
+- storage technologies
+- AI memory models
+- knowledge extraction algorithms
 
 ---
 
-# 3. Architectural Position
+## 3. Architectural Position
 
 ```
 Deliverables
@@ -104,154 +64,120 @@ It is the primary mechanism through which engineering learning accumulates.
 
 ---
 
-# 4. Definition
+## 4. Definition
 
 Knowledge is an engineering fact, conclusion, pattern or understanding that has been accepted by the platform for future reuse.
 
 Knowledge is independent of:
 
-- Participants;
-- AI providers;
-- runtime execution;
-- individual projects.
+- Participants
+- AI providers
+- runtime execution
+- individual projects
 
 Knowledge represents engineering understanding rather than engineering activity.
 
 ---
 
-# 5. Architectural Principles
+## 5. Architectural Principles
 
-## KM-001
+### KM-001
 
 Knowledge is permanent.
-
----
-
-## KM-002
+ 
+### KM-002
 
 Knowledge shall be independently identifiable.
-
----
-
-## KM-003
+ 
+### KM-003
 
 Knowledge shall possess supporting evidence.
-
----
-
-## KM-004
+ 
+### KM-004
 
 Knowledge shall remain reusable across SEUs.
-
----
-
-## KM-005
+ 
+### KM-005
 
 Knowledge shall never depend upon a Participant.
-
----
-
-## KM-006
+ 
+### KM-006
 
 Knowledge shall remain traceable to its origin.
 
 ---
 
-# 6. Functional Requirements
+## 6. Functional Requirements
 
 ### FR-16.1
 
 Every Knowledge Item shall possess a globally unique identifier.
-
----
-
+ 
 ### FR-16.2
 
 Every Knowledge Item shall possess supporting Evidence.
-
----
-
+ 
 ### FR-16.3
 
 Knowledge shall reference originating Deliverables.
-
----
-
+ 
 ### FR-16.4
 
 Knowledge shall support versioning.
-
----
-
+ 
 ### FR-16.5
 
 Knowledge shall support semantic relationships.
-
----
-
+ 
 ### FR-16.6
 
 Knowledge shall remain reusable.
-
----
-
+ 
 ### FR-16.7
 
 Knowledge shall remain fully traceable.
-
----
-
+ 
 ### FR-16.8
 
 Every Knowledge Item shall declare an Acquisition Scope of SEU, Capability, Enterprise or Platform, inherited by default from its producing Deliverable, and shall support governed promotion to a broader scope.
 
 ---
 
-# 7. Knowledge Categories
+## 7. Knowledge Categories
 
 Illustrative categories include:
 
-## Architectural Knowledge
+### Architectural Knowledge
 
 - Architecture principles
 - Architectural patterns
 - Design rationale
-
----
-
-## Domain Knowledge
+ 
+### Domain Knowledge
 
 - Business concepts
 - Business rules
 - Domain terminology
-
----
-
-## Technical Knowledge
+ 
+### Technical Knowledge
 
 - Technology patterns
 - Configuration guidance
 - Framework usage
-
----
-
-## Operational Knowledge
+ 
+### Operational Knowledge
 
 - Deployment practices
 - Monitoring practices
 - Incident lessons
-
----
-
-## Governance Knowledge
+ 
+### Governance Knowledge
 
 - Engineering policies
 - Decision precedents
 - Review guidance
-
----
-
-## Process Knowledge
+ 
+### Process Knowledge
 
 - Engineering techniques
 - Best practices
@@ -261,7 +187,7 @@ Additional categories may be introduced through Packs.
 
 ---
 
-# 8. Knowledge Structure
+## 8. Knowledge Structure
 
 Every Knowledge Item shall define:
 
@@ -283,7 +209,7 @@ The internal representation is implementation-defined.
 
 ---
 
-# 9. Knowledge Lifecycle
+## 9. Knowledge Lifecycle
 
 Knowledge shall transition through the following lifecycle.
 
@@ -319,39 +245,39 @@ Only Published Knowledge may be reused across SEUs by default. Published state g
 
 ---
 
-# 10. Knowledge Relationships
+## 10. Knowledge Relationships
 
 Knowledge Items may be related through:
 
-- derives from;
-- supports;
-- contradicts;
-- supersedes;
-- refines;
-- references;
-- depends upon.
+- derives from
+- supports
+- contradicts
+- supersedes
+- refines
+- references
+- depends upon
 
 Relationship semantics shall remain explicit.
 
 ---
 
-# 11. Knowledge Validation
+## 11. Knowledge Validation
 
 Knowledge shall not become reusable until validated.
 
 Validation may require:
 
-- Evidence;
-- engineering review;
-- approval;
-- automated verification;
-- consistency checks.
+- Evidence
+- engineering review
+- approval
+- automated verification
+- consistency checks
 
 Validation rules are governed by the Engineering Behavior Model.
 
 ---
 
-# 12. Knowledge Ownership and Acquisition Scope
+## 12. Knowledge Ownership and Acquisition Scope
 
 Knowledge is generated by SEUs and contributed to by Participants, but neither owns it. Administrative ownership of a Knowledge Item follows the tenancy hierarchy (Chapter 42), but how far a Knowledge Item may be reused is governed by its **Acquisition Scope**, inherited from the Deliverable that produced it (Chapter 15 §9) and equally applicable to Knowledge generated outside any single Deliverable.
 
@@ -366,16 +292,16 @@ Acquisition Scope may be **promoted** after Knowledge is created — engineering
 
 ---
 
-# 13. Knowledge Reuse and Engineering Capital
+## 13. Knowledge Reuse and Engineering Capital
 
 Knowledge may be reused by:
 
-- future SEUs;
-- Composition Engine;
-- Capability Fulfilment;
-- AI Participants;
-- governance services;
-- engineering analytics.
+- future SEUs
+- Composition Engine
+- Capability Fulfilment
+- AI Participants
+- governance services
+- engineering analytics
 
 Reuse shall preserve provenance, and shall respect the Knowledge Item's Acquisition Scope: a Capability-scoped item is discoverable only to SEUs fulfilling that Capability within the same Tenant; an Enterprise-scoped item is discoverable Tenant-wide; a Platform-scoped item is discoverable platform-wide only once codified into a Platform Pack (§12) — Acquisition Scope of "Platform" does not, by itself, expose one Tenant's Knowledge directly to another, consistent with the Tenant isolation principles of Chapter 42.
 
@@ -385,22 +311,22 @@ Where sustained reuse or Telemetry (Chapter 35 §11) indicates that Capability-,
 
 ---
 
-# 14. Knowledge Provenance
+## 14. Knowledge Provenance
 
 Every Knowledge Item shall record:
 
-- originating SEU;
-- originating Deliverable;
-- originating Participant;
-- supporting Evidence;
-- supporting Decisions;
-- validation history.
+- originating SEU
+- originating Deliverable
+- originating Participant
+- supporting Evidence
+- supporting Decisions
+- validation history
 
 Knowledge provenance shall never be lost.
 
 ---
 
-# 15. Knowledge Versioning
+## 15. Knowledge Versioning
 
 Knowledge evolves over time.
 
@@ -412,7 +338,7 @@ Consumers shall be able to determine which version was used by a given SEU.
 
 ---
 
-# 16. Events
+## 16. Events
 
 The Knowledge subsystem shall publish:
 
@@ -428,20 +354,20 @@ The Knowledge subsystem shall publish:
 
 ---
 
-# 17. Non-Functional Requirements
+## 17. Non-Functional Requirements
 
 The Knowledge Model shall:
 
-- preserve provenance;
-- support semantic relationships;
-- support reuse across SEUs;
-- remain independent of Participant implementations;
-- support incremental evolution;
-- preserve complete traceability.
+- preserve provenance
+- support semantic relationships
+- support reuse across SEUs
+- remain independent of Participant implementations
+- support incremental evolution
+- preserve complete traceability
 
 ---
 
-# 18. Acceptance Criteria
+## 18. Acceptance Criteria
 
 The implementation shall satisfy the following criteria.
 
@@ -461,21 +387,21 @@ The implementation shall satisfy the following criteria.
 
 ---
 
-# 19. Deliverables
+## 19. Deliverables
 
 Implementation of this chapter shall produce:
 
-- Knowledge domain model.
-- Knowledge repository interfaces.
-- Knowledge lifecycle service.
-- Knowledge versioning service.
-- Provenance model.
-- Knowledge APIs.
-- Knowledge events.
+- Knowledge domain model
+- Knowledge repository interfaces
+- Knowledge lifecycle service
+- Knowledge versioning service
+- Provenance model
+- Knowledge APIs
+- Knowledge events
 
 ---
 
-# 20. Implementation Status & Gaps
+## 20. Implementation Status & Gaps
 
 Re-audited 2026-09-19, live against the running Postgres instance (`aisworg` DB, `127.0.0.1:5433`) — every count below is a fresh `SELECT`, not carried forward from the 2026-08-22 pass. Core files: `src/dblayer/knowledgeItemsDB.ts`, `src/routes/seu/core/knowledge.ts`, `src/routes/seu/api/knowledge.ts`, `KnowledgeItemRow`/`EngineeringCapitalRow` (`src/dblayer/seuTypes.ts:1678-1701`).
 
@@ -494,13 +420,13 @@ Six corrections against the 2026-08-22 pass, made and live-verified across this 
 
 Acquisition Scope (§12) remains this chapter's best-designed mechanism — states, transitions, default inheritance from the producing Deliverable, governed promotion (now confirmed live-badge-gated), and the Organisational Learning Obligation code path into Chapter 23 are all real, though none of it has live data to point to right now. Everything downstream of the base record — semantic relationships, versioning, most of §8's structure — is still thin or absent. Pack-to-Ontology contribution remains a platform-wide gap, not a Knowledge-specific one: live `SELECT COUNT(*) FROM ontology_concepts WHERE contributed_by_pack IS NOT NULL` returns **0**, confirming `core/ontology.ts`'s own "null = platform default; set when a Pack contributes a concept (step 5, deferred)" comment still holds platform-wide.
 
-## 20.1 ✅ Definition (§4)
+### 20.1 ✅ Definition (§4)
 
 "Independent of Participants/AI providers/runtime execution/individual projects" still holds structurally, though narrower than before: `knowledge_items` now has `author_id UUID → participants(id)` (migration `239`), nullable and provenance-only — it records who most recently acted, it does not make the Knowledge Item's *existence* or *definition* depend on that Participant (KM-005 is about the latter). No comparable coupling exists for AI providers/runtime execution.
 
-## 20.2 ⚠️ Architectural Principles (KM-001–006) (§5)
+### 20.2 ⚠️ Architectural Principles (KM-001–006) (§5)
 
-| # | Claim | Verdict | Evidence |
+| ## | Claim | Verdict | Evidence |
 |---|---|---|---|
 | KM-001 | Permanent | ✅ (by omission) | No delete method anywhere in `knowledgeItemsDB.ts`/`api/knowledge.ts`. |
 | KM-002 | Independently identifiable | ✅ | `id UUID PK`. |
@@ -509,7 +435,7 @@ Acquisition Scope (§12) remains this chapter's best-designed mechanism — stat
 | KM-005 | Never depends on a Participant | ✅ | `author_id` is provenance (who acted), not a functional dependency — the Knowledge Item's own validity never requires that Participant to exist or respond. |
 | KM-006 | Traceable to origin | ✅ | `seu_id`/`deliverable_id` both `NOT NULL`; `author_id` now adds who, not just what (20.11). |
 
-## 20.3 ⚠️ Functional Requirements (FR-16.1–8) (§6)
+### 20.3 ⚠️ Functional Requirements (FR-16.1–8) (§6)
 
 | FR | Verdict | Note |
 |---|---|---|
@@ -522,13 +448,13 @@ Acquisition Scope (§12) remains this chapter's best-designed mechanism — stat
 | FR-16.7 fully traceable | ✅ | `seu_id`/`deliverable_id` FKs enforced, `author_id`/`authority_badge` now track who (20.11). |
 | FR-16.8 Acquisition Scope w/ inheritance + governed promotion | ✅ | Real `CHECK`-constrained `acquisition_scope`, default-inherited from the producing Deliverable, governed via a dedicated `KnowledgeScope` transition track — see 20.9. |
 
-## 20.4 ✅ Knowledge Categories — real Ontology mechanism, live vocabulary now complete, zero Pack contribution (§7)
+### 20.4 ✅ Knowledge Categories — real Ontology mechanism, live vocabulary now complete, zero Pack contribution (§7)
 
 `category TEXT NOT NULL`, validated via `assertCanonicalCategory("category:knowledge", input.category)` (`knowledge.ts:28`, `core/ontology.ts`) — a genuinely real, enforced Ontology write-path, not aspirational. Live `category:knowledge` rows (re-verified after applying migration `237_seed_missing_knowledge_categories.sql` directly, 2026-09-19): all 6 chapter-named categories are now `Active` — `Architectural Knowledge`, `Domain Knowledge`, `Governance Knowledge`, `Operational Knowledge`, `Process Knowledge`, `Technical Knowledge` — plus 2 stray values kept `Retired` for history (`Technical`, `Test`, migration `225`). A Knowledge Item authored against this live database today can pick any of the 6 chapter categories. This closes the gap the earlier version of this section found (this database had been migrated before `030_ontology.sql`'s source was widened to 6 values, and the runner's lack of an applied-migrations ledger meant that widening never reached this instance until a targeted migration was applied directly).
 
 "Additional categories may be introduced through Packs" remains unbuilt, and this is still a platform-wide gap, not Knowledge-specific: no Pack seed file declares a Pack-contributed `category:knowledge` value, and live `SELECT COUNT(*) FROM ontology_concepts WHERE contributed_by_pack IS NOT NULL` returns 0 across every concept type on the platform. The column exists and is schema-ready; nothing populates it.
 
-## 20.5 ✅ Knowledge Structure — 12 of 13 fields are now clean, real columns (§8)
+### 20.5 ✅ Knowledge Structure — 12 of 13 fields are now clean, real columns (§8)
 
 **Migration `239_knowledge_structure.sql`** (same day, applied directly, live-verified) closed most of this section in one pass.
 
@@ -550,7 +476,7 @@ Acquisition Scope (§12) remains this chapter's best-designed mechanism — stat
 
 None of the new JSONB reference columns carry a `CHECK`/FK-style referential-integrity guarantee — an id placed inside any of them is not verified to exist in its target table. Only the self-reference guard on `knowledge_references` is enforced, and only in application code (`updateKnowledgeReferences`), not the database.
 
-## 20.6 ✅ Knowledge Lifecycle — states, transitions, authority, and now event/version wiring all match the chapter, confirmed live; reuse gate is narrower than stated (§9)
+### 20.6 ✅ Knowledge Lifecycle — states, transitions, authority, and now event/version wiring all match the chapter, confirmed live; reuse gate is narrower than stated (§9)
 
 Live `SELECT entity_type, from_state, to_state, verb FROM transition_definitions WHERE entity_type='Knowledge'` returns exactly the chapter's 7-state chain: `Observed→Proposed→Validated→Accepted→Published→Deprecated→Archived`. Authority is real and live-confirmed, correcting the prior audit's badge name: every row's `verb` column is populated (not null) — `propose`/`validate`/`accept`/`publish`/`deprecate`/`archive` — giving each hop a distinct CR-006 `noun_verb` badge (`knowledge_propose` … `knowledge_archive`), checked by `badgeAuthorityEngine` inside the same generic `transitionEngine.evaluate()`/`qualityGateEngine.evaluate()` pair every governed entity uses (`knowledge.ts:86-136`). `required_authority_rule_id` (the legacy field the prior audit's badge name came from) is `NULL` on every one of these 9 rows, live-confirming it is genuinely unused today, not just unread by newer code. This live wiring came from `seedAuthorityVocabulary()` back-filling `verb` from `authorityVocabulary.json`'s `transitions` list, a `db:clean-slate` step that runs after `seedTransitionDefinitions()`; a database that only ran the latter would leave `verb` null and the transition ungoverned.
 
@@ -558,17 +484,17 @@ Live `SELECT entity_type, from_state, to_state, verb FROM transition_definitions
 
 "Only Published Knowledge may be reused across SEUs by default" is enforced in exactly one place — `promoteKnowledgeItemScope()` (`knowledge.ts:159-161`) rejects promotion unless `status === "Published"` — but nowhere else: `listKnowledgeItemsBySeu`/`findEngineeringCapital` apply no status filter at all. What the code actually gates is scope-*widening*, not general read/reuse access. Unchanged from the prior audit.
 
-## 20.7 ⚠️ Knowledge Relationships — real storage now exists; no referential integrity, no consuming code (§10)
+### 20.7 ⚠️ Knowledge Relationships — real storage now exists; no referential integrity, no consuming code (§10)
 
 **Closed by migration `239`.** All 7 named relationship types (derives from/supports/contradicts/supersedes/refines/references/depends upon) are now real JSONB object keys, reused identically across `evidence_references`/`deliverable_references`/`decision_references`/`knowledge_references` — `supersedes` is valid only inside `knowledge_references` (owner-confirmed: Knowledge-to-Knowledge supersession only; every other type applies universally, including Knowledge contradicting Evidence/Deliverable/Decision). `knowledge_references` additionally has the one behavioural rule the chapter names — "must not refer to itself" — enforced in `core/knowledge.ts`'s `updateKnowledgeReferences`. Not yet built: no dedicated edge table (this is 4 JSONB columns on the row itself, not `evidence_relationships`'s own separate-table pattern), no referential-integrity check that an id inside any of these actually exists in its target table, and no code yet reads or renders these relationships anywhere beyond the self-reference guard.
 
-## 20.8 ⚠️ Knowledge Validation — the Quality Gate hook is still empty; a real notes mechanism now exists alongside it (§11)
+### 20.8 ⚠️ Knowledge Validation — the Quality Gate hook is still empty; a real notes mechanism now exists alongside it (§11)
 
 `qualityGateEngine.evaluate({entityType:"Knowledge",...})` runs on every lifecycle transition — the mechanism is real, not skipped. Live-confirmed empty: `required_quality_gate_ids` is `{}` (empty array) on all 9 `Knowledge`/`KnowledgeScope` transition rows, and `SELECT COUNT(*) FROM quality_gate_evaluations WHERE entity_type='Knowledge'` returns **0**. No gate is actually wired to any Knowledge transition today. "Governed by the Engineering Behavior Model" doesn't hold either: `ebms` carries no reference to `knowledge_items` anywhere. The gate exists structurally; it's currently empty.
 
 **New, migration `239`**: `knowledge_validation_notes` (append-only, no forced gate on any one transition — owner: "no forced gate," addable at any point in the Knowledge Item's life) gives §11's "engineering review... consistency checks" a real place to land, distinct from the still-empty Quality Gate hook above. `addKnowledgeValidationNote`/`listKnowledgeValidationNotes` (`core/knowledge.ts`) aggregate, never overwrite — same discipline as `objective_comments`/`pack_comments`.
 
-## 20.9 ✅ Knowledge Ownership and Acquisition Scope — the most-built section of this chapter (§12)
+### 20.9 ✅ Knowledge Ownership and Acquisition Scope — the most-built section of this chapter (§12)
 
 | Claim | Verdict | Evidence |
 |---|---|---|
@@ -582,13 +508,13 @@ Live `SELECT entity_type, from_state, to_state, verb FROM transition_definitions
 | Promotion is deliberately NOT version-significant | ✅ (owner-confirmed) | Version Feature Plan.md pass, migration `238`: `version_event` is `NULL` on all 3 `KnowledgeScope` rows (`event_type = 'KnowledgeScopePromoted'` only) — "No new version. Existing version's scope is broadened," the same treatment SEU/EBM's runtime lifecycle got in Chapter 8's own pass. `promoteKnowledgeItemScope` (`knowledge.ts:156-224`) now reads `gate.eventType` instead of a hardcoded literal, and passes `entityId`/`seuId` to `transitionEngine.evaluate()` (a latent gap fixed in the same pass). |
 | Every promotion hop records who acted | ✅ (migration `239`) | `author_id`/`authority_badge` update on every promotion, mirroring `decisions.participant_id`/`.authority_badge` exactly — the row always reflects the most recent actor, full history stays in `events`. |
 
-## 20.10 ⚠️ Knowledge Reuse and Engineering Capital — the query mechanism is real, but currently has no data to return (§13)
+### 20.10 ⚠️ Knowledge Reuse and Engineering Capital — the query mechanism is real, but currently has no data to return (§13)
 
 Engineering Capital is a real, queryable concept, not aspirational: `knowledgeItemsDB.findEngineeringCapital()` (`knowledgeItemsDB.ts:90-110`, `WHERE acquisition_scope != 'SEU'`), exposed via `GET /knowledge/capital` and a real view (`views/seu/knowledge/capital.ejs`). Live `SELECT COUNT(*) FROM knowledge_items WHERE acquisition_scope != 'SEU'` returns **0** — this database currently has zero `knowledge_items` rows of any kind (§20 preamble), so the query is mechanically correct but has nothing to surface right now. The Organisational Learning Obligation loop is real code (`promoteKnowledgeItemScope` calls `createObligation({category:"Organisational Learning",...})`, `knowledge.ts:202-210`), but live `obligations` is also empty — 0 rows, of any category — so the loop has never fired in this database's current lifetime.
 
 What's not enforced: Tenant/Capability-scoped discoverability. `knowledge_items` still has **no `tenant_id` column at all** (confirmed live via `\d knowledge_items`), so the chapter's "Capability-scoped item is discoverable only to SEUs fulfilling that Capability within the same Tenant" cannot currently be enforced in the database — `findEngineeringCapital` has no Tenant or Capability filter.
 
-## 20.11 ✅ Knowledge Provenance — 6 of 6 fields now real (§14)
+### 20.11 ✅ Knowledge Provenance — 6 of 6 fields now real (§14)
 
 **Closed by migration `239`**, the biggest single jump in this chapter's audit history — from 2 of 6 to all 6.
 
@@ -603,15 +529,15 @@ What's not enforced: Tenant/Capability-scoped discoverability. `knowledge_items`
 
 Live `decisions`/`knowledge_items` are currently empty (§20 preamble), so none of this has live data behind it yet — every claim above is mechanism, verified against schema and code.
 
-## 20.12 ⚠️ Knowledge Versioning — a real `version` column now exists, but static; no bump mechanism yet (§15)
+### 20.12 ⚠️ Knowledge Versioning — a real `version` column now exists, but static; no bump mechanism yet (§15)
 
 **Migration `239`** adds `version TEXT NOT NULL DEFAULT '1.0.0'` — a real column, mirroring Objective's own `version` field shape. It does not yet do what Objective's does: there is no bump-on-Edit logic (Objective's `updateObjective` bumps `version` via `BUMP_PATCH_SQL` on every save), because **no Edit path exists for a Knowledge Item's content at all** — `title`/`description`/`category` are immutable post-creation today (Edit is deferred, to be added on the participant page "similar to Evidence," per the owner's own note). Every Knowledge Item therefore currently sits at `'1.0.0'` forever. Historical-version tracking still relies on the read-path already described (Version Feature Plan.md pass, 20.6/20.13): filter `events` for a Knowledge Item down to the 6 event types marked version-significant, ordered by `created_at`. No Parent-Version/Superseded-By linkage exists — `knowledge_references`'s own `supersedes` key (20.7) is the closest thing to it today, but it is author-declared storage, not a mechanism the platform itself maintains.
 
-## 20.13 ✅ Events — all 8 real named events now wired; the ungoverned-creation event is the one deliberate exception (§16)
+### 20.13 ✅ Events — all 8 real named events now wired; the ungoverned-creation event is the one deliberate exception (§16)
 
 **Version Feature Plan.md pass, same day (migration `238`):** the old generic `KnowledgeUpdated` catch-all is retired. `transitionKnowledgeItem`/`promoteKnowledgeItemScope` (`knowledge.ts:86-138`, `156-224`) now publish `gate.eventType`, read straight off `transition_definitions`, so the 6 real per-state lifecycle events (`KnowledgeProposed`/`Validated`/`Accepted`/`Published`/`Deprecated`/`Archived`) plus `KnowledgeScopePromoted` (all 3 KnowledgeScope hops) fire for real, matching the chapter's own §16 name list exactly. `KnowledgeObserved` remains the one deliberate exception — creation into `Observed` is ungoverned (no `transition_definitions` row exists for it, the same "creation authority is not a transition" discipline as Objective/Ontology's own row 1), so it still fires as a direct literal from `createKnowledgeItem`, not off a resolved transition; this is by design, not a gap. `KnowledgeUpdated` (never a chapter-named event to begin with) no longer exists anywhere in the code. Whether these are formally registered in `event_registry` was live-confirmed absent as of the 2026-08-22/2026-09-19 audits and has not been revisited in this pass — registering the 7 governed event names there remains open. Live `events`/`event_registry` row counts for `Knowledge%` were 0 before this pass (§20 preamble: this database currently has no `knowledge_items` rows at all) and will only populate once a real Knowledge Item is created and walked through its lifecycle — the new `tests/knowledge-event-lifecycle-table.test.ts` DRIVEN tests exercise exactly that path.
 
-## 20.14 ⚠️ Non-Functional Requirements (§17)
+### 20.14 ⚠️ Non-Functional Requirements (§17)
 
 | NFR | Verdict | Basis |
 |---|---|---|
@@ -622,7 +548,7 @@ Live `decisions`/`knowledge_items` are currently empty (§20 preamble), so none 
 | support incremental evolution | ⚠️ | `version` column now exists (20.12), but static — no bump mechanism, since no Edit path exists yet |
 | preserve complete traceability | ✅ | SEU/Deliverable/Participant/Evidence/Decision/validation-history all now real fields or tables (20.11) |
 
-## 20.15 ⚠️ Acceptance Criteria (§18)
+### 20.15 ⚠️ Acceptance Criteria (§18)
 
 | Criterion | Verdict |
 |---|---|
@@ -634,7 +560,7 @@ Live `decisions`/`knowledge_items` are currently empty (§20 preamble), so none 
 | Knowledge remains independent of Participants | ✅ |
 | Acquisition Scope declared, reuse respects it, Engineering Capital is queryable | ✅ (20.9/20.10) |
 
-## 20.16 ⚠️ Deliverables — 6 of 7 fully real, 1 partial (§19)
+### 20.16 ⚠️ Deliverables — 6 of 7 fully real, 1 partial (§19)
 
 | Named Deliverable | Real artifact | Verdict |
 |---|---|---|
@@ -646,7 +572,7 @@ Live `decisions`/`knowledge_items` are currently empty (§20 preamble), so none 
 | Knowledge APIs | `src/routes/seu/api/knowledge.ts` | ✅ |
 | Knowledge events | `KnowledgeObserved` (ungoverned) + 6 real per-state lifecycle events + `KnowledgeScopePromoted` | ✅ 8 of the chapter's 9 named events real (20.13) — `KnowledgeUpdated`, never chapter-named, is retired |
 
-## Summary — ranked
+### Summary — ranked
 
 1. **[Data state]** The live database has zero rows in every Knowledge-adjacent transactional table (`seus`, `deliverables`, `knowledge_items`, `evidence`, `decisions`, `obligations`) — only Pack/Ontology reference data and accumulated Pack-lifecycle events exist. Every claim below about "real and wired" describes mechanism, verified against schema and code; none of it currently has live data behind it, because none has been created yet in this instance.
 2. **["Firm up the Knowledge structure" pass — closed most of this chapter's remaining gaps in one migration]** Migration `239_knowledge_structure.sql` closed §14 Provenance (2 of 6 fields → 6 of 6), most of §8 Structure, and all of §10 Relationships in a single pass: `evidence_id` (singular, nullable) retired in favour of `evidence_references`/`deliverable_references`/`decision_references`/`knowledge_references` — one shared JSONB shape keyed by §10's 7 relationship types, `supersedes` reserved for Knowledge-to-Knowledge only — plus a real `version` column, `confidence_level`, and `author_id`/`authority_badge` mirroring `decisions.participant_id`/`.authority_badge` exactly. A new `knowledge_validation_notes` table (append-only, no forced gate) gives §11/§14 a real, aggregating home. What's still open: none of the new JSONB columns carry referential integrity (an id inside one isn't verified to exist), nothing yet renders or consumes these relationships beyond the self-reference guard, `version` is real but static (no Edit path to bump it), and `decision_references` is not kept in sync with the reverse `decisions.knowledge_ids` (20.5/20.7/20.11/20.12/20.16).

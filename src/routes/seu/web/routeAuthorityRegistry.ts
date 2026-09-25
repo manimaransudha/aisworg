@@ -15,6 +15,7 @@ import { requireBadge } from "../../../middleware/requireBadge.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { routeAuthorityDB } from "../../../dblayer/routeAuthorityDB.js";
+import { refreshRouteAuthorityCache } from "../../../domain/identity/routeAuthorityCache.js";
 import { listGrantableNounVerbBadges, listAdminSurfaceBadgeCodes } from "../core/identity.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 
@@ -104,6 +105,7 @@ router.post("/route-authority", gate, async (req: Request, res: Response) => {
     if ("error" in parsed) return flashError(req, res, `${backTo}/new`, parsed.error);
     const { data, error } = await routeAuthorityDB.create(parsed);
     if (error || !data) return flashError(req, res, `${backTo}/new`, error?.message ?? "Could not create row.");
+    await refreshRouteAuthorityCache();
     return flashSuccess(req, res, backTo, `${data.method} ${data.path} added.`);
   } catch (err) {
     logger.error("[web/seu/routeAuthorityRegistry] POST /route-authority error", err as Error);
@@ -119,6 +121,7 @@ router.post("/route-authority/:id/update", gate, async (req: Request, res: Respo
     if ("error" in parsed) return flashError(req, res, `${backTo}/${id}/edit`, parsed.error);
     const { data, error } = await routeAuthorityDB.update(id, parsed);
     if (error || !data) return flashError(req, res, `${backTo}/${id}/edit`, error?.message ?? "Could not update row.");
+    await refreshRouteAuthorityCache();
     return flashSuccess(req, res, backTo, `${data.method} ${data.path} updated.`);
   } catch (err) {
     logger.error("[web/seu/routeAuthorityRegistry] POST /route-authority/:id/update error", err as Error);
@@ -131,6 +134,7 @@ router.post("/route-authority/:id/delete", gate, async (req: Request, res: Respo
   try {
     const { error } = await routeAuthorityDB.delete(req.params.id);
     if (error) return flashError(req, res, backTo, error.message);
+    await refreshRouteAuthorityCache();
     return flashSuccess(req, res, backTo, "Row deleted.");
   } catch (err) {
     logger.error("[web/seu/routeAuthorityRegistry] POST /route-authority/:id/delete error", err as Error);

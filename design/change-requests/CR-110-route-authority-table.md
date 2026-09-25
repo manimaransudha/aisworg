@@ -2,7 +2,7 @@
 
 **Raised:** 2026-09-22 · **Origin:** every route's required badge/role is a literal baked into its route file (`requireBadge(["identity_manage"], {...})`), so changing which badge/role gates a route means a code change + deploy — found while gating the new Identity/Badge/User Management routes, where the hub route and its two children ended up on inconsistent badges because nothing surfaced the mismatch.
 
-**Status:** 🟡 Open — table + full backfill built this pass; middleware wiring, CRUD admin screen, and the `navbar.ejs` legacy-role removal are still pending (see "Remaining" below).
+**Status:** ✅ Closed 2026-09-25.
 
 ## Design decisions
 
@@ -56,9 +56,33 @@ Since the actual ask is "every route except this table's own CRUD," these two we
 - `src/app.js` — computed once per request in the same existing navbar-context middleware that already assembles `ontologyConceptTypes`/`devActAs` (not per-route), for exactly the two nav links that need it; exposed as `res.locals.navRouteVisible`.
 - `src/views/partials/navbar.ejs` — `_isPower`/`_isSuper`/`_isTenantSuper` removed entirely (not kept as a fallback); the two links now check `_navRouteVisible['GET /aisworg/seu/events']` / `['GET /aisworg/seu/tenant-admin/users']`. `_isGeneral` stays — it's the authentication gate, not a role gate, and route_authority (address-keyed by path) has no way to answer "is anyone logged in."
 
-## Remaining (separate build passes)
 
-1. Wire `requireBadge.ts`/`requireRole.ts` to actually consult this table (in-memory cache, auto-derived lookup key) instead of taking a literal array — touches every one of the ~65 backfilled call sites plus the two middleware files. Large, unscoped-until-confirmed change; not done in this pass. (Note: this is now also true for the 3 rows added in the 3rd pass — their routes enforce via a literal `requireRole(["..."])` argument today, same status as every other row.)
-2. Add the "every new route needs a row" rule to CLAUDE.md once 1 is live.
+
+## Changes implemented (4th pass) — full backfill + global gate
+
+- Migration 261 extended (not a new migration file — 261 hadn't been applied yet) with 169 more rows covering every remaining live Express route (owner: "All the express routes should be on the table. Do not exclude any routes") — the whole SEU API layer that previously had no gate at all (empty badges/roles, a real "checked, nothing required" declaration), the hand-rolled `requireAuthorityAdmin`/`requireOntologyAdmin` gates (mapped to their real underlying badges), the legacy `requireRole('general'|'super')` routes (`general` → empty roles, `super` → `roles=['superuser']`), the table's own CRUD screen (documentation row only, see below), the three routes registered directly on `app` in `app.js` (`/`, `/aisworg/login`, `/aisworg/logout`), and `sdkAuthoring.ts`'s dynamic `:slug` routes (informational rows only — see below). 237 rows total.
+- `src/domain/identity/routeAuthorityCache.ts` — loads every row once, compiles each `path` with `path-to-regexp`'s `match()` (already an Express 5 dependency, no new package added), and resolves ambiguous overlaps (e.g. `/objectives/new` vs `/objectives/:id`) by preferring fewer params then the longer literal pattern. `refreshRouteAuthorityCache()` is called by the CRUD screen after every create/update/delete so an edit takes effect on the next request, no restart.
+- `src/middleware/routeAuthorityGate.ts` — the one global gate, mounted in `app.js` right after `gatekeeper` and before every router. Looks up the incoming `req.method`+`req.path`; a match with empty `badges[]`/`roles[]` passes; a real requirement is checked against `resolveHeldBadges`/`resolveHeldRoles`, same root/superuser bypass semantics `requireBadge.ts`/`requireRole.ts` always had. A request matching no row at all now fails closed (deny + loud log) — safe now that the backfill is complete. Denial: generic message "You are not authorised for this action.", `safeBack()` + flash for web routes, plain JSON 403 for `/aisworg/api/...`.
+- Self-governance exception preserved: `routeAuthorityGate` explicitly skips `/aisworg/seu/route-authority*` — that screen's own literal `requireBadge([ROUTE_AUTHORITY_ADMIN_BADGE])` check (unchanged) stays the sole authority over itself, so its table row is a coverage record only, not live enforcement (a stale row can't override the env var).
+- `sdkAuthoring.ts`'s `/sdk/:slug*` and `/sdk/:slug/:draftId/{publish,transition}` routes keep their existing dynamic middleware (`requireAuthoring`/`requireDefineBadge`/`requireDraftTenantScope`/`requireRowActionBadge`) unchanged — their table rows are informational (empty badges/roles) since one static row can't represent a per-`:slug`-resolved badge.
+- **Not yet done**: the ~237 per-route `requireBadge`/`requireRole` calls (and the two hand-rolled admin-gate functions) are still present in the route files. They're now redundant — the global gate already denies before an unauthorized request reaches them — but harmless (same held-badges/roles resolution, so never disagrees with the global gate). Removing them is a separate, large mechanical pass across ~40 files; not done without a separate go-ahead.
+
+User: do we need to add requireBadge(). Can we have the app.js modified to run through these middleware?
+
+Claude: Express only populates req.route.path once a request reaches a specific route's own middleware stack — i.e., once it's already inside router.get(path, ...). A middleware mounted globally in app.js via plain app.use(fn) runs before any router tries to match the path, so at that point Express hasn't matched anything yet and req.route doesn't exist. So a truly global middleware can't just read req.route.path the way the per-route design assumed — it has to do its own path matching: take the raw incoming path (e.g. /aisworg/seu/objectives/42/edit) and match it against route_authority's stored patterns (e.g. /aisworg/seu/objectives/:id/edit) itself.
+
+That's solvable — Express uses path-to-regexp internally for exactly this, so the global middleware would compile each route_authority row's path into a matcher (once, when the cache loads) and match incoming requests against them. This is genuinely doable, not just a workaround.
+
+If we go this route, the outcome is real: no route file needs a requireBadge()/requireRole() call at all anymore — one middleware in app.js, mounted once after the session/auth gatekeeper and before the routers, handles every gated route by looking itself up in the table. The only exception stays the CRUD screen for route_authority itself, which keeps its own literal env-badge check (it can't depend on the table it manages).
+Before I build it, removing the per-route calls entirely surfaces three real gaps I need your call on (not just formality — each one changes behavior):
+
+1. Custom redirect/deny messages disappear. Today, e.g. objectives.ts passes redirectTo: toDetailPage (back to the exact object being edited) and messages like "You don't hold the badge required to edit Objectives." Those are JS closures at the call site — a global middleware has no route-specific closure to run. My default: fall back to Referer-based redirect (same as the old requirePlatformBadge's safeBack()) with a generic denial message. That's a real UX downgrade from today's tailored redirects. Alternative: add redirect_to/deny_message columns to route_authority and backfill them from the current literals, so the exact current behavior is preserved as data too. Which do you want — accept the generic fallback, or preserve exact messages as data?
+
+2. Web vs API mode (redirect+flash vs JSON 403) — I'll infer this from the path prefix (/aisworg/api/... = JSON, everything else = redirect). Fine?
+
+3. Path matching — the global middleware needs to match incoming URLs like /aisworg/seu/objectives/42/edit against stored patterns like /aisworg/seu/objectives/:id/edit. I'd use path-to-regexp, the library Express already uses internally for this, added as a direct dependency. OK?
+
+
+2. ✅ Done — "every new route needs a row" rule added to CLAUDE.md (Application specifics) and MEMORY.md (`route-authority-table-every-new-route.md`).
 
 No test fixtures updated beyond the one seed fixture fix noted above (required to avoid a real regression, not a nice-to-have) — user will test manually.

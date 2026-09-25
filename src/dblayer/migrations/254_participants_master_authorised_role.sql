@@ -28,5 +28,6 @@ INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id) VAL
   ('authorised-role', 'objective_pmo', 'Objective PMO', '11111111-1111-1111-1111-111111111111'),
   ('authorised-role', 'auditor', 'Auditor', '11111111-1111-1111-1111-111111111111'),
   ('authorised-role', 'participant', 'Participant', '11111111-1111-1111-1111-111111111111'),
-  ('authorised-role', 'general', 'General', '11111111-1111-1111-1111-111111111111')
+  ('authorised-role', 'general', 'General', '11111111-1111-1111-1111-111111111111'),
+  ('authorised-role', 'sdk_author', 'SDK Author', '11111111-1111-1111-1111-111111111111')
 ON CONFLICT (concept_type, code, tenant_id, version) DO NOTHING;

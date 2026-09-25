@@ -60,23 +60,8 @@ function actorFrom(req: Request, held: Set<string>): OntologyActor {
   return { isRoot: held.has("root"), tenantId: req.session?.user?.tenant_id ?? null, actorId: userId != null ? String(userId) : null };
 }
 
-// Owner (2026-09-22): "web/ontology.ts should have badge ontology_manage" —
-// the Ontology-registered admin badge (badges:platform/badges:tenant,
-// migration 256), alongside the existing ontology_define (CR-022) gate.
-async function requireOntologyAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const held = await heldBadges(req);
-  if (held.has("root") || held.has("ontology_define") || held.has("ontology_manage")) return next();
-  if (req.session) {
-    (req.session as unknown as { flash?: { type: string; message: string } }).flash = {
-      type: "error",
-      message: `You don't have the required badge for that.`,
-    };
-  }
-  res.redirect(req.headers.referer || "/aisworg");
-}
-
 /** GET /aisworg/seu/sdk/ontology — concept_types as tabs; ?type= selects which one's concepts are listed. */
-router.get("/sdk/ontology", requireOntologyAdmin, attachVM("seu/sdk/ontology/index"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/sdk/ontology", attachVM("seu/sdk/ontology/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const held = await heldBadges(req);
     const actor = actorFrom(req, held);
@@ -155,7 +140,7 @@ router.get("/sdk/ontology", requireOntologyAdmin, attachVM("seu/sdk/ontology/ind
 });
 
 /** GET /aisworg/seu/sdk/ontology/metadata — owner: "the list should show all. otherwise how do I edit?" One page, EVERY Active concept across every category (grouped or not), searchable/sortable, each with an Edit/Retire action, plus a picker-driven form to set text_type/ui_grouping directly. */
-router.get("/sdk/ontology/metadata", requireOntologyAdmin, attachVM("seu/sdk/ontology/metadata"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/sdk/ontology/metadata", attachVM("seu/sdk/ontology/metadata"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const held = await heldBadges(req);
     const actor = actorFrom(req, held);
@@ -220,7 +205,7 @@ router.get("/sdk/ontology/metadata", requireOntologyAdmin, attachVM("seu/sdk/ont
 });
 
 /** POST /aisworg/seu/sdk/ontology/add — add (or re-add/reactivate) a concept; conceptType may be brand new. Non-root always adds to their OWN tenant. */
-router.post("/sdk/ontology/add", requireOntologyAdmin, async (req: Request, res: Response) => {
+router.post("/sdk/ontology/add", async (req: Request, res: Response) => {
   const { conceptType, code, defaultLabel, description, textType, uiGrouping } = req.body ?? {};
   const type = String(conceptType ?? "").trim();
   try {
@@ -249,7 +234,7 @@ router.post("/sdk/ontology/add", requireOntologyAdmin, async (req: Request, res:
 });
 
 /** POST /aisworg/seu/sdk/ontology/deprecate — Ch.18 §11 real governed Active -> Deprecated hop (migration 190); still visible/usable, discouraged for new use. */
-router.post("/sdk/ontology/deprecate", requireOntologyAdmin, async (req: Request, res: Response) => {
+router.post("/sdk/ontology/deprecate", async (req: Request, res: Response) => {
   const { conceptType, code, tenantId } = req.body ?? {};
   const type = String(conceptType ?? "").trim();
   try {
@@ -263,7 +248,7 @@ router.post("/sdk/ontology/deprecate", requireOntologyAdmin, async (req: Request
 });
 
 /** POST /aisworg/seu/sdk/ontology/retire — Deprecated -> Retired (never a hard delete): existing data keeps working, drops out of new-item pickers. tenantId names which row (Platform's / this tenant's / — root only — another tenant's). */
-router.post("/sdk/ontology/retire", requireOntologyAdmin, async (req: Request, res: Response) => {
+router.post("/sdk/ontology/retire", async (req: Request, res: Response) => {
   const { conceptType, code, tenantId } = req.body ?? {};
   const type = String(conceptType ?? "").trim();
   try {
@@ -277,7 +262,7 @@ router.post("/sdk/ontology/retire", requireOntologyAdmin, async (req: Request, r
 });
 
 /** POST /aisworg/seu/sdk/ontology/archive — Retired -> Archived, the terminal hop. */
-router.post("/sdk/ontology/archive", requireOntologyAdmin, async (req: Request, res: Response) => {
+router.post("/sdk/ontology/archive", async (req: Request, res: Response) => {
   const { conceptType, code, tenantId } = req.body ?? {};
   const type = String(conceptType ?? "").trim();
   try {
@@ -291,7 +276,7 @@ router.post("/sdk/ontology/archive", requireOntologyAdmin, async (req: Request, 
 });
 
 /** POST /aisworg/seu/sdk/ontology/compose — owner: "allow tenants to compose using the composition strategy that packs already have implemented." Specialization (copy a chosen source concept's label/description into a new/own code, free to diverge) or Override (publish a new Version of this tenant's own existing concept). Reuses domain/engine/compositionEngine.ts, the same module Pack authoring's own Compose action calls. */
-router.post("/sdk/ontology/compose", requireOntologyAdmin, async (req: Request, res: Response) => {
+router.post("/sdk/ontology/compose", async (req: Request, res: Response) => {
   const { conceptType, code, strategy, sourceConceptId, defaultLabel, description } = req.body ?? {};
   const type = String(conceptType ?? "").trim();
   try {
@@ -315,7 +300,7 @@ router.post("/sdk/ontology/compose", requireOntologyAdmin, async (req: Request, 
 });
 
 /** POST /aisworg/seu/sdk/ontology/update-meta — owner: "a CRUD to manually set the ui_grouping / text_type", kept as a SEPARATE page (owner: "if you keep it in each category, there is a possibility that there can be conflicting information within the same group"). Edits the current Version's own administrative metadata in place — no new Version, no status change. Blank uiGrouping explicitly clears it (this form is pre-filled with the current value, unlike /add's own "blank = inherit"). Always posted from, and redirects back to, the dedicated /metadata page. */
-router.post("/sdk/ontology/update-meta", requireOntologyAdmin, async (req: Request, res: Response) => {
+router.post("/sdk/ontology/update-meta", async (req: Request, res: Response) => {
   const { conceptType, code, tenantId, textType, uiGrouping } = req.body ?? {};
   const type = String(conceptType ?? "").trim();
   const metadataUrl = `${backTo}/metadata`;
@@ -336,7 +321,7 @@ router.post("/sdk/ontology/update-meta", requireOntologyAdmin, async (req: Reque
 });
 
 /** POST /aisworg/seu/sdk/ontology/quick-retire — owner: "Add a retire button also. - this should make the isActive false." Migration 190 replaced is_active with a real Active->Deprecated->Retired->Archived lifecycle (no skip-ahead edge); this walks both required hops in one click so the Metadata page can offer the same one-click "retire it" feel the old boolean had, while every real transition still runs its own badge check and publishes its own event. */
-router.post("/sdk/ontology/quick-retire", requireOntologyAdmin, async (req: Request, res: Response) => {
+router.post("/sdk/ontology/quick-retire", async (req: Request, res: Response) => {
   const { conceptType, code, tenantId } = req.body ?? {};
   const metadataUrl = `${backTo}/metadata`;
   try {

@@ -1,94 +1,6 @@
-
 # Chapter 30 – Event Model
 
-[Sudha: The previous ADR ("Transition Definitions") changes how I think about the Runtime Kernel.
-
-Originally, I thought the Runtime Kernel looked like this:
-
-```
-State Management
-↓
-
-Event Bus
-↓
-
-Execution Planning
-```
-
-I now think that's backwards.
-
-The platform is fundamentally **event-driven**.
-
-State changes produce events.
-
-Events cause evaluations.
-
-Evaluations produce new state transitions.
-
-That means **Events** are not a messaging mechanism.
-
-They are the **heartbeat of the SEU**.
-
-This is exactly how modern operating systems work.
-
-This is exactly how modern distributed systems work.
-
-And I think it is exactly how an AI Software Engineering Unit should work.
-
----------------
-
-While writing this chapter, I realised we've uncovered another architectural distinction that I think should become an ADR.
-
-Throughout the previous chapters we've used the words **Events**, **Requests**, **Commands** and **Transitions** almost interchangeably. They are not the same thing.
-
-I think the Runtime Kernel should distinguish them very clearly:
-
-|Concept|Meaning|
-|---|---|
-|**Command**|A request to perform an engineering action.|
-|**Transition Definition**|The declarative contract describing how a state transition may occur.|
-|**State Transition**|The successful change of an engineering object's authoritative state.|
-|**Event**|The immutable fact that the transition has occurred.|
-
-That creates a clean runtime flow:
-
-```
-Command
-
-↓
-
-Transition Definition Evaluation
-
-↓
-
-Governance Evaluation
-
-↓
-
-State Transition
-
-↓
-
-Event Publication
-
-↓
-
-Subscribers React
-```
-
-Notice something subtle but important:
-
-Participants should issue **Commands**, not Events.
-
-The Runtime Kernel evaluates those Commands against the relevant Transition Definition and Governance Model. Only after the state transition commits does the Runtime Kernel publish an Event.
-
-This separation prevents Participants from fabricating engineering history. They can request work, but only the Runtime Kernel can declare that something **actually happened**.
-
-I think this distinction is one of the strongest implementation principles we've developed. It aligns naturally with CQRS and event-driven architectures while remaining technology-neutral. More importantly, it reinforces the idea that **engineering truth belongs to the Runtime Kernel**, not to individual Participants. I strongly recommend capturing this as an ADR because it will shape almost every runtime service that follows.
-]
----
-
-# 1. Purpose
+## 1. Purpose
 
 The Event Model defines how significant engineering and runtime occurrences are represented, published, consumed and preserved within a Software Engineering Unit (SEU).
 
@@ -102,7 +14,7 @@ They communicate that engineering state has changed.
 
 ---
 
-# 2. Scope
+## 2. Scope
 
 This chapter defines:
 
@@ -122,7 +34,7 @@ This chapter does not define:
 
 ---
 
-# 3. Architectural Position
+## 3. Architectural Position
 
 ```
 Transition Definition
@@ -154,7 +66,7 @@ They do not perform engineering work.
 
 ---
 
-# 4. Definition
+## 4. Definition
 
 An Event is an immutable record that a significant engineering or runtime occurrence has taken place.
 
@@ -170,115 +82,89 @@ Events shall never modify engineering state.
 
 ---
 
-# 5. Architectural Principles
+## 5. Architectural Principles
 
-## EM-001
+### EM-001
 
 Events are immutable.
 
----
-
-## EM-002
+### EM-002
 
 Events describe facts.
 
 They do not express intentions.
 
----
-
-## EM-003
+### EM-003
 
 Events are published after successful state transitions.
 
----
-
-## EM-004
+### EM-004
 
 Events are independently identifiable.
 
----
-
-## EM-005
+### EM-005
 
 Events are traceable.
 
----
-
-## EM-006
+### EM-006
 
 Events are implementation-independent.
 
 ---
 
-# 6. Functional Requirements
+## 6. Functional Requirements
 
 ### FR-30.1
 
 Every Event shall possess a globally unique identifier.
-
----
-
+ 
 ### FR-30.2
 
 Every committed engineering state transition shall publish one or more Events.
-
----
-
+ 
 ### FR-30.3
 
 Events shall be immutable.
-
----
-
+ 
 ### FR-30.4
 
 Events shall preserve ordering within the scope of an engineering object.
-
----
-
+ 
 ### FR-30.5
 
 Events shall support multiple subscribers.
-
----
-
+ 
 ### FR-30.6
 
 Events shall remain permanently traceable.
-
----
-
+ 
 ### FR-30.7
 
 Historical Events shall remain queryable.
 
 ---
 
-# 7. Event Categories
+## 7. Event Categories
 
 Illustrative categories include:
 
-## State Events
+### State Events
 
 Examples:
 
 - DeliverableApproved
 - ObligationClosed
 - KnowledgePublished
-
----
-
-## Governance Events
+ 
+### Governance Events
 
 Examples:
 
 - AuthorityGranted
 - PolicyEvaluated
 - QualityGatePassed
-
----
-
-## Runtime Events
+ 
+### Runtime Events
 
 Examples:
 
@@ -286,19 +172,15 @@ Examples:
 - RuntimeRecovered
 - ExecutionPlanned
 
----
-
-## Integration Events
+### Integration Events
 
 Examples:
 
 - RepositoryUpdated
 - BuildCompleted
 - DeploymentStarted
-
----
-
-## Administrative Events
+ 
+### Administrative Events
 
 Examples:
 
@@ -310,7 +192,7 @@ Additional categories may be introduced through Packs.
 
 ---
 
-# 8. Event Structure
+## 8. Event Structure
 
 Every Event shall define:
 
@@ -330,7 +212,7 @@ The payload schema is defined by the originating service.
 
 ---
 
-# 9. Event Lifecycle
+## 9. Event Lifecycle
 
 Events progress through the following lifecycle.
 
@@ -356,7 +238,7 @@ Consumption by one subscriber shall not affect other subscribers.
 
 ---
 
-# 10. Event Publication
+## 10. Event Publication
 
 Events shall be published only after successful completion of the corresponding state transition.
 
@@ -372,7 +254,7 @@ Events shall represent committed engineering facts.
 
 ---
 
-# 11. Event Consumption
+## 11. Event Consumption
 
 Runtime services and Participants may subscribe to Events.
 
@@ -389,7 +271,7 @@ Subscribers shall remain independent of one another.
 
 ---
 
-# 12. Event Ordering
+## 12. Event Ordering
 
 The platform shall preserve deterministic ordering for Events relating to the same engineering object.
 
@@ -399,7 +281,7 @@ This allows scalability while preserving engineering correctness.
 
 ---
 
-# 13. Correlation and Causation
+## 13. Correlation and Causation
 
 Every Event shall support:
 
@@ -421,7 +303,7 @@ This enables reconstruction of engineering execution chains.
 
 ---
 
-# 14. Event Replay
+## 14. Event Replay
 
 The platform shall support replay of historical Events.
 
@@ -437,7 +319,7 @@ Replay shall never alter historical engineering state unless explicitly operatin
 
 ---
 
-# 15. Event Persistence
+## 15. Event Persistence
 
 Historical Events shall remain available for:
 
@@ -451,7 +333,7 @@ Retention policies are contributed through Packs.
 
 ---
 
-# 16. Events
+## 16. Events
 
 The Runtime Kernel shall publish infrastructure events including:
 
@@ -466,7 +348,7 @@ Domain-specific events are defined by their respective architectural components.
 
 ---
 
-# 17. Non-Functional Requirements
+## 17. Non-Functional Requirements
 
 The Event Model shall:
 
@@ -478,7 +360,7 @@ The Event Model shall:
 
 ---
 
-# 18. Acceptance Criteria
+## 18. Acceptance Criteria
 
 The implementation shall satisfy the following criteria.
 
@@ -496,28 +378,28 @@ The implementation shall satisfy the following criteria.
 
 ---
 
-# 19. Deliverables
+## 19. Deliverables
 
 Implementation of this chapter shall produce:
 
-- Event domain model.
-- Event publication service.
-- Event subscription service.
-- Event registry.
-- Correlation and causation services.
-- Event replay service.
-- Event APIs.
-- Event catalogue.
+- Event domain model
+- Event publication service
+- Event subscription service
+- Event registry
+- Correlation and causation services
+- Event replay service
+- Event APIs
+- Event catalogue
 
 ---
 
-# 20. Implementation Status & Gaps
+## 20. Implementation Status & Gaps
 
 Code-verified audit (2026-08-21), not from memory — every claim below carries a file:line citation. Origin: reviewing CR-052 ("Evidence accumulation via the Event Bus"), which itself claimed "today, nothing in this codebase reacts to a Bus event" — that claim is **wrong**, corrected in 20.2 below.
 
 **Update, 2026-08-21 (second pass, same day) — the Event Bus was redesigned and built** following this audit, through an extended field-by-field and mechanism-by-mechanism design conversation. §20.2, §20.3, and §20.5 below are updated in place to reflect what actually shipped; §20.1, §20.4, §20.6, §20.7, §20.8, §20.9 are unchanged from the original audit (still accurate — nothing about them was in scope for this build).
 
-## 20.1 ✅ Event Publication — extensive and real (§7/§10; FR-30.2)
+### 20.1 ✅ Event Publication — extensive and real (§7/§10; FR-30.2)
 
 69 `eventBus.publish(...)` call sites across `src/`, producing roughly 90 distinct event-type strings, spanning nearly every entity the platform models: SEU, Deliverable, Evidence, Knowledge, Decision, Obligation, ExternalInteraction, Pack, Template, Profile, DeliverableDefinition, Command, WorkItem, Participant, Capability (via `CapabilityFulfilled`/`DeliverableReady`), Quality Gate, Policy, Review, Finding, Metric, Attention, Objective, and cross-entity Telemetry (`SustainedPatternDetected`). Publication genuinely happens only after a state transition commits (`src/domain/engine/eventBus.ts:37-49` — persists via `eventsDB.append` first, then notifies subscribers), matching EM-003/§10's own ordering requirement.
 
@@ -525,7 +407,7 @@ Six entities (Evidence, Pack, Template, Profile, DeliverableDefinition, and Part
 
 **Deliverable's own gap is chapter-mandated, not just an inconsistency with sibling entities**: Ch.15 §17 explicitly names seven events the Deliverable subsystem "shall publish" — `DeliverableCreated`, `DeliverableUpdated`, `DeliverableStateChanged`, `DeliverableApproved`, `DeliverableBaselined`, `DeliverableSuperseded`, `DeliverableArchived` — and Ch.15's own §21.11 (already audited, code-verified, prior session) confirms zero of the seven exist; only the generic `DeliverableTransitioned` fires, and there is no creation event at all (`createDeliverable` and the commissioning bulk-create path publish nothing). Ch.15 §21.11 also notes two real, differently-named adjacent events — `DeliverableReady`/`DeliverableBlocked` (Ch.9 §19.9), `originatingObjectType: "Deliverable"` — published by the Dependency Engine on transitions a `dependency_definitions` row governs; neither matches any of the seven precisely (`DeliverableStateChanged` is the closest conceptual overlap), and neither fires on every transition. See Ch.15 §21.11/§21.13 for the full account — not duplicated here.
 
-## 20.2 ✅ Event Consumption — rebuilt: DB-backed registry, publish/consume separated, fire-and-forget dispatch (§9/§11; FR-30.5)
+### 20.2 ✅ Event Consumption — rebuilt: DB-backed registry, publish/consume separated, fire-and-forget dispatch (§9/§11; FR-30.5)
 
 **Original finding (still true of the code as it stood then, corrected CR-052's own wrong claim in the process)**: exactly one `eventBus.subscribe(...)` call existed anywhere in `src/` — `assignmentDelivery.ts`'s `WorkItemDispatched` handler, genuinely wired up at boot, not dead code, but the *only* such case, and invoked synchronously inline inside `publish()` (blocking it on however long the handler took — demonstrated concretely by that same handler's own external delivery call).
 
@@ -541,7 +423,7 @@ FR-30.5 ("Events shall support multiple subscribers") is now real infrastructure
 
 **The second, pull-based precedent noted in the original audit is unchanged**: `checkSustainedPolicyWaivers()` (`src/routes/seu/core/telemetry.ts:271-291`) still reads the `events` table directly on Telemetry page load and can mint a new Obligation as a result — untouched by this build, still a valid second example of "past Events driving new behavior," just synchronous and pull-based rather than push-subscribed.
 
-## 20.3 ⚠️ Event Structure — partial by deliberate choice, not oversight (§8)
+### 20.3 ⚠️ Event Structure — partial by deliberate choice, not oversight (§8)
 
 **Original finding**: 7 of §8's 11 fields implemented, 4 missing (Originating Service, Related Objects, Event Version, Traceability References).
 
@@ -555,11 +437,11 @@ FR-30.5 ("Events shall support multiple subscribers") is now real infrastructure
 - **`seu_id`** (nullable, `REFERENCES seus(id)`) — closes a real, demonstrated gap: `getSeuEvents()` (`core/events.ts:16-35`) reconstructed "every event for this SEU" via three separate queries (by SEU id, by every Deliverable id, by every Command's correlation id) and was still silently incomplete (missing Evidence/Knowledge/Decision/Obligation/Participant events entirely). Null for entities with no single owning SEU (Objective — checked directly, `ObjectiveRow` has no `seu_id` and structurally can't, since a SEU points *to* an Objective, not the reverse; Pack/Template/Profile/DeliverableDefinition — platform catalog entities). Deliberately kept as a dedicated FK'd column, not generalized to a generic `owning_entity_type`/`owning_entity_id` pair — the only demonstrated need is SEU-scoping, and a generic pair would lose the `REFERENCES seus(id)` integrity check for no current benefit.
 - **`consumption_state`** (JSONB, keyed by handler name) — see 20.2. Not one of §8's original 11 fields; a new field the redesign itself required.
 
-## 20.4 ✅ Event Ordering (§12; FR-30.4)
+### 20.4 ✅ Event Ordering (§12; FR-30.4)
 
 `events.sequence` (`BIGSERIAL`, `events_sequence_seq`) gives every event a single global monotonic order, which trivially satisfies §12's narrower requirement (deterministic ordering *within* the scope of one engineering object — a subset of a total order is itself totally ordered). `idx_events_originating (originating_object_type, originating_object_id)` makes querying that per-object order efficient.
 
-## 20.5 ✅ Correlation & Causation — causation fixed at every previously-wrong site (§13)
+### 20.5 ✅ Correlation & Causation — causation fixed at every previously-wrong site (§13)
 
 Correlation Identifier was already solid and remains so — populated on effectively every publish call, linking every event in one engineering activity.
 
@@ -573,19 +455,19 @@ Correlation Identifier was already solid and remains so — populated on effecti
 
 `causation_id` still carries no FK constraint (a database column can't cleanly constrain "must be a real row in this same table" the way a normal FK does across tables, and no case yet needs that level of enforcement) — but as of this fix, every site that sets it now points at a real prior event or is honestly `null`. Four sites fixed; `dispatchEngine.ts`'s own three events (`WorkItemDispatched`/`ParticipantSelected`/`DispatchDeferred`) still don't set `causation_id` at all — never flagged as *wrong* (only absent), left as a natural but separate follow-on, not bundled into fixing what was actually broken.
 
-## 20.6 ❌ Event Replay — wholly unimplemented (§14)
+### 20.6 ❌ Event Replay — wholly unimplemented (§14)
 
 No replay mechanism, route, function, or stub exists anywhere in `src/`. `eventsDB` (`src/dblayer/eventsDB.ts`) exposes only read methods (`findByOriginatingObject`, `findByCorrelationId`, `findRecent`, `count`, `countStandardPolicyDeviations`) — every one returns rows to a caller for direct display or a one-off aggregate calculation; none re-feeds historical events back through `eventBus.publish`/`.subscribe` to reconstruct state or re-run subscriber side effects. (Unrelated "replay" hits elsewhere in the codebase — migration-runner comments, a duplicate-HTTP-request-rejection path in `dry-run-suite` — are not this mechanism.)
 
-## 20.7 ⚠️ Event Persistence — persisted and queryable, no retention policy (§15)
+### 20.7 ⚠️ Event Persistence — persisted and queryable, no retention policy (§15)
 
 Every event is durably persisted in Postgres and remains queryable indefinitely (`eventsDB.findByOriginatingObject`/`findByCorrelationId`/`findRecent`) — satisfies traceability/explainability/historical-reconstruction. §15's own "Retention policies are contributed through Packs" is not built: no archival, TTL, or Pack-contributed retention mechanism exists; every event is kept forever by default.
 
-## 20.8 ❌ Infrastructure/Meta Events — 0 of 6 implemented (§16)
+### 20.8 ❌ Infrastructure/Meta Events — 0 of 6 implemented (§16)
 
 None of the six Runtime-Kernel infrastructure events the chapter names — `EventPublished`, `EventConsumed`, `EventReplayStarted`, `EventReplayCompleted`, `EventOrderingViolationDetected`, `EventPublicationFailed` — are ever published anywhere (confirmed via exhaustive grep, zero hits for all six). The Bus publishes only the domain events its callers supply; it never announces its own publish/consume/replay activity as events in their own right.
 
-## 20.9 ✅ §7's Illustrative Event Categories — closed: not a gap list, and the real part (the taxonomy) is now built
+### 20.9 ✅ §7's Illustrative Event Categories — closed: not a gap list, and the real part (the taxonomy) is now built
 
 §7 explicitly frames these 15 *names* as illustrative, not mandated — the cross-reference below was never a to-do list of events to go build (most of these 9 absent names have no real equivalent and aren't expected to). What §7 actually offers of lasting value is the five-way **category split itself** (State/Governance/Runtime/Integration/Administrative) — and that part is now real: `event_registry.category`, Ontology-backed (`category:event-types`, migration `090_event_registry_category.sql`), same mechanism as `category:evidence`/`category:deliverable`. Closed — nothing further to track here.
 
@@ -611,7 +493,7 @@ Cross-reference kept for the record:
 
 3 exact matches, 3 covered by a differently-named generic event, 9 with no match or equivalent at all.
 
-## Summary — what this means for redesigning the Bus toward a real pub/sub model
+### Summary — what this means for redesigning the Bus toward a real pub/sub model
 
 The owner's own framing (reviewing this audit): *"The Bus's role is only the two notifications on either side of that: it publishes `EvidenceAccepted` (which triggers the engine to re-check), and once the engine has already applied the transition, it publishes `DeliverableApproved` (announcing what already happened). The Bus never evaluates 'met' and never pushes state."*
 

@@ -1,62 +1,6 @@
-
 # Chapter 38 – Pack SDK Architecture
 
-
-[Sudha: 
-
-Packs form an useful extensibility mechanism and behave as the **primary unit of platform evolution**.
-
-Packs are a way to 
-- customise engineering practices. 
-
-The SEU platform should be viewed as comprising two distinct parts:
-
-```
-Stable Platform Core
-────────────────────────
-Runtime Kernel
-Core Information Model
-Composition Engine
-Pack SDK
-
-+
-
-Evolving Knowledge
-────────────────────────
-Engineering Packs
-Organisation Packs
-Customer Packs
-Domain Packs
-Technology Packs
-Capability Packs
-```
-
-Most future innovation will occur by publishing new Packs rather than releasing new versions of the platform itself.
-
-An **Engineering Behaviour Model** would be the immutable, versioned result of composing all applicable Packs for an SEU. It would become the single configuration consumed by the Runtime Kernel, Execution Engine and Governance services.
-
-This would have several advantages:
-
-- The Runtime Kernel consumes one configuration rather than many Packs.
-- Historical engineering execution becomes perfectly reproducible by referencing the EBM version.
-- Configuration changes become explicit lifecycle events.
-- Rollback becomes straightforward by reverting to a previous EBM.
-
-
-**Decision:** Before an SEU is activated, all applicable Packs shall be composed into a single immutable EBM. Runtime services shall consume the EBM rather than individual Packs.
-
-**Rationale:** This isolates runtime execution from Pack management, improves determinism, simplifies runtime logic and provides a reproducible snapshot of the engineering environment for every SEU lifecycle stage. 
-
------------------
-
-> **How do people build Packs?**
-
-If Packs are the unit of evolution, then the platform succeeds or fails based on how easy it is to create, test, validate and publish them. Packs are built using the Software Development Kit.
-]
-
----
-
-# 1. Purpose
+## 1. Purpose
 
 The Pack SDK Architecture defines how Packs are created, versioned, composed, validated, deployed and managed within the Software Engineering Unit (SEU) platform.
 
@@ -66,7 +10,7 @@ Every engineering behaviour, governance model, domain capability and organisatio
 
 ---
 
-# 2. Scope
+## 2. Scope
 
 This chapter defines:
 
@@ -86,7 +30,7 @@ This chapter does not define:
 
 ---
 
-# 3. Architectural Position
+## 3. Architectural Position
 
 ```
 Platform Core
@@ -116,7 +60,7 @@ The Pack SDK forms the extensibility layer between the stable platform core and 
 
 ---
 
-# 4. Definition
+## 4. Definition
 
 A Pack is a versioned, declarative package that contributes engineering behaviour or engineering metadata to the platform.
 
@@ -134,38 +78,39 @@ The Runtime Kernel consumes the composed result through Engineering Behavior Mod
 
 ---
 
-# 5. Architectural Principles
+## 5. Architectural Principles
 
-## PP-001
+### PP-001
 
 The Runtime Kernel shall remain Pack-agnostic.
  
 
-## PP-002
+### PP-002
 
 Every Pack shall be independently versioned.
  
 
-## PP-003
+### PP-003
 
 Pack composition shall be deterministic.
  
-## PP-004
+### PP-004
 
 Packs shall be independently deployable.
  
 
-## PP-005
+### PP-005
 
 Packs shall never directly modify platform services.
  
 
-## PP-006
+### PP-006
 
 Platform evolution shall occur primarily through new Packs.
  
+---
 
-# 6. Functional Requirements
+## 6. Functional Requirements
 
 ### FR-38.1
 
@@ -181,7 +126,7 @@ Every Pack shall possess:
 ### FR-38.2
 
 The platform shall support concurrent versions of compatible Packs.
-*[Remarrks: Only one can be active]*
+*[Remarks: Only one can be active]*
 
 ### FR-38.3
 
@@ -209,7 +154,7 @@ Pack lifecycle operations shall be fully traceable.
 
 ---
 
-# 7. Pack Taxonomy
+## 7. Pack Taxonomy
 
 The platform shall support, at a minimum:
 
@@ -290,7 +235,7 @@ Future Pack categories are introduced without modifying the Runtime Kernel throu
 
 *[Remarks: Templates and Profiles are treated as separate entities. However, they reuse the same SDK. Keeping them separate enables easy composition.]*
 
-# 8. Pack Structure
+## 8. Pack Structure
 
 Every Pack shall define:
 
@@ -310,7 +255,7 @@ The internal packaging format is implementation-defined.
 
 ---
 
-# 9. Pack Lifecycle
+## 9. Pack Lifecycle
 
 Every Pack shall progress through the following lifecycle.
 
@@ -342,7 +287,7 @@ Pack history shall remain permanently available.
 
 ---
 
-# 10. Pack Registry
+## 10. Pack Registry
 
 The platform shall maintain a Pack Registry.
 
@@ -359,7 +304,7 @@ The Registry is the authoritative catalogue of Packs.
 
 ---
 
-# 11. Pack Composition
+## 11. Pack Composition
 
 Pack composition shall:
 
@@ -367,7 +312,7 @@ Pack composition shall:
 - evaluate compatibility
 - merge declarative contributions
 - detect conflicts
-- produce one Effective Engineering Configuration
+- produce one Engineering Behavior Model
 
 Composition shall be deterministic.
 
@@ -376,7 +321,7 @@ Given the same Pack set, the resulting configuration shall always be identical.
 
 ---
 
-# 12. Compatibility
+## 12. Compatibility
 
 Compatibility shall be evaluated across:
 
@@ -392,7 +337,7 @@ Compatibility rules are declarative.
 
 ---
 
-# 13. Security
+## 13. Security
 
 Every Pack shall support:
 
@@ -406,7 +351,7 @@ Untrusted Packs shall not be activated.
 
 ---
 
-# 14. Traceability
+## 14. Traceability
 
 The platform shall preserve:
 
@@ -421,7 +366,7 @@ Every engineering decision shall be traceable to the Pack versions that influenc
 
 ---
 
-# 15. Events
+## 15. Events
 
 The Pack SDK shall publish:
 
@@ -436,7 +381,7 @@ The Pack SDK shall publish:
 ---
 <mark>Check events are asynchronous. Differentiate between revision and version.</mark>
 
-# 16. Non-Functional Requirements
+## 16. Non-Functional Requirements
 
 The Pack SDK shall:
 
@@ -451,7 +396,7 @@ The Pack SDK shall:
 
 ---
 
-# 17. Acceptance Criteria
+## 17. Acceptance Criteria
 
 The implementation shall satisfy the following criteria.
 
@@ -469,7 +414,7 @@ The implementation shall satisfy the following criteria.
 
 ---
 
-# 18. Deliverables
+## 18. Deliverables
 
 Implementation of this chapter shall produce:
 

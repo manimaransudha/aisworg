@@ -43,7 +43,7 @@ We ended with a platform whose core abstractions are:
 - Transition Definitions
 - State
 - Events
-- Effective Engineering Configuration
+- Engineering Behavior Model
 - Packs
 
 The AI agents became **Participants** within a much larger engineering system. I think that was an important shift because it makes the platform resilient to changes in AI technology.
@@ -60,7 +60,7 @@ One of the strongest outcomes is that we repeatedly separated concepts that are 
 - Administrative Ownership vs Engineering Ownership vs Business Ownership.
 - Command vs Work Item vs State Transition vs Event.
 - Runtime Kernel vs Engineering Behaviour.
-- Packs vs Effective Engineering Configuration.
+- Packs vs Engineering Behavior Model.
 
 That consistency should make the implementation substantially easier to reason about.
 
@@ -90,7 +90,7 @@ For example:
 - Policy
 - Quality Gate
 - Pack
-- Effective Engineering Configuration
+- Engineering Behavior Model
 - Tenant
 - Workspace
 - Engineering Checkpoint

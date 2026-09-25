@@ -5,10 +5,9 @@ const router = express.Router();
 
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
-import { listPacksWithNextStates, transitionPack, alternateBadgesForPackTransition } from "../core/packs.js";
+import { listPacksWithNextStates, transitionPack } from "../core/packs.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
-import { requireBadge } from "../../../middleware/requireBadge.js";
 import { requireTenant } from "../../../middleware/requireTenant.js";
 import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
 import type { PackStatus } from "../../../dblayer/seuTypes.js";
@@ -26,7 +25,7 @@ import type { PackStatus } from "../../../dblayer/seuTypes.js";
 // CR-076 follow-up — was calling listPacksWithNextStates() with no viewer at
 // all, returning every Pack across every tenant unfiltered (the exact same
 // gap "GET /objectives should have a requireTenant" closed there).
-router.get("/packs", requireBadge(["None"], { mode: "api" }), requireTenant(), async (req: Request, res: Response) => {
+router.get("/packs", requireTenant(), async (req: Request, res: Response) => {
   try {
     const { isRoot, tenantId } = req.tenantScope!;
     const packs = await listPacksWithNextStates(tenantId ? { isRoot, tenantId } : null);
@@ -88,12 +87,12 @@ function postPackTransition(targetState: PackStatus) {
 // transitionEngine.evaluate call (the actual enforcement) and by
 // web/sdkAuthoring.ts's equivalent route gate, so this list can never drift
 // from what's actually enforced.
-router.post("/packs/:id/transition/validate", requireBadge(["pack_validate", ...(alternateBadgesForPackTransition("Draft", "Validated") ?? [])], { mode: "api", match: "any" }), postPackTransition("Validated"));
-router.post("/packs/:id/transition/publish", requireBadge(["pack_publish"], { mode: "api" }), postPackTransition("Published"));
+router.post("/packs/:id/transition/validate", postPackTransition("Validated"));
+router.post("/packs/:id/transition/publish", postPackTransition("Published"));
 /** Reject requires a genuinely new, non-empty comment every time — enforced in transitionPack itself, not here. */
-router.post("/packs/:id/transition/reject", requireBadge(["pack_reject", ...(alternateBadgesForPackTransition("Validated", "Draft") ?? [])], { mode: "api", match: "any" }), postPackTransition("Draft"));
-router.post("/packs/:id/transition/activate", requireBadge(["pack_activate"], { mode: "api" }), postPackTransition("Active"));
-router.post("/packs/:id/transition/retire", requireBadge(["pack_retire"], { mode: "api" }), postPackTransition("Retired"));
-router.post("/packs/:id/transition/archive", requireBadge(["pack_archive"], { mode: "api" }), postPackTransition("Archived"));
+router.post("/packs/:id/transition/reject", postPackTransition("Draft"));
+router.post("/packs/:id/transition/activate", postPackTransition("Active"));
+router.post("/packs/:id/transition/retire", postPackTransition("Retired"));
+router.post("/packs/:id/transition/archive", postPackTransition("Archived"));
 
 export { router };

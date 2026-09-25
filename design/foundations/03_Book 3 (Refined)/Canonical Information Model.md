@@ -20,35 +20,28 @@
 ### SEU (Software Engineering Unit)
 - **Purpose:** the primary execution entity; a temporary engineering construct commissioned to achieve one or more objectives.
 - **Lifecycle:** Commissioned → Configured → Activated → Operational → Suspended ⇄ Operational → Retired → Archived. (Ch. 37)
-- **Key Attributes:** identifier, active EBM reference, active EEC reference, objectives, lifecycle state.
-- **Relationships:** executes against exactly one EBM/EEC; owns Deliverables, Knowledge, Evidence, Obligations, Events, Telemetry; belongs to one Workspace/Tenant.
+- **Key Attributes:** identifier, active EBM reference, objectives, lifecycle state.
+- **Relationships:** executes against exactly one EBM; owns Deliverables, Knowledge, Evidence, Obligations, Events, Telemetry; belongs to one Workspace/Tenant.
 - **Ownership:** Workspace or Tenant (Ch. 42).
-- **Versioned:** No (the SEU itself isn't versioned; its EEC is).
+- **Versioned:** No (the SEU itself isn't versioned; its EBM is).
 - **Source:** Ch. 2, Ch. 37.
 
 ### Engineering Behavior Model (EBM)
 - **Purpose:** the composed, executable definition of how engineering is performed for a given SEU. (Renamed from "Engineering Practice Model" — see Terminology and Reconciliation §1.)
+- **Purpose:** the immutable, versioned result of composing all applicable Packs for one SEU; the single object the Runtime Kernel actually consumes. (ADR – Engineering Behavior Model, Architecture Catalogue.)
 - **Lifecycle:** Draft → Validated → Published → Active → Deprecated → Retired → Archived (follows the Version lifecycle, Ch. 41).
+- **Lifecycle:** follows the universal lifecycle (Define → Validate → Compose → Activate → Execute → Observe → Evolve).
 - **Key Attributes:** version, composing Packs, governance rules, decision rules, quality gates, terminology bindings.
-- **Relationships:** produced by the Composition Engine from Packs; consumed by SEU; superseded by the EEC as the actual runtime input (see below).
+- **Relationships:** produced by the Composition Engine from Packs; consumed by SEU; .
 - **Ownership:** Tenant (as composition target); content sourced from Packs at any tenancy level.
 - **Versioned:** Yes.
 - **Source:** Ch. 2, Ch. 4.
-
-### Effective Engineering Configuration (EEC)
-- **Purpose:** the immutable, versioned result of composing all applicable Packs for one SEU; the single object the Runtime Kernel actually consumes. (ADR – Effective Engineering Configuration, Architecture Catalogue.)
-- **Lifecycle:** follows the universal lifecycle (Define → Validate → Compose → Activate → Execute → Observe → Evolve).
-- **Key Attributes:** identifier, version, composing Pack versions, composition report.
-- **Relationships:** composed from Packs by the Composition Engine; referenced by every Engineering Checkpoint; consumed by Runtime Kernel, Execution Engine, Governance.
-- **Ownership:** SEU.
-- **Versioned:** Yes — this is the canonical example of a Version (Ch. 41), not a Revision.
-- **Source:** Ch. 38.
 
 ### Pack
 - **Purpose:** a versioned, declarative package contributing engineering behaviour or metadata (Platform / Organisation / Customer / Domain / Technology / Capability / Profile / Template Pack).
 - **Lifecycle:** Created → Validated → Published → Installed → Activated → Deprecated → Retired → Archived. (Ch. 38)
 - **Key Attributes:** identifier, semantic version, Pack Type, declared capabilities (ADR – Pack Capability Declaration), dependency declaration, digital signature.
-- **Relationships:** composed by the Composition Engine into an EBM/EEC; published by a Publisher (Platform, Organisation, Customer, Domain, Technology vendor, or individual).
+- **Relationships:** composed by the Composition Engine into an EBM; published by a Publisher (Platform, Organisation, Customer, Domain, Technology vendor, or individual).
 - **Ownership:** Platform or Tenant, depending on Pack Type.
 - **Versioned:** Yes.
 - **Source:** Ch. 5, Ch. 38, Ch. 39.
@@ -244,7 +237,7 @@
 ### Engineering Checkpoint
 - **Purpose:** a logically consistent, deployment-independent snapshot of engineering execution, used for deterministic recovery — an "engineering snapshot," not an infrastructure backup. (ADR – Engineering Checkpoints.)
 - **Lifecycle:** Created → (referenced by Recovery) → superseded by later Checkpoint.
-- **Key Attributes:** identifier, referenced EEC version, referenced artefact versions, event sequence position.
+- **Key Attributes:** identifier, referenced EBM version, referenced artefact versions, event sequence position.
 - **Relationships:** used by Recovery to restore state, followed by Event replay to reconstruct exact engineering state.
 - **Ownership:** SEU.
 - **Versioned:** No — each Checkpoint is already an immutable point-in-time snapshot.
@@ -294,7 +287,7 @@
 - **Purpose:** Version — an immutable, published snapshot of a versioned artefact, consumable by the Runtime Kernel. Revision — a mutable in-progress working state, never referenced by an active SEU. (ADR – Revision and Version Separation.)
 - **Lifecycle:** Revision(s) → Publish → Version (Draft → Validated → Published → Active → Deprecated → Superseded → Archived).
 - **Key Attributes:** identifier, artefact identifier, parent version, compatibility declaration.
-- **Relationships:** applies to EBM, Pack, Profile, Template, Ontology, Policy, Authority Rule, Review, Quality Gate, Capability Definition, EEC.
+- **Relationships:** applies to EBM, Pack, Profile, Template, Ontology, Policy, Authority Rule, Review, Quality Gate, Capability Definition.
 - **Ownership:** matches the owning artefact's ownership.
 - **Versioned:** N/A — this entity *is* the versioning mechanism.
 - **Source:** Ch. 41.

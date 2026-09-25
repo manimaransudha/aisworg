@@ -15,7 +15,6 @@ import { requestLogger } from "./middleware/requestLogger.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { gatekeeper } from "./middleware/gatekeeper.js";
 import { buildSessionUser } from "./middleware/auth.js";
-import { requireRole } from "./middleware/requireRole.js";
 import { appConfig } from "./config/appconfig.js";
 // import { attachVM } from "./middleware/attachVM.js";
 // import { renderView } from "./utils/viewModel.js";
@@ -33,6 +32,8 @@ import { userDB } from "./dblayer/userDB.js";
 import { ensureBadgeBootstrap, getPlatformBadges } from "./domain/identity/badgeBootstrap.js";
 import { getConceptTypeNav } from "./routes/seu/core/ontology.js";
 import { resolveNavRouteVisibility } from "./domain/identity/navRouteAccess.js";
+import { loadRouteAuthorityCache } from "./domain/identity/routeAuthorityCache.js";
+import { routeAuthorityGate } from "./middleware/routeAuthorityGate.js";
 
 // Ch.30 Event Bus redesign — loads event_subscriptions into the in-memory
 // routing map once at module load (same unconditional placement the old
@@ -40,6 +41,7 @@ import { resolveNavRouteVisibility } from "./domain/identity/navRouteAccess.js";
 // without going through the app.listen() block below still get
 // subscriptions loaded, e.g. WorkItemDispatched -> assignmentDelivery).
 await eventBus.loadSubscriptions();
+await loadRouteAuthorityCache();
 
 const app = express();
 const PORT = process.env.PORT || 4800;
@@ -222,21 +224,67 @@ app.use(async (req, res, next) => {
     res.locals.currentQuery = req.query;
     res.locals.currentPath = req.path;
 
+    // CR-110 — navbar link visibility for EVERY nav link, keyed off each
+    // link's own target route in route_authority, replacing the old
+    // hardcoded role-literal gates (navbar.ejs's _isGeneral, and this file's
+    // own Ontology role/root check) entirely. Computed here, not per-route,
+    // since the navbar renders on every page. A link with no route_authority
+    // row is NOT visible (fail-closed, same as the gate).
+    res.locals.navRouteVisible = {};
+    try {
+        if (req.session?.user) {
+            res.locals.navRouteVisible = await resolveNavRouteVisibility(req, [
+                { method: "GET", path: "/aisworg" },
+                { method: "GET", path: "/aisworg/quickview" },
+                { method: "GET", path: "/aisworg/seu/objectives" },
+                { method: "GET", path: "/aisworg/seu/seus" },
+                { method: "GET", path: "/aisworg/seu/services" },
+                { method: "GET", path: "/aisworg/seu/attention" },
+                { method: "GET", path: "/aisworg/seu/telemetry" },
+                { method: "GET", path: "/aisworg/seu/knowledge/capital" },
+                { method: "GET", path: "/aisworg/seu/capabilities" },
+                { method: "GET", path: "/aisworg/seu/participants" },
+                { method: "GET", path: "/aisworg/seu/packs" },
+                { method: "GET", path: "/aisworg/seu/templates" },
+                { method: "GET", path: "/aisworg/seu/profiles" },
+                { method: "GET", path: "/aisworg/seu/deliverable-definitions" },
+                { method: "GET", path: "/aisworg/seu/service-definitions" },
+                { method: "GET", path: "/aisworg/seu/policy-definitions" },
+                { method: "GET", path: "/aisworg/seu/sdk/schema-registry" },
+                { method: "GET", path: "/aisworg/seu/sdk/pack-authoring" },
+                { method: "GET", path: "/aisworg/seu/sdk/template-authoring" },
+                { method: "GET", path: "/aisworg/seu/sdk/profile-authoring" },
+                { method: "GET", path: "/aisworg/seu/sdk/transition-definition-authoring" },
+                { method: "GET", path: "/aisworg/seu/sdk/deliverable-authoring" },
+                { method: "GET", path: "/aisworg/seu/sdk/service-authoring" },
+                { method: "GET", path: "/aisworg/seu/sdk/policy-authoring" },
+                { method: "GET", path: "/aisworg/seu/sdk/ontology" },
+                { method: "GET", path: "/aisworg/seu/sdk/ontology/metadata" },
+                { method: "GET", path: "/aisworg/seu/identity" },
+                { method: "GET", path: "/aisworg/seu/events" },
+                { method: "GET", path: "/aisworg/seu/tenant-admin/users" },
+            ]);
+        }
+    } catch (err) {
+        logger.warn('[navbar] route authority visibility fetch failed', err);
+    }
+
     // Ontology's navbar dropdown lists concept-type GROUPS as sub-options
     // (owner: "the sublists grouped... ai-provider-preference, development-
     // methodology etc as a SEU Configurations") — fetched here (not
     // per-route) since the navbar renders on every page, not just the
-    // Ontology page itself. Cheap over a small admin table; skipped for
-    // logged-out/non-general sessions, same role gate the navbar itself uses
-    // for the rest of the SEU menus. ontologyConceptTypeGroups lets the
-    // navbar highlight a group's own entry as active when the resolved
-    // concept_type (res.locals.currentQuery.type, set precisely by
-    // web/ontology.ts's own GET handler) is one of that group's members.
+    // Ontology page itself. Cheap over a small admin table; only fetched
+    // when the Ontology link itself is visible (route_authority-driven,
+    // above) so a user without the ontology badge never pays this query.
+    // ontologyConceptTypeGroups lets the navbar highlight a group's own
+    // entry as active when the resolved concept_type
+    // (res.locals.currentQuery.type, set precisely by web/ontology.ts's own
+    // GET handler) is one of that group's members.
     res.locals.ontologyConceptTypes = [];
     res.locals.ontologyConceptTypeGroups = {};
     try {
         const su = req.session?.user;
-        if (su && ['general', 'power', 'super'].includes(su.role)) {
+        if (su && res.locals.navRouteVisible['GET /aisworg/seu/sdk/ontology']) {
             const isRoot = (su.platformBadges || []).includes('root');
             const nav = await getConceptTypeNav({ isRoot, tenantId: su.tenant_id ?? null });
             res.locals.ontologyConceptTypes = nav.topLevel;
@@ -244,25 +292,6 @@ app.use(async (req, res, next) => {
         }
     } catch (err) {
         logger.warn('[navbar] ontology concept types fetch failed', err);
-    }
-
-    // CR-110 — navbar link visibility for the handful of links whose target
-    // route has a real roles[] requirement in route_authority (Event Bus,
-    // Tenant User Management), replacing the old hardcoded
-    // _isSuper/_isTenantSuper (legacy users.role) checks navbar.ejs used to
-    // do this with. Computed here, not per-route, same reasoning as
-    // ontologyConceptTypes above — the navbar renders on every page.
-    res.locals.navRouteVisible = {};
-    try {
-        const su = req.session?.user;
-        if (su) {
-            res.locals.navRouteVisible = await resolveNavRouteVisibility(su.id, [
-                { method: "GET", path: "/aisworg/seu/events" },
-                { method: "GET", path: "/aisworg/seu/tenant-admin/users" },
-            ]);
-        }
-    } catch (err) {
-        logger.warn('[navbar] route authority visibility fetch failed', err);
     }
 
     // CR-001 — dev-only "Act As" switcher (design/Change Requests.md). Only
@@ -287,12 +316,16 @@ app.use(async (req, res, next) => {
 // Gatekeeper — enforces login for all non-public routes
 app.use(gatekeeper);
 
+// CR-110 — global route-authority gate, replacing every per-route
+// requireBadge/requireRole call with one route_authority table lookup.
+app.use(routeAuthorityGate());
+
 app.use(requestLogger);
 
 // ── Public routes ─────────────────────────────────────────────────────────────
 app.use("/aisworg", publicRouter);
 app.use("/aisworg/auth", authRouter);
-app.use("/aisworg/demo", requireRole(['general'], { redirectTo: "/aisworg" }), demoRouter);
+app.use("/aisworg/demo", demoRouter);
 // CR-006 — the functional SEU surface is NOT role-gated: authentication is the
 // gatekeeper's job (enforces login for every non-public route), and authority
 // is badge-based per action (noun_verb). The legacy requireRole('general') here

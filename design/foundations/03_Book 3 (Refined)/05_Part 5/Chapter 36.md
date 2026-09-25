@@ -1,4 +1,3 @@
-
 # Chapter 36 – External Interaction Model
 
 [Sudha: 
@@ -57,7 +56,7 @@ First, it decouples the platform from today's tooling landscape. Replacing GitHu
 
 Second, it naturally supports **SEU-to-SEU collaboration**, which I believe will become increasingly important. One SEU may depend on a Deliverable produced by another SEU, request a specialised Capability from another SEU, or consume Knowledge published by another SEU. From the perspective of the Runtime Kernel, these are simply external interactions governed by the same architectural principles as any other interaction.
 
-## One architectural refinement
+**One architectural refinement**
 
 I think we should introduce a distinction between:
 
@@ -88,9 +87,10 @@ I'd recommend capturing this as an ADR:
 
 **Rationale:** This separates architectural intent from implementation technology, preserves semantic consistency through the Ontology, enables independent evolution of connectors, and allows the platform to integrate with new technologies without modifying the Runtime Kernel. It also provides a uniform mechanism for interactions with external tools, enterprise systems and other SEUs.
 ]
+
 ---
 
-# 1. Purpose
+## 1. Purpose
 
 The External Interaction Model defines how a Software Engineering Unit (SEU) exchanges information and invokes capabilities outside the Runtime Kernel.
 
@@ -102,29 +102,29 @@ External systems neither own nor directly modify engineering state.
 
 ---
 
-# 2. Scope
+## 2. Scope
 
 This chapter defines:
 
-- External Interaction abstraction;
-- interaction boundaries;
-- interaction lifecycle;
-- interaction governance;
-- interaction traceability;
-- interaction extensibility.
+- External Interaction abstraction
+- interaction boundaries
+- interaction lifecycle
+- interaction governance
+- interaction traceability
+- interaction extensibility
 
 This chapter does not define:
 
-- communication protocols;
-- API technologies;
-- messaging technologies;
-- authentication mechanisms.
+- communication protocols
+- API technologies
+- messaging technologies
+- authentication mechanisms
 
 These are implementation concerns.
 
 ---
 
-# 3. Architectural Position
+## 3. Architectural Position
 
 ```
 Runtime Kernel
@@ -146,109 +146,83 @@ External interactions occur only through controlled interaction points.
 
 ---
 
-# 4. Definition
+## 4. Definition
 
 An External Interaction is a controlled exchange of information or capability between an SEU and an external entity.
 
 Interactions may:
 
-- request information;
-- publish information;
-- invoke capabilities;
-- receive notifications;
-- synchronise state.
+- request information
+- publish information
+- invoke capabilities
+- receive notifications
+- synchronise state
 
 External systems never directly participate in engineering state transitions.
 
 ---
 
-# 5. Architectural Principles
+## 5. Architectural Principles
 
-## EI-001
+### EI-001
 
 External interactions are isolated.
 
----
-
-## EI-002
+### EI-002
 
 The Runtime Kernel owns engineering state.
-
----
-
-## EI-003
+ 
+### EI-003
 
 External interactions are adapter-based.
-
----
-
-## EI-004
+ 
+### EI-004
 
 Interactions are traceable.
-
----
-
-## EI-005
+ 
+### EI-005
 
 External interactions are asynchronous wherever practical.
-
----
-
-## EI-006
+ 
+### EI-006
 
 External interactions are technology-independent.
-
----
-
-# 6. Functional Requirements
+ 
+## 6. Functional Requirements
 
 ### FR-36.1
 
 Every external interaction shall possess a unique identifier.
-
----
-
+ 
 ### FR-36.2
 
 Interactions shall occur through Interaction Adapters.
-
----
-
+ 
 ### FR-36.3
 
 External systems shall never bypass Governance.
-
----
-
+ 
 ### FR-36.4
 
 Interactions shall preserve engineering traceability.
-
----
-
+ 
 ### FR-36.5
 
 Interaction failures shall not corrupt engineering state.
-
----
-
+ 
 ### FR-36.6
 
 Interaction policies shall be contributed through Packs.
-
----
-
+ 
 ### FR-36.7
 
 Interaction behaviour shall support replacement of external systems without Runtime Kernel modification.
-
----
-
-# 7. External Interaction Categories
+ 
+## 7. External Interaction Categories
 
 Illustrative categories include:
 
-## Engineering Tool Interactions
+### Engineering Tool Interactions
 
 Examples:
 
@@ -259,7 +233,7 @@ Examples:
 
 ---
 
-## Enterprise Interactions
+### Enterprise Interactions
 
 Examples:
 
@@ -270,7 +244,7 @@ Examples:
 
 ---
 
-## Cloud Interactions
+### Cloud Interactions
 
 Examples:
 
@@ -280,7 +254,7 @@ Examples:
 
 ---
 
-## Regulatory Interactions
+### Regulatory Interactions
 
 Examples:
 
@@ -290,7 +264,7 @@ Examples:
 
 ---
 
-## Customer Interactions
+### Customer Interactions
 
 Examples:
 
@@ -300,7 +274,7 @@ Examples:
 
 ---
 
-## SEU-to-SEU Interactions
+### SEU-to-SEU Interactions
 
 Examples:
 
@@ -313,7 +287,7 @@ Additional interaction categories may be introduced through Packs.
 
 ---
 
-# 8. Interaction Structure
+## 8. Interaction Structure
 
 Every External Interaction shall define:
 
@@ -332,7 +306,7 @@ The payload format is implementation-defined.
 
 ---
 
-# 9. Interaction Lifecycle
+## 9. Interaction Lifecycle
 
 Every External Interaction shall progress through the following lifecycle.
 
@@ -364,22 +338,22 @@ Failed interactions may be retried according to implementation policies.
 
 ---
 
-# 10. Interaction Adapters
+## 10. Interaction Adapters
 
 External systems shall be accessed through Interaction Adapters.
 
 An Interaction Adapter shall:
 
-- translate engineering concepts into external representations;
-- translate external responses into engineering concepts;
-- isolate technology-specific behaviour;
-- preserve engineering semantics.
+- translate engineering concepts into external representations
+- translate external responses into engineering concepts
+- isolate technology-specific behaviour
+- preserve engineering semantics
 
 Adapters shall remain replaceable.
 
 ---
 
-# 11. Engineering Semantics
+## 11. Engineering Semantics
 
 External systems frequently use terminology and data structures different from the SEU.
 
@@ -389,51 +363,51 @@ This ensures that external integrations do not introduce semantic inconsistency 
 
 ---
 
-# 12. Interaction Governance
+## 12. Interaction Governance
 
 External interactions shall respect:
 
-- Authority;
-- Policies;
-- Quality Gates;
-- Compliance requirements;
-- Engineering Behavior Model.
+- Authority
+- Policies
+- Quality Gates
+- Compliance requirements
+- Engineering Behavior Model
 
 External interactions shall not circumvent governance.
 
 ---
 
-# 13. Failure Handling
+## 13. Failure Handling
 
 Interaction failures shall:
 
-- preserve engineering state;
-- generate Events;
-- generate Attention Items where appropriate;
-- support retry;
-- remain fully traceable.
+- preserve engineering state
+- generate Events
+- generate Attention Items where appropriate
+- support retry
+- remain fully traceable
 
 Failure recovery strategies are implementation-defined.
 
 ---
 
-# 14. Interaction Traceability
+## 14. Interaction Traceability
 
 Every interaction shall preserve:
 
-- triggering Event;
-- originating engineering object;
-- external target;
-- interaction outcome;
-- timestamp;
-- governing policies;
-- associated Deliverables.
+- triggering Event
+- originating engineering object
+- external target
+- interaction outcome
+- timestamp
+- governing policies
+- associated Deliverables
 
 Interaction history shall remain immutable.
 
 ---
 
-# 15. Events
+## 15. Events
 
 The External Interaction subsystem shall publish:
 
@@ -447,19 +421,19 @@ The External Interaction subsystem shall publish:
 
 ---
 
-# 16. Non-Functional Requirements
+## 16. Non-Functional Requirements
 
 The External Interaction Model shall:
 
-- support heterogeneous external systems;
-- isolate implementation technologies;
-- support asynchronous communication;
-- preserve engineering integrity;
-- remain extensible through adapters.
+- support heterogeneous external systems
+- isolate implementation technologies
+- support asynchronous communication
+- preserve engineering integrity
+- remain extensible through adapters
 
 ---
 
-# 17. Acceptance Criteria
+## 17. Acceptance Criteria
 
 The implementation shall satisfy the following criteria.
 
@@ -477,16 +451,16 @@ The implementation shall satisfy the following criteria.
 
 ---
 
-# 18. Deliverables
+## 18. Deliverables
 
 Implementation of this chapter shall produce:
 
-- External Interaction framework.
-- Interaction Adapter framework.
-- Interaction registry.
-- Interaction lifecycle service.
-- External interaction APIs.
-- Interaction events.
-- Adapter development guidelines.
+- External Interaction framework
+- Interaction Adapter framework
+- Interaction registry
+- Interaction lifecycle service
+- External interaction APIs
+- Interaction events
+- Adapter development guidelines
 
 ---

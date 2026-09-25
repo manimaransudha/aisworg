@@ -1,76 +1,6 @@
-
 # Chapter 17 – Evidence Model
 
-[Sudha: In the architecture we've developed, we repeatedly state:
-
-> **Knowledge must be supported by Evidence.**
-
-But we've never formally defined what Evidence is.
-
-In fact, I now think Evidence is the **currency of trust** within the entire platform.
-
-Nothing should become Knowledge.
-
-Nothing should become Accepted.
-
-Nothing should move a Deliverable to Approved.
-
-Nothing should close an Obligation.
-
-...without Evidence.
-
-That makes Evidence one of the core architectural concepts.
-
-
-
----------------
-
-While writing this chapter, I realised we've identified a chain that runs through almost every architectural concept we've created:
-
-```
-Information
-
-↓
-
-Evidence
-
-↓
-
-Knowledge
-
-↓
-
-Decision
-
-↓
-
-Deliverable State Transition
-```
-
-This isn't just a sequence—it is the **trust pipeline** of the platform.
-
-Every stage increases confidence:
-
-- **Information** is raw and unvalidated.
-- **Evidence** is validated and attributable.
-- **Knowledge** is accepted and reusable.
-- **Decisions** apply Knowledge to a specific context.
-- **Deliverable State Transitions** occur only after sufficient evidence and approved decisions.
-
-I think this trust pipeline deserves to become an explicit architectural principle because it governs how the platform establishes confidence. It also gives the platform a powerful explainability model: every significant engineering outcome can be traced back through the decisions made, the knowledge applied, the evidence supporting that knowledge, and ultimately the original information from which the evidence was derived.
-
-I'd recommend capturing this as an ADR:
-
-> **ADR – Trust Pipeline**
-
-**Decision:** Significant engineering state transitions shall be justified through a trust pipeline of Information → Evidence → Knowledge → Decision → Deliverable State Transition.
-
-**Rationale:** This provides deterministic explainability, auditability and traceability for all engineering outcomes, while ensuring that confidence is built progressively rather than assumed. It also gives future AI reasoning services a principled basis for explaining _why_ a recommendation or state transition occurred.
-]
-
----
-
-# 1. Purpose
+## 1. Purpose
 
 The Evidence Model defines how engineering evidence is captured, validated, linked and preserved within the AI Software Organisation Platform.
 
@@ -82,27 +12,27 @@ The platform shall treat Evidence as a first-class engineering asset rather than
 
 ---
 
-# 2. Scope
+## 2. Scope
 
 This chapter defines:
 
-- Evidence abstraction;
-- Evidence lifecycle;
-- Evidence relationships;
-- Evidence validation;
-- Evidence provenance;
-- Evidence reuse.
+- Evidence abstraction
+- Evidence lifecycle
+- Evidence relationships
+- Evidence validation
+- Evidence provenance
+- Evidence reuse
 
 This chapter does not define:
 
-- evidence storage technologies;
-- AI reasoning;
-- document management implementation;
-- external repositories.
+- evidence storage technologies
+- AI reasoning
+- document management implementation
+- external repositories
 
 ---
 
-# 3. Architectural Position
+## 3. Architectural Position
 
 ```
 Engineering Activity
@@ -128,7 +58,7 @@ Evidence provides the objective basis for engineering confidence.
 
 ---
 
-# 4. Definition
+## 4. Definition
 
 Evidence is verifiable information that supports an engineering assertion.
 
@@ -140,138 +70,106 @@ Evidence is independent of Participants.
 
 ---
 
-# 5. Architectural Principles
+## 5. Architectural Principles
 
-## EM-001
+### EM-001
 
 Evidence precedes trust.
-
----
-
-## EM-002
+ 
+### EM-002
 
 Evidence is immutable after acceptance.
-
----
-
-## EM-003
+ 
+### EM-003
 
 Evidence is independently identifiable.
-
----
-
-## EM-004
+ 
+### EM-004
 
 Evidence may support multiple engineering artefacts.
-
----
-
-## EM-005
+ 
+### EM-005
 
 Evidence shall preserve provenance.
-
----
-
-## EM-006
+ 
+### EM-006
 
 Evidence shall remain independently reusable.
 
 ---
 
-# 6. Functional Requirements
+## 6. Functional Requirements
 
 ### FR-17.1
 
 Every Evidence Item shall possess a globally unique identifier.
-
----
-
+ 
 ### FR-17.2
 
 Every Evidence Item shall possess provenance.
-
----
-
+ 
 ### FR-17.3
 
 Evidence shall support versioning.
-
----
-
+ 
 ### FR-17.4
 
 Evidence shall support multiple relationships.
-
----
-
+ 
 ### FR-17.5
 
 Evidence shall remain immutable after acceptance.
-
----
-
+ 
 ### FR-17.6
 
 Evidence shall remain fully traceable.
-
----
-
+ 
 ### FR-17.7
 
 Evidence shall be reusable across multiple engineering objects.
 
 ---
 
-# 7. Evidence Categories
+## 7. Evidence Categories
 
 Illustrative categories include:
 
-## Analytical Evidence
+### Analytical Evidence
 
 - Architecture analysis
 - Performance analysis
 - Security analysis
 - Cost analysis
-
----
-
-## Validation Evidence
+ 
+### Validation Evidence
 
 - Test results
 - Static analysis reports
 - Code quality reports
 - Benchmark results
-
----
-
-## Operational Evidence
+ 
+### Operational Evidence
 
 - Monitoring data
 - Deployment records
 - Incident reports
 - Runtime metrics
-
----
-
-## Review Evidence
+ 
+### Review Evidence
 
 - Architecture reviews
 - Peer reviews
 - Security assessments
 - Compliance reviews
-
----
-
-## Decision Evidence
+ 
+### Decision Evidence
 
 - Alternatives evaluated
 - Trade-off analysis
 - Risk assessment
 - Supporting rationale
-
----
-
-## External Evidence
+ 
+### External Evidence
 
 - Regulatory guidance
 - Industry standards
@@ -282,7 +180,7 @@ Additional categories may be introduced through Packs.
 
 ---
 
-# 8. Evidence Structure
+## 8. Evidence Structure
 
 Every Evidence Item shall define:
 
@@ -303,7 +201,7 @@ Every Evidence Item shall define:
 
 ---
 
-# 9. Evidence Lifecycle
+## 9. Evidence Lifecycle
 
 Evidence shall progress through the following lifecycle.
 
@@ -331,7 +229,7 @@ Rejected evidence shall remain preserved for audit purposes.
 
 ---
 
-# 10. Evidence Relationships
+## 10. Evidence Relationships
 
 Evidence may support:
 
@@ -347,68 +245,68 @@ One Evidence Item may support many engineering artefacts.
 
 ---
 
-# 11. Evidence Validation
+## 11. Evidence Validation
 
 Evidence shall be validated before acceptance.
 
 Validation may include:
 
-- authenticity;
-- completeness;
-- consistency;
-- source credibility;
-- engineering relevance.
+- authenticity
+- completeness
+- consistency
+- source credibility
+- engineering relevance
 
 Validation rules are governed by the Engineering Behavior Model.
 
 ---
 
-# 12. Evidence Provenance
+## 12. Evidence Provenance
 
 Every Evidence Item shall preserve:
 
-- originating SEU;
-- originating Deliverable;
-- originating Participant;
-- originating Capability;
-- originating Decision;
-- originating engineering activity.
+- originating SEU
+- originating Deliverable
+- originating Participant
+- originating Capability
+- originating Decision
+- originating engineering activity
 
 Provenance shall never be discarded.
 
 ---
 
-# 13. Evidence Confidence
+## 13. Evidence Confidence
 
 Every Evidence Item shall include a confidence assessment.
 
 Confidence may be influenced by:
 
-- source reliability;
-- validation outcome;
-- corroborating evidence;
-- engineering review.
+- source reliability
+- validation outcome
+- corroborating evidence
+- engineering review
 
 Confidence shall not replace engineering judgement.
 
 ---
 
-# 14. Evidence Reuse
+## 14. Evidence Reuse
 
 Evidence may be reused where appropriate.
 
 Reuse shall preserve:
 
-- provenance;
-- original context;
-- validation history;
-- source references.
+- provenance
+- original context
+- validation history
+- source references
 
 Consumers shall be able to determine whether reused evidence remains applicable to the current context.
 
 ---
 
-# 15. Evidence Immutability
+## 15. Evidence Immutability
 
 Accepted Evidence shall not be modified.
 
@@ -418,7 +316,7 @@ Historical Evidence shall remain accessible.
 
 ---
 
-# 16. Events
+## 16. Events
 
 The Evidence subsystem shall publish:
 
@@ -431,19 +329,19 @@ The Evidence subsystem shall publish:
 
 ---
 
-# 17. Non-Functional Requirements
+## 17. Non-Functional Requirements
 
 The Evidence Model shall:
 
-- preserve provenance;
-- maintain immutability;
-- support traceability;
-- support independent reuse;
-- remain independent of Participant implementations.
+- preserve provenance
+- maintain immutability
+- support traceability
+- support independent reuse
+- remain independent of Participant implementations
 
 ---
 
-# 18. Acceptance Criteria
+## 18. Acceptance Criteria
 
 The implementation shall satisfy the following criteria.
 
@@ -461,31 +359,31 @@ The implementation shall satisfy the following criteria.
 
 ---
 
-# 19. Deliverables
+## 19. Deliverables
 
 Implementation of this chapter shall produce:
 
-- Evidence domain model.
-- Evidence repository interfaces.
-- Evidence lifecycle service.
-- Provenance service.
-- Confidence assessment model.
-- Evidence APIs.
-- Evidence events.
+- Evidence domain model
+- Evidence repository interfaces
+- Evidence lifecycle service
+- Provenance service
+- Confidence assessment model
+- Evidence APIs
+- Evidence events
 
 ---
 
-# 20. Implementation Status & Gaps
+## 20. Implementation Status & Gaps
 
 Code-verified audit (2026-09-18), superseding all prior dated passes below in full — this session rebuilt the Evidence model end to end (migration 232, not yet applied to the live DB at the time of writing; verified against migration SQL and the rewritten TypeScript, not a live query). Core files: `src/dblayer/evidenceDB.ts`, `src/routes/seu/core/evidence.ts`, `src/routes/seu/api/evidence.ts`, `src/routes/seu/web/seus.ts`, `evidence_relationships` (migration 086, extended this session), `030_ontology.sql`/`085`/`223`/`232`, `transitionDefinitions.json`, `qualityGateEngine.ts`, `core/compliance.ts`, `core/traceability.ts`, `core/participantHome.ts`. Organised around the two-part split established in an earlier pass: Part A (definition — what needs Evidence, entirely declarative/Pack-contributed) is generic and closed; Part B (wiring — how a specific Evidence row links to what it supports) is where this session's changes land.
 
-## 20.1 ✅ Part A — the definition of what needs Evidence is generic, not a gap
+### 20.1 ✅ Part A — the definition of what needs Evidence is generic, not a gap
 
 Declarative, authoring-time, Pack-contributed — not a property of any Evidence row itself. A `quality_gates` row declares its own `(entity_type, from_state, to_state, criteria)` — e.g. `entity_type: "Deliverable", from_state: "Approved", to_state: "Baselined", criteria: {type: "requires_accepted_evidence_or_approved_decision"}`, `originating_pack_id` tying it to the contributing Pack. `core/knowledge.ts`, `core/decisions.ts`, `core/obligations.ts`, and Evidence's own `core/evidence.ts` all call `qualityGateEngine.evaluate` with their own `entityType` — one mechanism gates Deliverable, Knowledge, Decision, Obligation, and Evidence's own transitions alike. `compliance.ts`'s `requires_accepted_evidence` criterion is a second, independent instance of the same shape. "Review Gate is just a Quality Gate whose criteria happens to be 'requires an accepted Review'" holds at the engine level — `requires_accepted_review` is a real criteria type, same code path.
 
 Two wrinkles, deliberately deferred rather than gaps: `PackContributions.reviewGates` is populated with real content in every seeded Pack but nothing reads it (only `qualityGates` is materialised); and `VerifiableItemFields.externalEvidence?: boolean` exists and is form-rendered but enforces nothing at runtime — "defined in the pack using the external evidence required flag," out of platform scope by design. Both deferred until after Part B's structures settle, on the owner's own sequencing call.
 
-## 20.2 ✅ Part B — multi-relationship, provenance, versioning, events, access: all real, provenance mechanism rebuilt this session
+### 20.2 ✅ Part B — multi-relationship, provenance, versioning, events, access: all real, provenance mechanism rebuilt this session
 
 The runtime/schema mechanism connecting an *already-created* Evidence row to what it backs.
 
@@ -501,7 +399,7 @@ A live, unpersisted query at Quality-Gate-evaluation time (`qualityGateEngine.ts
 
 Evidence creation stays a deliberate act, not something that materialises automatically from task completion — either directly, or via an Interaction Adapter translating raw tool output (Ch.36). The Event Bus is pure transport (real pub/sub, `eventBus.ts`) — it never decides or applies a transition; almost nothing in production subscribes yet, an accepted, deliberate state, not a gap.
 
-## 20.3 ✅ EM-001–006 Architectural Principles (§4/§5)
+### 20.3 ✅ EM-001–006 Architectural Principles (§4/§5)
 
 - **EM-001 Evidence precedes trust** ✅ — unchanged.
 - **EM-002 Immutable after acceptance** ✅ — architecturally: no content-update method exists. `appendValidationAssessment` (20.9/20.11) only ever appends, never overwrites an existing entry.
@@ -510,7 +408,7 @@ Evidence creation stays a deliberate act, not something that materialises automa
 - **EM-005 Shall preserve provenance** ✅ — mechanism changed, guarantee unchanged (20.2).
 - **EM-006 Shall remain independently reusable** ⚠️ aspirational — see 20.12.
 
-## 20.4 ✅ FR-17.1–7 Functional Requirements (§6)
+### 20.4 ✅ FR-17.1–7 Functional Requirements (§6)
 
 | FR | Verdict | Note |
 |----|---------|------|
@@ -522,51 +420,51 @@ Evidence creation stays a deliberate act, not something that materialises automa
 | FR-17.6 fully traceable | ✅ (Deliverable direction) | `traceability.ts`'s `explainDeliverable` |
 | FR-17.7 reusable across multiple objects | ✅ | same mechanism as FR-17.4; cross-SEU sharing included |
 
-## 20.5 ✅ Evidence Categories (§7)
+### 20.5 ✅ Evidence Categories (§7)
 
 Unchanged — all 6 chapter categories are real, canonical `category:evidence` Ontology concepts.
 
-## 20.6 ⚠️ Evidence Structure — Collection Method missing (§8)
+### 20.6 ⚠️ Evidence Structure — Collection Method missing (§8)
 
 Present: Identifier, Title, Category, Description, Status, Source, Confidence Level, Timestamp, Related-objects (plural, now also covering what used to be provenance, 20.2). **Missing**: a distinct Collection Method field — the chapter lists it separately from Source; no such column exists. Not yet tracked in a CR.
 
-## 20.7 ✅ Evidence Lifecycle (§9)
+### 20.7 ✅ Evidence Lifecycle (§9)
 
 Unchanged — `Collected → Validated → Accepted → Referenced → Archived`, plus a real `Rejected` branch off both `Collected` and `Validated` (terminal).
 
-## 20.8 ✅ Evidence Relationships (§10)
+### 20.8 ✅ Evidence Relationships (§10)
 
 "One Evidence Item may support many engineering artefacts" — real via `evidence_relationships`, now the single mechanism for every relationship Evidence has (20.2). Reviews and Policies still have no Evidence linkage found anywhere.
 
-## 20.9 ✅ Evidence Validation (§11)
+### 20.9 ✅ Evidence Validation (§11)
 
 The chapter's five validation dimensions (authenticity/completeness/consistency/source credibility/engineering relevance) are now real: `validation_dimensions JSONB` (migration 232), an **append-only** array of `{dimension, status, notes, assessedAt}` entries — `dimension` and `status` are both new Ontology concept types (`evidence-validation-dimension`, `evidence-validation-status`: Not Assessed/Pass/Partial/Fail). Append-only by deliberate design (owner): `Validated→Accepted→Referenced→Archived` share one row with no new version minted at each hop, so every assessment ever made must survive as its own entry, never overwritten when a dimension is re-assessed later. `recordValidationAssessment` (`core/evidence.ts`) is the one write path.
 
-## 20.10 ✅ Evidence Provenance (§12)
+### 20.10 ✅ Evidence Provenance (§12)
 
 Mechanism rebuilt this session — see 20.2. Every field §12 names (originating SEU/Deliverable/Participant/Capability/Decision) is real via `evidence_relationships`; `originating_activity` (free text) has no replacement, dropped as out of scope for a relationship mechanism.
 
-## 20.11 ✅ Evidence Confidence — now a real computed model (§13)
+### 20.11 ✅ Evidence Confidence — now a real computed model (§13)
 
 `confidence_level` is no longer author-set free text — it's computed from `validation_dimensions` (20.9) via `computeConfidenceLevel` (`core/evidence.ts`): the worst assessed status across the *entire* history wins (any `Fail` anywhere → Low, else any `Partial` → Medium, else High), recomputed on every new assessment, not just the latest one per dimension. Nullable — no value exists until at least one assessment has been recorded. `confidence_level`'s own value vocabulary is now Ontology-backed (`evidence-confidence-level`: Low/Medium/High). This is exactly the chapter's own "confidence may be influenced by validation outcome" — Validation *is* now the input, not a separate, disconnected field.
 
-## 20.12 ❌ Evidence Reuse — open, aspirational (§14)
+### 20.12 ❌ Evidence Reuse — open, aspirational (§14)
 
 Unchanged. No "this Evidence was reused in context X" tracking, no applicability check. Not yet tracked in a CR.
 
-## 20.13 ✅ Evidence Immutability & Versioning (§15)
+### 20.13 ✅ Evidence Immutability & Versioning (§15)
 
 Both real — see 20.2/20.3 EM-002. Versioning is now reconciled with the platform's standard Version Feature Plan.md mechanism (`transition_definitions.event_type`/`.version_event`), not just the pre-existing `supersedes_evidence_id` chain in isolation.
 
-## 20.14 ✅ Events — full named set, now data-driven (§16)
+### 20.14 ✅ Events — full named set, now data-driven (§16)
 
 See 20.2. `event_type` moved from a hardcoded `EVENT_BY_TARGET_STATE` map in `core/evidence.ts` to `transition_definitions.event_type` (migration 232), same mechanism as every other entity's own Version Feature Plan pass this platform has completed.
 
-## 20.15 ✅ Non-Functional Requirements (§17)
+### 20.15 ✅ Non-Functional Requirements (§17)
 
 Preserve provenance ✅ (20.10, mechanism changed, guarantee intact, no open item remaining), maintain immutability ✅, support traceability ✅ (Deliverable direction only), support independent reuse ⚠️ aspirational (20.12), remain independent of Participant implementations ✅ — resolved precisely this session: access is badge-governed, never participant-governed (20.2), and Evidence carries no participant-attribution column at all.
 
-## 20.16 ✅ Acceptance Criteria (§18)
+### 20.16 ✅ Acceptance Criteria (§18)
 
 | Criterion | Verdict |
 |---|---|
@@ -577,11 +475,11 @@ Preserve provenance ✅ (20.10, mechanism changed, guarantee intact, no open ite
 | Confidence assessments are available | ✅ — computed, not flat (20.11) |
 | Historical Evidence remains accessible | ✅ |
 
-## 20.17 ✅ Deliverables (§19)
+### 20.17 ✅ Deliverables (§19)
 
 Evidence domain model ✅, repository interfaces ✅, lifecycle service ✅, Provenance service ✅ (relationship-based, 20.2), Confidence assessment model ✅ — a real computed model now, not a flat field (20.11), Evidence APIs ✅, Evidence events ✅ (data-driven, 20.14).
 
-## Summary — what's genuinely open, ranked
+### Summary — what's genuinely open, ranked
 
 Part A (20.1) is generic and closed, two wrinkles deliberately deferred. Part B is now substantially complete: multi-relationship, provenance (rebuilt onto one uniform mechanism), versioning (reconciled with the platform's standard Version mechanism), the full named event set, validation dimensions, and computed confidence are all real.
 

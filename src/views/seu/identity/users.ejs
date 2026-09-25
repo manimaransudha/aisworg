@@ -42,7 +42,8 @@
       </select>
     </form>
     <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search email / name' }) %>
-    <div class="card border-0 shadow-sm mb-4">
+    <div class="section-card">
+      <div class="section-header">Users</div>
       <div class="card-body">
         <table class="table table-sm align-middle">
           <thead><tr>
@@ -69,7 +70,7 @@
                     <span class="badge bg-secondary-subtle text-dark-emphasis me-1"><%= b %></span>
                   <% }) %>
                 </td>
-                <td class="text-nowrap">
+                <td>
                   <%# Owner: "actions dropdown should be from ontology
                       authorised-role... dropdown is multi-select. Existing
                       grant should be in a selected state. so add or revoke
@@ -85,34 +86,41 @@
                   <% if (u.email === currentUserEmail) { %>
                     <span class="text-muted small">(you)</span>
                   <% } else { %>
-                    <div class="mb-1">
-                      <% if (u.authorisedRoles.length === 0) { %>
-                        <span class="text-muted small">(none)</span>
-                      <% } else { %>
+                    <div class="roles-row">
+                      <div class="mb-1 roles-pills">
+                        <% if (u.authorisedRoles.length === 0) { %>
+                          <span class="text-muted small no-roles-msg">(none)</span>
+                        <% } %>
                         <% u.authorisedRoles.forEach(function(r) { %>
-                          <span class="badge bg-secondary-subtle text-dark-emphasis me-1"><%= r %></span>
-                        <% }) %>
-                      <% } %>
-                    </div>
-                    <form method="POST" action="/aisworg/seu/identity/users/<%= u.id %>/update" class="d-flex align-items-center gap-2">
-                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                      <select name="roles[]" class="form-select form-select-sm" multiple size="4" style="width: auto; min-width: 10rem;">
-                        <% authorisedRoleCodes.forEach(function(code) { %>
                           <%# 'general' is the platform default and can't be revoked once held (owner) —
-                              locked here so the UI can't even submit a deselect; setAuthorisedRoles
-                              (core/identity.ts) enforces the same rule server-side regardless. %>
-                          <option value="<%= code %>"
-                            <%= u.authorisedRoles.includes(code) ? 'selected' : '' %>
-                            <%= code === 'general' && u.authorisedRoles.includes(code) ? 'disabled' : '' %>>
-                            <%= code %><%= code === 'general' && u.authorisedRoles.includes(code) ? ' (default)' : '' %>
-                          </option>
+                              no remove-x rendered for it here; setAuthorisedRoles (core/identity.ts)
+                              enforces the same rule server-side regardless. %>
+                          <% var _locked = r === 'general'; %>
+                          <span class="badge bg-secondary-subtle text-dark-emphasis me-1 role-pill" data-value="<%= r %>">
+                            <%= r %><%= _locked ? ' (default)' : '' %>
+                            <% if (!_locked) { %><span class="role-pill-remove" role="button" aria-label="Remove <%= r %>">&times;</span><% } %>
+                          </span>
                         <% }) %>
-                      </select>
-                      <div class="form-check form-switch mb-0" title="Active">
-                        <input class="form-check-input" type="checkbox" name="isActive" value="true" <%= u.is_active ? 'checked' : '' %>>
                       </div>
-                      <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
-                    </form>
+                      <form method="POST" action="/aisworg/seu/identity/users/<%= u.id %>/update" class="d-flex align-items-center gap-2 text-nowrap">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <select name="roles[]" class="roles-hidden-select d-none" multiple>
+                          <% authorisedRoleCodes.forEach(function(code) { %>
+                            <option value="<%= code %>" <%= u.authorisedRoles.includes(code) ? 'selected' : '' %>><%= code %></option>
+                          <% }) %>
+                        </select>
+                        <select class="form-select form-select-sm role-add-select" style="width: auto; min-width: 10rem;">
+                          <option value="">+ add role&hellip;</option>
+                          <% authorisedRoleCodes.forEach(function(code) { %>
+                            <option value="<%= code %>" <%= u.authorisedRoles.includes(code) ? 'hidden' : '' %>><%= code %></option>
+                          <% }) %>
+                        </select>
+                        <div class="form-check form-switch mb-0" title="Active">
+                          <input class="form-check-input" type="checkbox" name="isActive" value="true" <%= u.is_active ? 'checked' : '' %>>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                      </form>
+                    </div>
                   <% } %>
                 </td>
               </tr>
@@ -157,6 +165,61 @@
       </div>
     </div>
   </main>
+
+  <style>
+    .roles-pills { max-width: 220px; display: flex; flex-wrap: wrap; gap: 2px; }
+    .role-pill-remove { margin-left: 4px; cursor: pointer; font-weight: 600; }
+  </style>
+  <script>
+    (function () {
+      var table = document.querySelector('table');
+      if (!table) return;
+
+      table.addEventListener('change', function (e) {
+        if (!e.target.matches('.role-add-select')) return;
+        var sel = e.target;
+        var code = sel.value;
+        if (!code) return;
+        var row = sel.closest('.roles-row');
+        var hidden = row.querySelector('.roles-hidden-select');
+        var opt = hidden.querySelector('option[value="' + CSS.escape(code) + '"]');
+        if (opt) opt.selected = true;
+        var addOpt = sel.querySelector('option[value="' + CSS.escape(code) + '"]');
+        if (addOpt) addOpt.hidden = true;
+        sel.value = '';
+
+        var pills = row.querySelector('.roles-pills');
+        var noneMsg = pills.querySelector('.no-roles-msg');
+        if (noneMsg) noneMsg.remove();
+        var pill = document.createElement('span');
+        pill.className = 'badge bg-secondary-subtle text-dark-emphasis me-1 role-pill';
+        pill.dataset.value = code;
+        pill.innerHTML = code + ' <span class="role-pill-remove" role="button" aria-label="Remove ' + code + '">&times;</span>';
+        pills.appendChild(pill);
+      });
+
+      table.addEventListener('click', function (e) {
+        if (!e.target.matches('.role-pill-remove')) return;
+        var pill = e.target.closest('.role-pill');
+        var row = pill.closest('.roles-row');
+        var code = pill.dataset.value;
+        var hidden = row.querySelector('.roles-hidden-select');
+        var opt = hidden.querySelector('option[value="' + CSS.escape(code) + '"]');
+        if (opt) opt.selected = false;
+        var addSel = row.querySelector('.role-add-select');
+        var addOpt = addSel.querySelector('option[value="' + CSS.escape(code) + '"]');
+        if (addOpt) addOpt.hidden = false;
+        pill.remove();
+        var pills = row.querySelector('.roles-pills');
+        if (!pills.querySelector('.role-pill')) {
+          var span = document.createElement('span');
+          span.className = 'text-muted small no-roles-msg';
+          span.textContent = '(none)';
+          pills.appendChild(span);
+        }
+      });
+    })();
+  </script>
 
   <%- include('../../partials/footer') %>
 </body>

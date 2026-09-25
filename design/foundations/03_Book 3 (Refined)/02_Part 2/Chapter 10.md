@@ -1,27 +1,6 @@
 # Chapter 10 – Capability Model
 
-
-[Sudha: this chapter captures one of the most significant departures from traditional software engineering platforms.
-
-While writing it, I realised we've arrived at what I believe is one of the platform's defining architectural separations:
-
-|Concept|Responsibility|
-|---|---|
-|**Engineering Behavior Model (EBM)**|Defines **how** engineering should be performed.|
-|**Capability**|Defines **what engineering competency** is required.|
-|**Participant**|Provides the competency.|
-|**Work Item**|Applies the competency to advance a Deliverable.|
-
-These four concepts are orthogonal. They should never be collapsed into one another.
-
-For example, a **Developer Participant** doesn't "own" the Development Capability. It merely fulfils it for a period of time. Tomorrow, another AI model, a human engineer, or an external autonomous service could fulfil exactly the same Capability without changing the SEU.
-
-I think that's a stronger and more durable abstraction than today's agent frameworks, which often equate an "agent" with a fixed role and a fixed set of skills. Here, **Capabilities are permanent, Participants are transient**, and the platform composes them dynamically to satisfy engineering objectives. That separation will make the platform significantly more adaptable over time.
-]
-
----
-
-# 1. Purpose
+## 1. Purpose
 
 Capabilities represent the engineering competencies required to deliver software within a Software Engineering Unit (SEU).
 
@@ -33,7 +12,7 @@ The Capability Model separates engineering competence from engineering execution
 
 ---
 
-# 2. Scope
+## 2. Scope
 
 This chapter defines:
 
@@ -53,7 +32,7 @@ This chapter does not define:
 
 ---
 
-# 3. Architectural Position
+## 3. Architectural Position
 
 ```
 Deliverable
@@ -85,7 +64,7 @@ Participants determine **who provides those competencies**.
 
 ---
 
-# 4. Definition
+## 4. Definition
 
 A Capability is a reusable engineering competency that may be requested by the platform to achieve one or more Deliverables.
 
@@ -100,34 +79,36 @@ They are independent of:
 
 ---
 
-# 5. Architectural Principles
+## 5. Architectural Principles
 
-## CM-001
+### CM-001
 
 Capabilities are stable.
 
 
-## CM-002
+### CM-002
 
 Participants are replaceable.
  
-## CM-003
+### CM-003
 
 Multiple Participants may fulfil the same Capability.
  
-## CM-004
+### CM-004
 
 One Participant may fulfil multiple Capabilities.
  
-## CM-005
+### CM-005
 
 Capabilities shall not contain runtime state.
  
-## CM-006
+### CM-006
 
 Capabilities shall remain independent of engineering behaviour. Behaviour is supplied by the Engineering Behavior Model.
- 
-# 6. Functional Requirements
+
+---
+
+## 6. Functional Requirements
 
 ### FR-10.1
 
@@ -157,71 +138,59 @@ Capabilities shall support fulfilment by multiple Participant types.
 
 Capability fulfilment shall remain traceable.
  
+---
 
-# 7. Capability Categories
+## 7. Capability Categories
 
 Illustrative categories include:
 
-## Requirements Engineering
+### Requirements Engineering
 
 - Requirements Elicitation
 - Requirements Analysis
 - Requirements Validation
-
----
-
-## Architecture
+ 
+### Architecture
 
 - Solution Architecture
 - Integration Architecture
 - Data Architecture
 - Security Architecture
-
----
-
-## Development
+ 
+### Development
 
 - Code Generation
 - Refactoring
 - Debugging
 - Code Review
-
----
-
-## Testing
+ 
+### Testing
 
 - Test Design
 - Test Automation
 - Performance Testing
 - Security Testing
+ 
 
----
-
-## Documentation
+### Documentation
 
 - Technical Documentation
 - User Documentation
 - API Documentation
-
----
-
-## Deployment
+ 
+### Deployment
 
 - Release Engineering
 - Environment Configuration
 - Deployment Automation
-
----
-
-## Knowledge
+ 
+### Knowledge
 
 - Knowledge Acquisition
 - Ontology Management
 - Traceability Analysis
-
----
-
-## Governance
+ 
+### Governance
 
 - Architecture Review
 - Compliance Assessment
@@ -231,7 +200,7 @@ Additional capabilities may be introduced through Packs.
 
 ---
 
-# 8. Capability Structure
+## 8. Capability Structure
 
 Every Capability shall define:
 
@@ -250,50 +219,50 @@ The implementation of a Capability is deliberately outside the scope of this cha
 
 ---
 
-# 9. Capability Relationships
+## 9. Capability Relationships
 
 Capabilities may:
 
-- depend upon other Capabilities;
-- specialise existing Capabilities;
-- compose multiple Capabilities;
-- extend Capabilities introduced through Packs.
+- depend upon other Capabilities
+- specialise existing Capabilities
+- compose multiple Capabilities
+- extend Capabilities introduced through Packs
 
 Capability relationships shall not create circular dependencies.
 
 ---
 
-# 10. Capability Fulfilment
+## 10. Capability Fulfilment
 
 Capability fulfilment is the process of assigning one or more Participants to provide a required Capability.
 
 Fulfilment may occur through:
 
-- AI Participants;
-- Human Participants;
-- External Services;
-- Hybrid teams.
+- AI Participants
+- Human Participants
+- External Services
+- Hybrid teams
 
 The platform shall permit fulfilment strategies to evolve without changing the Capability Model.
 
 ---
 
-# 11. Capability Discovery
+## 11. Capability Discovery
 
 The platform shall support discovery of Capabilities by:
 
-- identifier;
-- category;
-- engineering objective;
-- Deliverable;
-- Pack contribution;
-- supported Participant type.
+- identifier
+- category
+- engineering objective
+- Deliverable
+- Pack contribution
+- supported Participant type
 
 Discovery mechanisms are implementation-defined.
 
 ---
 
-# 12. Capability Selection
+## 12. Capability Selection
 
 When a Deliverable becomes Ready, the platform shall:
 
@@ -309,15 +278,15 @@ The Engineering Behavior Model governs **how** a Capability behaves once it has 
 
 ---
 
-# 13. Capability Evolution
+## 13. Capability Evolution
 
 Capabilities may evolve through:
 
-- new versions;
-- Pack contributions;
-- specialisations;
-- deprecation;
-- resolution of an Organisational Learning Obligation (Chapter 23 §7), raised by Engineering Telemetry (Chapter 35 §11) upon detecting a sustained pattern indicating this Capability should be improved.
+- new versions
+- Pack contributions
+- specialisations
+- deprecation
+- resolution of an Organisational Learning Obligation (Chapter 23 §7), raised by Engineering Telemetry (Chapter 35 §11) upon detecting a sustained pattern indicating this Capability should be improved
 
 The last of these is what makes Continuous Organisational Learning an active process rather than passive measurement: accumulated telemetry does not merely describe a Capability's performance, it can obligate a revision to it.
 
@@ -325,7 +294,7 @@ Evolution shall preserve backward compatibility wherever practical.
 
 ---
 
-# 14. Events
+## 14. Events
 
 The Capability subsystem shall publish:
 
@@ -339,19 +308,19 @@ The Capability subsystem shall publish:
 
 ---
 
-# 15. Non-Functional Requirements
+## 15. Non-Functional Requirements
 
 The Capability Model shall:
 
-- remain independent of Participant implementation;
-- support concurrent fulfilment;
-- support multiple fulfilment strategies;
-- remain fully traceable;
-- support extension through Packs.
+- remain independent of Participant implementation
+- support concurrent fulfilment
+- support multiple fulfilment strategies
+- remain fully traceable
+- support extension through Packs
 
 ---
 
-# 16. Acceptance Criteria
+## 16. Acceptance Criteria
 
 The implementation shall satisfy the following criteria.
 
@@ -369,33 +338,33 @@ The implementation shall satisfy the following criteria.
 
 ---
 
-# 17. Deliverables
+## 17. Deliverables
 
 Implementation of this chapter shall produce:
 
-- Capability domain model.
-- Capability catalogue.
-- Capability registry.
-- Capability discovery service.
-- Capability fulfilment interfaces.
-- Capability APIs.
-- Capability events.
+- Capability domain model
+- Capability catalogue
+- Capability registry
+- Capability discovery service
+- Capability fulfilment interfaces
+- Capability APIs
+- Capability events
 
 ---
 
-# 18. Implementation Status & Gaps
+## 18. Implementation Status & Gaps
 
 Code-verified audit (2026-08-24), not from memory — every claim below carries a file:line citation, cross-checked against a live query against the running Postgres instance (`aisworg` DB). Core files: `src/dblayer/capabilitiesDB.ts`, `CapabilityRow` (`src/dblayer/seuTypes.ts`), `src/routes/seu/core/capabilities.ts`, `src/routes/seu/core/packs.ts`, `src/domain/engine/dependencyDefinitionEngine.ts`, `src/dblayer/objectivesDB.ts`. Live `capabilities` schema at audit time — 8 columns: `id, code, name, description, category, originating_pack_id, version, created_at`. **CR-065, raised and built the same day, closed the Pack-contribution side of this audit** — `code`'s Pack-scoped identity and `version` now real (copied from the owning Pack) are built (18.2/18.3/18.4/18.9 updated below); Category and all 6 other previously-considered Structure fields were dropped rather than built; Capability Relationships' partial semantics split out as CR-066.
 
 **Revised same day, owner correction.** The single strongest finding, confirmed exactly as the owner framed it going in — but the first pass below (still visible in the per-section detail) understated how much of it is real, deliberate design rather than a gap: **Capability genuinely has no lifecycle or identity mechanism of its own — both are deliberately borrowed from whichever Pack owns it, and the borrowing is real, not merely absent.** No `status` column exists on `capabilities` (unlike Service, which at least had an unused `CHECK` constraint before CR-064) — but Pack already has a complete, real, named lifecycle-event taxonomy (`PackRegistered/Validated/Published/Activated/Deprecated/Retired/Archived`, `packs.ts:761-768`, all genuinely published), and owner: "events will be tracked as pack events except for Capability Fulfiled" — confirming this is the intended architecture, not a gap (18.10). Likewise `capabilities.version` — was a real but vestigial column, never incremented — is now built as a denormalized copy of `packs.pack_version`, kept in sync on every upsert (owner: "capabilities.version just copies over the pack's version," 18.3/18.9): not independent versioning, `packs.pack_version` remains the real, working, immutable-once-published identity. **`capabilities.code`'s bare global uniqueness is also now built** (18.4) — Pack-scoped, same mechanical fix Checklist/Policy/Service already got. What's left, unchanged from the first pass: Capability Relationships' still-partial semantics (18.5 — real mechanism exists via Pack dependencies + Composition, but circular-dependency detection and 3 of 4 dependency types' own semantics remain unbuilt, split out as **CR-066**).
 
-## 18.1 Definition (§4)
+### 18.1 Definition (§4)
 
 Matches the live schema for what exists: a Capability is independent of Participants (no Participant FK on `capabilities` at all) and is a platform/Pack concept, not organisation- or technology-specific (no such coupling exists). `originating_pack_id` (nullable — 4 real rows have none, seeded directly by early migrations rather than through a Pack) ties most Capabilities to their declaring Pack.
 
-## 18.2 Architectural Principles (CM-001–006) (§5)
+### 18.2 Architectural Principles (CM-001–006) (§5)
 
-| # | Claim | Verdict | Evidence |
+| ## | Claim | Verdict | Evidence |
 |---|---|---|---|
 | CM-001 | Capabilities are stable | ✅ | Owner correction: "overwrite is allowed only during a draft state, not otherwise." Confirmed — `sdkAuthoring.ts:728`'s `canEdit = canDefine && isDraft` gates the *only* real path back into `capabilitiesDB.upsertFromPack` to a Pack still in Draft status; once Published/Active, the authoring form renders view-only (confirmed live against a real Published Pack, Ch.5 §19.4/CR-064's own smoke-test). Worth noting as a secondary point, not a gap: `createPackDraft`'s own re-seed branch (`packs.ts:484-487`) has no independent Draft-only check of its own — stability holds because of the UI-layer gate, not defense-in-depth at the core-function level. |
 | CM-002 | Participants are replaceable | ✅ | `capability_fulfilments`/`participants` carry no permanence — a new `fulfilCapability` call creates a fresh Participant each time, no 1:1 binding. |
@@ -404,7 +373,7 @@ Matches the live schema for what exists: a Capability is independent of Particip
 | CM-005 | Capabilities shall not contain runtime state | ✅ | `capabilities` carries no status/state column of any kind (see the chapter-level finding above) — trivially true, though for the wrong reason (no lifecycle at all, not a deliberate stateless-by-design split). |
 | CM-006 | Capabilities remain independent of engineering behaviour (EBM supplies it) | ✅ | No EBM coupling on `capabilities`; confirmed separate per Ch.8/Ch.9's own EBM/Dependency Engine boundary. |
 
-## 18.3 Functional Requirements (FR-10.1–7) (§6)
+### 18.3 Functional Requirements (FR-10.1–7) (§6)
 
 | FR | Verdict | Note |
 |---|---|---|
@@ -416,7 +385,7 @@ Matches the live schema for what exists: a Capability is independent of Particip
 | FR-10.6 support fulfilment by multiple Participant types | ✅ | `participants.type CHECK IN ('AI','Human','External')`, no restriction tying a type to a specific Capability. |
 | FR-10.7 fulfilment remains traceable | ✅ | `capability_fulfilments` row + `CapabilityFulfilled` event (18.11) together trace who fulfilled what, when. |
 
-## 18.4 Capability Structure — ✅ built via CR-065, settles at 3 of 10 chapter fields; the other 7 (including Category) dropped by design, not built (§8; CR-065)
+### 18.4 Capability Structure — ✅ built via CR-065, settles at 3 of 10 chapter fields; the other 7 (including Category) dropped by design, not built (§8; CR-065)
 
 | Chapter field | Verdict |
 |---|---|
@@ -435,17 +404,17 @@ Matches the live schema for what exists: a Capability is independent of Particip
 
 **`code`'s identity is now Pack-scoped** (`capabilities_pack_code_key UNIQUE (originating_pack_id, code)`, migration 115) — was globally unique (`capabilities_code_key`), the same class of latent collision Checklist/Policy/Service each had before their own CRs, with a materially larger blast radius here: `capability_id` is a foreign key from 8 downstream tables (`badge_grants`, `deliverables`, `evidence`, `execution_targets`, `objective_capabilities`, `services`, `seu_capabilities`, `template_capabilities`). Owner: "This is already implemented in pack model. so what is the question?" — correctly identified this as the same mechanical fix already proven three times over, not a novel decision: every one of those FKs references the stable `id`, never `code` directly, so scoping the uniqueness constraint touches nothing else. No live collision existed before the fix either (30 rows, 30 distinct codes).
 
-## 18.5 Capability Relationships — real mechanism via Pack dependencies + Composition, partially implemented; fix split out as CR-066 (§9)
+### 18.5 Capability Relationships — real mechanism via Pack dependencies + Composition, partially implemented; fix split out as CR-066 (§9)
 
 **Owner correction — wrong place to look.** `dependency_definitions`'s `"Capability"` entity type (checked in the first pass below) is a different mechanism entirely — Deliverable-depends-on-Service (Ch.11 §18.6), not Capability-depends-on-Capability. Owner: "Capability Relationships - this is already in terms of dependent packs within the pack. And existing packs are also extended by tenants through composition." The real mechanism is Pack-level: a Pack's own `dependencies[]` (`packCode`, `version`, `type: required/optional/conditional/incompatible`, migration `040_pack_structured_contributions.sql:30-36`) — since a Capability's identity is entirely borrowed from its owning Pack (18.2 CM-001), one Capability "depending on" another is expressed as its Pack depending on the other Capability's Pack. "Extend" maps onto the Composition Engine (`compositionEngine.ts`) — multiple Organisation/Domain/Customer Packs composing into the same SEU/EBM, Override semantics on same-code collisions (the same mechanism CR-058/061 already documented for Quality Gate/Policy).
 
 **Confirmed genuinely partial, matching the owner's own assessment**: "We have still not implemented what each of the composition means, there is no check for circular dependencies yet." Checked directly — `validatePackSeed` (`packs.ts:440-443`) only branches on `dep.type === "required"` (must resolve to a real Active Pack); `optional`/`conditional`/`incompatible` are validated for shape only, with zero differentiated behaviour anywhere (`conditional` has no condition-evaluation logic; `incompatible` doesn't block co-installation of anything). `compositionEngine.ts` has zero references to circular-dependency detection — §9's own explicit "Capability relationships shall not create circular dependencies" isn't checked at all. "Specialise"/"compose" as relationship kinds distinct from plain "depend"/"extend" still have no clean mapping onto anything real.
 
-## 18.6 Capability Fulfilment — real and working (§10)
+### 18.6 Capability Fulfilment — real and working (§10)
 
 Matches the chapter closely: `fulfilCapability` (`capabilities.ts:18-80`) creates a Participant, records a `capability_fulfilments` row, marks the `seu_capabilities` row Fulfilled, and pushes dependency-graph evaluation for every Service the Capability provides. Supports AI/Human/External Participant types (`participants.type`); no "Hybrid teams" concept exists as its own type, but nothing prevents composing that at the Participant-display layer. Fulfilment strategy evolution independent of the Capability Model itself holds — `fulfilCapability`'s own strategy field (`fulfilmentStrategy`) is freely extensible, no schema coupling back to `capabilities`.
 
-## 18.7 Capability Discovery — 2 of 6 axes real (§11)
+### 18.7 Capability Discovery — 2 of 6 axes real (§11)
 
 | Discovery axis | Real? |
 |---|---|
@@ -456,19 +425,19 @@ Matches the chapter closely: `fulfilCapability` (`capabilities.ts:18-80`) create
 | by Pack contribution | ✅ `capabilitiesDB.findByOriginatingPackIds` (`capabilitiesDB.ts:53-61`) |
 | by supported Participant type | ❌ no such field exists on `capabilities` at all (18.4) |
 
-## 18.8 Capability Selection (§12)
+### 18.8 Capability Selection (§12)
 
 Real, matches the chapter's own 5-step sequence closely enough: Dependency Engine identifies required Capabilities (Ch.9), `seu_capabilities` rows record the requirement, `fulfilCapability` is the Fulfilment invocation, Participant assignment and execution authorisation follow. Selection stays independent of the EBM — confirmed, no EBM coupling anywhere in this path (matches CM-006).
 
-## 18.9 Capability Evolution — versioning ✅ built via CR-065; the Obligation-driven loop stays the same half-real shape Ch.23 already found, deferred (§13)
+### 18.9 Capability Evolution — versioning ✅ built via CR-065; the Obligation-driven loop stays the same half-real shape Ch.23 already found, deferred (§13)
 
 **New versions**: ✅ via the owning Pack — `packs.pack_version` is real and immutable-once-published; `capabilities.version` (built via CR-065) is a denormalized copy, kept in sync on every upsert (18.3 FR-10.4). **Pack contributions**: ✅ — any Pack can add a new Capability, real. **Specialisations**: ❌ — no mechanism, split out as CR-066 (18.5). **Deprecation**: ✅ via `PackDeprecated` (18.10) — no Capability-specific status column, by design, same as the rest of this section. **Resolution of an Organisational Learning Obligation raising a Capability revision**: ⚠️ half-real, identical shape to Ch.23 §19.9's own finding — Telemetry → Organisational Learning Obligation is genuinely real (Ch.23 FR-23.8), but nothing anywhere (`compositionEngine.ts` has zero Capability-evolution references) ever turns a *resolved* Obligation into an actual new Pack/Capability version. Owner: "Obligation to Capability is open and to be addressed later" — acknowledged, real, explicitly deferred, not CR-065's job. "Backward compatibility wherever practical" has no real enforcement either way (no compatibility-checking mechanism between Pack versions).
 
-## 18.10 Events — not a gap; deliberately Pack events except the one genuinely Capability-specific fact (§14)
+### 18.10 Events — not a gap; deliberately Pack events except the one genuinely Capability-specific fact (§14)
 
 **Owner correction**: "I already said events will be tracked as pack events except for Capability Fulfiled." Confirmed for real: Pack already publishes a complete, named lifecycle-event set — `PackRegistered` (`packs.ts:493-500`), and `PackValidated/PackPublished/PackActivated/PackDeprecated/PackRetired/PackArchived` (`EVENT_BY_TARGET_STATE`, `packs.ts:761-768`, wired to every real governed Pack transition) — all genuinely published, not aspirational. Since a Capability's own definition-lifecycle *is* its owning Pack's lifecycle (18.2 CM-001, 18.3 FR-10.4), `CapabilityRegistered`/`Updated`/`Deprecated` don't need separate event types — `PackRegistered`/`PackPublished` or `PackActivated`/`PackDeprecated` already cover exactly that, by design. `CapabilityFulfilled` (`capabilities.ts:70-77`) is the one event that's genuinely Capability-specific — a real runtime fact (this Capability got fulfilled, for this SEU, by this Participant) that no Pack-level event could express — and it's the one that's real. `CapabilityRequested`/`CapabilityUnavailable`/`CapabilityReleased` are the remaining, genuinely-not-yet-built runtime-side events (matching Fulfilment's own real mechanism, 18.6) — not addressed by the Pack-events reframing, since they're about a specific SEU's runtime fulfilment state, not the Capability's own definition.
 
-## 18.11 Non-Functional Requirements (§15)
+### 18.11 Non-Functional Requirements (§15)
 
 | NFR | Verdict | Basis |
 |---|---|---|
@@ -478,7 +447,7 @@ Real, matches the chapter's own 5-step sequence closely enough: Dependency Engin
 | remain fully traceable | ✅ | 18.3 FR-10.7 |
 | support extension through Packs | ✅ built via CR-065 | Real for *adding* new Capabilities; `code`'s Pack-scoped identity (18.4) means two Packs can now each extend the catalogue with their own same-named Capability without colliding. |
 
-## 18.12 Acceptance Criteria (§16)
+### 18.12 Acceptance Criteria (§16)
 
 | Criterion | Verdict |
 |---|---|
@@ -489,7 +458,7 @@ Real, matches the chapter's own 5-step sequence closely enough: Dependency Engin
 | New Capabilities can be introduced through Packs | ✅ (18.9) |
 | Capability evolution does not require Runtime Kernel modification | ✅ — new Pack versions require no Kernel change; the still-unbuilt Obligation→revision automation (18.9) is a separate question from this criterion |
 
-## 18.13 Deliverables (§17)
+### 18.13 Deliverables (§17)
 
 | Named Deliverable | Real artifact | Verdict |
 |---|---|---|
@@ -501,7 +470,7 @@ Real, matches the chapter's own 5-step sequence closely enough: Dependency Engin
 | Capability APIs | `src/routes/seu/api/*` (findAll/fulfil reachable) | ⚠️ read + fulfil only; update/deprecate correctly live at the Pack API instead (18.10) |
 | Capability events | `CapabilityFulfilled` + the full real Pack lifecycle-event set | ✅ (18.10) |
 
-## Summary — ranked
+### Summary — ranked
 
 1. **[Data model — the chapter's own central departure, confirmed as deliberate design, not a gap]** Capability genuinely has no lifecycle or identity mechanism of its own — but the borrowing from its owning Pack is real: Pack already has a complete, real, named lifecycle-event taxonomy Capability rides on (18.10), and `packs.pack_version` is Capability's real versioning mechanism, now literally copied onto `capabilities.version` (18.3/18.9, ✅ built via CR-065). Confirmed live: `canEdit`'s Draft-only gate (18.2 CM-001) is the real reason Capability content is stable, not mere absence of a write path.
 2. **[Data model — ✅ built via CR-065]** `capabilities.code`'s bare global uniqueness was the same class of latent cross-Pack collision Checklist/Policy/Service each had before their own CRs — the largest blast radius of any of them (8 downstream FK tables). Now Pack-scoped (`(originating_pack_id, code)`), the same mechanical treatment already proven three times over — owner confirmed no FK references `code` directly, so nothing else needed deciding (18.4/18.3).
@@ -510,7 +479,7 @@ Real, matches the chapter's own 5-step sequence closely enough: Dependency Engin
 5. **[Code, surprising positive]** Discovery-by-objective is genuinely real (`objectivesDB.getRequiredCapabilities`), not aspirational — the strongest-built §11 axis, alongside discovery-by-Pack (18.7).
 6. **[Code, surprising positive]** Capability Fulfilment (§10) and Selection (§12) are both real and match the chapter closely — the strongest-built areas of this chapter overall (18.6, 18.8).
 
-## My notes
+### My notes
 
 Business Analysis Planning and
 Monitoring, Elicitation and Collaboration, Requirements Life Cycle Management,
@@ -788,7 +757,7 @@ Purpose: compare this organisation's capability maturity against every other cap
 Purpose: continuously check ongoing engineering work still serves its stated Objective · Inputs: active Objective, current engineering state · Outputs: alignment status, drift alert · Quality: detection latency · Governance: strategic-governance policy · Success: drift corrected or Objective formally revised before divergence compounds · Consumers: Governance, organisational leadership · Provider: Governance Capability
 
 
-## Capability
+### Capability
 
 code,default_label,"description
 "

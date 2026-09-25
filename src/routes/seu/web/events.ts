@@ -6,7 +6,6 @@ const router = express.Router();
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
-import { requireRole } from "../../../middleware/requireRole.js";
 import { parseListParams, listResult } from "../../../utils/listQuery.js";
 import { logger } from "../../../utils/logger.js";
 import { getEventsPage } from "../core/events.js";
@@ -15,7 +14,7 @@ import { getEventsPage } from "../core/events.js";
 // general, filterable, paginated browser over the raw events table, not
 // scoped to one SEU/entity. Super only, same gating as the other links in
 // this Profile dropdown (Settings, Users).
-router.get("/events", requireRole(["superuser"], { redirectTo: "/aisworg" }), attachVM("seu/events/index"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/events", attachVM("seu/events/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Event Bus";
     const seuId = typeof req.query.seuId === "string" ? req.query.seuId.trim() : "";

@@ -1,80 +1,6 @@
-
 # Chapter 35 – Engineering Telemetry Model
-[Sudha: 
-I think this is another place where we should avoid borrowing terminology from software infrastructure.
 
-"Observability" is about Kubernetes, databases and microservices.
-
-We're building something fundamentally different.
-
-We're building an operating system for software engineering.
-
-The platform doesn't care whether CPU utilisation is 72%.
-
-It cares whether the **SEU is healthy**.
-
-That is a completely different problem.
-
-I therefore think **Engineering Telemetry** is a much better name.
-
-Telemetry answers a much broader question:
-
-> **"What is the health and behaviour of engineering itself?"**
-
-This is one of the chapters that will eventually make the platform vastly superior to Jira, Azure DevOps and similar tools because they measure **activities**, while we measure **engineering flow**.
-
-------------------
-
-I think this chapter is where one of your earliest ideas finally becomes fully realised.
-
-Months ago, you observed that **time is not the primary constraint in an AI-first engineering organisation**. Dependencies are.
-
-That insight fundamentally changes what telemetry should measure.
-
-Traditional project management asks:
-
-- Are we on schedule?
-- How many tasks are complete?
-- How many hours were spent?
-- What percentage is finished?
-
-The SEU should ask different questions:
-
-- Where is engineering flow constrained?
-- Which Deliverables are waiting, and why?
-- Which Quality Gates create the most friction?
-- Which Decisions are repeatedly reused?
-- Which Obligations most frequently block progress?
-- Which Organisation Packs consistently introduce delays?
-- Which Engineering Behavior Models produce the best outcomes?
-
-This is much closer to **Goldratt's Theory of Constraints** than to Gantt-chart management.
-
-## A proposal: Engineering Flow as a first-class concept
-
-I think there's one concept that now appears repeatedly across the last ten chapters:
-
-- Dependency Engine
-- Execution Engine
-- Dispatch Engine
-- Deliverable Model
-- Engineering Telemetry
-
-All of them revolve around **engineering flow**.
-
-I think we should capture another ADR:
-
-> **ADR – Engineering Flow Optimisation**
-
-**Decision:** The Runtime Kernel shall optimise engineering flow rather than resource utilisation or schedule adherence. The primary optimisation objective shall be the continuous advancement of Deliverables through governed state transitions while respecting dependencies and constraints.
-
-**Rationale:** In an AI-native SEU, elapsed time and individual utilisation are secondary effects. The primary objective is maintaining uninterrupted engineering flow through the dependency graph. This aligns the platform with systems thinking and the Theory of Constraints, making bottlenecks explicit and optimisable without relying on traditional project management metrics.
-
-Personally, I think this ADR may become one of the defining philosophical statements of the entire platform. It clearly differentiates the SEU from conventional project management systems and explains _why_ so many of the architectural decisions we've made naturally fit together.
-]
----
-
-# 1. Purpose
+## 1. Purpose
 
 The Engineering Telemetry Model defines how engineering execution is measured, analysed and visualised within a commissioned Software Engineering Unit (SEU).
 
@@ -88,27 +14,27 @@ It never governs them.
 
 ---
 
-# 2. Scope
+## 2. Scope
 
 This chapter defines:
 
-- telemetry abstraction;
-- engineering metrics;
-- telemetry collection;
-- telemetry aggregation;
-- telemetry analysis;
-- telemetry reporting.
+- telemetry abstraction
+- engineering metrics
+- telemetry collection
+- telemetry aggregation
+- telemetry analysis
+- telemetry reporting
 
 This chapter does not define:
 
-- infrastructure monitoring;
-- business analytics;
-- AI model monitoring;
-- visualisation technologies.
+- infrastructure monitoring
+- business analytics
+- AI model monitoring
+- visualisation technologies
 
 ---
 
-# 3. Architectural Position
+## 3. Architectural Position
 
 ```
 Engineering Events
@@ -140,7 +66,7 @@ It never influences engineering state directly.
 
 ---
 
-# 4. Definition
+## 4. Definition
 
 Engineering Telemetry is the continuous measurement of engineering behaviour, engineering flow and engineering outcomes within an SEU.
 
@@ -152,103 +78,78 @@ It never modifies engineering state.
 
 ---
 
-# 5. Architectural Principles
+## 5. Architectural Principles
 
-## ET-001
+### ET-001
 
 Telemetry is passive.
+ 
 
----
-
-## ET-002
+### ET-002
 
 Telemetry is derived.
 
 No engineering metric shall require duplicate data entry.
-
----
-
-## ET-003
+ 
+### ET-003
 
 Telemetry measures engineering systems.
 
 Not individuals.
-
----
-
-## ET-004
+ 
+### ET-004
 
 Telemetry shall remain reproducible.
-
----
-
-## ET-005
+ 
+### ET-005
 
 Telemetry shall preserve historical trends.
-
----
-
-## ET-006
+ 
+### ET-006
 
 Telemetry shall remain implementation-independent.
-
----
-
-# 6. Functional Requirements
+ 
+## 6. Functional Requirements
 
 ### FR-35.1
 
 Telemetry shall be derived automatically from engineering state and Events.
-
----
-
+ 
 ### FR-35.2
 
 Historical telemetry shall remain available.
-
----
-
+ 
 ### FR-35.3
 
 Telemetry shall support real-time and historical analysis.
-
----
-
+ 
 ### FR-35.4
 
 Telemetry shall support custom metrics contributed through Packs.
-
----
-
+ 
 ### FR-35.5
 
 Telemetry shall preserve engineering traceability.
-
----
-
+ 
 ### FR-35.6
 
 Telemetry calculations shall be reproducible.
-
----
-
+ 
 ### FR-35.7
 
 Telemetry shall support cross-SEU analysis.
-
----
-
+ 
 ### FR-35.8
 
 Telemetry shall raise an Organisational Learning Obligation (Chapter 23) upon detecting a sustained pattern indicating that a Capability, Service or Policy should be improved.
 
 ---
 
-# 7. Telemetry Categories
+## 7. Telemetry Categories
 
 Illustrative categories include:
 
-## Flow Telemetry
+### Flow Telemetry
 
 Measures engineering flow.
 
@@ -261,7 +162,7 @@ Examples:
 
 ---
 
-## Governance Telemetry
+### Governance Telemetry
 
 Measures governance efficiency.
 
@@ -278,7 +179,7 @@ Policy compliance and Standard adherence are tracked as distinct metrics, since 
 
 ---
 
-## Knowledge Telemetry
+### Knowledge Telemetry
 
 Measures organisational learning.
 
@@ -291,7 +192,7 @@ Examples:
 
 ---
 
-## Runtime Telemetry
+### Runtime Telemetry
 
 Measures runtime behaviour.
 
@@ -304,7 +205,7 @@ Examples:
 
 ---
 
-## Quality Telemetry
+### Quality Telemetry
 
 Measures engineering quality.
 
@@ -317,7 +218,7 @@ Examples:
 
 ---
 
-## Collaboration Telemetry
+### Collaboration Telemetry
 
 Measures engineering collaboration.
 
@@ -332,7 +233,7 @@ Additional categories may be contributed through Packs.
 
 ---
 
-# 8. Telemetry Structure
+## 8. Telemetry Structure
 
 Every Telemetry Metric shall define:
 
@@ -351,7 +252,7 @@ Metric definitions are declarative.
 
 ---
 
-# 9. Metric Sources
+## 9. Metric Sources
 
 Telemetry may be derived from:
 
@@ -372,7 +273,7 @@ No manual engineering reporting shall be required.
 
 ---
 
-# 10. Engineering Health
+## 10. Engineering Health
 
 The platform shall evaluate engineering health using telemetry.
 
@@ -389,18 +290,18 @@ Health models are contributed through Packs.
 
 ---
 
-# 11. Bottleneck Analysis
+## 11. Bottleneck Analysis
 
 Telemetry shall support identification of engineering bottlenecks.
 
 Illustrative bottlenecks include:
 
-- blocked Deliverables;
-- recurring governance delays;
-- dependency congestion;
-- excessive review queues;
-- unresolved Obligations;
-- capability shortages.
+- blocked Deliverables
+- recurring governance delays
+- dependency congestion
+- excessive review queues
+- unresolved Obligations
+- capability shortages
 
 The platform shall identify bottlenecks.
 
@@ -412,53 +313,53 @@ What counts as "sustained" (a threshold count, a time window, a statistical tren
 
 ---
 
-# 12. Predictive Telemetry
+## 12. Predictive Telemetry
 
 The platform may derive predictive indicators.
 
 Examples include:
 
-- projected delivery completion;
-- governance backlog growth;
-- review capacity shortages;
-- dependency risk;
-- engineering congestion.
+- projected delivery completion
+- governance backlog growth
+- review capacity shortages
+- dependency risk
+- engineering congestion
 
 Predictive models are implementation-defined.
 
 ---
 
-# 13. Cross-SEU Analytics
+## 13. Cross-SEU Analytics
 
 Telemetry shall support comparison across multiple SEUs.
 
 Examples include:
 
-- engineering throughput;
-- governance efficiency;
-- knowledge reuse;
-- review effectiveness;
-- delivery predictability.
+- engineering throughput
+- governance efficiency
+- knowledge reuse
+- review effectiveness
+- delivery predictability
 
 Comparisons shall preserve organisational isolation where required.
 
 ---
 
-# 14. Telemetry Traceability
+## 14. Telemetry Traceability
 
 Every metric shall preserve:
 
-- originating engineering objects;
-- contributing Events;
-- aggregation rules;
-- calculation version;
-- timestamp.
+- originating engineering objects
+- contributing Events
+- aggregation rules
+- calculation version
+- timestamp
 
 Telemetry shall remain explainable.
 
 ---
 
-# 15. Events
+## 15. Events
 
 The Telemetry subsystem shall publish:
 
@@ -472,19 +373,19 @@ The Telemetry subsystem shall publish:
 
 ---
 
-# 16. Non-Functional Requirements
+## 16. Non-Functional Requirements
 
 The Engineering Telemetry Model shall:
 
-- support near real-time analysis;
-- preserve historical trends;
-- support extensible metrics;
-- remain reproducible;
-- remain independent of analytics technologies.
+- support near real-time analysis
+- preserve historical trends
+- support extensible metrics
+- remain reproducible
+- remain independent of analytics technologies
 
 ---
 
-# 17. Acceptance Criteria
+## 17. Acceptance Criteria
 
 The implementation shall satisfy the following criteria.
 
@@ -504,14 +405,14 @@ The implementation shall satisfy the following criteria.
 
 ---
 
-# 18. Deliverables
+## 18. Deliverables
 
 Implementation of this chapter shall produce:
 
-- Engineering Telemetry Engine.
-- Metric registry.
-- Metric calculation service.
-- Health assessment service.
-- Analytics interfaces.
-- Telemetry APIs.
-- Telemetry events.
+- Engineering Telemetry Engine
+- Metric registry
+- Metric calculation service
+- Health assessment service
+- Analytics interfaces
+- Telemetry APIs
+- Telemetry events

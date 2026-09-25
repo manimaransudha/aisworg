@@ -226,14 +226,6 @@ function requireDraftTenantScope() {
   };
 }
 
-// The /authority/* vocabulary-management surface administers the governed
-// vocabulary itself → gated by TransitionDefinition authoring authority.
-async function requireAuthorityAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
-  if (await canWriteAuthority(req)) return next();
-  return denyAuthoring(req, res);
-}
-
-
 // Owner: "I want to change the packs list Pack authoring-All packs similar
 // to Objectives. List the tenant scope+platform packs as a list with action
 // buttons corresponding to the badge." Replaces the old "I defined" +
@@ -324,7 +316,7 @@ async function canWriteAuthority(req: Request): Promise<boolean> {
 }
 
 /** GET /aisworg/seu/authority/nouns — Work outcome (the noun vocabulary). */
-router.get("/authority/nouns", requireAuthorityAdmin, attachVM("seu/sdk/authority/index"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/authority/nouns", attachVM("seu/sdk/authority/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const params = parseListParams(req.query, { sortable: ["code", "label", "verbCount", "transitionCount", "active"], defaultSort: "code", defaultDir: "asc" });
     const nouns = await listAuthorityNouns();
@@ -346,7 +338,7 @@ router.get("/authority/nouns", requireAuthorityAdmin, attachVM("seu/sdk/authorit
 });
 
 /** GET /aisworg/seu/authority/verbs — Work process (the verb vocabulary). */
-router.get("/authority/verbs", requireAuthorityAdmin, attachVM("seu/sdk/authority/index"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/authority/verbs", attachVM("seu/sdk/authority/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const params = parseListParams(req.query, { sortable: ["code", "label", "nounCount", "active"], defaultSort: "code", defaultDir: "asc" });
     const verbs = await listAuthorityVerbs();
@@ -368,7 +360,7 @@ router.get("/authority/verbs", requireAuthorityAdmin, attachVM("seu/sdk/authorit
 });
 
 /** GET /aisworg/seu/authority/mapping — Mapping (which verbs a noun allows, per pair). */
-router.get("/authority/mapping", requireAuthorityAdmin, attachVM("seu/sdk/authority/index"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/authority/mapping", attachVM("seu/sdk/authority/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const params = parseListParams(req.query, { sortable: ["nounCode", "verbCode", "active"], defaultSort: "nounCode", defaultDir: "asc" });
     const mapping = await listAuthorityMapping();
@@ -400,49 +392,49 @@ const TD_INDEX = "/aisworg/seu/sdk/transition-definition-authoring";
 const wrote = (req: Request, res: Response, back: string, r: { ok: true } | { ok: false; error: string }, okMsg: string) =>
   r.ok ? flashSuccess(req, res, back, okMsg) : flashError(req, res, back, r.error);
 
-router.post("/authority/nouns/add", requireAuthorityAdmin, async (req: Request, res: Response) => {
+router.post("/authority/nouns/add", async (req: Request, res: Response) => {
   const { code, label, description } = req.body ?? {};
   wrote(req, res, AUTH_NOUNS, await addNoun(String(code ?? ""), String(label ?? ""), description ? String(description) : null), `Noun "${code}" added.`);
 });
-router.post("/authority/nouns/retire", requireAuthorityAdmin, async (req: Request, res: Response) => {
+router.post("/authority/nouns/retire", async (req: Request, res: Response) => {
   const { code } = req.body ?? {};
   wrote(req, res, AUTH_NOUNS, await retireNoun(String(code ?? "")), `Noun "${code}" retired.`);
 });
 
-router.post("/authority/verbs/add", requireAuthorityAdmin, async (req: Request, res: Response) => {
+router.post("/authority/verbs/add", async (req: Request, res: Response) => {
   const { code, label, description } = req.body ?? {};
   wrote(req, res, AUTH_VERBS, await addVerb(String(code ?? ""), String(label ?? ""), description ? String(description) : null), `Verb "${code}" added.`);
 });
-router.post("/authority/verbs/retire", requireAuthorityAdmin, async (req: Request, res: Response) => {
+router.post("/authority/verbs/retire", async (req: Request, res: Response) => {
   const { code } = req.body ?? {};
   wrote(req, res, AUTH_VERBS, await retireVerb(String(code ?? "")), `Verb "${code}" retired.`);
 });
 
-router.post("/authority/mapping/add", requireAuthorityAdmin, async (req: Request, res: Response) => {
+router.post("/authority/mapping/add", async (req: Request, res: Response) => {
   const { nounCode, verbCode, trigger } = req.body ?? {};
   wrote(req, res, AUTH_MAPPING, await addMapping(String(nounCode ?? ""), String(verbCode ?? ""), trigger ? String(trigger) : undefined), `Mapping ${nounCode} → ${verbCode} added.`);
 });
-router.post("/authority/mapping/retire", requireAuthorityAdmin, async (req: Request, res: Response) => {
+router.post("/authority/mapping/retire", async (req: Request, res: Response) => {
   const { nounCode, verbCode } = req.body ?? {};
   wrote(req, res, AUTH_MAPPING, await retireMapping(String(nounCode ?? ""), String(verbCode ?? "")), `Mapping ${nounCode} → ${verbCode} retired.`);
 });
 /** CR-072 — the only field this edits is trigger, on every transition_definitions row sharing this (noun, verb). */
-router.post("/authority/mapping/edit-trigger", requireAuthorityAdmin, async (req: Request, res: Response) => {
+router.post("/authority/mapping/edit-trigger", async (req: Request, res: Response) => {
   const { nounCode, verbCode, trigger } = req.body ?? {};
   wrote(req, res, AUTH_MAPPING, await updateMappingTrigger(String(nounCode ?? ""), String(verbCode ?? ""), String(trigger ?? "")), `${nounCode} + ${verbCode} trigger set to "${trigger}".`);
 });
 
-router.post("/authority/transition-definitions/add", requireAuthorityAdmin, async (req: Request, res: Response) => {
+router.post("/authority/transition-definitions/add", async (req: Request, res: Response) => {
   const { entityType, fromState, toState, verb } = req.body ?? {};
   wrote(req, res, TD_INDEX, await addTransitionDefinition({ entityType: String(entityType ?? ""), fromState: String(fromState ?? ""), toState: String(toState ?? ""), verb: String(verb ?? "") }), `Transition ${entityType} ${fromState} → ${toState} added.`);
 });
-router.post("/authority/transition-definitions/retire", requireAuthorityAdmin, async (req: Request, res: Response) => {
+router.post("/authority/transition-definitions/retire", async (req: Request, res: Response) => {
   const { id } = req.body ?? {};
   wrote(req, res, TD_INDEX, await retireTransitionDefinition(String(id ?? "")), "Transition definition retired.");
 });
 
 /** GET /aisworg/seu/authority/transition-definitions/:id — view detail. */
-router.get("/authority/transition-definitions/:id", requireAuthorityAdmin, attachVM("seu/sdk/authority/detail"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/authority/transition-definitions/:id", attachVM("seu/sdk/authority/detail"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const detail = await getTransitionDefinitionDetail(String(req.params.id));
     if (!detail) return next();
@@ -467,7 +459,7 @@ router.get("/authority/transition-definitions/:id", requireAuthorityAdmin, attac
  * verb are shown read-only for context — same "never delete/rename" identity
  * as Retire/Add — only creates_obligation/category are editable here.
  */
-router.get("/authority/transition-definitions/:id/edit", requireAuthorityAdmin, attachVM("seu/sdk/authority/edit"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/authority/transition-definitions/:id/edit", attachVM("seu/sdk/authority/edit"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const detail = await getTransitionDefinitionDetail(String(req.params.id));
     if (!detail) return next();
@@ -480,7 +472,7 @@ router.get("/authority/transition-definitions/:id/edit", requireAuthorityAdmin, 
     next(err);
   }
 });
-router.post("/authority/transition-definitions/:id/update", requireAuthorityAdmin, async (req: Request, res: Response) => {
+router.post("/authority/transition-definitions/:id/update", async (req: Request, res: Response) => {
   const id = String(req.params.id);
   const { createsObligation, category } = req.body ?? {};
   wrote(

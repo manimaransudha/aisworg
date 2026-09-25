@@ -1,42 +1,6 @@
 # Chapter 3 – Engineering Behavior Model (EBM)
 
-[Sudha: I think this chapter is a solid first version, but while writing it I noticed one concept that I deliberately did **not** define because I think it deserves its own chapter.
-
-We keep referring to **Behavioural Rules**, but we haven't answered:
-
-> **What is a Behaviour?**
-
-That may sound philosophical, but I think it's actually a modelling question.
-
-For example, is:
-
-- "Every merge requires two reviewers."
-
-a Behaviour?
-
-Or is it a **Constraint**?
-
-Is:
-
-- "Use GitFlow."
-
-a Behaviour?
-
-Or is it a **Workflow**?
-
-Is:
-
-- "Validate all inputs."
-
-a Behaviour?
-
-Or is it a **Policy**?
-
-I don't think we should answer that in this chapter because it would make it too broad. Instead, I think Book 3 should later introduce a **Behaviour Model** chapter that defines the taxonomy of behavioural rules contributed by Packs. That taxonomy will make the Composition Engine much more rigorous and will give every Pack a common language for contributing behaviour. I don't think it's a blocker for continuing, but I do think it's an important piece of the implementation model that deserves explicit treatment rather than being left implicit.
-The EBM answers **what** governs an SEU.
-]
-
-# 1. Purpose
+## 1. Purpose
 
 The **Engineering Behavior Model (EBM)** defines the behavioural contract governing the operation of a Software Engineering Unit (SEU).
 
@@ -49,27 +13,27 @@ Engineering competence resides with Participants.
 Engineering behaviour resides with the EBM.
  
 
-# 2. Scope
+## 2. Scope
 
 This chapter defines:
 
-- the Engineering Behavior Model;
-- behavioural composition;
-- behavioural categories;
-- behavioural inheritance;
-- behavioural constraints;
-- runtime interaction with the SEU.
+- the Engineering Behavior Model
+- behavioural composition
+- behavioural categories
+- behavioural inheritance
+- behavioural constraints
+- runtime interaction with the SEU
 
 This chapter does not define:
 
-- Pack composition algorithms;
-- Pack lifecycle;
-- individual Pack implementations;
-- participant capabilities.
+- Pack composition algorithms
+- Pack lifecycle
+- individual Pack implementations
+- participant capabilities
 
 These are defined in later chapters.
  
-# 3. Architectural Position
+## 3. Architectural Position
 
 The Engineering Behavior Model occupies the boundary between the Composition Engine and the commissioned SEU.
 
@@ -92,7 +56,7 @@ Participants
 The SEU consumes an EBM but never modifies it directly.
  
 
-# 4. Definition
+## 4. Definition
 
 The Engineering Behavior Model is the complete behavioural specification governing a commissioned Software Engineering Unit.
 
@@ -101,32 +65,32 @@ It is produced by composing behavioural contributions from one or more Packs.
 The EBM is authoritative for the lifetime of the commissioned SEU unless superseded through a governed recomposition process.
  
 
-# 5. Architectural Responsibilities
+## 5. Architectural Responsibilities
 
 The EBM shall:
 
-- define engineering behaviour;
-- define governance behaviour;
-- define decision behaviour;
-- define quality behaviour;
-- define compliance behaviour;
-- define collaboration behaviour;
-- define lifecycle behaviour;
-- define authority behaviour;
-- define engineering terminology;
-- define engineering constraints.
+- define engineering behaviour
+- define governance behaviour
+- define decision behaviour
+- define quality behaviour
+- define compliance behaviour
+- define collaboration behaviour
+- define lifecycle behaviour
+- define authority behaviour
+- define engineering terminology
+- define engineering constraints
 
 The EBM shall not:
 
-- contain executable work;
-- schedule execution;
-- manage participants;
-- preserve knowledge;
-- execute workflows.
+- contain executable work
+- schedule execution
+- manage participants
+- preserve knowledge
+- execute workflows
 
 
 
-# 6. Functional Requirements
+## 6. Functional Requirements
 
 ### FR-3.1
 
@@ -188,11 +152,11 @@ All recompositions shall be versioned and fully traceable.
 
 
 
-# 7. Behaviour Categories
+## 7. Behaviour Categories
 
 An Engineering Behavior Model may contain behavioural contributions in the following categories.
 
-## Engineering Practices
+### Engineering Practices
 
 Examples:
 
@@ -203,7 +167,7 @@ Examples:
 
 
 
-## Governance
+### Governance
 
 Examples:
 
@@ -214,7 +178,7 @@ Examples:
 
 
 
-## Quality
+### Quality
 
 Examples:
 
@@ -225,7 +189,7 @@ Examples:
 
 
 
-## Compliance
+### Compliance
 
 Examples:
 
@@ -236,7 +200,7 @@ Examples:
 
 
 
-## Domain
+### Domain
 
 Examples:
 
@@ -247,7 +211,7 @@ Examples:
 
 
 
-## Technology
+### Technology
 
 Examples:
 
@@ -257,7 +221,7 @@ Examples:
 
 
 
-## Integration
+### Integration
 
 Examples:
 
@@ -267,7 +231,7 @@ Examples:
 
 
 
-## Decision Governance
+### Decision Governance
 
 Examples:
 
@@ -278,7 +242,7 @@ Examples:
 
 
 
-## Obligations
+### Obligations
 
 Examples:
 
@@ -289,7 +253,7 @@ Examples:
 
 
 
-# 8. Behavioural Rule
+## 8. Behavioural Rule
 
 Every behavioural rule shall contain at least:
 
@@ -308,7 +272,7 @@ The internal representation shall be implementation-defined.
 
 
 
-# 9. Composition Principles
+## 9. Composition Principles
 
 The EBM is produced by composing behavioural contributions.
 
@@ -326,7 +290,7 @@ Additional strategies may be introduced through the Extension Framework.
 
 
 
-# 10. Behavioural Inheritance
+## 10. Behavioural Inheritance
 
 Behaviour shall be inherited from multiple Pack categories.
 
@@ -353,7 +317,7 @@ No assumptions shall be made regarding the number of contributing Packs.
 
 
 
-# 11. Behaviour Resolution
+## 11. Behaviour Resolution
 
 When multiple Packs contribute behaviour affecting the same engineering concern, the Composition Engine shall resolve the behaviour according to declared composition strategies.
 
@@ -363,7 +327,7 @@ Resolution shall be deterministic and repeatable.
 
 
 
-# 12. Behaviour Enforcement
+## 12. Behaviour Enforcement
 
 The Engineering Behavior Model defines expected behaviour.
 
@@ -380,7 +344,7 @@ The EBM itself performs no execution.
 
 
 
-# 13. Runtime Interaction
+## 13. Runtime Interaction
 
 During execution:
 
@@ -394,7 +358,7 @@ The EBM remains read-only.
 
 
 
-# 14. Versioning
+## 14. Versioning
 
 Every Engineering Behavior Model shall maintain:
 
@@ -409,7 +373,7 @@ Historical versions shall remain reproducible.
 
 
 
-# 15. Events
+## 15. Events
 
 The platform shall publish at least the following domain events:
 
@@ -423,21 +387,21 @@ The platform shall publish at least the following domain events:
 
 
 
-# 16. Non-Functional Requirements
+## 16. Non-Functional Requirements
 
 The Engineering Behavior Model shall:
 
-- be deterministic;
-- be reproducible;
-- be immutable during execution;
-- be fully traceable;
-- support incremental evolution;
-- support concurrent versions;
-- remain independent of implementation technologies.
+- be deterministic
+- be reproducible
+- be immutable during execution
+- be fully traceable
+- support incremental evolution
+- support concurrent versions
+- remain independent of implementation technologies
 
 
 
-# 17. Acceptance Criteria
+## 17. Acceptance Criteria
 
 The implementation shall satisfy the following criteria.
 
@@ -455,22 +419,22 @@ The implementation shall satisfy the following criteria.
 
 
 
-# 18. Deliverables
+## 18. Deliverables
 
 Implementation of this chapter shall produce:
 
-- Engineering Behavior Model domain object.
-- Behaviour catalogue.
-- Behavioural rule model.
-- Versioning model.
-- Behaviour validation services.
-- Behaviour query services.
-- Behaviour composition interfaces.
-- Initial Engineering Behavior Model API.
+- Engineering Behavior Model domain object
+- Behaviour catalogue
+- Behavioural rule model
+- Versioning model
+- Behaviour validation services
+- Behaviour query services
+- Behaviour composition interfaces
+- Initial Engineering Behavior Model API
 
 ---
 
-# 19. Implementation Status & Gaps
+## 19. Implementation Status & Gaps
 
 Code-verified audit (2026-08-25), not from memory — every claim below carries a file:line citation, cross-checked against a live query against the running Postgres instance (`aisworg` DB). Core files: `src/dblayer/ebmsDB.ts`, `EbmRow`/`EbmComposedPack`/`EbmCompositionReport` (`src/dblayer/seuTypes.ts`), `src/domain/engine/compositionEngine.ts`, `src/routes/seu/core/commissioning.ts`, `governanceModel.ts`, `compliance.ts`, `traceability.ts`, `dependencyDefinitionEngine.ts`. This chapter shares its entire real implementation with Chapter 4 (Composition Engine) — the EBM is Chapter 4's own output — so this audit cross-references Chapter 4 §21 directly wherever the finding is identical, rather than re-deriving it, and focuses new investigation on what Chapter 3 asks for that Chapter 4 didn't already cover: Behaviour Categories, Behavioural Rule structure, Inheritance ordering, Enforcement service naming, and — the one genuinely new positive finding — whether anything actually *consults* the EBM at runtime.
 
@@ -478,15 +442,15 @@ Code-verified audit (2026-08-25), not from memory — every claim below carries 
 
 **The single most useful finding, not visible from Chapter 4's own audit alone**: the EBM genuinely *is* consulted at runtime by 5 real call sites (`governanceModel.ts`, `compliance.ts`, `traceability.ts`, `dependencyDefinitionEngine.ts`, `seus.ts`) — real, not aspirational. But every one of them reads `ebm.composed_packs` only, to resolve "which Packs are in scope for this SEU," then goes on to query each individual Pack's own materialized governance (Quality Gates, Policies, Obligations) directly. Nothing ever queries the EBM itself for a behavioural rule, a category, or a composition strategy — because none of those exist as EBM-native structures (§9's own "Definition, Output" finding). The EBM is real, working infrastructure — just as a resolved *Pack-scope pointer*, not as the queryable behavioural catalogue this chapter describes.
 
-## 19.1 ✅ Definition — real, and the owner has since sharpened it further (§4)
+### 19.1 ✅ Definition — real, and the owner has since sharpened it further (§4)
 
 "Produced by composing behavioural contributions from one or more Packs" — real, matches Chapter 4 §21 exactly (`compose()`'s `composedPacks`). "Authoritative for the lifetime of the commissioned SEU unless superseded through a governed recomposition process" — the "unless superseded" half is not yet built (Chapter 4 §21.12: recomposition is never triggered, nothing ever marks a prior EBM `'Superseded'`) — but the owner has since restated this exact sentence as the *governing principle* for CR-067's own Override/Supersession strategy definition (noted in CR-067, not yet built either) — so this line, unusually for this audit series, already has a settled design waiting on it, not just an open question.
 
-## 19.2 ⚠️ Architectural Responsibilities — the "shall define" list names governance that's real but not EBM-native; the "shall not" list holds (§5)
+### 19.2 ⚠️ Architectural Responsibilities — the "shall define" list names governance that's real but not EBM-native; the "shall not" list holds (§5)
 
 None of the 10 named "shall define" behaviour kinds (engineering/governance/decision/quality/compliance/collaboration/lifecycle/authority/terminology/constraints) exist as first-class content *on* an EBM — but several of the underlying mechanisms are independently real elsewhere on the platform (Quality Gates, Policies, Authority Rules, Obligations, Decisions) and reachable *through* the EBM's own Pack-list pointer (19's own preamble finding). The 5 "shall not" items (no executable work, no scheduling, no participant management, no knowledge preservation, no workflow execution) hold cleanly — `ebms`/`ebmsDB.ts` do none of these.
 
-## 19.3 ⚠️ Functional Requirements (FR-3.1–10) (§6)
+### 19.3 ⚠️ Functional Requirements (FR-3.1–10) (§6)
 
 | FR | Verdict | Note |
 |---|---|---|
@@ -501,37 +465,37 @@ None of the 10 named "shall define" behaviour kinds (engineering/governance/deci
 | FR-3.9 modification only through recomposition | ⚠️ vacuously true | Nothing modifies an EBM at all, including through recomposition — recomposition itself is never triggered (Ch.4 §21.12). |
 | FR-3.10 recompositions versioned and fully traceable | ⚠️ unexercised | Same basis as FR-3.3. |
 
-## 19.4 🚩 Behaviour Categories — 9 named, zero real tagging mechanism (§7)
+### 19.4 🚩 Behaviour Categories — 9 named, zero real tagging mechanism (§7)
 
 No behavioural contribution anywhere carries a category tag matching this list (Engineering Practices / Governance / Quality / Compliance / Domain / Technology / Integration / Decision Governance / Obligations) — confirmed, no `behaviourCategory`/`behaviorCategory` field exists in the codebase. Worth not confusing with `category:pack` (Ch.5's own real, 6-value Ontology vocabulary: Compliance, Domain, Engineering, Integration, Organisation, Technology) — that categorizes *Packs themselves*, a different and narrower list, and is never consulted by composition either (19.7).
 
-## 19.5 🚩 Behavioural Rule — 0 of 10 fields real; no such entity exists (§8)
+### 19.5 🚩 Behavioural Rule — 0 of 10 fields real; no such entity exists (§8)
 
 Confirmed directly: there is no `BehaviouralRule`/`BehavioralRule` type, table, or structure anywhere in the codebase. All 10 named fields (Identifier, Name, Description, Behaviour Category, Originating Pack, Version, Composition Strategy, Applicability Conditions, Enforcement Level, Traceability Reference) are consequently absent — not because any one of them was deliberately dropped, but because the entity they'd belong to was never built (root cause already named in this section's own preamble).
 
-## 19.6 ⚠️ Composition Principles — identical finding to Chapter 4 §21.6, now being redesigned generically via CR-067 (§9)
+### 19.6 ⚠️ Composition Principles — identical finding to Chapter 4 §21.6, now being redesigned generically via CR-067 (§9)
 
 Same 7 named strategies, same real status: only `Override` has any implementation, and only at the whole-Pack level. CR-067 (raised 2026-08-24, design mostly settled) is actively redefining this set generically — `Alias` renamed `Specialization`, `Merge`/`Union`/`Intersection`/`Supplement` given real field-level definitions, `Conflict Detection` reframed as Merge/Union's own internal escalation path rather than an independent strategy. Not built yet.
 
 **Updated 2026-09-07**: CR-092 Part 8 built a real, if narrower, consumer of exactly this redefined set ahead of CR-067 landing generally — `applyConflictStrategy` (`core/commissioning.ts`) invokes `compositionEngine.specialize`/`merge`/`union`/`intersection`/`supplement` for real, at the *field* level, whenever a human resolves one of Part 8's own flagged conflicts (never automatically, never at whole-Pack granularity — one disagreeing sub-field per resolution, the human always chooses which sources participate). `Alias`/`Override` fall back to `specialize`, matching CR-067's own "Alias renamed Specialization" direction already. This is a real, working instance of the strategies this section names — but only for *conflict resolution*, not as a general "how every composed value gets combined" mechanism; CR-067's own broader redesign is still not built.
 
-## 19.7 🚩 Behavioural Inheritance — the Platform→Organisation→...→Integration ordering is not real; composition is category-blind (§10)
+### 19.7 🚩 Behavioural Inheritance — the Platform→Organisation→...→Integration ordering is not real; composition is category-blind (§10)
 
 The chapter's own diagram implies a specific, ordered inheritance chain by Pack category. The real `compose()` (`compositionEngine.ts:34-87`, Ch.4 §21.1) never reads `category:pack` at all — it resolves exactly two flat lists (a Template's mandatory Pack codes, then a Profile's optional Pack codes) with no category-aware ordering or layering of any kind. "No assumptions shall be made regarding the number of contributing Packs" holds trivially (both lists can be any length) — but the ordered *category* chain itself has no mechanism behind it.
 
-## 19.8 ⚠️ Behaviour Resolution (§11)
+### 19.8 ⚠️ Behaviour Resolution (§11)
 
 "Single, internally consistent EBM" — **updated 2026-09-07**: "internally consistent" now means substantially more than it did — `detectCompositionConflicts` (19.3 FR-3.6) checks consistency across every composed Pack's own contribution type this chapter names, not just the 2 `compositionEngine.ts`'s own `detectGovernanceConflicts` ever covered. It's produced by a different function now too — the new event-driven EBM Composer (`src/domain/engine/ebmComposer.ts`), not `compositionEngine.compose()`, which this flow no longer calls at all. "Deterministic and repeatable" carries the identical caveat Ch.4 §21.3 FR-4.5 found: real only relative to the DB's current state at call time (Pack/Ontology resolution always resolves whichever version is *currently* Active/live), not a pure function of the two input ids alone.
 
-## 19.9 ⚠️ Behaviour Enforcement — the 4 named runtime services are real work, organized slightly differently than named (§12)
+### 19.9 ⚠️ Behaviour Enforcement — the 4 named runtime services are real work, organized slightly differently than named (§12)
 
 `Dependency Engine` is real and named exactly this way (`dependencyDefinitionEngine.ts`). The platform's own status dashboard (`dashboard.ts:37-43`) independently groups its real engines into "Governance Runtime" (Authority + Policy + **Obligation** + Quality Gate, `dashboard.ts:39`) and "Knowledge Runtime" (Evidence + Knowledge + Decision, `dashboard.ts:41`) — real, working groupings, but **Obligation is folded into Governance Runtime, not its own standalone "Obligation Runtime"** the way this chapter names it separately. Not a gap in the underlying engines (Obligation's own lifecycle is real, Ch.23) — just a naming/grouping mismatch between this chapter and how the platform's own status page currently describes itself.
 
-## 19.10 ⚠️ Runtime Interaction — real, but indirect: the EBM is consulted as a Pack-scope pointer, never as a behavioural catalogue (§13)
+### 19.10 ⚠️ Runtime Interaction — real, but indirect: the EBM is consulted as a Pack-scope pointer, never as a behavioural catalogue (§13)
 
 This section's own preamble finding, restated per claim: "Participants consult the EBM" / "Runtime services enforce the EBM" — real in spirit (`governanceModel.ts`, `compliance.ts`, `dependencyDefinitionEngine.ts`, `traceability.ts`, `seus.ts` all call `ebmsDB.findById(seu.active_ebm_id)`), but what gets consulted is always `composed_packs` — the Pack list — never a decomposed behavioural rule. "Deliverables are validated against the EBM" / "Decisions are evaluated against the EBM" / "Obligations are assessed against the EBM" happen *indirectly* — against each in-scope Pack's own real Quality Gates/Policies/Obligation Definitions, reached via the EBM's own Pack-list pointer, not literally against "the EBM" as a unified object. "The EBM remains read-only" — real (19.3 FR-3.8).
 
-## 19.11 ⚠️ Versioning — 2 of 6 named fields real (§14)
+### 19.11 ⚠️ Versioning — 2 of 6 named fields real (§14)
 
 | Named field | Real? |
 |---|---|
@@ -544,7 +508,7 @@ This section's own preamble finding, restated per claim: "Participants consult t
 
 "Historical versions shall remain reproducible" is unexercised the same way FR-3.3/3.10 are (19.3) — no version has ever gone beyond 1 in practice.
 
-## 19.12 ⚠️ Events — 3 of 7 named events real as of 2026-09-07, up from 0 (§15)
+### 19.12 ⚠️ Events — 3 of 7 named events real as of 2026-09-07, up from 0 (§15)
 
 Originally confirmed 0 of 7 real (2026-08-25), consistent with and extending Chapter 4 §21.13's own 0-of-11 finding at the time. CR-092 Part 9 built three of them for real, published from the new `src/domain/engine/ebmComposer.ts` and `transitionEbm` (`core/commissioning.ts`):
 
@@ -560,7 +524,7 @@ Originally confirmed 0 of 7 real (2026-08-25), consistent with and extending Cha
 
 Real events nearest this chapter's own domain that existed before this pass, still real: `SEUCommissioned` (Ch.2) — SEU-level, not EBM-named.
 
-## 19.13 ⚠️ Non-Functional Requirements (§16)
+### 19.13 ⚠️ Non-Functional Requirements (§16)
 
 | NFR | Verdict | Basis |
 |---|---|---|
@@ -572,7 +536,7 @@ Real events nearest this chapter's own domain that existed before this pass, sti
 | support concurrent versions | ⚠️ unexercised | Schema supports multiple `ebms` rows per `seu_id`; never exercised past 1 |
 | remain independent of implementation technologies | ✅ | No technology coupling anywhere in `compositionEngine.ts`/`ebmsDB.ts` |
 
-## 19.14 ⚠️ Acceptance Criteria (§17)
+### 19.14 ⚠️ Acceptance Criteria (§17)
 
 | Criterion | Verdict |
 |---|---|
@@ -583,7 +547,7 @@ Real events nearest this chapter's own domain that existed before this pass, sti
 | Runtime services correctly consume the EBM | ✅ — as a Pack-scope pointer (19.10), not as the chapter's own richer model |
 | The EBM remains immutable during execution | ✅ (19.3 FR-3.8) |
 
-## 19.15 ⚠️ Deliverables (§18)
+### 19.15 ⚠️ Deliverables (§18)
 
 | Named Deliverable | Real artifact | Verdict |
 |---|---|---|
@@ -596,7 +560,7 @@ Real events nearest this chapter's own domain that existed before this pass, sti
 | Behaviour composition interfaces | `unravelComposition`/`detectCompositionConflicts` (`profileCompositionUnravel.ts`, **updated 2026-09-07** — `compositionEngine.compose()` is no longer called anywhere in this flow) | ✅ (still minimal in the sense of no standalone API surface, but the conflict-checking half is now comprehensive, 19.3 FR-3.6) |
 | Initial EBM API | `ebmComposer.ts`'s own event-bus consumption (**updated 2026-09-07**, replacing `commissioning.ts`'s own inline call site) | ⚠️ invoked via a real, subscribed event handler now, not an inline function call — still no standalone EBM inspection/recompose HTTP API |
 
-## Summary — ranked
+### Summary — ranked
 
 1. **[Architecture — the one genuinely new finding this audit adds beyond Chapter 4's own]** The EBM is real, working infrastructure that 5 independent real call sites genuinely consult at runtime — but only ever as a resolved Pack-scope pointer (`composed_packs`), never as the queryable behavioural-rule catalogue this chapter describes. Every "X evaluated against the EBM" claim in §13 is true only indirectly, through each in-scope Pack's own separately-materialized governance (19.10, 19's own preamble).
 2. **[Data model]** No Behavioural Rule entity exists anywhere — 0 of the chapter's own 10 named fields (§8) are real, and this single fact is the root cause of FR-3.4/3.5's own partial/failed status, Behaviour Categories (§7) having no tagging mechanism, and Versioning's own missing Composition/Change/Approval history (19.5, 19.4, 19.11).

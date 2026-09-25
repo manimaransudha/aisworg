@@ -13,7 +13,6 @@ import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
-import { requireBadge } from "../../../middleware/requireBadge.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { SCHEMA_ENTITY_KINDS, createSchemaVersion, getSchemaDefinition, listSchemaDefinitions } from "../core/schemaRegistry.js";
@@ -25,7 +24,7 @@ import type { SchemaDefinitionEntityKind } from "../../../dblayer/seuTypes.js";
 const backTo = "/aisworg/seu/sdk/schema-registry";
 
 /** GET /aisworg/seu/sdk/schema-registry — every (entity kind, version) row. */
-router.get("/sdk/schema-registry", requireBadge(["root"], { redirectTo: "/aisworg" }), attachVM("seu/sdk/schema-registry/index"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/sdk/schema-registry", attachVM("seu/sdk/schema-registry/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const schemas = (await listSchemaDefinitions()).map((s) => ({ id: s.id, entityKind: s.entity_kind, version: s.version, createdAt: s.created_at }));
     req.vm.req.title = "Schema Registry";
@@ -45,7 +44,7 @@ router.get("/sdk/schema-registry", requireBadge(["root"], { redirectTo: "/aiswor
 });
 
 /** GET /aisworg/seu/sdk/schema-registry/new — CR-017 form-based authoring (generated from the meta-schema). */
-router.get("/sdk/schema-registry/new", requireBadge(["root"], { redirectTo: backTo }), attachVM("seu/sdk/schema-registry/new"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/sdk/schema-registry/new", attachVM("seu/sdk/schema-registry/new"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const entityKind = typeof req.query.entityKind === "string" ? req.query.entityKind : "";
     let fields: AuthoredSchema["fields"] = [];
@@ -65,7 +64,7 @@ router.get("/sdk/schema-registry/new", requireBadge(["root"], { redirectTo: back
 });
 
 /** GET /aisworg/seu/sdk/schema-registry/:id — one version's schema, readably rendered. */
-router.get("/sdk/schema-registry/:id", requireBadge(["root"], { redirectTo: backTo }), attachVM("seu/sdk/schema-registry/detail"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/sdk/schema-registry/:id", attachVM("seu/sdk/schema-registry/detail"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const schema = await getSchemaDefinition(String(req.params.id));
     if (!schema) return flashError(req, res, backTo, "Schema version not found.");
@@ -87,7 +86,7 @@ router.get("/sdk/schema-registry/:id", requireBadge(["root"], { redirectTo: back
 
 /** POST /aisworg/seu/sdk/schema-registry — a new, additive version (never edits an existing one).
  *  CR-017: the form path (compile a field list) is primary; the raw-JSON path is the advanced fallback. */
-router.post("/sdk/schema-registry", requireBadge(["root"], { redirectTo: backTo }), async (req: Request, res: Response) => {
+router.post("/sdk/schema-registry", async (req: Request, res: Response) => {
   const body = req.body ?? {};
   try {
     let entityKind: string;

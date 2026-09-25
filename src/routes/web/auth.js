@@ -9,7 +9,7 @@ import { passport }    from '../../domain/auth/passportConfig.js';
 import { userDB }      from '../../dblayer/userDB.js';
 import { tenantsDB }   from '../../dblayer/tenantsDB.js';
 import { emailService } from '../../domain/auth/emailService.js';
-import { buildSessionUser, requireRole } from '../../middleware/auth.js';
+import { buildSessionUser } from '../../middleware/auth.js';
 import { ensureBadgeBootstrap, getPlatformBadges } from '../../domain/identity/badgeBootstrap.js';
 import { logger }      from '../../utils/logger.js';
 import { parseListParams, paginateList } from '../../utils/listQuery.js';
@@ -255,7 +255,7 @@ router.post('/reset-password', loginLimiter, async (req, res) => {
 });
 
 // ── User management (super only) ─────────────────────────────────────────────
-router.get('/users', requireRole('super'), async (req, res) => {
+router.get('/users', async (req, res) => {
   try {
     const managed = await userDB.listManaged(SUPERUSER_EMAIL);
     const params = parseListParams(req.query, { sortable: ['user', 'provider', 'role', 'lastlogin'], defaultSort: 'user', defaultDir: 'asc' });
@@ -278,7 +278,7 @@ router.get('/users', requireRole('super'), async (req, res) => {
   }
 });
 
-router.post('/users/create', requireRole('super'), async (req, res) => {
+router.post('/users/create', async (req, res) => {
   try {
     const { email, name, role } = req.body;
     if (!email || !role) {
@@ -321,7 +321,7 @@ router.post('/users/create', requireRole('super'), async (req, res) => {
   }
 });
 
-router.post('/users/role', requireRole('super'), async (req, res) => {
+router.post('/users/role', async (req, res) => {
   try {
     const { email, role } = req.body;
     if (!['general', 'power', 'tenant_super', 'super'].includes(role)) {
@@ -346,7 +346,7 @@ router.post('/users/role', requireRole('super'), async (req, res) => {
   }
 });
 
-router.post('/users/toggle', requireRole('super'), async (req, res) => {
+router.post('/users/toggle', async (req, res) => {
   try {
     const { email, action } = req.body;
     if (email?.toLowerCase() === SUPERUSER_EMAIL) {
@@ -367,7 +367,7 @@ router.post('/users/toggle', requireRole('super'), async (req, res) => {
   }
 });
 
-router.post('/users/resend', requireRole('super'), async (req, res) => {
+router.post('/users/resend', async (req, res) => {
   try {
     const { email } = req.body;
     const user = await userDB.findByEmail(email);

@@ -18,7 +18,6 @@ import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
-import { requireRole } from "../../../middleware/requireRole.js";
 import { safeBack } from "../../../middleware/safeBack.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { logger } from "../../../utils/logger.js";
@@ -27,7 +26,7 @@ import { listUsersForTenant, listGrantableNounVerbBadges, setTenantUserAuthorise
 const usersBackTo = "/aisworg/seu/tenant-admin/users";
 
 /** GET /aisworg/seu/tenant-admin/users — Tenant Admin's own User Management: users scoped to their own tenant, Deliverable-verb badge grants only. */
-router.get("/tenant-admin/users", requireRole(["tenant_admin"], { redirectTo: "/aisworg" }), attachVM("seu/tenantAdmin/users"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/tenant-admin/users", attachVM("seu/tenantAdmin/users"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const tenantId = req.session?.user?.tenant_id;
     if (!tenantId) {
@@ -60,7 +59,7 @@ router.get("/tenant-admin/users", requireRole(["tenant_admin"], { redirectTo: "/
  *  participants_master and remove badge_grants" — reconciles a tenant user's
  *  noun_verb authorised_badges (multi-select) to exactly what's selected,
  *  same shape as Identity Management's own /identity/badges/:id/update. */
-router.post("/tenant-admin/users/:id/badges", requireRole(["tenant_admin"], { redirectTo: usersBackTo }), async (req: Request, res: Response) => {
+router.post("/tenant-admin/users/:id/badges", async (req: Request, res: Response) => {
   const tenantId = req.session?.user?.tenant_id;
   // Redirect back to wherever this form was submitted from (the list page's
   // own current ?q=/sort=/page=), not the bare list path — a grant shouldn't

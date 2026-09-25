@@ -10,7 +10,6 @@ const router = express.Router();
 
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
-import { requireRole } from "../../../middleware/requireRole.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
@@ -22,7 +21,7 @@ import type { ParticipantMasterRow } from "../../../dblayer/seuTypes.js";
 const PARTICIPANT_TYPES = ["AI", "Human", "Automated", "External"];
 
 /** GET /aisworg/seu/participants — every participants_master resource. */
-router.get("/participants", requireRole(["participant"], { redirectTo: "/aisworg" }), attachVM("seu/participants/index"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/participants", attachVM("seu/participants/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Participants";
     const isRoot = (req.session?.user?.platformBadges ?? []).includes("root");

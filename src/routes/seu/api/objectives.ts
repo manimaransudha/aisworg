@@ -8,7 +8,6 @@ import { logger } from "../../../utils/logger.js";
 import { createObjective, getObjectiveDetail, listObjectives, suggestCapabilityCodes, transitionObjective, updateObjective } from "../core/objectives.js";
 import { objectivesDB } from "../../../dblayer/objectivesDB.js";
 import type { ObjectiveStatus, ObjectiveTier } from "../../../dblayer/seuTypes.js";
-import { requireBadge } from "../../../middleware/requireBadge.js";
 import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
 import { requireTenant } from "../../../middleware/requireTenant.js";
 
@@ -32,7 +31,6 @@ router.param(
 /** POST /objectives — Ch.1: create an Objective, optionally tiered/decomposed under a parent. */
 router.post(
   "/objectives",
-  requireBadge(["objective_propose"], { mode: "api" }),
   requireTenantScope.forField("body", "parentObjectiveId", objectivesDB.findById, (o) => o.sponsoring_authority?.tenant ?? null, { mode: "api", notFoundMessage: "Parent Objective not found" }),
   async (req: Request, res: Response) => {
   try {
@@ -72,7 +70,7 @@ router.post(
 // (undefined), same "sees every tenant" convention web/objectives.ts's own
 // list route already uses.
 /** GET /objectives — every Objective in the caller's own tenant (every tenant for root), any status/tier. */
-router.get("/objectives", requireBadge(["None"], { mode: "api" }), requireTenant(), async (req: Request, res: Response) => {
+router.get("/objectives", requireTenant(), async (req: Request, res: Response) => {
   try {
     const { isRoot, tenantId } = req.tenantScope!;
     res.status(200).json({ objectives: await listObjectives(isRoot ? undefined : tenantId) });
@@ -83,7 +81,7 @@ router.get("/objectives", requireBadge(["None"], { mode: "api" }), requireTenant
 });
 
 /** GET /objectives/suggest-capabilities?statement=... — word-overlap suggestion, not a sole mechanism. */
-router.get("/objectives/suggest-capabilities", requireBadge(["None"], { mode: "api" }), async (req: Request, res: Response) => {
+router.get("/objectives/suggest-capabilities", async (req: Request, res: Response) => {
   try {
     const statement = typeof req.query.statement === "string" ? req.query.statement : "";
     res.status(200).json({ capabilityCodes: await suggestCapabilityCodes(statement) });
@@ -94,7 +92,7 @@ router.get("/objectives/suggest-capabilities", requireBadge(["None"], { mode: "a
 });
 
 /** GET /objectives/:id — Objective + decomposition (parent/children) + required Capabilities + valid next lifecycle states. */
-router.get("/objectives/:id", requireBadge(["None"], { mode: "api" }), async (req: Request, res: Response) => {
+router.get("/objectives/:id", async (req: Request, res: Response) => {
   try {
     const detail = await getObjectiveDetail(String(req.params.id));
     if (!detail) return res.status(404).json({ error: "Objective not found" });
@@ -108,7 +106,7 @@ router.get("/objectives/:id", requireBadge(["None"], { mode: "api" }), async (re
 // CR-076 — same gap closed here as web/objectives.ts's own POST /update: no
 // server-side badge check existed at all before this.
 /** POST /objectives/:id/update — edits statement/required Capabilities; tier is not editable. */
-router.post("/objectives/:id/update", requireBadge(["objective_propose"], { mode: "api" }), async (req: Request, res: Response) => {
+router.post("/objectives/:id/update", async (req: Request, res: Response) => {
   try {
     const { statement, requiredCapabilityCodes, bumpVersion } = req.body ?? {};
     const updated = await updateObjective(String(req.params.id), {
@@ -164,11 +162,11 @@ function postTransition(targetState: ObjectiveStatus) {
   };
 }
 
-router.post("/objectives/:id/transition/activate", requireBadge(["objective_activate"], { mode: "api" }), postTransition("Active"));
-router.post("/objectives/:id/transition/achieve", requireBadge(["objective_achieve"], { mode: "api" }), postTransition("Achieved"));
-router.post("/objectives/:id/transition/supersede", requireBadge(["objective_supersede"], { mode: "api" }), postTransition("Superseded"));
-router.post("/objectives/:id/transition/retire", requireBadge(["objective_retire"], { mode: "api" }), postTransition("Retired"));
-router.post("/objectives/:id/transition/archive", requireBadge(["objective_archive"], { mode: "api" }), postTransition("Archived"));
-router.post("/objectives/:id/transition/reject", requireBadge(["objective_reject"], { mode: "api" }), postTransition("Reject"));
+router.post("/objectives/:id/transition/activate", postTransition("Active"));
+router.post("/objectives/:id/transition/achieve", postTransition("Achieved"));
+router.post("/objectives/:id/transition/supersede", postTransition("Superseded"));
+router.post("/objectives/:id/transition/retire", postTransition("Retired"));
+router.post("/objectives/:id/transition/archive", postTransition("Archived"));
+router.post("/objectives/:id/transition/reject", postTransition("Reject"));
 
 export { router };

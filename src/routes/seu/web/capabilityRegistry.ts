@@ -13,7 +13,6 @@ const router = express.Router();
 
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
-import { requireRole } from "../../../middleware/requireRole.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
@@ -21,7 +20,7 @@ import { ontologyDB, type OntologyViewer } from "../../../dblayer/ontologyDB.js"
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 
 /** GET /aisworg/seu/capabilities — every canonical capability-name Ontology concept. */
-router.get("/capabilities", requireRole(["participant"], { redirectTo: "/aisworg" }), attachVM("seu/capabilities/index"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/capabilities", attachVM("seu/capabilities/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Capabilities";
     const isRoot = (req.session?.user?.platformBadges ?? []).includes("root");

@@ -1,8 +1,6 @@
 # Chapter 46 – Platform Evolution Strategy
 
----
-
-# 1. Purpose
+## 1. Purpose
 
 The Platform Evolution Strategy defines the principles and architectural mechanisms by which the Software Engineering Unit (SEU) Platform evolves while preserving engineering continuity, compatibility and historical reproducibility.
 
@@ -12,27 +10,27 @@ Platform evolution shall be deliberate, governed and traceable.
 
 ---
 
-# 2. Scope
+## 2. Scope
 
 This chapter defines:
 
-- evolution principles;
-- architectural stability;
-- compatibility strategy;
-- deprecation;
-- innovation boundaries;
-- ecosystem evolution.
+- evolution principles
+- architectural stability
+- compatibility strategy
+- deprecation
+- innovation boundaries
+- ecosystem evolution
 
 This chapter does not define:
 
-- product roadmaps;
-- commercial release schedules;
-- implementation planning;
-- organisational governance.
+- product roadmaps
+- commercial release schedules
+- implementation planning
+- organisational governance
 
 ---
 
-# 3. Architectural Position
+## 3. Architectural Position
 
 ```
 Platform Vision
@@ -62,97 +60,75 @@ Platform evolution occurs around a stable architectural core.
 
 ---
 
-# 4. Definition
+## 4. Definition
 
 Platform Evolution is the controlled advancement of the SEU Platform while preserving architectural invariants and engineering continuity.
 
 Evolution may introduce:
 
-- new runtime services;
-- new Pack capabilities;
-- new SDK capabilities;
-- new engineering models;
-- improved implementations.
+- new runtime services
+- new Pack capabilities
+- new SDK capabilities
+- new engineering models
+- improved implementations
 
 Evolution shall not invalidate historical engineering execution.
 
 ---
 
-# 5. Architectural Principles
+## 5. Architectural Principles
 
-## PE-001
+### PE-001
 
 The Platform Core shall evolve more slowly than Packs.
 
----
-
-## PE-002
+### PE-002
 
 Engineering behaviour shall evolve primarily through Packs.
 
----
-
-## PE-003
+### PE-003
 
 Architectural invariants are permanent.
 
----
-
-## PE-004
+### PE-004
 
 Backward compatibility shall be the default expectation.
 
----
-
-## PE-005
+### PE-005
 
 Evolution shall preserve historical reproducibility.
 
----
-
-## PE-006
+### PE-006
 
 Platform innovation shall favour extension over modification.
 
 ---
 
-# 6. Functional Requirements
+## 6. Functional Requirements
 
 ### FR-46.1
 
 The platform shall support multiple compatible platform versions during transition periods.
 
----
-
 ### FR-46.2
 
 Historical SEUs shall remain executable where compatibility is declared.
 
----
-
 ### FR-46.3
 
-Platform evolution shall preserve Effective Engineering Configurations.
-
----
+Platform evolution shall preserve Engineering Behavior Models.
 
 ### FR-46.4
 
 Deprecated capabilities shall remain identifiable and traceable.
 
----
-
 ### FR-46.5
 
 Migration guidance shall accompany breaking architectural changes.
 
----
-
 ### FR-46.6
 
 Platform evolution shall preserve Pack investments wherever practical.
-
----
 
 ### FR-46.7
 
@@ -160,7 +136,7 @@ Evolution decisions shall be documented through Architectural Decision Records (
 
 ---
 
-# 7. Stable Core
+## 7. Stable Core
 
 The following architectural concepts constitute the Stable Platform Core:
 
@@ -169,7 +145,7 @@ The following architectural concepts constitute the Stable Platform Core:
 - Event Model
 - State Management
 - Transition Definitions
-- Effective Engineering Configuration
+- Engineering Behavior Model
 - Engineering Behavior Model
 - Authority Model
 - Governance Model
@@ -178,7 +154,7 @@ Changes to these concepts require exceptional justification.
 
 ---
 
-# 8. Evolution Layers
+## 8. Evolution Layers
 
 The platform shall evolve at different rates.
 
@@ -197,21 +173,21 @@ This layered approach minimises disruption while encouraging innovation where it
 
 ---
 
-# 9. Compatibility Strategy
+## 9. Compatibility Strategy
 
 Platform compatibility shall distinguish:
 
-- source compatibility;
-- Pack compatibility;
-- Effective Engineering Configuration compatibility;
-- runtime compatibility;
-- historical compatibility.
+- source compatibility
+- Pack compatibility
+- Engineering Behavior Model compatibility
+- runtime compatibility
+- historical compatibility
 
 Compatibility rules shall be explicit rather than inferred.
 
 ---
 
-# 10. Deprecation Strategy
+## 10. Deprecation Strategy
 
 Capabilities may transition through:
 
@@ -233,98 +209,98 @@ Archived
 
 Deprecation shall:
 
-- provide advance notice;
-- identify replacement capabilities where applicable;
-- preserve historical behaviour;
-- remain fully traceable.
+- provide advance notice
+- identify replacement capabilities where applicable
+- preserve historical behaviour
+- remain fully traceable
 
 ---
 
-# 11. Innovation Boundaries
+## 11. Innovation Boundaries
 
 Innovation shall occur primarily through:
 
-- new Packs;
-- new declarative models;
-- new SDK extensions;
-- additional Runtime Services;
-- new Interaction Adapters.
+- new Packs
+- new declarative models
+- new SDK extensions
+- additional Runtime Services
+- new Interaction Adapters
 
 Innovation shall avoid unnecessary changes to the Stable Platform Core.
 
 ---
 
-# 12. Ecosystem Evolution
+## 12. Ecosystem Evolution
 
 The platform shall support an evolving ecosystem comprising:
 
-- Platform publishers;
-- Organisation publishers;
-- Domain publishers;
-- Technology publishers;
-- Open-source communities;
-- Commercial Pack vendors;
-- Independent consultants.
+- Platform publishers
+- Organisation publishers
+- Domain publishers
+- Technology publishers
+- Open-source communities
+- Commercial Pack vendors
+- Independent consultants
 
 The ecosystem shall evolve independently of the Runtime Kernel.
 
 ---
 
-# 13. Migration
+## 13. Migration
 
 Where evolution introduces incompatible capabilities, the platform shall support:
 
-- migration assessment;
-- compatibility analysis;
-- automated migration where feasible;
-- manual migration guidance where necessary;
-- validation after migration.
+- migration assessment
+- compatibility analysis
+- automated migration where feasible
+- manual migration guidance where necessary
+- validation after migration
 
 Migration shall preserve engineering correctness.
 
 ---
 
-# 14. Architectural Decision Records
+## 14. Architectural Decision Records
 
 Every architectural evolution affecting the Stable Platform Core shall be documented through an ADR.
 
 An ADR shall record:
 
-- the decision;
-- rationale;
-- alternatives considered;
-- consequences;
-- migration implications.
+- the decision
+- rationale
+- alternatives considered
+- consequences
+- migration implications
 
 The ADR catalogue forms part of the platform's architectural governance.
 
 ---
 
-# 15. Success Criteria
+## 15. Success Criteria
 
 The platform shall be considered evolution-ready if:
 
-- engineering behaviour evolves primarily through Packs;
-- historical engineering execution remains reproducible;
-- Runtime Kernel evolution is infrequent;
-- new domains can be introduced without modifying the Platform Core;
-- existing Pack investments remain reusable.
+- engineering behaviour evolves primarily through Packs
+- historical engineering execution remains reproducible
+- Runtime Kernel evolution is infrequent
+- new domains can be introduced without modifying the Platform Core
+- existing Pack investments remain reusable
 
 ---
 
-# 16. Non-Functional Requirements
+## 16. Non-Functional Requirements
 
 The Platform Evolution Strategy shall:
 
-- minimise breaking changes;
-- preserve long-term maintainability;
-- support independent innovation;
-- encourage ecosystem growth;
-- remain technology-neutral.
+- minimise breaking changes
+- preserve long-term maintainability
+- support independent innovation
+- encourage ecosystem growth
+- remain technology-neutral
 
 ---
 
-# 17. Acceptance Criteria
+## 17. Acceptance Criteria
 
 The implementation shall satisfy the following criteria.
 
@@ -342,14 +318,14 @@ The implementation shall satisfy the following criteria.
 
 ---
 
-# 18. Deliverables
+## 18. Deliverables
 
 Implementation of this chapter shall produce:
 
-- Platform evolution policy.
-- Compatibility policy.
-- Deprecation policy.
-- Migration framework.
-- ADR governance process.
-- Evolution roadmap template.
-- Architectural governance documentation.
+- Platform evolution policy
+- Compatibility policy
+- Deprecation policy
+- Migration framework
+- ADR governance process
+- Evolution roadmap template
+- Architectural governance documentation

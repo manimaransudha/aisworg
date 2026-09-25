@@ -73,6 +73,8 @@
 
 - NEVER build a parallel/bypass mechanism to route around a gap in the platform's own governed construct (e.g. writing straight to a DB-layer table instead of going through the real authoring/publish path that construct requires). If the real path can't yet do what's needed, that is a gap to flag and fix in the real path (or scope as a proper design change), not something to work around with a shortcut that produces data the platform's own registries/UI can't see or reason about.
 
+- Every route's required badge(s)/role(s) live in the `route_authority` table (CR-110), not in a per-route `requireBadge`/`requireRole` call — the global `routeAuthorityGate` (src/middleware/routeAuthorityGate.ts) looks up each request's (method, path) there and fails closed on no match. Every new route must get a `route_authority` row in the same build pass it's added, or it is denied by default, not silently ungated.
+
 ## Architecture & Design
 
 ### Design Proposals

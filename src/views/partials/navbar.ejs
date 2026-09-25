@@ -13,18 +13,23 @@
         <% const currentPage = locals.activePage || 'dashboard'; %>
         <%
           const _u         = locals.session?.user;
-          const _role      = _u?.role || 'none';
-          // Authentication gate only ('general' is the floor role every
-          // account has) — not a per-link authorization check. Per-link
-          // visibility for the two links that actually need one (Event Bus,
-          // Tenant User Management) is CR-110's route_authority-driven
-          // locals.navRouteVisible, computed in app.js, below.
-          const _isGeneral = ['general','power','tenant_super','super'].includes(_role);
+          const _isAuthenticated = !!_u;
+          // CR-110 — every individual link's visibility is route_authority-
+          // driven (locals.navRouteVisible, computed generically in app.js
+          // from each link's own target route). This top-level flag is only
+          // "is there a logged-in session" — not an authorization check.
           const _navRouteVisible = locals.navRouteVisible || {};
+          const _nrv = (m, p) => !!_navRouteVisible[m + ' ' + p];
+          const _seuPlatformVisible = _nrv('GET','/aisworg') || _nrv('GET','/aisworg/quickview') || _nrv('GET','/aisworg/seu/objectives') || _nrv('GET','/aisworg/seu/seus') || _nrv('GET','/aisworg/seu/services');
+          const _governanceVisible = _nrv('GET','/aisworg/seu/attention') || _nrv('GET','/aisworg/seu/telemetry') || _nrv('GET','/aisworg/seu/knowledge/capital');
+          const _registryVisible = _nrv('GET','/aisworg/seu/capabilities') || _nrv('GET','/aisworg/seu/participants') || _nrv('GET','/aisworg/seu/packs') || _nrv('GET','/aisworg/seu/templates') || _nrv('GET','/aisworg/seu/profiles') || _nrv('GET','/aisworg/seu/deliverable-definitions') || _nrv('GET','/aisworg/seu/service-definitions') || _nrv('GET','/aisworg/seu/policy-definitions') || _nrv('GET','/aisworg/seu/sdk/schema-registry');
+          const _authoringVisible = _nrv('GET','/aisworg/seu/sdk/pack-authoring') || _nrv('GET','/aisworg/seu/sdk/template-authoring') || _nrv('GET','/aisworg/seu/sdk/profile-authoring') || _nrv('GET','/aisworg/seu/sdk/transition-definition-authoring') || _nrv('GET','/aisworg/seu/sdk/deliverable-authoring') || _nrv('GET','/aisworg/seu/sdk/service-authoring') || _nrv('GET','/aisworg/seu/sdk/policy-authoring');
+          const _ontologyVisible = _nrv('GET','/aisworg/seu/sdk/ontology');
         %>
 
-        <% if (_isGeneral) { %>
+        <% if (_isAuthenticated) { %>
           <!-- SEU Platform dropdown — day-to-day engineering runtime: Objectives, SEUs, Services -->
+          <% if (_seuPlatformVisible) { %>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle <%= ['seu-dashboard','quickview','seu-objectives','seu-objectives-new','seu-objectives-detail','seu-seus','seu-seus-new','seu-seus-detail','seu-services'].includes(currentPage) ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -34,29 +39,41 @@
             <ul class="dropdown-menu dropdown-menu-dark">
             %>
             <ul class="dropdown-menu shadow-sm border">
+              <% if (_nrv('GET','/aisworg')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-dashboard' ? 'active' : '' %>" href="/aisworg">
                 <i class="bi bi-speedometer2 me-2"></i>Dashboard
               </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/quickview')) { %>
               <li><a class="dropdown-item <%= currentPage === 'quickview' ? 'active' : '' %>" href="/aisworg/quickview">
                 <i class="bi bi-list-check me-2"></i>Commissioned SEUs
               </a></li>
+              <% } %>
               <li><hr class="dropdown-divider"></li>
+              <% if (_nrv('GET','/aisworg/seu/objectives')) { %>
               <li><a class="dropdown-item <%= ['seu-objectives','seu-objectives-detail','seu-objectives-new'].includes(currentPage) ? 'active' : '' %>" href="/aisworg/seu/objectives">
                 <i class="bi bi-bullseye me-2"></i>Objectives
               </a></li>
+              <% } %>
               <%# CR-009: Objective creation is contextual (Create Strategic root, or Add child from a node) on the Objectives tree, not a global navbar action. %>
               <li><hr class="dropdown-divider"></li>
+              <% if (_nrv('GET','/aisworg/seu/seus')) { %>
               <li><a class="dropdown-item <%= ['seu-seus','seu-seus-detail'].includes(currentPage) ? 'active' : '' %>" href="/aisworg/seu/seus">
                 <i class="bi bi-diagram-3 me-2"></i>All SEUs
               </a></li>
+              <% } %>
               <%# CR-003: SEU commissioning is initiated from the Objectives screen (Commission SEU per Engineering, un-commissioned Objective), not a global navbar action. %>
+              <% if (_nrv('GET','/aisworg/seu/services')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-services' ? 'active' : '' %>" href="/aisworg/seu/services">
                 <i class="bi bi-hand-index-thumb me-2"></i>Services
               </a></li>
+              <% } %>
             </ul>
           </li>
+          <% } %>
 
           <!-- Governance & Telemetry dropdown — Attention, Telemetry, Engineering Capital -->
+          <% if (_governanceVisible) { %>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle <%= ['seu-telemetry','seu-attention','seu-knowledge-capital'].includes(currentPage) ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -66,17 +83,24 @@
             <ul class="dropdown-menu dropdown-menu-dark">
             %>
             <ul class="dropdown-menu shadow-sm border">
+              <% if (_nrv('GET','/aisworg/seu/attention')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-attention' ? 'active' : '' %>" href="/aisworg/seu/attention">
                 <i class="bi bi-bell me-2"></i>Attention
               </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/telemetry')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-telemetry' ? 'active' : '' %>" href="/aisworg/seu/telemetry">
                 <i class="bi bi-activity me-2"></i>Telemetry
               </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/knowledge/capital')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-knowledge-capital' ? 'active' : '' %>" href="/aisworg/seu/knowledge/capital">
                 <i class="bi bi-bank me-2"></i>Engineering Capital
               </a></li>
+              <% } %>
             </ul>
           </li>
+          <% } %>
 
           <!-- Registry dropdown — top-level, extracted out of SDK / Authoring
                (owner: "SDK authoring holds the registry and the authoring
@@ -84,44 +108,65 @@
                Ontology") — every published-entity registry (Pack/Template/
                Profile/Deliverable/Service/Policy/Schema), separate from the
                authoring surfaces that create/edit them. -->
+          <% if (_registryVisible) { %>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle <%= ['seu-capabilities','seu-participants','seu-packs','seu-templates','seu-profiles','seu-deliverable-definitions','seu-service-definitions','seu-policy-definitions','seu-sdk-schema-registry'].includes(currentPage) ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               <i class="bi bi-collection me-2"></i>Registry
             </a>
             <ul class="dropdown-menu shadow-sm border">
+              <% if (_nrv('GET','/aisworg/seu/capabilities')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-capabilities' ? 'active' : '' %>" href="/aisworg/seu/capabilities">
                 <i class="bi bi-lightning-charge me-2"></i>Capability Registry
               </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/participants')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-participants' ? 'active' : '' %>" href="/aisworg/seu/participants">
                 <i class="bi bi-people me-2"></i>Participant Registry
               </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/packs')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-packs' ? 'active' : '' %>" href="/aisworg/seu/packs">
                 <i class="bi bi-box-seam me-2"></i>Pack Registry
               </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/templates')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-templates' ? 'active' : '' %>" href="/aisworg/seu/templates">
                 <i class="bi bi-file-earmark-ruled me-2"></i>Template Registry
               </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/profiles')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-profiles' ? 'active' : '' %>" href="/aisworg/seu/profiles">
                 <i class="bi bi-sliders me-2"></i>Profile Registry
               </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/deliverable-definitions')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-deliverable-definitions' ? 'active' : '' %>" href="/aisworg/seu/deliverable-definitions">
                 <i class="bi bi-box-seam me-2"></i>Deliverable Registry
               </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/service-definitions')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-service-definitions' ? 'active' : '' %>" href="/aisworg/seu/service-definitions">
                 <i class="bi bi-box-seam me-2"></i>Service Registry
               </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/policy-definitions')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-policy-definitions' ? 'active' : '' %>" href="/aisworg/seu/policy-definitions">
                 <i class="bi bi-box-seam me-2"></i>Policy Registry
               </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/sdk/schema-registry')) { %>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-schema-registry' ? 'active' : '' %>" href="/aisworg/seu/sdk/schema-registry">
                 <i class="bi bi-braces me-2"></i>Schema Registry
               </a></li>
+              <% } %>
             </ul>
           </li>
+          <% } %>
 
           <!-- SDK / Authoring dropdown — Pack/Template/Profile/Transition Definition/Deliverable/Service/Policy authoring -->
+          <% if (_authoringVisible) { %>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle <%= ['seu-sdk-pack-authoring','seu-sdk-template-authoring','seu-sdk-profile-authoring','seu-sdk-transition-definition-authoring','seu-sdk-deliverable-authoring','seu-sdk-service-authoring','seu-sdk-policy-authoring'].includes(currentPage) ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -131,29 +176,44 @@
             <ul class="dropdown-menu dropdown-menu-dark">
             %>
             <ul class="dropdown-menu shadow-sm border">
+              <% if (_nrv('GET','/aisworg/seu/sdk/pack-authoring')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-pack-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/pack-authoring">
                 <i class="bi bi-file-earmark-code me-2"></i>Pack Authoring
               </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/sdk/template-authoring')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-template-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/template-authoring">
                 <i class="bi bi-file-earmark-code me-2"></i>Template Authoring
               </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/sdk/profile-authoring')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-profile-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/profile-authoring">
                 <i class="bi bi-file-earmark-code me-2"></i>Profile Authoring
               </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/sdk/transition-definition-authoring')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-transition-definition-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/transition-definition-authoring">
                 <i class="bi bi-file-earmark-code me-2"></i>Transition Definition Authoring
               </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/sdk/deliverable-authoring')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-deliverable-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/deliverable-authoring">
                 <i class="bi bi-file-earmark-code me-2"></i>Deliverable Authoring
               </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/sdk/service-authoring')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-service-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/service-authoring">
                 <i class="bi bi-file-earmark-code me-2"></i>Service Authoring
               </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/sdk/policy-authoring')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-policy-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/policy-authoring">
                 <i class="bi bi-file-earmark-code me-2"></i>Policy Authoring
               </a></li>
+              <% } %>
             </ul>
           </li>
+          <% } %>
 
           <!-- Ontology — top-level dropdown, not nested under SDK / Authoring
                (Ch.18 vocabulary admin, frequent enough to warrant a single
@@ -168,6 +228,7 @@
                still highlights its group's own dropdown entry. -->
           <% const _activeConceptType = currentPage === 'seu-sdk-ontology' ? (locals.currentQuery?.type || '') : ''; %>
           <% const _ontologyGroups = locals.ontologyConceptTypeGroups || {}; %>
+          <% if (_ontologyVisible) { %>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle <%= currentPage === 'seu-sdk-ontology' ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -183,6 +244,7 @@
               <% if (!(locals.ontologyConceptTypes || []).length) { %>
                 <li><a class="dropdown-item" href="/aisworg/seu/sdk/ontology">Ontology</a></li>
               <% } %>
+              <% if (_nrv('GET','/aisworg/seu/sdk/ontology/metadata')) { %>
               <li><hr class="dropdown-divider"></li>
               <!-- Owner: "I want the metadata to be a separate option under
                    ontology" — text_type/ui_grouping management, deliberately
@@ -192,13 +254,15 @@
               <li><a class="dropdown-item <%= locals.currentPath === '/aisworg/seu/sdk/ontology/metadata' ? 'active' : '' %>" href="/aisworg/seu/sdk/ontology/metadata">
                 <i class="bi bi-sliders me-2"></i>Metadata
               </a></li>
+              <% } %>
             </ul>
           </li>
+          <% } %>
 
-        <% } /* isGeneral */ %>
+        <% } /* isAuthenticated */ %>
 
 
-        <% if (_isGeneral) { %>
+        <% if (_isAuthenticated) { %>
           <!-- Badge model (Phase 10): the identity's name and the Platform-layer
                badge(s) it holds (req.session.user.platformBadges — cached at
                login, design doc §10). Tenant Admin/Engineering badges aren't
@@ -293,9 +357,11 @@
               <li class="dropdown-header d-lg-none">
                 <%= _u?.name || _u?.email %><% if (_platformBadges.length > 0) { %> &middot; <%= _platformBadges.join(', ') %><% } %>
               </li>
+              <% if (_nrv('GET','/aisworg/seu/identity')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-identity' ? 'active' : '' %>" href="/aisworg/seu/identity">
                 <i class="bi bi-person-badge me-2"></i>Identity Management
               </a></li>
+              <% } %>
               <% if (_navRouteVisible['GET /aisworg/seu/tenant-admin/users']) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-tenant-admin-users' ? 'active' : '' %>" href="/aisworg/seu/tenant-admin/users">
                 <i class="bi bi-people-fill me-2"></i>Tenant User Management

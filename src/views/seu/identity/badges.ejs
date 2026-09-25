@@ -41,7 +41,8 @@
       </select>
     </form>
     <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search email / name' }) %>
-    <div class="card border-0 shadow-sm mb-4">
+    <div class="section-card">
+      <div class="section-header">Badges</div>
       <div class="card-body">
         <table class="table table-sm align-middle">
           <thead><tr>
@@ -100,6 +101,7 @@
   </main>
 
   <style>
+    .badge-pills { max-width: 220px; display: flex; flex-wrap: wrap; gap: 2px; }
     .badge-pill-remove { margin-left: 4px; cursor: pointer; font-weight: 600; }
   </style>
   <script>

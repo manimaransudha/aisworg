@@ -7,7 +7,6 @@ const router = express.Router();
 
 import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
-import { requireRole } from "../../../middleware/requireRole.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
@@ -19,7 +18,7 @@ import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngin
 const SERVICE_DEFINITION_STATES = ["Defined", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
 /** GET /aisworg/seu/service-definitions — every published Version of every Service Definition. */
-router.get("/service-definitions", requireRole(["participant"], { redirectTo: "/aisworg" }), attachVM("seu/service-definitions/index"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/service-definitions", attachVM("seu/service-definitions/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Service Definitions";
     const params = parseListParams(req.query, { sortable: ["code", "version", "status"], defaultSort: "code", defaultDir: "asc" });
@@ -50,7 +49,7 @@ router.get("/service-definitions", requireRole(["participant"], { redirectTo: "/
 });
 
 /** POST /aisworg/seu/service-definitions/:id/copy — Registry "Copy" action: a new, editable Definition at the same version, ready to re-author. */
-router.post("/service-definitions/:id/copy", requireRole(["participant"], { redirectTo: "/aisworg" }), async (req: Request, res: Response) => {
+router.post("/service-definitions/:id/copy", async (req: Request, res: Response) => {
   const backTo = "/aisworg/seu/service-definitions";
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
   if (!actorId) return flashError(req, res, backTo, "Sign in required.");

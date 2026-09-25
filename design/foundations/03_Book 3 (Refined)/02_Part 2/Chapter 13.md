@@ -1,45 +1,6 @@
+#  Chapter 13 – Participant Model
 
-# Chapter 13 – Participant Model
-
-
-[Sudha: I think we're now at one of the most important chapters in the entire book.
-
-Interestingly, this chapter is **not** about AI.
-
-It is about **identity**.
-
-One thing has become clear over the last few chapters:
-
-- Roles are design-time concepts.
-- Capabilities are engineering concepts.
-- Behaviour comes from the EBM.
-- Participants are runtime entities.
-
-That means a Participant is not simply an "AI Agent". It is the **runtime identity** that fulfils capabilities within an SEU.
-
-I also think we should avoid calling them "Agents" throughout the platform. "Agent" is an implementation. "Participant" is an architectural concept.
-
----------------
-
-
-While writing this chapter, I think we've identified another architectural distinction that is worth preserving.
-
-The platform currently has three concepts that are often conflated in existing AI systems:
-
-|Concept|Responsibility|
-|---|---|
-|**Capability**|Defines _what engineering competency is required_.|
-|**Participant Type**|Defines the kind of entity capable of fulfilling competencies (AI, Human, External).|
-|**Participant Instance**|Represents the runtime entity commissioned within an SEU.|
-
-This separation gives the platform remarkable flexibility. For example, the **Development Capability** could be fulfilled today by an AI coding participant, tomorrow by a human engineer, and later by a coordinated swarm of specialised AI participants—all without changing the Capability Model or the Engineering Behavior Model.
-
-One refinement I'd suggest before we continue is to think about whether a Participant Instance should expose **services** to other Participants, or whether all inter-participant interaction should occur through Deliverables, Knowledge, Events and the Runtime Kernel. My inclination is the latter, because it avoids creating tightly coupled participant-to-participant dependencies and keeps the architecture centred on engineering artefacts rather than conversational interactions. That question will naturally lead us into the next chapter on collaboration and execution.
-]
-
----
-
-# 1. Purpose
+##  1. Purpose
 
 A **Participant** is the runtime entity that fulfils one or more engineering Capabilities within a commissioned Software Engineering Unit (SEU).
 
@@ -51,7 +12,7 @@ The platform treats all Participants as equal architectural entities irrespectiv
 
 ---
 
-# 2. Scope
+##  2. Scope
 
 This chapter defines:
 
@@ -72,7 +33,7 @@ This chapter does not define:
 
 ---
 
-# 3. Architectural Position
+##  3. Architectural Position
 
 ```
 Capability
@@ -100,7 +61,7 @@ They do not define engineering behaviour.
 
 ---
 
-# 4. Definition
+##  4. Definition
 
 A Participant is a runtime instance capable of fulfilling one or more Capabilities.
 
@@ -116,37 +77,37 @@ Participants are transient. Knowledge remains permanent.
 
 ---
 
-# 5. Architectural Principles
+##  5. Architectural Principles
 
-## PM-001
+### PM-001
 
 Participants are replaceable.
 
-## PM-002
+### PM-002
 
 Participants possess identity.
 
-## PM-003
+### PM-003
 
 Participants shall not own engineering knowledge.
 
-## PM-004
+### PM-004
 
 Participants execute behaviour. They do not define behaviour.
 
 
-## PM-005
+### PM-005
 
 Participants fulfil Capabilities. They do not own Capabilities.
 
 
-## PM-006
+### PM-006
 
 Participants shall remain independent of AI technologies.
 
 ---
 
-# 6. Functional Requirements
+##  6. Functional Requirements
 
 ### FR-13.1
 
@@ -178,11 +139,11 @@ Participant activities shall remain fully traceable.
 
 ---
 
-# 7. Participant Types
+##  7. Participant Types
 
 The platform recognises four Participant Types.
 
-## AI Participant
+### AI Participant
 
 Represents an autonomous software engineering entity.
 
@@ -198,7 +159,7 @@ The implementation technology is outside the scope of this specification.
 
 ---
 
-## Human Participant
+### Human Participant
 
 Represents a human engineering contributor.
 
@@ -213,7 +174,7 @@ The platform models engineering participation only. Human resource management re
 
 ---
 
-## External Participant
+### External Participant
 
 Represents outside oversight/authority parties
 
@@ -223,7 +184,7 @@ Examples:
 - Certifying Authorities
 
 
-## Automated Participant
+### Automated Participant
 
 Represents internal deterministic tooling/systems
 
@@ -236,7 +197,7 @@ Examples:
 
 ---
 
-# 8. Participant Identity
+##  8. Participant Identity
 
 Every Participant shall maintain:
 
@@ -254,7 +215,7 @@ Identity shall remain stable throughout the Participant lifecycle.
 
 ---
 
-# 9. Participant Lifecycle
+##  9. Participant Lifecycle
 
 Every Participant shall transition through the following lifecycle.
 
@@ -290,7 +251,7 @@ Participants may transition repeatedly between **Assigned**, **Executing** and *
 
 ---
 
-# 10. Participant Assignment
+##  10. Participant Assignment
 
 A Participant becomes eligible for a Capability only through Capability Fulfilment (Chapter 12).
 
@@ -307,7 +268,7 @@ Assignment shall not modify the Participant definition.
 
 ---
 
-# 11. Participant Collaboration
+##  11. Participant Collaboration
 
 Participants may collaborate when multiple Capabilities contribute to a Deliverable.
 
@@ -322,7 +283,7 @@ The platform shall preserve:
 
 ---
 
-# 12. Participant State
+##  12. Participant State
 
 Participants shall maintain runtime state including:
 
@@ -337,7 +298,7 @@ Runtime state shall not contain permanent engineering knowledge.
 
 ---
 
-# 13. Participant Replacement
+##  13. Participant Replacement
 
 The platform shall permit replacement of any Participant.
 
@@ -354,41 +315,31 @@ Replacement shall not require recommissioning of the SEU.
 
 ---
 
-# 14. Participant Context
+##  14. Participant Context
 
 Participants operate within several contexts simultaneously.
 
-## Engineering Context
+### Engineering Context
 
 The Deliverables currently being progressed.
-
----
-
-## Behaviour Context
+ 
+### Behaviour Context
 
 The Engineering Behavior Model governing execution.
-
----
-
-## Capability Context
+ 
+### Capability Context
 
 The Capabilities currently being fulfilled.
-
----
-
-## Authority Context
+ 
+### Authority Context
 
 The decision rights applicable at the current stage of execution.
-
----
-
-## Knowledge Context
+ 
+### Knowledge Context
 
 The engineering knowledge available to the Participant.
-
----
-
-## Obligation Context
+ 
+### Obligation Context
 
 Outstanding obligations affecting assigned Deliverables.
 
@@ -396,7 +347,7 @@ These contexts define the operating environment of the Participant without embed
 
 ---
 
-# 15. Participant Memory
+##  15. Participant Memory
 
 Participants may maintain transient working memory to support execution.
 
@@ -408,7 +359,7 @@ If a Participant is replaced, its transient memory may be discarded without loss
 
 ---
 
-# 16. Events
+##  16. Events
 
 The platform shall publish events including:
 
@@ -423,7 +374,7 @@ The platform shall publish events including:
 
 ---
 
-# 17. Non-Functional Requirements
+##  17. Non-Functional Requirements
 
 The Participant subsystem shall:
 
@@ -435,7 +386,7 @@ The Participant subsystem shall:
 
 ---
 
-# 18. Acceptance Criteria
+##  18. Acceptance Criteria
 
 The implementation shall satisfy the following criteria.
 
@@ -453,7 +404,7 @@ The implementation shall satisfy the following criteria.
 
 ---
 
-# 19. Deliverables
+##  19. Deliverables
 
 Implementation of this chapter shall produce:
 

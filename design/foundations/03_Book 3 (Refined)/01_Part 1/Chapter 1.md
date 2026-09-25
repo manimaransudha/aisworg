@@ -1,20 +1,4 @@
-
 # Chapter 1 – Objective
-
-[Remarks:
-- SEU chapter says an SEU is "commissioned to achieve one or more software engineering objectives." 
-- Templates imply a set of required Capabilities. 
-- Profiles configure a commissioning. But nothing says where that initial list of required Capabilities actually comes from. 
-- Somewhere, something has to decide *why* this SEU is being commissioned and *what it must be able to do* before Template Model can validate anything or the Composition Engine can compose anything. Objective is that something.
-
-- which Template fits, which Capabilities get composed, which Packs get pulled in is answerable *from* an Objective.
-
-— an Objective is *why*, not *how much by when* (that's a Goal), not *what property the system must have* (a Requirement), and not *the approach chosen to pursue it* (a Strategy). That distinction is worth preserving exactly, because it's what stops Objective from becoming a dumping ground for everything upstream of engineering work. An Objective says why an SEU exists. It does not say how the SEU will get there — that's Template, Profile and Pack composition's job, downstream.
-
-- Objective should not declare or allow derivation of required Capabilities, but it should not itself pick a Template or compose Packs. 
-- Objective's job ends at "here is what must be achieved, and here is what ability that requires" — it hands off from there.
-]
- 
 
 ## 1. Purpose
 
@@ -28,20 +12,20 @@ An Objective does not specify how it will be achieved. It specifies why the SEU 
 
 This chapter defines:
 
-- Objective abstraction;
-- Objective tiers;
-- Objective structure;
-- Objective decomposition;
-- Objective-to-Capability derivation;
-- Objective lifecycle;
-- Objective traceability.
+- Objective abstraction
+- Objective tiers
+- Objective structure
+- Objective decomposition
+- Objective-to-Capability derivation
+- Objective lifecycle
+- Objective traceability
 
 This chapter does not define:
 
-- Template selection or validation logic (Chapter 6);
-- Capability definitions (Chapter 10);
-- Pack composition mechanics (Chapter 4);
-- Commissioning workflow (Chapter 8).
+- Template selection or validation logic (Chapter 6)
+- Capability definitions (Chapter 10)
+- Pack composition mechanics (Chapter 4)
+- Commissioning workflow (Chapter 8)
  
 
 ## 3. Architectural Position
@@ -63,7 +47,7 @@ Composition Engine
 
 ↓
 
-Effective Engineering Configuration
+Engineering Behavior Model
 
 ↓
 
@@ -78,8 +62,8 @@ Objective determines what capability an SEU requires. It does not determine how 
 An Objective is a persistent engineering-intent object that:
 
 - justifies the existence of an SEU
-- declares, or allows derivation of, the Capabilities required to achieve it;
-- exists independently of any Template, Pack or Participant.
+- declares, or allows derivation of, the Capabilities required to achieve it
+- exists independently of any Template, Pack or Participant
 
 An Objective is not a Goal. A Goal is the measurable target that makes an Objective concrete at a point in time.
 
@@ -255,12 +239,12 @@ An Objective can be returned to the Proposed state before entering the Active st
 
 Every Objective shall preserve:
 
-- originating sponsor or Authority;
-- decomposition history (parent and child Objectives);
-- derived or declared required Capabilities;
-- referencing SEUs;
-- referencing Deliverables and Decisions;
-- supersession history.
+- originating sponsor or Authority
+- decomposition history (parent and child Objectives)
+- derived or declared required Capabilities
+- referencing SEUs
+- referencing Deliverables and Decisions
+- supersession history
 
 Every Deliverable, Decision and Capability requirement shall be traceable to at least one Objective. This is the root of the Engineering Knowledge Graph (Architecture Catalogue ADR – Engineering Knowledge Graph): every other persistent object's traceability chain terminates at an Objective.
 
@@ -284,11 +268,11 @@ The Objective subsystem shall publish:
 
 The Objective Model shall:
 
-- preserve complete historical traceability;
-- support hierarchical decomposition without depth limits;
-- remain independent of Template, Pack and Participant implementations;
-- support composition of required Capabilities from multiple Packs;
-- remain reproducible: given the same Objective and Pack set, the same required Capabilities shall always be derived.
+- preserve complete historical traceability
+- support hierarchical decomposition without depth limits
+- remain independent of Template, Pack and Participant implementations
+- support composition of required Capabilities from multiple Packs
+- remain reproducible: given the same Objective and Pack set, the same required Capabilities shall always be derived
  
 
 ## 16. Acceptance Criteria
@@ -312,13 +296,13 @@ The implementation shall satisfy the following criteria.
 
 Implementation of this chapter shall produce:
 
-- Objective domain model.
-- Objective registry. 
-- Objective decomposition service.
-- Objective-to-Capability derivation service. 
-- Objective traceability service.
-- Objective APIs.
-- Objective events.
+- Objective domain model
+- Objective registry
+- Objective decomposition service
+- Objective-to-Capability derivation service
+- Objective traceability service
+- Objective APIs
+- Objective events
 
 ---
 

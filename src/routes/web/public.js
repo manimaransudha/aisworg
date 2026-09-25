@@ -5,7 +5,6 @@ const express = require("express");
 const router = express.Router();
 
 import { attachVM } from "../../middleware/attachVM.js";
-import { requireRole } from "../../middleware/auth.js";
 import { renderView } from "../../utils/viewModel.js";
 import { getFlash } from "../../utils/flash.js";
 // import { isConnectionError } from "../../utils/db.js";
@@ -20,7 +19,7 @@ import { flashError, flashSuccess } from "../../utils/flash.js";
 import { listConceptsForType } from "../seu/core/ontology.js";
 
 /** GET / — the SEU Commissioning Platform's home page: the architecture layers + live counts. */
-router.get("/", requireRole('general'), attachVM("seu/dashboard"), async (req, res, next) => {
+router.get("/", attachVM("seu/dashboard"), async (req, res, next) => {
   try {
     const [layers, counts] = await Promise.all([getArchitectureLayers(), getDashboardCounts()]);
     req.vm.req.title = "SEU Platform";
@@ -35,7 +34,7 @@ router.get("/", requireRole('general'), attachVM("seu/dashboard"), async (req, r
 });
 
 /** GET /settings — display app settings */
-router.get("/settings", requireRole('super'), attachVM("settings/index"), async (req, res, next) => {
+router.get("/settings", attachVM("settings/index"), async (req, res, next) => {
   try {
     const configData = await appConfig.getAll();
 
@@ -64,7 +63,7 @@ router.get("/settings", requireRole('super'), attachVM("settings/index"), async 
 });
 
 /** POST /settings/:key — update a setting */
-router.post("/settings/:key", requireRole('super'), async (req, res, next) => {
+router.post("/settings/:key", async (req, res, next) => {
   try {
     const { key } = req.params;
     const { value } = req.body;
@@ -94,7 +93,7 @@ router.post("/settings/:key", requireRole('super'), async (req, res, next) => {
  * (their participants_master identity + every SEU they're a Participant on,
  * scoped to their own work); every other role keeps the original
  * "Commissioned SEUs" progress list. */
-router.get("/quickview", requireRole('general'), attachVM("quickview/index"), async (req, res, next) => {
+router.get("/quickview", attachVM("quickview/index"), async (req, res, next) => {
   try {
     if (req.session?.user?.role === "general") {
       req.vm.req.title = "My Work";
@@ -137,7 +136,7 @@ router.get("/quickview", requireRole('general'), attachVM("quickview/index"), as
  * Work" page. Ownership is re-checked inside completeMyWorkItem (core/
  * participantHome.js) against the caller's own participants_master identity
  * — never trusted off the form alone. */
-router.post("/quickview/work-items/:workItemId/complete", requireRole('general'), async (req, res) => {
+router.post("/quickview/work-items/:workItemId/complete", async (req, res) => {
   const backTo = "/aisworg/quickview";
   const { outcome, reference } = req.body ?? {};
   if (typeof outcome !== "string" || !["done", "failed", "blocked"].includes(outcome)) {
@@ -171,7 +170,7 @@ router.post("/quickview/work-items/:workItemId/complete", requireRole('general')
  * re-checked inside raiseMyObligation (core/participantHome.js), same
  * discipline as the Work Item completion route above — never trusted off
  * the form alone. */
-router.post("/quickview/seus/:seuId/obligations", requireRole('general'), async (req, res) => {
+router.post("/quickview/seus/:seuId/obligations", async (req, res) => {
   const backTo = "/aisworg/quickview";
   const { deliverableId, category, title, description, severity, completionCriteria } = req.body ?? {};
   if (typeof deliverableId !== "string" || !deliverableId.trim() || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {

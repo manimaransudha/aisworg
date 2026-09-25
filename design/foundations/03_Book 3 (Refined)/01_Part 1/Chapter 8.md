@@ -1,41 +1,6 @@
 # Chapter 8 – SEU Commissioning
 
-
-[Sudha: 
-> **Chapter 8 – SEU Commissioning**
-
-That chapter will specify the end-to-end process by which a user requests an SEU, the platform validates the Template and Profile, composes the EBM, allocates runtime resources and commissions the SEU. It is the first chapter that describes an end-to-end platform workflow rather than a static architectural concept, making it the natural transition from the commissioning model to the operational lifecycle.
-
-
--------------------
-
-While writing this chapter, one concept became very clear.
-
-We originally described participant assignment as **recruitment**, borrowing terminology from human organisations. I now think that word should be interpreted more broadly.
-
-An SEU doesn't "hire" participants. It **acquires capabilities**. Recruitment is simply one mechanism for satisfying those capability requirements.
-
-For example:
-
-- An AI participant may be instantiated on demand.
-- A human participant may be assigned from a resource pool.
-- An external service may be bound through an Integration Pack.
-- A specialised capability may be discovered and attached dynamically.
-
-This suggests that, internally, the platform should think in terms of **Capability Fulfilment** rather than recruitment. The user-facing terminology can remain familiar ("assign participants" or "staff the SEU"), but the architecture should remain capability-centric.
-
-I would therefore propose an additional ADR:
-
-> **ADR – Capability-First Commissioning**
-
-**Decision:** During commissioning, the platform shall determine the capabilities required by the Template and fulfil those capabilities through appropriate Participants. Participants are an implementation of capability fulfilment, not the primary objective.
-
-I believe this keeps the architecture aligned with one of our core principles: **Capabilities are stable; participants are replaceable.** It also positions the platform for future evolution where a capability might be fulfilled by a swarm of AI agents, a single human expert, or an external autonomous service without changing the commissioning model.
-]
-
----
-
-# 1. Purpose
+## 1. Purpose
 
 SEU Commissioning is the process by which the platform creates a new Software Engineering Unit (SEU) from a defined ~~Template and ~~ Profile.
 
@@ -43,38 +8,38 @@ SEU Commissioning is the process by which the platform creates a new Software En
 
 Commissioning transforms static engineering definitions into an executable engineering environment by:
 
-- validating the commissioning request;
-- composing the Engineering Behavior Model (EBM);
-- allocating runtime resources;
-- establishing governance;
-- creating the initial engineering state.
+- validating the commissioning request
+- composing the Engineering Behavior Model (EBM)
+- allocating runtime resources
+- establishing governance
+- creating the initial engineering state
 
 Commissioning is the only mechanism by which an SEU may be created.
 
 ---
 
-# 2. Scope
+## 2. Scope
 
 This chapter defines:
 
-- commissioning workflow;
-- commissioning validation;
-- engineering composition;
-- runtime allocation;
-- participant recruitment;
-- initialisation;
-- activation.
+- commissioning workflow
+- commissioning validation
+- engineering composition
+- runtime allocation
+- participant recruitment
+- initialisation
+- activation
 
 This chapter does not define:
 
-- Pack internals;
-- runtime execution;
-- participant implementation;
-- engineering workflows.
+- Pack internals
+- runtime execution
+- participant implementation
+- engineering workflows
 
 ---
 
-# 3. Architectural Position
+## 3. Architectural Position
 
 ```
 User
@@ -112,20 +77,20 @@ Commissioning represents the transition from design-time to runtime.
 
 ---
 
-# 4. Commissioning Objectives
+## 4. Commissioning Objectives
 
 Commissioning shall ensure that:
 
-- every SEU begins from a valid engineering foundation;
-- engineering behaviour is completely defined before execution;
-- governance is established before work begins;
-- runtime state is consistent;
-- knowledge repositories are initialised;
-- traceability begins at SEU creation.
+- every SEU begins from a valid engineering foundation
+- engineering behaviour is completely defined before execution
+- governance is established before work begins
+- runtime state is consistent
+- knowledge repositories are initialised
+- traceability begins at SEU creation
 
 ---
 
-# 5. Inputs
+## 5. Inputs
 
 A commissioning request shall contain:
 
@@ -147,7 +112,7 @@ Optional inputs include:
 Optional inputs can be part of Packs or parameters. 
 
 
-# 6. Outputs
+## 6. Outputs
 
 Commissioning shall produce:
 
@@ -163,81 +128,59 @@ Commissioning shall produce:
 
 ---
 
-# 7. Functional Requirements
+## 7. Functional Requirements
 
 ### FR-8.1
 
 Only authorised users may commission an SEU.
-
----
-
+ 
 ### FR-8.2
 
 Every commissioning request shall reference one Template.
-
----
-
+ 
 ### FR-8.3
 
 Every commissioning request shall reference one Profile.
-
----
-
+ 
 ### FR-8.4
 
 The platform shall validate all mandatory Packs before composition.
-
----
-
+ 
 ### FR-8.5
 
 The Composition Engine shall produce exactly one Engineering Behavior Model.
-
----
-
+ 
 ### FR-8.6
 
 Commissioning shall fail if behavioural conflicts remain unresolved.
-
----
-
+ 
 ### FR-8.7
 
 The platform shall allocate runtime resources only after successful composition.
-
----
-
+ 
 ### FR-8.8
 
 The platform shall initialise the Knowledge Repository.
-
----
-
+ 
 ### FR-8.9
 
 The platform shall initialise the Dependency Graph.
-
----
-
+ 
 ### FR-8.10
 
 The platform shall initialise the Obligation Register.
-
----
-
+ 
 ### FR-8.11
 
 Commissioning shall establish complete traceability before execution begins.
-
----
-
+ 
 ### FR-8.12
 
 No engineering work shall begin until commissioning completes successfully.
 
 ---
 
-# 8. Commissioning Workflow
+## 8. Commissioning Workflow
 
 Every commissioning request shall progress through the following lifecycle.
 
@@ -293,71 +236,71 @@ Failure at any stage shall terminate commissioning.
 
 ---
 
-# 9. Request Validation
+## 9. Request Validation
 
 The platform shall validate:
 
-- Template existence;
-- Profile existence;
-- user authorisation;
-- Pack availability;
-- version compatibility;
-- commissioning parameters;
-- mandatory configuration.
+- Template existence
+- Profile existence
+- user authorisation
+- Pack availability
+- version compatibility
+- commissioning parameters
+- mandatory configuration
 
 Validation failures shall produce diagnostic reports.
 
 ---
 
-# 10. Engineering Composition
+## 10. Engineering Composition
 
 The platform shall invoke the Composition Engine.
 
 The Composition Engine shall:
 
-- discover Packs;
-- resolve dependencies;
-- compose behaviour;
-- validate behaviour;
-- produce the Engineering Behavior Model.
+- discover Packs
+- resolve dependencies
+- compose behaviour
+- validate behaviour
+- produce the Engineering Behavior Model
 
 No runtime resources shall be allocated before successful composition.
 
 ---
 
-# 11. Runtime Allocation
+## 11. Runtime Allocation
 
 Following successful composition, the Runtime Kernel shall allocate:
 
-- SEU identifier;
-- runtime services;
-- event channels;
-- configuration;
-- persistence;
-- security context;
-- observability context.
+- SEU identifier
+- runtime services
+- event channels
+- configuration
+- persistence
+- security context
+- observability context
 
 The Runtime Kernel remains independent of engineering behaviour.
 
 ---
 
-# 12. Engineering Asset Initialisation
+## 12. Engineering Asset Initialisation
 
 Commissioning shall initialise:
 
-- Deliverable Catalogue;
-- Capability Catalogue;
-- Role Catalogue;
-- Knowledge Repository;
-- Dependency Graph;
-- Obligation Register;
-- Traceability Repository.
+- Deliverable Catalogue
+- Capability Catalogue
+- Role Catalogue
+- Knowledge Repository
+- Dependency Graph
+- Obligation Register
+- Traceability Repository
 
 No runtime execution shall occur during initialisation.
 
 ---
 
-# 13. Participant Recruitment
+## 13. Participant Recruitment
 
 Participant recruitment establishes the initial execution capability of the SEU.
 
@@ -365,21 +308,21 @@ Recruitment determines which Participants shall provide the capabilities defined
 
 Participants may be:
 
-- AI;
-- Human;
-- External Systems.
+- AI
+- Human
+- External Systems
 
 Recruitment may occur:
 
-- automatically;
-- manually;
-- through hybrid assignment.
+- automatically
+- manually
+- through hybrid assignment
 
 Participant recruitment shall not modify the Engineering Behavior Model.
 
 ---
 
-# 14. Initial Deliverable State
+## 14. Initial Deliverable State
 
 Every Deliverable shall begin in a defined lifecycle state.
 
@@ -395,37 +338,37 @@ The Dependency Engine determines subsequent state transitions.
 
 ---
 
-# 15. Initial Knowledge State
+## 15. Initial Knowledge State
 
 The Knowledge Repository shall contain:
 
-- commissioning metadata;
-- Template reference;
-- Profile reference;
-- Engineering Behavior Model reference;
-- Pack references;
-- composition report;
-- commissioning decisions.
+- commissioning metadata
+- Template reference
+- Profile reference
+- Engineering Behavior Model reference
+- Pack references
+- composition report
+- commissioning decisions
 
 This establishes the first knowledge baseline.
 
 ---
 
-# 16. Initial Obligation State
+## 16. Initial Obligation State
 
 Commissioning shall create obligations arising from:
 
-- mandatory compliance;
-- mandatory governance;
-- mandatory engineering reviews;
-- required approvals;
-- unresolved recommendations.
+- mandatory compliance
+- mandatory governance
+- mandatory engineering reviews
+- required approvals
+- unresolved recommendations
 
 Obligations shall become part of the Dependency Graph where appropriate.
 
 ---
 
-# 17. Commissioning Report
+## 17. Commissioning Report
 
 Every commissioning operation shall produce a permanent Commissioning Report.
 
@@ -437,8 +380,7 @@ The report shall contain:
 - Template
 - Profile
 - Engineering Behavior Model Version
-
----
+ 
 
 ### Composition
 
@@ -446,27 +388,21 @@ The report shall contain:
 - Pack versions
 - Composition summary
 - Behaviour summary
-
----
-
+ 
 ### Validation
 
 - Warnings
 - Errors
 - Manual resolutions
 - Outstanding recommendations
-
----
-
+ 
 ### Runtime
 
 - Participants recruited
 - Runtime services allocated
 - Initial Deliverables
 - Initial Obligations
-
----
-
+ 
 ### Traceability
 
 - Commissioning decisions
@@ -477,7 +413,7 @@ The Commissioning Report becomes part of the permanent engineering record.
 
 ---
 
-# 18. Events
+## 18. Events
 
 The platform shall publish events including:
 
@@ -494,20 +430,20 @@ The platform shall publish events including:
 
 ---
 
-# 19. Non-Functional Requirements
+## 19. Non-Functional Requirements
 
 Commissioning shall:
 
-- be deterministic;
-- be repeatable;
-- be fully auditable;
-- preserve complete traceability;
-- support concurrent commissioning;
-- support rollback upon failure.
+- be deterministic
+- be repeatable
+- be fully auditable
+- preserve complete traceability
+- support concurrent commissioning
+- support rollback upon failure
 
 ---
 
-# 20. Acceptance Criteria
+## 20. Acceptance Criteria
 
 The implementation shall satisfy the following criteria.
 
@@ -527,22 +463,22 @@ The implementation shall satisfy the following criteria.
 
 ---
 
-# 21. Deliverables
+## 21. Deliverables
 
 Implementation of this chapter shall produce:
 
-- Commissioning Service.
-- Commissioning Workflow.
-- Commissioning Validation Service.
-- Runtime Allocation Service.
-- Participant Recruitment Service.
-- Commissioning Report Generator.
-- Commissioning APIs.
-- Commissioning Events.
+- Commissioning Service
+- Commissioning Workflow
+- Commissioning Validation Service
+- Runtime Allocation Service
+- Participant Recruitment Service
+- Commissioning Report Generator
+- Commissioning APIs
+- Commissioning Events
 
 ---
 
-# 22. Implementation Specifics
+## 22. Implementation Specifics
 
 *Code-verified audit (2026-09-05), not from memory. This section documents how SEU Commissioning is realised in the current build, the same convention Chapter 5 §19 uses. It does not change the requirements above (FR-8.1–12, §§1–21); it records what is built, what is partial, and what is still open. Status markers: ✅ built · ⚠️ partial · 🚩 not built.*
 
@@ -552,19 +488,19 @@ Core file: `src/routes/seu/core/commissioning.ts` (`commissionSeu`, `commissionF
 
 `seusDB.create()` (`commissioning.ts:215`) inserts the SEU's own identity row (`id`, `objective_id`, `template_id`, `profile_id`, `lifecycle_state='Pending'`) ahead of the chapter's own Workflow (§8) order, which lists "Compose EBM" before "Allocate Runtime." It publishes no event and allocates no runtime resource — Runtime Allocation itself is not built (§22.9; no `RuntimeAllocated` event is published anywhere in the code). Out of scope for the 2026-09-07 pass (confirmed with the owner: a Runtime Allocation (§11) concern, not part of the Validate-Request/Compose-EBM split).
 
-## 22.1 ✅ Purpose (§1)
+### 22.1 ✅ Purpose (§1)
 
 The core claim holds: commissioning is the only path that creates a `seus` row (no other code path calls `seusDB.create`), and it does validate the request, compose the EBM, and create initial engineering state, all for real. "Allocating runtime resources" and "establishing governance" are real in a much thinner sense than the prose implies — see 22.9/22.6 below.
 
-## 22.2 ✅ Architectural Position (§3) — updated 2026-09-07
+### 22.2 ✅ Architectural Position (§3) — updated 2026-09-07
 
 The real call graph still matches the diagram's own shape, but the middle two boxes ("Composition Engine" → "Engineering Behavior Model") are no longer one synchronous call inside `commissionSeu`: `commissionSeu` resolves Template + Profile and does the shallow gate only, then publishes `CommissionValidated`; the separate `ebmComposer.ts` event-bus consumer picks that up, does the deep composition (`unravelComposition`/`detectCompositionConflicts`, no longer `compositionEngine.compose()`), and creates the EBM (`ebmsDB.create`) itself. The SEU row then still transitions through its own lifecycle, but only once a human separately Activates the EBM (`transitionEbm`) — a real, asynchronous hop the diagram's own straight-line arrows don't show. No step is skipped relative to this diagram; one is now asynchronous and human-gated where it used to be synchronous, plus the ordering already flagged in the headline finding, unchanged.
 
-## 22.3 ⚠️ Commissioning Objectives (§4)
+### 22.3 ⚠️ Commissioning Objectives (§4)
 
 "Every SEU begins from a valid engineering foundation" and "governance is established before work begins" hold in the sense that a Composition conflict or Authority rejection blocks commissioning outright (`commissioning.ts:136-147`, `156-167`). "Knowledge repositories are initialised" and "traceability begins at SEU creation" do not — no `knowledge_items` row is ever created by this pipeline (22.14), and traceability is only as real as the event trail (22.17), which is itself thin.
 
-## 22.4 🚩 Inputs / Outputs — mostly narrower than named (§5–6)
+### 22.4 🚩 Inputs / Outputs — mostly narrower than named (§5–6)
 
 | §5 named input | Real? |
 |---|---|
@@ -588,7 +524,7 @@ The real call graph still matches the diagram's own shape, but the middle two bo
 | Obligation Register | 🚩 not initialised |
 | Traceability Repository | 🚩 no distinct output beyond the event trail (22.17) |
 
-## 22.5 ⚠️ Functional Requirements — half hold cleanly (§7)
+### 22.5 ⚠️ Functional Requirements — half hold cleanly (§7)
 
 | FR | Verdict | Note |
 |---|---|---|
@@ -605,7 +541,7 @@ The real call graph still matches the diagram's own shape, but the middle two bo
 | FR-8.11 complete traceability before execution | ⚠️ | Same basis as Ch.2's own FR-2.6/2.12 — real via `events`, not a dedicated traceability service |
 | FR-8.12 no work before commissioning completes | ✅ | Deliverables/Capabilities are only created once validation and composition both succeed; a rejected commission creates neither |
 
-## 22.6 ✅ Commissioning Workflow — real, still reordered on Allocate Runtime, but no longer collapsed on Validate Engineering Model (§8) — updated 2026-09-07
+### 22.6 ✅ Commissioning Workflow — real, still reordered on Allocate Runtime, but no longer collapsed on Validate Engineering Model (§8) — updated 2026-09-07
 
 | Chapter stage | Real equivalent |
 |---|---|
@@ -621,19 +557,19 @@ The real call graph still matches the diagram's own shape, but the middle two bo
 | Activate SEU | ✅ the `AUTOMATIC_STEPS` cascade, unchanged in substance — now runs inside `finalizeCommissioning`, publishing `CompositionCompleted` first |
 | Ready for Execution | ⚠️ real lifecycle still ends at `Operational` (Chapter 2 §19.5), never literally named "Ready for Execution," unchanged |
 
-## 22.7 ✅ Request Validation — updated 2026-09-07 (§9)
+### 22.7 ✅ Request Validation — updated 2026-09-07 (§9)
 
 Real: Template existence, Profile existence, user authorisation (Authority gate), and the Profile↔Template match are all checked (`commissioning.ts`, existence/Authority block). **Pack availability is now real too** — `checkRequestLiveness` re-checks every selected Pack code (and capability-name/service Ontology liveness) as a genuine *pre*-composition check, not folded into composition anymore (FR-8.4 above). Still not real as named: "version compatibility" as its own distinct concept (liveness covers "does an Active version exist," not compatibility between versions); "commissioning parameters" and "mandatory configuration" — neither concept is validated here since neither is an input at all (22.4). "Validation failures shall produce diagnostic reports" — real in a thin sense: a rejection returns a `reason` string (`describeRejection`), not a structured report; the liveness check specifically does return a list of every dead reference found, closer to a real diagnostic than the single-string rejections elsewhere.
 
-## 22.8 ✅ Engineering Composition — updated 2026-09-07 (§10)
+### 22.8 ✅ Engineering Composition — updated 2026-09-07 (§10)
 
 Matches closely, via a different, real mechanism than originally audited: `ebmComposer.ts` (not `compositionEngine.compose()`, no longer called anywhere in this flow) discovers/resolves Packs (`unravelComposition`) and produces the EBM; conflicts (`detectCompositionConflicts`, now covering every Pack contribution type this chapter's §7 sibling chapter names, not just 2) block commissioning. The real deviations: the ordering claim already covered in the headline finding, and this step is now genuinely asynchronous (an event-bus consumer, not an inline call) — composition itself, once invoked, behaves exactly as described.
 
-## 22.9 🚩 Runtime Allocation — mostly not built as named (§11)
+### 22.9 🚩 Runtime Allocation — mostly not built as named (§11)
 
 Of the seven named resources (SEU identifier, runtime services, event channels, configuration, persistence, security context, observability context), only **SEU identifier** is real (the `seus.id` UUID, created at `commissioning.ts:105`) — and it's created *before* composition, not "following successful composition" as this section claims. No code anywhere provisions a distinct "runtime service," "event channel," "security context," or "observability context" per SEU; the platform's actual services/events/persistence are shared infrastructure, not per-SEU allocated resources. "The Runtime Kernel remains independent of engineering behaviour" holds only in that there's no dedicated Runtime Kernel module to couple anything to in the first place.
 
-## 22.10 ⚠️ Engineering Asset Initialisation (§12)
+### 22.10 ⚠️ Engineering Asset Initialisation (§12)
 
 | Named asset | Real? |
 |---|---|
@@ -645,17 +581,17 @@ Of the seven named resources (SEU identifier, runtime services, event channels, 
 | Obligation Register | 🚩 not initialised |
 | Traceability Repository | 🚩 no distinct entity, only the event trail |
 
-## 22.11 🚩 Participant Recruitment (§13)
+### 22.11 🚩 Participant Recruitment (§13)
 
 Entirely unbuilt within commissioning — `commissionSeu` never creates a `participants` row, and no recruitment logic (automatic, manual, or hybrid) exists in this pipeline. Participants are attached to an SEU later, through a separate mechanism (`fulfilCapability`, exercised in `tests/service-dependency.test.ts`) — commissioning produces the *requirement* (via `seuCapabilitiesDB.createMany`), never the fulfilment.
 
-## 22.12 ⚠️ Initial Deliverable / Knowledge / Obligation State — one of three real (§14–16)
+### 22.12 ⚠️ Initial Deliverable / Knowledge / Obligation State — one of three real (§14–16)
 
 - **Initial Deliverable State (§14)**: ⚠️ partial — Deliverables are created (22.10), but none of the five named initial states (Planned, Awaiting Dependency Resolution, Awaiting Human Input, Awaiting External Asset, Ready) are asserted here; whatever `deliverablesDB.create`'s own default status is applies uniformly, not a state chosen per-Deliverable at commissioning time.
 - **Initial Knowledge State (§15)**: 🚩 not built — no `knowledge_items` row is created carrying commissioning metadata, Template/Profile/EBM references, the composition report, or commissioning decisions. The equivalent information exists only in the `CommissioningReport` (22.13) and the `seus` row's own FK columns, never copied into Knowledge.
 - **Initial Obligation State (§16)**: 🚩 not built — no obligation is created from mandatory compliance/governance/review/approval sources at commissioning time; Obligations arise later, through Chapter 23's own separately-audited mechanisms, never from this pipeline.
 
-## 22.13 ⚠️ Commissioning Report — real but four of five sections, several fields missing (§17)
+### 22.13 ⚠️ Commissioning Report — real but four of five sections, several fields missing (§17)
 
 `CommissioningReport` (`seuTypes.ts:613-618`) is a real, persisted (`seus.commissioning_report`) object with exactly four sections — **Traceability is entirely absent**, not five as this section claims.
 
@@ -673,7 +609,7 @@ Entirely unbuilt within commissioning — `commissionSeu` never creates a `parti
 | Initial Obligations | 🚩 no such field (consistent with 22.12) |
 | Commissioning decisions, Composition traceability, Behaviour provenance (Traceability) | 🚩 the whole section is absent from the real type |
 
-## 22.14 ⚠️ Events — 6 of 10 named events real as of 2026-09-07, up from 2 of 10 (§18)
+### 22.14 ⚠️ Events — 6 of 10 named events real as of 2026-09-07, up from 2 of 10 (§18)
 
 CR-092 Part 9 renamed the two events that already existed under an `SEU`-prefixed name to their exact chapter names, and built four genuinely new ones for real, publishing from `commissionSeu`, `ebmComposer.ts`, and `transitionEbm`:
 
@@ -690,7 +626,7 @@ CR-092 Part 9 renamed the two events that already existed under an `SEU`-prefixe
 | CommissionCompleted | 🚩 **still no distinct terminal event, unchanged** — not to be confused with the new `CompositionCompleted` above, a different, earlier-firing event this chapter also names; the pipeline's own last event is still `SEUOperational` |
 | CommissionFailed | ✅ **exact match now** (`commissioning.ts`, `ebmComposer.ts`) — renamed from `SEUCommissionRejected`, and now covers three real rejection points instead of two: the Authority gate, the new Pack/Ontology liveness check, and Compose EBM's own conflict detection (all three transition the SEU to a real terminal `Failed` state, migration 177). A failure in the `AUTOMATIC_STEPS` loop still publishes nothing, unchanged. |
 
-## 22.15 ⚠️ Non-Functional Requirements (§19)
+### 22.15 ⚠️ Non-Functional Requirements (§19)
 
 | NFR | Verdict | Basis |
 |---|---|---|
@@ -701,7 +637,7 @@ CR-092 Part 9 renamed the two events that already existed under an `SEU`-prefixe
 | support concurrent commissioning | ✅ | No shared mutable state between commissioning calls |
 | support rollback upon failure | 🚩 | No compensating/rollback logic exists — a failure partway through (e.g. the `AUTOMATIC_STEPS` loop) leaves the SEU row and whatever Deliverables/Capabilities were already created in place, not rolled back |
 
-## 22.16 ⚠️ Acceptance Criteria (§20)
+### 22.16 ⚠️ Acceptance Criteria (§20)
 
 | Criterion | Verdict |
 |---|---|
@@ -713,7 +649,7 @@ CR-092 Part 9 renamed the two events that already existed under an `SEU`-prefixe
 | The Commissioning Report is generated | ⚠️ (22.13 — generated, but thinner than specified) |
 | The SEU enters the Ready for Execution state | ⚠️ (22.6 — reaches `Operational`, never a state literally named this) |
 
-## 22.17 ⚠️ Deliverables (§21)
+### 22.17 ⚠️ Deliverables (§21)
 
 | Named Deliverable | Real artifact | Verdict |
 |---|---|---|

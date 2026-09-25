@@ -38,7 +38,6 @@ import { listConceptsForType } from "../core/ontology.js";
 import type { ObjectiveStatus, ObjectiveTier, EbmCompositionReport, EbmComposedPack } from "../../../dblayer/seuTypes.js";
 import type { UnraveledComposition, CompositionConflict } from "../../../domain/engine/profileCompositionUnravel.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
-import { requireBadge } from "../../../middleware/requireBadge.js";
 import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
 import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
 
@@ -49,12 +48,6 @@ const CHILD_TIERS: Record<ObjectiveTier, ObjectiveTier[]> = {
   Operational: ["Engineering"],
   Engineering: [],
 };
-
-// requireBadge's own redirectTo for every :id-scoped route on this router —
-// back to the Objective's detail page, matching what each route's own
-// pre-CR-076 inline check redirected to (backTo) wherever one existed.
-const toDetailPage = (req: Request): string => `/aisworg/seu/objectives/${req.params.id}`;
-const toEditPage = (req: Request): string => `/aisworg/seu/objectives/${req.params.id}/edit`;
 
 // CR-071 — corrected: session.user.platformBadges structurally can never
 // hold a noun_verb badge. getPlatformBadges (domain/identity/badgeBootstrap.ts)
@@ -132,7 +125,7 @@ router.param(
  * Strategic roots, each expandable to lazy-load its children. Search mode (?q)
  * returns a flat, paginated hit list, each with its breadcrumb to root.
  */
-router.get("/objectives", requireBadge(["None"]), attachVM("seu/objectives/index"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/objectives", attachVM("seu/objectives/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     req.vm.req.title = "Objectives";
     const _base = "/aisworg/seu/objectives";
@@ -183,7 +176,7 @@ router.get("/objectives", requireBadge(["None"]), attachVM("seu/objectives/index
  * the node-row fragment for the direct children, at the given depth, so the
  * tree can grow one level at a time without shipping the whole forest.
  */
-router.get("/objectives/:id/children", requireBadge(["None"]), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/objectives/:id/children", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const depth = Math.max(0, Math.min(20, parseInt(String(req.query.depth ?? "1"), 10) || 1));
     const nodes = await getObjectiveChildren(String(req.params.id));
@@ -203,7 +196,6 @@ router.get("/objectives/:id/children", requireBadge(["None"]), async (req: Reque
  */
 router.get(
   "/objectives/new",
-  requireBadge(["objective_propose"], { redirectTo: "/aisworg/seu/objectives", denyMessage: "You don't hold the badge required to add Objectives." }),
   requireTenantScope.forField("query", "parent", objectivesDB.findById, (o) => o.sponsoring_authority?.tenant ?? null, {
     notFoundRedirect: "/aisworg/seu/objectives",
     notFoundMessage: "Parent Objective not found.",
@@ -264,7 +256,6 @@ router.get(
 /** POST /aisworg/seu/objectives — creates in 'Proposed'; tier + parent are fixed by the create context. */
 router.post(
   "/objectives",
-  requireBadge(["objective_propose"], { redirectTo: "/aisworg/seu/objectives", denyMessage: "You don't hold the badge required to add Objectives." }),
   requireTenantScope.forField("body", "parentObjectiveId", objectivesDB.findById, (o) => o.sponsoring_authority?.tenant ?? null, {
     notFoundRedirect: "/aisworg/seu/objectives",
     notFoundMessage: "Parent Objective not found.",
@@ -301,7 +292,7 @@ router.post(
 });
 
 /** GET /aisworg/seu/objectives/:id — decomposition, required Capabilities, lifecycle + move actions. */
-router.get("/objectives/:id", requireBadge(["None"]), attachVM("seu/objectives/detail"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/objectives/:id", attachVM("seu/objectives/detail"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = String(req.params.id);
     const detail = await getObjectiveDetail(id);
@@ -360,7 +351,7 @@ router.get("/objectives/:id", requireBadge(["None"]), attachVM("seu/objectives/d
  * "Edit should not change the tier. This will cause utter confusion to the
  * hierarchy").
  */
-router.get("/objectives/:id/edit", requireBadge(["objective_propose"], { redirectTo: toDetailPage, denyMessage: "You don't hold the badge required to edit Objectives." }), attachVM("seu/objectives/edit"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/objectives/:id/edit", attachVM("seu/objectives/edit"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = String(req.params.id);
     const { data: objective } = await objectivesDB.findById(id);
@@ -396,7 +387,7 @@ router.get("/objectives/:id/edit", requireBadge(["objective_propose"], { redirec
 });
 
 /** POST /aisworg/seu/objectives/:id/submit — CR-072: queues a manual transition's from_state without performing it. */
-router.post("/objectives/:id/submit", requireBadge(["objective_propose"], { redirectTo: toDetailPage }), async (req: Request, res: Response) => {
+router.post("/objectives/:id/submit", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
   const backTo = `/aisworg/seu/objectives/${objectiveId}`;
   try {
@@ -414,7 +405,7 @@ router.post("/objectives/:id/submit", requireBadge(["objective_propose"], { redi
  * patch segment as usual; `save_no_version` (owner: "add a save without versioning. in
  * which case the current version carries over") leaves version untouched.
  */
-router.post("/objectives/:id/update", requireBadge(["objective_propose"], { redirectTo: toEditPage }), async (req: Request, res: Response) => {
+router.post("/objectives/:id/update", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
   const backTo = `/aisworg/seu/objectives/${objectiveId}/edit`;
   const { statement, requiredCapabilityCodes, action } = req.body ?? {};
@@ -445,7 +436,7 @@ router.post("/objectives/:id/update", requireBadge(["objective_propose"], { redi
 });
 
 /** POST /aisworg/seu/objectives/:id/move — CR-009 re-parent (subtree moves with it). */
-router.post("/objectives/:id/move", requireBadge(["objective_propose"], { redirectTo: toEditPage }), async (req: Request, res: Response) => {
+router.post("/objectives/:id/move", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
   const backTo = `/aisworg/seu/objectives/${objectiveId}`;
   const { newParentId } = req.body ?? {};
@@ -465,7 +456,7 @@ router.post("/objectives/:id/move", requireBadge(["objective_propose"], { redire
 // called badgeAuthorityEngine. requireBadge is that real server-side check
 // now, mandatory the same as every other route on this router.
 /** POST /aisworg/seu/objectives/:id/delete — CR-012 hard delete (Proposed leaf only). */
-router.post("/objectives/:id/delete", requireBadge(["objective_propose"], { redirectTo: toDetailPage }), async (req: Request, res: Response) => {
+router.post("/objectives/:id/delete", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
   try {
     // Redirect to the parent (if any) after removal, since the node itself is gone.
@@ -481,7 +472,7 @@ router.post("/objectives/:id/delete", requireBadge(["objective_propose"], { redi
 });
 
 /** POST /aisworg/seu/objectives/:id/retire — CR-012 governed retire of the node + its Active subtree. */
-router.post("/objectives/:id/retire", requireBadge(["objective_retire"], { redirectTo: toDetailPage }), async (req: Request, res: Response) => {
+router.post("/objectives/:id/retire", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
   const backTo = `/aisworg/seu/objectives/${objectiveId}`;
   try {
@@ -536,12 +527,12 @@ function postObjectiveTransition(targetState: ObjectiveStatus) {
 }
 
 /** The direct action a Queue/Submit button unlocks (CR-072) — today only Proposed -> Active (verb "activate"); _nodes.ejs's tree-row button and detail.ejs's dropdown-derived button both post here once alreadySubmitted. */
-router.post("/objectives/:id/transition/activate", requireBadge(["objective_activate"], { redirectTo: toDetailPage }), postObjectiveTransition("Active"));
-router.post("/objectives/:id/transition/supersede", requireBadge(["objective_supersede"], { redirectTo: toDetailPage }), postObjectiveTransition("Superseded"));
-router.post("/objectives/:id/transition/retire", requireBadge(["objective_retire"], { redirectTo: toDetailPage }), postObjectiveTransition("Retired"));
-router.post("/objectives/:id/transition/archive", requireBadge(["objective_archive"], { redirectTo: toDetailPage }), postObjectiveTransition("Archived"));
+router.post("/objectives/:id/transition/activate", postObjectiveTransition("Active"));
+router.post("/objectives/:id/transition/supersede", postObjectiveTransition("Superseded"));
+router.post("/objectives/:id/transition/retire", postObjectiveTransition("Retired"));
+router.post("/objectives/:id/transition/archive", postObjectiveTransition("Archived"));
 /** Reject requires a genuinely new, non-empty comment every time — enforced in transitionObjective itself, not here. */
-router.post("/objectives/:id/transition/reject", requireBadge(["objective_reject"], { redirectTo: toDetailPage }), postObjectiveTransition("Reject"));
+router.post("/objectives/:id/transition/reject", postObjectiveTransition("Reject"));
 
 // CR-092 Part 6 (owner: "Multiple profiles are very much possible... allow
 // multiple profiles and surface the conflicts") — the picker
@@ -652,7 +643,7 @@ function parseCompositionSourceSelections(body: Record<string, unknown>): { chec
  * this same route finds the SEU already exists, causes no transition, and
  * recomputes the same thing directly — still persisted the same way, not
  * via session stash. */
-router.post("/objectives/:id/validate-commission", requireBadge(["seu_commission"], { redirectTo: toDetailPage }), async (req: Request, res: Response) => {
+router.post("/objectives/:id/validate-commission", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/new?objectiveId=${objectiveId}`;
   const selections = parseTemplateProfileSelections(req.body ?? {});
@@ -751,7 +742,7 @@ router.post("/objectives/:id/validate-commission", requireBadge(["seu_commission
  * and recomputing. Causes no transition — a pure, repeatable recompute —
  * so it runs directly here, not off an event; writes to the same place
  * ebmComposerHandler does (seus.composition_report), not session-stash. */
-router.post("/objectives/:id/compose-ebm", requireBadge(["seu_commission"], { redirectTo: toDetailPage }), async (req: Request, res: Response) => {
+router.post("/objectives/:id/compose-ebm", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
   const backTo = `/aisworg/seu/objectives/${objectiveId}/compose-ebm`;
   const selections = parseTemplateProfileSelections(req.body ?? {});
@@ -850,7 +841,7 @@ router.post("/objectives/:id/compose-ebm", requireBadge(["seu_commission"], { re
  * CommissionRequested -> validateRequestHandler chain runs off the request
  * that got here, not this one. No SEU for this Objective at all bounces
  * back to the picker. */
-router.get("/objectives/:id/validate-commission", requireBadge(["seu_commission"], { redirectTo: toDetailPage }), attachVM("seu/seus/validate"), async (req: Request, res: Response) => {
+router.get("/objectives/:id/validate-commission", attachVM("seu/seus/validate"), async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
   const { data: seu } = await seusDB.findByObjectiveId(objectiveId);
   if (!seu) {
@@ -902,7 +893,7 @@ router.get("/objectives/:id/validate-commission", requireBadge(["seu_commission"
  * conflict list, or a real composed result; "Apply & re-validate" writes
  * the same field with the same shape. No SEU for this Objective at all
  * bounces back to the picker. */
-router.get("/objectives/:id/compose-ebm", requireBadge(["seu_commission"], { redirectTo: toDetailPage }), attachVM("seu/seus/compose"), async (req: Request, res: Response) => {
+router.get("/objectives/:id/compose-ebm", attachVM("seu/seus/compose"), async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
   const { data: seu } = await seusDB.findByObjectiveId(objectiveId);
   if (!seu) {
@@ -974,7 +965,7 @@ router.get("/objectives/:id/compose-ebm", requireBadge(["seu_commission"], { red
  * profile can be chosen") — that policy is retired; at most one selection
  * now (commissionSeu's own guard, core/commissioning.ts, is the real
  * backstop — the check just below fails fast on this specific form). */
-router.post("/objectives/:id/commission", requireBadge(["seu_commission"], { redirectTo: toDetailPage }), async (req: Request, res: Response) => {
+router.post("/objectives/:id/commission", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/new?objectiveId=${objectiveId}`;
   const selections = parseTemplateProfileSelections(req.body ?? {});
@@ -1033,7 +1024,7 @@ router.post("/objectives/:id/commission", requireBadge(["seu_commission"], { red
  * finer check stays the existing inline canComment (unchanged), not
  * papered over as if no check exists.
  */
-router.post("/objectives/:id/comments", requireBadge(["None"]), async (req: Request, res: Response) => {
+router.post("/objectives/:id/comments", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
   // CR-075 — the Post form now lives on Edit, not the view page.
   const backTo = `/aisworg/seu/objectives/${objectiveId}/edit`;

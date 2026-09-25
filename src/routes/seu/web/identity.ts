@@ -7,7 +7,6 @@ import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
-import { requireBadge } from "../../../middleware/requireBadge.js";
 import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { logger } from "../../../utils/logger.js";
@@ -26,7 +25,7 @@ const badgesBackTo = "/aisworg/seu/identity/badges";
 const usersBackTo = "/aisworg/seu/identity/users";
 
 /** GET /aisworg/seu/identity — hub: Tenant Management, Badge Management, User Management, each its own page. Root badge only, this pass. */
-router.get("/identity", requireBadge(["root"], { redirectTo: "/aisworg" }), attachVM("seu/identity/index"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/identity", attachVM("seu/identity/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const view = await getIdentityDashboardView();
     req.vm.req.title = "Identity Management";
@@ -60,7 +59,7 @@ router.get("/identity", requireBadge(["root"], { redirectTo: "/aisworg" }), atta
 });
 
 /** GET /aisworg/seu/identity/tenants — Tenant Management: the old Tenants tab, split out on its own. */
-router.get("/identity/tenants", requireBadge(["root"], { redirectTo: "/aisworg/seu/identity" }), attachVM("seu/identity/tenants"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/identity/tenants", attachVM("seu/identity/tenants"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     // Only the tenant list — not the whole identity dashboard (CR: this page
     // was paying for the grant/user N+1 and took ~9s).
@@ -85,7 +84,7 @@ router.get("/identity/tenants", requireBadge(["root"], { redirectTo: "/aisworg/s
  *  — same per-user multi-select shape as /identity/users' own authorised-role
  *  Actions column, backed by participants_master.authorised_badges instead of
  *  badge_grants (Badge Catalog tab already dropped). */
-router.get("/identity/badges", requireBadge(["identity_manage"], { redirectTo: "/aisworg/seu/identity" }), attachVM("seu/identity/badges"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/identity/badges", attachVM("seu/identity/badges"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const view = await getIdentityDashboardView();
     req.vm.req.title = "Badge Management";
@@ -117,7 +116,7 @@ router.get("/identity/badges", requireBadge(["identity_manage"], { redirectTo: "
 });
 
 /** GET /aisworg/seu/identity/users — User Management: the old Platform Users tab, split out on its own. */
-router.get("/identity/users", requireBadge(["identity_manage"], { redirectTo: "/aisworg/seu/identity" }), attachVM("seu/identity/users"), async (req: Request, res: Response, next: NextFunction) => {
+router.get("/identity/users", attachVM("seu/identity/users"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const view = await getIdentityDashboardView();
     req.vm.req.title = "User Management";
@@ -164,7 +163,7 @@ router.get("/identity/users", requireBadge(["identity_manage"], { redirectTo: "/
 /** POST /aisworg/seu/identity/tenants — CR-005: create a Tenant only. Its first
  *  admin is created separately (createPlatformUser, type=Tenant) then granted
  *  the tenant_admin badge via the Badge Management grant form. */
-router.post("/identity/tenants", requireBadge(["root"], { redirectTo: tenantsBackTo }), async (req: Request, res: Response) => {
+router.post("/identity/tenants", async (req: Request, res: Response) => {
   const { code, name } = req.body ?? {};
   if (typeof code !== "string" || !code.trim() || typeof name !== "string" || !name.trim()) {
     return flashError(req, res, tenantsBackTo, "Tenant code and name are required.");
@@ -180,7 +179,7 @@ router.post("/identity/tenants", requireBadge(["root"], { redirectTo: tenantsBac
 });
 
 /** POST /aisworg/seu/identity/users — root creates a platform user account (badge issuance is a separate step, via Badge Management). */
-router.post("/identity/users", requireBadge(["identity_manage"], { redirectTo: usersBackTo }), async (req: Request, res: Response) => {
+router.post("/identity/users", async (req: Request, res: Response) => {
   const { email, name, tenantId } = req.body ?? {};
   if (typeof email !== "string" || !email.trim()) {
     return flashError(req, res, usersBackTo, "Email is required.");
@@ -211,7 +210,7 @@ router.post("/identity/users", requireBadge(["identity_manage"], { redirectTo: u
  *  multi-select." Active (updatePlatformUser) and the authorised_role
  *  multi-select (setAuthorisedRoles) are two separate DB edits — users vs
  *  participants_master — run together from this one form submit. */
-router.post("/identity/users/:id/update", requireBadge(["identity_manage"], { redirectTo: usersBackTo }), async (req: Request, res: Response) => {
+router.post("/identity/users/:id/update", async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) return flashError(req, res, usersBackTo, "Invalid user id.");
   // An unchecked checkbox submits no key at all — its absence IS "false".
@@ -238,7 +237,7 @@ router.post("/identity/users/:id/update", requireBadge(["identity_manage"], { re
  *  implementation." Same multi-select-reconcile shape as
  *  /identity/users/:id/update's own authorised_role form, for
  *  authorised_badges instead. */
-router.post("/identity/badges/:id/update", requireBadge(["identity_manage"], { redirectTo: badgesBackTo }), async (req: Request, res: Response) => {
+router.post("/identity/badges/:id/update", async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) return flashError(req, res, badgesBackTo, "Invalid user id.");
   const rawBadges = req.body?.badges;

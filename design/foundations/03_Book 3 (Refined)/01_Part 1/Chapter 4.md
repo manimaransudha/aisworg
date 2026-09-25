@@ -1,44 +1,6 @@
-
 # Chapter 4 – Composition Engine
 
-[Remarks:
-
-The EBM answers **what** governs an SEU.
-
-Composition Engine answers **how** the EBM is created.
-
-This chapter should **not** describe Pack internals. It describes the orchestration that transforms Packs into an executable Engineering Behavior Model.
-
-This is the **compiler** of the platform.
-
-The Composition Engine takes:
-
-- Packs
-- Templates
-- Behavioural contributions,
-- Governance,
-- Engineering constraints
-- Other definitions
-
-and produces an executable **Engineering Behavior Model**.
-
-Just as modern compilers produce diagnostics (warnings, errors and informational messages), the Composition Engine should produce a **Composition Report** as a first-class artefact.
-
-The report should include:
-
-- Packs used and their versions.
-- Resolved dependencies.
-- Automatic conflict resolutions.
-- Conflicts requiring manual intervention.
-- Warnings (for example, recommended packs not installed).
-- Effective behavioural summary.
-- Traceability matrix from Pack → Behaviour → EBM.
-
-This report would be invaluable for governance, audits and debugging why a particular SEU behaves the way it does. I think it should become a permanent artefact attached to every commissioned SEU, alongside its Engineering Behavior Model. It also reinforces the platform's principle that behaviour is not only composable but fully explainable and traceable.
-]
-
-
-# 1. Purpose
+## 1. Purpose
 
 The Composition Engine is responsible for constructing an **Engineering Behavior Model (EBM)** by composing behavioural contributions from one or more Packs.
 
@@ -48,29 +10,29 @@ The Composition Engine performs no software engineering work itself. Its respons
 
 
 
-# 2. Scope
+## 2. Scope
 
 This chapter defines:
 
-- Composition Engine responsibilities.
-- Inputs and outputs.
-- Composition lifecycle.
-- Conflict detection.
-- Behaviour resolution.
-- Validation.
-- Versioning.
-- Activation.
+- Composition Engine responsibilities
+- Inputs and outputs
+- Composition lifecycle
+- Conflict detection
+- Behaviour resolution
+- Validation
+- Versioning
+- Activation
 
 This chapter does not define:
 
-- Pack structure.
-- Pack lifecycle.
-- Engineering behaviour.
-- Runtime execution.
+- Pack structure
+- Pack lifecycle
+- Engineering behaviour
+- Runtime execution
 
 
 
-# 3. Architectural Position
+## 3. Architectural Position
 
 ```
 Pack Registry
@@ -91,66 +53,66 @@ It is not part of normal SEU execution.
 
 
 
-# 4. Responsibilities
+## 4. Responsibilities
 
 The Composition Engine shall:
 
-- discover Packs;
-- resolve dependencies;
-- validate compatibility;
-- compose behavioural contributions;
-- detect conflicts;
-- resolve deterministic conflicts;
-- identify non-deterministic conflicts;
-- construct the Engineering Behavior Model;
-- version the Engineering Behavior Model;
-- activate the Engineering Behavior Model.
+- discover Packs
+- resolve dependencies
+- validate compatibility
+- compose behavioural contributions
+- detect conflicts
+- resolve deterministic conflicts
+- identify non-deterministic conflicts
+- construct the Engineering Behavior Model
+- version the Engineering Behavior Model
+- activate the Engineering Behavior Model
 
 The Composition Engine shall not:
 
-- execute Work Items;
-- manage Participants;
-- manage Deliverables;
-- preserve Knowledge.
+- execute Work Items
+- manage Participants
+- manage Deliverables
+- preserve Knowledge
 
 
 
-# 5. Inputs
+## 5. Inputs
 
 The Composition Engine shall accept:
 
-- one SEU Template;
-- zero or more Organisation Packs;
-- zero or more Domain Packs;
-- zero or more Compliance Packs;
-- zero or more Technology Packs;
-- zero or more Integration Packs;
-- Platform Packs.
+- one SEU Template
+- zero or more Organisation Packs
+- zero or more Domain Packs
+- zero or more Compliance Packs
+- zero or more Technology Packs
+- zero or more Integration Packs
+- Platform Packs
 
 Additional Pack categories may be introduced through the Extension Framework.
 
 
 
-# 6. Output
+## 6. Output
 
 The output of the Composition Engine shall be exactly one Engineering Behavior Model.
 
 The Engineering Behavior Model shall contain:
 
-- behavioural rules;
-- governance rules;
-- authority rules;
-- engineering standards;
-- terminology mappings;
-- quality gates;
-- review gates;
-- behavioural metadata.
+- behavioural rules
+- governance rules
+- authority rules
+- engineering standards
+- terminology mappings
+- quality gates
+- review gates
+- behavioural metadata
 
 The Composition Engine shall not expose partially composed models.
 
 
 
-# 7. Functional Requirements
+## 7. Functional Requirements
 
 ### FR-4.1
 
@@ -196,7 +158,7 @@ Recomposition shall produce a new Engineering Behavior Model version.
 
 
 
-# 8. Composition Lifecycle
+## 8. Composition Lifecycle
 
 Every composition shall progress through the following stages.
 
@@ -240,15 +202,15 @@ Failure at any stage shall terminate the composition process.
 
 
 
-# 9. Dependency Resolution
+## 9. Dependency Resolution
 
 The Composition Engine shall determine:
 
-- required Packs;
-- optional Packs;
-- conditional Packs;
-- incompatible Packs;
-- missing Packs.
+- required Packs
+- optional Packs
+- conditional Packs
+- incompatible Packs
+- missing Packs
 
 Dependencies shall be declared by Packs.
 
@@ -256,7 +218,7 @@ Dependencies shall not be inferred.
 
 
 
-# 10. Behaviour Composition
+## 10. Behaviour Composition
 
 The Composition Engine shall compose contributions according to declared composition strategies.
 
@@ -274,27 +236,27 @@ The platform shall permit future strategies without modification of the Runtime 
 
 
 
-# 11. Conflict Detection
+## 11. Conflict Detection
 
 The Composition Engine shall identify behavioural conflicts.
 
 Examples include:
 
-- contradictory authority rules;
-- incompatible workflows;
-- conflicting quality gates;
-- inconsistent terminology;
-- incompatible compliance requirements;
-- incompatible technology constraints.
+- contradictory authority rules
+- incompatible workflows
+- conflicting quality gates
+- inconsistent terminology
+- incompatible compliance requirements
+- incompatible technology constraints
 
 Conflicts shall be classified as:
 
-- deterministic;
-- non-deterministic.
+- deterministic
+- non-deterministic
 
 
 
-# 12. Conflict Resolution
+## 12. Conflict Resolution
 
 Deterministic conflicts shall be resolved automatically.
 
@@ -306,65 +268,65 @@ Every resolution shall remain traceable.
 
 
 
-# 13. Validation
+## 13. Validation
 
 The Composition Engine shall validate:
 
-- behavioural completeness;
-- Pack compatibility;
-- governance completeness;
-- dependency completeness;
-- mandatory Pack availability;
-- mandatory behavioural rules;
-- terminology consistency.
+- behavioural completeness
+- Pack compatibility
+- governance completeness
+- dependency completeness
+- mandatory Pack availability
+- mandatory behavioural rules
+- terminology consistency
 
 Validation shall fail if the resulting Engineering Behavior Model is incomplete.
 
 
 
-# 14. Composition Traceability
+## 14. Composition Traceability
 
 Every behavioural rule in the Engineering Behavior Model shall be traceable to:
 
-- originating Pack;
-- originating Pack version;
-- composition strategy;
-- conflict resolution (if applicable).
+- originating Pack
+- originating Pack version
+- composition strategy
+- conflict resolution (if applicable)
 
 Composition traceability shall remain permanently available.
 
 
 
-# 15. Activation
+## 15. Activation
 
 Only validated Engineering Behavior Models may be activated.
 
 Activation shall:
 
-- assign an identifier;
-- assign a version;
-- publish activation events;
-- make the Engineering Behavior Model available for SEU commissioning.
+- assign an identifier
+- assign a version
+- publish activation events
+- make the Engineering Behavior Model available for SEU commissioning
 
 Activation shall not modify existing Engineering Behavior Models.
 
 
 
-# 16. Recomposition
+## 16. Recomposition
 
 Engineering Behavior Models may be recomposed when:
 
-- Packs are upgraded;
-- behavioural conflicts are resolved;
-- governance changes;
-- new mandatory Packs become available;
-- authorised users request recomposition.
+- Packs are upgraded
+- behavioural conflicts are resolved
+- governance changes
+- new mandatory Packs become available
+- authorised users request recomposition
 
 Recomposition shall never modify historical Engineering Behavior Models.
 
 
 
-# 17. Events
+## 17. Events
 
 The Composition Engine shall publish domain events including:
 
@@ -382,20 +344,20 @@ The Composition Engine shall publish domain events including:
 
 
 
-# 18. Non-Functional Requirements
+## 18. Non-Functional Requirements
 
 The Composition Engine shall:
 
-- produce deterministic output;
-- support concurrent composition requests;
-- maintain complete auditability;
-- preserve historical versions;
-- support incremental recomposition;
-- remain independent of execution technologies.
+- produce deterministic output
+- support concurrent composition requests
+- maintain complete auditability
+- preserve historical versions
+- support incremental recomposition
+- remain independent of execution technologies
 
 
 
-# 19. Acceptance Criteria
+## 19. Acceptance Criteria
 
 The implementation shall satisfy the following criteria.
 
@@ -415,24 +377,24 @@ The implementation shall satisfy the following criteria.
 
 
 
-# 20. Deliverables
+## 20. Deliverables
 
 Implementation of this chapter shall produce:
 
-- Composition Engine service.
-- Composition pipeline.
-- Dependency resolver.
-- Conflict detection service.
-- Conflict resolution framework.
-- Validation service.
-- Engineering Behavior Model builder.
-- Composition traceability service.
-- Composition APIs.
-- Domain events.
+- Composition Engine service
+- Composition pipeline
+- Dependency resolver
+- Conflict detection service
+- Conflict resolution framework
+- Validation service
+- Engineering Behavior Model builder
+- Composition traceability service
+- Composition APIs
+- Domain events
 
 
 
-# 21. Implementation Status & Gaps
+## 21. Implementation Status & Gaps
 
 Code-verified audit (2026-08-24), not from memory — every claim below carries a file:line citation, cross-checked against a live query against the running Postgres instance (`aisworg` DB). Core files: `src/domain/engine/compositionEngine.ts` (144 lines, its entire real implementation), `src/routes/seu/core/commissioning.ts` (its one and only call site), `src/dblayer/ebmsDB.ts`, `EbmRow`/`EbmComposedPack`/`EbmCompositionReport` (`src/dblayer/seuTypes.ts`). Live `ebms` schema: `id, seu_id, template_id, profile_id, composed_packs, composition_report, status, version, created_at`.
 
@@ -440,15 +402,15 @@ Code-verified audit (2026-08-24), not from memory — every claim below carries 
 
 The chapter's own "compiler" framing (§0's design note) is the single most useful lens for this audit: what's built is roughly the *linker* stage (resolve which Pack files participate, in what order, flag duplicate symbols) — not the *compiler* (parse each Pack's own contributions, extract and categorize the rules within them, detect semantic conflicts between rule bodies, emit one unified program). `compositionEngine.compose()` produces an ordered list of whole Packs plus a thin report; it never opens up a Pack's own `contributions` JSONB and reassembles what's inside into the rich, categorized Engineering Behavior Model §6 describes (behavioural rules / governance rules / authority rules / engineering standards / terminology mappings / quality gates / review gates, each separately present and traceable). Every other finding in this section is a consequence of that one fact.
 
-## 21.1 ⚠️ Inputs — Template + Profile only, not the flexible Pack-category list (§5)
+### 21.1 ⚠️ Inputs — Template + Profile only, not the flexible Pack-category list (§5)
 
 The chapter describes accepting "zero or more Organisation Packs... Domain Packs... Compliance Packs... Technology Packs... Integration Packs... Platform Packs" directly. The real signature is narrower and indirect: `compose(input: {templateId, profileId})` (`compositionEngine.ts:34`) — Packs are never passed in as a flexible, categorized list. They're derived from exactly two sources: `templatesDB.getMandatoryPackCodes(templateId)` and `profilesDB.getOptionalPackCodes(profileId)`. A Pack's own `category:pack` value (Compliance/Domain/Engineering/Integration/Organisation/Technology) plays no role in composition at all — it's metadata on the Pack, never consulted by `compositionEngine.ts` to decide inclusion, ordering, or strategy.
 
-## 21.2 ⚠️ Output — an ordered Pack list + a thin report, not a decomposed Engineering Behavior Model (§6)
+### 21.2 ⚠️ Output — an ordered Pack list + a thin report, not a decomposed Engineering Behavior Model (§6)
 
 `compose()` returns `{composedPacks: EbmComposedPack[], compositionReport: EbmCompositionReport}` — `composedPacks` is just `{packId, packCode, packVersion}` per Pack; `compositionReport` is `{warnings: string[], conflicts: string[], resolutions: string[]}` (`seuTypes.ts:391-401`). Neither field contains anything resembling the chapter's own named EBM contents: no extracted/merged behavioural rules, governance rules, authority rules, engineering standards, terminology mappings, quality gates, or review gates as their own first-class EBM structures. `ebms.composed_packs`/`ebms.composition_report` store exactly this same thin shape (migration `002_seu_platform.sql:141-151`). Whatever governance an SEU actually runs under still lives inside each individual Pack's own `contributions` JSONB, resolved ad hoc by whichever engine needs it (`qualityGateEngine.ts`, `transitionEngine.ts`, etc.) — never assembled into one queryable EBM object the way §6 describes.
 
-## 21.3 ⚠️ Functional Requirements (FR-4.1–7) (§7)
+### 21.3 ⚠️ Functional Requirements (FR-4.1–7) (§7)
 
 | FR | Verdict | Note |
 ||||
@@ -460,47 +422,47 @@ The chapter describes accepting "zero or more Organisation Packs... Domain Packs
 | FR-4.6 support incremental recomposition | ❌ | No incremental mechanism exists — `compose()` always fully re-resolves both code lists from scratch. Moot regardless per 21.12: nothing ever calls it a second time for an existing SEU. |
 | FR-4.7 recomposition produces a new EBM version | ⚠️ unexercised | `ebmsDB.create`'s `version` column genuinely computes `COALESCE(MAX(version),0)+1` per `seu_id` (`ebmsDB.ts:16`) — real, working SQL — but since nothing ever triggers a second `compose()`+`create()` for the same SEU (21.12), this path has never run in practice beyond version 1. |
 
-## 21.4 ⚠️ Composition Lifecycle — a flat function, not the 9-stage pipeline (§8)
+### 21.4 ⚠️ Composition Lifecycle — a flat function, not the 9-stage pipeline (§8)
 
 The chapter names 9 distinct stages (Collect Inputs → Resolve Dependencies → Validate Packs → Compose Behaviour → Detect Conflicts → Resolve Conflicts → Validate Model → Version Model → Activate Model), each implying its own checkpoint ("failure at any stage shall terminate the composition process"). The real `compose()` is one flat async function: resolve mandatory codes → resolve optional codes → de-duplicate by Pack code (the one real "Override") → run 2 narrow conflict checks → return. There's no distinct "Validate Packs" step (a Pack's mere existence via `findActiveByCode` is all that's checked — no compatibility validation), no "Resolve Conflicts" step (conflicts are only ever reported, never resolved, 21.8), no "Validate Model" step against the resulting EBM's own completeness, and "Version Model"/"Activate Model" are collapsed into one immediate `INSERT ... status='Active'` in `ebmsDB.create` (21.11) rather than two distinct, separately-gated stages.
 
-## 21.5 ✅ Dependency Resolution — not built inside `compositionEngine.ts` itself; real now, elsewhere (§9) — updated 2026-09-07
+### 21.5 ✅ Dependency Resolution — not built inside `compositionEngine.ts` itself; real now, elsewhere (§9) — updated 2026-09-07
 
 Still true of `compositionEngine.ts` specifically: `compose()` never read `packs.dependencies[]`, and never will now that it has no callers (intro). **But the real commissioning pipeline does this for real now, just in `profileCompositionUnravel.ts` instead**: `resolveComposedPacksTransitively` walks every composed Pack's own `dependencies[]` transitively (cycle-safe), and every dependency entry becomes a real pool entry checked for `satisfiedInComposedSet` — a `required`/`conditional` dependency whose target isn't in the composed set, or an `incompatible` one whose target is, is a genuine blocking conflict (`detectCompositionConflicts`), not a warning. This is a real, if belated, instance of exactly what this section asks for — "missing Packs" specifically is no longer just a warning either (21.9's own update).
 
-## 21.6 ⚠️ Behaviour Composition / Composition Strategies — 1 of 7 real for whole-Pack composition (unchanged, now dead code); 5 of 7 real for a different use case — conflict resolution (§10) — updated 2026-09-07
+### 21.6 ⚠️ Behaviour Composition / Composition Strategies — 1 of 7 real for whole-Pack composition (unchanged, now dead code); 5 of 7 real for a different use case — conflict resolution (§10) — updated 2026-09-07
 
 `compositionEngine.ts`'s own `compose()`-level Override (a Pack `code` in both mandatory and optional sets — later wins, wholesale) is unchanged in substance, now moot since nothing calls `compose()` (intro). **Merge, Supplement, Union, Intersection** — and Alias, under CR-067's own already-noted rename to Specialization — are no longer zero-mechanism: `applyConflictStrategy` (`core/commissioning.ts`) invokes the real `compositionEngine.specialize`/`merge`/`union`/`intersection`/`supplement` functions for real, whenever a human resolves a conflict `detectCompositionConflicts` (21.7) flagged. This is a genuinely different use case than §10's own "compose Pack contents together" framing, worth being precise about: it operates on exactly one disagreeing *sub-field* at a time (never a whole Pack, never a whole containing object), only fires when a human explicitly picks a strategy and which sources participate (never automatic, never inferred), and only reconciles a *disagreement* — it doesn't compose non-conflicting content at all (two Packs each contributing their own, non-overlapping Capability still just coexist side by side, unchanged from the original finding). `Conflict Detection` itself, listed here as a 7th "strategy," is real as a separate mechanism (21.7) but was never a composition strategy in the sense the other 6 are.
 
-## 21.7 ⚠️ Conflict Detection — `detectGovernanceConflicts` now dead code; its real successor covers 2 of this section's own 6 named types too, but is comprehensive on a different, orthogonal axis (§11) — updated 2026-09-07
+### 21.7 ⚠️ Conflict Detection — `detectGovernanceConflicts` now dead code; its real successor covers 2 of this section's own 6 named types too, but is comprehensive on a different, orthogonal axis (§11) — updated 2026-09-07
 
 `detectGovernanceConflicts` (`compositionEngine.ts:100-144`, unreachable now, intro) checked exactly two things: contradictory authority rules and conflicting quality gates (narrower than "plain," since CR-058 established one gate per category can coexist). Its real successor, `detectCompositionConflicts` (`profileCompositionUnravel.ts`), covers the *same* 2 of this section's 6 named types — still nothing for **incompatible workflows, inconsistent terminology, incompatible compliance requirements, incompatible technology constraints** (no first-class "workflow"/"terminology mapping" entity exists to compare, unchanged; compliance requirements specifically are Policies, and Part 8 of CR-092 deliberately keeps Policies informational-only, never compared against each other — owner: *"two policies do not have to agree on constraintType at all"* — so this isn't a gap so much as a settled design choice not to check it). **What's genuinely new is comprehensiveness on a different axis this section doesn't name at all**: every other Pack contribution type (Capabilities, Services/Service Levels, Checklists, Review Gates, Obligation Definitions, Engineering Capital, Pack Dependencies) and every Profile/Template field is now checked for cross-source disagreement too — not more of these 6 categories, but a much wider set of *content* the chapter's own §11 never enumerated. §11's own deterministic/non-deterministic classification still doesn't exist as a concept anywhere in either mechanism.
 
-## 21.8 ✅ Conflict Resolution — blocking is still real (now via a different, comprehensive mechanism); real resolution exists for the first time, but always human-triggered, never automatic (§12) — updated 2026-09-07
+### 21.8 ✅ Conflict Resolution — blocking is still real (now via a different, comprehensive mechanism); real resolution exists for the first time, but always human-triggered, never automatic (§12) — updated 2026-09-07
 
 **Blocking, still the strongest-built claim, now via `detectCompositionConflicts`/`CommissionFailed` instead of `compositionReport.conflicts.length > 0`/`SEUCommissionRejected`** — real, unconditional, not a warning, and now covering every contribution type 21.7 names, not just 2. §12's own "non-deterministic conflicts shall require explicit resolution before commissioning" — real resolution exists for the first time now: `applyConflictStrategy` (21.6) genuinely resolves a flagged conflict via a real strategy function. But there's still no deterministic/non-deterministic *classification* for §12's own "resolved automatically" half to apply to — and by explicit design, never will: owner, correcting an early draft that assumed some default source should win, *"you dont assume any base — i have been repeating this saying user has to choose."* Every resolution is a human's own explicit pick, always — "automatic" resolution was deliberately rejected, not merely unbuilt. `EbmCompositionReport.resolutions` (`seuTypes.ts`) is still real as a field and still always `[]` — confirmed directly in both `ebmComposer.ts` and `commissionSeu`'s own EBM-report construction — the new resolution mechanism doesn't write to this specific field, it resolves the conflict before ever reaching the point an EBM report gets built.
 
-## 21.9 ⚠️ Validation — "mandatory Pack availability" now genuinely blocks, via a sibling mechanism this chapter never named; the other 6 axes are still unbuilt (§13) — updated 2026-09-07
+### 21.9 ⚠️ Validation — "mandatory Pack availability" now genuinely blocks, via a sibling mechanism this chapter never named; the other 6 axes are still unbuilt (§13) — updated 2026-09-07
 
 `compositionEngine.ts`'s own `resolveActivePack` still only warns, unchanged, now moot (dead code, intro). **But "mandatory Pack availability" — one of this section's own 7 named axes — is genuinely real and blocking now**, just enforced earlier, before composition even starts: `checkRequestLiveness` (`core/commissioning.ts`, built for Chapter 8 §9's own "Validate Request") re-checks every mandatory/selected Pack code, failing commissioning outright (not a warning) if any has no Active version. This is a real instance of exactly what this section asks for, living in a sibling chapter's own mechanism rather than inside the Composition Engine itself — worth noting since §13 frames this as the Composition Engine's own responsibility. "Dependency completeness" is also now real (21.5's own update). Pack compatibility, governance completeness, mandatory behavioural rules, and terminology consistency remain entirely unbuilt, unchanged.
 
-## 21.10 ⚠️ Composition Traceability — real at the Pack level in the persisted EBM; real at the rule level too, but only transiently, during validation (§14) — updated 2026-09-07
+### 21.10 ⚠️ Composition Traceability — real at the Pack level in the persisted EBM; real at the rule level too, but only transiently, during validation (§14) — updated 2026-09-07
 
 `ebms.composed_packs` still gives real, permanent traceability from an EBM back to exactly which Pack + which Pack version contributed to it — genuinely real, not aspirational, unchanged. **New**: `unravelComposition`'s own flat pool (`profileCompositionUnravel.ts`) tags every individual contribution — not just each Pack as a whole — with its own `source: {kind, id, code, label}`, real per-rule traceability for the first time. The caveat: this is real only *during* Compose EBM/conflict detection, shown to a human resolving a conflict — none of it is persisted onto the `ebms` row itself, which still stores only the same thin Pack-level list it always did. "Composition strategy"/"conflict resolution" per rule still don't exist as permanent trace fields.
 
-## 21.11 ✅ Activation — real for the first time: a separate stage, a real `EBMActivated` event, and a status that starts `'Composed'`, not hardcoded `'Active'` (§15) — updated 2026-09-07
+### 21.11 ✅ Activation — real for the first time: a separate stage, a real `EBMActivated` event, and a status that starts `'Composed'`, not hardcoded `'Active'` (§15) — updated 2026-09-07
 
 **This finding no longer holds.** `ebmsDB.create` now inserts a new row with `status = 'Composed'` (migration 178 widened the `CHECK` constraint to allow it) — the row genuinely sits in that state, not hardcoded to `'Active'` immediately. A real, separate, human-gated Activate stage exists now: `transitionEbm` (`core/commissioning.ts`), `Validated → Active`, publishing a real `EBMActivated` event (21.13's own update) — matching this section's own name for the first time. "Activation shall not modify existing Engineering Behavior Models" now holds for a genuine reason, not by accident: `ebmsDB.updateStatus` only ever writes the `status` column, never `composed_packs`/`composition_report` — the behavioural content itself is still never touched post-creation.
 
-## 21.12 🚩 Recomposition — the version-increment SQL still exists and has still never run past 1; `ebms.status` is no longer write-only for `'Active'`, but still never `'Superseded'` (§16) — updated 2026-09-07
+### 21.12 🚩 Recomposition — the version-increment SQL still exists and has still never run past 1; `ebms.status` is no longer write-only for `'Active'`, but still never `'Superseded'` (§16) — updated 2026-09-07
 
 Still true: none of the chapter's 5 named recomposition triggers invoke anything a second time for an existing SEU — `unravelComposition`/`ebmComposer.ts` compose fresh once per commission, same as `compose()` always did, and nothing re-triggers them for an already-commissioned SEU. `ebmsDB.create`'s own `version` computation is unchanged, still real, still unexercised past 1. **One precise correction**: "zero writes to `ebms.status` anywhere besides the initial insert" is no longer true — `ebmsDB.updateStatus` is real now and genuinely called (`Composed → Validated → Active`, 21.11) — but confirmed directly, no code path anywhere ever writes `'Superseded'`. So two `'Active'` rows still can't coexist in practice (nothing ever produces a second EBM for the same SEU to begin with, 21.5's own "not triggered" finding still holds) — the original risk this section flagged is narrower now, but for the same underlying reason: recomposition itself is still never triggered.
 
-## 21.13 ⚠️ Events — 3 of 11 named events real as of 2026-09-07, up from 0, published from `ebmComposer.ts`/`transitionEbm`, not `compositionEngine.ts` (§17)
+### 21.13 ⚠️ Events — 3 of 11 named events real as of 2026-09-07, up from 0, published from `ebmComposer.ts`/`transitionEbm`, not `compositionEngine.ts` (§17)
 
 `compositionEngine.ts` itself still contains zero `eventBus` calls, unchanged — real now, from sibling files instead: `CompositionStarted` (`ebmComposer.ts`, on consuming `CommissionValidated`), `EBMCreated` (`ebmComposer.ts`, once the EBM row is persisted), `EBMActivated` (`transitionEbm`, on `Validated → Active`). Still not real, confirmed via direct search: `DependencyResolved`, `DependencyFailed`, `PackValidated`, `BehaviourComposed`, `ConflictDetected`, `ConflictResolved`. Two near-miss names worth being precise about, since this chapter and Chapter 8 each name a similarly-worded event that isn't the same string: this chapter's own `CompositionValidated`/`CompositionFailed` are *not* built under those exact names — what's real is Chapter 8's own `CommissionValidated`/`CommissionFailed` (`commissioning.ts`/`ebmComposer.ts`), a different, SEU-commissioning-scoped pair, not this chapter's Composition-Engine-scoped ones. The real events nearest this chapter's own domain that existed before 2026-09-07, still real: `SEUCommissioned` (Ch.2) — SEU-level, not Composition-Engine-named.
 
-## 21.14 ⚠️ Non-Functional Requirements (§18)
+### 21.14 ⚠️ Non-Functional Requirements (§18)
 
 | NFR | Verdict | Basis |
 ||||
@@ -511,7 +473,7 @@ Still true: none of the chapter's 5 named recomposition triggers invoke anything
 | support incremental recomposition | ❌ | 21.3 FR-4.6 |
 | remain independent of execution technologies | ✅ | No technology-specific coupling anywhere in `compositionEngine.ts` |
 
-## 21.15 ⚠️ Acceptance Criteria (§19)
+### 21.15 ⚠️ Acceptance Criteria (§19)
 
 | Criterion | Verdict |
 |||
@@ -523,7 +485,7 @@ Still true: none of the chapter's 5 named recomposition triggers invoke anything
 | Every behavioural contribution is traceable to its source | ⚠️ Pack-level persisted; rule-level real but only transiently, during validation (21.10's own 2026-09-07 update) |
 | Engineering Behavior Models are immutable after activation | ✅ **updated 2026-09-07** — now a deliberate guarantee (`updateStatus` only ever touches `status`), not an accident of no update path existing — an update path exists now (21.11) |
 
-## 21.16 ⚠️ Deliverables (§20)
+### 21.16 ⚠️ Deliverables (§20)
 
 | Named Deliverable | Real artifact | Verdict |
 ||||
@@ -538,7 +500,7 @@ Still true: none of the chapter's 5 named recomposition triggers invoke anything
 | Composition APIs | `ebmComposer.ts`'s own event consumption (**updated 2026-09-07**, replacing `commissioning.ts`'s inline call site) | ⚠️ invoked via a real event handler now; still no standalone recompose/inspect HTTP API |
 | Domain events | **Updated 2026-09-07**: `CompositionStarted`/`EBMCreated`/`EBMActivated` | ⚠️ 3 of 11, up from 0 (21.13) |
 
-## Summary — ranked
+### Summary — ranked
 
 1. **[Architecture — updated 2026-09-07, but the underlying gap this finding names is unchanged]** `compositionEngine.ts` still composes *Packs*, not the *behavioural content inside them* — but it's no longer the thing actually running: it has zero live callers (intro). The real pipeline (`profileCompositionUnravel.ts`/`ebmComposer.ts`) fares better at *conflict detection* across contribution types (finding 2 below) but still doesn't produce the decomposed, categorized Engineering Behavior Model §6 describes either — every contribution still just exists inside its composed Pack, never extracted into a first-class, queryable EBM structure.
 2. **[Governance, genuinely real and strong, comprehensive as of 2026-09-07]** Conflict detection — real, unconditional, and (CR-092 Part 8) now spans every Pack contribution type, not just the 2 of this chapter's own 6 named categories originally found; still only 2 of those 6 specifically (21.7). A real conflict still permanently blocks an SEU from ever reaching `Commissioned`, now via `CommissionFailed`/a real `Failed` state rather than `SEUCommissionRejected`. Still the strongest-built claim in this whole chapter (21.7, 21.8).

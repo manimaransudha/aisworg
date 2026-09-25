@@ -162,11 +162,11 @@ This ADR reinforces one of the platform's most important architectural principle
 
 **Rationale:** This separates architectural intent from implementation technology, preserves semantic consistency through the Ontology, enables independent evolution of connectors, and allows the platform to integrate with new technologies without modifying the Runtime Kernel. It also provides a uniform mechanism for interactions with external tools, enterprise systems and other SEUs.
 
-> **ADR – Effective Engineering Configuration**
+~~> **ADR – Effective Engineering Configuration**~~
 
-**Decision:** Before an SEU is activated, all applicable Packs shall be composed into a single immutable Effective Engineering Configuration (EEC). Runtime services shall consume the EEC rather than individual Packs.
+~~**Decision:** Before an SEU is activated, all applicable Packs shall be composed into a single immutable Effective Engineering Configuration (EEC). Runtime services shall consume the EEC rather than individual Packs.~~
 
-**Rationale:** This isolates runtime execution from Pack management, improves determinism, simplifies runtime logic and provides a reproducible snapshot of the engineering environment for every SEU lifecycle stage. I believe the EEC will become the runtime equivalent of a compiled executable: Packs are the source, the EEC is the executable configuration consumed by the platform.
+~~**Rationale:** This isolates runtime execution from Pack management, improves determinism, simplifies runtime logic and provides a reproducible snapshot of the engineering environment for every SEU lifecycle stage. I believe the EEC will become the runtime equivalent of a compiled executable: Packs are the source, the EEC is the executable configuration consumed by the platform.~~
 
 > **ADR – Pack Capability Declaration**
 

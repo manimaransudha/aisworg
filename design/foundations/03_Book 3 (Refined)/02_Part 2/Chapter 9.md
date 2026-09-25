@@ -1,43 +1,6 @@
+#  Chapter 9 – Dependency Engine
 
-# Chapter 9 – Dependency Engine
-
-[Sudha: 
-we've reached the point where **Part I is complete**.
-
-Let's check:
-
-- ✅ SEU
-- ✅ Engineering Behavior Model
-- ✅ Composition Engine
-- ✅ Pack Model
-- ✅ Template Model
-- ✅ Profile Model
-- ✅ SEU Commissioning
-
-There is one thing that is still missing before an SEU starts working.
-
-It is something we have deliberately postponed because we kept discovering better abstractions.
-
-Originally we called it:
-
-- AI Project Manager
-- AI Orchestrator
-- Scheduler
-- Dependency Manager
-- Flow Engine
-
-I now think we know exactly what it is.
-
-It is **the Dependency Engine**.
-
-Not because it schedules work.
-
-Because it decides **what engineering outcome becomes achievable next**.
-
-]
----
-
-# 1. Purpose
+##  1. Purpose
 
 The **Dependency Engine** is responsible for governing execution within a Software Engineering Unit (SEU).
 
@@ -49,7 +12,7 @@ Execution within an SEU is initiated only when dependency conditions have been s
 
 ---
 
-# 2. Scope
+##  2. Scope
 
 This chapter defines:
 
@@ -70,7 +33,7 @@ This chapter does not define:
 
 ---
 
-# 3. Architectural Position
+##  3. Architectural Position
 
 ```
 Knowledge
@@ -111,28 +74,28 @@ It never performs execution itself.
 
 ---
 
-# 4. Architectural Responsibilities
+##  4. Architectural Responsibilities
 
 The Dependency Engine shall:
 
-- maintain the Deliverable Dependency Graph;
-- determine engineering readiness;
-- identify blocked deliverables;
-- identify dependency constraints;
-- detect circular dependencies;
-- publish dependency state;
-- trigger execution readiness events.
+- maintain the Deliverable Dependency Graph
+- determine engineering readiness
+- identify blocked deliverables
+- identify dependency constraints
+- detect circular dependencies
+- publish dependency state
+- trigger execution readiness events
 
 The Dependency Engine shall not:
 
-- schedule participants;
-- execute work;
-- generate engineering behaviour;
-- preserve knowledge.
+- schedule participants
+- execute work
+- generate engineering behaviour
+- preserve knowledge
 
 ---
 
-# 5. Fundamental Principle
+##  5. Fundamental Principle
 
 The unit of execution within an SEU is the **Deliverable**.
 
@@ -144,57 +107,44 @@ The Dependency Engine operates exclusively upon those relationships.
 
 ---
 
-# 6. Functional Requirements
+##  6. Functional Requirements
 
 ### FR-9.1
 
 Every Deliverable shall exist within the Deliverable Dependency Graph.
-
----
+ 
 
 ### FR-9.2
 
 Every dependency shall possess an explicit type.
-
----
-
+ 
 ### FR-9.3
 
 Dependency evaluation shall occur continuously throughout SEU execution.
-
----
-
+ 
 ### FR-9.4
 
 Execution readiness shall be determined solely from dependency satisfaction.
-
----
-
+ 
 ### FR-9.5
 
 The platform shall detect circular dependencies.
-
----
-
+ 
 ### FR-9.6
 
 The platform shall publish dependency state changes.
-
----
-
+ 
 ### FR-9.7
 
 Dependencies shall be fully traceable.
-
----
-
+ 
 ### FR-9.8
 
 External dependencies shall be represented explicitly.
 
 ---
 
-# 7. Deliverable Dependency Graph
+##  7. Deliverable Dependency Graph
 
 The Dependency Engine maintains a directed graph describing engineering relationships.
 
@@ -213,59 +163,45 @@ The graph constitutes the authoritative execution model of the SEU.
 
 ---
 
-# 8. Dependency Types
+##  8. Dependency Types
 
 The platform shall support, at minimum, the following dependency types.
 
-## Deliverable Dependency
+### Deliverable Dependency
 
 One Deliverable depends upon another.
-
----
-
-## Decision Dependency
+ 
+### Decision Dependency
 
 Execution requires an approved decision.
-
----
-
-## Knowledge Dependency
+ 
+### Knowledge Dependency
 
 Execution requires sufficient engineering knowledge.
-
----
-
-## Evidence Dependency
+ 
+### Evidence Dependency
 
 Execution requires evidence.
-
----
-
-## Obligation Dependency
+ 
+### Obligation Dependency
 
 Execution is blocked by an unresolved obligation.
-
----
-
-## External Dependency
+ 
+### External Dependency
 
 Execution depends upon an external organisation, system or participant.
-
----
-
-## Capability Dependency
+ 
+### Capability Dependency
 
 Execution requires one or more capabilities to become available.
 
 Where the dependency concerns a specific contracted output rather than the Capability in the abstract, it shall reference the specific Service (Chapter 11) that Capability exposes — for example, the Approved Solution Architecture service, not the Architecture Capability generally. This gives the dependency a precise, evaluable condition rather than a vague notion of availability.
-
----
-
+ 
 Additional dependency types may be introduced through Packs.
 
 ---
 
-# 9. Dependency States
+##  9. Dependency States
 
 Each dependency shall exist in one of the following states.
 
@@ -280,80 +216,80 @@ State transitions shall remain fully traceable.
 
 ---
 
-# 10. Deliverable Readiness
+##  10. Deliverable Readiness
 
 A Deliverable shall be considered **Ready** when:
 
-- all mandatory dependencies are satisfied;
-- required evidence exists;
-- required decisions are approved;
-- blocking obligations have been resolved;
-- required capabilities are available.
+- all mandatory dependencies are satisfied
+- required evidence exists
+- required decisions are approved
+- blocking obligations have been resolved
+- required capabilities are available
 
 The Dependency Engine shall publish a **DeliverableReady** event.
 
 ---
 
-# 11. Constraint Detection
+##  11. Constraint Detection
 
 The Dependency Engine continuously identifies constraints preventing engineering flow.
 
 Examples include:
 
-- unresolved engineering decisions;
-- missing evidence;
-- incomplete knowledge;
-- unresolved obligations;
-- unavailable capabilities;
-- external approvals.
+- unresolved engineering decisions
+- missing evidence
+- incomplete knowledge
+- unresolved obligations
+- unavailable capabilities
+- external approvals
 
 Constraint detection shall remain independent of elapsed time.
 
 ---
 
-# 12. Execution Trigger
+##  12. Execution Trigger
 
 When a Deliverable becomes Ready:
 
-- the Dependency Engine shall identify the capabilities required to progress it;
-- the Capability Fulfilment service shall determine the eligible Participants for those capabilities;
-- Work Items shall be generated as required;
-- the Dispatch Engine shall select and assign the executing Participant from the eligible pool;
-- execution may commence.
+- the Dependency Engine shall identify the capabilities required to progress it
+- the Capability Fulfilment service shall determine the eligible Participants for those capabilities
+- Work Items shall be generated as required
+- the Dispatch Engine shall select and assign the executing Participant from the eligible pool
+- execution may commence
 
 The Dependency Engine does not assign Participants or generate engineering behaviour.
 
 ---
 
-# 13. Dynamic Re-evaluation
+##  13. Dynamic Re-evaluation
 
 The Dependency Engine shall automatically re-evaluate readiness whenever:
 
-- Deliverables change;
-- Decisions change state;
-- Knowledge is accepted;
-- Evidence is added;
-- Obligations are resolved;
-- external dependencies change;
-- the Engineering Behavior Model changes through authorised recomposition.
+- Deliverables change
+- Decisions change state
+- Knowledge is accepted
+- Evidence is added
+- Obligations are resolved
+- external dependencies change
+- the Engineering Behavior Model changes through authorised recomposition
 
 ---
 
-# 14. Flow Optimisation
+##  14. Flow Optimisation
 
 The Dependency Engine shall maximise engineering flow by:
 
-- identifying unnecessary blocking dependencies;
-- exposing opportunities for parallel execution;
-- detecting bottlenecks;
-- recommending decomposition of large Deliverables where appropriate;
-- continuously re-evaluating execution readiness.
+- identifying unnecessary blocking dependencies
+- exposing opportunities for parallel execution
+- detecting bottlenecks
+- recommending decomposition of large Deliverables where appropriate
+- continuously re-evaluating execution readiness
 
 The Dependency Engine shall not optimise for elapsed time.
 
 ---
 
-# 15. Events
+##  15. Events
 
 The Dependency Engine shall publish:
 
@@ -369,19 +305,19 @@ The Dependency Engine shall publish:
 
 ---
 
-# 16. Non-Functional Requirements
+##  16. Non-Functional Requirements
 
 The Dependency Engine shall:
 
-- support incremental graph updates;
-- evaluate readiness deterministically;
-- support concurrent execution;
-- scale to large dependency graphs;
-- remain independent of participant implementation.
+- support incremental graph updates
+- evaluate readiness deterministically
+- support concurrent execution
+- scale to large dependency graphs
+- remain independent of participant implementation
 
 ---
 
-# 17. Acceptance Criteria
+##  17. Acceptance Criteria
 
 The implementation shall satisfy the following criteria.
 
@@ -399,43 +335,19 @@ The implementation shall satisfy the following criteria.
 
 ---
 
-# 18. Deliverables
+##  18. Deliverables
 
 Implementation of this chapter shall produce:
 
-- Deliverable Dependency Graph.
-- Dependency Engine.
-- Dependency Evaluation Service.
-- Constraint Detection Service.
-- Flow Analysis Service.
-- Readiness Evaluation API.
-- Dependency Events.
-
-
-[Sudha: This chapter captures one of the most significant departures from traditional software engineering platforms.
-
-However, while writing it, I realised there's an important distinction we should preserve going forward.
-
-The **Dependency Engine** should not decide **how** to satisfy a dependency. It should only determine **whether** the dependency has been satisfied.
-
-For example:
-
-- It should determine that an architecture decision is required.
-- It should not decide what the architecture should be.
-- It should determine that a security review is outstanding.
-- It should not perform the security review.
-- It should determine that a capability is required.
-- It should not decide whether that capability is fulfilled by an AI participant, a human expert or an external service.
-
-This reinforces a principle that has been emerging throughout the architecture:
-
-> **Evaluation and execution are separate responsibilities.**
-
-The Dependency Engine evaluates engineering state. Other components act upon that evaluation. Maintaining that separation will keep the architecture modular, testable and extensible as the platform evolves. I think it's worth capturing this as another ADR because it clearly delineates responsibilities between orchestration and execution.]
-
----
-
-# 19. Implementation Specifics
+- Deliverable Dependency Graph
+- Dependency Engine
+- Dependency Evaluation Service
+- Constraint Detection Service
+- Flow Analysis Service
+- Readiness Evaluation API
+- Dependency Events
+ 
+##  19. Implementation Specifics
 
 *(2026-08-20, second review — the whole engine described in the first pass of this section was rebuilt in the interim (CR-039 through CR-046) and no longer exists: `src/domain/engine/dependencyEngine.ts` and `src/dblayer/dependencyEdgesDB.ts` are both deleted; `dependency_edges` itself is dropped (`src/dblayer/migrations/073_drop_dependency_edges.sql:7`). The replacement lives in `src/domain/engine/dependencyDefinitionEngine.ts`, `src/dblayer/dependencyDefinitionsDB.ts`, `src/domain/engine/materialiseDependencyGraph.ts`, and migrations 072/074/075/076/080. Everything below is re-verified against that code and cross-checked against CR-039/041/042/043/046's own recorded scope, not the superseded first pass.)*
 
@@ -443,7 +355,7 @@ The Dependency Engine evaluates engineering state. Other components act upon tha
 
 **The one-line characterisation changed too.** The first review called this a "Deliverable sequencing gate," per-SEU and Deliverable/Capability-only. What exists now is exactly the chapter's own framing: a Template/Pack/Profile-scoped **rule set** ("FROM this unlocks TO this," never a per-SEU transaction row — migration 072's own header, `:7-11`), evaluated fresh against a specific SEU's live state on every check, with a real push side-channel (§19.9) that didn't exist before. §7's own graph requirement is fully met (§19.1), the engine evaluates 6 of §8's 7 dependency types (§19.2), and §10's readiness criteria are fully satisfied by the combination of the two engines involved (§19.4) — all three this chapter's own scope, all closed. §11/§14 (Constraint Detection, Flow Optimisation) still don't exist, now scoped as CR-048. A separate, adjacent concern — extending the *authoring surface* for those 6 dependency types beyond Template/Deliverable/Capability — is real but out of this chapter's own scope; tracked as CR-047.
 
-## 19.1 ✅ Deliverable Dependency Graph (§7) — closed
+### 19.1 ✅ Deliverable Dependency Graph (§7) — closed
 
 `dependency_definitions` (`src/dblayer/migrations/072_dependency_definitions.sql:39-49`, `owning_entity_type`/`owning_entity_id` added by `074_dependency_definitions_polymorphic_owner.sql:14-22`) replaces the per-SEU edge table with a **Template/Pack/Profile-scoped recipe** — `owning_entity_type IN ('Template','Pack','Profile')` (074:21-22), no `seu_id`/`deliverable.id` column anywhere. One row means "for any SEU commissioned from this owner, reaching (from_type, from_name?, from_state) unlocks (to_type, to_name?, to_state)" — re-evaluated live per SEU, never stored per SEU. `resolveOwningScope` (`dependencyDefinitionEngine.ts:31-37`) gathers a given SEU's full applicable scope — its Template, every Pack actually composed into its active EBM, and its Profile.
 
@@ -455,7 +367,7 @@ Checked directly against §7's own text — a directed graph, nodes drawn from t
 
 Visualisation is a flat per-row list (view-mode rendering, CR-045/046), not a graph view — a real, minor gap against §7's own "graph" framing, but cosmetic, not structural.
 
-## 19.2 ✅ Dependency Types (§8) — 6 of 7 built at the engine layer, which is this chapter's own scope
+### 19.2 ✅ Dependency Types (§8) — 6 of 7 built at the engine layer, which is this chapter's own scope
 
 §8 asks whether "the platform" supports each dependency type — read as a Dependency *Engine* requirement (this chapter's own subject), the question is whether the engine can represent and evaluate each type, not whether every possible authoring surface exposes it yet.
 
@@ -472,13 +384,13 @@ The Capability type's Service-scoping (§8's own requirement) is not just preser
 
 **Out of this chapter's scope, tracked separately as CR-047:** only 2 of the 6 engine-supported types can currently be authored into a real row (Deliverable and Capability, FROM-side only, Template's schema only) — `to_name NOT NULL`, hardcoded `toEntityType`/`toState` in `materialiseDependencyGraph.ts`, and the widget's `fromType` field being a fixed 2-item schema `enum` (with no `toType` at all) rather than sourced from the real, live `authority_nouns` vocabulary the same way this table's own `entity_type` columns were always meant to admit new types without a migration. All real, but authoring-surface and materialisation concerns, not Dependency Engine ones — CR-047 owns closing that gap.
 
-## 19.3 The concept of "dependency state" no longer applies the way §9 frames it — there is no per-instance state to transition
+### 19.3 The concept of "dependency state" no longer applies the way §9 frames it — there is no per-instance state to transition
 
 The first review found 4 of 6 declared states real, 3 ever produced, and a documented stale-cache bug. That entire framing doesn't map onto the new model: `dependency_definitions` rows are Template-scoped **config**, not per-SEU **instances** — there is no `readiness_state` column, no per-edge state machine, and therefore nothing for `Unknown`/`Pending`/`Satisfied`/`Blocked`/`Invalid`/`Waived` to be a state *of*. Satisfaction is a pure, always-fresh computation (`isRowSatisfied`, `dependencyDefinitionEngine.ts:129-141`) run at the moment of every gate check — the stale-cache bug the old model had (`seus.ts`'s own retired comment: "readiness_state... shows stale status on every plain page load") is structurally impossible now, because there is no cache. `Invalid` and `Waived` still have no mechanism (no waiver flow for a dependency row exists) — but the honest read is that §9 describes a stateful-edge model the platform deliberately moved away from, not a gap in an otherwise-stateful model.
 
 What replaces "state changes, traceably" is the push-event mechanism (§19.9) — a real, if partial, answer to the same underlying need (§9's "state transitions shall remain fully traceable"), just architected as "publish an event when readiness changes" rather than "persist and transition a state column."
 
-## 19.4 ✅ Deliverable Readiness (§10) — closed
+### 19.4 ✅ Deliverable Readiness (§10) — closed
 
 Checked directly against §10's five criteria plus its own event requirement:
 
@@ -497,17 +409,17 @@ Two things worth noting, neither a gap against §10 itself: every dependency row
 
 One genuine fix worth recording, currently a side effect rather than a guarantee: the first review's Open Design Questions §1 gap — "`isDeliverableReady` gates *every* transition of a Deliverable, not just the one that actually needs the dependency" — **is now closed in practice**. Every `dependency_definitions` row is materialised with `to_state = "In Progress"` (`GATED_TO_STATE`, `materialiseDependencyGraph.ts:34`), and `isTargetReady`'s query filters on the exact `to_state` being attempted — a transition to any state other than `In Progress` finds zero governing rows and is vacuously ready. This currently holds because `toState` isn't authorable yet, not because of a deliberate guarantee — once `toState` becomes a real authored field (CR-047), preserving this behaviour (gate exactly the attempted transition, never every transition) needs to be a deliberate part of that work, not lost as a regression.
 
-## 19.5 ❌ Constraint Detection (§11) — not built; scoped as CR-048
+### 19.5 ❌ Constraint Detection (§11) — not built; scoped as CR-048
 
 No Constraint object, table, or detection function exists anywhere in `src/`. The nearest analogues remain Quality Gate block reasons and `dispatch_deferred` — rejection reasons surfaced at attempt time, not first-class detected Constraints. "Incomplete knowledge" and "external approvals" still have no mechanism.
 
 **Owner's own operational definition:** "Constraint Detection is the Dependency Engine continuously checking, for every node, whether any incoming edge is still unsatisfied." The primitive already exists — `isRowSatisfied` (`dependencyDefinitionEngine.ts:129-141`) computes exactly this, per row — it's just never called proactively across a whole graph, only on demand for one specific target (`isTargetReady`) or reactively at refusal time (`DeliverableBlocked`'s `reason` string). Scoped as CR-048, deliberately not detailed further here — specifics (push vs. pull, whether "Constraint" becomes a first-class object) are left open for that CR.
 
-## 19.6 ✅ Execution Trigger (§12) — unchanged end-to-end chain; the "no DeliverableReady event" half of the old gap is now closed
+### 19.6 ✅ Execution Trigger (§12) — unchanged end-to-end chain; the "no DeliverableReady event" half of the old gap is now closed
 
 The chain itself (`transitionDeliverable` → dependency gate → Quality Gate → Authority/Policy → `executionEngine.execute` → Command → Work Item → `dispatchEngine.dispatch` → assign or `DispatchDeferred`) is untouched by this session's work. Of the two gaps the first review recorded: **(1) is now half-closed** — a `DeliverableReady` event genuinely publishes now (§19.9), so "a Deliverable that becomes ready" is at least observable; but the trigger for actual execution is still exclusively pull (`transitionDeliverable` must still be called by something), and — per CR-040's own audit of the whole event bus — nothing subscribes to `DeliverableReady` to auto-act on it; its value today is being queryable later, the same as every other platform event except one. **(2) is unchanged** — dispatch is still 1:1 (`SOLE_ELIGIBLE_PARTICIPANT`), not a selection among eligible Participants.
 
-## 19.7 ✅ Dynamic Re-evaluation (§13) — real, event-driven re-evaluation now exists for 2 of the chapter's 6 triggers (was 0)
+### 19.7 ✅ Dynamic Re-evaluation (§13) — real, event-driven re-evaluation now exists for 2 of the chapter's 6 triggers (was 0)
 
 The first review found this entirely lazy — two on-demand call sites, zero event-driven re-evaluation, `dependencyEngine.ts` not even importing `eventBus`. That's no longer true for two of §13's six triggers:
 
@@ -521,11 +433,11 @@ The first review found this entirely lazy — two on-demand call sites, zero eve
 
 Two of six, both genuinely real (not lazy, not polled) — a structural improvement, even though four of six remain exactly as unbuilt as before.
 
-## 19.8 ❌ Flow Optimisation (§14) — not built; folded into CR-048
+### 19.8 ❌ Flow Optimisation (§14) — not built; folded into CR-048
 
 No unnecessary-blocking-dependency detection, no parallel-execution exposure, no bottleneck detection, no decomposition recommendation exist anywhere in `src/`. Grouped into CR-048 alongside Constraint Detection (§19.5) rather than tracked separately — §14's own criteria are analyses over the same underlying "what's currently unsatisfied, and where" data Constraint Detection would produce, not a distinct mechanism.
 
-## 19.9 ⚠️ Events (§15) — 2 of 9 built (was 0 of 9)
+### 19.9 ⚠️ Events (§15) — 2 of 9 built (was 0 of 9)
 
 `DeliverableReady` and `DeliverableBlocked` are real, each with exactly one publish site:
 
@@ -534,7 +446,7 @@ No unnecessary-blocking-dependency detection, no parallel-execution exposure, no
 
 The remaining seven — `DependencyCreated`, a finer-grained per-row `DependencySatisfied`/`DependencyBlocked`, `DependencyWaived`, `ConstraintDetected`, `ConstraintResolved`, `CircularDependencyDetected` — were evaluated and deliberately not built (CR-040's own closure note, reasoned against how this platform actually uses its event bus — almost entirely for audit/telemetry querying, one live subscriber platform-wide, unrelated to dependencies): `DependencyCreated` has no precedent (no other junction table publishes creation events); a finer-grained per-row pair would be noise nobody has asked to query; the other four remain genuinely blocked on mechanisms that don't exist (a waiver flow, a first-class Constraint object, cycle detection).
 
-## 19.10 Functional Requirements scorecard (§6)
+### 19.10 Functional Requirements scorecard (§6)
 
 | FR | Verdict |
 |---|---|
@@ -547,7 +459,7 @@ The remaining seven — `DependencyCreated`, a finer-grained per-row `Dependency
 | FR-9.7 (dependencies fully traceable) | ⚠️ unchanged from the first review for query-time traceability (still Ch.20-scoped, `traceability.ts`) — but `isTargetReady` now returns the actual governing rows (not just a boolean) and `DeliverableBlocked`'s `reason` names them at refusal time, a real (if informal) traceability improvement over the old silent boolean |
 | FR-9.8 (external dependencies represented explicitly) | ❌ still not built, and — unlike Decision/Obligation/Evidence/Knowledge — not yet part of a settled design either: `ExternalInteraction` has no evaluation logic at all, named or unnamed, so this one genuinely needs design work, not just implementation |
 
-## 19.11 Summary
+### 19.11 Summary
 
 The rebuild (CR-039–046) closed several of the first review's most concrete gaps: the graph is now genuinely Template/Pack/Profile-scoped (at the DB/engine layer) rather than a per-SEU write-side cache with a documented staleness bug; real authoring exists (a live Template widget, not commissioning-only seed fields); and two of nine named events are real, on genuinely event-driven triggers, where zero existed before.
 

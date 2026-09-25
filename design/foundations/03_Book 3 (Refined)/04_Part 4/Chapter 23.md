@@ -1,89 +1,6 @@
-
 # Chapter 23 – Obligation Model
 
-[Sudha: Throughout our discussions, you've consistently said:
-
-> Risks are not just project risks.
-
-An audit finding.
-
-A penetration test finding.
-
-Technical debt.
-
-A missing architecture decision.
-
-An outstanding customer clarification.
-
-A regulatory non-conformance.
-
-A dependency on another organisation.
-
-All of these should be treated uniformly.
-
-I now think you've been right all along.
-
-They are all **Obligations**.
-
-In fact, I think **Obligations** are to Governance what **Deliverables** are to Execution.
-
-They are the objects that governance continuously manages.
-
---------------
-
-I think this chapter introduces one of the most distinctive concepts in the platform.
-
-Most engineering tools fragment these concerns:
-
-- Risks live in a risk register.
-- Audit findings live in an audit tool.
-- Technical debt lives in Jira.
-- Security vulnerabilities live in another system.
-- Compliance actions live in spreadsheets.
-- Customer action items live in email.
-
-Architecturally, they're all the same thing:
-
-> **An outstanding engineering commitment that influences delivery.**
-
-That's exactly what an Obligation is.
-
-I think we can go one step further.
-
-We should distinguish between **Obligation** and **Resolution**.
-
-An Obligation is a persistent governance object.
-
-A Resolution is simply one possible outcome that satisfies its completion criteria.
-
-For example:
-
-- A security vulnerability (Obligation) may be resolved by changing code, applying a configuration, replacing a dependency, or formally accepting the risk.
-- A customer clarification (Obligation) may be resolved by receiving an answer, changing requirements, or withdrawing the feature.
-- A technical debt item (Obligation) may be resolved by refactoring, redesigning, or consciously deferring it with an approved waiver.
-
-This distinction is powerful because it prevents the platform from assuming there is only one way to satisfy an engineering commitment. The **Engineering Behavior Model**, **Policies** and **Authority Model** determine which resolution paths are acceptable, while the Obligation remains the stable governance object throughout its lifecycle.
-
-I think this chapter also reinforces a broader architectural pattern that has emerged repeatedly:
-
-- **Deliverables** represent engineering outcomes.
-- **Knowledge** represents engineering understanding.
-- **Evidence** represents engineering confidence.
-- **Decisions** represent engineering judgement.
-- **Obligations** represent engineering commitments.
-
-Together, these five persistent object types form the core information model of the SEU. I suspect almost every future capability in the platform will revolve around one or more of them.
-
--------------
-
-One more source of Obligations is worth naming explicitly, because without it the platform only ever measures organisational learning, never acts on it. Book 1 treats Continuous Organisational Learning as an active process: accumulated Knowledge and Evidence feed back into actually improving a Capability, not just accumulating telemetry about it. Engineering Telemetry (Chapter 35) already computes exactly the right signals — Knowledge growth, Decision reuse, recurring rework — but nothing consumed them.
-
-I don't think that needs a new persistent object. It's the same shape as everything else in this chapter: an outstanding commitment, with an owner, a priority, and completion criteria. When Telemetry detects a sustained pattern — the same architectural decision independently reached across many Deliverables, a Service chronically missing its declared Service Level, a Policy repeatedly waived — that's an outstanding engineering commitment to *improve* something, and it belongs here as an **Organisational Learning** Obligation, resolved by publishing a revised Capability, Service or Policy through the existing Pack lifecycle. That closes the loop using machinery this book has already fully specified: Telemetry raises the Obligation, the Pack SDK and Composition Engine resolve it, and the next Effective Engineering Configuration is measurably improved. Nothing new to build except the connection.
-]
-
----
-
-# 1. Purpose
+## 1. Purpose
 
 The Obligation Model defines how commitments, deficiencies, risks, findings, exceptions and required actions are represented, governed and resolved within a Software Engineering Unit (SEU).
 
@@ -95,29 +12,29 @@ They participate in governance, dependency evaluation and engineering execution.
 
 ---
 
-# 2. Scope
+## 2. Scope
 
 This chapter defines:
 
-- Obligation abstraction;
-- Obligation lifecycle;
-- Obligation relationships;
-- Obligation governance;
-- Obligation ownership;
-- Obligation resolution.
+- Obligation abstraction
+- Obligation lifecycle
+- Obligation relationships
+- Obligation governance
+- Obligation ownership
+- Obligation resolution
 
 This chapter does not define:
 
-- risk analysis methodologies;
-- audit frameworks;
-- compliance regulations;
-- issue tracking implementations.
+- risk analysis methodologies
+- audit frameworks
+- compliance regulations
+- issue tracking implementations
 
 These are contributed through Packs.
 
 ---
 
-# 3. Architectural Position
+## 3. Architectural Position
 
 ```
 Governance Model
@@ -139,119 +56,95 @@ Obligations influence engineering readiness and governance decisions.
 
 ---
 
-# 4. Definition
+## 4. Definition
 
 An Obligation is a governed engineering commitment requiring satisfaction before one or more engineering objectives may progress.
 
 An Obligation may arise from:
 
-- governance;
-- compliance;
-- engineering practice;
-- customer requirements;
-- risk management;
-- operational experience;
-- engineering decisions;
-- sustained Engineering Telemetry patterns indicating that a Capability, Service or Policy should be improved;
-- Knowledge promoted to Capability, Enterprise or Platform Acquisition Scope, indicating engineering capital that should be formally codified.
+- governance
+- compliance
+- engineering practice
+- customer requirements
+- risk management
+- operational experience
+- engineering decisions
+- sustained Engineering Telemetry patterns indicating that a Capability, Service or Policy should be improved
+- Knowledge promoted to Capability, Enterprise or Platform Acquisition Scope, indicating engineering capital that should be formally codified
 
 Obligations are persistent engineering objects.
 
 ---
 
-# 5. Architectural Principles
+## 5. Architectural Principles
 
-## OM-001
+### OM-001
 
 Every significant engineering commitment shall be represented as an Obligation.
-
----
-
-## OM-002
+ 
+### OM-002
 
 Obligations are independent of Participants.
-
----
-
-## OM-003
+ 
+### OM-003
 
 Obligations shall participate in dependency evaluation.
-
----
-
-## OM-004
+ 
+### OM-004
 
 Obligations shall remain fully traceable.
-
----
-
-## OM-005
+ 
+### OM-005
 
 Obligations shall support composition from multiple Packs.
-
----
-
-## OM-006
+ 
+### OM-006
 
 Obligations shall possess explicit lifecycle states.
 
 ---
 
-# 6. Functional Requirements
+## 6. Functional Requirements
 
 ### FR-23.1
 
 Every Obligation shall possess a globally unique identifier.
-
----
-
+ 
 ### FR-23.2
 
 Obligations shall support dependencies upon Deliverables, Decisions, Evidence and other Obligations.
-
----
-
+ 
 ### FR-23.3
 
 Obligations may block Deliverable state transitions.
-
----
-
+ 
 ### FR-23.4
 
 Every Obligation shall possess measurable completion criteria.
-
----
-
+ 
 ### FR-23.5
 
 Every Obligation shall preserve complete engineering history.
-
----
-
+ 
 ### FR-23.6
 
 Obligation state transitions shall remain fully traceable.
-
----
-
+ 
 ### FR-23.7
 
 Obligations shall support delegation without changing ownership.
-
----
-
+ 
 ### FR-23.8
 
 The platform shall raise an Organisational Learning Obligation when Engineering Telemetry detects a sustained pattern indicating that a Capability, Service or Policy should be improved.
 
 ---
 
-# 7. Obligation Categories
+## 7. Obligation Categories
 
 Illustrative categories include:
 
-## Engineering
+### Engineering
 
 Examples:
 
@@ -259,10 +152,8 @@ Examples:
 - Performance optimisation
 - Technical debt
 - Documentation completion
-
----
-
-## Risk
+ 
+### Risk
 
 Examples:
 
@@ -270,30 +161,24 @@ Examples:
 - Vendor dependency
 - Unresolved architectural uncertainty
 - Security exposure
-
----
-
-## Compliance
+ 
+### Compliance
 
 Examples:
 
 - HIPAA evidence outstanding
 - SOX control validation
 - ISO corrective action
-
----
-
-## Audit
+ 
+### Audit
 
 Examples:
 
 - Internal audit finding
 - Customer audit observation
 - External certification finding
-
----
-
-## Security
+ 
+### Security
 
 Examples:
 
@@ -301,30 +186,24 @@ Examples:
 - Penetration testing follow-up
 - Secret rotation
 - Privilege review
-
----
-
-## Operational
+ 
+### Operational
 
 Examples:
 
 - Monitoring enhancement
 - Capacity planning
 - Disaster recovery validation
-
----
-
-## Customer
+ 
+### Customer
 
 Examples:
 
 - Business clarification
 - Acceptance prerequisite
 - Outstanding customer decision
-
----
-
-## Organisational Learning
+ 
+### Organisational Learning
 
 Examples:
 
@@ -340,7 +219,7 @@ Additional categories may be introduced through Packs.
 
 ---
 
-# 8. Obligation Structure
+## 8. Obligation Structure
 
 Every Obligation shall define:
 
@@ -363,7 +242,7 @@ Every Obligation shall define:
 
 ---
 
-# 9. Obligation Lifecycle
+## 9. Obligation Lifecycle
 
 Every Obligation shall transition through the following lifecycle.
 
@@ -403,7 +282,7 @@ Closure shall require verification.
 
 ---
 
-# 10. Obligation Sources
+## 10. Obligation Sources
 
 Obligations may originate from:
 
@@ -423,7 +302,7 @@ The origin shall remain permanently recorded.
 
 ---
 
-# 11. Dependency Integration
+## 11. Dependency Integration
 
 Obligations participate directly in the Dependency Graph.
 
@@ -437,19 +316,19 @@ The Dependency Engine evaluates these relationships continuously.
 
 ---
 
-# 12. Resolution
+## 12. Resolution
 
 Every Obligation shall define explicit completion criteria.
 
 Resolution may require:
 
-- new Deliverables;
-- additional Evidence;
-- engineering Decisions;
-- governance approval;
-- successful Reviews;
-- Quality Gate satisfaction;
-- a revised Capability, Service or Policy Pack version, composed by the Composition Engine into a new Effective Engineering Configuration (for Organisational Learning Obligations).
+- new Deliverables
+- additional Evidence
+- engineering Decisions
+- governance approval
+- successful Reviews
+- Quality Gate satisfaction
+- a revised Capability, Service or Policy Pack version, composed by the Composition Engine into a new Engineering Behavior Model (for Organisational Learning Obligations)
 
 Resolution alone does not close an Obligation.
 
@@ -457,7 +336,7 @@ Verification is required before closure.
 
 ---
 
-# 13. Ownership
+## 13. Ownership
 
 An Obligation belongs to the SEU.
 
@@ -467,23 +346,23 @@ Participant reassignment shall not affect the identity or lifecycle of the Oblig
 
 ---
 
-# 14. Escalation
+## 14. Escalation
 
 Obligations may define escalation rules.
 
 Escalation conditions may include:
 
-- severity;
-- prolonged unresolved state;
-- repeated verification failures;
-- approaching engineering milestones;
-- dependency impact.
+- severity
+- prolonged unresolved state
+- repeated verification failures
+- approaching engineering milestones
+- dependency impact
 
 Escalation behaviour is governed through Packs.
 
 ---
 
-# 15. Events
+## 15. Events
 
 The Obligation subsystem shall publish:
 
@@ -498,19 +377,19 @@ The Obligation subsystem shall publish:
 
 ---
 
-# 16. Non-Functional Requirements
+## 16. Non-Functional Requirements
 
 The Obligation Model shall:
 
-- support deterministic lifecycle transitions;
-- integrate with the Dependency Engine;
-- preserve complete traceability;
-- support composition from multiple governance sources;
-- remain independent of Participant implementations.
+- support deterministic lifecycle transitions
+- integrate with the Dependency Engine
+- preserve complete traceability
+- support composition from multiple governance sources
+- remain independent of Participant implementations
 
 ---
 
-# 17. Acceptance Criteria
+## 17. Acceptance Criteria
 
 The implementation shall satisfy the following criteria.
 
@@ -530,36 +409,36 @@ The implementation shall satisfy the following criteria.
 
 ---
 
-# 18. Deliverables
+## 18. Deliverables
 
 Implementation of this chapter shall produce:
 
-- Obligation domain model.
-- Obligation registry.
-- Obligation lifecycle service.
-- Obligation verification service.
-- Escalation service.
-- Dependency integration interfaces.
-- Obligation APIs.
-- Obligation events.
+- Obligation domain model
+- Obligation registry
+- Obligation lifecycle service
+- Obligation verification service
+- Escalation service
+- Dependency integration interfaces
+- Obligation APIs
+- Obligation events
 
 ---
 
-# 19. Implementation Status & Gaps
+## 19. Implementation Status & Gaps
 
 *This section documents how the Obligation Model is realised in the current build. It does not change the requirements above (OM-001–006, FR-23.1–8, §§4–18); it records what is built, what is partial, and what is still open. Status markers: ✅ built · ⚠️ partial · ❌ not built.* Core files: `src/dblayer/obligationsDB.ts`, `src/routes/seu/core/obligations.ts`, `src/routes/seu/core/participantHome.ts`, `src/routes/seu/api/obligations.ts`, `src/domain/engine/executionEngineKickoff.ts`, `src/domain/engine/deliverableKickoff.ts`, `src/domain/engine/workItemGenerator.ts`, `ObligationRow` (`seuTypes.ts:1527-1551`).
 
 An Obligation is a real structural gate on a governed transition, not just a record other engines consult. Two independent mechanisms raise one against a governed transition and block it: a Policy whose condition fails, and a Pack's own declared Obligation Definition whose `applicabilityDeliverables` names that exact transition. Both record `blocked_from_state`/`blocked_to_state` on the Obligation they raise, which is what lets the Execution Engine retry the exact hop once that Obligation resolves. The same mechanism also raises a matching Attention Item, and resolving *that* independently re-triggers the same retry. A Participant can raise an Obligation directly against their own dispatched Deliverable, ownership-checked server-side. The lifecycle itself (Identified → Archived, verification-gated) and its Dependency Engine integration remain the chapter's most completely built areas.
 
-## 19.1 ⚠️ Definition (§4)
+### 19.1 ⚠️ Definition (§4)
 
 `origin` is a real column on `obligations`. `createObligation` (`core/obligations.ts`) is the single writer every real creation path calls through — no duplicated logic — but it has 9 real call sites across the codebase: sustained Telemetry blocking patterns (`origin` varies by which pattern — `"Quality Gates"`, `"Policies"`, or `"Telemetry and Knowledge Model"`, see 19.7), Knowledge Acquisition Scope promotion (`"Telemetry and Knowledge Model"`), a Policy blocking a governed transition (`"Policies"`, `raiseObligationForBlockedTransition`, gating both SEU- and Deliverable-level hops), a Pack's own declared Obligation Definition matching a governed transition (whatever the Definition itself declares, `raiseObligationsForPackDefinitions`, fully generic over which noun/transition though only one caller exists today), a Participant raising one against their own dispatched Deliverable (`"Participants"`, `raiseMyObligation`), converting a Review Finding to an Obligation (`findings.ts`, no origin set), and dispatch giving up permanently on a Work Item (`redispatch.ts`/`dispatchEngine.ts`, no origin set).
 
 Every other named source in the chapter's own §10 list exists only as manual creation via the generic `POST /obligations` API. Full breakdown in 19.7.
 
-## 19.2 ⚠️ Architectural Principles (OM-001–006) (§5)
+### 19.2 ⚠️ Architectural Principles (OM-001–006) (§5)
 
-| # | Claim | Verdict | Evidence |
+| ## | Claim | Verdict | Evidence |
 |---|---|---|---|
 | OM-001 | Represented as Obligation | ✅ | Real table, real writes. |
 | OM-002 | Independent of Participants | ✅ (trivially) | No Participant FK/column exists on `obligations` at all. |
@@ -568,7 +447,7 @@ Every other named source in the chapter's own §10 list exists only as manual cr
 | OM-005 | Supports composition from multiple Packs | ⚠️ | `raiseObligationsForPackDefinitions` genuinely reads a composed Pack's own `contributionObligationDefinitions[]` off the EBM at runtime and raises a real Obligation instance from it — a real mechanism, not just an Ontology declaration. Incomplete: `obligations` carries no `originating_pack_id` column, unlike `quality_gates`/`policies`/`capabilities`, so a raised instance can't be traced back to the exact Pack that declared it (only to its own `origin` category, if the Definition set one); `category:obligation`'s own `contributed_by_pack` is NULL on every seeded row, so a Pack still can't introduce a *new* category value. |
 | OM-006 | Explicit lifecycle states | ✅ | Real `transition_definitions` rows, exact 8-state match — see 19.6. |
 
-## 19.3 ⚠️ Functional Requirements (FR-23.1–8) (§6)
+### 19.3 ⚠️ Functional Requirements (FR-23.1–8) (§6)
 
 | FR | Verdict | Note |
 |---|---|---|
@@ -581,13 +460,13 @@ Every other named source in the chapter's own §10 list exists only as manual cr
 | FR-23.7 delegation without changing ownership | ❌ | Zero `delegat*` hits anywhere in `src/` for Obligation, same absence Ch.22's Authority audit found; no ownership/assignment field exists to delegate from in the first place (19.10). |
 | FR-23.8 Telemetry → auto-raised Organisational Learning Obligation | ✅ | Genuinely real — 3 real triggers in `telemetry.ts` (quality-gate blocking, policy waivers, capability shortages), deduplicated. |
 
-## 19.4 ✅ Obligation Categories — fully seeded and reachable from a Pack's own Obligation Definition declaration (§7)
+### 19.4 ✅ Obligation Categories — fully seeded and reachable from a Pack's own Obligation Definition declaration (§7)
 
 `category TEXT`, not DB-constrained but application-enforced via `assertCanonicalCategory("category:obligation", ...)`. `ontology_concepts WHERE concept_type='category:obligation'` carries all 9 rows: the chapter's 8 named categories (Engineering, Compliance, Security, Organisational Learning, Risk, Audit, Operational, Customer) plus one the chapter doesn't name (`Review Finding`, imported from Ch.25's Finding model).
 
 A Pack's own `contributionObligationDefinitions[]` declares a real `category` (Ontology-backed dropdown, validated at `validatePackSeed` time exactly like Policy's own `category:policy`) and a real `origin` (`category:obligation-origin`, a categorical declaration of which kind of source this type of Obligation is meant for, not a relational FK to a specific raising entity). It also declares `applicabilityDeliverables[]` (`name`/`transitions`/`governingCondition`) — the identical shape Policy's own Eligibility-scope condition uses, validated the same way (`name` a real Authority Vocabulary noun, `transitions` real rows of that noun's own transitions). This is what `raiseObligationsForPackDefinitions` reads at runtime (19.9). What a Pack *cannot* do is introduce a new `category:obligation` value of its own — `contributed_by_pack` stays NULL on every seeded row; every real category comes from a platform-level migration, never a Pack.
 
-## 19.5 ⚠️ Obligation Structure — the information the chapter asks for, checked by intent rather than by column name (§8)
+### 19.5 ⚠️ Obligation Structure — the information the chapter asks for, checked by intent rather than by column name (§8)
 
 The real `obligations` row directly carries Identifier, Title, Category, Description, Origin, Priority, Severity, Status, and Completion Criteria. Every real creation path populates Origin. Priority is populated only by the Policy-block and Pack-Obligation-block paths (`raiseObligationForBlockedTransition`/`raiseObligationsForPackDefinitions`); Quality-Gate/Telemetry/Participant-raised leave it null. Completion Criteria is populated by those same two paths plus, optionally, the Participant-raised path (`raiseMyObligation` accepts a caller-supplied `completionCriteria`); Quality-Gate/Telemetry leave it null. Its own structured half — the Definition's `classification`/`governingCondition` for the machine-verifiable case — is declared but never read at runtime, so completion is always a manual transition regardless of declared classification.
 
@@ -614,13 +493,13 @@ None of the chapter's "Related *"/Traceability fields exist as a named column on
 
 Beyond the chapter's own §8 list, the live row also carries `blocked_from_state`/`blocked_to_state` — which governed transition this Obligation is blocking, set only by the two raise-on-block paths, null for every other creation path — the structural fact `executionEngineKickoff` reads to know exactly what to retry once the Obligation resolves (19.9).
 
-## 19.6 ✅ Obligation Lifecycle — matches the chapter exactly, verification gate structurally enforced (§9), plus Reopen and a deferred-escalation hop (migration 252)
+### 19.6 ✅ Obligation Lifecycle — matches the chapter exactly, verification gate structurally enforced (§9), plus Reopen and a deferred-escalation hop (migration 252)
 
 `transition_definitions WHERE entity_type='Obligation'` carries the chapter's 8-state chain: `Identified→Analysed→Assigned→In Progress→Resolved→Verified→Closed→Archived`. "Closure shall require verification" is structurally enforced, not just conventionally observed — no `Resolved→Closed` or `In Progress→Closed` row exists, and `transitionEngine.evaluate()` fails closed for anything not in the table. Every raise-and-retry mechanism drives this exact same lifecycle via the same `transitionObligation`, never a parallel one.
 
 Two additions, migration 252: `Closed→Reopened` and `Reopened→In Progress` re-enter a Closed Obligation into the normal chain without a fresh `Identified` row (owner: "reopened is equivalent to created" — version-significant, not a bare state flip, see 19.12). `{Identified,Analysed,Assigned,In Progress,Resolved,Verified}→Escalated` gives every pre-Closed state a real escalation hop (Ch.23 §14's own severity/prolonged-unresolved/repeated-verification-failure/approaching-milestone/dependency-impact conditions are what *should* trigger it — none of that trigger logic is built yet, deliberately deferred; this migration only wires the state and its event, the same "row exists, driving logic doesn't yet" pattern CR-097 left for Ontology's own review-queue rows).
 
-## 19.7 ⚠️ Obligation Sources — 9 real call sites across 7 mechanisms, short of covering all 11 named sources (§10)
+### 19.7 ⚠️ Obligation Sources — 9 real call sites across 7 mechanisms, short of covering all 11 named sources (§10)
 
 `createObligation` (`core/obligations.ts`) is the one, single writer — every real creation path calls through it, no duplicated logic anywhere. It has 9 real call sites across the codebase (including the generic `POST /obligations` API route itself):
 
@@ -637,7 +516,7 @@ Two additions, migration 252: `Closed→Reopened` and `Reopened→In Progress` r
 
 `category:obligation-origin`'s 11 seeded values are all real, and a Pack Obligation Definition can declare any of them. Of the real mechanisms above, 4 tag `origin` with a real value from that vocabulary; the Finding-conversion and dispatch-failure paths don't tag it at all. Of the chapter's 11 named sources, 3 (Authority evaluations, Customer requests, External systems) still have no automatic path at all, only the generic API.
 
-## 19.8 ✅ Dependency Integration — the strongest-built area besides FR-23.8, real at both Deliverable and SEU level (§11)
+### 19.8 ✅ Dependency Integration — the strongest-built area besides FR-23.8, real at both Deliverable and SEU level (§11)
 
 `qualityGateEngine.ts` and `dependencyDefinitionEngine.ts` both treat Obligation as a real blocking node via the polymorphic `related_object_type`/`related_object_id`. The chapter's own worked examples are literally live: security-Obligation-blocks-Deliverable-approval is the real `qg-deliverable-in-progress-to-approved` gate; auto-unblock-on-resolution is `dependencyDefinitionEngine.evaluateAndPublishFromTransition` publishing `DeliverableReady`. The named-dependency-graph path (`dependency_definitions` rows naming Obligation) is unused in practice even though the engine supports it — the Quality Gate path is what's actually exercised.
 
@@ -645,7 +524,7 @@ A Policy blocking a governed transition genuinely gates both SEU-level (`commiss
 
 Obligation also blocks at the **SEU** level, not just Deliverable: `attemptSeuCommenceWork` (`commissioning.ts`) treats an open Obligation against `related_object_type: "SEU"` (raised by either the Policy-block or Pack-Obligation-block path) as a reason to leave the SEU at `Activated` rather than advancing to `Operational` — and `transitionDeliverable` itself separately refuses (`seu_blocked`) to start any owned Deliverable while its owning SEU sits in that state, so a blocked SEU-level Obligation transitively blocks every Deliverable under it, not only ones a Quality Gate directly names.
 
-## 19.9 ✅ Resolution — the verification gate is real and genuinely re-triggers a blocked hop for both Policy- and Pack-raised Obligations; the Pack-republish/Composition-Engine loop remains absent (§12)
+### 19.9 ✅ Resolution — the verification gate is real and genuinely re-triggers a blocked hop for both Policy- and Pack-raised Obligations; the Pack-republish/Composition-Engine loop remains absent (§12)
 
 "Resolution alone does not close an Obligation; Verification is required" is enforced by the same lifecycle gap as 19.6 — real, not aspirational.
 
@@ -653,15 +532,15 @@ Obligation also blocks at the **SEU** level, not just Deliverable: `attemptSeuCo
 
 The chapter's own second half of §12 — "a revised Capability/Service/Policy Pack version, composed by the Composition Engine" — is not built: zero Obligation references anywhere in `compositionEngine.ts`. Resolving an Obligation genuinely unblocks the governed transition it names, but never mints a new Pack version on its own.
 
-## 19.10 ⚠️ Ownership (§13)
+### 19.10 ⚠️ Ownership (§13)
 
 No `assigned_to`/`owner` column exists on `obligations`. There is no assignment field, let alone the owner-vs-assignee distinction the chapter describes — "belongs to the SEU" holds only because `seu_id` is the sole ownership-adjacent FK present, not a designed ownership model. The one real ownership-shaped check that does exist sits at creation, not as a field: `raiseMyObligation` re-derives and enforces which Deliverables a calling Participant is actually dispatched against before letting them raise an Obligation against one. That's a genuine, structural check on *who may create* an Obligation for a given Deliverable — not an owner/assignee field that persists on the Obligation once created.
 
-## 19.11 ❌ Escalation — not built as the chapter describes it (§14)
+### 19.11 ❌ Escalation — not built as the chapter describes it (§14)
 
 The only real escalation logic in the codebase (`workItemHeartbeat.ts`, `telemetry.ts`) is not Obligation-scoped: `workItemHeartbeat.ts` explicitly excludes non-Deliverable entities, and `telemetry.ts`'s "Escalation"-category Attention Item is a side effect of *creating* an Organisational Learning Obligation, not a state-driven trigger off any of the chapter's 5 named conditions (severity, prolonged-unresolved, repeated-verification-failure, approaching milestone, dependency impact). No `ObligationEscalated` event exists (19.12). The Attention Item cross-link in 19.9 is a resolution-triggered retry, not an escalation.
 
-## 19.12 ✅ Events — Version Feature Plan.md applied (migration 252): every hop now publishes its own named event, plus the generic one, plus a real version event (§15)
+### 19.12 ✅ Events — Version Feature Plan.md applied (migration 252): every hop now publishes its own named event, plus the generic one, plus a real version event (§15)
 
 `transition_definitions.event_type`/`.version_event` were NULL for every Obligation row before migration 252, despite `transitionObligation` already existing — it only ever published the one generic `ObligationTransitioned` (`fromState`/`toState` payload), never a named event. `transitionObligation` now reads `gate.eventType` (Version Feature Plan.md §3's mechanism, already platform-wide) and publishes it **in addition to** `ObligationTransitioned`, not instead of it — same correlation id, both fire, nothing after either publish (owner, explicit: "every transition also has to publish ObligationTransitioned which is not stated in the chapter").
 
@@ -671,7 +550,7 @@ Every real transition (including Reopen and Escalate) also carries `version_even
 
 `SustainedPatternDetected` (`telemetry.ts`) remains a real extra event the chapter doesn't name. Field-level edit history (a plain Revision — title/description/severity/category/priority/completion criteria/assignment, no transition, no event of any kind) is not covered by `events` at all by design; migration 252 adds `obligations.revision_history` (JSONB, append-only) for exactly this case, written only by the new revise/save path (`reviseObligation`, `core/obligations.ts`) — see 19.5. On the AttentionItem side: `AttentionItemTransitioned` — real since Ch.34's own original build — is a catalogued event in `event_subscriptions` with two real subscribers (`executionEngineKickoff`, `deliverableKickoff`, see 19.9).
 
-## 19.13 ✅ Non-Functional Requirements (§16)
+### 19.13 ✅ Non-Functional Requirements (§16)
 
 | NFR | Verdict | Basis |
 |---|---|---|
@@ -681,7 +560,7 @@ Every real transition (including Reopen and Escalate) also carries `version_even
 | support composition from multiple governance sources | ✅ | Quality Gate, Dependency Engine, Policy-block, and Pack-Obligation-block are all real, independent raise-on-block paths (19.7/19.9), though `originating_pack_id` traceability (19.2 OM-005) is still absent. |
 | remain independent of Participant implementations | ✅ | No coupling exists |
 
-## 19.14 ⚠️ Acceptance Criteria (§17)
+### 19.14 ⚠️ Acceptance Criteria (§17)
 
 | Criterion | Verdict |
 |---|---|
@@ -693,7 +572,7 @@ Every real transition (including Reopen and Escalate) also carries `version_even
 | Obligations remain independent of Participant changes | ✅ |
 | Sustained Telemetry patterns raise Organisational Learning Obligations, and resolving them produces a revised Pack version | ⚠️ half true — raising is real (FR-23.8); "produces a revised Pack version" is not built (19.9) |
 
-## 19.15 ✅ Deliverables (§18)
+### 19.15 ✅ Deliverables (§18)
 
 | Named Deliverable | Real artifact | Verdict |
 |---|---|---|
@@ -708,7 +587,7 @@ Every real transition (including Reopen and Escalate) also carries `version_even
 
 Not named in the chapter's own §18 list: the Work Item Execution Context (`workItemGenerator.ts`, Ch.32) surfaces every Obligation related to a dispatched Deliverable to the Participant performing the work — a plain, unscoped `obligationsDB.findByRelatedObject("Deliverable", …)`, the same breadth already given to that Deliverable's Decisions/Evidence/Knowledge, not limited to whichever Obligations a specific Governance Evaluation Outcome happened to consult for one transition attempt. This is the first place Obligation visibility reaches the Participant doing the work, not just the governance engines.
 
-## Summary — ranked
+### Summary — ranked
 
 1. **[Governance, real and strong]** Obligation is a real structural gate on a governed transition: a Policy or a Pack's own declared Obligation Definition can genuinely block SEU commence-work (and transitively every Deliverable under it), and resolving either one genuinely unblocks it via the Execution Engine's own retry, off either `ObligationTransitioned` or `AttentionItemTransitioned` (19.8, 19.9).
 2. **[Data model]** Origin, Priority, and Completion Criteria are real columns on the live *instance*. Every real creation path now tags Origin with a real `category:obligation-origin` value; Priority is still Policy-block/Pack-Obligation-block only, and Completion Criteria's own structured half — the Definition's `classification`/`governingCondition` for the machine-verifiable case — is declared but never read at runtime, so completion stays a manual, free-text-guided human call regardless of classification (19.5, 19.7).

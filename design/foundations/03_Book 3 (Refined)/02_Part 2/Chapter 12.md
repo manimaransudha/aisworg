@@ -1,93 +1,7 @@
-
 # Chapter 12 – Capability Fulfilment
 
-I think the next chapter should **not** be Participants.
 
-There's an important concept between Capabilities and Participants that we've referred to several times but never formally defined.
-
-That concept is **Capability Fulfilment**.
-
-Remember the ADR we created:
-
-> **The platform commissions capabilities, not participants.**
-
-That ADR deserves its own chapter because it fundamentally changes how software teams are assembled.
-
-In traditional software engineering:
-
-> Recruit people → assign work.
-
-In an SEU:
-
-> Identify required capabilities → fulfil them → assign execution.
-
-That's a major architectural shift.
-
------------------
-
-While writing this chapter, I realised we've established a layered execution chain that is quite different from traditional project management systems:
-
-```
-Objective
-
-↓
-
-Deliverables
-
-↓
-
-Dependencies
-
-↓
-
-Capabilities
-
-↓
-
-Capability Fulfilment
-
-↓
-
-Participants
-
-↓
-
-Work Items
-
-↓
-
-Execution
-```
-
-Notice what is **absent** from this chain:
-
-- Tasks
-- Resource allocation
-- Project schedules
-- Team staffing
-
-Those concepts have been replaced by more fundamental abstractions.
-
-One refinement I'd suggest before we move on is that we should reserve the term **Participant** for _runtime instances_ only.
-
-For example:
-
-- "AI Architect" is not a Participant.
-- It is a **Participant Type**.
-
-When an SEU commissions an actual AI Architect, it creates a **Participant Instance** with its own identity, lifecycle, memory bindings, capabilities and execution history.
-
-The same applies to humans:
-
-- "Senior Developer" is a Participant Type.
-- "Priya assigned to SEU-042" is a Participant Instance.
-
-Making that distinction will give us a much cleaner Participant Model in the next chapter, because we'll be modelling runtime entities rather than abstract roles or job titles. I think that's consistent with the rest of the architecture, where Templates define structure, the EBM defines behaviour, Capabilities define competencies, and runtime instances execute within the commissioned SEU.
-
-
----
-
-# 1. Purpose
+## 1. Purpose
 
 Capability Fulfilment is the process by which a Software Engineering Unit (SEU) satisfies the engineering capabilities required to achieve its Deliverables.
 
@@ -99,7 +13,7 @@ Capability Fulfilment remains independent of the implementation of those Partici
 
 ---
 
-# 2. Scope
+## 2. Scope
 
 This chapter defines:
 
@@ -122,7 +36,7 @@ Capability Fulfilment determines **which Participants are eligible** to provide 
 
 ---
 
-# 3. Architectural Position
+## 3. Architectural Position
 
 ```
 Deliverable
@@ -152,7 +66,7 @@ Capability Fulfilment forms the bridge between engineering intent and engineerin
 
 ---
 
-# 4. Definition
+## 4. Definition
 
 Capability Fulfilment is the runtime process that identifies suitable Participants capable of providing the competencies required by the SEU.
 
@@ -162,7 +76,7 @@ Participants may change throughout the lifetime of the SEU without affecting the
 
 ---
 
-# 5. Architectural Principles
+## 5. Architectural Principles
 
 ### CF-001
 
@@ -188,7 +102,7 @@ Capability Fulfilment shall remain fully traceable.
 
 ---
 
-# 6. Functional Requirements
+## 6. Functional Requirements
 
 ### FR-12.1
 
@@ -225,49 +139,49 @@ Capability Fulfilment decisions shall remain traceable.
 
 ---
 
-# 7. Fulfilment Strategies
+## 7. Fulfilment Strategies
 
 Capability Fulfilment may be achieved through:
 
-## AI Participant
+### AI Participant
 
 Example:
 
 Architecture Capability fulfilled by an AI Architect.
 
----
+ 
 
-## Human Participant
+### Human Participant
 
 Example:
 
 Security Review Capability fulfilled by a Security Architect.
 
----
+ 
 
-## External Service
+### External Service
 
 Example:
 
 Static Analysis Capability fulfilled by an external scanning service.
 
----
+ 
 
-## Hybrid
+### Hybrid
 
 Example:
 
 Architecture Capability jointly fulfilled by an AI Architect and a Human Architect.
 
----
+ 
 
-## Composite
+### Composite
 
 A Capability fulfilled by multiple coordinated Participants providing complementary expertise.
 
----
+ 
 
-# 8. Fulfilment Criteria
+## 8. Fulfilment Criteria
 
 Capability Fulfilment shall evaluate:
 
@@ -283,7 +197,7 @@ Selection algorithms are implementation-defined.
 
 ---
 
-# 9. Eligibility Registration
+## 9. Eligibility Registration
 
 Capability Fulfilment registers eligibility, not final assignment.
 
@@ -299,7 +213,7 @@ Eligibility registration shall not modify the Capability definition.
 
 ---
 
-# 10. Dynamic Reassignment
+## 10. Dynamic Reassignment
 
 Participants may be replaced during SEU execution.
 
@@ -320,7 +234,7 @@ Reassignment shall preserve:
 
 ---
 
-# 11. Capability Availability
+## 11. Capability Availability
 
 Capability Fulfilment shall continuously monitor:
 
@@ -333,7 +247,7 @@ Changes in availability may trigger re-evaluation by the Dependency Engine.
 
 ---
 
-# 12. Capability Continuity
+## 12. Capability Continuity
 
 The platform shall ensure that capability continuity is maintained despite Participant changes.
 
@@ -349,7 +263,7 @@ Participants shall not become the primary repository of engineering knowledge.
 
 ---
 
-# 13. Fulfilment Failure
+## 13. Fulfilment Failure
 
 Capability Fulfilment shall detect situations where:
 
@@ -364,7 +278,7 @@ Commissioning or execution may be suspended depending on the affected Deliverabl
 
 ---
 
-# 14. Events
+## 14. Events
 
 The subsystem shall publish:
 
@@ -380,7 +294,7 @@ The subsystem shall publish:
 
 ---
 
-# 15. Non-Functional Requirements
+## 15. Non-Functional Requirements
 
 Capability Fulfilment shall:
 
@@ -392,7 +306,7 @@ Capability Fulfilment shall:
 
 ---
 
-# 16. Acceptance Criteria
+## 16. Acceptance Criteria
 
 The implementation shall satisfy the following criteria.
 
@@ -410,7 +324,7 @@ The implementation shall satisfy the following criteria.
 
 ---
 
-# 17. Deliverables
+## 17. Deliverables
 
 Implementation of this chapter shall produce:
 
@@ -424,11 +338,11 @@ Implementation of this chapter shall produce:
 
 ---
 
-# 18. Implementation Specifics
+## 18. Implementation Specifics
 
 *Recorded 2026-09-11. This section documents how Capability Fulfilment is realised in the current build. It does not change the requirements above (CF-001–005, §§6–17); it records what is built, what is partial, and what is still open — the same convention as Chapter 5 §19. Status markers: ✅ built · ⚠️ partial · 🚩 not built.*
 
-## 18.1 ⚠️ Fulfilment is direct assignment, not a selection algorithm (§8, FR-12.2)
+### 18.1 ⚠️ Fulfilment is direct assignment, not a selection algorithm (§8, FR-12.2)
 
 `fulfilCapability` (`core/capabilities.ts`) takes an explicit `participantType` + `displayName` from the caller (a form on the SEU detail page — see 18.10) and creates exactly that Participant. There is no matching/selection step that evaluates §8's own criteria list — capability compatibility, behavioural compatibility with the EBM, required knowledge, required authority, availability, engineering constraints, Pack-specific requirements. "Selection algorithms are implementation-defined" (§8) is true only in the sense that none exists yet to be defined; a human (or whatever calls the form) decides who fulfils a Capability, the platform records it.
 
@@ -443,7 +357,7 @@ Implementation of this chapter shall produce:
 - **Dimension vocabulary, corrected.** The paragraph above still says "matching against a Participant's own `domain`/`technology`/`hyper-scale` values, migration 195" — stale. `competency`'s dimension keys are `category:pack`'s own codes (`Domain`/`Technology`, capitalised), not a standalone `competency-dimension` concept type, and `hyper-scale` is dropped entirely — no Pack category maps to it (CR-099's own revision, settled before CR-099 was built, not after).
 - **The seam is exercised now.** `domain/engine/profileCompositionUnravel.ts`'s `unravelComposition` — the real, live EBM composition mechanism (`compositionEngine.compose()` is dead code in this flow, explicitly commented out per owner: *"I want compose() commented out as the very first step"*) — computes a `competencyRequirements` union at composition time: every selected Profile's own `primaryProgrammingLanguage` Configuration Parameter unions into dimension `Technology`; its new `domain` Configuration Parameter (CR-101, Ch.7 §10's ninth Configuration Parameter) unions into dimension `Domain`; every composed Pack's own declared `contributionCompetencies[]` (CR-099) unions in by whatever dimension it declares. Carried onto `ebm.behaviors.competencyRequirements` (`compositionCompleted.ts`, the sole place `ebmsDB.create()` is called from). New `getSeuCompetencyRequirements(seu)` (`core/participantEligibility.ts`) reads it back off the SEU's active EBM; both the Fulfil dropdown (`getSeuDetailView`) and `fulfilCapability`/`fulfilCapabilityWithParticipants`'s shared server-side re-check (`resolveMasterParticipant`) now pass it as `findEligibleParticipants`'s `competency` argument — no longer an unexercised seam. §8's Technology/Domain competency criterion is real: "eligible" now genuinely means "holds the Capability AND the Technology/Domain competency this SEU actually needs" (`matchesCompetency`'s own pre-existing ANY-within-dimension/ALL-across-dimensions matching, unchanged, reused as-is). §8's own remaining criteria (behavioural compatibility with the EBM, required knowledge/authority, engineering constraints, Pack-specific requirements) still join nowhere yet.
 
-## 18.2 ⚠️ Eligibility is always exactly one Participant (§9, FR-12.2, FR-12.3)
+### 18.2 ⚠️ Eligibility is always exactly one Participant (§9, FR-12.2, FR-12.3)
 
 `capabilityFulfilmentsDB.findActiveBySeuCapabilityId` returns a single row (`LIMIT 1`), by its own comment: *"Today Capability Fulfilment is 1:1 per SEU Capability, so this is the entire pool."* The Dispatch Engine (`dispatchEngine.ts`) that's meant to select among an eligible-Participant pool (§9, Chapter 33) names this directly — its own resolved-participant constant is literally `SOLE_ELIGIBLE_PARTICIPANT`. §9's "candidate for dispatch" pool is real as a concept but never holds more than one candidate in practice.
 
@@ -459,7 +373,7 @@ Net: this subsection's own title overstates what's actually built-in-as-a-limit 
 
 **Update 2026-09-19 (CR-109 §6.2) — the eligible-Participant pool is now a real, persisted snapshot, not a live query. Stale text above corrected: `findActiveBySeuCapabilityId` is no longer what Dispatch Engine reads from at all.** A new `capability_fulfilment_pools` table (migration `240`) holds one snapshot row — `{seu_id, seu_capability_id, capability_id, participant_ids[]}` — taken by `executionEngine.execute()` at the moment a Command is generated, via `capabilityFulfilmentsDB.findActiveManyBySeuCapabilityId` (this section's own real multi-Participant pool). `commands.eligible_participant_pool_id` references it — CR-109 §6.2's own named `eligibleParticipantPoolRef` field, closing the gap CR-109's design note flagged as its own next, unbuilt step. `dispatchEngine.ts` no longer calls `seuCapabilitiesDB`/`capabilityFulfilmentsDB` live at all; it reads the pool row the Command already carries and picks `participant_ids[0]` — the exact same "whichever one" selection this subsection's own settled-but-deferred note above describes, just now sourced from a persisted record instead of re-derived on every dispatch. A Command with no producing Capability declared at all gets no pool row (`eligible_participant_pool_id` stays `NULL`) — the pre-existing `NO_CAPABILITY_DECLARED` path is unchanged; a Capability that *is* declared but has zero active fulfilments still gets a real pool row, just with an empty `participant_ids` array, so "no eligible Participant" is now a real, inspectable fact rather than the absence of a query result. **What this deliberately does not change**: Dispatch Engine's own §8-criteria selection logic — still not built, still Chapter 33's own future work, per the owner's own "let us keep it open" above. **Independent of Participant execution being simulated** (the mocked delivery adapters behind `assignmentDelivery.ts`, Ch.31/Ch.33's own execution edge) — this pool-persistence layer is pure Fulfilment/Command data plumbing and does not touch, and is not affected by, how (or whether) a dispatched Work Item's execution is actually simulated. New tests: `tests/cr109-work-item-generator.test.ts` (2 new cases — a real pool snapshot matching the actual fulfilment, and a declared-but-unfulfilled Capability producing an empty-array pool rather than no pool at all).
 
-## 18.3 🚩 Hybrid and Composite strategies are declared, not built (§7, FR-12.3)
+### 18.3 🚩 Hybrid and Composite strategies are declared, not built (§7, FR-12.3)
 
 `fulfilmentStrategy` (`capability_fulfilments.fulfilment_strategy`) accepts `"Hybrid"` and `"Composite"` as values (migration 002; widened alongside `ParticipantType` in migration 194, see Chapter 13's own Implementation Specifics), but nothing in `fulfilCapability` ever creates more than one Participant per call, and nothing interprets a `Hybrid`/`Composite` value differently from a single-Participant strategy. §7's own two worked examples (an Architecture Capability jointly fulfilled by an AI and a Human Architect) cannot happen today — FR-12.3 ("Multiple Participants may jointly fulfil a Capability") is unbuilt.
 
@@ -467,37 +381,37 @@ Net: this subsection's own title overstates what's actually built-in-as-a-limit 
 
 **Where per-Participant-type/skill requirements belong, settled by the owner:** the earlier question ("does fulfilment need to reflect a Pack/Profile-declared required Participant Type") is resolved architecturally, even though nothing is built yet. Owner: *"At review level is correct for definition [the existing verifiable-item `participant` field — Checklist/Quality Gate/Review Gate — stays where it is]. There will be a template that will have a complete definition of prompts and skill that AI or automated participants need or use. I think the Dispatch Engine needs to check this and not the Capability Fulfilment."* i.e. Capability Fulfilment (this chapter) stays about registering *eligibility* only (§9, unchanged); matching a specific prompt/skill requirement to a specific Participant is Dispatch Engine's job (Ch.33), against a not-yet-designed prompt/skill definition artifact. Explicitly deferred — owner: "Open item, let us resolve as we go along." Nothing to build from this yet.
 
-## 18.4 🚩 One Participant cannot fulfil multiple Capabilities (FR-12.4)
+### 18.4 🚩 One Participant cannot fulfil multiple Capabilities (FR-12.4)
 
 Every `fulfilCapability` call runs `participantsDB.create` unconditionally — there is no path to pick an *existing* Participant and register it against a second Capability. FR-12.4 ("One Participant may fulfil multiple Capabilities") is not realised; each Capability gets its own freshly-minted Participant, even within the same SEU. This is the same gap Chapter 13's CR-098 (`participants_master`, the tenant-scoped cross-SEU resource registry) is positioned to close — a `participants_master` row already carries a `capabilities[]` array precisely for this — but `fulfilCapability`/`replaceParticipant` have not yet been wired to select from it (Chapter 13 §19's own open item).
 
 **Update 2026-09-11 — partially closed.** `fulfilCapability` now accepts a `participantMasterId` (18.1): the *same* `participants_master` resource, already listing several capability codes, can genuinely be selected to fulfil more than one of this SEU's Capabilities — each call still mints its own new `participants` lifecycle row (per-SEU-Capability engagement, by design, Chapter 13 §8), but every such row now shares one `participant_id` FK back to the same master. FR-12.4 is realised for *this* SEU; `replaceParticipant` (Chapter 13 §13) still only ever creates an ad hoc identity, not yet wired to the same registry.
 
-## 18.5 ✅ Reassignment preserves continuity (§10, FR-12.5, FR-12.6)
+### 18.5 ✅ Reassignment preserves continuity (§10, FR-12.5, FR-12.6)
 
 `replaceParticipant` (`core/participants.ts`) drives the old Participant through `Released → Archived` (both real, governed `transitionParticipant` calls), creates the replacement, revokes the old `capability_fulfilments` row and establishes a new one. Deliverable state, Knowledge, Decisions, Evidence, Traceability and Outstanding Obligations are preserved by construction, not by an explicit copy step — none of those tables reference `participant_id` at all (confirmed directly; only `capability_fulfilments` does, and that's exactly what gets re-pointed). §10's own preservation list is satisfied because there is nothing participant-shaped to lose.
 
-## 18.6 ⚠️ Capability Fulfilment's own status is an ungoverned flip (§9, cf. Chapter 13's transition discipline)
+### 18.6 ⚠️ Capability Fulfilment's own status is an ungoverned flip (§9, cf. Chapter 13's transition discipline)
 
 `seuCapabilitiesDB.markFulfilled` is a plain `UPDATE seu_capabilities SET status = 'Fulfilled'` — `SeuCapabilityStatus` is a two-value type (`Unfulfilled | Fulfilled`, migration 002), and neither value change goes through `transitionEngine`. This is a real inconsistency against this platform's own general discipline elsewhere (Participant, Deliverable, Objective, Pack and every other governed entity move through `transitionEngine.evaluate` with an authority/policy/quality-gate check first) — Capability Fulfilment's own lifecycle is the one place a status change happens with no gate at all.
 
-## 18.7 🚩 No authority gate, no actor attribution (CF-005, FR-12.7)
+### 18.7 🚩 No authority gate, no actor attribution (CF-005, FR-12.7)
 
 Neither the Fulfil nor the Replace web route (`web/seus.ts`, `POST /seus/:id/capabilities/:capabilityId/fulfil` and `.../participant/:participantId/replace`) calls `badgeAuthorityEngine` — confirmed directly, no badge check anywhere in that file. §8's "required authority" criterion is therefore not evaluated on the fulfilling side at all (only `replaceParticipant`'s own `Released`/`Archived` hops carry a real actor through `transitionParticipant`, because those are governed Participant-lifecycle transitions, not because Capability Fulfilment itself checks anything). The `ParticipantCreated` and `CapabilityFulfilled` events `fulfilCapability` publishes carry no `actorId` in their payload — same for the fresh `ParticipantCreated` `replaceParticipant` publishes for the new Participant. CF-005 ("shall remain fully traceable") and FR-12.7 hold for the Deliverable/Knowledge/Obligation side (18.5) but not for "who decided this Capability should be fulfilled by this Participant."
 
-## 18.8 ⚠️ Fulfilment Failure — only the cross-SEU pattern is detected (§13)
+### 18.8 ⚠️ Fulfilment Failure — only the cross-SEU pattern is detected (§13)
 
 `seuCapabilitiesDB.findUnfulfilledByCapability` + `telemetry.ts`'s `checkSustainedCapabilityShortages` (Ch.35 §11) raise a real Organisational Learning Obligation, but only once the *same* Capability sits Unfulfilled across a sustained-pattern threshold of SEUs platform-wide — a background/telemetry concern, not an immediate reaction to one failed fulfilment attempt. §13's own list (no suitable Participant exists, required authority cannot be satisfied, Pack constraints cannot be met, mandatory capabilities are unavailable) has no single-SEU, real-time detection path at all — there being no selection algorithm (18.1) means there is nothing to report a failure from in the first place. `CapabilityUnavailable` and `CapabilityFulfilmentFailed` (§14) are never published (confirmed — zero occurrences in the codebase).
 
-## 18.9 ✅ Capability Continuity holds structurally (§12)
+### 18.9 ✅ Capability Continuity holds structurally (§12)
 
 Nothing in this codebase stores engineering knowledge on a Participant row — `participants`/`participants_master` carry identity and lifecycle state only (Chapter 13). Knowledge Items, Decisions, Evidence and the EBM itself are all SEU/Deliverable-scoped, never Participant-scoped, so §12's "Participants shall not become the primary repository of engineering knowledge" holds by construction rather than by an enforced rule. The same fact underwrites 18.5's reassignment guarantee.
 
-## 18.10 ⚠️ Required Capabilities are a commissioning-time snapshot, not a live per-Deliverable derivation (FR-12.1)
+### 18.10 ⚠️ Required Capabilities are a commissioning-time snapshot, not a live per-Deliverable derivation (FR-12.1)
 
 `commissioning.ts` unions every selected Template's `getRequiredCapabilities` and writes them into `seu_capabilities` once, at commissioning (`seuCapabilitiesDB.createMany`). FR-12.1's own wording ("determine the capabilities required to **progress a Deliverable**") implies a live, per-Deliverable derivation; what's built is a fixed set decided up front from the Template, not re-derived as Deliverables actually progress. This is the same gap Chapter 1 §10 and Chapter 5 §19.12 already name (Objective-content-to-Capability derivation, tracked as CR-011) — Capability Fulfilment consumes whatever `seu_capabilities` already holds; it doesn't participate in deciding what belongs there.
 
-## 18.11 ⚠️ Deliverables coverage (§17)
+### 18.11 ⚠️ Deliverables coverage (§17)
 
 - **Capability Fulfilment service** — ✅ `core/capabilities.ts`'s `fulfilCapability`, though see 18.1–18.4 for how much of §8/§9 it actually evaluates.
 - **Participant assignment service** — ✅ `core/participants.ts`'s `transitionParticipant`/`replaceParticipant`.

@@ -1,7 +1,6 @@
-
 # Chapter 41 – Version Management Architecture
  
-# 1. Purpose
+## 1. Purpose
 
 The Version Management Architecture defines how versioned engineering artefacts are identified, evolved, related and reproduced throughout the Software Engineering Unit (SEU) Platform.
 
@@ -11,7 +10,7 @@ Every engineering decision shall be explainable in the context of the exact vers
 
 ---
 
-# 2. Scope
+## 2. Scope
 
 This chapter defines:
 
@@ -31,7 +30,7 @@ This chapter does not define:
 
 ---
 
-# 3. Architectural Position
+## 3. Architectural Position
 
 ```
 Engineering Objects
@@ -57,7 +56,7 @@ Version Management preserves engineering continuity across platform evolution.
 
 ---
 
-# 4. Definition
+## 4. Definition
 
 A Revision is an internal working state. It exists while an artefact is being authored. Revisions are mutable. They are never referenced by an active SEU.
 
@@ -78,39 +77,35 @@ Only Versions may be referenced by:
   
 ---
 
-# 5. Architectural Principles
+## 5. Architectural Principles
 
-## VM-001
+### VM-001
 
 Every significant engineering artefact shall be versioned.
  
-
-## VM-002
+### VM-002
 
 Versions are immutable.
  
-
-## VM-003
+### VM-003
 
 Historical engineering execution shall remain reproducible.
  
-
-## VM-004
+### VM-004
 
 Compatibility shall be explicitly declared as part of the engineering objects.
  
-
-## VM-005
+### VM-005
 
 Version relationships shall remain traceable.
  
-
-## VM-006
+### VM-006
 
 Version management shall remain independent of implementation technologies.
  
+---
 
-# 6. Functional Requirements
+## 6. Functional Requirements
 
 ### FR-41.1
 
@@ -134,7 +129,6 @@ Version compatibility shall be validated before activation.
 
 Superseded versions shall remain available.
 
-
 ### FR-41.5
 
 Historical execution shall reference exact versions.
@@ -147,8 +141,9 @@ Version history shall remain permanently traceable.
 
 The platform shall support concurrent versions where compatible.
 
+---
 
-# 7. Versioned Artefacts
+## 7. Versioned Artefacts
 
 Illustrative versioned artefacts include:
 
@@ -168,7 +163,7 @@ Additional artefacts may become versioned in future platform releases.
 
 ---
 
-# 8. Version Structure
+## 8. Version Structure
 
 Every Version shall define:
 
@@ -187,7 +182,7 @@ Version numbering strategy is implementation-defined.
 
 ---
 
-# 9. Version Lifecycle
+## 9. Version Lifecycle
 
 Every Version shall progress through the following general lifecycle. However, individual engineering artefacts can have their own definition of lifecycle. 
 
@@ -223,7 +218,7 @@ Historical Versions remain immutable.
 
 ---
 
-# 10. Compatibility
+## 10. Compatibility
 
 Compatibility shall be evaluated before a Version is activated.
 
@@ -240,7 +235,7 @@ Compatibility rules shall be declarative.
 
 ---
 
-# 11. Version Evolution
+## 11. Version Evolution
 
 Platform evolution shall occur by creating new Versions.
 
@@ -258,7 +253,7 @@ Every evolution shall preserve historical traceability.
 
 ---
 
-# 12. Historical Reconstruction
+## 12. Historical Reconstruction
 
 The platform shall support reconstruction of any historical engineering state.
 
@@ -266,14 +261,14 @@ Reconstruction shall utilise:
 
 - historical Versions
 - historical Events
-- historical Effective Engineering Configurations
+- historical Engineering Behavior Models
 - historical State Transitions
 
 The reconstructed environment shall reproduce engineering behaviour as originally executed.
 
 ---
 
-# 13. Version Traceability
+## 13. Version Traceability
 
 Every Version shall preserve:
 
@@ -288,7 +283,7 @@ Traceability shall remain immutable.
 
 ---
 
-# 14. Version Governance
+## 14. Version Governance
 
 Activation of a new Version may require:
 
@@ -302,7 +297,7 @@ Version governance rules may be contributed through Packs.
 
 ---
 
-# 15. Events
+## 15. Events
 
 The Version Management subsystem shall publish:
 
@@ -316,7 +311,7 @@ The Version Management subsystem shall publish:
 
 ---
 
-# 16. Non-Functional Requirements
+## 16. Non-Functional Requirements
 
 The Version Management Architecture shall:
 
@@ -328,7 +323,7 @@ The Version Management Architecture shall:
 
 ---
 
-# 17. Acceptance Criteria
+## 17. Acceptance Criteria
 
 The implementation shall satisfy the following criteria.
 
@@ -346,7 +341,7 @@ The implementation shall satisfy the following criteria.
 
 ---
 
-# 18. Deliverables
+## 18. Deliverables
 
 Implementation of this chapter shall produce:
 

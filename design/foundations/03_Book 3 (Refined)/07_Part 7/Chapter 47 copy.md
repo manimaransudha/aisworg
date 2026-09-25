@@ -20,20 +20,20 @@ Policy and Quality Gate evaluation decide **what that means for the transition**
 
 This chapter defines:
 
-- the Checklist abstraction;
-- Checklist Item structure and classification;
-- Mandatory and Recommended items;
-- Checklist execution and its output contract;
-- Checklist composition;
-- Checklist lifecycle;
-- the relationships between Checklist, Evidence, Policy and Quality Gate.
+- the Checklist abstraction
+- Checklist Item structure and classification
+- Mandatory and Recommended items
+- Checklist execution and its output contract
+- Checklist composition
+- Checklist lifecycle
+- the relationships between Checklist, Evidence, Policy and Quality Gate
 
 This chapter does not define:
 
-- Evidence structure (Chapter 17);
-- Policy structure or evaluation (Chapter 24);
-- Quality Gate structure or evaluation (Chapter 26);
-- Participant implementations (Chapter 5 §19, Participant Integration Model).
+- Evidence structure (Chapter 17)
+- Policy structure or evaluation (Chapter 24)
+- Quality Gate structure or evaluation (Chapter 26)
+- Participant implementations (Chapter 5 §19, Participant Integration Model)
 
 ---
 
