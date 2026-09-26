@@ -36,6 +36,13 @@ export interface JsonSchemaDocument {
   // relative position here. Fields not listed keep their (arbitrary,
   // post-JSONB-reorder) relative order, appended after every listed one.
   "x-property-order"?: string[];
+  // CR-114 — an append-only log of {date, note} entries for schema AUTHORS
+  // only ("why this version exists, what changed since the last one"), never
+  // read by generateFields/validateAgainstSchema/parseFormBody below or by
+  // any real authoring form. Same shape wherever it appears — also legal on
+  // an individual JsonSchemaProperty (a note on one field) — location never
+  // changes its meaning.
+  "x-schema-notes"?: Array<{ date: string; note: string }>;
 }
 
 export interface JsonSchemaProperty {
@@ -44,6 +51,12 @@ export interface JsonSchemaProperty {
   pattern?: string;
   minLength?: number;
   default?: unknown;
+  // CR-088 (migration 167/207) — a schema-level annotation, not read by this
+  // file at all: marks a field whose value cascades Pack -> Template ->
+  // Profile and may be narrowed downstream, for whichever code owns that
+  // cascade. Kept here only so the schema-registry's own compiler/editor
+  // (schemaCompiler.ts) doesn't silently drop it on every field kind alike.
+  "x-configurable"?: boolean;
   // "version" — CR-024, generalising Pack's originally hardcoded-by-field-name
   // `packVersion` convention (readonly, only advanced by a "Next version"
   // patch-bump button) into a real schema-driven widget, the same way
@@ -57,8 +70,16 @@ export interface JsonSchemaProperty {
   // several values instead of one, same x-ontology/x-referential-source
   // markers as that widget, rendered as a real <select multiple> instead of
   // a repeatable-row widget.
-  "x-widget"?: "json" | "referential-list" | "referential-select" | "referential-multi-select" | "textarea" | "version";
+  "x-widget"?: "json" | "referential-list" | "referential-select" | "referential-multi-select" | "textarea" | "version" | "db-select";
   "x-referential"?: string;
+  // CR-114 follow-on — reused verbatim by "db-select" (below) to name which
+  // DB-sourced option list to resolve, the same way it names an
+  // Ontology/registry source for "referential-select". A "db-select" field
+  // is referential in the same sense as "referential-select", just sourced
+  // from a plain DB query (schemaDefinitionsDB.findAllVersions today) rather
+  // than Ontology/a fixed registry — one generic widget kind so any future
+  // "pick a value out of some DB table" field reuses this instead of a new
+  // one-off widget (owner: rename from the original "schema-version-select").
   "x-referential-source"?: string;
   // CR-060 — Review/Quality Gate's own checklistIds: a referential-list
   // ITEM field (x-referential set) that picks more than one value rather
@@ -99,6 +120,19 @@ export interface JsonSchemaProperty {
   // there, code dropdown has to be generated."
   "x-referential-source-by"?: string;
   "x-referential-source-suffix"?: string;
+  // A field whose valid values are a live-computed subset of some other
+  // concept type, derived from OTHER data already entered earlier in this
+  // same document — not a sibling's single current value (x-referential-
+  // source-by) and not raw rows copied off another field (`self:` inside
+  // x-referential, sdkAuthoring.ts's loadSelfReferentialOptions), but a named,
+  // registered derivation function (e.g. Template's fromCapabilityCode:
+  // whichever capability-name codes the currently-selected Packs actually
+  // contribute — sdkAuthoring.ts's loadDerivedPackCapabilityOptions). The
+  // named value is the derivation's registered key; there is no schema-level
+  // way to express the computation itself, only to name which one applies.
+  // Item-level only (dependencyGraph's own fromCapabilityCode is the first
+  // user).
+  "x-referential-source-derived-by"?: string;
   // Owner: "If the scope is Transition, the applicable deliverable names
   // will be ontology driven deliverable names. If the scope is eligibility,
   // the nouns (SEU, Ontology etc.) should be in the dropdown" — Policy's own
@@ -181,6 +215,9 @@ export interface JsonSchemaProperty {
   properties?: Record<string, JsonSchemaProperty>;
   required?: string[];
   "x-property-order"?: string[];
+  // CR-114 — see JsonSchemaDocument's own "x-schema-notes" above; same shape,
+  // legal on a single property too (a note on that one field).
+  "x-schema-notes"?: Array<{ date: string; note: string }>;
 }
 
 // A referential-list row's fields, generically — referentialSource set means
@@ -261,6 +298,13 @@ export type GeneratedField =
   // <input list>/<datalist> instead of a fixed <select> and swaps its
   // options client-side when the named driver field changes.
   | { kind: "referential-select"; name: string; label: string; required: boolean; value: string; referentialSource: string; ontology: boolean; help?: string; showWhen?: string; dynamicSourceField?: string; dynamicSourceSuffix?: string; dynamicSourceDriverConceptType?: string; group?: string }
+  // CR-114 follow-on — a value picked from a plain DB-sourced option list
+  // (not Ontology/registry-backed, so no `ontology` flag). `dbSource` names
+  // which loader-resolved list (web/sdkAuthoring.ts's dbSelectOptions map,
+  // parallel to referentialOptions) supplies {value,label} options — value
+  // and label differ here (e.g. a schema_definitions row's id vs. "v3"),
+  // unlike every referentialOptions[] entry today where they're the same string.
+  | { kind: "db-select"; name: string; label: string; required: boolean; value: string; dbSource: string; help?: string; showWhen?: string; group?: string }
   // CR-086/Ch.11 follow-on — Service Definition's `consumers`: same
   // referential-source/ontology shape as "referential-select", but `value`
   // is the array of every currently-selected code, not just one.
@@ -366,6 +410,15 @@ function buildItemFields(itemProps: Record<string, JsonSchemaProperty>, itemRequ
     // x-referential of its own.
     if (fieldDef["x-referential-source-by"]) {
       return { name: fieldName, kind: "referential-dynamic" as const, driverField: fieldDef["x-referential-source-by"], driverSuffix: fieldDef["x-referential-source-suffix"] ?? "", ontology: true, ...common };
+    }
+    // Checked alongside the plain x-referential case below — mutually
+    // exclusive with it (a field is either a fixed/named registry key or a
+    // named derivation, never both). Renders through the same "referential"
+    // kind/picker as plain x-referential; referentialSource carries a
+    // "derived:" prefix so the existing referentialOptions[...] lookup (view
+    // + sdkAuthoring.ts) resolves it with no further change.
+    if (fieldDef["x-referential-source-derived-by"]) {
+      return { name: fieldName, kind: "referential" as const, referentialSource: `derived:${fieldDef["x-referential-source-derived-by"]}`, ontology: false, ...common };
     }
     if (fieldDef["x-referential"] && fieldDef["x-multi"]) return { name: fieldName, kind: "referential-multi" as const, referentialSource: fieldDef["x-referential"], ...common };
     if (fieldDef["x-referential"]) return { name: fieldName, kind: "referential" as const, referentialSource: fieldDef["x-referential"], ontology: fieldDef["x-ontology"] === true, ...common };
@@ -534,6 +587,16 @@ export function generateFields(schema: JsonSchemaDocument, content: Record<strin
         dynamicSourceDriverConceptType: driverField ? schema.properties?.[driverField]?.["x-referential-source"] : undefined,
         group,
       });
+      continue;
+    }
+
+    // CR-114 follow-on — a plain DB-sourced picker (schema version today).
+    // dbSource just carries x-referential-source through unresolved; the web
+    // layer resolves it against its own dbSelectOptions map (parallel to
+    // referentialOptions), the same division of labour "referential-select"
+    // already uses for Ontology/registry sources.
+    if (def["x-widget"] === "db-select") {
+      fields.push({ kind: "db-select", name, label: labelize(name), required: isRequired, value: rawValue !== undefined ? String(rawValue) : "", dbSource: def["x-referential-source"] ?? "", help: def["x-help"], showWhen: def["x-show-when"], group });
       continue;
     }
 

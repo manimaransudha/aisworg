@@ -28,7 +28,7 @@ import { transitionEngine } from "../src/domain/engine/transitionEngine.js";
 import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
-import { validateTransitionDefinitionSeed, addTransitionDefinition } from "../src/routes/seu/core/transitionDefinitions.js";
+import { addTransitionDefinition } from "../src/routes/seu/core/transitionDefinitions.js";
 import { addVerb, addMapping, listAuthorityMapping } from "../src/routes/seu/core/authorityVocabulary.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
 
@@ -113,41 +113,6 @@ test("transitionEngine.evaluate itself enforces an authored Transition Definitio
 
   const afterResolution = await transitionEngine.evaluate(evaluateArgs);
   assert.equal(afterResolution.allowed, true);
-});
-
-test("Transition Definition authoring: a Quality Gate code scoped to a different transition is rejected", async () => {
-  const gateFromState = `td-mismatch-gate-from-${randomUUID()}`;
-  const gateToState = `td-mismatch-gate-to-${randomUUID()}`;
-  // CR-059 build-time fix — since CR-058, `code` is no longer author-typed
-  // (qualityGatesDB.upsert always sets code = category); this test's own
-  // `code` field was silently ignored, so every un-categorized gate landed
-  // in the shared default "Exit" bucket. findByCode("Exit") then resolves
-  // ambiguously among every other "Exit"-category test gate in the shared
-  // dev DB (its own documented limitation), sometimes returning a
-  // different-transition gate than this one — a real, observed flake, not
-  // hypothetical. A run-scoped category makes the lookup unambiguous.
-  const { data: gate, error: gateError } = await qualityGatesDB.upsert({
-    name: "Transition Definition mismatch test gate",
-    category: `test-${randomUUID()}`,
-    entityType: "AttentionItem",
-    fromState: gateFromState,
-    toState: gateToState,
-    criteria: { type: "no_unresolved_obligations" },
-    originatingPackId: await anyRealPackId(),
-  });
-  assert.ok(!gateError && gate, gateError?.message);
-
-  // The referential check lives in validateTransitionDefinitionSeed (the same
-  // validator the CR-007 form and any publisher run) — a Quality Gate code
-  // scoped to a different (entityType, fromState, toState) triple is rejected.
-  const result = await validateTransitionDefinitionSeed({
-    entityType: "AttentionItem",
-    fromState: `td-mismatch-from-${randomUUID()}`,
-    toState: `td-mismatch-to-${randomUUID()}`,
-    requiredQualityGateCodes: [gate!.code],
-  });
-  assert.equal(result.ok, false);
-  assert.match((!result.ok && result.errors.join(";")) || "", /is scoped to AttentionItem/);
 });
 
 // Owner: "the allow now has only [noun] and [verb]. It should also include

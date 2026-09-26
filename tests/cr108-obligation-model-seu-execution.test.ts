@@ -379,7 +379,7 @@ test("CR-108 follow-on: Work Item Execution Context includes every Deliverable O
   const published = await publishPack({ seed: pack as any, actorRole: "super", actorId: "1001", activate: true });
   assert.ok(published.ok, `execution-context pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
 
-  const { data: requiredCapabilities } = await capabilitiesDB.findByCodes(["requirements-analysis"]);
+  const { data: requiredCapabilities } = await capabilitiesDB.findByOriginatingPackIds([published.pack!.id]);
   const { data: template } = await templatesDB.upsert({
     code: `cr108-ec-tpl-${run}`, name: "CR-108 Execution Context Template",
     deliverableCatalogue: [{ code: "requirements-analysis-model" }],

@@ -20,6 +20,7 @@ import pool from "../src/utils/db.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
+import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { unravelComposition, detectCompositionConflicts } from "../src/domain/engine/profileCompositionUnravel.js";
 import { validateProfileSeed, type ProfileSeedInput } from "../src/routes/seu/core/profiles.js";
 import { addConcept, type OntologyActor } from "../src/routes/seu/core/ontology.js";
@@ -30,60 +31,64 @@ const ACTOR: OntologyActor = { isRoot: true, tenantId: null, actorId: "1001" };
 
 async function createPack(contributions: PackContributions = {}): Promise<string> {
   const code = `test-cr101-pack-${randomUUID()}`;
-  const { data: pack, error } = await packsDB.create({ code, name: `CR-101 fixture Pack ${code}`, category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", contributions });
+  // CR-114 follow-on — packsDB.create's schemaDefinitionId is now mandatory.
+  const { data: packSchema } = await schemaDefinitionsDB.findLatest("Pack");
+  assert.ok(packSchema, "no schema_definitions grammar for Pack");
+  const { data: pack, error } = await packsDB.create({ code, name: `CR-101 fixture Pack ${code}`, category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", contributions, schemaDefinitionId: packSchema!.id });
   assert.ok(!error && pack, error?.message);
   const { error: activateError } = await packsDB.updateStatus(pack!.id, "Active");
   assert.ok(!activateError, activateError?.message);
   return pack!.code;
 }
 
-async function createTemplate(mandatoryPackCodes: string[]): Promise<string> {
+async function createTemplate(mandatoryPackCodes: string[]): Promise<{ id: string; code: string }> {
   const templateCode = `test-cr101-template-${randomUUID()}`;
   const { data: template, error } = await templatesDB.upsert({ code: templateCode, name: "CR-101 fixture Template", deliverableCatalogue: [] });
   assert.ok(!error && template, error?.message);
   await templatesDB.setMandatoryPacks(template!.id, mandatoryPackCodes);
-  return template!.id;
+  return { id: template!.id, code: template!.code };
 }
 
-async function createProfile(templateId: string, draftContent: Record<string, unknown>): Promise<string> {
+async function createProfile(template: { id: string; code: string }, draftContent: Record<string, unknown>): Promise<string> {
   const profileCode = `test-cr101-profile-${randomUUID()}`;
-  const { data: profile, error } = await profilesDB.upsert({ code: profileCode, name: "CR-101 fixture Profile", baseTemplateId: templateId, environment: "development" });
+  const { data: profile, error } = await profilesDB.upsert({ code: profileCode, name: "CR-101 fixture Profile", baseTemplateId: template.id, environment: "development" });
   assert.ok(!error && profile, error?.message);
-  await profilesDB.setDraftContent(profile!.id, draftContent);
+  const { error: draftContentError } = await profilesDB.setDraftContent(profile!.id, { baseTemplateCode: template.code, ...draftContent });
+  assert.ok(!draftContentError, draftContentError?.message);
   return profile!.id;
 }
 
 test("unravelComposition: a Profile's primaryProgrammingLanguage unions into competencyRequirements.Technology", async () => {
-  const templateId = await createTemplate([]);
-  const profileId = await createProfile(templateId, { primaryProgrammingLanguage: "python" });
+  const template = await createTemplate([]);
+  const profileId = await createProfile(template, { primaryProgrammingLanguage: "python" });
 
-  const unraveled = await unravelComposition({ templateIds: [templateId], profileIds: [profileId] }, PLATFORM_TENANT_ID);
+  const unraveled = await unravelComposition({ templateIds: [template.id], profileIds: [profileId] }, PLATFORM_TENANT_ID);
   assert.ok(unraveled.competencyRequirements.Technology?.includes("python"), `expected "python" unioned into Technology, got: ${JSON.stringify(unraveled.competencyRequirements)}`);
 });
 
 test("unravelComposition: a Profile's domain unions into competencyRequirements.Domain", async () => {
-  const templateId = await createTemplate([]);
-  const profileId = await createProfile(templateId, { domain: "customer-service" });
+  const template = await createTemplate([]);
+  const profileId = await createProfile(template, { domain: "customer-service" });
 
-  const unraveled = await unravelComposition({ templateIds: [templateId], profileIds: [profileId] }, PLATFORM_TENANT_ID);
+  const unraveled = await unravelComposition({ templateIds: [template.id], profileIds: [profileId] }, PLATFORM_TENANT_ID);
   assert.ok(unraveled.competencyRequirements.Domain?.includes("customer-service"), `expected "customer-service" unioned into Domain, got: ${JSON.stringify(unraveled.competencyRequirements)}`);
 });
 
 test("unravelComposition: a composed Pack's own contributionCompetencies union in by their own dimension, any dimension", async () => {
   const pack = await createPack({ competencies: [{ dimension: "Technology", value: "rust" }] });
-  const templateId = await createTemplate([pack]);
-  const profileId = await createProfile(templateId, {});
+  const template = await createTemplate([pack]);
+  const profileId = await createProfile(template, {});
 
-  const unraveled = await unravelComposition({ templateIds: [templateId], profileIds: [profileId] }, PLATFORM_TENANT_ID);
+  const unraveled = await unravelComposition({ templateIds: [template.id], profileIds: [profileId] }, PLATFORM_TENANT_ID);
   assert.ok(unraveled.competencyRequirements.Technology?.includes("rust"), `expected the Pack's own Technology competency unioned in, got: ${JSON.stringify(unraveled.competencyRequirements)}`);
 });
 
 test("unravelComposition: Profile Configuration Parameter values and a Pack's own competency both land in the same dimension's union, deduplicated, and are NEVER reported as a conflict", async () => {
   const pack = await createPack({ competencies: [{ dimension: "Technology", value: "nodejs" }] });
-  const templateId = await createTemplate([pack]);
-  const profileId = await createProfile(templateId, { primaryProgrammingLanguage: "python" });
+  const template = await createTemplate([pack]);
+  const profileId = await createProfile(template, { primaryProgrammingLanguage: "python" });
 
-  const unraveled = await unravelComposition({ templateIds: [templateId], profileIds: [profileId] }, PLATFORM_TENANT_ID);
+  const unraveled = await unravelComposition({ templateIds: [template.id], profileIds: [profileId] }, PLATFORM_TENANT_ID);
   const technology = [...(unraveled.competencyRequirements.Technology ?? [])].sort();
   assert.deepEqual(technology, ["nodejs", "python"], "expected a genuine union of the Pack's own competency and the Profile's own Configuration Parameter value");
 
@@ -92,11 +97,11 @@ test("unravelComposition: Profile Configuration Parameter values and a Pack's ow
 });
 
 test("unravelComposition: two Profiles disagreeing on domain IS a real, detected composition conflict (domain also joins the simpleFields pool)", async () => {
-  const templateId = await createTemplate([]);
-  const profileA = await createProfile(templateId, { domain: "customer-service" });
-  const profileB = await createProfile(templateId, { domain: "accounting-finance" });
+  const template = await createTemplate([]);
+  const profileA = await createProfile(template, { domain: "customer-service" });
+  const profileB = await createProfile(template, { domain: "accounting-finance" });
 
-  const unraveled = await unravelComposition({ templateIds: [templateId], profileIds: [profileA, profileB] }, PLATFORM_TENANT_ID);
+  const unraveled = await unravelComposition({ templateIds: [template.id], profileIds: [profileA, profileB] }, PLATFORM_TENANT_ID);
   const conflicts = detectCompositionConflicts(unraveled);
   assert.ok(conflicts.some((c) => c.propertyName === "domain"), `expected a real "domain" composition conflict between disagreeing Profiles, got: ${JSON.stringify(conflicts.map((c) => c.propertyName))}`);
 

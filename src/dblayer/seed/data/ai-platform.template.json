@@ -1,6 +1,7 @@
 {
   "code": "ai-platform",
   "name": "AI Platform",
+  "purpose": "Template for building a system centred on AI/ML model development, training, or serving. Use this when the primary engineering work involves data science pipelines, model lifecycle management, or an AI-powered capability as the core product, not an incidental add-on.",
   "mandatoryPackCodes": [
     "development",
     "requirements-analysis",

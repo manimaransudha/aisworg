@@ -1,0 +1,14 @@
+<%# CR-114 — one level of the recursive widget tree (mutually recursive with
+    _widgetRow.ejs, which includes this partial again for a list/object
+    widget's own children, to unbounded depth). Locals: widgets
+    (AuthoredWidget[]), namePrefix (e.g. "widgets" or "widgets[0][children]"),
+    isItem (bool), topGroups (x-groups list — top level only), allowedKinds
+    (kind options for a widget added directly in THIS container), itemKinds
+    (kind options for anything nested inside one of those, i.e. always passed
+    through unchanged from the root call). %>
+<div class="wt-children" data-name-prefix="<%= namePrefix %>" data-is-item="<%= isItem ? '1' : '' %>" data-next-index="<%= widgets.length %>">
+  <% widgets.forEach(function(w, i) { %>
+    <%- include('_widgetRow', { w: w, prefix: `${namePrefix}[${i}]`, isItem: isItem, topGroups: topGroups, allowedKinds: allowedKinds, itemKinds: itemKinds }) %>
+  <% }) %>
+</div>
+<button type="button" class="btn btn-sm btn-outline-primary wt-add"><i class="bi bi-plus-lg me-1"></i>Add widget</button>

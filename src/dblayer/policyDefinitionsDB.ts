@@ -1,6 +1,8 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import { PLATFORM_TENANT_ID } from "./constants.js";
+import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
+import { validatePolicyDefinitionWriteAgainstSchema } from "../routes/seu/core/policyDefinitionWriteValidator.js";
 import type { DbResult, PolicyDefinitionRow, PolicyCondition, PolicyScope } from "./seuTypes.js";
 
 // CR-089 — Policy Definition (Book 3 Ch.24), a new standalone table
@@ -28,26 +30,54 @@ export const policyDefinitionsDB = {
     draftContent?: Record<string, unknown>;
     tenantId?: string;
     parentPolicyDefinitionId?: string | null;
+    // CR-114 follow-on — mandatory (owner: "Otherwise all this build is of no
+    // use"); every caller must resolve and pass a real schema_definition_id.
+    schemaDefinitionId: string;
   }): Promise<DbResult<PolicyDefinitionRow>> {
     try {
+      const constraintType = input.constraintType ?? "Policy";
+      const scope = input.scope ?? "Transition";
+      const version = input.version ?? "1.0.0";
+      const draftContent = input.draftContent ?? {};
+
+      const errors = await validatePolicyDefinitionWriteAgainstSchema({
+        code: input.code,
+        name: input.name,
+        description: input.description,
+        category: input.category,
+        constraintType,
+        applicabilityEnvironments: input.applicabilityEnvironments,
+        conditions: input.conditions,
+        scope,
+        version,
+        draftContent,
+        tenantId: input.tenantId,
+        schemaDefinitionId: input.schemaDefinitionId,
+      });
+      if (errors.length > 0) return { error: new Error(errors.join("; ")) };
+
+      const { data: schemaRow } = await schemaDefinitionsDB.findById(input.schemaDefinitionId);
+      if (!schemaRow) return { error: new Error(`schema_definitions row "${input.schemaDefinitionId}" not found`) };
+
       const { rows } = await query<PolicyDefinitionRow>(
-        `INSERT INTO policy_definitions (code, name, description, category, constraint_type, applicability_environments, conditions, scope, version, status, authored_by, draft_content, tenant_id, parent_policy_definition_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Draft', $10, $11, $12, $13)
+        `INSERT INTO policy_definitions (code, name, description, category, constraint_type, applicability_environments, conditions, scope, version, status, authored_by, draft_content, tenant_id, parent_policy_definition_id, schema_definition_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Draft', $10, $11, $12, $13, $14)
          RETURNING *`,
         [
           input.code,
           input.name,
           input.description ?? null,
           input.category,
-          input.constraintType ?? "Policy",
+          constraintType,
           input.applicabilityEnvironments ?? [],
           JSON.stringify(input.conditions ?? []),
-          input.scope ?? "Transition",
-          input.version ?? "1.0.0",
+          scope,
+          version,
           input.authoredBy ?? null,
-          JSON.stringify(input.draftContent ?? {}),
+          JSON.stringify(draftContent),
           input.tenantId ?? PLATFORM_TENANT_ID,
           input.parentPolicyDefinitionId ?? null,
+          schemaRow?.id ?? null,
         ]
       );
       return { data: rows[0] };
@@ -70,6 +100,29 @@ export const policyDefinitionsDB = {
     }
   ): Promise<DbResult<PolicyDefinitionRow>> {
     try {
+      const scope = input.scope ?? "Transition";
+
+      const { rows: existingRows } = await query<{ schema_definition_id: string | null; tenant_id: string }>(
+        "SELECT schema_definition_id, tenant_id FROM policy_definitions WHERE id = $1", [id]
+      );
+
+      const errors = await validatePolicyDefinitionWriteAgainstSchema({
+        id,
+        code: input.code,
+        name: input.name,
+        description: input.description,
+        category: input.category,
+        constraintType: input.constraintType,
+        applicabilityEnvironments: input.applicabilityEnvironments,
+        conditions: input.conditions,
+        scope,
+        version: input.version,
+        draftContent: input.draftContent,
+        tenantId: existingRows[0]?.tenant_id,
+        schemaDefinitionId: existingRows[0]?.schema_definition_id ?? null,
+      });
+      if (errors.length > 0) return { error: new Error(errors.join("; ")) };
+
       const { rows } = await query<PolicyDefinitionRow>(
         `UPDATE policy_definitions SET code = $2, name = $3, description = $4, category = $5, constraint_type = $6, applicability_environments = $7, conditions = $8, scope = $9, version = $10, draft_content = $11
          WHERE id = $1 AND status = 'Draft' RETURNING *`,
@@ -77,7 +130,7 @@ export const policyDefinitionsDB = {
           id, input.code, input.name, input.description, input.category, input.constraintType,
           input.applicabilityEnvironments,
           JSON.stringify(input.conditions),
-          input.scope ?? "Transition",
+          scope,
           input.version, JSON.stringify(input.draftContent),
         ]
       );

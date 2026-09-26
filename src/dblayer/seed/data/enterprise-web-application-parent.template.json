@@ -2,6 +2,7 @@
   "code": "enterprise-web-application",
   "templateVersion": "1.2.0",
   "name": "Enterprise Web Application (Standard)",
+  "purpose": "Template for building a web application with enterprise-wide impact. Use this when the application serves multiple departments or business units, needs centralised authentication and role-based access control, and must integrate with existing enterprise systems such as an ERP, CRM, or identity provider.",
   "mandatoryPackCodes": [
     "development",
     "requirements-analysis",

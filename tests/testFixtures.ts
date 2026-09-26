@@ -99,6 +99,7 @@ import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { getSeuCompetencyRequirements } from "../src/routes/seu/core/participantEligibility.js";
 import { transitionObligation } from "../src/routes/seu/core/obligations.js";
 import { policyDefinitionsDB } from "../src/dblayer/policyDefinitionsDB.js";
+import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { transitionAttentionItem } from "../src/routes/seu/core/attentionItems.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
@@ -171,6 +172,7 @@ function loadJson<T>(fileName: string): T {
 interface TemplateSeed {
   code: string;
   name: string;
+  purpose?: string;
   mandatoryPackCodes: string[];
   deliverableCatalogue: TemplateDeliverableSeed[];
   dependencyGraph?: TemplateDependencyGraphEntry[];
@@ -701,11 +703,16 @@ export async function ensurePolicyDefinitionWithObligation(input: {
   title: string;
 }): Promise<void> {
   const blankEvidence = { title: "", category: "", description: "", collectionMethod: "" };
+  // CR-114 follow-on — policyDefinitionsDB.createDraft's schemaDefinitionId
+  // is now mandatory.
+  const { data: policySchema } = await schemaDefinitionsDB.findLatest("Policy");
+  if (!policySchema) throw new Error("no schema_definitions grammar for Policy");
   const { data: draft, error } = await policyDefinitionsDB.createDraft({
     code: input.code,
     name: input.name,
     category: input.category,
     scope: "Transition",
+    schemaDefinitionId: policySchema.id,
     conditions: [
       {
         statement: input.title,
@@ -807,6 +814,17 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
   });
   if (templateErr || !template) throw templateErr ?? new Error(`template upsert failed: ${templateSeed.code}`);
 
+  // design/design whiteboards.md/schema_implementation.md — templatesDB.upsert
+  // above never writes draft_content, so `purpose` (schema-required since
+  // migration 061) never lands on this fixture's row; inheritedTemplateContent
+  // reads it straight off draft_content, so CR-026 inheritance off this
+  // Template fails write-time validation without it. setDraftContent is the
+  // real, validated write path — same fix as publishTemplate's own.
+  if (!(template.draft_content as Record<string, unknown> | null)?.purpose && templateSeed.purpose) {
+    const { error: purposeErr } = await templatesDB.setDraftContent(template.id, { purpose: templateSeed.purpose });
+    if (purposeErr) throw purposeErr;
+  }
+
   const { data: existingMandatory } = await templatesDB.getMandatoryPackCodes(template.id);
   if (!sameSet(existingMandatory ?? [], templateSeed.mandatoryPackCodes)) {
     await templatesDB.setMandatoryPacks(template.id, templateSeed.mandatoryPackCodes);
@@ -891,8 +909,13 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
   // runs, the winner's row exists, so this becomes the ordinary "already
   // exists" branch (materialiseProfileDraft on the existing row) instead of a
   // second create attempt.
+  // design/design whiteboards.md/schema_implementation.md — createDraft's new
+  // write-time validator (profileWriteValidator.ts) now runs its own
+  // uniqueness SELECT before the INSERT, so the loser of the same race can
+  // surface this clean "already exists" message instead of ever reaching the
+  // raw profiles_code_version_tenant_key constraint — match both.
   let profileResult = await publishProfile({ seed: profileSeed, actorRole: "super", actorId: "1" });
-  if (!profileResult.ok && profileResult.errors.some((e) => e.includes("profiles_code_version_tenant_key"))) {
+  if (!profileResult.ok && profileResult.errors.some((e) => e.includes("profiles_code_version_tenant_key") || e.includes("already exists at version"))) {
     profileResult = await publishProfile({ seed: profileSeed, actorRole: "super", actorId: "1" });
   }
   if (!profileResult.ok) throw new Error(`profile publish failed: ${profileSeed.code}: ${profileResult.errors.join("; ")}`);

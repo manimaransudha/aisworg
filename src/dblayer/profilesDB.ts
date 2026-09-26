@@ -1,6 +1,8 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import { PLATFORM_TENANT_ID } from "./constants.js";
+import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
+import { validateProfileWriteAgainstSchema } from "../routes/seu/core/profileWriteValidator.js";
 import type { DbResult, ProfileRow } from "./seuTypes.js";
 
 // Also owns profile_packs — Profile owns everything selectable/optional on top
@@ -65,17 +67,38 @@ export const profilesDB = {
   // synthesizer (findOrCreateDefaultProfile's own fallback, core/profiles.ts)
   // needs an immediately-usable Active row, not a Draft, so it's now
   // explicit about it, the same way upsert() already is.
+  // design/design whiteboards.md/schema_implementation.md (owner: "Who is
+  // using findOrCreateDefaultProfile? It has to follow the same validation")
+  // — validated the same as every other real write, not exempted for being
+  // a throwaway synthesizer. `environment` is the only schema-governed field
+  // this ever writes (no draftContent).
   async create(input: {
     baseTemplateId: string;
+    baseTemplateCode: string;
     environment?: string;
   }): Promise<DbResult<ProfileRow>> {
     try {
       const code = `profile-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const name = `Custom profile for ${input.baseTemplateId}`;
+      const environment = input.environment ?? "development";
+      const profileVersion = "1.0.0";
+
+      const errors = await validateProfileWriteAgainstSchema({
+        code,
+        name,
+        environment,
+        profileVersion,
+        draftContent: { baseTemplateCode: input.baseTemplateCode },
+      });
+      if (errors.length > 0) return { error: new Error(errors.join("; ")) };
+
+      const { data: schemaRow } = await schemaDefinitionsDB.findLatest("Profile");
+
       const { rows } = await query<ProfileRow>(
-        `INSERT INTO profiles (code, name, base_template_id, environment, status)
-         VALUES ($1, $2, $3, $4, 'Active')
+        `INSERT INTO profiles (code, name, base_template_id, environment, status, schema_definition_id)
+         VALUES ($1, $2, $3, $4, 'Active', $5)
          RETURNING *`,
-        [code, `Custom profile for ${input.baseTemplateId}`, input.baseTemplateId, input.environment ?? "development"]
+        [code, name, input.baseTemplateId, environment, schemaRow?.id ?? null]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -102,22 +125,44 @@ export const profilesDB = {
     profileVersion?: string;
     tenantId?: string;
     parentProfileId?: string | null;
+    // CR-114 follow-on — mandatory (owner: "Otherwise all this build is of no
+    // use"); every caller must resolve and pass a real schema_definition_id.
+    schemaDefinitionId: string;
   }): Promise<DbResult<ProfileRow>> {
     try {
+      const environment = input.environment ?? "development";
+      const profileVersion = input.profileVersion ?? "1.0.0";
+      const draftContent = input.draftContent ?? {};
+
+      const errors = await validateProfileWriteAgainstSchema({
+        code: input.code,
+        name: input.name,
+        environment,
+        profileVersion,
+        draftContent,
+        tenantId: input.tenantId,
+        schemaDefinitionId: input.schemaDefinitionId,
+      });
+      if (errors.length > 0) return { error: new Error(errors.join("; ")) };
+
+      const { data: schemaRow } = await schemaDefinitionsDB.findById(input.schemaDefinitionId);
+      if (!schemaRow) return { error: new Error(`schema_definitions row "${input.schemaDefinitionId}" not found`) };
+
       const { rows } = await query<ProfileRow>(
-        `INSERT INTO profiles (code, name, base_template_id, environment, status, authored_by, draft_content, profile_version, tenant_id, parent_profile_id)
-         VALUES ($1, $2, $3, $4, 'Draft', $5, $6, $7, $8, $9)
+        `INSERT INTO profiles (code, name, base_template_id, environment, status, authored_by, draft_content, profile_version, tenant_id, parent_profile_id, schema_definition_id)
+         VALUES ($1, $2, $3, $4, 'Draft', $5, $6, $7, $8, $9, $10)
          RETURNING *`,
         [
           input.code,
           input.name,
           input.baseTemplateId,
-          input.environment ?? "development",
+          environment,
           input.authoredBy ?? null,
-          JSON.stringify(input.draftContent ?? {}),
-          input.profileVersion ?? "1.0.0",
+          JSON.stringify(draftContent),
+          profileVersion,
           input.tenantId ?? PLATFORM_TENANT_ID,
           input.parentProfileId ?? null,
+          schemaRow?.id ?? null,
         ]
       );
       return { data: rows[0] };
@@ -142,8 +187,34 @@ export const profilesDB = {
   // reuse of that one. No status restriction: materialiseProfileDraft (the
   // one caller) runs after both upsert (Active) and createDraft (Draft), so
   // this has to work regardless of which state the row is actually in.
+  // design/design whiteboards.md/schema_implementation.md — this is a real,
+  // unconditional write to draft_content (no `status = 'Draft'` guard, unlike
+  // updateDraftContent below), and it's the actual write path publishProfile/
+  // seed scripts use to materialise Pack selections/draft content (via
+  // materialiseProfileDraft) — validated the same way createDraft/
+  // updateDraftContent are, not skipped just because its name doesn't say
+  // "create"/"update". code/name/environment/profileVersion aren't passed
+  // here (only draftContent is) — read off the row's own real columns.
   async setDraftContent(id: string, draftContent: Record<string, unknown>): Promise<DbResult<ProfileRow>> {
     try {
+      const { rows: existingRows } = await query<{ code: string; name: string; environment: string; profile_version: string; schema_definition_id: string | null; tenant_id: string }>(
+        "SELECT code, name, environment, profile_version, schema_definition_id, tenant_id FROM profiles WHERE id = $1", [id]
+      );
+      const existing = existingRows[0];
+      if (!existing) return { error: new Error(`Profile "${id}" not found`) };
+
+      const errors = await validateProfileWriteAgainstSchema({
+        id,
+        code: existing.code,
+        name: existing.name,
+        environment: existing.environment,
+        profileVersion: existing.profile_version,
+        draftContent,
+        tenantId: existing.tenant_id,
+        schemaDefinitionId: existing.schema_definition_id,
+      });
+      if (errors.length > 0) return { error: new Error(errors.join("; ")) };
+
       const { rows } = await query<ProfileRow>(`UPDATE profiles SET draft_content = $2 WHERE id = $1 RETURNING *`, [id, JSON.stringify(draftContent)]);
       return { data: rows[0] };
     } catch (err) {
@@ -154,10 +225,30 @@ export const profilesDB = {
 
   async updateDraftContent(id: string, input: { name: string; baseTemplateId: string; environment?: string; draftContent: Record<string, unknown>; profileVersion: string }): Promise<DbResult<ProfileRow>> {
     try {
+      const { rows: existingRows } = await query<{ code: string; schema_definition_id: string | null; tenant_id: string }>(
+        "SELECT code, schema_definition_id, tenant_id FROM profiles WHERE id = $1", [id]
+      );
+      const existing = existingRows[0];
+      if (!existing) return { error: new Error(`Profile "${id}" not found`) };
+
+      const environment = input.environment ?? "development";
+
+      const errors = await validateProfileWriteAgainstSchema({
+        id,
+        code: existing.code,
+        name: input.name,
+        environment,
+        profileVersion: input.profileVersion,
+        draftContent: input.draftContent,
+        tenantId: existing.tenant_id,
+        schemaDefinitionId: existing.schema_definition_id,
+      });
+      if (errors.length > 0) return { error: new Error(errors.join("; ")) };
+
       const { rows } = await query<ProfileRow>(
         `UPDATE profiles SET name = $2, base_template_id = $3, environment = $4, draft_content = $5, profile_version = $6
          WHERE id = $1 AND status = 'Draft' RETURNING *`,
-        [id, input.name, input.baseTemplateId, input.environment ?? "development", JSON.stringify(input.draftContent), input.profileVersion]
+        [id, input.name, input.baseTemplateId, environment, JSON.stringify(input.draftContent), input.profileVersion]
       );
       return { data: rows[0] };
     } catch (err) {

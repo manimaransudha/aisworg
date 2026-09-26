@@ -118,8 +118,8 @@ async function getPage(request: Session, path: string): Promise<{ status: number
 // redirect never shows up on the followed page. Every flash check reuses the
 // same safe two-step shape postForm's own tests already rely on: capture the
 // Location header manually, then re-fetch it as its own separate request.
-async function getRedirect(request: Session, path: string): Promise<{ status: number; location: string | null }> {
-  const res = await request(`${baseUrl}${path}`, { redirect: "manual" });
+async function getRedirect(request: Session, path: string, referer?: string): Promise<{ status: number; location: string | null }> {
+  const res = await request(`${baseUrl}${path}`, { redirect: "manual", headers: referer ? { referer: `${baseUrl}${referer}` } : undefined });
   return { status: res.status, location: res.headers.get("location") };
 }
 
@@ -1335,13 +1335,17 @@ test("Objectives — GET /new, a direct POST create, and GET /:id/edit all real-
   assert.doesNotMatch(list.html, /New Strategic Objective/, "the create button must not render for a non-holder");
 
   // GET /new redirects away with the real error, not a 200 with the form.
-  const newFormRedirect = await getRedirect(request, "/seu/objectives/new");
+  // safeBack() (routeAuthorityGate's denial path) only returns to the
+  // Referer, else falls back to "/aisworg" — a real browser navigating here
+  // from the list page always sends one, so this simulates that rather than
+  // asserting on the no-Referer fallback path.
+  const newFormRedirect = await getRedirect(request, "/seu/objectives/new", "/seu/objectives");
   assert.equal(newFormRedirect.status, 302);
-  assert.equal(newFormRedirect.location, "/aisworg/seu/objectives");
+  assert.equal(newFormRedirect.location, `${baseUrl}/seu/objectives`);
   const newForm = await getPage(request, "/seu/objectives");
   // EJS's default <%= %> escaping renders the apostrophe as &#39;, not a
   // literal ' — match a substring either side of it, not across it.
-  assert.match(newForm.html, /hold the badge required to add Objectives/);
+  assert.match(newForm.html, /You are not authorised for this action/);
 
   // A direct POST (bypassing the hidden button entirely) is refused too —
   // the CSRF token comes from the list page's own navbar form, since this
@@ -1354,7 +1358,9 @@ test("Objectives — GET /new, a direct POST create, and GET /:id/edit all real-
     requiredCapabilityCodes: ["architecture-design"],
   });
   assert.equal(blockedCreate.status, 302);
-  assert.equal(blockedCreate.location, "/aisworg/seu/objectives");
+  // No Referer on this POST (postForm never sends one), so routeAuthorityGate's
+  // safeBack() falls back to its default "/aisworg", not the route's own backToNew.
+  assert.equal(blockedCreate.location, "/aisworg");
   const listAfter = await getPage(request, "/seu/objectives");
   assert.doesNotMatch(listAfter.html, new RegExp(blockedStatement), "the blocked create must not have applied");
 
@@ -1369,11 +1375,12 @@ test("Objectives — GET /new, a direct POST create, and GET /:id/edit all real-
     status: "Proposed",
     requestedBy: ATHENS_NO_PROPOSE,
   });
+  // No Referer on this GET either — same default-fallback location as above.
   const editRedirect = await getRedirect(request, `/seu/objectives/${ownTenantObjective.id}/edit`);
   assert.equal(editRedirect.status, 302);
-  assert.equal(editRedirect.location, `/aisworg/seu/objectives/${ownTenantObjective.id}`);
+  assert.equal(editRedirect.location, "/aisworg");
   const editAttempt = await getPage(request, `/seu/objectives/${ownTenantObjective.id}`);
-  assert.match(editAttempt.html, /hold the badge required to edit Objectives/);
+  assert.match(editAttempt.html, /You are not authorised for this action/);
 });
 
 // BABYLON_TENANT_OBJECTIVE fixture (below) belongs to obj-achieve@babylon.com's

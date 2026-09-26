@@ -1,0 +1,13 @@
+-- Schema gap check (design/design whiteboards.md/schema_implementation.md,
+-- "Schema gap check: Transition Definition") — the entity_kind='TransitionDefinition'
+-- row (migration 016) is vestigial: CR-019 (schemaRegistry.ts's own comment)
+-- already excluded TransitionDefinition from SCHEMA_ENTITY_KINDS ("authored via
+-- the CR-007 /authority form (noun x verb), not a grammar... not a
+-- schema-registry authorable kind"), and its entityType enum was frozen at an
+-- 11-noun list that the live authority_nouns vocabulary (22 nouns) has long
+-- since outgrown. No live code path reads this row (schemaRegistry.ts never
+-- lists it; the only reader, core/transitionDefinitions.ts's
+-- validateTransitionDefinitionSeed/publishTransitionDefinition, has zero real
+-- callers). Owner's decision: delete rather than leave as a historical
+-- artifact.
+DELETE FROM schema_definitions WHERE entity_kind = 'TransitionDefinition';

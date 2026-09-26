@@ -1,6 +1,8 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import { PLATFORM_TENANT_ID } from "./constants.js";
+import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
+import { validateDeliverableDefinitionWriteAgainstSchema } from "../routes/seu/core/deliverableDefinitionWriteValidator.js";
 import type { DbResult, DeliverableDefinitionRow } from "./seuTypes.js";
 
 // CR-049 Phase 1 — Deliverable Definition, a first-class authored entity.
@@ -16,20 +18,40 @@ export const deliverableDefinitionsDB = {
     draftContent?: Record<string, unknown>;
     tenantId?: string;
     parentDeliverableDefinitionId?: string | null;
+    // CR-114 follow-on — mandatory (owner: "Otherwise all this build is of no
+    // use"); every caller must resolve and pass a real schema_definition_id.
+    schemaDefinitionId: string;
   }): Promise<DbResult<DeliverableDefinitionRow>> {
     try {
+      const version = input.version ?? "1.0.0";
+      const draftContent = input.draftContent ?? {};
+
+      const errors = await validateDeliverableDefinitionWriteAgainstSchema({
+        code: input.code,
+        description: input.description,
+        version,
+        draftContent,
+        tenantId: input.tenantId,
+        schemaDefinitionId: input.schemaDefinitionId,
+      });
+      if (errors.length > 0) return { error: new Error(errors.join("; ")) };
+
+      const { data: schemaRow } = await schemaDefinitionsDB.findById(input.schemaDefinitionId);
+      if (!schemaRow) return { error: new Error(`schema_definitions row "${input.schemaDefinitionId}" not found`) };
+
       const { rows } = await query<DeliverableDefinitionRow>(
-        `INSERT INTO deliverable_definitions (code, description, version, status, authored_by, draft_content, tenant_id, parent_deliverable_definition_id)
-         VALUES ($1, $2, $3, 'Draft', $4, $5, $6, $7)
+        `INSERT INTO deliverable_definitions (code, description, version, status, authored_by, draft_content, tenant_id, parent_deliverable_definition_id, schema_definition_id)
+         VALUES ($1, $2, $3, 'Draft', $4, $5, $6, $7, $8)
          RETURNING *`,
         [
           input.code,
           input.description ?? null,
-          input.version ?? "1.0.0",
+          version,
           input.authoredBy ?? null,
-          JSON.stringify(input.draftContent ?? {}),
+          JSON.stringify(draftContent),
           input.tenantId ?? PLATFORM_TENANT_ID,
           input.parentDeliverableDefinitionId ?? null,
+          schemaRow?.id ?? null,
         ]
       );
       return { data: rows[0] };
@@ -41,6 +63,21 @@ export const deliverableDefinitionsDB = {
 
   async updateDraftContent(id: string, input: { code: string; description: string | null; version: string; draftContent: Record<string, unknown> }): Promise<DbResult<DeliverableDefinitionRow>> {
     try {
+      const { rows: existingRows } = await query<{ schema_definition_id: string | null; tenant_id: string }>(
+        "SELECT schema_definition_id, tenant_id FROM deliverable_definitions WHERE id = $1", [id]
+      );
+
+      const errors = await validateDeliverableDefinitionWriteAgainstSchema({
+        id,
+        code: input.code,
+        description: input.description,
+        version: input.version,
+        draftContent: input.draftContent,
+        tenantId: existingRows[0]?.tenant_id,
+        schemaDefinitionId: existingRows[0]?.schema_definition_id ?? null,
+      });
+      if (errors.length > 0) return { error: new Error(errors.join("; ")) };
+
       const { rows } = await query<DeliverableDefinitionRow>(
         `UPDATE deliverable_definitions SET code = $2, description = $3, version = $4, draft_content = $5 WHERE id = $1 AND status = 'Draft' RETURNING *`,
         [id, input.code, input.description, input.version, JSON.stringify(input.draftContent)]

@@ -1,6 +1,7 @@
 {
   "code": "saas-product",
   "name": "SaaS Product",
+  "purpose": "Template for building a multi-tenant, subscription-delivered software product. Use this when the system must support many independent customer organisations on shared infrastructure, with tenant isolation, billing, and self-service onboarding as first-class concerns.",
   "mandatoryPackCodes": [
     "development",
     "requirements-analysis",

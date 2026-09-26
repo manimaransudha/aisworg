@@ -10,7 +10,7 @@
 
 - design/tbi.md and notes.md are the user's personal scratchpad. Do not read or load them into the context. 
 
-- don't dispatch Agent/subagents for research or implementation while actively working on a task without user approval.
+- don't dispatch Agent/subagents for any work.
 
 - user handles all git operations (commit/add/checkout/reset/revert) themselves; never run any git command in this repo, even to "help."
 
@@ -33,9 +33,9 @@
 
 - any list / table on the UI gets parseListParams/paginateList/listControls/sortLink by default. don't wait to be asked.
 
-- transition buttons/links: core computes possibleNextStates filtered by trigger==="manual", web layer filters by held badge (hasXBadge); never an unconditional link.
+- transition buttons/links: core computes possibleNextStates filtered by trigger==="manual".
 
-- chapter/spec review findings go in compact lists/tables, not explanatory paragraphs; discursive style is fine in live design talk, not in review deliverables.
+- chapter/spec review findings go in compact lists/tables, not explanatory paragraphs.
 
 - when design/foundations chapters exist for the area, read them thoroughly first; the code lags/diverges from spec. But don't relitigate settled/out-of-scope decisions just because a chapter audit mentions them.
 
@@ -78,7 +78,7 @@
 ## Architecture & Design
 
 ### Design Proposals
-Propose the smallest change that satisfies the stated requirement. Do not introduce new lifecycles, composite types, or extra state transitions unless explicitly asked. If a simplification is possible, offer it first and list what is being dropped. For any non-trivial design, give three options — (A) minimal, (B) moderate, (C) full redesign — with files touched and new concepts introduced for each, and wait for a decision before writing code.
+Propose a complete fix always grounded in the specifications and what is already implemented.
  
 ## Request Scope
 
@@ -88,7 +88,7 @@ Do not start executing on a request that is too broad to scope — e.g. "migrate
 ## Output & Communication
 
 ### Long-Form Output Goes to a File
-For long-form output — reports, findings, drafts, design write-ups, review results — write it to a file and give a short pointer (file path + one-line summary) in the response, instead of pasting the full content into the conversation. Short, direct answers still go straight in chat. This doesn't retroactively shrink an already-long session, but it stops the same content from being restated multiple times as the conversation continues.
+Any response longer than 500 words  — reports, findings, drafts, design write-ups, review results — write it to a file and give a short pointer (file path + one-line summary) in the response, instead of pasting the full content into the conversation. Short, direct , less than 500 word responses still go straight in chat. This doesn't retroactively shrink an already-long session, but it stops the same content from being restated multiple times as the conversation continues.
 
 ### Checkpoint Whiteboarding Sessions
 Design reviews here are mostly live back-and-forth ("whiteboarding"), not a single deliverable — the discussion itself is what piles up in the session, not just the final output. During any extended design/architecture discussion, periodically write the current state to a running file (e.g. `DECISIONS.md` or a session-specific scratch file): what's been settled, what's still open, and the immediate next step. Do this unprompted at natural pause points, not only when asked. This lets the user `/clear` the raw discussion without losing the thread — the file becomes the source of truth for "where we left off," not the live conversation.

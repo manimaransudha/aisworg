@@ -11,9 +11,11 @@ import { servicesDB } from "../../../dblayer/servicesDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { checklistsDB } from "../../../dblayer/checklistsDB.js";
 import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
-import { assertCanonicalCategory, resolveLabels } from "./ontology.js";
+import { resolveLabels, validateOntologyFieldsAgainstSchema, validateComposableFieldsAgainstSchema } from "./ontology.js";
 import { listTransitionsForEntityType } from "./policyDefinitions.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
+import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
+import { type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import type { CapabilityRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../../../dblayer/seuTypes.js";
 
 export interface TemplateCandidate {
@@ -128,6 +130,17 @@ export interface TemplateSeedInput {
   // Definition/Checklist already carries when the author never touched a
   // row — "by default all of the parameters are checked" (overridable=true).
   exposedParameters?: ExposedParameter[];
+  // CR-023 — required by schema_definitions (migration 058/061) since the
+  // field was added, but never actually part of this interface — every
+  // seed-script Template published via `publishTemplate` (as opposed to
+  // interactive SDK authoring, which always had it) has had no `purpose` at
+  // all, a gap only surfaced once write-time schema validation started
+  // enforcing `required` for real (design/design whiteboards.md/
+  // schema_implementation.md). Optional here (not every non-seed caller of
+  // publishTemplate necessarily sets it, e.g. reactivateAsNewVersion/
+  // copyTemplateAsNewDraft carry it forward from draft_content directly) —
+  // the schema's own `required` is what actually gates a real submission.
+  purpose?: string;
 }
 
 export interface ExposedParameter {
@@ -508,19 +521,30 @@ function findDeliverableDependencyCycle(dependencyGraph: TemplateDependencyGraph
   return null;
 }
 
-export async function validateTemplateSeed(seed: TemplateSeedInput): Promise<TemplateValidationResult> {
+// `skipComposableChecks` — same schema-driven split as validatePackSeed
+// (core/packs.ts): whichever field the Template schema (schema_definitions)
+// currently marks `x-ontology-composable` gets skipped here and deferred to
+// validateComposableFieldsAgainstSchema at the Validated->Published hop
+// (sdkAuthoring.ts) instead. `code`'s concept type (template-categories) is
+// schema-declared (x-referential-source, migration 054), not hardcoded here.
+export async function validateTemplateSeed(seed: TemplateSeedInput, options?: { skipComposableChecks?: boolean }): Promise<TemplateValidationResult> {
   const errors: string[] = [];
   if (!seed.name?.trim()) errors.push("name is required");
   if (!SEMVER_RE.test(seed.templateVersion ?? "")) errors.push(`templateVersion must be semver (x.y.z), got: "${seed.templateVersion}"`);
-  // CR-046 bug fix (owner: "why are test scripts adding code that is not in
-  // the ontology??? I thought we fixed this") — code (migration 054,
-  // template-categories, x-ontology: true) was never actually checked
-  // server-side, only constrained by the browser's own dropdown — mirrors
-  // validatePackSeed's identical fix for Pack.code, same real gap.
-  try {
-    await assertCanonicalCategory("template-categories", seed.code ?? "", { isRoot: false, tenantId: seed.tenantId ?? PLATFORM_TENANT_ID });
-  } catch (err) {
-    errors.push((err as Error).message);
+  const templateOntologyViewer = { isRoot: false, tenantId: seed.tenantId ?? PLATFORM_TENANT_ID };
+  const { data: templateSchemaRow } = await schemaDefinitionsDB.findLatest("Template");
+  if (templateSchemaRow) {
+    const templateSchema = templateSchemaRow.schema as JsonSchemaDocument;
+    // deliverableCatalogue[].code is x-ontology-composable too (migration
+    // 276) — folded in here so the schema-driven walker (core/ontology.ts,
+    // recurses into array items) covers it, same as code above. Its own
+    // hand-coded assertCanonicalCategory check further down is gone; this is
+    // now its only check.
+    const ontologyContent = { code: seed.code, deliverableCatalogue: seed.deliverableCatalogue };
+    errors.push(...(await validateOntologyFieldsAgainstSchema(templateSchema, ontologyContent, templateOntologyViewer)));
+    if (!options?.skipComposableChecks) {
+      errors.push(...(await validateComposableFieldsAgainstSchema(templateSchema, ontologyContent, templateOntologyViewer)));
+    }
   }
 
   for (const slot of PACK_SELECTION_SLOTS) {
@@ -555,19 +579,12 @@ export async function validateTemplateSeed(seed: TemplateSeedInput): Promise<Tem
   }
 
   // CR-087 — entry.code must be a real, active deliverable-name Ontology
-  // concept (assertCanonicalCategory, the same server-side discipline every
-  // other Ontology-backed authoring field already has — this field never had
-  // it before, despite migration 079's own widget wiring implying it did).
+  // concept — checked generically above via deliverableCatalogue in
+  // ontologyContent (x-ontology-composable, migration 276), not here.
   const seenDeliverableCodes = new Set<string>();
-  const tenantViewer = { isRoot: false, tenantId: seed.tenantId ?? PLATFORM_TENANT_ID };
   for (const entry of seed.deliverableCatalogue ?? []) {
     if (!entry.code?.trim()) { errors.push("deliverableCatalogue entry is missing a code"); continue; }
     if (seenDeliverableCodes.has(entry.code)) errors.push(`deliverableCatalogue entry "${entry.code}" is a duplicate — codes must be unique within one Template's catalogue`);
-    try {
-      await assertCanonicalCategory("deliverable-name", entry.code, tenantViewer);
-    } catch (err) {
-      errors.push(`deliverableCatalogue entry "${entry.code}": ${(err as Error).message}`);
-    }
     seenDeliverableCodes.add(entry.code);
   }
 
@@ -765,7 +782,7 @@ export async function deriveDedupedCapabilitiesFromPackCodes(packCodes: string[]
 // six category-scoped Pack selections, then derive and store
 // requiredCapabilityCodes fresh from that same selection (never read from
 // the seed itself — there's nothing to read, it's not an input any more).
-async function materialisePackSelectionsAndCapabilities(templateId: string, seed: TemplateSeedInput): Promise<void> {
+async function materialisePackSelectionsAndCapabilities(templateId: string, seed: TemplateSeedInput): Promise<{ ok: true } | { ok: false; errors: string[] }> {
   for (const slot of PACK_SELECTION_SLOTS) {
     await templatesDB.setPackSelection(templateId, slot.listKind, (seed[slot.field] as string[] | undefined) ?? []);
   }
@@ -799,7 +816,9 @@ async function materialisePackSelectionsAndCapabilities(templateId: string, seed
     const saved = existingByKey.get(`${c.sourceType}::${c.sourceCode}::${c.parameterName}`);
     return { sourceType: c.sourceType, sourceCode: c.sourceCode, parameterName: c.parameterName, value: saved?.value ?? c.defaultValue, overridable: saved ? saved.overridable : true };
   });
-  await templatesDB.setDraftContent(templateId, { ...seed, exposedParameters });
+  const { error } = await templatesDB.setDraftContent(templateId, { ...seed, exposedParameters });
+  if (error) return { ok: false, errors: [error.message] };
+  return { ok: true };
 }
 
 export type PublishTemplateResult = { ok: true; templateId: string; alreadyExists?: boolean } | { ok: false; errors: string[] };
@@ -838,20 +857,33 @@ export async function publishTemplate(input: { seed: TemplateSeedInput; actorRol
   // used to serve, without landing a brand-new version anywhere but Draft.
   const { data: existing } = await templatesDB.findByCodeAndVersion(seed.code, seed.templateVersion, tenantId);
   if (existing) {
-    await materialiseTemplateDraft(existing.id, seed);
+    const materialiseResult = await materialiseTemplateDraft(existing.id, seed);
+    if (!materialiseResult.ok) return materialiseResult;
     return { ok: true, templateId: existing.id, alreadyExists: true };
   }
 
+  // CR-114 follow-on — templatesDB.createDraft's schemaDefinitionId is now
+  // mandatory; a bootstrap/seed-facing publish (as opposed to real SDK
+  // authoring, which lets an author pick) always pins to whatever's latest.
+  const { data: templateSchema } = await schemaDefinitionsDB.findLatest("Template");
+  if (!templateSchema) return { ok: false, errors: [`no schema_definitions grammar for Template`] };
   const { data: draft, error } = await templatesDB.createDraft({
     code: seed.code,
     name: seed.name,
     templateVersion: seed.templateVersion,
     tenantId,
     parentTemplateId: seed.parentTemplateId,
+    // `purpose` is schema-required (CR-023); materialiseTemplateDraft below
+    // overwrites draft_content in full moments later, but the validated
+    // createDraft write itself needs it present too, not just the eventual
+    // setDraftContent write.
+    draftContent: { purpose: seed.purpose },
+    schemaDefinitionId: templateSchema.id,
   });
   if (error || !draft) return { ok: false, errors: [(error ?? new Error("failed to create template draft")).message] };
 
-  await materialiseTemplateDraft(draft.id, seed);
+  const materialiseResult = await materialiseTemplateDraft(draft.id, seed);
+  if (!materialiseResult.ok) return materialiseResult;
 
   // CR-025 — real named events (Ch.6 §16), mirroring PackRegistered
   // (core/packs.ts's createPackDraft) exactly, including the same asymmetry:
@@ -982,6 +1014,12 @@ async function reactivateAsNewVersion(template: TemplateRow, actorRole: string, 
   };
   const purpose = typeof (template.draft_content as Record<string, unknown> | null)?.purpose === "string" ? (template.draft_content as Record<string, unknown>).purpose : undefined;
 
+  // CR-114 follow-on — reactivation carries the SAME schema_definition_id
+  // forward (same lineage/pin reasoning as tenantId/parentTemplateId above),
+  // not a fresh findLatest resolution; falls back to latest only for a
+  // pre-CR-114 row that somehow has none.
+  const { data: reactivationSchema } = template.schema_definition_id ? { data: { id: template.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Template");
+  if (!reactivationSchema) return { ok: false, reason: "policy_blocked", detail: `no schema_definitions grammar for Template` };
   const { data: newDraft, error } = await templatesDB.createDraft({
     code: seed.code,
     name: seed.name,
@@ -990,10 +1028,12 @@ async function reactivateAsNewVersion(template: TemplateRow, actorRole: string, 
     draftContent: { ...seed, purpose },
     tenantId: template.tenant_id,
     parentTemplateId: template.parent_template_id,
+    schemaDefinitionId: reactivationSchema.id,
   });
   if (error || !newDraft) return { ok: false, reason: "policy_blocked", detail: (error ?? new Error("failed to create new Template version")).message };
 
-  await materialiseTemplateDraft(newDraft.id, seed);
+  const materialiseResult = await materialiseTemplateDraft(newDraft.id, seed);
+  if (!materialiseResult.ok) return { ok: false, reason: "policy_blocked", detail: materialiseResult.errors.join("; ") };
 
   let current = newDraft;
   for (const targetState of ["Validated", "Published", "Active"] as const) {
@@ -1043,6 +1083,10 @@ export async function copyTemplateAsNewDraft(templateId: string, actorId: string
     ...Object.fromEntries(PACK_SELECTION_SLOTS.map((slot) => [slot.field, ((packSelections[slot.field as keyof PackSelectionsByCategory] as string[] | undefined) ?? []).map((packCode) => ({ packCode }))])),
     deliverableCatalogue: source.deliverable_catalogue,
   };
+  // CR-114 follow-on — same carry-forward-the-source's-own-pin reasoning as
+  // reactivateAsNewVersion above.
+  const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Template");
+  if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Template`] };
   const { data: newDraft, error } = await templatesDB.createDraft({
     code: source.code,
     name: source.name,
@@ -1051,6 +1095,7 @@ export async function copyTemplateAsNewDraft(templateId: string, actorId: string
     draftContent,
     tenantId: source.tenant_id,
     parentTemplateId: source.parent_template_id,
+    schemaDefinitionId: copySchema.id,
   });
   if (error || !newDraft) return { ok: false, errors: [(error ?? new Error("failed to copy Template")).message] };
   return { ok: true, draftId: newDraft.id };
@@ -1101,9 +1146,10 @@ export async function advanceTemplateOneStep(template: TemplateRow, actorRole: s
 // advanceTemplateOneStep above handles every hop after that, trusting the
 // content is already real (same discipline Pack's own Draft-only validation
 // gate uses — core/sdkAuthoring.ts's publishAuthoringDraft calls both).
-export async function materialiseTemplateDraft(templateId: string, seed: TemplateSeedInput): Promise<void> {
+export async function materialiseTemplateDraft(templateId: string, seed: TemplateSeedInput): Promise<{ ok: true } | { ok: false; errors: string[] }> {
   await templatesDB.setDeliverableCatalogue(templateId, seed.deliverableCatalogue ?? []);
-  await materialisePackSelectionsAndCapabilities(templateId, seed);
+  const result = await materialisePackSelectionsAndCapabilities(templateId, seed);
+  if (!result.ok) return result;
   await materialiseDependencyGraph({
     owningEntityType: "Template",
     owningEntityId: templateId,
@@ -1111,6 +1157,7 @@ export async function materialiseTemplateDraft(templateId: string, seed: Templat
     dependencyGraph: seed.dependencyGraph ?? [],
     tenantId: seed.tenantId ?? PLATFORM_TENANT_ID,
   });
+  return { ok: true };
 }
 
 export interface TemplateWithNextStates {

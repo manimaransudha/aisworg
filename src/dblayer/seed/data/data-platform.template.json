@@ -1,6 +1,7 @@
 {
   "code": "data-platform",
   "name": "Data Platform",
+  "purpose": "Template for building a system whose primary purpose is ingesting, storing, transforming, or serving data at scale. Use this when the core deliverables are pipelines, warehouses, or data services rather than end-user-facing application features.",
   "mandatoryPackCodes": [
     "development",
     "requirements-analysis",

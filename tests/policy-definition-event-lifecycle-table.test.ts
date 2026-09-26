@@ -19,6 +19,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { policyDefinitionsDB } from "../src/dblayer/policyDefinitionsDB.js";
+import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { transitionPolicyDefinition } from "../src/routes/seu/core/policyDefinitions.js";
@@ -26,11 +27,16 @@ import type { PolicyDefinitionRow } from "../src/dblayer/seuTypes.js";
 import { randomUUID } from "node:crypto";
 
 async function freshPolicyDefinitionDraft(): Promise<{ id: string }> {
+  // CR-114 follow-on — policyDefinitionsDB.createDraft's schemaDefinitionId
+  // is now mandatory.
+  const { data: policySchema } = await schemaDefinitionsDB.findLatest("Policy");
+  if (!policySchema) throw new Error("no schema_definitions grammar for Policy");
   const { data: draft, error } = await policyDefinitionsDB.createDraft({
     code: `test-policy-lifecycle-${randomUUID()}`,
     name: "Test Policy Definition",
     category: "Engineering",
     version: "1.0.0",
+    schemaDefinitionId: policySchema.id,
   });
   if (error || !draft) throw error ?? new Error("failed to create Policy Definition draft");
   return { id: draft.id };

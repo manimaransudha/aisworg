@@ -30,6 +30,7 @@ import { safeBack } from "./safeBack.js";
 import { resolveHeldBadges } from "../domain/identity/heldBadges.js";
 import { resolveHeldRoles } from "../domain/identity/heldRoles.js";
 import { lookupRouteAuthority } from "../domain/identity/routeAuthorityCache.js";
+import { isPublic } from "./gatekeeper.js";
 
 const DENY_MESSAGE = "You are not authorised for this action.";
 
@@ -52,13 +53,19 @@ function deny(req: Request, res: Response, api: boolean, reason: string): void {
 // these paths entirely rather than also enforcing whatever row happens to
 // exist for them, so changing ROUTE_AUTHORITY_ADMIN_BADGE away from its
 // `root` default isn't silently overridden by a stale table row.
+//
+// gatekeeper.js's own isPublic() (favicon/css/js/images/fonts/auth) is
+// reused here too: those paths were never meant to be authority-gated
+// "actions", and denying them here (fail-closed, no route_authority row)
+// planted a stray flash message that then surfaced on the user's next,
+// unrelated page render.
 function isSelfCrud(path: string): boolean {
   return path === "/aisworg/seu/route-authority" || path.startsWith("/aisworg/seu/route-authority/");
 }
 
 export function routeAuthorityGate() {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    if (isSelfCrud(req.path)) {
+    if (isSelfCrud(req.path) || isPublic(req.path)) {
       next();
       return;
     }

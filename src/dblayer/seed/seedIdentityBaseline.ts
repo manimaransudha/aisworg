@@ -295,6 +295,34 @@ export async function seedIdentityBaseline(): Promise<void> {
     );
     logger.info(`[seed:identity-baseline] ensured root (user 1) holds the superuser authorised_role and root authorised_badge.`);
 
+    // Owner: same 'superuser' authorised_role grant as user 1 above, for the
+    // SUPERUSER_EMAIL identity itself (env-configured, seeded as user 3 in
+    // USERS above) — badgeBootstrap.ts already grants this identity the
+    // `root` badge on login, but never the 'superuser' role, so it bypasses
+    // requireBadge checks but not requireRole/navRouteAccess's own separate
+    // roles check (route_authority rows gated on roles, not badges). Looked
+    // up by email (not the hardcoded id 3) so this stays correct if
+    // SUPERUSER_EMAIL ever points at a different seeded row.
+    const superuserEmail = (process.env.SUPERUSER_EMAIL || "").toLowerCase();
+    if (superuserEmail) {
+      await client.query(
+        `INSERT INTO participants_master (tenant_id, type, display_name, capabilities, competency, behaviour_context, authorised_role, authorised_badges, is_active, user_id)
+         SELECT $2, 'Human', 'Superuser', '[]'::jsonb, '{}'::jsonb, '[]'::jsonb, '[{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}]'::jsonb, '[]'::jsonb, TRUE, u.id
+         FROM users u
+         WHERE lower(u.email) = $1
+           AND NOT EXISTS (SELECT 1 FROM participants_master WHERE user_id = u.id)`,
+        [superuserEmail, PLATFORM_TENANT_ID]
+      );
+      await client.query(
+        `UPDATE participants_master
+         SET authorised_role = authorised_role || '[{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}]'::jsonb
+         WHERE user_id = (SELECT id FROM users WHERE lower(email) = $1)
+           AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(authorised_role) AS entry WHERE entry->>'role' = 'superuser')`,
+        [superuserEmail]
+      );
+      logger.info(`[seed:identity-baseline] ensured SUPERUSER_EMAIL (${superuserEmail}) holds the superuser authorised_role.`);
+    }
+
     // CR-006 — Objective-authority users for Athens & Babylon: one per objective
     // verb (single objective_<verb> badge) + one "objective_all" (all of them).
     // Local login, password "password"; role general (authority comes from the

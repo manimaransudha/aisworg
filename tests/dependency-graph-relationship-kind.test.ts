@@ -28,6 +28,8 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { deliverableDefinitionsDB } from "../src/dblayer/deliverableDefinitionsDB.js";
+import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
+import type { SchemaDefinitionEntityKind } from "../src/dblayer/seuTypes.js";
 import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
 import { createAuthoringDraft, saveAuthoringDraft, publishAuthoringDraft } from "../src/routes/seu/core/sdkAuthoring.js";
 import { ensureTestFixturePacks } from "./testFixtures.js";
@@ -71,6 +73,19 @@ function uniqueVersion(): string {
   return `0.0.${Date.now()}${Math.floor(Math.random() * 1000)}`;
 }
 
+// CR-114 follow-on — createAuthoringDraft's schemaDefinitionId is now
+// mandatory (no DB-layer findLatest fallback); every call site here must
+// resolve and pass a real schema_definitions row for the kind it's authoring.
+const schemaDefinitionIdCache = new Map<SchemaDefinitionEntityKind, string>();
+async function schemaDefinitionIdFor(kind: SchemaDefinitionEntityKind): Promise<string> {
+  const cached = schemaDefinitionIdCache.get(kind);
+  if (cached) return cached;
+  const { data } = await schemaDefinitionsDB.findLatest(kind);
+  if (!data) throw new Error(`no schema_definitions grammar for ${kind}`);
+  schemaDefinitionIdCache.set(kind, data.id);
+  return data.id;
+}
+
 async function advanceToActive(kind: "Template" | "Deliverable", id: string, actorId: string, actorRole: string): Promise<{ ok: true } | { ok: false; errors: string[] }> {
   for (let i = 0; i < 10; i++) {
     const result = await publishAuthoringDraft({ kind, id, actorId, actorRole });
@@ -83,7 +98,7 @@ async function advanceToActive(kind: "Template" | "Deliverable", id: string, act
 async function publishDeliverableDefinition(code: string, tenantId: string, parentDeliverableDefinitionId?: string): Promise<string> {
   createdOntologyConceptCodes.push(code);
   const created = await createAuthoringDraft({
-    kind: "Deliverable",
+    kind: "Deliverable", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"),
     actorId: ROOT_ACTOR_ID,
     tenantId,
     parentDeliverableDefinitionId,
@@ -114,7 +129,7 @@ async function publishParentTemplate(dependencyGraph: Array<Record<string, unkno
     { code: ARCH_CODE, category: "Architecture" },
     { code: DATA_ARCH_CODE, category: "Architecture" },
   ];
-  const created = await createAuthoringDraft({ kind: "Template", actorId: ROOT_ACTOR_ID, content: templateContent(REAL_TEMPLATE_CODE, version, catalogue, dependencyGraph) });
+  const created = await createAuthoringDraft({ kind: "Template", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, content: templateContent(REAL_TEMPLATE_CODE, version, catalogue, dependencyGraph) });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
   if (!created.ok) throw new Error("unreachable");
   createdTemplateIds.push(created.draftId);
@@ -133,7 +148,7 @@ test("CR-049 Phase 2: a plain 'dependency' edge is unrestricted on Template Inhe
   // plain dependency edges carry no inheritance-preservation rule (today's
   // existing, unchanged behaviour).
   const childCreated = await createAuthoringDraft({
-    kind: "Template",
+    kind: "Template", schemaDefinitionId: await schemaDefinitionIdFor("Template"),
     actorId: ROOT_ACTOR_ID,
     tenantId: DEMO_TENANT_ID,
     parentTemplateId: parent.id,
@@ -150,7 +165,7 @@ test("CR-049 Phase 2: a Decomposition edge is locked — dropping it on a derive
   const parent = await publishParentTemplate([DECOMPOSITION_EDGE]);
 
   const childCreated = await createAuthoringDraft({
-    kind: "Template",
+    kind: "Template", schemaDefinitionId: await schemaDefinitionIdFor("Template"),
     actorId: ROOT_ACTOR_ID,
     tenantId: DEMO_TENANT_ID,
     parentTemplateId: parent.id,
@@ -183,7 +198,7 @@ test("CR-049 Phase 2: a Decomposition edge may be renamed to the tenant's own De
   // the fixed ARCH_CODE/DATA_ARCH_CODE constants the other tests use.
   const parentVersion = uniqueVersion();
   const parentCreated = await createAuthoringDraft({
-    kind: "Template",
+    kind: "Template", schemaDefinitionId: await schemaDefinitionIdFor("Template"),
     actorId: ROOT_ACTOR_ID,
     content: templateContent(REAL_TEMPLATE_CODE, parentVersion, [{ code: archCode, category: "Architecture" }, { code: dataArchCode, category: "Architecture" }], [
       { toCode: dataArchCode, fromType: "Deliverable", fromCode: archCode, requiredState: "Approved", relationshipKind: "decomposition" },
@@ -201,7 +216,7 @@ test("CR-049 Phase 2: a Decomposition edge may be renamed to the tenant's own De
   await publishDeliverableDefinition(tenantDataArchCode, DEMO_TENANT_ID, platformDataArchId);
 
   const childCreated = await createAuthoringDraft({
-    kind: "Template",
+    kind: "Template", schemaDefinitionId: await schemaDefinitionIdFor("Template"),
     actorId: ROOT_ACTOR_ID,
     tenantId: DEMO_TENANT_ID,
     parentTemplateId: parentCreated.draftId,
@@ -226,7 +241,7 @@ test("CR-049 Phase 2: renaming a locked edge to an UNRELATED Deliverable Definit
   await publishDeliverableDefinition(unrelatedCode, DEMO_TENANT_ID);
 
   const childCreated = await createAuthoringDraft({
-    kind: "Template",
+    kind: "Template", schemaDefinitionId: await schemaDefinitionIdFor("Template"),
     actorId: ROOT_ACTOR_ID,
     tenantId: DEMO_TENANT_ID,
     parentTemplateId: parent.id,
@@ -250,7 +265,7 @@ test("CR-049 Phase 2: a Derivation edge is freely editable on Template Inheritan
   // Derived Template drops the Derivation edge entirely — must succeed,
   // unlike the Decomposition case above.
   const childCreated = await createAuthoringDraft({
-    kind: "Template",
+    kind: "Template", schemaDefinitionId: await schemaDefinitionIdFor("Template"),
     actorId: ROOT_ACTOR_ID,
     tenantId: DEMO_TENANT_ID,
     parentTemplateId: parent.id,

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../../partials/head') %>
+</head>
+<body>
+  <%- include('../../../partials/helpers') %>
+  <header><%- include('../../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-1 text-dark fw-bold">Ontology Approvals</h2>
+      <p class="text-muted small mb-0">
+        Every Draft concept — a genuinely new code, proposed either from Ontology Management's own Add form or
+        automatically from an x-ontology-composable schema field elsewhere on the platform (CR-113). Accept moves it
+        to Active; Reject keeps it Draft and requires feedback explaining what needs to change.
+      </p>
+    </div>
+
+    <div class="mb-3">
+      <%- include('../../../partials/listControls', { list: list, listBasePath: listBasePath, searchPlaceholder: 'Search concept type, code, or label' }) %>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th><%- sortLink('Concept type', 'conceptType', list, listBasePath) %></th>
+              <th><%- sortLink('Code', 'code', list, listBasePath) %></th>
+              <th><%- sortLink('Label', 'label', list, listBasePath) %></th>
+              <th>Description</th>
+              <th><%- sortLink('Owner', 'tenant', list, listBasePath) %></th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (list.total === 0) { %>
+              <tr><td colspan="6" class="text-muted small text-center py-3">No Draft concepts awaiting approval.</td></tr>
+            <% } %>
+            <% list.items.forEach(function (d) { %>
+              <tr>
+                <td><code><%= d.conceptType %></code></td>
+                <td><code><%= d.code %></code></td>
+                <td class="small"><%= d.label %></td>
+                <td class="small text-muted"><%= d.description || '—' %></td>
+                <td><% if (d.isPlatform) { %><span class="badge bg-primary-subtle text-primary border border-primary-subtle">Platform</span><% } else { %><span class="badge bg-light text-dark border">Tenant</span><% } %></td>
+                <td class="text-end" style="min-width: 220px;">
+                  <div class="d-flex gap-1 justify-content-end align-items-start">
+                    <form method="POST" action="/aisworg/seu/sdk/ontology/approvals/approve" onsubmit="return confirm('Approve concept <%= d.code %>? It becomes Active immediately.');">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <input type="hidden" name="conceptType" value="<%= d.conceptType %>">
+                      <input type="hidden" name="code" value="<%= d.code %>">
+                      <input type="hidden" name="tenantId" value="<%= d.tenantId %>">
+                      <button class="btn btn-sm btn-success"><i class="bi bi-check-lg me-1"></i>Accept</button>
+                    </form>
+                    <button type="button" class="btn btn-sm btn-outline-danger js-toggle-reject" data-target="reject-<%= d.id %>">
+                      <i class="bi bi-x-lg me-1"></i>Reject
+                    </button>
+                  </div>
+                  <form method="POST" action="/aisworg/seu/sdk/ontology/approvals/reject" id="reject-<%= d.id %>" class="mt-2 d-none text-start">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="conceptType" value="<%= d.conceptType %>">
+                    <input type="hidden" name="code" value="<%= d.code %>">
+                    <input type="hidden" name="tenantId" value="<%= d.tenantId %>">
+                    <textarea name="comment" rows="2" class="form-control form-control-sm mb-2" placeholder="What needs to change before this is reconsidered?" required></textarea>
+                    <button class="btn btn-sm btn-danger">Confirm reject</button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <%- include('../../../partials/footer') %>
+  <script>
+    (function () {
+      document.querySelectorAll('.js-toggle-reject').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var form = document.getElementById(btn.getAttribute('data-target'));
+          if (form) form.classList.toggle('d-none');
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

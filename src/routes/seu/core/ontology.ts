@@ -17,7 +17,7 @@ import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
-import { ontologyComposableFieldsIn, type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
+import type { JsonSchemaDocument, JsonSchemaProperty } from "../../../domain/sdk/formGenerator.js";
 import type { OntologyConceptRow } from "../../../dblayer/seuTypes.js";
 
 // actorId, added by migration 190's governed lifecycle — every real
@@ -73,6 +73,129 @@ export async function assertCanonicalCategory(conceptType: string, value: string
   }
 }
 
+function resolveConceptType(def: JsonSchemaProperty, source: Record<string, unknown>): string {
+  const driverField = def["x-referential-source-by"];
+  const fixedSource = (def["x-referential-source"] ?? def["x-referential"] ?? "").trim();
+  if (!driverField) return fixedSource;
+  const driverValue = String(source[driverField] ?? "").trim();
+  return driverValue ? `${driverValue.toLowerCase()}${def["x-referential-source-suffix"] ?? ""}` : "";
+}
+
+// Resolves an `x-referential-source-by-value` field's ACTUAL concept type for
+// THIS submission (Policy's conditions[].applicabilityDeliverables[].name,
+// driven by the top-level `scope`) — the write-time counterpart of
+// ontologyComposableFieldsIn's own byValue branch (formGenerator.ts:612-629).
+// Returns null when the resolved variant isn't Ontology-governed at all
+// (Policy's scope=Eligibility variant is a real Authority Vocabulary noun,
+// checked by validateConditions's own hand-coded branch instead) or is itself
+// composable (defer to the propose flow, same as a static x-ontology-composable
+// field).
+function resolveByValueConceptType(def: JsonSchemaProperty, topLevelContent: Record<string, unknown>): string | null {
+  const byValue = def["x-referential-source-by-value"];
+  if (!byValue) return null;
+  const resolved = byValue.values[String(topLevelContent[byValue.field] ?? "")] ?? byValue.default;
+  if (!resolved.ontology || resolved.composable) return null;
+  return resolved.source;
+}
+
+// Write-time counterpart to ontologyComposableFieldsIn/dynamicReferentialSourceFieldsIn
+// (both read-side, form-option concerns) — checks every `x-ontology: true`
+// (or Ontology-resolving `x-referential-source-by-value`) field's ACTUAL
+// submitted value against real Ontology data. Recurses to unbounded depth
+// into nested arrays-of-objects and nested plain objects, mirroring
+// formGenerator.ts's own collectOntologyTypesFromItemProps (CR-088's
+// Checklist precedent) and buildItemFields' "type: object" branch (Policy's
+// conditions[].requiredEvidence) respectively — this walker used to stop one
+// level into array-item rows, which was enough for Pack/Template/Profile's
+// flatter fields but not for Policy's conditions[].relatedObligations[]
+// (two levels of array nesting) or conditions[].requiredEvidence.category (a
+// nested object, not an array). `topLevelContent` stays fixed through the
+// whole recursion — an `x-referential-source-by-value` field's driver
+// (Policy's `scope`) is always a TOP-LEVEL field, never a sibling within a
+// nested row, the same as the read-side resolution it mirrors.
+// schema_definitions was previously read only by the form generator, never
+// enforced at write time (design/design whiteboards.md/schema_implementation.md).
+export async function validateOntologyFieldsAgainstSchema(
+  schema: JsonSchemaDocument,
+  content: Record<string, unknown>,
+  viewer: OntologyViewer
+): Promise<string[]> {
+  const errors: string[] = [];
+
+  async function checkValue(conceptType: string, value: unknown, label: string): Promise<void> {
+    if (typeof value !== "string" || !value.trim()) return;
+    try {
+      await assertCanonicalCategory(conceptType, value, viewer);
+    } catch (err) {
+      errors.push(`${label}: ${(err as Error).message}`);
+    }
+  }
+
+  async function checkMulti(conceptType: string, values: unknown, label: string): Promise<void> {
+    if (!Array.isArray(values)) return;
+    for (const [i, value] of values.entries()) await checkValue(conceptType, value, `${label} item ${i + 1}`);
+  }
+
+  async function walk(props: Record<string, JsonSchemaProperty>, row: Record<string, unknown>, topLevelContent: Record<string, unknown>, labelPrefix: string): Promise<void> {
+    for (const [name, def] of Object.entries(props)) {
+      const label = `${labelPrefix}"${name}"`;
+
+      // Nested array-of-objects (Policy's conditions[], conditions[].relatedObligations[],
+      // conditions[].exceptionRules[], ... — recurse to whatever depth the
+      // schema actually declares, not just one level).
+      if (def.type === "array" && def.items?.properties) {
+        const rows = row[name];
+        if (Array.isArray(rows)) {
+          for (const [i, itemRow] of rows.entries()) {
+            if (itemRow && typeof itemRow === "object") {
+              await walk(def.items.properties, itemRow as Record<string, unknown>, topLevelContent, `${label} row ${i + 1} `);
+            }
+          }
+        }
+        continue;
+      }
+
+      // Nested plain object, not a repeatable sub-list (Policy's
+      // conditions[].requiredEvidence — "Required evidence will be an object
+      // by itself," owner) — one fixed set of sub-fields, no rows.
+      if (def.type === "object" && def.properties) {
+        const obj = row[name];
+        if (obj && typeof obj === "object") {
+          await walk(def.properties, obj as Record<string, unknown>, topLevelContent, `${label} `);
+        }
+        continue;
+      }
+
+      const byValueConceptType = resolveByValueConceptType(def, topLevelContent);
+      if (byValueConceptType) {
+        if (def.type === "array") await checkMulti(byValueConceptType, row[name], label);
+        else await checkValue(byValueConceptType, row[name], label);
+        continue;
+      }
+
+      // x-ontology-composable fields (Pack's own `code`) defer to a propose
+      // flow, not reject-on-unregistered — CR-079 "WIP is allowed to be
+      // incomplete." Their real enforcement point stays wherever it already
+      // was (validatePackSeed at actual publish time), unchanged by this
+      // generic write-time checker.
+      if (def["x-ontology"] !== true || def["x-ontology-composable"] === true) continue;
+      const conceptType = resolveConceptType(def, row);
+      if (!conceptType) continue;
+      // A plain array-of-strings x-ontology field (Policy's own
+      // applicabilityEnvironments, Service's consumers — a real multi-select,
+      // not a referential-list of objects) checks every selected value, not
+      // the array itself (checkValue's own `typeof value !== "string"` guard
+      // would otherwise silently skip it entirely — the gap this walker had
+      // for exactly this field shape before this pass).
+      if (def.type === "array") await checkMulti(conceptType, row[name], label);
+      else await checkValue(conceptType, row[name], label);
+    }
+  }
+
+  await walk(schema.properties ?? {}, content, content, "");
+  return errors;
+}
+
 // Owner: "flag in the schema that will specify if an Ontology Composition is
 // allowed" (x-ontology-composable, formGenerator.ts), generalising CR-079
 // step (d)/CR-100's own Pack-code/Competency-value proposal mechanism
@@ -82,7 +205,7 @@ export async function assertCanonicalCategory(conceptType: string, value: string
 // nothing to propose. Otherwise, de-duplicated per (originatingObjectType,
 // originatingObjectId, code, conceptType) via the events table itself
 // (same discipline as before — nothing else tracks "pending" proposals),
-// publishes OntologyComposed (Ch.18 §8). Owner: "payload should carry
+// publishes ConceptCreated. Owner: "payload should carry
 // originator information (id, badge, tenant etc.), originating entity (pack,
 // policy, etc.), the ontology concept (code, applicable environment etc.,
 // proposed value)" — originator id/badge are the event's own actorId/
@@ -90,13 +213,14 @@ export async function assertCanonicalCategory(conceptType: string, value: string
 // real actor + badge" discipline), not payload; everything without a
 // dedicated envelope column (tenant, the originating entity's own human
 // code, which authored field this came from) lives in payload.
-export async function emitOntologyComposed(input: {
+export async function emitConceptCreated(input: {
   originatingObjectType: string;
   originatingObjectId: string;
   originatingEntityCode?: string | null;
   code: string;
   conceptType: string;
   fieldName?: string;
+  sourceRow?: Record<string, unknown>;
   actorId?: string | null;
   badge?: string | null;
   tenantId?: string;
@@ -109,16 +233,23 @@ export async function emitOntologyComposed(input: {
   if (concept) return; // already a real, registered concept — nothing to propose
   const { data: priorEvents } = await eventsDB.findByOriginatingObject(input.originatingObjectType, input.originatingObjectId);
   const alreadyProposed = (priorEvents ?? []).some(
-    (e) => e.event_type === "OntologyComposed" && e.payload?.code === code && e.payload?.conceptType === conceptType
+    (e) => e.event_type === "ConceptCreated" && e.payload?.code === code && e.payload?.conceptType === conceptType
   );
   if (alreadyProposed) return;
   await eventBus.publish({
-    eventType: "OntologyComposed",
+    eventType: "ConceptCreated",
     originatingObjectType: input.originatingObjectType,
     originatingObjectId: input.originatingObjectId,
     seuId: null,
     correlationId: eventBus.newCorrelationId(),
-    payload: { code, conceptType, fieldName: input.fieldName ?? null, tenantId, originatingEntityCode: input.originatingEntityCode ?? null },
+    payload: {
+      code,
+      conceptType,
+      fieldName: input.fieldName ?? null,
+      tenantId,
+      originatingEntityCode: input.originatingEntityCode ?? null,
+      sourceRow: input.sourceRow ?? null,
+    },
     actorId: input.actorId ?? null,
     authorityBadge: input.badge ?? null,
   });
@@ -133,22 +264,97 @@ export async function emitOntologyComposed(input: {
 // assertCanonicalCategory (or an equivalent) on these same fields at PUBLISH
 // time — this function alone never lets an unregistered value through past
 // that gate, it only stops it from being rejected at draft-save.
+//
+// Recurses to unbounded depth into nested arrays-of-objects and nested plain
+// objects, mirroring validateOntologyFieldsAgainstSchema's own `walk` just
+// above (formerly delegated to formGenerator.ts's ontologyComposableFieldsIn,
+// which only scanned schema.properties one level deep — silently invisible
+// to a composable field nested inside e.g. Pack's contributionObligationDefinitions[]
+// or Template's deliverableCatalogue[]). Lives here rather than in
+// formGenerator.ts because nothing else in the codebase calls
+// ontologyComposableFieldsIn — the read-side/UI concern formGenerator.ts
+// otherwise owns never needed per-row composable resolution.
+async function collectComposableValues(
+  props: Record<string, JsonSchemaProperty>,
+  row: Record<string, unknown>,
+  topLevelContent: Record<string, unknown>,
+  onValue: (conceptType: string, value: string, fieldName: string, label: string, row: Record<string, unknown>) => void | Promise<void>,
+  labelPrefix: string
+): Promise<void> {
+  for (const [name, def] of Object.entries(props)) {
+    const label = `${labelPrefix}"${name}"`;
+
+    if (def.type === "array" && def.items?.properties) {
+      const rows = row[name];
+      if (Array.isArray(rows)) {
+        for (const [i, itemRow] of rows.entries()) {
+          if (itemRow && typeof itemRow === "object") {
+            await collectComposableValues(def.items.properties, itemRow as Record<string, unknown>, topLevelContent, onValue, `${label} row ${i + 1} `);
+          }
+        }
+      }
+      continue;
+    }
+    if (def.type === "object" && def.properties) {
+      const obj = row[name];
+      if (obj && typeof obj === "object") {
+        await collectComposableValues(def.properties, obj as Record<string, unknown>, topLevelContent, onValue, `${label} `);
+      }
+      continue;
+    }
+
+    const byValue = def["x-referential-source-by-value"];
+    let conceptType: string;
+    if (byValue) {
+      const resolved = byValue.values[String(topLevelContent[byValue.field] ?? "")] ?? byValue.default;
+      if (!resolved.ontology || !resolved.composable) continue;
+      conceptType = resolved.source;
+    } else {
+      if (def["x-ontology"] !== true || def["x-ontology-composable"] !== true) continue;
+      conceptType = resolveConceptType(def, row);
+    }
+    if (!conceptType) continue;
+
+    const raw = row[name];
+    const multi = def.type === "array" || def["x-widget"] === "referential-multi-select";
+    const values = multi
+      ? (Array.isArray(raw) ? raw.filter((v): v is string => typeof v === "string" && v.trim() !== "") : [])
+      : (typeof raw === "string" && raw.trim() !== "" ? [raw] : []);
+    for (const value of values) await onValue(conceptType, value, name, label, row);
+  }
+}
+
 export async function proposeComposableOntologyValues(
   schema: JsonSchemaDocument,
   content: Record<string, unknown>,
   ctx: { originatingObjectType: string; originatingObjectId: string; originatingEntityCode?: string | null; actorId?: string | null; badge?: string | null; tenantId?: string }
 ): Promise<void> {
-  for (const { fieldName, multi, resolveConceptType } of ontologyComposableFieldsIn(schema)) {
-    const conceptType = resolveConceptType(content);
-    if (!conceptType) continue;
-    const raw = content[fieldName];
-    const values = multi
-      ? (Array.isArray(raw) ? raw.filter((v): v is string => typeof v === "string" && v.trim() !== "") : [])
-      : (typeof raw === "string" && raw.trim() !== "" ? [raw] : []);
-    for (const value of values) {
-      await emitOntologyComposed({ ...ctx, code: value, conceptType, fieldName });
+  await collectComposableValues(schema.properties ?? {}, content, content, async (conceptType, value, fieldName, _label, row) => {
+    await emitConceptCreated({ ...ctx, code: value, conceptType, fieldName, sourceRow: row });
+  }, "");
+}
+
+// The publish-time counterpart of proposeComposableOntologyValues above —
+// same schema-driven recursive scan (no hardcoded concept types, no
+// per-entity field list to maintain), but hard-rejects instead of proposing:
+// whatever draft-save let through unregistered must have resolved to a real
+// concept by the time this runs. Entity-agnostic — one function for every
+// `x-ontology-composable` field platform-wide, per owner: "whatever is
+// x-ontology-composable will be gated at publish time."
+export async function validateComposableFieldsAgainstSchema(
+  schema: JsonSchemaDocument,
+  content: Record<string, unknown>,
+  viewer: OntologyViewer
+): Promise<string[]> {
+  const errors: string[] = [];
+  await collectComposableValues(schema.properties ?? {}, content, content, async (conceptType, value, _fieldName, label) => {
+    try {
+      await assertCanonicalCategory(conceptType, value, viewer);
+    } catch (err) {
+      errors.push(`${label}: ${(err as Error).message}`);
     }
-  }
+  }, "");
+  return errors;
 }
 
 // --- Ontology Management CRUD (owner, 2026-08-18: "each of the concept_types
@@ -309,6 +515,37 @@ export async function addConcept(
   }
   const tenantId = actor.isRoot ? (input.targetTenantId ?? PLATFORM_TENANT_ID) : actor.tenantId;
   if (!tenantId) throw new Error("no tenant to add this concept to");
+
+  // CR-113 item 4 — "if saving something that is already existing, current
+  // behavior continues [version-bump via createConceptVersion below]. If
+  // there is a new addition, publish ConceptCreated and set status to
+  // Draft." A code with no prior version at all (any status) is the "new
+  // addition" case; anything with a prior version keeps today's behavior.
+  const { data: latest } = await ontologyDB.findLatestVersion(conceptType, code, tenantId);
+  if (!latest) {
+    const version = "1.0.0";
+    const { data: created, error } = await ontologyDB.insertConceptVersion({
+      conceptType, code, tenantId, version, defaultLabel, description: description || null,
+      textType: input.textType, uiGrouping: input.uiGrouping, status: "Draft",
+    });
+    if (error || !created) throw error ?? new Error("failed to add concept");
+    await eventBus.publish({
+      eventType: "ConceptCreated",
+      originatingObjectType: "Ontology",
+      originatingObjectId: created.id,
+      seuId: null,
+      correlationId: eventBus.newCorrelationId(),
+      payload: {
+        conceptType, code, version, tenantId,
+        defaultLabel, description: description || null,
+        textType: created.text_type, uiGrouping: created.ui_grouping,
+      },
+      actorId: actor.actorId ?? null,
+      authorityBadge: null,
+    });
+    return created;
+  }
+
   return createConceptVersion({ conceptType, code, tenantId, defaultLabel, description: description || null, textType: input.textType, uiGrouping: input.uiGrouping }, actor);
 }
 
@@ -391,7 +628,12 @@ async function nextAvailableVersion(conceptType: string, code: string, tenantId:
 // these into their own separately-grantable badges still can, without any
 // code change here. Same ownership rule as addConcept: root may act on any
 // tenant's row; anyone else only their own.
-async function transitionConcept(conceptType: string, code: string, targetTenantId: string, toState: "Deprecated" | "Retired" | "Archived", actor: OntologyActor): Promise<OntologyConceptRow> {
+async function transitionConcept(
+  conceptType: string, code: string, targetTenantId: string,
+  toState: "Deprecated" | "Retired" | "Archived" | "Active" | "Draft",
+  actor: OntologyActor,
+  opts?: { comment?: string }
+): Promise<OntologyConceptRow> {
   if (!actor.isRoot && targetTenantId !== actor.tenantId) {
     throw new Error("you can only change concepts in your own tenant's vocabulary");
   }
@@ -409,8 +651,29 @@ async function transitionConcept(conceptType: string, code: string, targetTenant
     throw new Error(gate.reason);
   }
 
+  // CR-113 item 6 — Reject (Draft -> Draft) requires its own, new feedback on
+  // every use, same discipline as Objective's Active -> Reject (CR-073,
+  // objectives.ts's transitionObjective). Checked after authorisation (so an
+  // under-badged actor sees "requires badge...", not a comment-validation
+  // error) and before writing anything.
+  const trimmedComment = opts?.comment?.trim() ?? "";
+  if (fromState === "Draft" && toState === "Draft") {
+    if (!trimmedComment) {
+      throw new Error("Rejecting requires feedback — provide a comment explaining what needs to change.");
+    }
+    const { data: existingComments } = await ontologyDB.getConceptComments(concept.id);
+    const mostRecent = existingComments?.[existingComments.length - 1];
+    if (mostRecent && mostRecent.comment_text.trim() === trimmedComment) {
+      throw new Error("Provide new feedback — this matches the most recent comment already on record.");
+    }
+  }
+
   const { data: updated, error } = await ontologyDB.updateConceptStatus(concept.id, toState);
   if (error || !updated) throw error ?? new Error("failed to update concept status");
+
+  if (fromState === "Draft" && toState === "Draft") {
+    await ontologyDB.addConceptComment(concept.id, actor.actorId ? Number(actor.actorId) : null, trimmedComment);
+  }
 
   await eventBus.publish({
     eventType: gate.eventType ?? `OntologyConcept${toState}`,
@@ -441,6 +704,27 @@ export async function retireConcept(conceptType: string, code: string, targetTen
 
 export async function archiveConcept(conceptType: string, code: string, targetTenantId: string, actor: OntologyActor) {
   return transitionConcept(conceptType, code, targetTenantId, "Archived", actor);
+}
+
+// CR-113 item 6 — the Ontology Approvals tab's own two outcomes of the same
+// process (owner: "only an approver can reject? they are 2 outcomes of the
+// same process") — one badge (ontology_approve) governs both hops, derived
+// off the same verb on both transition_definitions rows.
+export async function approveConcept(conceptType: string, code: string, targetTenantId: string, actor: OntologyActor) {
+  return transitionConcept(conceptType, code, targetTenantId, "Active", actor);
+}
+
+export async function rejectConcept(conceptType: string, code: string, targetTenantId: string, comment: string, actor: OntologyActor) {
+  return transitionConcept(conceptType, code, targetTenantId, "Draft", actor, { comment });
+}
+
+// The Approvals tab's own data source — every Draft concept visible to this
+// actor, across every concept_type (not scoped to whichever category tab
+// happens to be active), same "one page, everything" shape as the Metadata
+// page's listAllConceptsForPicker.
+export async function listDraftConceptsForApproval(actor: OntologyActor): Promise<OntologyConceptRow[]> {
+  const { data } = await ontologyDB.findDraftConcepts({ isRoot: actor.isRoot, tenantId: actor.tenantId });
+  return data ?? [];
 }
 
 // Owner: "Add a retire button also. - this should make the isActive false."
@@ -569,7 +853,7 @@ export async function retireConceptForEntity(conceptType: string, code: string, 
 // scoped to Specialization + Override only (migration 190's own header: the
 // other 4 compositionEngine strategies don't have clear meaning over a
 // 2-field label/description entity with a single composition source in the
-// common case). Publishes OntologyComposed — one of Ch.18 §14's own 7 named
+// common case). Publishes ConceptCreated — one of Ch.18 §14's own named
 // events, wired to nothing at all before this (§18.9's own audit finding).
 export async function composeConcept(
   input: { conceptType: string; code: string; strategy: "specialization" | "override"; sourceConceptId?: string; defaultLabel?: string; description?: string; targetTenantId?: string },

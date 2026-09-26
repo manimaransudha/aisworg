@@ -26,6 +26,7 @@ import { packsDB } from "../src/dblayer/packsDB.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { checklistsDB } from "../src/dblayer/checklistsDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
+import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { deriveExposableParameterCandidates, deriveOverridableParameterCandidates, publishTemplate, extractExposedParameters } from "../src/routes/seu/core/templates.js";
 import { validateProfileSeed, publishProfile, extractExposedParameterOverrides, type ProfileSeedInput } from "../src/routes/seu/core/profiles.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
@@ -39,6 +40,9 @@ const REAL_POLICY_CODE = "adr-required";
 
 async function buildFixturePack(): Promise<{ packId: string; packCode: string; checklistId: string }> {
   const packCode = `test-cr088-pack-${randomUUID()}`;
+  // CR-114 follow-on — packsDB.create's schemaDefinitionId is now mandatory.
+  const { data: packSchema } = await schemaDefinitionsDB.findLatest("Pack");
+  assert.ok(packSchema, "no schema_definitions grammar for Pack");
   const { data: pack, error: packError } = await packsDB.create({
     code: packCode,
     name: "CR-088 filter-shaped override fixture Pack",
@@ -46,6 +50,7 @@ async function buildFixturePack(): Promise<{ packId: string; packCode: string; c
     packVersion: "1.0.0",
     installationClassification: "Optional",
     contributions: {},
+    schemaDefinitionId: packSchema!.id,
   });
   assert.ok(!packError && pack, packError?.message);
 
@@ -97,17 +102,25 @@ test("deriveExposableParameterCandidates: Checklist configurableKey gets valueOp
   assert.ok(configurable!.valueOptions?.includes("conditional"));
 });
 
+// CR-046/CR-079 (cleanSlate.ts's own TEMPLATE_CATEGORY_TEST_CONCEPTS comment)
+// — Template.code must be a real, permanent template-categories concept, not
+// a per-run random-suffixed one; uniqueness across calls moves to
+// templateVersion instead (identity is code+templateVersion+tenant).
+const CR088_TEMPLATE_CODE = "test-cr088-overridable-template";
+
 async function buildFixtureTemplate(input: { packCode: string; checklistId: string; flagOverridable: boolean }): Promise<string> {
-  const templateCode = `test-cr088-template-${randomUUID()}`;
-  const { data: template, error } = await templatesDB.upsert({ code: templateCode, name: "CR-088 fixture Template", deliverableCatalogue: [] });
+  const templateCode = CR088_TEMPLATE_CODE;
+  const { data: template, error } = await templatesDB.upsert({ code: templateCode, name: "CR-088 fixture Template", templateVersion: uniqueTestPackVersion(), deliverableCatalogue: [] });
   assert.ok(!error && template, error?.message);
   await templatesDB.setMandatoryPacks(template!.id, [input.packCode]);
-  await templatesDB.setDraftContent(template!.id, {
+  const { error: draftContentError } = await templatesDB.setDraftContent(template!.id, {
+    purpose: "CR-088 test fixture Template. Exercises filter-shaped exposable parameter overridability.",
     exposedParameters: [
       { sourceType: "policy", sourceCode: REAL_POLICY_CODE, parameterName: "applicabilityEnvironments", overridable: input.flagOverridable },
       { sourceType: "checklist", sourceCode: input.checklistId, parameterName: "type", overridable: input.flagOverridable },
     ],
   });
+  assert.ok(!draftContentError, draftContentError?.message);
   return templateCode;
 }
 
@@ -211,6 +224,7 @@ test("publishTemplate: materialises a non-sparse exposedParameters set from the 
     seed: {
       code: "test-cr088-publish-template",
       name: "CR-088 publishTemplate fixture",
+      purpose: "CR-088 test fixture Template. Exercises non-sparse exposedParameters materialisation from Pack selections.",
       templateVersion: uniqueTestPackVersion(),
       engineeringPackCodes: [packCode],
       deliverableCatalogue: [],

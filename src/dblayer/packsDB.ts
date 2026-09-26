@@ -1,6 +1,8 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import { PLATFORM_TENANT_ID } from "./constants.js";
+import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
+import { validatePackWriteAgainstSchema } from "../routes/seu/core/packWriteValidator.js";
 import type { DbResult, PackCategory, PackClassification, PackCommentRow, PackContributions, PackRow, PackStatus } from "./seuTypes.js";
 
 export const packsDB = {
@@ -31,31 +33,53 @@ export const packsDB = {
     metadata?: Record<string, unknown>;
     authoredBy?: number | null;
     tenantId?: string;
+    // CR-114 follow-on — mandatory (owner: "Otherwise all this build is of no
+    // use" — an optional field with a silent findLatest fallback let every
+    // caller keep ignoring schema versioning entirely). Every caller must
+    // resolve and pass a real schema_definition_id; there is no DB-layer
+    // default any more.
+    schemaDefinitionId: string;
   }): Promise<DbResult<PackRow>> {
     try {
+      // Same fallback the SQL params always applied (below) — computed here
+      // too so write-time schema validation checks the value the row will
+      // actually be written with, not a still-blank field that only ever
+      // looked unset because the fallback hadn't run yet.
+      const installationClassification = input.installationClassification || "Mandatory";
+
+      const errors = await validatePackWriteAgainstSchema({
+        code: input.code,
+        name: input.name,
+        category: input.category,
+        packVersion: input.packVersion,
+        installationClassification,
+        contributions: input.contributions,
+        compositionStrategy: (input.metadata as Record<string, unknown> | undefined)?.compositionStrategy as string | undefined,
+        tenantId: input.tenantId,
+        schemaDefinitionId: input.schemaDefinitionId,
+      });
+      if (errors.length > 0) return { error: new Error(errors.join("; ")) };
+
+      const { data: schemaRow } = await schemaDefinitionsDB.findById(input.schemaDefinitionId);
+      if (!schemaRow) return { error: new Error(`schema_definitions row "${input.schemaDefinitionId}" not found`) };
+
       const { rows } = await query<PackRow>(
-        `INSERT INTO packs (code, name, category, pack_version, status, installation_classification, contributions, dependencies, composition_sources, metadata, authored_by, tenant_id)
-         VALUES ($1, $2, $3, $4, 'Draft', $5, $6, $7, $8, $9, $10, $11)
+        `INSERT INTO packs (code, name, category, pack_version, status, installation_classification, contributions, dependencies, composition_sources, metadata, authored_by, tenant_id, schema_definition_id)
+         VALUES ($1, $2, $3, $4, 'Draft', $5, $6, $7, $8, $9, $10, $11, $12)
          RETURNING *`,
         [
           input.code,
           input.name,
           input.category,
           input.packVersion,
-          // Bug fix — `??` only catches null/undefined; an unanswered
-          // <select> (formGenerator.ts's "select" kind, blank "— select —"
-          // option) submits "" (installationClassification is enum-typed,
-          // not x-ontology, so this never goes through assertCanonicalCategory
-          // at all before reaching here), which isn't nullish and slipped
-          // straight through to `packs_installation_classification_check`
-          // as an invalid empty string.
-          input.installationClassification || "Mandatory",
+          installationClassification,
           JSON.stringify(input.contributions),
           JSON.stringify(input.dependencies ?? []),
           JSON.stringify(input.compositionSources ?? []),
           JSON.stringify(input.metadata ?? {}),
           input.authoredBy ?? null,
           input.tenantId ?? PLATFORM_TENANT_ID,
+          schemaRow?.id ?? null,
         ]
       );
       return { data: rows[0] };
@@ -93,6 +117,26 @@ export const packsDB = {
     metadata?: Record<string, unknown>;
   }): Promise<DbResult<PackRow>> {
     try {
+      const { rows: existingRows } = await query<{ schema_definition_id: string | null; tenant_id: string }>(
+        "SELECT schema_definition_id, tenant_id FROM packs WHERE id = $1", [id]
+      );
+
+      const installationClassification = input.installationClassification || "Mandatory";
+
+      const errors = await validatePackWriteAgainstSchema({
+        id,
+        code: input.code,
+        name: input.name,
+        category: input.category,
+        packVersion: input.packVersion,
+        installationClassification,
+        contributions: input.contributions,
+        compositionStrategy: (input.metadata as Record<string, unknown> | undefined)?.compositionStrategy as string | undefined,
+        tenantId: existingRows[0]?.tenant_id,
+        schemaDefinitionId: existingRows[0]?.schema_definition_id ?? null,
+      });
+      if (errors.length > 0) return { error: new Error(errors.join("; ")) };
+
       const { rows } = await query<PackRow>(
         `UPDATE packs SET code = $10, name = $2, category = $3, pack_version = $4, installation_classification = $5, contributions = $6, dependencies = $7, composition_sources = $8, metadata = $9
          WHERE id = $1 AND status = 'Draft'
@@ -102,10 +146,7 @@ export const packsDB = {
           input.name,
           input.category,
           input.packVersion,
-          // Bug fix — same as create() above: `??` doesn't catch "" (a
-          // <select> left on "— select —"), which reached the DB's own
-          // installation_classification CHECK constraint raw.
-          input.installationClassification || "Mandatory",
+          installationClassification,
           JSON.stringify(input.contributions),
           JSON.stringify(input.dependencies ?? []),
           JSON.stringify(input.compositionSources ?? []),

@@ -15,7 +15,7 @@ const PUBLIC_PREFIX = [
   '/aisworg/logout', // backwards-compat redirect
 ];
 
-function isPublic(path) {
+export function isPublic(path) {
   if (PUBLIC_EXACT.has(path)) return true;
   if (PUBLIC_PREFIX.some(p => path.startsWith(p))) return true;
   return false;

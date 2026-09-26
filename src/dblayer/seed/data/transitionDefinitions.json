@@ -1205,6 +1205,51 @@
     "versionEvent": "VersionArchived"
   },
   {
+    "entityType": "Capability",
+    "fromState": "Defined",
+    "toState": "Published",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": [],
+    "eventType": "CapabilityDefinitionPublished",
+    "versionEvent": "VersionPublished"
+  },
+  {
+    "entityType": "Capability",
+    "fromState": "Published",
+    "toState": "Active",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": [],
+    "eventType": "CapabilityDefinitionActivated",
+    "versionEvent": "VersionActivated"
+  },
+  {
+    "entityType": "Capability",
+    "fromState": "Active",
+    "toState": "Deprecated",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": [],
+    "eventType": "CapabilityDefinitionDeprecated",
+    "versionEvent": "VersionDeprecated"
+  },
+  {
+    "entityType": "Capability",
+    "fromState": "Deprecated",
+    "toState": "Retired",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": [],
+    "eventType": "CapabilityDefinitionRetired",
+    "versionEvent": "VersionSuperseded"
+  },
+  {
+    "entityType": "Capability",
+    "fromState": "Retired",
+    "toState": "Archived",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": [],
+    "eventType": "CapabilityDefinitionArchived",
+    "versionEvent": "VersionArchived"
+  },
+  {
     "entityType": "Policy",
     "fromState": "Draft",
     "toState": "Validated",
@@ -1284,5 +1329,23 @@
     "requiredPolicyCodes": [],
     "eventType": "OntologyConceptArchived",
     "versionEvent": "VersionArchived"
+  },
+  {
+    "entityType": "Ontology",
+    "fromState": "Draft",
+    "toState": "Active",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": [],
+    "eventType": "ConceptApproved",
+    "versionEvent": "VersionActivated"
+  },
+  {
+    "entityType": "Ontology",
+    "fromState": "Draft",
+    "toState": "Draft",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": [],
+    "eventType": "ConceptRejected",
+    "versionEvent": null
   }
 ]

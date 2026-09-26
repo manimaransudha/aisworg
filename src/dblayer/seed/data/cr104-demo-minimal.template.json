@@ -1,6 +1,7 @@
 {
   "code": "cr104-demo-minimal",
   "name": "CR-104 Demo Minimal (Requirements -> Construction -> Release)",
+  "purpose": "CR-104 test fixture Template. Exercises a minimal three-Capability lifecycle (requirements analysis, software construction, software release) for the mandatory-Pack-composition test suite, not a Template intended for real commissioning.",
   "mandatoryPackCodes": ["requirements-analysis", "implementation-engineering", "launch-management"],
   "deliverableCatalogue": [
     { "code": "requirements-analysis-model" },

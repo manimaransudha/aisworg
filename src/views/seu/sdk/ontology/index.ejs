@@ -97,19 +97,22 @@
         var codeInput = document.getElementById('addCode');
         var labelInput = document.getElementById('addLabel');
         var uiGroupingInput = document.getElementById('addUiGrouping');
-        document.querySelectorAll('.js-edit-concept').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            if (codeInput) codeInput.value = btn.getAttribute('data-code') || '';
-            if (labelInput) labelInput.value = btn.getAttribute('data-label') || '';
-            if (uiGroupingInput) uiGroupingInput.value = btn.getAttribute('data-ui-grouping') || '';
-            sel.value = btn.getAttribute('data-text-type') || 'markdown';
-            sync();
-            var desc = btn.getAttribute('data-description') || '';
-            if (mdTa) mdTa.value = desc;
-            plainTa.value = desc;
-            var card = document.getElementById('addConceptCard');
-            if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          });
+        // Delegated on document, not queried up front — this script runs
+        // before the table (and its .js-edit-concept buttons) exists in the
+        // DOM, so a querySelectorAll here would always find zero elements.
+        document.addEventListener('click', function (event) {
+          var btn = event.target.closest && event.target.closest('.js-edit-concept');
+          if (!btn) return;
+          if (codeInput) codeInput.value = btn.getAttribute('data-code') || '';
+          if (labelInput) labelInput.value = btn.getAttribute('data-label') || '';
+          if (uiGroupingInput) uiGroupingInput.value = btn.getAttribute('data-ui-grouping') || '';
+          sel.value = btn.getAttribute('data-text-type') || 'markdown';
+          sync();
+          var desc = btn.getAttribute('data-description') || '';
+          if (mdTa) mdTa.value = desc;
+          plainTa.value = desc;
+          var card = document.getElementById('addConceptCard');
+          if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
       })();
     </script>

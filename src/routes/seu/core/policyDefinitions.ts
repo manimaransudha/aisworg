@@ -3,7 +3,9 @@ import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
-import { assertCanonicalCategory } from "./ontology.js";
+import { assertCanonicalCategory, validateComposableFieldsAgainstSchema } from "./ontology.js";
+import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
+import { type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { listActiveNouns, activeMappingByNoun } from "./authorityVocabulary.js";
 import type { EvidenceDefinition, PolicyDefinitionRow, PolicyCondition, PolicyScope } from "../../../dblayer/seuTypes.js";
 
@@ -256,17 +258,20 @@ async function validateConditions(conditions: PolicyCondition[] | undefined, sco
   return errors;
 }
 
-// `draft: true` skips assertCanonicalCategory on the two Ontology-composable
-// Applicability fields (applicabilityDeliverableNames/applicabilityEnvironments,
-// x-ontology-composable — formGenerator.ts) — same split Pack's own draft
-// path already has (createAuthoringDraft's Pack branch never calls
-// validatePackSeed at all; only publishAuthoringDraft's first hop does), one
-// level more precise since Policy's category stays reject-on-unregistered
-// at draft time too (not composable). An unregistered value is proposed via
-// core/ontology.ts#proposeComposableOntologyValues instead of rejected here;
-// the default (false, every publish call site) still rejects it outright —
-// a Policy can never actually Publish while carrying one.
-export async function validatePolicyDefinitionSeed(seed: PolicyDefinitionSeedInput, excludeId?: string, draft = false): Promise<PolicyDefinitionValidationResult> {
+// `draft: true` still governs everything this function and validateConditions
+// skip for WIP-tolerance during Save (including applicabilityDeliverables[].name
+// — not a composability concern, a real reject-on-unregistered field;
+// migration 214 dropped the old applicabilityDeliverableNames composable
+// flag). `skipComposableChecks` (default: mirrors `draft`, so Save's
+// existing behaviour is unchanged) governs ONLY whichever field(s) the
+// Policy schema marks `x-ontology-composable` (today: applicabilityEnvironments,
+// category — migrations 209/275) — schema-driven via
+// validateComposableFieldsAgainstSchema (core/ontology.ts), not a hardcoded
+// field list — decoupled from `draft` so a caller can enforce every other
+// field at the Draft->Validated hop while still deferring JUST the
+// composable one(s) to Validated->Published, per owner: "whatever is
+// x-ontology-composable will be gated at publish time."
+export async function validatePolicyDefinitionSeed(seed: PolicyDefinitionSeedInput, excludeId?: string, draft = false, skipComposableChecks: boolean = draft): Promise<PolicyDefinitionValidationResult> {
   const errors: string[] = [];
   if (!seed.code?.trim()) errors.push("code is required");
   if (!seed.name?.trim()) errors.push("name is required");
@@ -278,20 +283,10 @@ export async function validatePolicyDefinitionSeed(seed: PolicyDefinitionSeedInp
     const collision = await assertPolicyDefinitionCodeVersionFree(seed.code, seed.version, tenantId, excludeId);
     if (collision) errors.push(collision);
   }
-  if (seed.category?.trim()) {
-    try {
-      await assertCanonicalCategory("category:policy", seed.category.trim());
-    } catch (err) {
-      errors.push((err as Error).message);
-    }
-  }
-  if (!draft) {
-    for (const environment of seed.applicabilityEnvironments ?? []) {
-      try {
-        await assertCanonicalCategory("category:environment", environment);
-      } catch (err) {
-        errors.push((err as Error).message);
-      }
+  if (!skipComposableChecks) {
+    const { data: policySchemaRow } = await schemaDefinitionsDB.findLatest("Policy");
+    if (policySchemaRow) {
+      errors.push(...(await validateComposableFieldsAgainstSchema(policySchemaRow.schema as JsonSchemaDocument, { applicabilityEnvironments: seed.applicabilityEnvironments, category: seed.category }, { isRoot: false, tenantId })));
     }
   }
   if (seed.scope && seed.scope !== "Transition" && seed.scope !== "Eligibility") {
@@ -388,6 +383,10 @@ export async function advancePolicyDefinitionOneStep(policyDefinition: PolicyDef
 export async function copyPolicyDefinitionAsNewDraft(policyDefinitionId: string, actorId: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await policyDefinitionsDB.findById(policyDefinitionId);
   if (!source) return { ok: false, errors: ["Policy Definition not found"] };
+  // CR-114 follow-on — same carry-forward-the-source's-own-pin reasoning as
+  // templates.ts's copyTemplateAsNewDraft.
+  const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Policy");
+  if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Policy`] };
   const { data: newDraft, error } = await policyDefinitionsDB.createDraft({
     code: source.code,
     name: source.name,
@@ -407,6 +406,7 @@ export async function copyPolicyDefinitionAsNewDraft(policyDefinitionId: string,
     },
     tenantId: source.tenant_id,
     parentPolicyDefinitionId: source.parent_policy_definition_id,
+    schemaDefinitionId: copySchema.id,
   });
   if (error || !newDraft) return { ok: false, errors: [(error ?? new Error("failed to copy Policy Definition")).message] };
   return { ok: true, draftId: newDraft.id };

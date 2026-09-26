@@ -1,6 +1,7 @@
 {
   "code": "mobile-application",
   "name": "Mobile Application",
+  "purpose": "Template for building a native or cross-platform mobile application. Use this when the primary user interface is a phone or tablet app, and the work requires offline support, push notifications, or device capabilities such as camera, location, or biometrics.",
   "mandatoryPackCodes": [
     "development",
     "requirements-analysis",

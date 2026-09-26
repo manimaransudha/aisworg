@@ -10,6 +10,9 @@
     are still their own tab too, name/pattern-detected as before. Only one
     tab's fields are on screen at a time.
     Locals: groups (FieldGroups), canEdit (bool), referentialOptions,
+    dbSelectOptions (Record<string, Array<{value,label}>>, CR-114 follow-on —
+    db-select fields' options, parallel to referentialOptions but with a
+    display label distinct from the stored value),
     contributionHelp (Record<string,string>), verifiableFieldHelp
     (Record<string,string>), checklistOptions (ChecklistOption[], CR-060 —
     checklistIds' cross-Pack picker source), renderMarkdown (CR-077 —
@@ -502,6 +505,16 @@
                   <select name="<%= f.name %>" class="form-select form-select-sm" <%- f.required ? 'required' : '' %> <%- canEdit ? '' : 'disabled' %>>
                     <option value="">— select —</option>
                     <% ((locals.referentialOptions || {})[f.referentialSource] || []).forEach(function(opt) { %><option value="<%= opt %>" <%= f.value === opt ? 'selected' : '' %>><%= opt %></option><% }) %>
+                  </select>
+                <% } else if (f.kind === 'db-select') { %>
+                  <%# CR-114 follow-on — a plain DB-sourced picker (schema version
+                      today). Unlike referentialOptions[] (value === label, a flat
+                      string[]), dbSelectOptions[] entries are {value,label} pairs,
+                      since the stored value (e.g. a schema_definition_id) isn't
+                      what should be shown to the author. %>
+                  <select name="<%= f.name %>" class="form-select form-select-sm" <%- f.required ? 'required' : '' %> <%- canEdit ? '' : 'disabled' %>>
+                    <option value="">— select —</option>
+                    <% ((locals.dbSelectOptions || {})[f.dbSource] || []).forEach(function(opt) { %><option value="<%= opt.value %>" <%= f.value === opt.value ? 'selected' : '' %>><%= opt.label %></option><% }) %>
                   </select>
                 <% } else if (f.kind === 'referential-multi-select' && f.name === 'contributionPolicies') { %>
                   <%# CR-089 follow-on — owner: "Similar to services, pick the

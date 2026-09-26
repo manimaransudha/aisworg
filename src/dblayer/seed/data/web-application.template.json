@@ -1,6 +1,7 @@
 {
   "code": "test-enterprise-web-application",
   "name": "Web Application",
+  "purpose": "Test fixture Template. Exercises Web Application-shaped mandatory Pack composition and CR-026 inheritance across the SDK authoring and event/lifecycle-table test suites, not a Template intended for real commissioning.",
   "mandatoryPackCodes": [
     "requirements-analysis",
     "architecture-solution-design",

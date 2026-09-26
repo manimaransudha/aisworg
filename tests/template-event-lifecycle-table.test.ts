@@ -17,6 +17,7 @@ import assert from "node:assert/strict";
 
 import pool from "../src/utils/db.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
+import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { publishTemplate, transitionTemplate, type TemplateSeedInput } from "../src/routes/seu/core/templates.js";
@@ -34,6 +35,7 @@ async function freshTemplateSeed(overrides: Partial<TemplateSeedInput> = {}): Pr
   return {
     code: "api-platform",
     name: "Test Template",
+    purpose: "Test Template fixture for the Ch.6 event/lifecycle table check.",
     templateVersion: uniqueTestPackVersion(),
     deliverableCatalogue: [{ code: "source-code" }],
     ...overrides,
@@ -46,10 +48,16 @@ async function freshTemplateSeed(overrides: Partial<TemplateSeedInput> = {}): Pr
 // now walks a fresh Draft all the way to Active in one call (see the row 1
 // test above).
 async function freshTemplateDraft(): Promise<{ id: string }> {
+  // CR-114 follow-on — templatesDB.createDraft's schemaDefinitionId is now
+  // mandatory.
+  const { data: templateSchema } = await schemaDefinitionsDB.findLatest("Template");
+  if (!templateSchema) throw new Error("no schema_definitions grammar for Template");
   const { data: draft, error } = await templatesDB.createDraft({
     code: "api-platform",
     name: "Test Template Draft",
     templateVersion: uniqueTestPackVersion(),
+    draftContent: { purpose: "Test Template fixture for the Ch.6 event/lifecycle table check." },
+    schemaDefinitionId: templateSchema.id,
   });
   if (error || !draft) throw error ?? new Error("failed to create Template draft");
   return { id: draft.id };

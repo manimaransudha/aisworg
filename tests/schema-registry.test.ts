@@ -7,7 +7,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 
 import pool from "../src/utils/db.js";
-import { createSchemaVersion, getSchemaDefinition, listSchemaDefinitions } from "../src/routes/seu/core/schemaRegistry.js";
+import { createSchemaVersion, reviewSchemaVersion, getSchemaDefinition, listSchemaDefinitions } from "../src/routes/seu/core/schemaRegistry.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 
 // The grammar-authored kinds (Pack/Template/Profile) are all load-bearing — each
@@ -43,12 +43,40 @@ test("Schema Registry: a new version is additive — the previous version stays 
 
     const all = await listSchemaDefinitions();
     assert.ok(all.some((s) => s.id === created.schema.id));
+
+    // CR-114 Compatibility feature — this throwaway schema drops nearly every
+    // real property `before` had, so it must be recorded as incompatible with
+    // `before`'s own version, never compatible.
+    assert.ok(created.schema.incompatible_versions.includes(before!.version));
+    assert.ok(!created.schema.compatible_versions.includes(before!.version));
   } finally {
     // Restore "latest" to before's real content, regardless of pass/fail —
     // never leave the shared dev database's live authoring surface pointed
     // at this test's own throwaway schema.
     await createSchemaVersion({ entityKind: TEST_KIND, schemaJson: JSON.stringify(before!.schema) });
   }
+});
+
+test("Schema Registry: reviewSchemaVersion reports compatibility against every existing version but writes nothing", async () => {
+  const before = await schemaDefinitionsDB.findAllVersions(TEST_KIND);
+  const existingVersions = before.data ?? [];
+  assert.ok(existingVersions.length > 0);
+
+  const latest = existingVersions[0]!;
+  const reviewed = await reviewSchemaVersion({ entityKind: TEST_KIND, schemaJson: JSON.stringify(latest.schema) });
+  assert.equal(reviewed.ok, true);
+  if (!reviewed.ok) return;
+
+  // Identical to the current latest version — zero differences, compatible with it.
+  const entryForLatest = reviewed.report.find((e) => e.version === latest.version);
+  assert.ok(entryForLatest);
+  assert.equal(entryForLatest!.compatible, true);
+  assert.deepEqual(entryForLatest!.differences, []);
+  assert.equal(reviewed.report.length, existingVersions.length);
+
+  // No row was created by review — same versions, same count, as before.
+  const after = await schemaDefinitionsDB.findAllVersions(TEST_KIND);
+  assert.equal((after.data ?? []).length, existingVersions.length);
 });
 
 test("Schema Registry: rejects invalid JSON and an unknown entity kind, without writing a row", async () => {

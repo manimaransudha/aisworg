@@ -4,6 +4,7 @@ import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
+import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import type { DeliverableDefinitionRow } from "../../../dblayer/seuTypes.js";
 
 // CR-049 Phase 1 — Deliverable Definition authoring, mirroring core/templates.ts
@@ -175,6 +176,10 @@ async function nextAvailablePatchVersion(code: string, fromVersion: string, tena
 // Active for this code+tenant.
 async function reactivateAsNewVersion(concept: DeliverableDefinitionRow, actorRole: string, actorId: string | undefined): Promise<TransitionDeliverableDefinitionResult> {
   const nextVersion = await nextAvailablePatchVersion(concept.code, concept.version, concept.tenant_id);
+  // CR-114 follow-on — same carry-forward-the-source's-own-pin reasoning as
+  // templates.ts's reactivateAsNewVersion.
+  const { data: reactivationSchema } = concept.schema_definition_id ? { data: { id: concept.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Deliverable");
+  if (!reactivationSchema) return { ok: false, reason: "policy_blocked", detail: `no schema_definitions grammar for Deliverable` };
   const { data: newDraft, error } = await deliverableDefinitionsDB.createDraft({
     code: concept.code,
     description: concept.description,
@@ -183,6 +188,7 @@ async function reactivateAsNewVersion(concept: DeliverableDefinitionRow, actorRo
     draftContent: { code: concept.code, description: concept.description, definitionVersion: nextVersion },
     tenantId: concept.tenant_id,
     parentDeliverableDefinitionId: concept.parent_deliverable_definition_id,
+    schemaDefinitionId: reactivationSchema.id,
   });
   if (error || !newDraft) return { ok: false, reason: "policy_blocked", detail: (error ?? new Error("failed to create new Deliverable Definition version")).message };
 
@@ -236,6 +242,10 @@ export async function copyDeliverableDefinitionAsNewDraft(deliverableDefinitionI
   const { data: source } = await deliverableDefinitionsDB.findById(deliverableDefinitionId);
   if (!source) return { ok: false, errors: ["Deliverable Definition not found"] };
   const nextVersion = await nextAvailablePatchVersion(source.code, source.version, source.tenant_id);
+  // CR-114 follow-on — same carry-forward-the-source's-own-pin reasoning as
+  // templates.ts's copyTemplateAsNewDraft.
+  const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Deliverable");
+  if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Deliverable`] };
   const { data: newDraft, error } = await deliverableDefinitionsDB.createDraft({
     code: source.code,
     description: source.description,
@@ -244,6 +254,7 @@ export async function copyDeliverableDefinitionAsNewDraft(deliverableDefinitionI
     draftContent: { code: source.code, description: source.description, definitionVersion: nextVersion },
     tenantId: source.tenant_id,
     parentDeliverableDefinitionId: source.parent_deliverable_definition_id,
+    schemaDefinitionId: copySchema.id,
   });
   if (error || !newDraft) return { ok: false, errors: [(error ?? new Error("failed to copy Deliverable Definition")).message] };
   return { ok: true, draftId: newDraft.id };

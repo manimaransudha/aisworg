@@ -1308,8 +1308,8 @@
                     field name, so each row's combo tracks its own dimension
                     <select>, never another row's. Publishing an unregistered
                     value is still blocked (validatePackSeed, unchanged) —
-                    typing one here is what proposes it (OntologyComposed,
-                    core/sdkAuthoring.ts's emitOntologyComposedForCompetencies). %>
+                    typing one here is what proposes it (ConceptCreated,
+                    core/sdkAuthoring.ts's emitConceptCreatedForCompetencies). %>
                 <% var _dynDriverField = field.itemFields.find(function(g) { return g.name === itemField.driverField; }); %>
                 <% var _dynDriverConceptType = _dynDriverField ? _dynDriverField.referentialSource : ''; %>
                 <% var _dynDriverOpts = ((locals.ontologyOptions || {})[_dynDriverConceptType] || []); %>

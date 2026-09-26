@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+  <style>
+    .version-badge { font-size: 0.68rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 4px; background: #f1f5f9; color: #334155; }
+    .role-badge { font-size: 0.68rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 4px; background: #ede9fe; color: #5b21b6; }
+  </style>
+</head>
+<body>
+  <%- include('../../partials/helpers') %>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <h2 class="h3 mb-1 text-dark fw-bold">Capability Definitions</h2>
+      <p class="text-muted small mb-0">
+        Capability Registry (CR-111) — the canonical, versioned catalog entry each capability-name code
+        expands into: the roles it decomposes into, and the worktypes each role covers. What Capability
+        fulfillment is matched against.
+      </p>
+    </div>
+
+    <% const _base = locals.listBasePath || '/aisworg/seu/capability-definitions'; %>
+    <%- include('../../partials/listControls', { list: list, listBasePath: _base, searchPlaceholder: 'Search code or label' }) %>
+    <div class="small text-muted mb-3">Sort:
+      <%- sortLink('Code', 'code', list, _base) %> &middot;
+      <%- sortLink('Version', 'version', list, _base) %> &middot;
+      <%- sortLink('Status', 'status', list, _base) %>
+    </div>
+
+    <%
+      var _states = locals.states || [];
+      var _activeStatus = locals.activeStatus || '';
+    %>
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      <a href="<%= _base + listQueryString(list, { status: '' }) %>" class="btn btn-sm <%= _activeStatus ? 'btn-outline-secondary' : 'btn-secondary' %>">All states</a>
+      <% _states.forEach(function(s) { %>
+        <a href="<%= _base + listQueryString(list, { status: s }) %>" class="btn btn-sm <%= _activeStatus === s ? 'btn-secondary' : 'btn-outline-secondary' %>"><%= s %></a>
+      <% }) %>
+    </div>
+
+    <% if (list.total === 0) { %>
+      <% if (list.q) { %>
+        <div class="alert alert-warning">No Capability Definitions match your search.</div>
+      <% } else if (_activeStatus) { %>
+        <div class="alert alert-warning">No Capability Definitions in state "<%= _activeStatus %>".</div>
+      <% } else { %>
+        <div class="alert alert-warning">No Capability Definitions published yet — author one via SDK / Authoring &rarr; Capability Authoring.</div>
+      <% } %>
+    <% } else { %>
+      <% list.items.forEach(function(r) { var c = r.capabilityDefinition; %>
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <h5 class="mb-1">
+                  <%= c.default_label %>
+                  <span class="version-badge ms-1">v<%= c.version %></span>
+                </h5>
+                <p class="text-muted small mb-2">
+                  <code class="text-muted small"><%= c.code %></code>
+                  <span class="state-badge state-<%= c.status %>"><%= c.status %></span>
+                  <% if (c.tenant_id === locals.platformTenantId) { %>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Platform</span>
+                  <% } else { %>
+                    <span class="badge bg-light text-dark border">Your tenant</span>
+                  <% } %>
+                  <% if (c.parent_capability_definition_id) { %>
+                    <span class="badge bg-secondary-subtle text-secondary border">Derived</span>
+                  <% } %>
+                </p>
+                <% if (c.description) { %><p class="small mb-2"><%= c.description %></p><% } %>
+                <% if (c.roles && c.roles.length > 0) { %>
+                  <div class="mb-2 d-flex flex-wrap gap-1">
+                    <% c.roles.forEach(function(role) { %>
+                      <span class="role-badge" title="<%= (role.worktypes || []).join(', ') %>"><%= role.name %></span>
+                    <% }) %>
+                  </div>
+                <% } %>
+              </div>
+            </div>
+            <div class="d-flex gap-2 mt-2">
+              <a href="/aisworg/seu/sdk/capability-authoring/<%= c.id %>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye me-1"></i>View</a>
+              <% if (locals.canCopy) { %>
+                <form method="POST" action="/aisworg/seu/capability-definitions/<%= c.id %>/copy">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-copy me-1"></i>Copy</button>
+                </form>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    <% } %>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

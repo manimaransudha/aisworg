@@ -1,6 +1,8 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import { PLATFORM_TENANT_ID } from "./constants.js";
+import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
+import { validateServiceDefinitionWriteAgainstSchema } from "../routes/seu/core/serviceDefinitionWriteValidator.js";
 import type { DbResult, ServiceDefinitionRow, ServiceLevelExpectation } from "./seuTypes.js";
 
 // CR-086 follow-on — Service Definition (Book 3 Ch.11), a first-class
@@ -27,11 +29,38 @@ export const serviceDefinitionsDB = {
     draftContent?: Record<string, unknown>;
     tenantId?: string;
     parentServiceDefinitionId?: string | null;
+    // CR-114 follow-on — mandatory (owner: "Otherwise all this build is of no
+    // use"); every caller must resolve and pass a real schema_definition_id.
+    schemaDefinitionId: string;
   }): Promise<DbResult<ServiceDefinitionRow>> {
     try {
+      const version = input.version ?? "1.0.0";
+      const draftContent = input.draftContent ?? {};
+
+      const errors = await validateServiceDefinitionWriteAgainstSchema({
+        code: input.code,
+        name: input.name,
+        capabilityCode: input.capabilityCode,
+        purpose: input.purpose,
+        inputs: input.inputs,
+        outputs: input.outputs,
+        serviceLevel: input.serviceLevel,
+        governance: input.governance,
+        success: input.success,
+        consumers: input.consumers,
+        version,
+        draftContent,
+        tenantId: input.tenantId,
+        schemaDefinitionId: input.schemaDefinitionId,
+      });
+      if (errors.length > 0) return { error: new Error(errors.join("; ")) };
+
+      const { data: schemaRow } = await schemaDefinitionsDB.findById(input.schemaDefinitionId);
+      if (!schemaRow) return { error: new Error(`schema_definitions row "${input.schemaDefinitionId}" not found`) };
+
       const { rows } = await query<ServiceDefinitionRow>(
-        `INSERT INTO service_definitions (code, name, capability_code, purpose, inputs, outputs, service_level, governance, success, consumers, version, status, authored_by, draft_content, tenant_id, parent_service_definition_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'Defined', $12, $13, $14, $15)
+        `INSERT INTO service_definitions (code, name, capability_code, purpose, inputs, outputs, service_level, governance, success, consumers, version, status, authored_by, draft_content, tenant_id, parent_service_definition_id, schema_definition_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'Defined', $12, $13, $14, $15, $16)
          RETURNING *`,
         [
           input.code,
@@ -44,11 +73,12 @@ export const serviceDefinitionsDB = {
           input.governance ?? null,
           input.success ?? null,
           input.consumers ?? [],
-          input.version ?? "1.0.0",
+          version,
           input.authoredBy ?? null,
-          JSON.stringify(input.draftContent ?? {}),
+          JSON.stringify(draftContent),
           input.tenantId ?? PLATFORM_TENANT_ID,
           input.parentServiceDefinitionId ?? null,
+          schemaRow?.id ?? null,
         ]
       );
       return { data: rows[0] };
@@ -66,6 +96,29 @@ export const serviceDefinitionsDB = {
     }
   ): Promise<DbResult<ServiceDefinitionRow>> {
     try {
+      const { rows: existingRows } = await query<{ schema_definition_id: string | null; tenant_id: string }>(
+        "SELECT schema_definition_id, tenant_id FROM service_definitions WHERE id = $1", [id]
+      );
+
+      const errors = await validateServiceDefinitionWriteAgainstSchema({
+        id,
+        code: input.code,
+        name: input.name,
+        capabilityCode: input.capabilityCode,
+        purpose: input.purpose,
+        inputs: input.inputs,
+        outputs: input.outputs,
+        serviceLevel: input.serviceLevel,
+        governance: input.governance,
+        success: input.success,
+        consumers: input.consumers,
+        version: input.version,
+        draftContent: input.draftContent,
+        tenantId: existingRows[0]?.tenant_id,
+        schemaDefinitionId: existingRows[0]?.schema_definition_id ?? null,
+      });
+      if (errors.length > 0) return { error: new Error(errors.join("; ")) };
+
       const { rows } = await query<ServiceDefinitionRow>(
         `UPDATE service_definitions SET code = $2, name = $3, capability_code = $4, purpose = $5, inputs = $6, outputs = $7, service_level = $8, governance = $9, success = $10, consumers = $11, version = $12, draft_content = $13
          WHERE id = $1 AND status = 'Defined' RETURNING *`,

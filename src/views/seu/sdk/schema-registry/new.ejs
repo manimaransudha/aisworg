@@ -17,24 +17,105 @@
     <p class="text-muted small mb-1"><a href="/aisworg/seu/sdk/schema-registry">&larr; Schema Registry</a></p>
     <h2 class="h4 mb-1 text-dark fw-bold"><%= title %></h2>
     <p class="text-muted small mb-4">
-      Each row is one field of the grammar. Pick its <strong>type</strong> and <strong>widget</strong>, tick
-      <strong>required</strong>, and (for a dropdown) list comma-separated <strong>enum values</strong> or a
-      <strong>referential source</strong>. A new, immutable version is created on save.
+      CR-114 — each row is one widget of the grammar; a Repeatable list widget nests further
+      widgets inside itself, to any depth. Review shows this draft's compatibility against every
+      existing version before anything is written; the new, immutable version is only created
+      once you Publish from that review page.
     </p>
 
-    <div class="card border-0 shadow-sm">
-      <div class="card-body">
+    <form method="POST" action="/aisworg/seu/sdk/schema-registry" id="widget-tree-form">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <% if (entityKindLocked) { %>
+        <input type="hidden" name="entityKind" value="<%= entityKind %>">
+        <p class="small text-muted mb-3">Entity kind: <strong><%= entityKind %></strong></p>
+      <% } else { %>
+        <div class="mb-3" style="max-width:220px;">
+          <label class="form-label small mb-1">Entity kind</label>
+          <select name="entityKind" class="form-select form-select-sm" required>
+            <option value="">— select —</option>
+            <% allKinds.forEach(function(k) { %><option value="<%= k %>"><%= k %></option><% }) %>
+          </select>
+        </div>
+      <% } %>
+
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+          <h6 class="text-uppercase text-muted small fw-bold mb-2">Tabs (x-groups)</h6>
+          <p class="text-muted small mb-2">Which authoring-form tabs this schema's own fields group into. A field's own "tab" dropdown below picks one of these keys.</p>
+          <div class="wt-groups-list" data-next-index="<%= doc.groups.length %>">
+            <% doc.groups.forEach(function(g, i) { %>
+              <div class="wt-group-row row g-2 align-items-center mb-1">
+                <div class="col-md-3"><input name="groups[<%= i %>][key]" class="form-control form-control-sm" placeholder="key" value="<%= g.key %>"></div>
+                <div class="col-md-4"><input name="groups[<%= i %>][label]" class="form-control form-control-sm" placeholder="Label" value="<%= g.label %>"></div>
+                <div class="col-auto"><button type="button" class="btn btn-sm btn-outline-danger wt-group-remove"><i class="bi bi-x"></i></button></div>
+              </div>
+            <% }) %>
+          </div>
+          <button type="button" class="btn btn-sm btn-link p-0 wt-group-add"><i class="bi bi-plus-circle me-1"></i>Add tab</button>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+          <h6 class="text-uppercase text-muted small fw-bold mb-2">Schema notes (x-schema-notes)</h6>
+          <p class="text-muted small mb-2">Author-only log — why this version exists, what changed. Never read by the real form/validator.</p>
+          <%- include('_widgetNotes', { notes: doc.notes, namePrefix: 'notes' }) %>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+          <h6 class="text-uppercase text-muted small fw-bold mb-2">Fields</h6>
+          <%- include('_widgetTree', { widgets: doc.widgets, namePrefix: 'widgets', isItem: false, topGroups: doc.groups, allowedKinds: topLevelKinds, itemKinds: itemKinds }) %>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-save me-1"></i>Review changes</button>
+      <a href="/aisworg/seu/sdk/schema-registry" class="btn btn-sm btn-link text-muted">Cancel</a>
+    </form>
+
+    <details class="card border-0 shadow-sm mt-4">
+      <summary class="card-body pb-0" style="cursor: pointer;"><span class="text-uppercase text-muted small fw-bold">Advanced — raw JSON</span></summary>
+      <div class="card-body pt-2">
+        <p class="text-muted small mb-2">For grammars the widget tree can't yet express (Pass 2 — "self:"/"derived:" referential sources), paste the JSON Schema directly.</p>
         <form method="POST" action="/aisworg/seu/sdk/schema-registry">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <%- include('../_generatedFields', { fields: fields, canEdit: true, referentialOptions: {} }) %>
-          <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-save me-1"></i>Create version</button>
-          <a href="/aisworg/seu/sdk/schema-registry" class="btn btn-sm btn-link text-muted">Cancel</a>
+          <div class="mb-2" style="max-width: 220px;">
+            <label class="form-label small mb-1">Entity kind</label>
+            <% if (entityKindLocked) { %>
+              <input type="text" class="form-control form-control-sm" value="<%= entityKind %>" disabled>
+              <input type="hidden" name="entityKind" value="<%= entityKind %>">
+            <% } else { %>
+              <select name="entityKind" class="form-select form-select-sm" required>
+                <option value="">— select —</option>
+                <% allKinds.forEach(function(k) { %><option value="<%= k %>"><%= k %></option><% }) %>
+              </select>
+            <% } %>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small mb-1">Schema JSON</label>
+            <textarea name="schemaJson" class="form-control form-control-sm font-monospace" rows="10" placeholder='{ "type": "object", "required": [...], "properties": { ... } }'></textarea>
+          </div>
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Review changes (raw)</button>
         </form>
       </div>
-    </div>
+    </details>
   </main>
 
-  <script src="<%= baseUrl %>/js/referentialListGroup.js"></script>
+  <%# Blank-row templates the client JS clones for "+ Add widget" — inert
+      (never submitted, `<template>` content isn't part of the live DOM) and
+      built from the exact same _widgetRow.ejs markup every real row uses, so
+      there's only ever one place that markup is maintained. "__PFX__" is a
+      placeholder token widgetTreeEditor.js replaces with the real computed
+      name-prefix on clone. %>
+  <template id="wt-blank-top">
+    <%- include('_widgetRow', { w: blankWidget, prefix: '__PFX__', isItem: false, topGroups: doc.groups, allowedKinds: topLevelKinds, itemKinds: itemKinds }) %>
+  </template>
+  <template id="wt-blank-item">
+    <%- include('_widgetRow', { w: blankWidget, prefix: '__PFX__', isItem: true, topGroups: [], allowedKinds: itemKinds, itemKinds: itemKinds }) %>
+  </template>
+
+  <script src="<%= baseUrl %>/js/widgetTreeEditor.js"></script>
 
   <%- include('../../../partials/footer') %>
 </body>

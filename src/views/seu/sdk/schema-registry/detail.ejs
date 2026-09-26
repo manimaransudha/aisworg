@@ -20,7 +20,30 @@
       <p class="text-muted small mb-0">Created <%= new Date(schema.createdAt).toLocaleString() %>. Immutable — a new edit is always a new version, never a change to this row.</p>
     </div>
 
-    <div class="card border-0 shadow-sm">
+    <div class="section-card mb-4">
+      <div class="section-header">Compatibility (CR-114)</div>
+      <div class="card-body">
+        <% if (!schema.compatibleVersions.length && !schema.incompatibleVersions.length) { %>
+          <p class="text-muted small mb-0">No prior version of <%= schema.entityKind %> to compare against — this was the first version.</p>
+        <% } else { %>
+          <p class="small mb-1">
+            Compatible with:
+            <% if (schema.compatibleVersions.length) { %>
+              <% schema.compatibleVersions.forEach(function(v) { %><span class="badge bg-light text-dark border me-1">v<%= v %></span><% }) %>
+            <% } else { %><span class="text-muted">none</span><% } %>
+          </p>
+          <p class="small mb-0">
+            Incompatible with:
+            <% if (schema.incompatibleVersions.length) { %>
+              <% schema.incompatibleVersions.forEach(function(v) { %><span class="badge bg-danger-subtle text-danger border me-1">v<%= v %></span><% }) %>
+            <% } else { %><span class="text-muted">none</span><% } %>
+          </p>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">Schema JSON</div>
       <div class="card-body">
         <pre class="mb-0 small" style="white-space: pre-wrap;"><%= schema.schemaJson %></pre>
       </div>

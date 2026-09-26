@@ -20,6 +20,7 @@ import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { compositionEngine } from "../src/domain/engine/compositionEngine.js";
+import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { validatePackSeed, publishPack, transitionPack, createPackDraft, listPacksWithNextStates, packCodeVersionSummaries, type PackSeedInput } from "../src/routes/seu/core/packs.js";
 import { ensureTestFixturePacks, uniqueTestPackVersion } from "./testFixtures.js";
 
@@ -167,7 +168,10 @@ test("publishing a new version of an existing Pack code creates a new immutable 
 });
 
 test("transitionPack rejects an undefined transition (Draft -> Active, skipping Validated/Published)", async () => {
-  const { data: rawDraftPack } = await packsDB.create(await freshPackSeed());
+  // CR-114 follow-on — packsDB.create's schemaDefinitionId is now mandatory.
+  const { data: packSchema } = await schemaDefinitionsDB.findLatest("Pack");
+  assert.ok(packSchema, "no schema_definitions grammar for Pack");
+  const { data: rawDraftPack } = await packsDB.create({ ...(await freshPackSeed()), schemaDefinitionId: packSchema!.id });
   assert.ok(rawDraftPack);
   const result = await transitionPack({ packId: rawDraftPack!.id, targetState: "Active", actorRole: "power", actorId: "1001" });
   assert.equal(result.ok, false);

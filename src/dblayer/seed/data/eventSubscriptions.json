@@ -24,7 +24,10 @@
     { "eventType": "DispatchRejected", "description": "Ch.33 §14 — no producing Capability declared, or the eligible-Participant pool is empty. An Obligation + Action-Required Attention Item are raised and the Command is marked Failed. No direct consumer — retrying happens only once a human resolves the Obligation, via ObligationTransitioned." },
     { "eventType": "ParticipantUnavailable", "description": "Ch.33 §14 — the eligible pool has entries, but Dispatch Strategy filtering eliminates every candidate structurally. Same Obligation + Action-Required Attention Item + Command-Failed treatment as DispatchRejected, same no-direct-consumer reasoning." },
     { "eventType": "RedispatchRequested", "description": "Ch.33 §14 — DispatchDeferred's own consumer requesting a retry: qualified candidates exist but none are currently Available. Consumed by a retry handler that re-runs dispatchEngine.dispatch on the same Work Item." },
-    { "eventType": "RedispatchCompleted", "description": "Ch.33 §14 — a RedispatchRequested retry landed on a successful Participant assignment (published alongside ParticipantSelected/WorkItemDispatched, not instead of them)." }
+    { "eventType": "RedispatchCompleted", "description": "Ch.33 §14 — a RedispatchRequested retry landed on a successful Participant assignment (published alongside ParticipantSelected/WorkItemDispatched, not instead of them)." },
+    { "eventType": "ConceptCreated", "description": "Ch.18 §14 — a new Ontology Concept code's first Version (Draft), either from Ontology Management's own Add/Save (core/ontology.ts addConcept, row already inserted) or proposed by an x-ontology-composable schema field elsewhere on the platform (emitConceptCreated — payload only, no row). conceptCreatedHandler inserts the Draft row for the latter case; a no-op for the former (row already exists)." },
+    { "eventType": "ConceptApproved", "description": "CR-113 item 6 — an ontology_approve holder accepted a Draft concept (Draft -> Active)." },
+    { "eventType": "ConceptRejected", "description": "CR-113 item 6 — an ontology_approve holder rejected a Draft concept with mandatory feedback; stays Draft." }
   ],
   "subscriptions": [
     { "eventType": "WorkItemDispatched", "handlerName": "assignmentDelivery" },
@@ -41,6 +44,7 @@
     { "eventType": "RedispatchRequested", "handlerName": "redispatch" },
     { "eventType": "ObligationTransitioned", "handlerName": "deliverableKickoff" },
     { "eventType": "AttentionItemTransitioned", "handlerName": "executionEngineKickoff" },
-    { "eventType": "AttentionItemTransitioned", "handlerName": "deliverableKickoff" }
+    { "eventType": "AttentionItemTransitioned", "handlerName": "deliverableKickoff" },
+    { "eventType": "ConceptCreated", "handlerName": "conceptCreated" }
   ]
 }

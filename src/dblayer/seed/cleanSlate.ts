@@ -97,6 +97,15 @@ const TEMPLATE_CATEGORY_TEST_CONCEPTS: Array<[code: string, label: string]> = [
   // test-enterprise-web-application (that one's a memoized, widely-reused
   // fixture elsewhere — testFixtures.ts's ensureWebAppTemplateFixture).
   ["test-cr088-publish-template", "Test: CR-088 publishTemplate Fixture"],
+  // design/design whiteboards.md/schema_implementation.md — buildFixtureTemplate
+  // (cr088-filter-shaped-overrides.test.ts) used to mint a fresh
+  // `test-cr088-template-<randomUUID>` code per call, which never went
+  // through publishTemplate's own assertCanonicalCategory check (it pokes
+  // templatesDB.upsert/setDraftContent directly), so it was never caught —
+  // until Template's write-time validator (this session) started enforcing
+  // it there too. Same fix as the rest of this list: one stable, permanent
+  // code, uniqueness moved to templateVersion (uniqueTestPackVersion).
+  ["test-cr088-overridable-template", "Test: CR-088 Overridable Parameters Fixture"],
 ];
 
 // CR-079 step (a) — the six new category-scoped Pack-identity concept types

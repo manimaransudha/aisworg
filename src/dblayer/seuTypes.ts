@@ -383,6 +383,9 @@ export interface PackRow {
   // (never re-derived) across a reactivation-as-new-version.
   tenant_id: string;
   created_at: string;
+  // The schema_definitions row this Pack was actually authored/written
+  // against — write-time validation pins to this version, not always latest.
+  schema_definition_id: string | null;
 }
 
 // CR-087 — `name` renamed to `code`: the deliverable-name Ontology concept's
@@ -465,6 +468,10 @@ export interface TemplateRow {
   // always a real tenants.id, the reserved Platform tenant for a
   // platform-wide Template, never NULL.
   tenant_id: string;
+  // design/design whiteboards.md/schema_implementation.md — pins write-time
+  // schema validation to the schema version this row was actually authored
+  // against, mirroring packs.schema_definition_id (migration 266).
+  schema_definition_id: string | null;
   created_at: string;
 }
 
@@ -482,6 +489,7 @@ export interface DeliverableDefinitionRow {
   tenant_id: string;
   parent_deliverable_definition_id: string | null;
   created_at: string;
+  schema_definition_id: string | null;
 }
 
 // CR-086 follow-on — Service Definition (Book 3 Ch.11 §13), the chapter's own
@@ -532,6 +540,42 @@ export interface ServiceDefinitionRow {
   tenant_id: string;
   parent_service_definition_id: string | null;
   created_at: string;
+  schema_definition_id: string | null;
+}
+
+// CR-111 — Capability Registry, Service Definition's own lean 6-state
+// lifecycle verbatim (owner, choosing among Service's 6-state/Policy's
+// 7-state/no lifecycle at all: "Defined -> Published -> Active ->
+// Deprecated -> Retired -> Archived").
+export type CapabilityDefinitionStatus = "Defined" | "Published" | "Active" | "Deprecated" | "Retired" | "Archived";
+
+// migration 265's own roles shape — one role this Capability decomposes
+// into, each with the worktype codes it covers. `name` -> role-name
+// (migration 263), each `worktypes[]` entry -> worktype-name (migration
+// 264).
+export interface CapabilityRole {
+  name: string;
+  worktypes: string[];
+}
+
+// capability_definitions (migration 265, restructured migration 273) — a
+// standalone catalog table, no relationship to any other entity
+// structurally (only referenced BY other entities via its own Ontology
+// code, capability-name) — mirrors ServiceDefinitionRow's own shape.
+export interface CapabilityDefinitionRow {
+  id: string;
+  code: string;
+  default_label: string;
+  description: string | null;
+  roles: CapabilityRole[];
+  version: string;
+  status: CapabilityDefinitionStatus;
+  draft_content: Record<string, unknown>;
+  authored_by: number | null;
+  tenant_id: string;
+  parent_capability_definition_id: string | null;
+  created_at: string;
+  schema_definition_id: string | null;
 }
 
 // CR-089 — Policy Definition (Book 3 Ch.24 §13), the chapter's own 7-state
@@ -674,6 +718,7 @@ export interface PolicyDefinitionRow {
   tenant_id: string;
   parent_policy_definition_id: string | null;
   created_at: string;
+  schema_definition_id: string | null;
 }
 
 export interface ProfileRow {
@@ -698,6 +743,10 @@ export interface ProfileRow {
   // into `code` the way Template's category is (see migration 064's comment).
   // Nullable: every row created before this field existed has none.
   category: string | null;
+  // design/design whiteboards.md/schema_implementation.md — pins write-time
+  // schema validation to the schema version this row was actually authored
+  // against, mirroring templates.schema_definition_id (migration 267).
+  schema_definition_id: string | null;
   created_at: string;
 }
 
@@ -1068,6 +1117,11 @@ export type TransitionEntityType =
   // Retired -> Archived) verbatim, entity-direct authoring same as
   // Template/Profile/Service above.
   | "Policy"
+  // CR-111 — Capability Definition Registry: Service Definition's own lean
+  // 6-state lifecycle (Defined -> Published -> Active -> Deprecated ->
+  // Retired -> Archived) verbatim, entity-direct authoring same as
+  // Template/Profile/Service/Policy above.
+  | "Capability"
   // design/mvp-build-plan/SEU Composition.md — the EBM's own Composed ->
   // Validated -> Active transitions (Chapter 3's own EBMValidated/
   // EBMActivated), two separate, independently human-triggered actions, not
@@ -1284,7 +1338,7 @@ export interface OntologyConceptRow {
   // discipline (auto-supersede-previous-on-new-version), not a DB constraint,
   // same as every other multi-version entity in this codebase.
   version: string;
-  status: "Active" | "Deprecated" | "Retired" | "Archived";
+  status: "Draft" | "Active" | "Deprecated" | "Retired" | "Archived";
   // Composition (owner: "allow tenants to compose using the composition
   // strategy that packs already have implemented") — Specialization/Override
   // only; see migration 190's own header for why the other 4 compositionEngine
@@ -1305,6 +1359,17 @@ export interface OntologyConceptRow {
   // "tenant's own row wins" resolution every other Ontology concept already
   // has (see ontologyDB.findConcept's own tenant-preference ordering).
   is_mandatory: boolean | null;
+}
+
+// CR-113 item 6 — mirrors ObjectiveCommentRow/objective_comments (migration
+// 125): a Draft concept's Reject requires one of these on every use (its own
+// feedback), same discipline as Objective's Active -> Reject.
+export interface OntologyConceptCommentRow {
+  id: string;
+  concept_id: string;
+  comment_text: string;
+  actor_id: number | null;
+  created_at: string;
 }
 
 export interface TenantConceptAliasRow {
@@ -1999,7 +2064,7 @@ export interface BadgeTierRow {
 // via their own bootstrap Template ("Core principle"), not a new
 // TransitionEntityType. These four support tables are what's actually new.
 
-export type SchemaDefinitionEntityKind = "Pack" | "Template" | "Profile" | "TransitionDefinition" | "Deliverable" | "Service" | "Policy";
+export type SchemaDefinitionEntityKind = "Pack" | "Template" | "Profile" | "TransitionDefinition" | "Deliverable" | "Service" | "Policy" | "Capability";
 
 // One row per (entity kind, schema version) — the grammar and its validator
 // share one version (see the plan's versioning section); schema is a
@@ -2009,6 +2074,11 @@ export interface SchemaDefinitionRow {
   entity_kind: SchemaDefinitionEntityKind;
   version: number;
   schema: Record<string, unknown>;
+  // CR-114 Compatibility feature — version numbers (same entity_kind) this
+  // version was found compatible/incompatible with at publish time. Empty
+  // for a kind's first version (nothing to compare against).
+  compatible_versions: number[];
+  incompatible_versions: number[];
   created_at: string;
 }
 

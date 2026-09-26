@@ -1,6 +1,7 @@
 {
   "code": "embedded-software",
   "name": "Embedded Software",
+  "purpose": "Template for building software that runs on dedicated hardware or embedded devices. Use this when the deliverable includes firmware or device-resident software with hardware constraints — memory, power, real-time behaviour — that do not apply to typical server or web software.",
   "mandatoryPackCodes": [
     "development",
     "requirements-analysis",

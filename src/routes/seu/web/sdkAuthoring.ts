@@ -29,6 +29,7 @@ import { profilesDB } from "../../../dblayer/profilesDB.js";
 import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
 import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
 import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
+import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import {
   generateFields, parseFormBody, validateAgainstSchema, groupFieldsForDisplay, ontologyConceptTypesIn, dynamicReferentialSourceFieldsIn, dynamicReferentialSourceItemFieldsIn,
@@ -52,6 +53,7 @@ import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 import { transitionDeliverableDefinition, listInheritableDeliverableDefinitions, inheritedDeliverableDefinitionContent } from "../core/deliverableDefinitions.js";
 import { transitionServiceDefinition, listInheritableServiceDefinitions, inheritedServiceDefinitionContent } from "../core/serviceDefinitions.js";
 import { transitionPolicyDefinition } from "../core/policyDefinitions.js";
+import { transitionCapabilityDefinition } from "../core/capabilityDefinitions.js";
 import { listCurrentTransitionDefinitions, getTransitionDefinitionDetail, addTransitionDefinition, retireTransitionDefinition, updateTransitionDefinition } from "../core/transitionDefinitions.js";
 import {
   listAuthorityNouns, listAuthorityVerbs, listAuthorityMapping,
@@ -69,6 +71,7 @@ const KIND_BY_SLUG: Record<string, SchemaDefinitionEntityKind> = {
   "deliverable-authoring": "Deliverable",
   "service-authoring": "Service",
   "policy-authoring": "Policy",
+  "capability-authoring": "Capability",
 };
 
 function resolveKind(slug: string): SchemaDefinitionEntityKind | null {
@@ -220,6 +223,7 @@ function requireDraftTenantScope() {
       kind === "Deliverable" ? requireTenantScope.forParam("draftId", deliverableDefinitionsDB.findById, (d) => d.tenant_id, opts) :
       kind === "Service" ? requireTenantScope.forParam("draftId", serviceDefinitionsDB.findById, (s) => s.tenant_id, opts) :
       kind === "Policy" ? requireTenantScope.forParam("draftId", policyDefinitionsDB.findById, (p) => p.tenant_id, opts) :
+      kind === "Capability" ? requireTenantScope.forParam("draftId", capabilityDefinitionsDB.findById, (c) => c.tenant_id, opts) :
       null;
     if (!gate) return next();
     return gate(req, res, next, String(req.params.draftId));
@@ -505,7 +509,7 @@ router.post("/authority/transition-definitions/:id/update", async (req: Request,
 // every other Ontology lookup on this page, just resolved as a flat code
 // list the same way pack-code/template-code already are.
 async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: string | null }): Promise<Record<string, string[]>> {
-  const [{ data: packs }, { data: templates }, featureFlags, deliverableNames, deliverableCategories, evidenceCategories, policyCategories, obligationCategories, obligationOrigins, serviceNames, capabilityNames, engineeringCapitalTypes, complianceNames, { data: transitionDefinitions }] = await Promise.all([
+  const [{ data: packs }, { data: templates }, featureFlags, deliverableNames, deliverableCategories, evidenceCategories, policyCategories, obligationCategories, obligationOrigins, serviceNames, capabilityNames, engineeringCapitalTypes, complianceNames, roleNames, worktypeNames, { data: transitionDefinitions }] = await Promise.all([
     viewer.isRoot || !viewer.tenantId ? packsDB.findAll() : packsDB.findAllVisibleTo(viewer.tenantId),
     templatesDB.findAllActive(),
     listConceptsForType("feature-flag", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
@@ -549,6 +553,10 @@ async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: strin
     // compliance codes." compliance-name (migration 144), freely-extensible,
     // same treatment as service-name/capability-name/engineering-capital.
     listConceptsForType("compliance-name", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
+    // CR-111 — Capability's own roles[].name/.worktypes, sourced from the
+    // two concept types added specifically for this (migrations 263/264).
+    listConceptsForType("role-name", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
+    listConceptsForType("worktype-name", { isRoot: viewer.isRoot, tenantId: viewer.tenantId }, false),
     transitionDefinitionsDB.listAll(),
   ]);
   const activePacks = (packs ?? []).filter((p) => p.status === "Active");
@@ -578,6 +586,8 @@ async function loadReferentialOptions(viewer: { isRoot: boolean; tenantId: strin
     "capability-name": [...new Set(capabilityNames.map((c) => c.code))].sort(),
     "engineering-capital": [...new Set(engineeringCapitalTypes.map((c) => c.code))].sort(),
     "compliance-name": [...new Set(complianceNames.map((c) => c.code))].sort(),
+    "role-name": [...new Set(roleNames.map((c) => c.code))].sort(),
+    "worktype-name": [...new Set(worktypeNames.map((c) => c.code))].sort(),
     // CR-058 — a Quality Gate's Scope/Applicable Lifecycle Transition,
     // picked from real transition_definitions rows only (owner: "the pack
     // should not define something beyond what a transition definition
@@ -987,6 +997,32 @@ async function latestSchemaFor(kind: SchemaDefinitionEntityKind): Promise<JsonSc
   return (schemaDef?.schema as JsonSchemaDocument) ?? null;
 }
 
+// CR-114 follow-on — options for every "db-select" widget field. "schema-version"
+// is the one source this CR adds (schemaDefinitionsDB.findAllVersions, same call
+// reviewSchemaVersion already uses); a future unrelated db-select field just adds
+// another entry to this same map under its own key, per the widget's generic
+// naming (owner: rename from the original "schema-version-select").
+async function loadDbSelectOptions(kind: SchemaDefinitionEntityKind): Promise<Record<string, Array<{ value: string; label: string }>>> {
+  const { data: versions } = await schemaDefinitionsDB.findAllVersions(kind);
+  return {
+    "schema-version": (versions ?? []).map((v) => ({ value: v.id, label: `v${v.version}` })),
+  };
+}
+
+// CR-114 follow-on — resolves against the author's picked schema version (the
+// "schemaVersion" db-select field's submitted/pinned value) when one is actually
+// given; falls back to latest exactly as `latestSchemaFor` always has otherwise
+// (a fresh new-draft GET, a JSON import predating this field, or any caller on a
+// kind whose schema hasn't yet been authored with the new field).
+async function resolvedSchemaFor(kind: SchemaDefinitionEntityKind, pinnedSchemaDefinitionId?: string): Promise<{ schema: JsonSchemaDocument; schemaDefinitionId: string } | null> {
+  if (pinnedSchemaDefinitionId) {
+    const { data: schemaDef } = await schemaDefinitionsDB.findById(pinnedSchemaDefinitionId);
+    if (schemaDef) return { schema: schemaDef.schema as JsonSchemaDocument, schemaDefinitionId: schemaDef.id };
+  }
+  const { data: schemaDef } = await schemaDefinitionsDB.findLatest(kind);
+  return schemaDef ? { schema: schemaDef.schema as JsonSchemaDocument, schemaDefinitionId: schemaDef.id } : null;
+}
+
 // The one governed transition leading OUT of `fromState`, if any — what
 // "Advance" on the authoring surface actually runs next. One hop, not the
 // whole remaining chain (see advancePackOneStep / publishAuthoringDraft) —
@@ -1005,7 +1041,13 @@ async function nextHop(kind: SchemaDefinitionEntityKind, fromState: string): Pro
 // forms — entity-direct: the form is generated from the kind's schema and
 // prefilled from the Draft entity's own content.
 async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefinitionEntityKind, slug: string, draft: { id: string; code: string; name: string; status: string; content: Record<string, unknown> } | null, prefill?: { content: Record<string, unknown>; parentTemplateId?: string; parentProfileId?: string; parentDeliverableDefinitionId?: string }): Promise<void> {
-  const schema = await latestSchemaFor(kind);
+  // CR-114 follow-on — once a Draft's own content carries a picked
+  // "schemaVersion" (the db-select field, once each kind's schema is
+  // authored with it), the rest of this form renders/validates against
+  // THAT version, not always-latest.
+  const pinnedSchemaDefinitionId = typeof draft?.content?.schemaVersion === "string" ? draft.content.schemaVersion : undefined;
+  const resolved = await resolvedSchemaFor(kind, pinnedSchemaDefinitionId);
+  const schema = resolved?.schema ?? null;
   if (!schema) return flashError(req, res, backToIndex(slug), `No schema_definitions grammar for ${kind}.`);
   const held = await heldBadges(req);
   const isRoot = held.has("root");
@@ -1123,6 +1165,7 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
     ...loadSelfReferentialOptions(schema, contentForForm),
     ...(await loadDerivedPackCapabilityOptions(contentForForm)),
   };
+  req.vm.opt.dbSelectOptions = await loadDbSelectOptions(kind);
   req.vm.opt.producingCapabilityPacks = kind === "Template" ? await loadProducingCapabilityPacks(contentForForm) : {};
   // Owner: the Deliverable Catalogue's view-mode row should show the
   // deliverable-name concept's own human label, code muted alongside it —
@@ -1343,8 +1386,15 @@ router.post("/sdk/:slug", requireDefineBadge(), async (req: Request, res: Respon
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
   if (!actorId) return flashError(req, res, backToIndex(slug), "No actor identity on session.");
   try {
-    const schema = await latestSchemaFor(kind);
-    if (!schema) return flashError(req, res, backToIndex(slug), `No schema_definitions grammar for ${kind}.`);
+    // CR-114 follow-on — the submitted "schemaVersion" db-select field, when
+    // this kind's schema carries it, pins which version the rest of this
+    // create runs against (form parsing AND the write-time validator/DB
+    // write below); omitted (a kind whose schema predates the field, or a
+    // caller that skipped it) falls back to latest exactly as before.
+    const pinnedSchemaDefinitionId = typeof req.body?.schemaVersion === "string" && req.body.schemaVersion.trim() ? req.body.schemaVersion.trim() : undefined;
+    const resolved = await resolvedSchemaFor(kind, pinnedSchemaDefinitionId);
+    if (!resolved) return flashError(req, res, backToIndex(slug), `No schema_definitions grammar for ${kind}.`);
+    const schema = resolved.schema;
     if (kind === "Template") reconstructExposedParameters(req.body ?? {});
     if (kind === "Profile") reconstructProfileParameterOverrides(req.body ?? {});
     const content = parseFormBody(schema, req.body ?? {});
@@ -1359,7 +1409,7 @@ router.post("/sdk/:slug", requireDefineBadge(), async (req: Request, res: Respon
     const parentTemplateId = kind === "Template" && typeof req.body?.parentTemplateId === "string" && req.body.parentTemplateId.trim() ? req.body.parentTemplateId.trim() : undefined;
     const parentProfileId = kind === "Profile" && typeof req.body?.parentProfileId === "string" && req.body.parentProfileId.trim() ? req.body.parentProfileId.trim() : undefined;
     const parentDeliverableDefinitionId = kind === "Deliverable" && typeof req.body?.parentDeliverableDefinitionId === "string" && req.body.parentDeliverableDefinitionId.trim() ? req.body.parentDeliverableDefinitionId.trim() : undefined;
-    const result = await createAuthoringDraft({ kind, actorId, tenantId, parentTemplateId, parentProfileId, parentDeliverableDefinitionId, content });
+    const result = await createAuthoringDraft({ kind, actorId, tenantId, parentTemplateId, parentProfileId, parentDeliverableDefinitionId, content, schemaDefinitionId: resolved.schemaDefinitionId });
     if (!result.ok) return flashError(req, res, backToIndex(slug), result.errors.join("; "));
     return flashSuccess(req, res, backTo(slug, result.draftId), `Started a new ${kind} draft.`);
   } catch (err) {
@@ -1403,7 +1453,16 @@ router.post("/sdk/:slug/:draftId/save", requireDraftTenantScope(), requireDefine
   if (!kind) return next();
   const draftId = String(req.params.draftId);
   try {
-    const schema = await latestSchemaFor(kind);
+    // CR-114 follow-on — a Draft's schema_definition_id is pinned once, at
+    // creation, and never rewritten on Save (mirrors VM-002's immutable-once-
+    // set spirit — packsDB.updateDraftContent's own established behaviour).
+    // Unlike the create route above, this reads the EXISTING draft's own
+    // already-pinned version (its content's "schemaVersion" field), never a
+    // freshly resubmitted one.
+    const draft = await getAuthoringDraft(kind, draftId);
+    const pinnedSchemaDefinitionId = typeof draft?.content?.schemaVersion === "string" ? draft.content.schemaVersion : undefined;
+    const resolved = await resolvedSchemaFor(kind, pinnedSchemaDefinitionId);
+    const schema = resolved?.schema ?? null;
     if (!schema) return flashError(req, res, backTo(slug, draftId), `No schema_definitions grammar for ${kind}.`);
     if (kind === "Template") reconstructExposedParameters(req.body ?? {});
     if (kind === "Profile") reconstructProfileParameterOverrides(req.body ?? {});
@@ -1456,7 +1515,14 @@ router.post("/sdk/:slug/:draftId/import", requireDraftTenantScope(), requireDefi
   if (typeof raw !== "string" || !raw.trim()) return flashError(req, res, backTo(slug, draftId), "Paste a JSON document to import.");
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const schema = await latestSchemaFor(kind);
+    // CR-114 follow-on — import replaces an EXISTING draft's content, so it's
+    // validated against that draft's own already-pinned schema_definition_id
+    // (same immutable-once-set reasoning as the save route above), never
+    // whatever schemaVersion the pasted document itself happens to claim.
+    const draft = await getAuthoringDraft(kind, draftId);
+    const pinnedSchemaDefinitionId = typeof draft?.content?.schemaVersion === "string" ? draft.content.schemaVersion : undefined;
+    const resolved = await resolvedSchemaFor(kind, pinnedSchemaDefinitionId);
+    const schema = resolved?.schema ?? null;
     if (!schema) return flashError(req, res, backTo(slug, draftId), `No schema_definitions grammar for ${kind}.`);
     const errors = validateAgainstSchema(schema, parsed);
     if (errors.length) return flashError(req, res, backTo(slug, draftId), `Import rejected — invalid against the ${kind} schema: ${errors.join("; ")}`);
@@ -1553,6 +1619,11 @@ router.post("/sdk/:slug/:draftId/transition", requireDraftTenantScope(), require
       const result = await transitionPolicyDefinition({ policyDefinitionId: draftId, targetState: targetState as never, actorRole, actorId });
       if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
       return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.policyDefinition.status}".`);
+    }
+    if (kind === "Capability") {
+      const result = await transitionCapabilityDefinition({ capabilityDefinitionId: draftId, targetState: targetState as never, actorRole, actorId });
+      if (!result.ok) return flashError(req, res, backTo(slug, draftId), `Transition blocked: ${result.detail ?? result.reason}`);
+      return flashSuccess(req, res, backToIndex(slug), `Moved to "${result.capabilityDefinition.status}".`);
     }
     return next();
   } catch (err) {

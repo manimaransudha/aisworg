@@ -82,6 +82,8 @@ interface MinimalTemplateSeed {
   mandatoryPackCodes: string[];
   deliverableCatalogue: TemplateDeliverableSeed[];
   dependencyGraph?: TemplateDependencyGraphEntry[];
+  // CR-023 — same backfill as seedSdlcStandardTemplates.ts's own TemplateSeed.
+  purpose: string;
 }
 
 export async function seedCr104Demo(): Promise<void> {
@@ -104,6 +106,7 @@ export async function seedCr104Demo(): Promise<void> {
       engineeringPackCodes: minimalTemplateSeed.mandatoryPackCodes,
       deliverableCatalogue: minimalTemplateSeed.deliverableCatalogue,
       dependencyGraph: minimalTemplateSeed.dependencyGraph,
+      purpose: minimalTemplateSeed.purpose,
     },
     actorRole: "super",
     actorId: "1",

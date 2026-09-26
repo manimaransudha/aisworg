@@ -22,8 +22,8 @@
           const _nrv = (m, p) => !!_navRouteVisible[m + ' ' + p];
           const _seuPlatformVisible = _nrv('GET','/aisworg') || _nrv('GET','/aisworg/quickview') || _nrv('GET','/aisworg/seu/objectives') || _nrv('GET','/aisworg/seu/seus') || _nrv('GET','/aisworg/seu/services');
           const _governanceVisible = _nrv('GET','/aisworg/seu/attention') || _nrv('GET','/aisworg/seu/telemetry') || _nrv('GET','/aisworg/seu/knowledge/capital');
-          const _registryVisible = _nrv('GET','/aisworg/seu/capabilities') || _nrv('GET','/aisworg/seu/participants') || _nrv('GET','/aisworg/seu/packs') || _nrv('GET','/aisworg/seu/templates') || _nrv('GET','/aisworg/seu/profiles') || _nrv('GET','/aisworg/seu/deliverable-definitions') || _nrv('GET','/aisworg/seu/service-definitions') || _nrv('GET','/aisworg/seu/policy-definitions') || _nrv('GET','/aisworg/seu/sdk/schema-registry');
-          const _authoringVisible = _nrv('GET','/aisworg/seu/sdk/pack-authoring') || _nrv('GET','/aisworg/seu/sdk/template-authoring') || _nrv('GET','/aisworg/seu/sdk/profile-authoring') || _nrv('GET','/aisworg/seu/sdk/transition-definition-authoring') || _nrv('GET','/aisworg/seu/sdk/deliverable-authoring') || _nrv('GET','/aisworg/seu/sdk/service-authoring') || _nrv('GET','/aisworg/seu/sdk/policy-authoring');
+          const _registryVisible = _nrv('GET','/aisworg/seu/capability-definitions') || _nrv('GET','/aisworg/seu/participants') || _nrv('GET','/aisworg/seu/packs') || _nrv('GET','/aisworg/seu/templates') || _nrv('GET','/aisworg/seu/profiles') || _nrv('GET','/aisworg/seu/deliverable-definitions') || _nrv('GET','/aisworg/seu/service-definitions') || _nrv('GET','/aisworg/seu/policy-definitions') || _nrv('GET','/aisworg/seu/sdk/schema-registry');
+          const _authoringVisible = _nrv('GET','/aisworg/seu/sdk/pack-authoring') || _nrv('GET','/aisworg/seu/sdk/template-authoring') || _nrv('GET','/aisworg/seu/sdk/profile-authoring') || _nrv('GET','/aisworg/seu/sdk/transition-definition-authoring') || _nrv('GET','/aisworg/seu/sdk/deliverable-authoring') || _nrv('GET','/aisworg/seu/sdk/service-authoring') || _nrv('GET','/aisworg/seu/sdk/policy-authoring') || _nrv('GET','/aisworg/seu/sdk/capability-authoring');
           const _ontologyVisible = _nrv('GET','/aisworg/seu/sdk/ontology');
         %>
 
@@ -110,13 +110,13 @@
                authoring surfaces that create/edit them. -->
           <% if (_registryVisible) { %>
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle <%= ['seu-capabilities','seu-participants','seu-packs','seu-templates','seu-profiles','seu-deliverable-definitions','seu-service-definitions','seu-policy-definitions','seu-sdk-schema-registry'].includes(currentPage) ? 'active' : '' %>"
+            <a class="nav-link dropdown-toggle <%= ['seu-capability-definitions','seu-participants','seu-packs','seu-templates','seu-profiles','seu-deliverable-definitions','seu-service-definitions','seu-policy-definitions','seu-sdk-schema-registry'].includes(currentPage) ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               <i class="bi bi-collection me-2"></i>Registry
             </a>
             <ul class="dropdown-menu shadow-sm border">
-              <% if (_nrv('GET','/aisworg/seu/capabilities')) { %>
-              <li><a class="dropdown-item <%= currentPage === 'seu-capabilities' ? 'active' : '' %>" href="/aisworg/seu/capabilities">
+              <% if (_nrv('GET','/aisworg/seu/capability-definitions')) { %>
+              <li><a class="dropdown-item <%= currentPage === 'seu-capability-definitions' ? 'active' : '' %>" href="/aisworg/seu/capability-definitions">
                 <i class="bi bi-lightning-charge me-2"></i>Capability Registry
               </a></li>
               <% } %>
@@ -168,7 +168,7 @@
           <!-- SDK / Authoring dropdown — Pack/Template/Profile/Transition Definition/Deliverable/Service/Policy authoring -->
           <% if (_authoringVisible) { %>
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle <%= ['seu-sdk-pack-authoring','seu-sdk-template-authoring','seu-sdk-profile-authoring','seu-sdk-transition-definition-authoring','seu-sdk-deliverable-authoring','seu-sdk-service-authoring','seu-sdk-policy-authoring'].includes(currentPage) ? 'active' : '' %>"
+            <a class="nav-link dropdown-toggle <%= ['seu-sdk-pack-authoring','seu-sdk-template-authoring','seu-sdk-profile-authoring','seu-sdk-transition-definition-authoring','seu-sdk-deliverable-authoring','seu-sdk-service-authoring','seu-sdk-policy-authoring','seu-sdk-capability-authoring'].includes(currentPage) ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               SDK / Authoring
             </a>
@@ -209,6 +209,11 @@
               <% if (_nrv('GET','/aisworg/seu/sdk/policy-authoring')) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-sdk-policy-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/policy-authoring">
                 <i class="bi bi-file-earmark-code me-2"></i>Policy Authoring
+              </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/sdk/capability-authoring')) { %>
+              <li><a class="dropdown-item <%= currentPage === 'seu-sdk-capability-authoring' ? 'active' : '' %>" href="/aisworg/seu/sdk/capability-authoring">
+                <i class="bi bi-file-earmark-code me-2"></i>Capability Authoring
               </a></li>
               <% } %>
             </ul>
@@ -253,6 +258,13 @@
                    same group drifting to conflicting labels). -->
               <li><a class="dropdown-item <%= locals.currentPath === '/aisworg/seu/sdk/ontology/metadata' ? 'active' : '' %>" href="/aisworg/seu/sdk/ontology/metadata">
                 <i class="bi bi-sliders me-2"></i>Metadata
+              </a></li>
+              <% } %>
+              <% if (_nrv('GET','/aisworg/seu/sdk/ontology/approvals')) { %>
+              <!-- CR-113 item 6 — ontology_approve's own Draft-concept queue,
+                   same "separate entry" precedent as Metadata above. -->
+              <li><a class="dropdown-item <%= locals.currentPath === '/aisworg/seu/sdk/ontology/approvals' ? 'active' : '' %>" href="/aisworg/seu/sdk/ontology/approvals">
+                <i class="bi bi-check2-square me-2"></i>Approvals
               </a></li>
               <% } %>
             </ul>

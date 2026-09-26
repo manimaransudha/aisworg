@@ -1,6 +1,8 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import { PLATFORM_TENANT_ID } from "./constants.js";
+import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
+import { validateTemplateWriteAgainstSchema } from "../routes/seu/core/templateWriteValidator.js";
 import type { CapabilityRow, DbResult, TemplateDeliverableSeed, TemplateRow } from "./seuTypes.js";
 
 // Also owns template_capabilities (required Capabilities) and template_packs
@@ -64,13 +66,32 @@ export const templatesDB = {
   // "Inherit" control and never revisited by Save — an inherited Draft's
   // identity (code locked to its parent's, tenant its own) is fixed from
   // the moment it's chosen.
-  async createDraft(input: { code: string; name: string; templateVersion?: string; authoredBy?: number | null; draftContent?: Record<string, unknown>; tenantId?: string; parentTemplateId?: string | null }): Promise<DbResult<TemplateRow>> {
+  // CR-114 follow-on — schemaDefinitionId is mandatory (owner: "Otherwise all
+  // this build is of no use"); every caller must resolve and pass a real
+  // schema_definition_id, no silent findLatest fallback.
+  async createDraft(input: { code: string; name: string; templateVersion?: string; authoredBy?: number | null; draftContent?: Record<string, unknown>; tenantId?: string; parentTemplateId?: string | null; schemaDefinitionId: string }): Promise<DbResult<TemplateRow>> {
     try {
+      const templateVersion = input.templateVersion ?? "1.0.0";
+      const draftContent = input.draftContent ?? {};
+
+      const errors = await validateTemplateWriteAgainstSchema({
+        code: input.code,
+        name: input.name,
+        templateVersion,
+        draftContent,
+        tenantId: input.tenantId,
+        schemaDefinitionId: input.schemaDefinitionId,
+      });
+      if (errors.length > 0) return { error: new Error(errors.join("; ")) };
+
+      const { data: schemaRow } = await schemaDefinitionsDB.findById(input.schemaDefinitionId);
+      if (!schemaRow) return { error: new Error(`schema_definitions row "${input.schemaDefinitionId}" not found`) };
+
       const { rows } = await query<TemplateRow>(
-        `INSERT INTO templates (code, name, template_version, status, deliverable_catalogue, authored_by, draft_content, tenant_id, parent_template_id)
-         VALUES ($1, $2, $3, 'Draft', '[]', $4, $5, $6, $7)
+        `INSERT INTO templates (code, name, template_version, status, deliverable_catalogue, authored_by, draft_content, tenant_id, parent_template_id, schema_definition_id)
+         VALUES ($1, $2, $3, 'Draft', '[]', $4, $5, $6, $7, $8)
          RETURNING *`,
-        [input.code, input.name, input.templateVersion ?? "1.0.0", input.authoredBy ?? null, JSON.stringify(input.draftContent ?? {}), input.tenantId ?? PLATFORM_TENANT_ID, input.parentTemplateId ?? null]
+        [input.code, input.name, templateVersion, input.authoredBy ?? null, JSON.stringify(draftContent), input.tenantId ?? PLATFORM_TENANT_ID, input.parentTemplateId ?? null, schemaRow?.id ?? null]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -88,6 +109,21 @@ export const templatesDB = {
   // correctable on Save the same way, for the same reason.
   async updateDraftContent(id: string, input: { code: string; name: string; templateVersion: string; draftContent: Record<string, unknown> }): Promise<DbResult<TemplateRow>> {
     try {
+      const { rows: existingRows } = await query<{ schema_definition_id: string | null; tenant_id: string }>(
+        "SELECT schema_definition_id, tenant_id FROM templates WHERE id = $1", [id]
+      );
+
+      const errors = await validateTemplateWriteAgainstSchema({
+        id,
+        code: input.code,
+        name: input.name,
+        templateVersion: input.templateVersion,
+        draftContent: input.draftContent,
+        tenantId: existingRows[0]?.tenant_id,
+        schemaDefinitionId: existingRows[0]?.schema_definition_id ?? null,
+      });
+      if (errors.length > 0) return { error: new Error(errors.join("; ")) };
+
       const { rows } = await query<TemplateRow>(
         `UPDATE templates SET code = $2, name = $3, template_version = $4, draft_content = $5 WHERE id = $1 AND status = 'Draft' RETURNING *`,
         [id, input.code, input.name, input.templateVersion, JSON.stringify(input.draftContent)]
@@ -107,8 +143,35 @@ export const templatesDB = {
   // set through the seed pipeline never actually persisted. Status-agnostic
   // for the same reason materialisePackSelectionsAndCapabilities's join-table
   // writes already are.
+  //
+  // design/design whiteboards.md/schema_implementation.md — this is a real,
+  // unconditional write to draft_content (no `status = 'Draft'` guard, unlike
+  // updateDraftContent above), and it's the actual write path publishTemplate/
+  // seed scripts use to materialise deliverableCatalogue etc. (via
+  // materialiseTemplateDraft -> materialisePackSelectionsAndCapabilities) —
+  // validated the same way createDraft/updateDraftContent are, not skipped
+  // just because its name doesn't say "create"/"update". code/name/
+  // templateVersion aren't passed here (only draftContent is) — read off the
+  // row's own real columns, since this call never changes them.
   async setDraftContent(id: string, draftContent: Record<string, unknown>): Promise<DbResult<TemplateRow>> {
     try {
+      const { rows: existingRows } = await query<{ code: string; name: string; template_version: string; schema_definition_id: string | null; tenant_id: string }>(
+        "SELECT code, name, template_version, schema_definition_id, tenant_id FROM templates WHERE id = $1", [id]
+      );
+      const existing = existingRows[0];
+      if (!existing) return { error: new Error(`Template "${id}" not found`) };
+
+      const errors = await validateTemplateWriteAgainstSchema({
+        id,
+        code: existing.code,
+        name: existing.name,
+        templateVersion: existing.template_version,
+        draftContent,
+        tenantId: existing.tenant_id,
+        schemaDefinitionId: existing.schema_definition_id,
+      });
+      if (errors.length > 0) return { error: new Error(errors.join("; ")) };
+
       const { rows } = await query<TemplateRow>(`UPDATE templates SET draft_content = $2 WHERE id = $1 RETURNING *`, [id, JSON.stringify(draftContent)]);
       return { data: rows[0] };
     } catch (err) {

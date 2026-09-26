@@ -51,6 +51,12 @@ interface TemplateSeed {
   // from these seed files before now — same gap as Profile's own
   // Configuration Parameters had.
   exposedParameters?: ExposedParameter[];
+  // CR-023 — required by schema_definitions since migration 058/061; never
+  // wired through from these seed files before now (design/design
+  // whiteboards.md/schema_implementation.md, "Deepdive on templates" build
+  // pass — write-time schema validation started enforcing `required` for
+  // real and caught the gap).
+  purpose: string;
 }
 
 interface ProfileSeed {
@@ -151,6 +157,7 @@ async function seedOne(templateFile: string, profileFile: string): Promise<void>
       deliverableCatalogue: templateSeed.deliverableCatalogue,
       dependencyGraph: templateSeed.dependencyGraph,
       exposedParameters: templateSeed.exposedParameters,
+      purpose: templateSeed.purpose,
       ...packSelections,
     },
     actorRole: "super",

@@ -19,6 +19,7 @@ import { packsDB } from "../src/dblayer/packsDB.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
+import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { unravelComposition, detectCompositionConflicts } from "../src/domain/engine/profileCompositionUnravel.js";
 import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
 import type { PackContributions } from "../src/dblayer/seuTypes.js";
@@ -32,6 +33,14 @@ import type { PackContributions } from "../src/dblayer/seuTypes.js";
 // checklistsDB.findByPackCode, no status filter) — never the Pack row
 // itself. packsDB.updateStatus is the plain, ungoverned DB-layer flip to
 // Active — no badge/actor/transition machinery needed for a test fixture.
+// CR-114 follow-on — packsDB.create's schemaDefinitionId is now mandatory;
+// resolved once and reused by every direct packsDB.create call in this file.
+async function requirePackSchemaId(): Promise<string> {
+  const { data: packSchema } = await schemaDefinitionsDB.findLatest("Pack");
+  assert.ok(packSchema, "no schema_definitions grammar for Pack");
+  return packSchema!.id;
+}
+
 async function createPack(input: { contributions?: PackContributions; dependencies?: Array<{ packCode: string; version: string; type: "required" | "optional" | "conditional" | "incompatible" }> }): Promise<string> {
   const code = `test-unravel-pack-${randomUUID()}`;
   const { data: pack, error } = await packsDB.create({
@@ -42,6 +51,7 @@ async function createPack(input: { contributions?: PackContributions; dependenci
     installationClassification: "Optional",
     contributions: input.contributions ?? {},
     dependencies: input.dependencies ?? [],
+    schemaDefinitionId: await requirePackSchemaId(),
   });
   assert.ok(!error && pack, error?.message);
   const { error: activateError } = await packsDB.updateStatus(pack!.id, "Active");
@@ -157,7 +167,7 @@ test("Policies are informational, never a conflict — different constraintTypes
 
 test("Pack Dependency: a required dependency on a Pack code NOT in the composed set is reported; satisfied when it is", async () => {
   const targetCode = `test-unravel-target-${randomUUID()}`;
-  const { data: targetPack } = await packsDB.create({ code: targetCode, name: "Fixture target Pack", category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", contributions: {} });
+  const { data: targetPack } = await packsDB.create({ code: targetCode, name: "Fixture target Pack", category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", contributions: {}, schemaDefinitionId: await requirePackSchemaId() });
   assert.ok(targetPack);
   await packsDB.updateStatus(targetPack!.id, "Active");
 
@@ -178,7 +188,7 @@ test("Pack Dependency: a required dependency on a Pack code NOT in the composed 
 
 test("Pack Dependency: an incompatible dependency on a Pack that IS in the composed set is reported", async () => {
   const targetCode = `test-unravel-incompatible-target-${randomUUID()}`;
-  const { data: incompatibleTarget } = await packsDB.create({ code: targetCode, name: "Fixture incompatible target", category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", contributions: {} });
+  const { data: incompatibleTarget } = await packsDB.create({ code: targetCode, name: "Fixture incompatible target", category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", contributions: {}, schemaDefinitionId: await requirePackSchemaId() });
   await packsDB.updateStatus(incompatibleTarget!.id, "Active");
   const dependent = await createPack({ dependencies: [{ packCode: targetCode, version: "1.0.0", type: "incompatible" }] });
   const { templateId, profileId } = await createTemplateAndProfile([dependent, targetCode]);
@@ -191,14 +201,21 @@ test("Pack Dependency: an incompatible dependency on a Pack that IS in the compo
 });
 
 test("A clean selection (no fixture disagreement) reports no conflicts, and the pool contains real, expected entries", async () => {
-  const pack = await createPack({ contributions: { capabilities: [{ code: "fixture-clean-capability" }], services: [{ code: "fixture-clean-service", serviceLevel: [{ code: "metric", target: 42 }] }] } });
+  // "learning" — a real, canonical capability-name concept (migration 046),
+  // not a synthetic fixture code: contributionCapabilities[].code is
+  // Ontology-governed and, unlike Pack's own top-level `code`, not composable
+  // (design/design whiteboards.md/schema_implementation.md), so it must
+  // already be a real concept. Nothing else in this file's own fixtures
+  // declares it, so it stays exactly as "clean" (uncontested) as the
+  // synthetic code this replaces.
+  const pack = await createPack({ contributions: { capabilities: [{ code: "learning" }], services: [{ code: "fixture-clean-service", serviceLevel: [{ code: "metric", target: 42 }] }] } });
   const { templateId, profileId } = await createTemplateAndProfile([pack]);
 
   const unraveled = await unravelComposition({ templateIds: [templateId], profileIds: [profileId] }, PLATFORM_TENANT_ID);
   const conflicts = detectCompositionConflicts(unraveled);
-  assert.equal(conflicts.filter((c) => c.propertyName === "fixture-clean-capability" || c.propertyName === "fixture-clean-service").length, 0);
+  assert.equal(conflicts.filter((c) => c.propertyName === "learning" || c.propertyName === "fixture-clean-service").length, 0);
 
-  const capEntry = unraveled.pool.find((e) => e.propertyName === "fixture-clean-capability");
+  const capEntry = unraveled.pool.find((e) => e.propertyName === "learning");
   assert.ok(capEntry, "expected the Capability to appear in the pool");
   assert.equal(capEntry!.source.kind, "pack");
   assert.equal(capEntry!.source.code, pack);

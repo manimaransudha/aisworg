@@ -16,7 +16,9 @@
 // dependency matching (a declared dependency's Pack code must exist in the
 // Registry; the exact declared version is not cross-checked).
 import { packsDB } from "../../../dblayer/packsDB.js";
-import { assertCanonicalCategory } from "./ontology.js";
+import { assertCanonicalCategory, validateOntologyFieldsAgainstSchema, validateComposableFieldsAgainstSchema } from "./ontology.js";
+import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
+import { type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
@@ -269,7 +271,22 @@ export type PackValidationResult = { ok: true } | { ok: false; errors: string[] 
 // Ch.39 §9/§7 Schema Validator + Dependency Validator, and FR-38.4/FR-38.5
 // (dependencies resolved, conflicts detected before commissioning) applied
 // at the one point they can actually be checked cheaply: publish time.
-export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidationResult> {
+//
+// `skipComposableChecks` (owner: "whatever is x-ontology-composable will be
+// gated at publish time"): `category`/`code` are schema-driven — whichever of
+// them the Pack schema (schema_definitions) currently marks
+// `x-ontology-composable` gets skipped here and deferred to
+// validateComposableFieldsAgainstSchema at the Validated->Published hop
+// instead (sdkAuthoring.ts); draft-save already proposes it rather than
+// rejecting it (proposeComposableOntologyValues, core/ontology.ts). CR-112's
+// own gap (owner: "idea of doing 112 was to have a single source of truth"):
+// this used to hardcode both fields' concept types in TS (category:pack,
+// `${category}-name`) — schema_definitions already declares both
+// (x-referential-source/-by/-suffix, migrations 049/133), so marking a new
+// field composable, or changing a concept type, is now purely a schema
+// change here, no code change, via validateOntologyFieldsAgainstSchema/
+// validateComposableFieldsAgainstSchema (core/ontology.ts).
+export async function validatePackSeed(seed: PackSeedInput, options?: { skipComposableChecks?: boolean }): Promise<PackValidationResult> {
   const errors: string[] = [];
 
   if (!seed.name?.trim()) errors.push("name is required");
@@ -279,37 +296,25 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
   // tenant, so an unauthored/CLI-published Pack sees Platform's vocabulary
   // only, same as before this change).
   const ontologyViewer = { isRoot: false, tenantId: seed.tenantId ?? PLATFORM_TENANT_ID };
-  // CR-020: category is validated against the Ontology's category:pack
-  // concepts (data), not a hardcoded list or the now-superseded pack_category
-  // table — a new category is an Ontology Management data change, no code
-  // change. assertCanonicalCategory throws; converted to an accumulated error
-  // here since validatePackSeed collects every problem rather than failing fast.
-  // Validated before `code` below — code's own check needs a category value
-  // to know which sibling vocabulary to check against.
-  try {
-    await assertCanonicalCategory("category:pack", seed.category ?? "", ontologyViewer);
-  } catch (err) {
-    errors.push((err as Error).message);
-  }
-  // CR-079 step (b) — supersedes CR-046's fix (owner: "why are test scripts
-  // adding code that is not in the ontology??? I thought we fixed this"),
-  // which made `code` check capability-name unconditionally. A Pack is never
-  // itself a capability, only something that CONTRIBUTES to one (§9's own
-  // contributionCapabilities — see the separate, still-real capability-name
-  // check on THOSE, CR-079 step (c) above). Owner's own worked examples:
-  // "web-standards pack will be a technology pack contributing to
-  // development and code-review capabilities... web-standards by itself is
-  // not a capability" / "icd-10 pack will be a compliance pack contributing
-  // to requirements-specification... icd-10 by itself is not a capability."
-  // Every category now has its own sibling concept type — domain-name,
-  // technology-name, compliance-name, organisation-name, integration-name,
-  // engineering-name (migration 132) — so a Pack's own `code` is checked
-  // against ITS category's vocabulary instead.
-  const packNameConceptType = `${(seed.category ?? "").toLowerCase()}-name`;
-  try {
-    await assertCanonicalCategory(packNameConceptType, seed.code ?? "", ontologyViewer);
-  } catch (err) {
-    errors.push((err as Error).message);
+  const { data: packSchemaRow } = await schemaDefinitionsDB.findLatest("Pack");
+  if (packSchemaRow) {
+    const packSchema = packSchemaRow.schema as JsonSchemaDocument;
+    // contributionObligationDefinitions[].category, contributionEngineeringCapital[].type,
+    // and contributionQualityGates[].category are x-ontology-composable too
+    // (migration 276) — folded in here so the same schema-driven walker
+    // (core/ontology.ts, recurses into array items) covers them, same as
+    // code/category above. Their own hand-coded assertCanonicalCategory
+    // checks further down are gone; this is now their only check.
+    const ontologyContent = {
+      code: seed.code, category: seed.category,
+      contributionObligationDefinitions: seed.contributions.obligationDefinitions,
+      contributionEngineeringCapital: seed.contributions.engineeringCapital,
+      contributionQualityGates: seed.contributions.qualityGates,
+    };
+    errors.push(...(await validateOntologyFieldsAgainstSchema(packSchema, ontologyContent, ontologyViewer)));
+    if (!options?.skipComposableChecks) {
+      errors.push(...(await validateComposableFieldsAgainstSchema(packSchema, ontologyContent, ontologyViewer)));
+    }
   }
   if (!SEMVER_RE.test(seed.packVersion ?? "")) errors.push(`packVersion must be semver (x.y.z), got: "${seed.packVersion}"`);
   // CR-020: same Ontology treatment as category — installation-classification
@@ -404,16 +409,12 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
   // separate quality-gate vocabulary — "the code isn't a UUID or a freeform
   // Pack-specific string — it's the category identifier itself, drawn from
   // the same Ontology-governed vocabulary as Ch.17 §7's Evidence
-  // Categories"), governedTransition must resolve to a real
-  // transition_definitions row (the Pack may not invent a transition that
-  // doesn't already exist), and requires_active_policy must reference a
-  // real, resolvable Policy code.
+  // Categories") — checked generically above via contributionQualityGates in
+  // ontologyContent (x-ontology-composable, migration 276), not here.
+  // governedTransition must resolve to a real transition_definitions row
+  // (the Pack may not invent a transition that doesn't already exist), and
+  // requires_active_policy must reference a real, resolvable Policy code.
   for (const gate of seed.contributions.qualityGates ?? []) {
-    try {
-      await assertCanonicalCategory("category:evidence", gate.category ?? "", ontologyViewer);
-    } catch (err) {
-      errors.push((err as Error).message);
-    }
     const scope = parseGovernedTransition(gate.governedTransition);
     if (!scope) {
       errors.push(`quality gate "${gate.name}" has an invalid governedTransition — expected "EntityType|fromState|toState"`);
@@ -580,11 +581,14 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
 
   // CR-062 — Obligation Definition contributions: Code/Category required.
   // Category is Ontology-backed (category:obligation — already existed as a
-  // real, working precedent, Ch.23 §19.4; 4 values added by migration 110).
+  // real, working precedent, Ch.23 §19.4; 4 values added by migration 110) —
+  // checked generically above via contributionObligationDefinitions in
+  // ontologyContent (x-ontology-composable, migration 276), not here.
   // Origin, if given, is Ontology-backed too (category:obligation-origin,
-  // new concept type, migration 110). No real Obligation Definition table —
-  // nothing cross-references one by id (unlike Checklist/Policy), so this
-  // stays declaration-only validation, no materializeContributions upsert.
+  // new concept type, migration 110) — not composable, still checked here.
+  // No real Obligation Definition table — nothing cross-references one by id
+  // (unlike Checklist/Policy), so this stays declaration-only validation, no
+  // materializeContributions upsert.
   const seenObligationCodes = new Set<string>();
   // Migration 249 — applicabilityDeliverables reuses Policy's own
   // scope=Eligibility vocabulary exactly (validateConditions,
@@ -595,11 +599,6 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
     if (!ob.code?.trim()) errors.push("obligation definition is missing a code");
     else if (seenObligationCodes.has(ob.code)) errors.push(`duplicate obligation definition code within Pack: "${ob.code}"`);
     else seenObligationCodes.add(ob.code);
-    try {
-      await assertCanonicalCategory("category:obligation", ob.category ?? "", ontologyViewer);
-    } catch (err) {
-      errors.push((err as Error).message);
-    }
     if (ob.origin) {
       try {
         await assertCanonicalCategory("category:obligation-origin", ob.origin, ontologyViewer);
@@ -626,14 +625,11 @@ export async function validatePackSeed(seed: PackSeedInput): Promise<PackValidat
   }
 
   // CR-082 — Engineering Capital contributions: minimal stub (type + url).
-  // type is Ontology-backed (engineering-capital, migration 141). url is
-  // plain text, no format check — "these should be in details later".
+  // type is Ontology-backed (engineering-capital, migration 141) — checked
+  // generically above via contributionEngineeringCapital in ontologyContent
+  // (x-ontology-composable, migration 276), not here. url is plain text, no
+  // format check — "these should be in details later".
   for (const ec of seed.contributions.engineeringCapital ?? []) {
-    try {
-      await assertCanonicalCategory("engineering-capital", ec.type ?? "", ontologyViewer);
-    } catch (err) {
-      errors.push((err as Error).message);
-    }
     if (!ec.url?.trim()) errors.push("engineering capital entry is missing a url");
   }
 
@@ -746,7 +742,12 @@ export async function createPackDraft(seed: PackSeedInput): Promise<{ ok: true; 
     return { ok: true, pack: existing, alreadyExists: true };
   }
 
-  const { data: pack, error } = await packsDB.create({ ...seed, metadata: packMetadataFromSeed(seed) });
+  // CR-114 follow-on — packsDB.create's schemaDefinitionId is now mandatory;
+  // a bootstrap/seed-facing create (as opposed to the real SDK authoring
+  // form, which lets an author pick) always pins to whatever's latest.
+  const { data: packSchema } = await schemaDefinitionsDB.findLatest("Pack");
+  if (!packSchema) return { ok: false, errors: [`no schema_definitions grammar for Pack`] };
+  const { data: pack, error } = await packsDB.create({ ...seed, metadata: packMetadataFromSeed(seed), schemaDefinitionId: packSchema.id });
   if (error || !pack) return { ok: false, errors: [(error ?? new Error("failed to create pack")).message] };
 
   // Version Feature Plan.md — materializeContributions must finish before the event

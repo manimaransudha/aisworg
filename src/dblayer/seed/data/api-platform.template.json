@@ -1,6 +1,7 @@
 {
   "code": "api-platform",
   "name": "API Platform",
+  "purpose": "Template for building a platform whose primary deliverable is one or more APIs consumed by other systems or third parties. Use this when there is little or no end-user interface of its own, and the focus is on contract design, versioning, rate limiting, and developer-facing documentation.",
   "mandatoryPackCodes": [
     "development",
     "requirements-analysis",

@@ -17,6 +17,7 @@ import assert from "node:assert/strict";
 import pool from "../src/utils/db.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
+import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { publishProfile, transitionProfile, type ProfileSeedInput } from "../src/routes/seu/core/profiles.js";
@@ -61,11 +62,17 @@ async function freshProfileSeed(overrides: Partial<ProfileSeedInput> = {}): Prom
 async function freshProfileDraft(): Promise<{ id: string }> {
   const baseTemplateCode = await freshBaseTemplateCode();
   const { data: template } = await templatesDB.findByCode(baseTemplateCode);
+  // CR-114 follow-on — profilesDB.createDraft's schemaDefinitionId is now
+  // mandatory.
+  const { data: profileSchema } = await schemaDefinitionsDB.findLatest("Profile");
+  if (!profileSchema) throw new Error("no schema_definitions grammar for Profile");
   const { data: draft, error } = await profilesDB.createDraft({
     code: `test-profile-lifecycle-draft-${randomUUID()}`,
     name: "Test Profile Draft",
     baseTemplateId: template!.id,
     profileVersion: uniqueTestPackVersion(),
+    draftContent: { baseTemplateCode },
+    schemaDefinitionId: profileSchema.id,
   });
   if (error || !draft) throw error ?? new Error("failed to create Profile draft");
   return { id: draft.id };

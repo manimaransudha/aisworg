@@ -1,0 +1,172 @@
+<%# CR-114 — one widget row of the recursive schema-registry tree editor.
+    Locals: w (AuthoredWidget), prefix (this row's own full name prefix, e.g.
+    "widgets[2]" or "widgets[0][children][1]"), isItem (bool — false only for
+    a document's own top-level widget), topGroups (x-groups list, top-level
+    rows only), allowedKinds (kind options for THIS row's own level),
+    itemKinds (kind options for any row nested inside this one).
+    All kind-specific property panels are always present in the DOM (never
+    duplicate `name`s across panels — see widgetTreeEditor.js's visibility
+    switch); which ones show is computed purely client-side from this row's
+    own kind/drivenMode selects, so a kind change needs no server round trip. %>
+<%
+  const KIND_LABELS = {
+    text: "Text", textarea: "Textarea", version: "Version (auto)", select: "Select (enum)",
+    boolean: "Boolean", referential: "Referential", "referential-multi": "Referential (multi)",
+    "referential-dynamic": "Referential (driven by sibling)", "referential-by-scope": "Referential (driven by top-level field)",
+    generated: "Generated (system-assigned)", json: "JSON", list: "Repeatable list", object: "Nested object",
+  };
+%>
+<div class="wt-row card mb-2" data-prefix="<%= prefix %>" data-is-item="<%= isItem ? '1' : '' %>">
+  <div class="card-body py-2">
+    <div class="d-flex gap-2 align-items-start flex-wrap">
+      <select name="<%= prefix %>[kind]" class="form-select form-select-sm wt-kind" style="max-width:210px;">
+        <% allowedKinds.forEach(function(k) { %><option value="<%= k %>" <%= w.kind === k ? "selected" : "" %>><%= KIND_LABELS[k] || k %></option><% }) %>
+      </select>
+      <%# Preserves the source property's exact `type` across a save with no
+          edits — real live schemas aren't perfectly consistent about which
+          `type` accompanies a given widget (Service's inputs/outputs are
+          referential-multi-select with type:"string"; consumers, same
+          widget, uses type:"array") — cleared by widgetTreeEditor.js the
+          moment the author actually changes this row's kind, so a deliberate
+          kind change gets that kind's own sensible default instead of a
+          stale literal. %>
+      <input type="hidden" class="wt-raw-type" name="<%= prefix %>[rawType]" value="<%= w.rawType %>">
+      <input name="<%= prefix %>[name]" class="form-control form-control-sm wt-name" placeholder="field name" value="<%= w.name %>" style="max-width:200px;">
+      <% if (isItem) { %>
+        <input name="<%= prefix %>[label]" class="form-control form-control-sm" placeholder="label override" value="<%= w.label %>" style="max-width:180px;">
+      <% } %>
+      <div class="form-check form-check-inline mt-1">
+        <input type="checkbox" class="form-check-input" name="<%= prefix %>[required]" <%= w.required ? "checked" : "" %>>
+        <label class="form-check-label small">Required</label>
+      </div>
+      <div class="form-check form-check-inline mt-1" title="Cascades Pack → Template → Profile; narrowable downstream (CR-088)">
+        <input type="checkbox" class="form-check-input" name="<%= prefix %>[configurable]" <%= w.configurable ? "checked" : "" %>>
+        <label class="form-check-label small">Configurable</label>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-danger ms-auto wt-remove"><i class="bi bi-trash"></i></button>
+    </div>
+
+    <div class="row g-2 mt-1">
+      <div class="col-md-4"><input name="<%= prefix %>[help]" class="form-control form-control-sm" placeholder="Help text" value="<%= w.help %>"></div>
+      <% if (!isItem) { %>
+        <div class="col-md-3">
+          <select name="<%= prefix %>[group]" class="form-select form-select-sm">
+            <option value="">(no tab)</option>
+            <% topGroups.forEach(function(g) { %><option value="<%= g.key %>" <%= w.group === g.key ? "selected" : "" %>><%= g.label %></option><% }) %>
+          </select>
+        </div>
+      <% } %>
+      <div class="col-md-2"><input name="<%= prefix %>[showWhen]" class="form-control form-control-sm" placeholder="Show only when field…" value="<%= w.showWhen %>"></div>
+      <div class="col-md-2"><input name="<%= prefix %>[showWhenValues]" class="form-control form-control-sm" placeholder="…is one of (csv)" value="<%= w.showWhenValues %>"></div>
+    </div>
+
+    <div class="wt-panel mt-2" data-panel="text">
+      <div class="row g-2 align-items-center">
+        <div class="col-auto form-check">
+          <input type="checkbox" class="form-check-input" name="<%= prefix %>[numeric]" <%= w.numeric ? "checked" : "" %>>
+          <label class="form-check-label small">Numeric</label>
+        </div>
+        <div class="col-md-2"><input name="<%= prefix %>[pattern]" class="form-control form-control-sm" placeholder="Pattern (regex)" value="<%= w.pattern %>"></div>
+        <div class="col-md-2"><input name="<%= prefix %>[minLength]" class="form-control form-control-sm" placeholder="Min length" value="<%= w.minLength %>"></div>
+        <div class="col-md-2"><input name="<%= prefix %>[defaultValue]" class="form-control form-control-sm" placeholder="Default" value="<%= (w.kind === 'text' || w.kind === 'textarea') ? w.defaultValue : '' %>"></div>
+        <div class="col-auto form-check">
+          <input type="checkbox" class="form-check-input" name="<%= prefix %>[markdown]" <%= w.markdown ? "checked" : "" %>>
+          <label class="form-check-label small">Markdown</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="wt-panel mt-2" data-panel="select">
+      <div class="row g-2">
+        <div class="col-md-6"><input name="<%= prefix %>[enumValues]" class="form-control form-control-sm" placeholder="Options (csv)" value="<%= w.enumValues %>"></div>
+        <div class="col-md-3"><input name="<%= prefix %>[selectDefault]" class="form-control form-control-sm" placeholder="Default" value="<%= w.kind === 'select' ? w.defaultValue : '' %>"></div>
+      </div>
+    </div>
+
+    <div class="wt-panel mt-2" data-panel="boolean">
+      <select name="<%= prefix %>[booleanDefault]" class="form-select form-select-sm" style="max-width:160px;">
+        <option value="">(no default)</option>
+        <option value="true" <%= w.kind === "boolean" && w.defaultValue === "true" ? "selected" : "" %>>true</option>
+        <option value="false" <%= w.kind === "boolean" && w.defaultValue === "false" ? "selected" : "" %>>false</option>
+      </select>
+    </div>
+
+    <div class="wt-panel mt-2" data-panel="json">
+      <div class="form-check">
+        <input type="checkbox" class="form-check-input" name="<%= prefix %>[jsonIsArray]" <%= w.jsonIsArray ? "checked" : "" %>>
+        <label class="form-check-label small">Array-shaped (default: object-shaped)</label>
+      </div>
+      <%# A json-widget array's own `items` sub-schema (e.g. Template/Profile's
+          exposedParameterOverrides) has no structured editor — carried
+          through verbatim, untouched, exactly like rawType above. %>
+      <input type="hidden" name="<%= prefix %>[rawItemsJson]" value='<%- w.rawItems !== undefined ? JSON.stringify(w.rawItems).replace(/'/g, "&#39;") : "" %>'>
+    </div>
+
+    <div class="wt-panel mt-2" data-panel="ref-source">
+      <div class="row g-2">
+        <div class="col-md-4"><input name="<%= prefix %>[referentialSource]" class="form-control form-control-sm" placeholder="Referential source / Ontology concept type" value="<%= w.referentialSource %>"></div>
+        <div class="col-auto form-check mt-1">
+          <input type="checkbox" class="form-check-input wt-ontology" name="<%= prefix %>[ontology]" <%= w.ontology ? "checked" : "" %>>
+          <label class="form-check-label small">Ontology-backed</label>
+        </div>
+        <div class="col-auto form-check mt-1 wt-ontology-composable-wrap">
+          <input type="checkbox" class="form-check-input" name="<%= prefix %>[ontologyComposable]" <%= w.ontologyComposable ? "checked" : "" %>>
+          <label class="form-check-label small">Composable (author may propose new values)</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="wt-panel mt-2" data-panel="driven-select">
+      <select name="<%= prefix %>[drivenMode]" class="form-select form-select-sm wt-driven-mode" style="max-width:260px;">
+        <option value="" <%= w.drivenMode === "" ? "selected" : "" %>>Fixed source</option>
+        <option value="by-suffix" <%= w.drivenMode === "by-suffix" ? "selected" : "" %>>Driven by a field's value + suffix</option>
+        <option value="by-value" <%= w.drivenMode === "by-value" ? "selected" : "" %>>Driven by a field's value (full map)</option>
+      </select>
+    </div>
+
+    <div class="wt-panel mt-2" data-panel="driven-detail">
+      <div class="row g-2">
+        <div class="col-md-3"><input name="<%= prefix %>[driverField]" class="form-control form-control-sm" placeholder="Driver field name" value="<%= w.driverField %>"></div>
+        <div class="col-md-3 wt-driven-suffix-field"><input name="<%= prefix %>[driverSuffix]" class="form-control form-control-sm" placeholder="Suffix appended to driver value" value="<%= w.driverSuffix %>"></div>
+      </div>
+      <div class="wt-driven-value-field mt-2">
+        <div class="wt-variants-list border rounded p-2 bg-light-subtle" data-name-prefix="<%= prefix %>[variants]" data-next-index="<%= w.variants.length %>">
+          <% w.variants.forEach(function(v, vi) { %>
+            <div class="wt-variant-row row g-2 align-items-center mb-1">
+              <div class="col-md-3"><input name="<%= prefix %>[variants][<%= vi %>][matchValue]" class="form-control form-control-sm" placeholder="Match value (blank = default)" value="<%= v.matchValue %>"></div>
+              <div class="col-md-3"><input name="<%= prefix %>[variants][<%= vi %>][source]" class="form-control form-control-sm" placeholder="Source" value="<%= v.source %>"></div>
+              <div class="col-auto form-check mt-1">
+                <input type="checkbox" class="form-check-input" name="<%= prefix %>[variants][<%= vi %>][ontology]" <%= v.ontology ? "checked" : "" %>>
+                <label class="form-check-label small">Ontology</label>
+              </div>
+              <div class="col-auto form-check mt-1">
+                <input type="checkbox" class="form-check-input" name="<%= prefix %>[variants][<%= vi %>][composable]" <%= v.composable ? "checked" : "" %>>
+                <label class="form-check-label small">Composable</label>
+              </div>
+              <div class="col-auto"><button type="button" class="btn btn-sm btn-outline-danger wt-variant-remove"><i class="bi bi-x"></i></button></div>
+            </div>
+          <% }) %>
+          <button type="button" class="btn btn-sm btn-link wt-variant-add p-0"><i class="bi bi-plus-circle me-1"></i>Add variant</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-2">
+      <button type="button" class="btn btn-sm btn-link p-0 wt-notes-toggle"><i class="bi bi-journal-text me-1"></i>Notes<%= w.notes.length ? ` (${w.notes.length})` : "" %></button>
+      <div class="wt-notes-wrap mt-2" style="display:none;">
+        <%- include('_widgetNotes', { notes: w.notes, namePrefix: `${prefix}[notes]` }) %>
+      </div>
+    </div>
+
+    <div class="wt-panel mt-2" data-panel="children">
+      <%# Whether this list's own x-widget:"referential-list" marker was
+          present in the source at ITEM level — real data is inconsistent
+          here (see schemaCompiler.ts's AuthoredWidget.listWidgetMarker
+          comment), so it is carried through untouched rather than
+          normalised one way or the other. Meaningless at document root
+          (isItem=false), where the marker is always emitted regardless. %>
+      <input type="hidden" name="<%= prefix %>[listWidgetMarker]" value="<%= w.listWidgetMarker ? '1' : '' %>">
+      <%- include('_widgetTree', { widgets: w.children, namePrefix: `${prefix}[children]`, isItem: true, topGroups: [], allowedKinds: itemKinds, itemKinds: itemKinds }) %>
+    </div>
+  </div>
+</div>

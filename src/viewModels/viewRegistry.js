@@ -14,7 +14,7 @@ import {seu_profiles_indexVM} from "./seu_profiles_index.js";
 import {seu_deliverable_definitions_indexVM} from "./seu_deliverable_definitions_index.js";
 import {seu_service_definitions_indexVM} from "./seu_service_definitions_index.js";
 import {seu_policy_definitions_indexVM} from "./seu_policy_definitions_index.js";
-import {seu_capabilities_indexVM} from "./seu_capabilities_index.js";
+import {seu_capability_definitions_indexVM} from "./seu_capability_definitions_index.js";
 import {seu_participants_indexVM} from "./seu_participants_index.js";
 import {seu_objectives_indexVM} from "./seu_objectives_index.js";
 import {seu_objectives_detailVM} from "./seu_objectives_detail.js";
@@ -39,8 +39,10 @@ import {seu_sdk_authoring_editVM} from "./seu_sdk_authoring_edit.js";
 import {seu_sdk_schema_registry_indexVM} from "./seu_sdk_schema_registry_index.js";
 import {seu_sdk_schema_registry_detailVM} from "./seu_sdk_schema_registry_detail.js";
 import {seu_sdk_schema_registry_newVM} from "./seu_sdk_schema_registry_new.js";
+import {seu_sdk_schema_registry_reviewVM} from "./seu_sdk_schema_registry_review.js";
 import {seu_sdk_ontology_indexVM} from "./seu_sdk_ontology_index.js";
 import {seu_sdk_ontology_metadataVM} from "./seu_sdk_ontology_metadata.js";
+import {seu_sdk_ontology_approvalsVM} from "./seu_sdk_ontology_approvals.js";
 import {seu_workqueue_indexVM} from "./seu_workqueue_index.js";
 import {seu_reviews_indexVM} from "./seu_reviews_index.js";
 import {seu_compliance_indexVM} from "./seu_compliance_index.js";
@@ -68,7 +70,7 @@ export const viewModels = {
   "seu/deliverable-definitions/index": seu_deliverable_definitions_indexVM,
   "seu/service-definitions/index": seu_service_definitions_indexVM,
   "seu/policy-definitions/index": seu_policy_definitions_indexVM,
-  "seu/capabilities/index": seu_capabilities_indexVM,
+  "seu/capability-definitions/index": seu_capability_definitions_indexVM,
   "seu/participants/index": seu_participants_indexVM,
   "seu/objectives/index": seu_objectives_indexVM,
   "seu/objectives/detail": seu_objectives_detailVM,
@@ -91,8 +93,10 @@ export const viewModels = {
   "seu/sdk/schema-registry/index": seu_sdk_schema_registry_indexVM,
   "seu/sdk/schema-registry/detail": seu_sdk_schema_registry_detailVM,
   "seu/sdk/schema-registry/new": seu_sdk_schema_registry_newVM,
+  "seu/sdk/schema-registry/review": seu_sdk_schema_registry_reviewVM,
   "seu/sdk/ontology/index": seu_sdk_ontology_indexVM,
   "seu/sdk/ontology/metadata": seu_sdk_ontology_metadataVM,
+  "seu/sdk/ontology/approvals": seu_sdk_ontology_approvalsVM,
   "seu/route-authority/index": seu_route_authority_indexVM,
   "seu/route-authority/edit": seu_route_authority_editVM,
   "seu/workqueue/index": seu_workqueue_indexVM,

@@ -7,6 +7,7 @@ import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
+import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import type { ProfileRow } from "../../../dblayer/seuTypes.js";
 
 export async function createProfile(input: {
@@ -19,6 +20,7 @@ export async function createProfile(input: {
 
   const { data: profile, error } = await profilesDB.create({
     baseTemplateId: template.id,
+    baseTemplateCode: template.code,
     environment: input.environment,
   });
   if (error || !profile) throw error ?? new Error("failed to create profile");
@@ -625,10 +627,16 @@ export async function publishProfile(input: { seed: ProfileSeedInput; actorRole:
   // check exactly.
   const { data: existing } = await profilesDB.findByCodeAndVersion(seed.code, seed.profileVersion, tenantId);
   if (existing) {
-    await materialiseProfileDraft(existing.id, seed);
+    const materialiseResult = await materialiseProfileDraft(existing.id, seed);
+    if (!materialiseResult.ok) return materialiseResult;
     return { ok: true, profileId: existing.id, alreadyExists: true };
   }
 
+  // CR-114 follow-on — profilesDB.createDraft's schemaDefinitionId is now
+  // mandatory; a bootstrap/seed-facing publish always pins to whatever's
+  // latest.
+  const { data: profileSchema } = await schemaDefinitionsDB.findLatest("Profile");
+  if (!profileSchema) return { ok: false, errors: [`no schema_definitions grammar for Profile`] };
   const { data: draft, error } = await profilesDB.createDraft({
     code: seed.code,
     name: seed.name,
@@ -637,10 +645,19 @@ export async function publishProfile(input: { seed: ProfileSeedInput; actorRole:
     profileVersion: seed.profileVersion,
     tenantId,
     parentProfileId: seed.parentProfileId,
+    // baseTemplateCode is schema-required (migration 175) but lives on the
+    // real base_template_id FK column, not a schema-named field passed to
+    // createDraft above — the write-time validator only sees it if it's in
+    // draftContent too (same class of gap Template's own `purpose` had).
+    // materialiseProfileDraft below overwrites draft_content in full moments
+    // later, but the validated createDraft write itself needs it present.
+    draftContent: { baseTemplateCode: seed.baseTemplateCode },
+    schemaDefinitionId: profileSchema.id,
   });
   if (error || !draft) return { ok: false, errors: [(error ?? new Error("failed to create profile draft")).message] };
 
-  await materialiseProfileDraft(draft.id, seed);
+  const materialiseResult = await materialiseProfileDraft(draft.id, seed);
+  if (!materialiseResult.ok) return materialiseResult;
 
   // Ch.7 §15 (owner, 2026-08-19: "Fix 19.9 similar to what we did for pack
   // and template") — mirrors PackRegistered/TemplateCreated exactly,
@@ -807,6 +824,10 @@ async function reactivateAsNewVersion(profile: ProfileRow, actorRole: string, ac
   // no-real-column carry-forward treatment.
   seed.exposedParameterOverrides = Array.isArray(priorContent.exposedParameterOverrides) ? (priorContent.exposedParameterOverrides as ExposedParameterOverride[]) : [];
 
+  // CR-114 follow-on — same carry-forward-the-source's-own-pin reasoning as
+  // templates.ts's reactivateAsNewVersion.
+  const { data: reactivationSchema } = profile.schema_definition_id ? { data: { id: profile.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Profile");
+  if (!reactivationSchema) return { ok: false, reason: "policy_blocked", detail: `no schema_definitions grammar for Profile` };
   const { data: newDraft, error } = await profilesDB.createDraft({
     code: seed.code,
     name: seed.name,
@@ -817,10 +838,12 @@ async function reactivateAsNewVersion(profile: ProfileRow, actorRole: string, ac
     profileVersion: nextVersion,
     tenantId: profile.tenant_id,
     parentProfileId: profile.parent_profile_id,
+    schemaDefinitionId: reactivationSchema.id,
   });
   if (error || !newDraft) return { ok: false, reason: "policy_blocked", detail: (error ?? new Error("failed to create new Profile version")).message };
 
-  await materialiseProfileDraft(newDraft.id, seed);
+  const materialiseResult = await materialiseProfileDraft(newDraft.id, seed);
+  if (!materialiseResult.ok) return { ok: false, reason: "policy_blocked", detail: materialiseResult.errors.join("; ") };
 
   let current = newDraft;
   for (const targetState of ["Validated", "Published", "Active"] as const) {
@@ -904,6 +927,10 @@ export async function copyProfileAsNewDraft(profileId: string, actorId: string):
   // CR-088 Profile-side completion — exposedParameterOverrides, same
   // no-real-column carry-forward treatment.
   draftContent.exposedParameterOverrides = Array.isArray(priorContent.exposedParameterOverrides) ? priorContent.exposedParameterOverrides : [];
+  // CR-114 follow-on — same carry-forward-the-source's-own-pin reasoning as
+  // templates.ts's copyTemplateAsNewDraft.
+  const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Profile");
+  if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Profile`] };
   const { data: newDraft, error } = await profilesDB.createDraft({
     code: source.code,
     name: source.name,
@@ -914,6 +941,7 @@ export async function copyProfileAsNewDraft(profileId: string, actorId: string):
     profileVersion: nextVersion,
     tenantId: source.tenant_id,
     parentProfileId: source.parent_profile_id,
+    schemaDefinitionId: copySchema.id,
   });
   if (error || !newDraft) return { ok: false, errors: [(error ?? new Error("failed to copy Profile")).message] };
   return { ok: true, draftId: newDraft.id };
@@ -961,7 +989,7 @@ export async function advanceProfileOneStep(profile: ProfileRow, actorRole: stri
 // catalogue). Runs once, gating the FIRST governed hop
 // out of Draft only (core/sdkAuthoring.ts's publishAuthoringDraft calls both
 // this and advanceProfileOneStep above).
-export async function materialiseProfileDraft(profileId: string, seed: ProfileSeedInput): Promise<void> {
+export async function materialiseProfileDraft(profileId: string, seed: ProfileSeedInput): Promise<{ ok: true } | { ok: false; errors: string[] }> {
   await profilesDB.setPackSelection(profileId, "optional", seed.optionalPackCodes ?? []);
   await profilesDB.setPackSelection(profileId, "technology", seed.technologyPackCodes ?? []);
   await profilesDB.setPackSelection(profileId, "domain", seed.domainPackCodes ?? []);
@@ -979,7 +1007,9 @@ export async function materialiseProfileDraft(profileId: string, seed: ProfileSe
   // already writes via createDraft's own draftContent param — this just
   // makes it true regardless of which of the two ways a Profile row got
   // created.
-  await profilesDB.setDraftContent(profileId, { ...seed });
+  const { error } = await profilesDB.setDraftContent(profileId, { ...seed });
+  if (error) return { ok: false, errors: [error.message] };
+  return { ok: true };
 }
 
 export interface ProfileWithNextStates {

@@ -1,24 +1,34 @@
 // Version Feature Plan.md, point 1: an executable check of Events and
 // Lifecycles.md's Ontology Model table (Ch.18), same discipline as
 // service-definition-event-lifecycle-table.test.ts (Ch.11). Ontology's own
-// shape is the most unusual of the entities covered so far: there is no
-// Draft/Defined prefix at all (a concept goes live the moment it's added —
-// no review workflow, Ch.18 §18.8) and rows 1-4 (New/Edit/Edit metadata/
-// Compose) are ALL ungoverned (no transition_definitions row, gated only by
-// the ontology_define authoring badge) yet still publish real events
-// (ConceptCreated/ConceptUpdated/OntologyComposed) — unlike every other
-// entity's own "New"/"Edit" rows (Objective/Pack/Template/Profile/Service
-// Definition), which are pure Revisions with NO event at all. Only rows 5-7
-// (Deprecate/Retire/Archive) are real governed transitions with
-// transition_definitions rows.
+// shape is the most unusual of the entities covered so far: rows 1-4
+// (New/Edit/Edit metadata/Compose) are ALL ungoverned (no transition_
+// definitions row, gated only by the ontology_define authoring badge) yet
+// still publish real events (ConceptCreated/ConceptUpdated/OntologyComposed)
+// — unlike every other entity's own "New"/"Edit" rows (Objective/Pack/
+// Template/Profile/Service Definition), which are pure Revisions with NO
+// event at all. Rows 5-7 (Deprecate/Retire/Archive) and CR-113 item 6's own
+// Draft -> Active/Draft (Approve/Reject) are the real governed transitions
+// with transition_definitions rows.
 //
-//   - DEFINITION: rows 5-7's transition_definitions record (event_type/
-//     version_event) matches the table; rows 1-4 have no
+// CR-113 item 4/6 (migration 278) replaced the original "a concept goes live
+// the moment it's added, no review workflow" premise: a brand-new code (New,
+// row 1) is inserted as Draft and needs an ontology_approve holder to
+// Approve (Draft -> Active, ConceptApproved) or Reject (Draft -> Draft,
+// ConceptRejected) it before it is Active. Editing an EXISTING code (row 2)
+// is unchanged — createConceptVersion still defaults the new row straight to
+// Active and auto-supersedes whatever was Active before — so the DRIVEN
+// tests below approve a freshly-added code before using it as row 2/3/4/5-7's
+// own "already Active" starting point, same as a real ontology_approve
+// holder would.
+//
+//   - DEFINITION: rows 5-7 and Approve/Reject's transition_definitions
+//     record (event_type/version_event) matches the table; rows 1-4 have no
 //     transition_definitions row at all (confirmed absent, not just unchecked).
 //   - DRIVEN: every row is actually exercised through the real functions
-//     (addConcept/updateConceptMeta/composeConcept/deprecateConcept/
-//     retireConcept/archiveConcept) and the events they publish are
-//     asserted against eventsDB directly — no mocking.
+//     (addConcept/approveConcept/updateConceptMeta/composeConcept/
+//     deprecateConcept/retireConcept/archiveConcept) and the events they
+//     publish are asserted against eventsDB directly — no mocking.
 import "dotenv/config";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -29,7 +39,7 @@ import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { ontologyDB } from "../src/dblayer/ontologyDB.js";
 import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
-import { addConcept, updateConceptMeta, composeConcept, deprecateConcept, retireConcept, archiveConcept, type OntologyActor } from "../src/routes/seu/core/ontology.js";
+import { addConcept, approveConcept, updateConceptMeta, composeConcept, deprecateConcept, retireConcept, archiveConcept, type OntologyActor } from "../src/routes/seu/core/ontology.js";
 
 // TESTER_ALL_ID (1001, seedIdentityBaseline.ts) — "holds every active
 // noun_verb (any authorised transition)" — the same standing test-fixture
@@ -51,13 +61,16 @@ interface OntologyTableRow {
   versionEvent: string | null;
 }
 
-// Rows 5-7 only — rows 1-4 (New/Edit/Edit metadata/Compose) have no
-// transition_definitions row at all (see the DEFINITION test below, which
-// confirms the absence directly rather than skipping it).
+// Rows 5-7 plus CR-113 item 6's own Approve/Reject — rows 1-4 (New/Edit/Edit
+// metadata/Compose) have no transition_definitions row at all (see the
+// DEFINITION test below, which confirms the absence directly rather than
+// skipping it).
 const ONTOLOGY_TABLE: OntologyTableRow[] = [
   { row: 5, description: "Deprecate", fromState: "Active", toState: "Deprecated", eventType: "ConceptDeprecated", versionEvent: "VersionDeprecated" },
   { row: 6, description: "Retire", fromState: "Deprecated", toState: "Retired", eventType: "OntologyConceptRetired", versionEvent: "VersionSuperseded" },
   { row: 7, description: "Archive", fromState: "Retired", toState: "Archived", eventType: "OntologyConceptArchived", versionEvent: "VersionArchived" },
+  { row: 8, description: "Approve", fromState: "Draft", toState: "Active", eventType: "ConceptApproved", versionEvent: "VersionActivated" },
+  { row: 9, description: "Reject", fromState: "Draft", toState: "Draft", eventType: "ConceptRejected", versionEvent: null },
 ];
 
 test("DEFINITION: every Ontology governed transition_definitions row (5-7) matches Events and Lifecycles.md's event_type/version_event", async () => {
@@ -76,12 +89,12 @@ test("DEFINITION: rows 1-4 (New/Edit/Edit metadata/Compose) have no transition_d
   assert.equal(ontologyRows.length, ONTOLOGY_TABLE.length, `expected exactly the ${ONTOLOGY_TABLE.length} governed rows (5-7), got: ${JSON.stringify(ontologyRows.map((r) => `${r.from_state}->${r.to_state}`))}`);
 });
 
-test("DRIVEN: row 1 (New) publishes ConceptCreated despite being ungoverned (no transition_definitions row)", async () => {
+test("DRIVEN: row 1 (New) publishes ConceptCreated despite being ungoverned (no transition_definitions row), lands in Draft pending approval", async () => {
   const conceptType = freshConceptType();
   const code = "first-code";
   const created = await addConcept({ conceptType, code, defaultLabel: "First Code" }, ACTOR);
   assert.equal(created.version, "1.0.0");
-  assert.equal(created.status, "Active");
+  assert.equal(created.status, "Draft", "CR-113 item 4 — a brand-new code lands in Draft, not Active");
 
   const { data: events } = await eventsDB.findByOriginatingObject("Ontology", created.id);
   const eventTypes = (events ?? []).map((e) => e.event_type);
@@ -92,8 +105,13 @@ test("DRIVEN: row 2 (Edit — publish a new Version of an existing code) publish
   const conceptType = freshConceptType();
   const code = "second-code";
   const v1 = await addConcept({ conceptType, code, defaultLabel: "V1 Label" }, ACTOR);
+  // v1 lands in Draft (row 1/New); it must be Active before it can be the
+  // "already Active" thing row 2/Edit supersedes — same as a real
+  // ontology_approve holder approving it first.
+  await approveConcept(conceptType, code, PLATFORM_TENANT_ID, ACTOR);
   const v2 = await addConcept({ conceptType, code, defaultLabel: "V2 Label" }, ACTOR);
   assert.equal(v2.version, "1.0.1", "editing an existing code bumps the patch version");
+  assert.equal(v2.status, "Active", "editing an existing code still lands straight in Active, unlike a brand-new code");
 
   const { data: v2Events } = await eventsDB.findByOriginatingObject("Ontology", v2.id);
   assert.deepEqual((v2Events ?? []).map((e) => e.event_type), ["ConceptUpdated"]);
@@ -102,7 +120,7 @@ test("DRIVEN: row 2 (Edit — publish a new Version of an existing code) publish
   // side effect of the new Version reaching Active — not itself a governed
   // transition the actor separately authorised, but a real, distinct event.
   const { data: v1Events } = await eventsDB.findByOriginatingObject("Ontology", v1.id);
-  assert.deepEqual((v1Events ?? []).map((e) => e.event_type), ["ConceptCreated", "ConceptDeprecated"]);
+  assert.deepEqual((v1Events ?? []).map((e) => e.event_type), ["ConceptCreated", "ConceptApproved", "ConceptDeprecated"]);
 
   const { data: v1Row } = await ontologyDB.findConceptById(v1.id);
   assert.equal(v1Row?.status, "Deprecated");
@@ -112,6 +130,9 @@ test("DRIVEN: row 3 (Edit metadata — text_type/ui_grouping) publishes ConceptU
   const conceptType = freshConceptType();
   const code = "third-code";
   const created = await addConcept({ conceptType, code, defaultLabel: "Third Code" }, ACTOR);
+  // updateConceptMeta only edits the Active row (ontologyDB.findActiveConcept)
+  // — approve the freshly-added Draft first.
+  await approveConcept(conceptType, code, PLATFORM_TENANT_ID, ACTOR);
 
   const updated = await updateConceptMeta(conceptType, code, PLATFORM_TENANT_ID, { textType: "text" }, ACTOR);
   assert.equal(updated.id, created.id, "same row, no new Version");
@@ -119,12 +140,15 @@ test("DRIVEN: row 3 (Edit metadata — text_type/ui_grouping) publishes ConceptU
   assert.equal(updated.text_type, "text");
 
   const { data: events } = await eventsDB.findByOriginatingObject("Ontology", created.id);
-  assert.deepEqual((events ?? []).map((e) => e.event_type), ["ConceptCreated", "ConceptUpdated"]);
+  assert.deepEqual((events ?? []).map((e) => e.event_type), ["ConceptCreated", "ConceptApproved", "ConceptUpdated"]);
 });
 
 test("DRIVEN: row 4 (Compose — Specialization) publishes OntologyComposed alongside the underlying ConceptCreated", async () => {
   const sourceType = freshConceptType();
   const source = await addConcept({ conceptType: sourceType, code: "source-code", defaultLabel: "Source Label", description: "Source description" }, ACTOR);
+  // composeConcept requires the source to be Active — approve the
+  // freshly-added Draft first.
+  await approveConcept(sourceType, "source-code", PLATFORM_TENANT_ID, ACTOR);
 
   const targetType = freshConceptType();
   const composed = await composeConcept({ conceptType: targetType, code: "composed-code", strategy: "specialization", sourceConceptId: source.id }, ACTOR);
@@ -140,6 +164,9 @@ test("DRIVEN: rows 5-7 (Deprecate/Retire/Archive) each publish their matching ev
   const conceptType = freshConceptType();
   const code = "lifecycle-code";
   const created = await addConcept({ conceptType, code, defaultLabel: "Lifecycle Code" }, ACTOR);
+  // deprecateConcept only accepts an Active row — approve the freshly-added
+  // Draft first.
+  await approveConcept(conceptType, code, PLATFORM_TENANT_ID, ACTOR);
 
   await deprecateConcept(conceptType, code, PLATFORM_TENANT_ID, ACTOR);
   await retireConcept(conceptType, code, PLATFORM_TENANT_ID, ACTOR);

@@ -1,7 +1,7 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import { PLATFORM_TENANT_ID } from "./constants.js";
-import type { DbResult, OntologyConceptRow, TenantConceptAliasRow } from "./seuTypes.js";
+import type { DbResult, OntologyConceptRow, OntologyConceptCommentRow, TenantConceptAliasRow } from "./seuTypes.js";
 
 // Ontology Model — Plan (Phase 17, Ch.18). The canonical registry + per-tenant
 // alias store. The core only ever reads/writes canonical codes; the alias is a
@@ -247,14 +247,18 @@ export const ontologyDB = {
     description?: string | null; contributedByPack?: string | null;
     compositionStrategy?: "specialization" | "override" | null; compositionSources?: Array<{ conceptId: string; code: string }>;
     textType?: "text" | "markdown"; uiGrouping?: string | null;
+    // CR-113 item 4 — Ontology Management's own Add/Save inserts a
+    // genuinely new code as 'Draft'; every other caller keeps the
+    // long-standing 'Active' default.
+    status?: OntologyConceptRow["status"];
   }): Promise<DbResult<OntologyConceptRow>> {
     try {
       const { rows } = await query<OntologyConceptRow>(
         `INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id, version, status, description, contributed_by_pack, composition_strategy, composition_sources, text_type, ui_grouping)
-         VALUES ($1, $2, $3, $4, $5, 'Active', $6, $7, $8, $9::jsonb, $10, $11)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12)
          RETURNING *`,
         [
-          input.conceptType, input.code, input.defaultLabel, input.tenantId, input.version,
+          input.conceptType, input.code, input.defaultLabel, input.tenantId, input.version, input.status ?? "Active",
           input.description ?? null, input.contributedByPack ?? null,
           input.compositionStrategy ?? null, JSON.stringify(input.compositionSources ?? []),
           input.textType ?? "markdown", input.uiGrouping ?? null,
@@ -338,6 +342,56 @@ export const ontologyDB = {
       return { data: rows };
     } catch (err) {
       logger.error("[ontologyDB] findAliasesByTenant error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // CR-113 item 6 — the Ontology Approvals tab's own data source: every
+  // Draft concept visible to this viewer (same visibility rule as every
+  // other query here — Platform's plus, for a non-root actor, their own
+  // tenant's).
+  async findDraftConcepts(viewer: OntologyViewer): Promise<DbResult<OntologyConceptRow[]>> {
+    try {
+      const tenantIds = visibleTenantIds(viewer);
+      const { rows } = tenantIds
+        ? await query<OntologyConceptRow>(
+            "SELECT * FROM ontology_concepts WHERE status = 'Draft' AND tenant_id = ANY($1::uuid[]) ORDER BY created_at",
+            [tenantIds]
+          )
+        : await query<OntologyConceptRow>("SELECT * FROM ontology_concepts WHERE status = 'Draft' ORDER BY created_at");
+      return { data: rows };
+    } catch (err) {
+      logger.error("[ontologyDB] findDraftConcepts error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // CR-113 item 6 — mirrors objectivesDB.addComment/getComments exactly
+  // (objective_comments, migration 125): append-only, never UPDATEd/DELETEd
+  // at the application layer.
+  async addConceptComment(conceptId: string, actorId: number | null, commentText: string): Promise<DbResult<OntologyConceptCommentRow>> {
+    try {
+      const { rows } = await query<OntologyConceptCommentRow>(
+        `INSERT INTO ontology_concept_comments (concept_id, actor_id, comment_text)
+         VALUES ($1, $2, $3) RETURNING *`,
+        [conceptId, actorId, commentText]
+      );
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[ontologyDB] addConceptComment error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async getConceptComments(conceptId: string): Promise<DbResult<OntologyConceptCommentRow[]>> {
+    try {
+      const { rows } = await query<OntologyConceptCommentRow>(
+        "SELECT * FROM ontology_concept_comments WHERE concept_id = $1 ORDER BY created_at",
+        [conceptId]
+      );
+      return { data: rows };
+    } catch (err) {
+      logger.error("[ontologyDB] getConceptComments error", err as Error);
       return { error: err as Error };
     }
   },

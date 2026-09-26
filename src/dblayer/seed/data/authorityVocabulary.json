@@ -1,5 +1,5 @@
 {
-  "_comment": "CR-006 noun x verb authority vocabulary. `nouns` = Work outcome, `verbs` = Work process, `transitions` binds one verb to each (entityType, fromState, toState). The noun->allowed-verbs mapping is DERIVED from `transitions` by the seed (single source of truth). `define` is present in the vocabulary for the birth transition (create), which is added when creation-as-transition is wired (a later stage) \u2014 no birth rows here yet.",
+  "_comment": "CR-006 noun x verb authority vocabulary. `nouns` = Work outcome, `verbs` = Work process, `transitions` binds one verb to each (entityType, fromState, toState). The noun->allowed-verbs mapping is DERIVED from `transitions` by the seed (single source of truth). `define` is present in the vocabulary for the birth transition (create), which is added when creation-as-transition is wired (a later stage) — no birth rows here yet.",
   "nouns": [
     {
       "code": "SEU",
@@ -84,6 +84,10 @@
     {
       "code": "Policy",
       "label": "Policy"
+    },
+    {
+      "code": "Capability",
+      "label": "Capability"
     },
     {
       "code": "EBM",
@@ -1029,6 +1033,36 @@
       "verb": "archive"
     },
     {
+      "entityType": "Capability",
+      "fromState": "Defined",
+      "toState": "Published",
+      "verb": "publish"
+    },
+    {
+      "entityType": "Capability",
+      "fromState": "Published",
+      "toState": "Active",
+      "verb": "activate"
+    },
+    {
+      "entityType": "Capability",
+      "fromState": "Active",
+      "toState": "Deprecated",
+      "verb": "deprecate"
+    },
+    {
+      "entityType": "Capability",
+      "fromState": "Deprecated",
+      "toState": "Retired",
+      "verb": "retire"
+    },
+    {
+      "entityType": "Capability",
+      "fromState": "Retired",
+      "toState": "Archived",
+      "verb": "archive"
+    },
+    {
       "entityType": "Policy",
       "fromState": "Draft",
       "toState": "Validated",
@@ -1093,6 +1127,18 @@
       "fromState": "Retired",
       "toState": "Archived",
       "verb": "archive"
+    },
+    {
+      "entityType": "Ontology",
+      "fromState": "Draft",
+      "toState": "Active",
+      "verb": "approve"
+    },
+    {
+      "entityType": "Ontology",
+      "fromState": "Draft",
+      "toState": "Draft",
+      "verb": "approve"
     }
   ],
   "_authoringMappingsComment": "CR-014 \u2014 noun\u2192verb mappings that are NOT lifecycle transitions: the authoring authority for each SDK-authorable entity. `{noun}_define` = author (create/edit a draft), `{noun}_publish` = publisher (approve + materialise). Seeded into authority_noun_verbs alongside the transition-derived pairs. These gate the SDK authoring surfaces (replacing the retired sdk_creator/sdk_approver Platform badges).",
@@ -1152,6 +1198,12 @@
     },
     {
       "noun": "Policy",
+      "verbs": [
+        "define"
+      ]
+    },
+    {
+      "noun": "Capability",
       "verbs": [
         "define"
       ]

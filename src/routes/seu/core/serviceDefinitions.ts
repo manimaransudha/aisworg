@@ -4,6 +4,7 @@ import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsD
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { assertCanonicalCategory, syncConceptFromEntity, retireConceptForEntity } from "./ontology.js";
+import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import type { ServiceDefinitionRow, ServiceLevelExpectation } from "../../../dblayer/seuTypes.js";
 
 // CR-086 follow-on — Service Definition authoring (Book 3 Ch.11), mirroring
@@ -215,6 +216,10 @@ export async function advanceServiceDefinitionOneStep(serviceDefinition: Service
 export async function copyServiceDefinitionAsNewDraft(serviceDefinitionId: string, actorId: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await serviceDefinitionsDB.findById(serviceDefinitionId);
   if (!source) return { ok: false, errors: ["Service Definition not found"] };
+  // CR-114 follow-on — same carry-forward-the-source's-own-pin reasoning as
+  // templates.ts's copyTemplateAsNewDraft.
+  const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Service");
+  if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Service`] };
   const { data: newDraft, error } = await serviceDefinitionsDB.createDraft({
     code: source.code,
     name: source.name,
@@ -234,6 +239,7 @@ export async function copyServiceDefinitionAsNewDraft(serviceDefinitionId: strin
     },
     tenantId: source.tenant_id,
     parentServiceDefinitionId: source.parent_service_definition_id,
+    schemaDefinitionId: copySchema.id,
   });
   if (error || !newDraft) return { ok: false, errors: [(error ?? new Error("failed to copy Service Definition")).message] };
   return { ok: true, draftId: newDraft.id };

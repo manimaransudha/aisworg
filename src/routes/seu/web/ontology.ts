@@ -29,7 +29,7 @@ import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
-import { listConceptTypes, listConceptsForType, addConcept, deprecateConcept, retireConcept, archiveConcept, composeConcept, updateConceptMeta, quickRetireConcept, listAllConceptsForPicker, listDistinctUiGroupings, getConceptTypeNav, tabsForActiveType, type OntologyActor } from "../core/ontology.js";
+import { listConceptTypes, listConceptsForType, addConcept, deprecateConcept, retireConcept, archiveConcept, composeConcept, updateConceptMeta, quickRetireConcept, listAllConceptsForPicker, listDistinctUiGroupings, getConceptTypeNav, tabsForActiveType, approveConcept, rejectConcept, listDraftConceptsForApproval, type OntologyActor } from "../core/ontology.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { renderMarkdown } from "../../../domain/sdk/markdownRender.js";
@@ -331,6 +331,66 @@ router.post("/sdk/ontology/quick-retire", async (req: Request, res: Response) =>
     return flashSuccess(req, res, metadataUrl, `Concept "${code}" retired.`);
   } catch (err) {
     return flashError(req, res, metadataUrl, (err as Error).message);
+  }
+});
+
+/** GET /aisworg/seu/sdk/ontology/approvals — CR-113 item 6. Every Draft concept, across every concept_type, gated on ontology_approve (route_authority). Accept/Reject are the same tab's two outcomes of the same process. */
+router.get("/sdk/ontology/approvals", attachVM("seu/sdk/ontology/approvals"), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const held = await heldBadges(req);
+    const actor = actorFrom(req, held);
+    const drafts = await listDraftConceptsForApproval(actor);
+    const rows = drafts.map((c) => ({
+      id: c.id,
+      conceptType: c.concept_type,
+      code: c.code,
+      label: c.default_label,
+      description: c.description,
+      tenantId: c.tenant_id,
+      isPlatform: c.tenant_id === PLATFORM_TENANT_ID,
+      createdAt: c.created_at,
+    }));
+    const params = parseListParams(req.query, { sortable: ["conceptType", "code", "label", "tenant"], defaultSort: "conceptType", defaultDir: "asc" });
+
+    req.vm.req.title = "Ontology Approvals";
+    req.vm.req.listBasePath = "/aisworg/seu/sdk/ontology/approvals";
+    req.vm.req.list = paginateList(rows, params, {
+      searchFields: [(r) => r.conceptType, (r) => r.code, (r) => r.label],
+      sortFields: { conceptType: (r) => r.conceptType, code: (r) => r.code, label: (r) => r.label, tenant: (r) => (r.isPlatform ? 0 : 1) },
+    });
+    req.vm.opt.flash = getFlash(req);
+    return renderView(req, res, "seu/sdk/ontology/approvals", req.vm);
+  } catch (err) {
+    logger.error("[web/seu/ontology] GET /sdk/ontology/approvals error", err as Error);
+    next(err);
+  }
+});
+
+/** POST /aisworg/seu/sdk/ontology/approvals/approve — Draft -> Active. */
+router.post("/sdk/ontology/approvals/approve", async (req: Request, res: Response) => {
+  const { conceptType, code, tenantId } = req.body ?? {};
+  const backToApprovals = "/aisworg/seu/sdk/ontology/approvals";
+  try {
+    const held = await heldBadges(req);
+    const actor = actorFrom(req, held);
+    await approveConcept(String(conceptType ?? "").trim(), String(code ?? ""), String(tenantId ?? ""), actor);
+    return flashSuccess(req, res, backToApprovals, `Concept "${code}" approved.`);
+  } catch (err) {
+    return flashError(req, res, backToApprovals, (err as Error).message);
+  }
+});
+
+/** POST /aisworg/seu/sdk/ontology/approvals/reject — Draft -> Draft, mandatory comment (CR-073's own Reject discipline). */
+router.post("/sdk/ontology/approvals/reject", async (req: Request, res: Response) => {
+  const { conceptType, code, tenantId, comment } = req.body ?? {};
+  const backToApprovals = "/aisworg/seu/sdk/ontology/approvals";
+  try {
+    const held = await heldBadges(req);
+    const actor = actorFrom(req, held);
+    await rejectConcept(String(conceptType ?? "").trim(), String(code ?? ""), String(tenantId ?? ""), String(comment ?? ""), actor);
+    return flashSuccess(req, res, backToApprovals, `Concept "${code}" rejected.`);
+  } catch (err) {
+    return flashError(req, res, backToApprovals, (err as Error).message);
   }
 });
 

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../../partials/head') %>
+</head>
+<body>
+  <header><%- include('../../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <% if (locals.flash) { %>
+      <div class="alert alert-<%= flash.type === 'error' ? 'danger' : 'success' %> alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-<%= flash.type === 'error' ? 'exclamation-triangle' : 'check-circle' %> me-2"></i><%= flash.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <% } %>
+
+    <div class="mb-4">
+      <p class="text-muted small mb-1"><a href="/aisworg/seu/sdk/schema-registry/new?entityKind=<%= encodeURIComponent(entityKind) %>">&larr; Back to editing</a></p>
+      <h2 class="h3 mb-1 text-dark fw-bold"><%= title %></h2>
+      <p class="text-muted small mb-0">
+        CR-114 Compatibility feature — this draft checked against every existing <%= entityKind %> version.
+        Nothing has been written yet; Publish below creates the new version and saves this report on it.
+      </p>
+    </div>
+
+    <div class="section-card mb-4">
+      <div class="section-header">Compatibility report</div>
+      <div class="card-body">
+        <% if (!report.length) { %>
+          <p class="text-muted small mb-0">No existing <%= entityKind %> version to compare against — this will be the first version.</p>
+        <% } else { %>
+          <table class="table table-sm align-middle mb-0">
+            <thead><tr>
+              <th>Version</th>
+              <th>Verdict</th>
+              <th>Differences</th>
+            </tr></thead>
+            <tbody>
+              <% report.slice().sort(function(a, b) { return b.version - a.version; }).forEach(function(entry) { %>
+                <tr>
+                  <td>v<%= entry.version %></td>
+                  <td>
+                    <% if (entry.compatible) { %>
+                      <span class="badge bg-success-subtle text-success border">Compatible</span>
+                    <% } else { %>
+                      <span class="badge bg-danger-subtle text-danger border">Incompatible</span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <% if (!entry.differences.length) { %>
+                      <span class="text-muted small">No differences.</span>
+                    <% } else { %>
+                      <ul class="small mb-0 ps-3">
+                        <% entry.differences.forEach(function(d) { %>
+                          <li class="<%= d.breaking ? 'text-danger' : 'text-muted' %>"><code><%= d.path %></code> — <%= d.kind %><% if (d.breaking) { %> (breaking)<% } %></li>
+                        <% }) %>
+                      </ul>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        <% } %>
+      </div>
+    </div>
+
+    <form method="POST" action="/aisworg/seu/sdk/schema-registry/publish">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="entityKind" value="<%= entityKind %>">
+      <input type="hidden" name="schemaJson" value="<%= schemaJson.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;') %>">
+      <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-cloud-upload me-1"></i>Publish</button>
+      <a href="/aisworg/seu/sdk/schema-registry/new?entityKind=<%= encodeURIComponent(entityKind) %>" class="btn btn-sm btn-link text-muted">Back to editing</a>
+    </form>
+  </main>
+
+  <%- include('../../../partials/footer') %>
+</body>
+</html>

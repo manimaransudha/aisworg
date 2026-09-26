@@ -1,6 +1,7 @@
 {
   "code": "legacy-modernisation",
   "name": "Legacy Modernisation",
+  "purpose": "Template for re-platforming or re-architecting an existing legacy system. Use this when the engagement starts from an already-operating system with existing data, users, and integrations that must be preserved or migrated, rather than building on a clean slate.",
   "mandatoryPackCodes": [
     "development",
     "requirements-analysis",

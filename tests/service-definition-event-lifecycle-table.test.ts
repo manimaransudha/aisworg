@@ -27,20 +27,33 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { serviceDefinitionsDB } from "../src/dblayer/serviceDefinitionsDB.js";
+import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { transitionServiceDefinition } from "../src/routes/seu/core/serviceDefinitions.js";
 
 // serviceDefinitionsDB.createDraft is a raw DB-layer insert (no
-// validateServiceDefinitionSeed call, no Ontology check on code/
-// capabilityCode) — same "bare Draft, one hop at a time" fixture pattern
+// validateServiceDefinitionSeed call — the hand-coded uniqueness/parent
+// checks are skipped) — same "bare Draft, one hop at a time" fixture pattern
 // freshTemplateDraft/freshProfileDraft already use, since these tests need
 // to observe ONE transition at a time, not exercise a full authoring flow.
+// createDraft DOES still enforce the schema's own x-ontology fields
+// (design/design whiteboards.md/schema_implementation.md), so capabilityCode
+// below is a real registered capability-name code, not a fabricated one.
+// CR-114 follow-on — serviceDefinitionsDB.createDraft's schemaDefinitionId is
+// now mandatory; resolved once and reused by every direct call in this file.
+async function requireServiceSchemaId(): Promise<string> {
+  const { data: serviceSchema } = await schemaDefinitionsDB.findLatest("Service");
+  if (!serviceSchema) throw new Error("no schema_definitions grammar for Service");
+  return serviceSchema.id;
+}
+
 async function freshServiceDefinitionDraft(): Promise<{ id: string }> {
   const { data: draft, error } = await serviceDefinitionsDB.createDraft({
     code: `test-service-definition-lifecycle-${randomUUID()}`,
     name: "Test Service Definition",
-    capabilityCode: "test-capability",
+    capabilityCode: "requirements-analysis",
+    schemaDefinitionId: await requireServiceSchemaId(),
   });
   if (error || !draft) throw error ?? new Error("failed to create Service Definition draft");
   return { id: draft.id };
@@ -102,9 +115,10 @@ test("REGRESSION: Service Definition inputs/outputs round-trip as real string ar
   const { data: draft, error } = await serviceDefinitionsDB.createDraft({
     code: `test-service-definition-io-${randomUUID()}`,
     name: "Test Service Definition IO",
-    capabilityCode: "test-capability",
+    capabilityCode: "requirements-analysis",
     inputs: ["requirements-specification", "domain-model"],
     outputs: ["source-code"],
+    schemaDefinitionId: await requireServiceSchemaId(),
   });
   assert.equal(error, undefined);
   assert.deepEqual(draft?.inputs, ["requirements-specification", "domain-model"]);
@@ -115,7 +129,8 @@ test("REGRESSION: Service Definition inputs/outputs round-trip as real string ar
   const { data: bare, error: bareError } = await serviceDefinitionsDB.createDraft({
     code: `test-service-definition-io-bare-${randomUUID()}`,
     name: "Test Service Definition IO Bare",
-    capabilityCode: "test-capability",
+    capabilityCode: "requirements-analysis",
+    schemaDefinitionId: await requireServiceSchemaId(),
   });
   assert.equal(bareError, undefined);
   assert.deepEqual(bare?.inputs, []);

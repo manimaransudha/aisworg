@@ -1,6 +1,7 @@
 {
   "code": "package-implementation",
   "name": "Package Implementation",
+  "purpose": "Template for implementing and configuring a third-party commercial or open-source package — an ERP, CMS, or CRM, for example — for a specific organisation. Use this when the primary engineering work is configuration, customisation, and integration of an existing product, not building new software from scratch.",
   "mandatoryPackCodes": [
     "development",
     "requirements-analysis",
