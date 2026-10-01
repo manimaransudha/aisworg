@@ -1,23 +1,4 @@
-// Identity baseline seed — the desired `tenants` + `users` state to restore
-// after a wipe. Captured from a live dump (2026-08-12) and turned into an
-// idempotent, repeatable seed so `db:clean-slate` lands on a known identity
-// baseline instead of an empty auth table.
-//
-// Runs as step 4 of cleanSlate.ts (after the SDK-authoring bootstrap), and
-// standalone:  npx tsx src/dblayer/seed/seedIdentityBaseline.ts
-//
-// Idempotent: upsert by primary key (ON CONFLICT (id) DO UPDATE). Explicit ids
-// are preserved so badge_grants.holder_id references (plain text user ids) stay
-// stable; the users serial is advanced past the max seeded id at the end, so a
-// user later created through the UI won't collide. Tenant UUIDs are preserved
-// too (the seeded `default` matches the migration-seeded row; the rest are
-// re-created after clean-slate's step 2d removes them).
-//
-// ⚠ PII NOTE: the Google account below carries a real email, avatar URL, and
-// OAuth provider_id (subject id). It is the SUPERUSER_EMAIL identity and it
-// re-creates itself on the next Google login (passportConfig + badgeBootstrap),
-// so it can safely be removed from this list if you'd rather not commit those
-// identifiers — the platform will re-provision it. Left in to match the dump.
+// Seed users
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -25,6 +6,8 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
+import { tenantsDB } from "../tenantsDB.js";
+import { PLATFORM_TENANT_NAME, DEMO_TENANT_NAME, ATHENS_TENANT_NAME, BABYLON_TENANT_NAME, CAMBODIA_TENANT_NAME} from "../constants.js";
 
 const require = createRequire(import.meta.url);
 const bcrypt = require("bcryptjs");
@@ -32,490 +15,104 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // CR-006 — fixture test users that HOLD noun_verb badge grants, so regression
 // can act as a non-root, badge-holding actor (root still bypasses via holder
-// "1"). Added to this baseline (owner, 2026-08-13) so a single `db:clean-slate`
+// "1"). Added to this baseline so a single `db:clean-slate`
 // lands a known set of granted testers. Ids sit in a reserved high range.
-const TESTER_ALL_ID = 1001; // holds every active noun_verb (any authorised transition)
-const TESTER_CREATOR_ID = 1002; // holds only *_create (can create, cannot approve)
-const TESTER_APPROVER_ID = 1003; // holds only *_approve (separation-of-duties)
-
-// CR-004: fixed ids for the reserved tenants, matching migration 033 so the
-// user seed can reference them deterministically.
-const PLATFORM_TENANT_ID = "11111111-1111-1111-1111-111111111111";
-const DEMO_TENANT_ID = "22222222-2222-2222-2222-222222222222";
-const DEFAULT_TENANT_ID = "17db886a-3c7a-4b17-8863-5783dc40e1ea";
-const ATHENS_TENANT_ID = "adfbc3d0-d00e-440b-a115-6b7988ca2865";
-const BABYLON_TENANT_ID = "28ced917-2d8a-446b-9bf2-531ab157e1fc";
-const CAMBODIA_TENANT_ID = "1cabe17c-c048-45f2-b89f-c815cd235ba3";
-
-interface SeedTenant {
-  id: string;
-  code: string;
-  name: string;
-  status: string;
-  is_system: boolean;
-  created_at: string;
-}
+// const TESTER_ALL_ID = integerToUUID(1001); // holds every active noun_verb (any authorised transition)
+// const TESTER_CREATOR_ID = integerToUUID(1002); // holds only *_create (can create, cannot approve)
+// const TESTER_APPROVER_ID = integerToUUID(1003); // holds only *_approve (separation-of-duties)
+ 
+const TENANTS = [PLATFORM_TENANT_NAME, DEMO_TENANT_NAME, ATHENS_TENANT_NAME, BABYLON_TENANT_NAME, CAMBODIA_TENANT_NAME];
 
 interface SeedUser {
-  id: number;
   email: string;
   name: string | null;
   avatar_url: string | null;
-  role: string;
+  display_name: string;
   auth_provider: string;
   provider_id: string | null;
   is_active: boolean;
   is_protected: boolean;
   type: "Platform" | "Tenant";
-  tenant_id: string;
-  created_at: string;
+  tenant_name: string;
+  participant_type: string;
+  capabilities: {};
+  competency: {};
+  behaviour_context: {};
+  authorised_role: {};
+  authorised_badges: {};
 }
-
-const TENANTS: SeedTenant[] = [
-  { id: PLATFORM_TENANT_ID, code: "platform", name: "Platform", status: "Operational", is_system: true, created_at: "2026-08-05T12:52:00.000Z" },
-  { id: DEMO_TENANT_ID, code: "demo", name: "Demo", status: "Operational", is_system: false, created_at: "2026-08-05T12:52:00.100Z" },
-  { id: DEFAULT_TENANT_ID, code: "default", name: "Default Tenant", status: "Operational", is_system: false, created_at: "2026-08-05T12:52:00.661Z" },
-  { id: ATHENS_TENANT_ID, code: "Athens", name: "Athens AI-Native", status: "Operational", is_system: false, created_at: "2026-08-12T10:46:48.952Z" },
-  { id: BABYLON_TENANT_ID, code: "Babylon", name: "Babylon AI-Native", status: "Operational", is_system: false, created_at: "2026-08-12T10:47:33.630Z" },
-  { id: CAMBODIA_TENANT_ID, code: "Cambodia", name: "Cambodia AI-Native", status: "Operational", is_system: false, created_at: "2026-08-12T10:53:16.495Z" },
-];
 
 const USERS: SeedUser[] = [
-  // Bug fix (owner: "the root is a platform user"): this is the row
-  // migration 012's own idempotent grant makes holder_id '1' -> 'root' —
-  // captured from a live dump that happened to have it as an Athens Tenant
-  // account, but root is Platform authority, not any one tenant's. type/
-  // tenant_id corrected to match; email/name left as-is (just an identifier).
-  { id: 1, email: "superadmin@athens.com", name: "Super Admin Athens", avatar_url: null, role: "super", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Platform", tenant_id: PLATFORM_TENANT_ID, created_at: "2026-08-12T10:41:58.157Z" },
-  { id: 2, email: "admin@babylon.com", name: "Super Admin Babylon", avatar_url: null, role: "super", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_id: BABYLON_TENANT_ID, created_at: "2026-08-12T10:42:48.956Z" },
-  { id: 3, email: "manimaransudha@gmail.com", name: "Sudha Manimaran", avatar_url: "https://lh3.googleusercontent.com/a/ACg8ocLc3inaHZWLhqyO7fQsg8BH-kIPu1U0LZlo1qoOhpFtkwbtUlAr=s96-c", role: "general", auth_provider: "google", provider_id: "115716324960384875593", is_active: true, is_protected: false, type: "Platform", tenant_id: PLATFORM_TENANT_ID, created_at: "2026-08-12T10:51:38.843Z" },
-  { id: 4, email: "admin@cambodia.com", name: "Super Admin Cambodia", avatar_url: null, role: "super", auth_provider: "local", provider_id: null, is_active: false, is_protected: false, type: "Tenant", tenant_id: CAMBODIA_TENANT_ID, created_at: "2026-08-12T10:52:37.106Z" },
-  // CR-006 fixture testers — non-root, hold noun_verb grants (below). role
-  // "general" so no role bypass; tenant = default.
-  { id: TESTER_ALL_ID, email: "tester-all@test.local", name: "Test — All Badges", avatar_url: null, role: "general", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_id: DEFAULT_TENANT_ID, created_at: "2026-08-13T00:00:00.000Z" },
-  { id: TESTER_CREATOR_ID, email: "tester-creator@test.local", name: "Test — Creator", avatar_url: null, role: "general", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_id: DEFAULT_TENANT_ID, created_at: "2026-08-13T00:00:00.100Z" },
-  { id: TESTER_APPROVER_ID, email: "tester-approver@test.local", name: "Test — Approver", avatar_url: null, role: "general", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_id: DEFAULT_TENANT_ID, created_at: "2026-08-13T00:00:00.200Z" },
+  {email: "superadmin@athens.com", name: "Super Admin Athens", avatar_url: null, display_name: "Athens admin", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Platform", tenant_name: ATHENS_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}] },
+  {email: "superadmin@babylon.com", name: "Super Admin Babylon", avatar_url: null, display_name: "Babylon admin", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: BABYLON_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}] },
+  {email: "superadmin@cambodia.com", name: "Super Admin Cambodia", avatar_url: null, display_name: "Cambodia admin", auth_provider: "local", provider_id: null, is_active: false, is_protected: false, type: "Tenant", tenant_name: CAMBODIA_TENANT_NAME ,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}] },
+  {email: "tester-all@test.local", name: "Test — All Badges", avatar_url: null, display_name: "Platform Test All", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Platform", tenant_name: PLATFORM_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}] },
+  {email: "tester-creator@test.local", name: "Test — Creator", avatar_url: null, display_name: "Platform Test Creator", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Platform", tenant_name: PLATFORM_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}] },
+  {email: "tester-approver@test.local", name: "Test — Approver", avatar_url: null, display_name: "Platform Test Approver", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Platform", tenant_name: PLATFORM_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}] },
 ];
-
-// Derive the noun_verb badge codes from the same source the vocabulary seed
-// uses, so this stays correct regardless of clean-slate step order (identity
-// baseline runs before the mapping is seeded).
-interface VocabTransition { entityType: string; verb: string }
-function nounVerbBadges(filter?: (verb: string) => boolean): string[] {
-  const raw = readFileSync(path.join(__dirname, "data", "authorityVocabulary.json"), "utf8");
-  const transitions = (JSON.parse(raw) as { transitions: VocabTransition[] }).transitions;
-  const set = new Set<string>();
-  for (const t of transitions) {
-    if (filter && !filter(t.verb)) continue;
-    set.add(`${t.entityType.toLowerCase()}_${t.verb}`);
-  }
-  return [...set].sort();
-}
-
-// Owner: "whenever a badge *_activate is given, *_reject also should be
-// given" — whoever's trusted to Activate a noun's own pending state is also
-// trusted to Reject it once Active. Written generically against whichever
-// noun's own verb set is passed in (only Objective has both today, since
-// Objective is the only noun with a real "reject" transition) rather than
-// hardcoded to "objective", same discipline objectiveVerbs()/packVerbs()/
-// entityLifecycleVerbs() below already use. One-directional: the *_reject
-// single-verb user does NOT also get *_activate.
-function badgesForVerb(noun: string, verb: string, allVerbsForNoun: string[]): string[] {
-  const badges = [`${noun}_${verb}`];
-  if (verb === "activate" && allVerbsForNoun.includes("reject")) badges.push(`${noun}_reject`);
-  return badges;
-}
-
-// The distinct Objective verbs (activate/achieve/supersede/retire/archive),
-// derived from the vocabulary so this stays correct if the graph changes.
-function objectiveVerbs(): string[] {
-  const raw = readFileSync(path.join(__dirname, "data", "authorityVocabulary.json"), "utf8");
-  const transitions = (JSON.parse(raw) as { transitions: VocabTransition[] }).transitions;
-  const set = new Set<string>();
-  for (const t of transitions) if (t.entityType === "Objective") set.add(t.verb);
-  return [...set].sort();
-}
-
-// Generic form of objectiveVerbs()/packVerbs() below — the distinct lifecycle
-// verbs for any entityType, derived from the vocabulary. Added 2026-08-18
-// alongside Template/Profile's six-hop lifecycle seed change, so their
-// authoring-fixture users (below) stop being pinned to a hardcoded
-// ["define","publish"] that stale the moment the seeded graph grows past it —
-// the same bug packVerbs()/objectiveVerbs() were already written to avoid.
-function entityLifecycleVerbs(entityType: string): string[] {
-  const raw = readFileSync(path.join(__dirname, "data", "authorityVocabulary.json"), "utf8");
-  const transitions = (JSON.parse(raw) as { transitions: VocabTransition[] }).transitions;
-  const set = new Set<string>();
-  for (const t of transitions) if (t.entityType === entityType) set.add(t.verb);
-  return [...set].sort();
-}
-
-// The distinct Pack lifecycle verbs (validate/publish/reject/activate/
-// retire/archive — CR-080: deprecate dropped, reject added), derived from
-// the vocabulary so this stays correct if the graph changes.
-function packVerbs(): string[] {
-  const raw = readFileSync(path.join(__dirname, "data", "authorityVocabulary.json"), "utf8");
-  const transitions = (JSON.parse(raw) as { transitions: VocabTransition[] }).transitions;
-  const set = new Set<string>();
-  for (const t of transitions) if (t.entityType === "Pack") set.add(t.verb);
-  return [...set].sort();
-}
-
-// CR-006 — Objective-authority test users are seeded for these two tenants:
-// one user per objective verb (holds a single objective_<verb> badge) + one
-// "objective_all" user (holds every objective_<verb>). Local login, password
-// "password". Ids sit in a reserved range per tenant.
-const OBJECTIVE_USER_TENANTS = [
-  { label: "Athens", tenantId: ATHENS_TENANT_ID, baseId: 2001, domain: "athens.com" },
-  { label: "Babylon", tenantId: BABYLON_TENANT_ID, baseId: 2011, domain: "babylon.com" },
-];
-
-// Pack-authority test users — Athens only (owner, 2026-08-13): one user per
-// pack lifecycle verb (holds a single pack_<verb> badge) + one "pack_all".
-// Reserved id range 2101+ (clear of the Objective users' 2001–2017).
-const PACK_USER_TENANTS = [
-  { label: "Athens", tenantId: ATHENS_TENANT_ID, baseId: 2101, domain: "athens.com" },
-];
-
-// Owner (2026-09-06: "Add 5 user ids in the seed files, participant1@athens.com,
-// participant1@babylon.com etc.") — plain Participant-eligible fixture
-// identities, 5 per tenant, Athens and Babylon. Unlike the Objective/Pack/
-// authoring users above, these hold no noun_verb badges at all (owner: "5
-// each" — a flat headcount, not an authority fixture) — they're for
-// exercising fulfilCapability/replaceParticipant (Ch.12/Ch.13) as ordinary
-// tenant members, not for badge-authority testing. Local login, password
-// "password", same as every other named test persona in this file. Reserved
-// id ranges 2401–2405 (Athens) / 2411–2415 (Babylon), clear of every range
-// above (2001–2017, 2101–2108, 2201–2232, 2301).
-const PARTICIPANT_USER_TENANTS = [
-  { label: "Athens", tenantId: ATHENS_TENANT_ID, baseId: 2401, domain: "athens.com" },
-  { label: "Babylon", tenantId: BABYLON_TENANT_ID, baseId: 2411, domain: "babylon.com" },
-];
-const PARTICIPANTS_PER_TENANT = 5;
-
-// Owner: "create a tenant user id for each of the tenants and assign the
-// tenant_admin badge." One admin user per tenant, all 6 including Platform,
-// holding the real `tenant_admin` badge (badge_types, migration 012,
-// scope_kind 'Tenant') scoped to that tenant's own id — a real Layer-1
-// authority grant, not the role='super' users in USERS above, which bypass
-// authority entirely via the legacy `role` column (role != authority, per
-// this platform's own standing rule). Local login, password "password", same
-// as every other fixture persona here. Reserved id range 2501–2506, clear of
-// every range above (2001–2017, 2101–2108, 2201–2232, 2301, 2401–2415).
-// Migration 202 — 'tenant_super' added to users.role's own CHECK constraint,
-// value only for now (owner: "for now add the role. Will explain what to do
-// in a moment") — not yet wired into ROLE_LEVEL/requireRole
-// (middleware/auth.js); it grants no requireRole-gated access today.
-const TENANT_ADMIN_USERS = TENANTS.map((t, i) => ({
-  id: 2501 + i,
-  // .toLowerCase() — Athens/Babylon/Cambodia's own tenant.code is
-  // proper-noun-cased; users.email has no case-folding at the column level
-  // and login (passportConfig.js's userDB.findByEmail) always lowercases the
-  // search term, so an un-lowercased email here can never be found again.
-  email: `tenant-admin@${t.code.toLowerCase()}.com`,
-  name: `${t.name} — Tenant Admin`,
-  tenantId: t.id,
-  role: "tenant_super",
-  // Platform's own admin is a Platform-type identity (mirrors
-  // platformPackAllUser's own precedent below); every other tenant's admin
-  // is Tenant-type, scoped to itself.
-  type: (t.code === "platform" ? "Platform" : "Tenant") as "Platform" | "Tenant",
-}));
-
-// Owner (2026-08-17): a PLATFORM (not Tenant) pack_all holder — same badge set
-// as pack-all@athens.com, but a Platform-type identity, so pack authority can
-// be exercised/tested from the Platform tenant too, not just Athens. Reserved
-// id 2301 (clear of the Objective/Pack/Authoring ranges above, 2001–2230ish).
-const PLATFORM_PACK_ALL_ID = 2301;
-const PLATFORM_PACK_ALL_EMAIL = "pack_all@platform.com";
 
 export async function seedIdentityBaseline(): Promise<void> {
   const client = await pool.connect();
+  const superuserEmail = (process.env.SUPERUSER_EMAIL || "").toLowerCase();
+  if (superuserEmail) {
+    const result = await client.query(
+      `SELECT * from users
+         WHERE lower(email) = $1`,
+      [superuserEmail]
+    );
+    if (result.rows.length === 0) {
+      logger.error(`[seed:identity-baseline] superuser not provisioned; aborting seed.`);
+      client.release();
+      return;
+    }
+  }
+    
   try {
     await client.query("BEGIN");
-
-    for (const t of TENANTS) {
-      await client.query(
-        `INSERT INTO tenants (id, code, name, status, is_system, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         ON CONFLICT (id) DO UPDATE SET code = EXCLUDED.code, name = EXCLUDED.name, status = EXCLUDED.status, is_system = EXCLUDED.is_system`,
-        [t.id, t.code, t.name, t.status, t.is_system, t.created_at]
-      );
-    }
-    logger.info(`[seed:identity-baseline] upserted ${TENANTS.length} tenants.`);
-
     for (const u of USERS) {
-      await client.query(
-        `INSERT INTO users (id, email, name, avatar_url, role, auth_provider, provider_id, is_active, is_protected, type, tenant_id, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      const tenantResult = await tenantsDB.findByName(u.tenant_name);
+      if (tenantResult.error) {
+        throw new Error("Error retrieving tenant details");
+      }
+      const tenantId = tenantResult.data?.id ?? null;
+
+      if (!tenantId) {
+        logger.error(`[seed:identity-baseline] tenant not provisioned`);
+        continue;
+      }
+
+      let result = await client.query(
+        `INSERT INTO users (email, name, avatar_url, auth_provider, provider_id, is_active, is_protected, type, tenant_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          ON CONFLICT (id) DO UPDATE SET
-           email = EXCLUDED.email, name = EXCLUDED.name, avatar_url = EXCLUDED.avatar_url,
-           role = EXCLUDED.role, auth_provider = EXCLUDED.auth_provider, provider_id = EXCLUDED.provider_id,
+           email = EXCLUDED.email, name = EXCLUDED.name, avatar_url = EXCLUDED.avatar_url, auth_provider = EXCLUDED.auth_provider, provider_id = EXCLUDED.provider_id,
            is_active = EXCLUDED.is_active, is_protected = EXCLUDED.is_protected,
-           type = EXCLUDED.type, tenant_id = EXCLUDED.tenant_id`,
-        [u.id, u.email, u.name, u.avatar_url, u.role, u.auth_provider, u.provider_id, u.is_active, u.is_protected, u.type, u.tenant_id, u.created_at]
+           type = EXCLUDED.type, tenant_id = EXCLUDED.tenant_id
+         RETURNING id`,
+        [u.email, u.name, u.avatar_url, u.auth_provider, u.provider_id, u.is_active, u.is_protected, u.type, tenantId]
       );
+      // the insert returns an id. this id has to be populated in the participants_master as the user_id.
+       await client.query(
+  `INSERT INTO participants_master
+   (tenant_id, type, display_name, capabilities, competency, behaviour_context,
+    authorised_role, authorised_badges, is_active, user_id)
+   SELECT $1, $2, $3, $4::jsonb, $5::jsonb, $6::jsonb,
+          $7::jsonb, $8::jsonb, TRUE, $9`,
+    [ 
+    tenantId,
+    u.participant_type,
+    u.display_name,
+    JSON.stringify(u.capabilities),
+    JSON.stringify(u.competency),
+    JSON.stringify(u.behaviour_context),
+    JSON.stringify(u.authorised_role),
+    JSON.stringify(u.authorised_badges),
+    result.rows[0].id
+    ]
+  );
+
     }
     logger.info(`[seed:identity-baseline] upserted ${USERS.length} users.`);
-
-    // Owner: "In clean-slate when root is populated, the authorised_role for
-    // this id has to be superuser." User id 1 is root (migration 012's own
-    // idempotent badge_grants row, holder_id '1' -> 'root'). requireRole
-    // (middleware/requireRole.ts) reads authorised_role off the actor's OWN
-    // participants_master row (participantsMasterDB.findByUserId) — root has
-    // none by default, so without this it would need the dev-only root-badge
-    // bypass to pass any requireRole check; this gives it the real,
-    // production-safe 'superuser' grant instead (migration 254/255). No
-    // unique constraint on participants_master.user_id (CR-098 never needed
-    // one), so idempotency is explicit: create the row only if none exists
-    // for user 1, then separately ensure 'superuser' is present on whichever
-    // row does exist — same idempotent-append shape migration 255's own
-    // backfill already uses.
-    await client.query(
-      `INSERT INTO participants_master (tenant_id, type, display_name, capabilities, competency, behaviour_context, authorised_role, authorised_badges, is_active, user_id)
-       SELECT $1, 'Human', 'Root', '[]'::jsonb, '{}'::jsonb, '[]'::jsonb, '[{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}]'::jsonb, '[{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}]'::jsonb, TRUE, 1
-       WHERE NOT EXISTS (SELECT 1 FROM participants_master WHERE user_id = 1)`,
-      [PLATFORM_TENANT_ID]
-    );
-    await client.query(
-      `UPDATE participants_master
-       SET authorised_role = authorised_role || '[{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}]'::jsonb
-       WHERE user_id = 1
-         AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(authorised_role) AS entry WHERE entry->>'role' = 'superuser')`
-    );
-    // Owner: "clean-slate root should include the badge root" —
-    // badgeAuthorityEngine.getHeldBadges (domain/engine/badgeAuthorityEngine.ts)
-    // now reads authorised_badges instead of badge_grants, so root's own
-    // bypass needs this the same way it needed the superuser role above.
-    await client.query(
-      `UPDATE participants_master
-       SET authorised_badges = authorised_badges || '[{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}]'::jsonb
-       WHERE user_id = 1
-         AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(authorised_badges) AS entry WHERE entry->>'badge' = 'root')`
-    );
-    logger.info(`[seed:identity-baseline] ensured root (user 1) holds the superuser authorised_role and root authorised_badge.`);
-
-    // Owner: same 'superuser' authorised_role grant as user 1 above, for the
-    // SUPERUSER_EMAIL identity itself (env-configured, seeded as user 3 in
-    // USERS above) — badgeBootstrap.ts already grants this identity the
-    // `root` badge on login, but never the 'superuser' role, so it bypasses
-    // requireBadge checks but not requireRole/navRouteAccess's own separate
-    // roles check (route_authority rows gated on roles, not badges). Looked
-    // up by email (not the hardcoded id 3) so this stays correct if
-    // SUPERUSER_EMAIL ever points at a different seeded row.
-    const superuserEmail = (process.env.SUPERUSER_EMAIL || "").toLowerCase();
-    if (superuserEmail) {
-      await client.query(
-        `INSERT INTO participants_master (tenant_id, type, display_name, capabilities, competency, behaviour_context, authorised_role, authorised_badges, is_active, user_id)
-         SELECT $2, 'Human', 'Superuser', '[]'::jsonb, '{}'::jsonb, '[]'::jsonb, '[{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}]'::jsonb, '[]'::jsonb, TRUE, u.id
-         FROM users u
-         WHERE lower(u.email) = $1
-           AND NOT EXISTS (SELECT 1 FROM participants_master WHERE user_id = u.id)`,
-        [superuserEmail, PLATFORM_TENANT_ID]
-      );
-      await client.query(
-        `UPDATE participants_master
-         SET authorised_role = authorised_role || '[{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}]'::jsonb
-         WHERE user_id = (SELECT id FROM users WHERE lower(email) = $1)
-           AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(authorised_role) AS entry WHERE entry->>'role' = 'superuser')`,
-        [superuserEmail]
-      );
-      logger.info(`[seed:identity-baseline] ensured SUPERUSER_EMAIL (${superuserEmail}) holds the superuser authorised_role.`);
-    }
-
-    // CR-006 — Objective-authority users for Athens & Babylon: one per objective
-    // verb (single objective_<verb> badge) + one "objective_all" (all of them).
-    // Local login, password "password"; role general (authority comes from the
-    // badge, not the role).
-    // The 5 Objective transition verbs (activate/achieve/supersede/retire/
-    // archive) plus `propose` — the creation act. Objective is created directly
-    // into Proposed with no fan-in edge (Ch.1 §18.10), so `propose` has no
-    // transition_definition; obj-propose still holds objective_propose. Making
-    // objective_propose a *governed* badge (vocab + mapping + createObjective
-    // enforcement) is a separate follow-up.
-    const objVerbs = [...objectiveVerbs(), "propose"];
-    const passwordHash = await bcrypt.hash("password", 12);
-    const objectiveUsers: Array<{ id: number; email: string; name: string; tenantId: string; badges: string[] }> = [];
-    for (const t of OBJECTIVE_USER_TENANTS) {
-      objVerbs.forEach((verb, i) => {
-        objectiveUsers.push({ id: t.baseId + i, email: `obj-${verb}@${t.domain}`, name: `${t.label} — objective_${verb}`, tenantId: t.tenantId, badges: badgesForVerb("objective", verb, objVerbs) });
-      });
-      objectiveUsers.push({ id: t.baseId + objVerbs.length, email: `obj-all@${t.domain}`, name: `${t.label} — objective_all`, tenantId: t.tenantId, badges: objVerbs.map((v) => `objective_${v}`) });
-    }
-    // CR-006 — Pack-authority users for Athens: one per pack lifecycle verb
-    // (single pack_<verb> badge) + one "pack_all". Same shape/rationale as the
-    // Objective users above; local login, password "password", role general.
-    // The 6 Pack transition verbs (validate/publish/activate/deprecate/retire/
-    // archive) plus `define` — the creation act (birth into Draft). Exactly like
-    // Objective's `propose`: creation is NOT a transition (a birth has no
-    // fromState, and from_state is NOT NULL), so `define` has no
-    // transition_definition and is NOT in the noun→verb mapping — authority is
-    // decoupled from the initial-state transition. pack-define simply holds the
-    // pack_define badge. Making it a *governed* create (vocab + mapping +
-    // createPackDraft enforcement) is the same separate follow-up noted for
-    // objective_propose.
-    const pkVerbs = [...packVerbs(), "define"];
-    const packUsers: Array<{ id: number; email: string; name: string; tenantId: string; badges: string[] }> = [];
-    for (const t of PACK_USER_TENANTS) {
-      pkVerbs.forEach((verb, i) => {
-        packUsers.push({ id: t.baseId + i, email: `pack-${verb}@${t.domain}`, name: `${t.label} — pack_${verb}`, tenantId: t.tenantId, badges: badgesForVerb("pack", verb, pkVerbs) });
-      });
-      packUsers.push({ id: t.baseId + pkVerbs.length, email: `pack-all@${t.domain}`, name: `${t.label} — pack_all`, tenantId: t.tenantId, badges: pkVerbs.map((v) => `pack_${v}`) });
-    }
-
-    // CR-014 — SDK authoring authority users for the other three authorable
-    // nouns (Template/Profile/TransitionDefinition), so every authoring surface
-    // is testable now that sdk_creator/sdk_approver are retired. `{noun}_define`
-    // = author, one per verb + one "{noun}_all". Athens only, reserved id
-    // ranges (clear of pack 2101–2108, objective 2001–2017) — each range is
-    // 10 ids wide, enough for Template/Profile's now-7 verbs (define + the six
-    // lifecycle verbs, same shape as pkVerbs above) plus the "-all" user.
-    //
-    // Bug fix (owner, 2026-08-18): `verbs` used to be one hardcoded
-    // `["define", "publish"]` shared by all three nouns — correct back when
-    // Template/Profile genuinely only had that one lifecycle hop, but it
-    // silently stayed frozen there after the seed change gave them Pack's full
-    // six-hop lifecycle (transitionDefinitions.json / authorityVocabulary.json),
-    // so template-all@/profile-all@ etc. kept holding only 2 of their now 7
-    // badges. Template/Profile derive their verb list the same way Pack's own
-    // pkVerbs does (entityLifecycleVerbs, mirroring packVerbs); TransitionDefinition
-    // is authored through its own noun × verb form instead (CR-019, not this
-    // pipeline) and genuinely still only has define/publish, so it stays explicit.
-    const AUTHORING_NOUNS: Array<{ noun: string; slug: string; baseId: number; verbs: string[] }> = [
-      { noun: "template", slug: "template", baseId: 2201, verbs: [...entityLifecycleVerbs("Template"), "define"] },
-      { noun: "profile", slug: "profile", baseId: 2211, verbs: [...entityLifecycleVerbs("Profile"), "define"] },
-      { noun: "transitiondefinition", slug: "transdef", baseId: 2221, verbs: ["define", "publish"] },
-      // CR-022 — ontology_define gates add/retire on a tenant's OWN Ontology
-      // vocabulary (never Platform's, which stays root-only regardless of
-      // this badge). Single-verb noun, same shape TransitionDefinition's own
-      // authority-vocabulary management already has (one badge covers the
-      // whole CRUD surface — no separate "retire" verb).
-      { noun: "ontology", slug: "ontology", baseId: 2231, verbs: ["define"] },
-    ];
-    const authoringUsers: Array<{ id: number; email: string; name: string; tenantId: string; badges: string[] }> = [];
-    for (const n of AUTHORING_NOUNS) {
-      n.verbs.forEach((verb, i) => {
-        authoringUsers.push({ id: n.baseId + i, email: `${n.slug}-${verb}@athens.com`, name: `Athens — ${n.noun}_${verb}`, tenantId: ATHENS_TENANT_ID, badges: badgesForVerb(n.noun, verb, n.verbs) });
-      });
-      authoringUsers.push({ id: n.baseId + n.verbs.length, email: `${n.slug}-all@athens.com`, name: `Athens — ${n.noun}_all`, tenantId: ATHENS_TENANT_ID, badges: n.verbs.map((v) => `${n.noun}_${v}`) });
-    }
-
-    // Participant fixture users — 5 per tenant (Athens, Babylon), no badges
-    // (see PARTICIPANT_USER_TENANTS' own comment above).
-    const participantUsers: Array<{ id: number; email: string; name: string; tenantId: string; badges: string[] }> = [];
-    for (const t of PARTICIPANT_USER_TENANTS) {
-      for (let i = 1; i <= PARTICIPANTS_PER_TENANT; i++) {
-        participantUsers.push({ id: t.baseId + i - 1, email: `participant${i}@${t.domain}`, name: `${t.label} — Participant ${i}`, tenantId: t.tenantId, badges: [] });
-      }
-    }
-
-    // Owner (2026-08-17): a Platform-type pack_all holder — same 7-badge set as
-    // pack-all@athens.com (validate/publish/activate/deprecate/retire/archive/
-    // define), but type "Platform" with tenant_id the reserved Platform tenant,
-    // not a Tenant identity. Reuses the shared authority-user insert + grant
-    // path below (which needed generalising from a hardcoded 'Tenant' literal
-    // to a real per-user `type` to allow this).
-    const platformPackAllUser = { id: PLATFORM_PACK_ALL_ID, email: PLATFORM_PACK_ALL_EMAIL, name: "Platform — pack_all", tenantId: PLATFORM_TENANT_ID, badges: pkVerbs.map((v) => `pack_${v}`), type: "Platform" as const };
-
-    // All authority-user sets share one insert + grant path. Tenant-scoped by
-    // default; platformPackAllUser is the one Platform-type exception.
-    const authorityUsers = [
-      ...objectiveUsers.map((u) => ({ ...u, type: "Tenant" as const })),
-      ...packUsers.map((u) => ({ ...u, type: "Tenant" as const })),
-      ...authoringUsers.map((u) => ({ ...u, type: "Tenant" as const })),
-      ...participantUsers.map((u) => ({ ...u, type: "Tenant" as const })),
-      // badges: [] here deliberately — tenant_admin is scope_kind 'Tenant'
-      // and needs a real scope_id (the tenant's own id), which the flat,
-      // scope-less badge_grants insert loop below (built from this same
-      // array's own `badges` field) can't express. Granted separately, after
-      // that loop, once these users' own rows already exist.
-      // Owner (2026-09-22): "tenant_admin will have identity_manage" — the
-      // Ontology-registered badges:tenant successor (migration 256), not the
-      // old badge_grants-scoped tenant_admin badge_types row.
-      ...TENANT_ADMIN_USERS.map((u) => ({ ...u, badges: ["identity_manage"] as string[] })),
-      platformPackAllUser,
-    ];
-    for (const u of authorityUsers) {
-      await client.query(
-        `INSERT INTO users (id, email, name, avatar_url, role, auth_provider, provider_id, is_active, is_protected, type, tenant_id, password_hash, created_at)
-         VALUES ($1, $2, $3, NULL, $4, 'local', NULL, TRUE, FALSE, $5, $6, $7, NOW())
-         ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, role = EXCLUDED.role,
-           type = EXCLUDED.type, tenant_id = EXCLUDED.tenant_id, password_hash = EXCLUDED.password_hash, is_active = TRUE`,
-        // "role" in u ? u.role : "general" — every set here is a plain object
-        // literal except TENANT_ADMIN_USERS, the one with its own real role.
-        [u.id, u.email, u.name, "role" in u ? u.role : "general", u.type, u.tenantId, passwordHash]
-      );
-    }
-    logger.info(`[seed:identity-baseline] upserted ${objectiveUsers.length} Objective-authority + ${packUsers.length} Pack-authority (Tenant) + 1 Pack-authority (Platform) + ${participantUsers.length} Participant fixture users + ${TENANT_ADMIN_USERS.length} Tenant Admin users (password "password").`);
-
-    // Owner (2026-09-22): "fix the test seed to use participants_masters
-    // badge column... I want the table dropped" — fixture noun_verb badges
-    // move from badge_grants to each holder's own
-    // participants_master.authorised_badges (migration 257), unscoped
-    // (seu_ids: [] — "badge does not need seuid"). Idempotent: overwrite
-    // (not append) each holder's authorised_badges every run, same as the
-    // old DELETE-then-reinsert did.
-    const fixtureGrants: Array<{ holderId: number; tenantId: string; badges: string[] }> = [
-      // CR-072 — objective_propose governs Objective creation/Submit, not a
-      // transition_definitions row (Objective's own genesis state, Proposed,
-      // has no incoming transition to derive a verb from) — nounVerbBadges()
-      // can't see it, since it only reads the transitions graph. Added
-      // explicitly so "holds every active noun_verb" stays true for this
-      // real, actively-checked badge too.
-      //
-      // Ch.18 Ontology (migration 190) — ontology_define is the identical
-      // shape: an authoringMappings-only verb (Ontology concepts have no
-      // Draft-creation transitions_definitions row either, "creation
-      // authority is not a transition"), invisible to nounVerbBadges()'s own
-      // transitions-only read. ontology_deprecate/retire/archive ARE real
-      // transitions-graph verbs and nounVerbBadges() already covers them —
-      // only the authoring verb needed the same manual addition as
-      // objective_propose.
-      { holderId: TESTER_ALL_ID, tenantId: DEFAULT_TENANT_ID, badges: [...nounVerbBadges(), "objective_propose", "ontology_define"].sort() },
-      { holderId: TESTER_CREATOR_ID, tenantId: DEFAULT_TENANT_ID, badges: nounVerbBadges((v) => v === "create") },
-      { holderId: TESTER_APPROVER_ID, tenantId: DEFAULT_TENANT_ID, badges: nounVerbBadges((v) => v === "approve") },
-      // TENANT_ADMIN_USERS' own badges is already ["identity_manage"] (set
-      // above, in authorityUsers) — the Ontology badges:tenant successor to
-      // the old badge_grants-scoped tenant_admin (owner: "tenant_admin will
-      // have identity_manage").
-      ...authorityUsers.map((u) => ({ holderId: u.id, tenantId: u.tenantId, badges: u.badges })),
-    ];
-    let grantCount = 0;
-    for (const { holderId, tenantId, badges } of fixtureGrants) {
-      const authorisedBadgesJson = JSON.stringify(badges.map((badge) => ({ badge, effective_till: "9999-12-31", seu_ids: [] as string[] })));
-      await client.query(
-        `INSERT INTO participants_master (tenant_id, type, display_name, capabilities, competency, behaviour_context, authorised_badges, is_active, user_id)
-         SELECT $1, 'Human', 'Fixture', '[]'::jsonb, '{}'::jsonb, '[]'::jsonb, $2::jsonb, TRUE, $3
-         WHERE NOT EXISTS (SELECT 1 FROM participants_master WHERE user_id = $3)`,
-        [tenantId, authorisedBadgesJson, holderId]
-      );
-      await client.query("UPDATE participants_master SET authorised_badges = $1::jsonb WHERE user_id = $2", [authorisedBadgesJson, holderId]);
-      grantCount += badges.length;
-    }
-    logger.info(`[seed:identity-baseline] seeded ${grantCount} fixture noun_verb/admin badges across ${fixtureGrants.length} test users' own participants_master rows.`);
-
-    // CR-110 — /tenant-admin/users moved off the legacy users.role==='tenant_super'
-    // check onto the modern requireRole(['tenant_admin']) (participants_master.
-    // authorised_role), same shape as root's own 'superuser' grant above. Without
-    // this, TENANT_ADMIN_USERS keep the identity_manage BADGE (granted above) but
-    // have no matching authorised_role ROLE entry, and would be locked out of
-    // their own tenant User Management screen on the very next clean-slate.
-    for (const u of TENANT_ADMIN_USERS) {
-      await client.query(
-        `UPDATE participants_master SET authorised_role = authorised_role || '[{"role":"tenant_admin","effective_till":"9999-12-31","seu_ids":[]}]'::jsonb
-         WHERE user_id = $1
-           AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(authorised_role) AS entry WHERE entry->>'role' = 'tenant_admin')`,
-        [u.id]
-      );
-    }
-    logger.info(`[seed:identity-baseline] ensured ${TENANT_ADMIN_USERS.length} Tenant Admin users hold the tenant_admin authorised_role.`);
-
-    // Advance the serial past the highest seeded id so the next UI-created user
-    // doesn't collide with a seeded id (clean-slate's RESTART IDENTITY leaves
-    // the sequence at 1). Requires users_id_seq to be owned by this role — the
-    // same ownership clean-slate's RESTART IDENTITY needs.
-    await client.query("SELECT setval('users_id_seq', (SELECT COALESCE(MAX(id), 1) FROM users), true)");
-
     await client.query("COMMIT");
     logger.info("[seed:identity-baseline] done.");
   } catch (err) {

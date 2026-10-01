@@ -13,10 +13,17 @@ import { checklistsDB } from "../../../dblayer/checklistsDB.js";
 import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
 import { resolveLabels, validateOntologyFieldsAgainstSchema, validateComposableFieldsAgainstSchema } from "./ontology.js";
 import { listTransitionsForEntityType } from "./policyDefinitions.js";
-import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
+import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import type { CapabilityRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../../../dblayer/seuTypes.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 export interface TemplateCandidate {
   id: string;
@@ -782,12 +789,12 @@ export async function deriveDedupedCapabilitiesFromPackCodes(packCodes: string[]
 // six category-scoped Pack selections, then derive and store
 // requiredCapabilityCodes fresh from that same selection (never read from
 // the seed itself — there's nothing to read, it's not an input any more).
-async function materialisePackSelectionsAndCapabilities(templateId: string, seed: TemplateSeedInput): Promise<{ ok: true } | { ok: false; errors: string[] }> {
+async function materialisePackSelectionsAndCapabilities(templateId: string, seed: TemplateSeedInput, authorId: string, authorBadge: string): Promise<{ ok: true } | { ok: false; errors: string[] }> {
   for (const slot of PACK_SELECTION_SLOTS) {
-    await templatesDB.setPackSelection(templateId, slot.listKind, (seed[slot.field] as string[] | undefined) ?? []);
+    await templatesDB.setPackSelection(templateId, slot.listKind, (seed[slot.field] as string[] | undefined) ?? [], authorId, authorBadge);
   }
   const capabilities = await deriveDedupedCapabilitiesFromPackCodes(collectAllPackCodes(seed));
-  await templatesDB.setRequiredCapabilities(templateId, capabilities.map((c) => c.id));
+  await templatesDB.setRequiredCapabilities(templateId, capabilities.map((c) => c.id), authorId, authorBadge);
   // Bug fix (owner, 2026-09-06: same root cause as Profile's own — "publishTemplate's
   // own upsert() never writes draft_content") — exposedParameters (and `purpose`)
   // never persisted through publishTemplate/seedSdlcStandardTemplates.ts, only
@@ -843,12 +850,25 @@ export type PublishTemplateResult = { ok: true; templateId: string; alreadyExist
 // CR-024/026's own supersede-previous-Active logic on the Published ->
 // Active hop comes along for free. Requires a real actor now, since every
 // hop is genuinely governed (mirrors publishPack's own actorRole/actorId).
-export async function publishTemplate(input: { seed: TemplateSeedInput; actorRole: string; actorId?: string }): Promise<PublishTemplateResult> {
+export async function publishTemplate(input: { seed: TemplateSeedInput; actorRole: string; actorId: string }): Promise<PublishTemplateResult> {
   const { seed, actorRole, actorId } = input;
   const validation = await validateTemplateSeed(seed);
   if (!validation.ok) return { ok: false, errors: validation.errors };
 
   const tenantId = seed.tenantId ?? PLATFORM_TENANT_ID;
+
+  // templates.authored_by/author_badge (and dependency_definitions.author_id/
+  // author_badge, materialised alongside) are participants_master-scoped and
+  // NOT NULL — a bootstrap/seed-facing publish needs a real actor the same
+  // way the interactive SDK authoring path does (sdkAuthoring.ts), never a
+  // default/null. Resolved once, up front, so both the idempotent-reseed
+  // branch below and the fresh-Draft branch share the same real actor/badge.
+  if (!actorId) return { ok: false, errors: ["publishTemplate requires a real actorId to author the Draft"] };
+  const auth = await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "template_define" });
+  if (!auth.allowed) return { ok: false, errors: [`actor "${actorId}" does not hold template_define`] };
+  const { data: templateMaster } = await participantsMasterDB.findById(actorId);
+  if (!templateMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+  const authorBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? "template_define");
 
   // Idempotent reseed (mirrors createPackDraft's own findByCodeAndVersion
   // check exactly): a second publish under the same (code, templateVersion,
@@ -857,7 +877,7 @@ export async function publishTemplate(input: { seed: TemplateSeedInput; actorRol
   // used to serve, without landing a brand-new version anywhere but Draft.
   const { data: existing } = await templatesDB.findByCodeAndVersion(seed.code, seed.templateVersion, tenantId);
   if (existing) {
-    const materialiseResult = await materialiseTemplateDraft(existing.id, seed);
+    const materialiseResult = await materialiseTemplateDraft(existing.id, seed, templateMaster.id, authorBadge);
     if (!materialiseResult.ok) return materialiseResult;
     return { ok: true, templateId: existing.id, alreadyExists: true };
   }
@@ -871,6 +891,8 @@ export async function publishTemplate(input: { seed: TemplateSeedInput; actorRol
     code: seed.code,
     name: seed.name,
     templateVersion: seed.templateVersion,
+    authoredBy: templateMaster.id,
+    authorBadge,
     tenantId,
     parentTemplateId: seed.parentTemplateId,
     // `purpose` is schema-required (CR-023); materialiseTemplateDraft below
@@ -882,7 +904,7 @@ export async function publishTemplate(input: { seed: TemplateSeedInput; actorRol
   });
   if (error || !draft) return { ok: false, errors: [(error ?? new Error("failed to create template draft")).message] };
 
-  const materialiseResult = await materialiseTemplateDraft(draft.id, seed);
+  const materialiseResult = await materialiseTemplateDraft(draft.id, seed, templateMaster.id, authorBadge);
   if (!materialiseResult.ok) return materialiseResult;
 
   // CR-025 — real named events (Ch.6 §16), mirroring PackRegistered
@@ -934,7 +956,7 @@ const TERMINAL_REACTIVATABLE_STATES = new Set(["Deprecated", "Retired", "Archive
 // used to carry (CR-025's own per-state-named events are unchanged in
 // substance, just relocated from code to data — mirrors how Pack's identical
 // map was replaced, migration 184).
-export async function transitionTemplate(input: { templateId: string; targetState: TemplateRow["status"]; actorRole: string; actorId?: string }): Promise<TransitionTemplateResult> {
+export async function transitionTemplate(input: { templateId: string; targetState: TemplateRow["status"]; actorRole: string; actorId: string }): Promise<TransitionTemplateResult> {
   const { data: template } = await templatesDB.findById(input.templateId);
   if (!template) return { ok: false, reason: "not_found" };
   const fromState = template.status;
@@ -951,7 +973,7 @@ export async function transitionTemplate(input: { templateId: string; targetStat
   }
 
   if (input.targetState === "Active" && TERMINAL_REACTIVATABLE_STATES.has(fromState)) {
-    return reactivateAsNewVersion(template, input.actorRole, input.actorId);
+    return reactivateAsNewVersion(template, input.actorRole, input.actorId, gate.authorityBadge);
   }
 
   const { data: updated, error } = await templatesDB.updateStatus(template.id, input.targetState);
@@ -991,7 +1013,7 @@ async function nextAvailablePatchVersion(code: string, fromVersion: string, tena
 // (CR-023) lives only in draft_content, not a real column, so it's carried
 // through explicitly rather than via templatesDB.getRequiredCapabilities-style
 // column reads.
-async function reactivateAsNewVersion(template: TemplateRow, actorRole: string, actorId: string | undefined): Promise<TransitionTemplateResult> {
+async function reactivateAsNewVersion(template: TemplateRow, actorRole: string, actorId: string, authorBadge: string | null): Promise<TransitionTemplateResult> {
   const nextVersion = await nextAvailablePatchVersion(template.code, template.template_version, template.tenant_id);
   const packSelections = await getPackSelectionsByCategory(template.id);
   const seed: TemplateSeedInput = {
@@ -1020,11 +1042,21 @@ async function reactivateAsNewVersion(template: TemplateRow, actorRole: string, 
   // pre-CR-114 row that somehow has none.
   const { data: reactivationSchema } = template.schema_definition_id ? { data: { id: template.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Template");
   if (!reactivationSchema) return { ok: false, reason: "policy_blocked", detail: `no schema_definitions grammar for Template` };
+  // templates.authored_by/author_badge are participants_master-scoped and NOT
+  // NULL — the new Version's Draft is authored by the real actor performing
+  // this reactivation, under the real badge transitionEngine.evaluate (above)
+  // just authorised this hop under (gate.authorityBadge), never carried
+  // forward from the terminal row's own original author.
+  if (!actorId) return { ok: false, reason: "policy_blocked", detail: "reactivation requires a real actorId to author the new Version's Draft" };
+  if (!authorBadge) return { ok: false, reason: "policy_blocked", detail: "no authority badge resolved for this Template reactivation" };
+  const { data: reactivateMaster } = await participantsMasterDB.findById(actorId);
+  if (!reactivateMaster) return { ok: false, reason: "policy_blocked", detail: `No superuser provisioned.` };
   const { data: newDraft, error } = await templatesDB.createDraft({
     code: seed.code,
     name: seed.name,
     templateVersion: nextVersion,
-    authoredBy: template.authored_by,
+    authoredBy: reactivateMaster.id,
+    authorBadge,
     draftContent: { ...seed, purpose },
     tenantId: template.tenant_id,
     parentTemplateId: template.parent_template_id,
@@ -1032,7 +1064,7 @@ async function reactivateAsNewVersion(template: TemplateRow, actorRole: string, 
   });
   if (error || !newDraft) return { ok: false, reason: "policy_blocked", detail: (error ?? new Error("failed to create new Template version")).message };
 
-  const materialiseResult = await materialiseTemplateDraft(newDraft.id, seed);
+  const materialiseResult = await materialiseTemplateDraft(newDraft.id, seed, reactivateMaster.id, authorBadge);
   if (!materialiseResult.ok) return { ok: false, reason: "policy_blocked", detail: materialiseResult.errors.join("; ") };
 
   let current = newDraft;
@@ -1061,7 +1093,7 @@ async function reactivateAsNewVersion(template: TemplateRow, actorRole: string, 
 // carries through unchanged from the source (a copy of a Derived Template is
 // still Derived from the same parent; a copy is not itself a new Inheritance
 // edge).
-export async function copyTemplateAsNewDraft(templateId: string, actorId: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
+export async function copyTemplateAsNewDraft(templateId: string, actorId: string, authorBadge: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await templatesDB.findById(templateId);
   if (!source) return { ok: false, errors: ["Template not found"] };
   const nextVersion = await nextAvailablePatchVersion(source.code, source.template_version, source.tenant_id);
@@ -1087,11 +1119,18 @@ export async function copyTemplateAsNewDraft(templateId: string, actorId: string
   // reactivateAsNewVersion above.
   const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Template");
   if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Template`] };
+  // templates.authored_by/author_badge are participants_master-scoped and NOT
+  // NULL — resolve the real participant + the real badge the caller already
+  // verified (web/templateRegistry.ts's own badgeAuthorityEngine check),
+  // mirroring copyServiceDefinitionAsNewDraft exactly.
+  const { data: copyMaster } = await participantsMasterDB.findById(actorId);
+  if (!copyMaster) return { ok: false, errors: [`No superuser provisioned.`] };
   const { data: newDraft, error } = await templatesDB.createDraft({
     code: source.code,
     name: source.name,
     templateVersion: nextVersion,
-    authoredBy: Number(actorId),
+    authoredBy: copyMaster.id,
+    authorBadge,
     draftContent,
     tenantId: source.tenant_id,
     parentTemplateId: source.parent_template_id,
@@ -1119,7 +1158,7 @@ const AUTHORING_NEXT_STATE: Partial<Record<TemplateRow["status"], TemplateRow["s
   Retired: "Archived",
 };
 
-export async function advanceTemplateOneStep(template: TemplateRow, actorRole: string, actorId: string | undefined): Promise<TransitionTemplateResult> {
+export async function advanceTemplateOneStep(template: TemplateRow, actorRole: string, actorId: string): Promise<TransitionTemplateResult> {
   const targetState = AUTHORING_NEXT_STATE[template.status];
   if (!targetState) return { ok: false, reason: "no_further_step", detail: `Template is already ${template.status} — no further authoring step` };
 
@@ -1146,16 +1185,18 @@ export async function advanceTemplateOneStep(template: TemplateRow, actorRole: s
 // advanceTemplateOneStep above handles every hop after that, trusting the
 // content is already real (same discipline Pack's own Draft-only validation
 // gate uses — core/sdkAuthoring.ts's publishAuthoringDraft calls both).
-export async function materialiseTemplateDraft(templateId: string, seed: TemplateSeedInput): Promise<{ ok: true } | { ok: false; errors: string[] }> {
+export async function materialiseTemplateDraft(templateId: string, seed: TemplateSeedInput, authorId: string, authorBadge: string): Promise<{ ok: true } | { ok: false; errors: string[] }> {
   await templatesDB.setDeliverableCatalogue(templateId, seed.deliverableCatalogue ?? []);
-  const result = await materialisePackSelectionsAndCapabilities(templateId, seed);
+  const result = await materialisePackSelectionsAndCapabilities(templateId, seed, authorId, authorBadge);
   if (!result.ok) return result;
   await materialiseDependencyGraph({
     owningEntityType: "Template",
     owningEntityId: templateId,
     deliverableCatalogue: seed.deliverableCatalogue ?? [],
     dependencyGraph: seed.dependencyGraph ?? [],
-    tenantId: seed.tenantId ?? PLATFORM_TENANT_ID,
+    tenantId: seed.tenantId || PLATFORM_TENANT_ID,
+    authorId,
+    authorBadge,
   });
   return { ok: true };
 }

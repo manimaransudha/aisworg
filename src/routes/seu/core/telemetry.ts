@@ -25,7 +25,7 @@ import {
   type WorkItemDurationValue,
 } from "../../../domain/engine/metricRegistryEngine.js";
 import { createObligation } from "./obligations.js";
-import { raiseAttentionItem } from "./attentionItems.js";
+import { raiseAttentionItem, resolveSystemActor } from "./attentionItems.js";
 import type { AcquisitionScope, DispatchLatencyRow, ObligationRow, ReworkRow, TransitionEntityType, WorkItemDurationRow } from "../../../dblayer/seuTypes.js";
 
 export type FlowMetrics = FlowMetricsValue;
@@ -201,6 +201,7 @@ async function raiseSustainedPatternObligation(input: {
   const alreadyRaised = (existingObligations ?? []).some((o) => o.category === "Organisational Learning" && o.description?.includes(input.marker));
   if (alreadyRaised) return { raised: false };
 
+  const systemActor = await resolveSystemActor(input.seuId);
   const obligation = await createObligation({
     relatedObjectType: input.relatedObjectType,
     relatedObjectId: input.relatedObjectId,
@@ -211,6 +212,8 @@ async function raiseSustainedPatternObligation(input: {
     origin: input.origin,
     originatingEntityType: input.originatingObjectType,
     originatingEntityId: input.originatingObjectId,
+    actorId: systemActor.actorId,
+    authorBadge: systemActor.authorBadge,
   });
 
   await eventBus.publish({
@@ -234,6 +237,7 @@ async function raiseSustainedPatternObligation(input: {
     description: input.attentionDescription,
     relatedObjectType: "Obligation",
     relatedObjectId: obligation.id,
+    ...(await resolveSystemActor(input.seuId)),
   });
 
   return { raised: true, obligation };

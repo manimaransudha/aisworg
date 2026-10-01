@@ -1,9 +1,14 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import { PLATFORM_TENANT_ID } from "./constants.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validateServiceDefinitionWriteAgainstSchema } from "../routes/seu/core/serviceDefinitionWriteValidator.js";
 import type { DbResult, ServiceDefinitionRow, ServiceLevelExpectation } from "./seuTypes.js";
+import { tenantsDB } from "./tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "./constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 // CR-086 follow-on — Service Definition (Book 3 Ch.11), a first-class
 // authored entity. Own table (153_service_definitions.sql), mirroring
@@ -25,7 +30,11 @@ export const serviceDefinitionsDB = {
     success?: string | null;
     consumers?: string[];
     version?: string;
-    authoredBy?: number | null;
+    // authored_by/author_badge are NOT NULL, participants_master-scoped --
+    // every caller must resolve and pass its own real actor (participants_master.id)
+    // + badge, never a default/null (same discipline as capabilityDefinitionsDB.ts).
+    authoredBy: string;
+    authorBadge: string;
     draftContent?: Record<string, unknown>;
     tenantId?: string;
     parentServiceDefinitionId?: string | null;
@@ -36,6 +45,13 @@ export const serviceDefinitionsDB = {
     try {
       const version = input.version ?? "1.0.0";
       const draftContent = input.draftContent ?? {};
+      const tenantId = input.tenantId ?? PLATFORM_TENANT_ID;
+
+      const { rows: dupRows } = await query<{ id: string }>(
+        "SELECT id FROM service_definitions WHERE code = $1 AND version = $2 AND tenant_id = $3",
+        [input.code, version, tenantId]
+      );
+      if (dupRows.length > 0) return { data: undefined } as DbResult<ServiceDefinitionRow>;
 
       const errors = await validateServiceDefinitionWriteAgainstSchema({
         code: input.code,
@@ -59,8 +75,9 @@ export const serviceDefinitionsDB = {
       if (!schemaRow) return { error: new Error(`schema_definitions row "${input.schemaDefinitionId}" not found`) };
 
       const { rows } = await query<ServiceDefinitionRow>(
-        `INSERT INTO service_definitions (code, name, capability_code, purpose, inputs, outputs, service_level, governance, success, consumers, version, status, authored_by, draft_content, tenant_id, parent_service_definition_id, schema_definition_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'Defined', $12, $13, $14, $15, $16)
+        `INSERT INTO service_definitions (code, name, capability_code, purpose, inputs, outputs, service_level, governance, success, consumers, version, status, authored_by, author_badge, draft_content, tenant_id, parent_service_definition_id, schema_definition_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'Defined', $12, $13, $14, $15, $16, $17)
+         ON CONFLICT (code, version, tenant_id) DO NOTHING
          RETURNING *`,
         [
           input.code,
@@ -74,9 +91,10 @@ export const serviceDefinitionsDB = {
           input.success ?? null,
           input.consumers ?? [],
           version,
-          input.authoredBy ?? null,
+          input.authoredBy,
+          input.authorBadge,
           JSON.stringify(draftContent),
-          input.tenantId ?? PLATFORM_TENANT_ID,
+          tenantId,
           input.parentServiceDefinitionId ?? null,
           schemaRow?.id ?? null,
         ]

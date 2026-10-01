@@ -17,7 +17,7 @@ export const attestationsDB = {
     toState: string;
     reference: string | null;
     actingBadgeType: string | null;
-    requestedBy: number | null;
+    requestedBy: string | null;
   }): Promise<DbResult<AttestationRow>> {
     try {
       const { rows } = await query<AttestationRow>(

@@ -26,15 +26,16 @@ import { validateProfileSeed, type ProfileSeedInput } from "../src/routes/seu/co
 import { addConcept, type OntologyActor } from "../src/routes/seu/core/ontology.js";
 import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
 import type { PackContributions } from "../src/dblayer/seuTypes.js";
+import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
-const ACTOR: OntologyActor = { isRoot: true, tenantId: null, actorId: "1001" };
+const ACTOR: OntologyActor = { isRoot: true, tenantId: null, actorId: TESTER_ALL_ID };
 
 async function createPack(contributions: PackContributions = {}): Promise<string> {
   const code = `test-cr101-pack-${randomUUID()}`;
   // CR-114 follow-on — packsDB.create's schemaDefinitionId is now mandatory.
   const { data: packSchema } = await schemaDefinitionsDB.findLatest("Pack");
   assert.ok(packSchema, "no schema_definitions grammar for Pack");
-  const { data: pack, error } = await packsDB.create({ code, name: `CR-101 fixture Pack ${code}`, category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", contributions, schemaDefinitionId: packSchema!.id });
+  const { data: pack, error } = await packsDB.create({ code, name: `CR-101 fixture Pack ${code}`, category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", contributions, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", schemaDefinitionId: packSchema!.id });
   assert.ok(!error && pack, error?.message);
   const { error: activateError } = await packsDB.updateStatus(pack!.id, "Active");
   assert.ok(!activateError, activateError?.message);
@@ -45,13 +46,13 @@ async function createTemplate(mandatoryPackCodes: string[]): Promise<{ id: strin
   const templateCode = `test-cr101-template-${randomUUID()}`;
   const { data: template, error } = await templatesDB.upsert({ code: templateCode, name: "CR-101 fixture Template", deliverableCatalogue: [] });
   assert.ok(!error && template, error?.message);
-  await templatesDB.setMandatoryPacks(template!.id, mandatoryPackCodes);
+  await templatesDB.setMandatoryPacks(template!.id, mandatoryPackCodes, ROOT_ACTOR_ID, "root");
   return { id: template!.id, code: template!.code };
 }
 
 async function createProfile(template: { id: string; code: string }, draftContent: Record<string, unknown>): Promise<string> {
   const profileCode = `test-cr101-profile-${randomUUID()}`;
-  const { data: profile, error } = await profilesDB.upsert({ code: profileCode, name: "CR-101 fixture Profile", baseTemplateId: template.id, environment: "development" });
+  const { data: profile, error } = await profilesDB.upsert({ code: profileCode, name: "CR-101 fixture Profile", baseTemplateId: template.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
   assert.ok(!error && profile, error?.message);
   const { error: draftContentError } = await profilesDB.setDraftContent(profile!.id, { baseTemplateCode: template.code, ...draftContent });
   assert.ok(!draftContentError, draftContentError?.message);

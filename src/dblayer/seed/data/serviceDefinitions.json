@@ -1,0 +1,2185 @@
+[
+  {
+    "code": "architectural-awareness-service",
+    "name": "Architectural Awareness Service",
+    "capability_code": "continuous-architectural-analysis",
+    "purpose": "maintain continuous, always-current architectural integrity assessment",
+    "inputs": [],
+    "outputs": [],
+    "service_level": [
+      {
+        "code": "latency-near-zero",
+        "label": "Latency (near-zero)",
+        "target_level": "maximum",
+        "target": 24,
+        "units": "hours"
+      },
+      {
+        "code": "false-positive-rate",
+        "label": "False-positive rate",
+        "target_level": "maximum",
+        "target": 5,
+        "units": "percent"
+      }
+    ],
+    "governance": "architecture policy; continuously monitors every artefact/model change; produces real-time conformance status and drift alerts",
+    "success": "no undetected divergence exceeding tolerance",
+    "consumers": [
+      "architecture-design",
+      "software-construction"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "architectural-obsolescence-forecast-service",
+    "name": "Architectural Obsolescence Forecast Service",
+    "capability_code": "predictive-architectural-obsolescence-detection",
+    "purpose": "forecast when a pattern will fail to scale, before it breaks",
+    "inputs": [
+      "solution-architecture-document"
+    ],
+    "outputs": [],
+    "service_level": [
+      {
+        "code": "lead-time-before-actual-failure",
+        "label": "Lead time before actual failure",
+        "target_level": "minimum",
+        "target": 14,
+        "units": "days"
+      },
+      {
+        "code": "accuracy",
+        "label": "Accuracy",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "architecture policy; also draws on usage/load telemetry; produces an obsolescence forecast",
+    "success": "forecast pattern replaced before failure occurs",
+    "consumers": [
+      "architecture-design"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "architectural-review-service",
+    "name": "Architectural Review Service",
+    "capability_code": "architecture-design",
+    "purpose": "evaluate proposed solutions for architectural integrity and organisational alignment",
+    "inputs": [
+      "solution-options-analysis",
+      "requirements-specification",
+      "engineering-standard"
+    ],
+    "outputs": [
+      "architecture-decision-record",
+      "risk-assessment-report"
+    ],
+    "service_level": [
+      {
+        "code": "compliance-with-architecture-principle",
+        "label": "Compliance with architecture principle",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "complete-reasoning",
+        "label": "Complete reasoning",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "full-traceability",
+        "label": "Full traceability",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      }
+    ],
+    "governance": "enterprise architecture policy, security standard, technology standard, regulatory obligation; also draws on the relevant architectural constraint; output also folds in a recommendation alongside the architectural decision record",
+    "success": "decision approved, risk addressed, traceability established",
+    "consumers": [
+      "software-construction",
+      "governing-engineering-decisions"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "asset-reuse-service",
+    "name": "Asset Reuse Service",
+    "capability_code": "engineering-assets-reuse",
+    "purpose": "identify and leverage existing components, libraries or patterns instead of building from scratch",
+    "inputs": [],
+    "outputs": [
+      "reuse-assessment"
+    ],
+    "service_level": [
+      {
+        "code": "fitness-for-purpose-accuracy",
+        "label": "Fitness-for-purpose accuracy",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "security-and-quality-vetting-of-the-reused-asset",
+        "label": "Security and quality vetting of the reused asset",
+        "target_level": "exact",
+        "target": 100,
+        "units": "percent"
+      }
+    ],
+    "governance": "reuse policy, licensing and security vetting standard; also draws on the requirement/design need and the organisational asset inventory",
+    "success": "reusable asset adopted in place of new construction, or explicitly rejected with documented rationale",
+    "consumers": [
+      "software-construction"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "availability-assurance-service",
+    "name": "Availability Assurance Service",
+    "capability_code": "operating-production-systems",
+    "purpose": "keep deployed systems reliable and observable",
+    "inputs": [
+      "deployment-package",
+      "monitoring-alerting-configuration"
+    ],
+    "outputs": [
+      "incident-report-post-mortem",
+      "operational-intelligence-report"
+    ],
+    "service_level": [
+      {
+        "code": "uptime",
+        "label": "Uptime",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "mean-time-to-detect",
+        "label": "Mean-time-to-detect",
+        "target_level": "maximum",
+        "target": 4,
+        "units": "hours"
+      }
+    ],
+    "governance": "SLA/operational policy; also produces live performance data",
+    "success": "agreed availability target met",
+    "consumers": [
+      "requirements-elicitation",
+      "requirements-analysis",
+      "requirements-validation",
+      "requirements-prioritising",
+      "architecture-design"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "ba-approach-definition-service",
+    "name": "BA Approach Definition Service",
+    "capability_code": "business-analysis-approach",
+    "purpose": "determine the appropriate elicitation technique, deliverable set, and stakeholder-engagement plan for a given engagement before any elicitation begins",
+    "inputs": [],
+    "outputs": [
+      "business-analysis-plan"
+    ],
+    "service_level": [
+      {
+        "code": "fitness-of-approach-to-context-right-sized-neither-over-nor-under-specified-for-the-engagement",
+        "label": "Fitness of approach to context (right-sized, neither over- nor under-specified for the engagement)",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "completeness-of-governance-checkpoints",
+        "label": "Completeness of governance checkpoints",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "organisational BA standard, Template's commissioning parameters; also draws on the governing Objective statement, Template/commissioning context, stakeholder complexity, and regulatory context",
+    "success": "approach approved by sponsoring authority before elicitation begins",
+    "consumers": [
+      "requirements-elicitation",
+      "understanding-business-domain",
+      "requirements-validation"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "baseline-management-service",
+    "name": "Baseline Management Service",
+    "capability_code": "engineering-configuration",
+    "purpose": "preserve version integrity of every engineering artefact",
+    "inputs": [
+      "change-request"
+    ],
+    "outputs": [
+      "configuration-baseline-record"
+    ],
+    "service_level": [
+      {
+        "code": "consistency",
+        "label": "Consistency",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "no-untracked-drift",
+        "label": "No untracked drift",
+        "target_level": "maximum",
+        "target": 0,
+        "units": "count"
+      }
+    ],
+    "governance": "configuration-management policy; also draws on tracked artefact versions",
+    "success": "baseline reproducible on demand",
+    "consumers": [],
+    "version": "1.0.0"
+  },
+  {
+    "code": "capability-benchmarking-service",
+    "name": "Capability Benchmarking Service",
+    "capability_code": "cross-organisational-capability-benchmarking",
+    "purpose": "compare this organisation's capability maturity against every other capability instance the platform hosts",
+    "inputs": [
+      "capability-maturity-assessment"
+    ],
+    "outputs": [
+      "benchmark-report"
+    ],
+    "service_level": [
+      {
+        "code": "comparability",
+        "label": "Comparability",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "tenant-isolation-compliance",
+        "label": "Tenant-isolation compliance",
+        "target_level": "exact",
+        "target": 100,
+        "units": "percent"
+      }
+    ],
+    "governance": "multi-tenancy/data-sharing policy (Book 3 Ch.42); also produces an identified improvement opportunity alongside the benchmark report",
+    "success": "benchmark-identified opportunity acted upon",
+    "consumers": [
+      "governing-engineering-decisions"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "capability-realignment-service",
+    "name": "Capability Realignment Service",
+    "capability_code": "adapting-business-needs",
+    "purpose": "keep the capability portfolio aligned to shifting objectives",
+    "inputs": [],
+    "outputs": [
+      "capability-maturity-assessment"
+    ],
+    "service_level": [
+      {
+        "code": "responsiveness",
+        "label": "Responsiveness",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "accuracy-of-gap-identification",
+        "label": "Accuracy of gap identification",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "strategic-governance policy; also draws on revised or superseded Objectives and market/business signal; also produces a realignment recommendation",
+    "success": "capability portfolio reflects current Objectives",
+    "consumers": [],
+    "version": "1.0.0"
+  },
+  {
+    "code": "capability-self-optimisation-service",
+    "name": "Capability Self-Optimisation Service",
+    "capability_code": "autonomous-capability-optimisation",
+    "purpose": "improve a capability's own effectiveness without waiting for external direction",
+    "inputs": [],
+    "outputs": [],
+    "service_level": [
+      {
+        "code": "measurable-performance-delta",
+        "label": "Measurable performance delta",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "non-regression",
+        "label": "Non-regression",
+        "target_level": "maximum",
+        "target": 0,
+        "units": "count"
+      }
+    ],
+    "governance": "capability-ownership policy; draws on capability performance evidence; produces an applied optimisation and improvement record",
+    "success": "optimisation improves measured capability metric without introducing regression",
+    "consumers": [],
+    "version": "1.0.0"
+  },
+  {
+    "code": "capability-stewardship-service",
+    "name": "Capability Stewardship Service",
+    "capability_code": "capability-evolution",
+    "purpose": "ensure a capability continues to serve the organisation effectively over time, distinct from exercising it day to day",
+    "inputs": [
+      "capability-maturity-assessment"
+    ],
+    "outputs": [
+      "capability-maturity-assessment",
+      "capability-evolution-roadmap"
+    ],
+    "service_level": [
+      {
+        "code": "the-five-dimensions-6-13-names-for-capability-measurement-itself-outcome-consistency",
+        "label": "The five dimensions §6.13 names for capability measurement itself — outcome consistency",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "resilience",
+        "label": "Resilience",
+        "target_level": "exact",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "adaptability",
+        "label": "Adaptability",
+        "target_level": "exact",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "organisational-learning",
+        "label": "Organisational learning",
+        "target_level": "exact",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "alignment-with-organisational-objective",
+        "label": "Alignment with organisational objective",
+        "target_level": "exact",
+        "target": 100,
+        "units": "percent"
+      }
+    ],
+    "governance": "capability-ownership mandate, strategic-governance policy — explicitly not line-management authority (§6.11: \"should not be confused with traditional line management\"); also draws on capability performance and telemetry data, evidence accumulated through service delivery, the current Objective set, and the existing capability portfolio",
+    "success": "measurable increase in capability maturity over time, and every identified gap either addressed or explicitly accepted as strategic debt with a named owner",
+    "consumers": [
+      "governing-engineering-decisions",
+      "adapting-business-needs"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "change-evaluation-and-scheduling-service",
+    "name": "Change Evaluation and Scheduling Service",
+    "capability_code": "change-management",
+    "purpose": "evaluate, approve, schedule and coordinate a proposed change based on its risk and potential conflict with other concurrent changes",
+    "inputs": [
+      "change-request"
+    ],
+    "outputs": [
+      "decision-record"
+    ],
+    "service_level": [
+      {
+        "code": "consistency-of-risk-assessment-across-similar-changes",
+        "label": "Consistency of risk assessment across similar changes",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "accuracy-of-conflict-detection-no-two-conflicting-changes-approved-into-the-same-window",
+        "label": "Accuracy of conflict detection (no two conflicting changes approved into the same window)",
+        "target_level": "maximum",
+        "target": 0,
+        "units": "count"
+      },
+      {
+        "code": "decision-timeliness-relative-to-the-change-s-urgency",
+        "label": "Decision timeliness relative to the change's urgency",
+        "target_level": "maximum",
+        "target": 48,
+        "units": "hours"
+      }
+    ],
+    "governance": "change-management policy, risk-classification standard; also draws on the current schedule of other approved or pending changes and risk-classification criteria; output also includes a conflict assessment against other in-flight changes",
+    "success": "the change proceeds without causing an avoidable conflict or incident, or is correctly rejected or rescheduled before it can",
+    "consumers": [
+      "engineering-configuration",
+      "software-construction",
+      "software-release"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "component-integration-service",
+    "name": "Component Integration Service",
+    "capability_code": "integrating-constructed-components",
+    "purpose": "combine separately constructed components into a coherent, working whole",
+    "inputs": [
+      "source-code",
+      "integration-specification-interface-contracts"
+    ],
+    "outputs": [
+      "integration-build"
+    ],
+    "service_level": [
+      {
+        "code": "interface-conformance",
+        "label": "Interface conformance",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "absence-of-integration-defects",
+        "label": "Absence of integration defects",
+        "target_level": "maximum",
+        "target": 0,
+        "units": "count"
+      },
+      {
+        "code": "completeness",
+        "label": "Completeness",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "integration standard, interface/API policy",
+    "success": "integrated whole functions coherently and is accepted into system-level verification",
+    "consumers": [
+      "software-validation"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "configuration-conformance-service",
+    "name": "Configuration Conformance Service",
+    "capability_code": "continuous-configuration-drift-detection",
+    "purpose": "verify deployed configuration matches declared intent at all times",
+    "inputs": [
+      "configuration-files"
+    ],
+    "outputs": [],
+    "service_level": [
+      {
+        "code": "detection-latency",
+        "label": "Detection latency",
+        "target_level": "maximum",
+        "target": 24,
+        "units": "hours"
+      },
+      {
+        "code": "coverage-across-environments",
+        "label": "Coverage across environments",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "configuration-management policy; also draws on live environment state; produces a drift alert and remediation recommendation",
+    "success": "drift remediated before incident occurs",
+    "consumers": [
+      "operating-production-systems",
+      "engineering-configuration"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "continuous-confidence-service",
+    "name": "Continuous Confidence Service",
+    "capability_code": "continuous-quality-assurance",
+    "purpose": "maintain an always-current confidence assessment rather than a point-in-time one",
+    "inputs": [],
+    "outputs": [
+      "confidence-assessment",
+      "defect-log"
+    ],
+    "service_level": [
+      {
+        "code": "coverage",
+        "label": "Coverage",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "latency",
+        "label": "Latency",
+        "target_level": "maximum",
+        "target": 24,
+        "units": "hours"
+      }
+    ],
+    "governance": "quality policy; continuously monitors every code/test change",
+    "success": "confidence score never stale at any release decision",
+    "consumers": [
+      "software-release"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "continuous-documentation-service",
+    "name": "Continuous Documentation Service",
+    "capability_code": "real-time-organisational-documentation",
+    "purpose": "keep documentation synchronised with current system state at all times",
+    "inputs": [],
+    "outputs": [
+      "user-technical-documentation"
+    ],
+    "service_level": [
+      {
+        "code": "currency-zero-lag",
+        "label": "Currency (zero lag)",
+        "target_level": "maximum",
+        "target": 0,
+        "units": "seconds"
+      },
+      {
+        "code": "accuracy",
+        "label": "Accuracy",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "documentation standard; continuously monitors every artefact change",
+    "success": "no documentation ever found stale at audit",
+    "consumers": [
+      "operating-production-systems",
+      "recovering-organisational-knowledge",
+      "vendor-supplier-management"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "continuous-learning-service",
+    "name": "Continuous Learning Service",
+    "capability_code": "continuous-organisational-learning",
+    "purpose": "keep the capability-improvement loop running without waiting for retrospectives",
+    "inputs": [],
+    "outputs": [],
+    "service_level": [
+      {
+        "code": "cycle-time-between-evidence-and-improvement",
+        "label": "Cycle time between evidence and improvement",
+        "target_level": "maximum",
+        "target": 4,
+        "units": "hours"
+      }
+    ],
+    "governance": "organisational-learning policy; draws on evidence generated by every service interaction; produces a capability-improvement recommendation",
+    "success": "measurable capability-maturity increase over time",
+    "consumers": [],
+    "version": "1.0.0"
+  },
+  {
+    "code": "continuous-requirement-conformance-service",
+    "name": "Continuous Requirement Conformance Service",
+    "capability_code": "continuous-requirements-validation",
+    "purpose": "keep the requirement baseline validated as it evolves, not only at baseline-freeze",
+    "inputs": [],
+    "outputs": [],
+    "service_level": [
+      {
+        "code": "zero-lag-detection-of-newly-introduced-conflict",
+        "label": "Zero-lag detection of newly introduced conflict",
+        "target_level": "maximum",
+        "target": 0,
+        "units": "seconds"
+      }
+    ],
+    "governance": "requirements-management policy; continuously monitors every requirement change; produces a continuous validation status",
+    "success": "no invalid requirement reaches architecture undetected",
+    "consumers": [
+      "architecture-design"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "continuous-security-posture-service",
+    "name": "Continuous Security Posture Service",
+    "capability_code": "continuous-vulnerability-posture-assessment",
+    "purpose": "maintain whole-portfolio security exposure awareness continuously",
+    "inputs": [],
+    "outputs": [],
+    "service_level": [
+      {
+        "code": "coverage",
+        "label": "Coverage",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "zero-lag",
+        "label": "Zero-lag",
+        "target_level": "maximum",
+        "target": 0,
+        "units": "seconds"
+      }
+    ],
+    "governance": "security policy; continuously monitors every code/infrastructure change; produces a live posture status",
+    "success": "no critical exposure undetected between assessments (there are none — it's continuous)",
+    "consumers": [
+      "protect-organisational-assets",
+      "governing-engineering-decisions"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "continuous-trace-awareness-service",
+    "name": "Continuous Trace Awareness Service",
+    "capability_code": "automatic-traceability-generation",
+    "purpose": "keep every artefact relationship current without manual maintenance",
+    "inputs": [],
+    "outputs": [
+      "traceability-matrix"
+    ],
+    "service_level": [
+      {
+        "code": "completeness",
+        "label": "Completeness",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "no-orphaned-link",
+        "label": "No orphaned link",
+        "target_level": "maximum",
+        "target": 0,
+        "units": "count"
+      }
+    ],
+    "governance": "traceability policy; continuously monitors every artefact/decision change",
+    "success": "full trace path reconstructible on demand",
+    "consumers": [
+      "governing-engineering-decisions",
+      "recovering-organisational-knowledge",
+      "software-validation"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "coverage-gap-forecast-service",
+    "name": "Coverage Gap Forecast Service",
+    "capability_code": "predictive-test-coverage-gap-detection",
+    "purpose": "identify defect classes current coverage would fail to catch, before they occur",
+    "inputs": [
+      "defect-log",
+      "test-suite",
+      "solution-architecture-document"
+    ],
+    "outputs": [],
+    "service_level": [
+      {
+        "code": "predictive-precision",
+        "label": "Predictive precision",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "quality policy; produces a predicted coverage gap",
+    "success": "predicted gap closed before associated defect class occurs",
+    "consumers": [
+      "software-validation"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "cross-enterprise-impact-analysis-service",
+    "name": "Cross-Enterprise Impact Analysis Service",
+    "capability_code": "enterprise-wide-engineering-impact-analysis",
+    "purpose": "assess the consequence of a proposed change across the entire enterprise before it's made",
+    "inputs": [
+      "change-request",
+      "traceability-matrix"
+    ],
+    "outputs": [
+      "impact-analysis-report"
+    ],
+    "service_level": [
+      {
+        "code": "completeness-of-affected-entity-discovery",
+        "label": "Completeness of affected-entity discovery",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "change-control policy",
+    "success": "no unanticipated downstream impact discovered post-change",
+    "consumers": [
+      "governing-engineering-decisions",
+      "architecture-design"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "cross-project-knowledge-synthesis-service",
+    "name": "Cross-Project Knowledge Synthesis Service",
+    "capability_code": "organisational-memory-synthesis",
+    "purpose": "synthesise reusable understanding across every concurrent and historical project",
+    "inputs": [
+      "knowledge-base-articles"
+    ],
+    "outputs": [
+      "knowledge-base-articles"
+    ],
+    "service_level": [
+      {
+        "code": "generalisability",
+        "label": "Generalisability",
+        "target_level": "exact",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "non-contradiction",
+        "label": "Non-contradiction",
+        "target_level": "exact",
+        "target": 100,
+        "units": "percent"
+      }
+    ],
+    "governance": "knowledge acquisition-scope policy (cf. Book 3 Ch.16 §12)",
+    "success": "synthesised knowledge reused by at least one other project",
+    "consumers": [],
+    "version": "1.0.0"
+  },
+  {
+    "code": "cross-system-pattern-recognition-service",
+    "name": "Cross-System Pattern Recognition Service",
+    "capability_code": "cross-system-structural-pattern-recognition",
+    "purpose": "identify structural weakness in one system by reasoning across every system's architecture simultaneously",
+    "inputs": [
+      "solution-architecture-document"
+    ],
+    "outputs": [
+      "risk-assessment-report"
+    ],
+    "service_level": [
+      {
+        "code": "cross-system-coverage",
+        "label": "Cross-system coverage",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "architecture policy",
+    "success": "pattern confirmed applicable and addressed",
+    "consumers": [
+      "architecture-design"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "data-pipeline-engineering-service",
+    "name": "Data Pipeline Engineering Service",
+    "capability_code": "engineering-data-pipelines",
+    "purpose": "deliver a data pipeline that moves and transforms data reliably, with evidence of its own quality",
+    "inputs": [
+      "architecture-decision-record"
+    ],
+    "outputs": [
+      "data-pipeline-specification",
+      "data-quality-report"
+    ],
+    "service_level": [
+      {
+        "code": "pipeline-reliability",
+        "label": "Pipeline run success rate",
+        "target_level": "minimum",
+        "target": 99,
+        "units": "percent"
+      },
+      {
+        "code": "data-quality-coverage",
+        "label": "Data quality checks coverage",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "data-management policy, data-quality standard",
+    "success": "the pipeline's data-quality evidence is accepted as sufficient to trust downstream consumers",
+    "consumers": [
+      "software-validation"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "decision-rationale-service",
+    "name": "Decision Rationale Service",
+    "capability_code": "engineering-decision-explainability",
+    "purpose": "keep every significant decision connected to its supporting evidence and outcome",
+    "inputs": [
+      "decision-record"
+    ],
+    "outputs": [],
+    "service_level": [
+      {
+        "code": "completeness-of-rationale-chain",
+        "label": "Completeness of rationale chain",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "decision-governance policy; also draws on supporting evidence; produces an explainable decision trace",
+    "success": "any decision explainable on demand without reconstruction effort",
+    "consumers": [
+      "governing-engineering-decisions"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "decision-validation-service",
+    "name": "Decision Validation Service",
+    "capability_code": "governing-engineering-decisions",
+    "purpose": "ensure engineering decisions comply with policy before taking effect",
+    "inputs": [],
+    "outputs": [
+      "decision-record"
+    ],
+    "service_level": [
+      {
+        "code": "consistency",
+        "label": "Consistency",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "explainability",
+        "label": "Explainability",
+        "target_level": "exact",
+        "target": 100,
+        "units": "percent"
+      }
+    ],
+    "governance": "decision-governance policy; also draws on the proposed decision itself and the applicable policy it is evaluated against",
+    "success": "decision recorded with traceable rationale",
+    "consumers": [],
+    "version": "1.0.0"
+  },
+  {
+    "code": "defect-resolution-service",
+    "name": "Defect Resolution Service",
+    "capability_code": "defect-management",
+    "purpose": "track, triage, prioritise and close defects, functional and security, as a standing lifecycle",
+    "inputs": [
+      "defect-log"
+    ],
+    "outputs": [
+      "defect-log"
+    ],
+    "service_level": [
+      {
+        "code": "triage-consistency",
+        "label": "Triage consistency",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "resolution-timeliness-relative-to-severity",
+        "label": "Resolution timeliness relative to severity",
+        "target_level": "maximum",
+        "target": 48,
+        "units": "hours"
+      },
+      {
+        "code": "no-defect-left-untracked",
+        "label": "No defect left untracked",
+        "target_level": "maximum",
+        "target": 0,
+        "units": "count"
+      }
+    ],
+    "governance": "defect-management policy, severity-classification standard; also draws on severity and impact criteria",
+    "success": "defect closed and verified resolved, or explicitly deferred with documented rationale and owner",
+    "consumers": [
+      "software-construction",
+      "software-release"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "deployment-governance-service",
+    "name": "Deployment Governance Service",
+    "capability_code": "software-release",
+    "purpose": "determine and coordinate readiness for deployment",
+    "inputs": [
+      "test-report-results",
+      "release-package"
+    ],
+    "outputs": [
+      "deployment-manifest",
+      "app-store-submission-package"
+    ],
+    "service_level": [
+      {
+        "code": "risk-adjusted-go-no-go-accuracy",
+        "label": "Risk-adjusted go/no-go accuracy",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "release policy, change-control standard; also produces a release recommendation alongside the deployment coordination record",
+    "success": "release deployed without rollback",
+    "consumers": [
+      "operating-production-systems"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "detailed-design-service",
+    "name": "Detailed Design Service",
+    "capability_code": "software-design",
+    "purpose": "produce the detailed, element-level design of a specific component before construction begins",
+    "inputs": [
+      "solution-architecture-document",
+      "requirements-analysis-model"
+    ],
+    "outputs": [
+      "detailed-design-specification"
+    ],
+    "service_level": [
+      {
+        "code": "internal-consistency",
+        "label": "Internal consistency",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "conformance-to-the-architectural-constraints-it-was-handed",
+        "label": "Conformance to the architectural constraints it was handed",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "completeness-no-significant-design-decision-left-for-the-developer-to-invent-unspecified",
+        "label": "Completeness (no significant design decision left for the developer to invent unspecified)",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "testability-of-the-resulting-structure",
+        "label": "Testability of the resulting structure",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "design standard, architecture-conformance policy",
+    "success": "the design is accepted as ready for construction — a developer can implement against it without needing to make further design decisions",
+    "consumers": [
+      "software-construction"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "domain-model-conformance-service",
+    "name": "Domain Model Conformance Service",
+    "capability_code": "continuous-domain-model-drift-detection",
+    "purpose": "detect the moment the domain model diverges from actual business behaviour",
+    "inputs": [
+      "domain-model"
+    ],
+    "outputs": [],
+    "service_level": [
+      {
+        "code": "detection-latency",
+        "label": "Detection latency",
+        "target_level": "maximum",
+        "target": 24,
+        "units": "hours"
+      }
+    ],
+    "governance": "Ontology policy; also draws on live business signal; produces a drift alert",
+    "success": "drift corrected before it propagates into requirements",
+    "consumers": [
+      "requirements-elicitation",
+      "requirements-analysis",
+      "requirements-validation",
+      "requirements-prioritising",
+      "architecture-design"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "domain-model-service",
+    "name": "Domain Model Service",
+    "capability_code": "understanding-business-domain",
+    "purpose": "give the organisation a shared model of the business it serves",
+    "inputs": [],
+    "outputs": [
+      "domain-model"
+    ],
+    "service_level": [
+      {
+        "code": "consistency",
+        "label": "Consistency",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "terminological-precision",
+        "label": "Terminological precision",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "Ontology Model policy; draws on business documentation, stakeholder interviews, and existing domain artefacts",
+    "success": "domain experts ratify the model",
+    "consumers": [
+      "requirements-elicitation",
+      "requirements-analysis",
+      "requirements-validation",
+      "requirements-prioritising",
+      "architecture-design",
+      "recovering-organisational-knowledge"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "engineering-review-service",
+    "name": "Engineering Review Service",
+    "capability_code": "engineering-work-review",
+    "purpose": "statically examine a completed artefact for defects and standard-conformance without executing it",
+    "inputs": [
+      "engineering-standard"
+    ],
+    "outputs": [
+      "review-report"
+    ],
+    "service_level": [
+      {
+        "code": "coverage",
+        "label": "Coverage",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "reviewer-independence-from-the-artefact-s-producer",
+        "label": "Reviewer independence from the artefact's producer",
+        "target_level": "exact",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "consistency-of-applied-standard",
+        "label": "Consistency of applied standard",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "review policy, separation-of-duties requirement; also draws on the completed artefact under review, code or design",
+    "success": "artefact approved for progression, or findings resolved and re-reviewed",
+    "consumers": [
+      "software-construction",
+      "software-validation"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "engineering-risk-forecast-service",
+    "name": "Engineering Risk Forecast Service",
+    "capability_code": "predictive-engineering-risk-assessment",
+    "purpose": "forecast engineering risk before it materialises",
+    "inputs": [],
+    "outputs": [
+      "risk-assessment-report"
+    ],
+    "service_level": [
+      {
+        "code": "predictive-accuracy-calibrated-against-outcomes",
+        "label": "Predictive accuracy (calibrated against outcomes)",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "risk-management policy; also draws on historical risk/outcome data and current engineering state",
+    "success": "forecast risk actually materialising within predicted window, tracked",
+    "consumers": [
+      "governing-engineering-decisions",
+      "software-release"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "firmware-engineering-service",
+    "name": "Firmware Engineering Service",
+    "capability_code": "engineering-embedded-firmware",
+    "purpose": "deliver firmware that behaves correctly within the target hardware's real constraints",
+    "inputs": [
+      "architecture-decision-record"
+    ],
+    "outputs": [
+      "hardware-interface-specification",
+      "firmware-build",
+      "hardware-compatibility-report"
+    ],
+    "service_level": [
+      {
+        "code": "timing-budget-compliance",
+        "label": "Timing budget compliance",
+        "target_level": "exact",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "memory-budget-compliance",
+        "label": "Memory budget compliance",
+        "target_level": "exact",
+        "target": 100,
+        "units": "percent"
+      }
+    ],
+    "governance": "embedded systems engineering standard, safety/regulatory obligation where applicable",
+    "success": "firmware verified against the real or simulated target hardware and accepted for integration",
+    "consumers": [
+      "software-validation"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "fix-propagation-service",
+    "name": "Fix Propagation Service",
+    "capability_code": "cross-codebase-pattern-propagation",
+    "purpose": "propagate a fix or improvement to every place it applies, instantly",
+    "inputs": [],
+    "outputs": [],
+    "service_level": [
+      {
+        "code": "precision-no-incorrect-propagation",
+        "label": "Precision (no incorrect propagation)",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "coverage",
+        "label": "Coverage",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "change-control policy; draws on an applied fix and the codebase inventory; produces propagation candidates and applied propagations",
+    "success": "all valid instances remediated",
+    "consumers": [
+      "software-construction"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "incident-anticipation-service",
+    "name": "Incident Anticipation Service",
+    "capability_code": "predictive-incident-anticipation",
+    "purpose": "recognise precursor conditions of a future incident before it manifests",
+    "inputs": [],
+    "outputs": [],
+    "service_level": [
+      {
+        "code": "lead-time",
+        "label": "Lead time",
+        "target_level": "maximum",
+        "target": 24,
+        "units": "hours"
+      },
+      {
+        "code": "false-positive-rate",
+        "label": "False-positive rate",
+        "target_level": "maximum",
+        "target": 5,
+        "units": "percent"
+      }
+    ],
+    "governance": "operational policy; continuously monitors telemetry; produces an anticipatory alert",
+    "success": "anticipated incident prevented or mitigated pre-emptively",
+    "consumers": [
+      "operating-production-systems"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "knowledge-discovery-service",
+    "name": "Knowledge Discovery Service",
+    "capability_code": "recovering-organisational-knowledge",
+    "purpose": "reconstruct engineering understanding not currently captured",
+    "inputs": [
+      "source-code"
+    ],
+    "outputs": [
+      "knowledge-base-articles"
+    ],
+    "service_level": [
+      {
+        "code": "accuracy",
+        "label": "Accuracy",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "provenance-completeness",
+        "label": "Provenance completeness",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "knowledge validation policy; also draws on legacy artefacts and historical decisions",
+    "success": "recovered knowledge validated and published",
+    "consumers": [
+      "architecture-design",
+      "recovering-organisational-knowledge"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "legacy-knowledge-reconstruction-service",
+    "name": "Legacy Knowledge Reconstruction Service",
+    "capability_code": "legacy-modernisation",
+    "purpose": "reconstruct disappeared engineering knowledge from legacy artefacts",
+    "inputs": [
+      "source-code"
+    ],
+    "outputs": [
+      "knowledge-base-articles"
+    ],
+    "service_level": [
+      {
+        "code": "accuracy-against-ground-truth-where-verifiable",
+        "label": "Accuracy against ground truth where verifiable",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "knowledge validation policy; also draws on historical records and operational history",
+    "success": "reconstructed knowledge validated by domain review",
+    "consumers": [
+      "architecture-design",
+      "recovering-organisational-knowledge"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "model-training-evaluation-service",
+    "name": "Model Training & Evaluation Service",
+    "capability_code": "training-and-evaluating-models",
+    "purpose": "produce a trained model that meets its defined quality, bias, and performance objective, with evidence that it does",
+    "inputs": [
+      "requirements-analysis-model"
+    ],
+    "outputs": [
+      "training-data-specification",
+      "model-card",
+      "model-evaluation-report"
+    ],
+    "service_level": [
+      {
+        "code": "evaluation-coverage",
+        "label": "Evaluation coverage across defined quality/bias/performance criteria",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "bias-disclosure",
+        "label": "Known bias and limitations disclosed in the Model Card",
+        "target_level": "exact",
+        "target": 100,
+        "units": "percent"
+      }
+    ],
+    "governance": "model-governance policy, responsible-AI standard",
+    "success": "the model's evaluation record is accepted as sufficient to authorise serving it",
+    "consumers": [
+      "software-construction"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "objective-alignment-service",
+    "name": "Objective Alignment Service",
+    "capability_code": "continuous-objective-alignment-monitoring",
+    "purpose": "continuously check ongoing engineering work still serves its stated Objective",
+    "inputs": [],
+    "outputs": [
+      "objective-alignment-report"
+    ],
+    "service_level": [
+      {
+        "code": "detection-latency",
+        "label": "Detection latency",
+        "target_level": "maximum",
+        "target": 24,
+        "units": "hours"
+      }
+    ],
+    "governance": "strategic-governance policy; continuously monitors the active Objective and current engineering state; also produces a drift alert",
+    "success": "drift corrected or Objective formally revised before divergence compounds",
+    "consumers": [
+      "governing-engineering-decisions"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "operational-intelligence-service",
+    "name": "Operational Intelligence Service",
+    "capability_code": "learning",
+    "purpose": "convert production experience into reusable understanding",
+    "inputs": [
+      "incident-report-post-mortem"
+    ],
+    "outputs": [
+      "operational-intelligence-report",
+      "lessons-learned-report"
+    ],
+    "service_level": [
+      {
+        "code": "actionability",
+        "label": "Actionability",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "timeliness",
+        "label": "Timeliness",
+        "target_level": "maximum",
+        "target": 24,
+        "units": "hours"
+      }
+    ],
+    "governance": "organisational-learning policy; also draws on live telemetry and operational evidence",
+    "success": "knowledge item published and referenced by future decisions",
+    "consumers": [
+      "requirements-elicitation",
+      "requirements-analysis",
+      "requirements-validation",
+      "requirements-prioritising",
+      "architecture-design",
+      "operating-production-systems"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "organisational-reasoning-service",
+    "name": "Organisational Reasoning Service",
+    "capability_code": "evidence-based-organisational-reasoning",
+    "purpose": "let engineering decisions emerge from accumulated organisational understanding rather than isolated discussion",
+    "inputs": [
+      "knowledge-base-articles"
+    ],
+    "outputs": [],
+    "service_level": [
+      {
+        "code": "consistency-with-prior-precedent",
+        "label": "Consistency with prior precedent",
+        "target_level": "exact",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "evidentiary-support",
+        "label": "Evidentiary support",
+        "target_level": "exact",
+        "target": 100,
+        "units": "percent"
+      }
+    ],
+    "governance": "decision-governance policy; also draws on accumulated evidence; produces a reasoned recommendation",
+    "success": "recommendation accepted or explicitly overridden with rationale",
+    "consumers": [],
+    "version": "1.0.0"
+  },
+  {
+    "code": "persistent-compliance-service",
+    "name": "Persistent Compliance Service",
+    "capability_code": "continuous-compliance-verification",
+    "purpose": "evaluate every change against applicable policy the instant it occurs",
+    "inputs": [],
+    "outputs": [],
+    "service_level": [
+      {
+        "code": "zero-lag-detection",
+        "label": "Zero-lag detection",
+        "target_level": "maximum",
+        "target": 0,
+        "units": "seconds"
+      },
+      {
+        "code": "coverage-of-all-applicable-frameworks",
+        "label": "Coverage of all applicable frameworks",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "every active Compliance Pack's policy; continuously monitors every architectural/implementation/deployment/operational event; produces continuous compliance status and violation alerts",
+    "success": "no compliance violation reaches release undetected",
+    "consumers": [
+      "governing-engineering-decisions",
+      "software-release"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "policy-consistency-service",
+    "name": "Policy Consistency Service",
+    "capability_code": "continuous-policy-conflict-detection",
+    "purpose": "detect latent contradiction across every active policy/standard/decision",
+    "inputs": [],
+    "outputs": [
+      "policy-conflict-report"
+    ],
+    "service_level": [
+      {
+        "code": "coverage",
+        "label": "Coverage",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "false-positive-rate",
+        "label": "False-positive rate",
+        "target_level": "maximum",
+        "target": 5,
+        "units": "percent"
+      }
+    ],
+    "governance": "governance policy itself; draws on the full policy corpus",
+    "success": "no unresolved conflict reaches enforcement",
+    "consumers": [
+      "governing-engineering-decisions"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "problem-elimination-service",
+    "name": "Problem Elimination Service",
+    "capability_code": "corrective-actions",
+    "purpose": "maintain a standing record of known-but-unresolved root causes and systematically eliminate them, independent of any single incident",
+    "inputs": [
+      "root-cause-analysis-report"
+    ],
+    "outputs": [
+      "known-error-record"
+    ],
+    "service_level": [
+      {
+        "code": "closure-rate",
+        "label": "Closure rate",
+        "target_level": "minimum",
+        "target": 85,
+        "units": "percent"
+      },
+      {
+        "code": "recurrence-rate-after-closure",
+        "label": "Recurrence rate after closure",
+        "target_level": "minimum",
+        "target": 85,
+        "units": "percent"
+      }
+    ],
+    "governance": "problem-management policy; also draws on operational telemetry trend; also produces the eliminated root causes themselves alongside the known-error record",
+    "success": "recurring root cause permanently eliminated, confirmed by absence of recurrence over a defined period",
+    "consumers": [
+      "operating-production-systems",
+      "learning"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "quality-assurance-service",
+    "name": "Quality Assurance Service",
+    "capability_code": "software-validation",
+    "purpose": "provide justified confidence the implementation satisfies specification",
+    "inputs": [
+      "source-code",
+      "requirements-specification",
+      "engineering-standard"
+    ],
+    "outputs": [
+      "test-report-results",
+      "defect-log",
+      "confidence-assessment"
+    ],
+    "service_level": [
+      {
+        "code": "coverage",
+        "label": "Coverage",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "defect-detection-effectiveness",
+        "label": "Defect-detection effectiveness",
+        "target_level": "minimum",
+        "target": 85,
+        "units": "percent"
+      }
+    ],
+    "governance": "quality policy, compliance standard",
+    "success": "confidence sufficient to justify release",
+    "consumers": [
+      "software-release"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "release-risk-forecast-service",
+    "name": "Release Risk Forecast Service",
+    "capability_code": "continuous-release-risk-management",
+    "purpose": "maintain an ongoing, updating risk prediction for an in-progress release",
+    "inputs": [
+      "release-package"
+    ],
+    "outputs": [],
+    "service_level": [
+      {
+        "code": "calibration-accuracy",
+        "label": "Calibration accuracy",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "release policy; also draws on the full history of prior release outcomes; produces a continuously updated risk score",
+    "success": "risk score correlates with actual post-release incident rate",
+    "consumers": [
+      "software-release"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "requirement-prioritisation-service",
+    "name": "Requirement Prioritisation Service",
+    "capability_code": "requirements-prioritising",
+    "purpose": "rank validated requirements by relative value, risk and dependency to guide delivery sequencing",
+    "inputs": [
+      "requirements-specification",
+      "risk-assessment-report"
+    ],
+    "outputs": [
+      "requirements-prioritisation-record"
+    ],
+    "service_level": [
+      {
+        "code": "consistent-application-of-ranking-criteria",
+        "label": "Consistent application of ranking criteria",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "documented-rationale-for-every-ranking",
+        "label": "Documented rationale for every ranking",
+        "target_level": "exact",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "stakeholder-agreement",
+        "label": "Stakeholder agreement",
+        "target_level": "exact",
+        "target": 100,
+        "units": "percent"
+      }
+    ],
+    "governance": "prioritisation policy, sponsor approval threshold; also draws on business value criteria and the dependency graph",
+    "success": "sponsor/product owner approves the ranked backlog",
+    "consumers": [
+      "architecture-design",
+      "software-construction",
+      "software-release"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "requirement-validation-service",
+    "name": "Requirement Validation Service",
+    "capability_code": "requirements-validation",
+    "purpose": "confirm discovered requirements are correct, complete and agreed",
+    "inputs": [
+      "requirements-analysis-model"
+    ],
+    "outputs": [
+      "requirements-specification"
+    ],
+    "service_level": [
+      {
+        "code": "traceability",
+        "label": "Traceability",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "stakeholder-sign-off",
+        "label": "Stakeholder sign-off",
+        "target_level": "exact",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "no-unresolved-conflict",
+        "label": "No unresolved conflict",
+        "target_level": "maximum",
+        "target": 0,
+        "units": "count"
+      }
+    ],
+    "governance": "change-control policy; also draws on acceptance criteria",
+    "success": "requirement baseline approved and frozen",
+    "consumers": [
+      "architecture-design",
+      "software-construction",
+      "software-validation"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "requirements-analysis-service",
+    "name": "Requirements Analysis Service",
+    "capability_code": "requirements-analysis",
+    "purpose": "decompose and structure elicited requirements into a coherent set, resolving gaps and conflicts before modelling or validation begins",
+    "inputs": [
+      "requirements-backlog"
+    ],
+    "outputs": [
+      "requirements-analysis-model"
+    ],
+    "service_level": [
+      {
+        "code": "completeness-of-decomposition",
+        "label": "Completeness of decomposition",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "no-unresolved-conflict-left-silent",
+        "label": "No unresolved conflict left silent",
+        "target_level": "maximum",
+        "target": 0,
+        "units": "count"
+      },
+      {
+        "code": "traceability-from-each-detailed-requirement-back-to-its-source-statement",
+        "label": "Traceability from each detailed requirement back to its source statement",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "consistent-categorisation",
+        "label": "Consistent categorisation",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "requirements-management policy, decomposition and traceability standard; also draws on stakeholder context and constraints",
+    "success": "the analysed requirement set is accepted as ready for modelling (#4) or validation (#3) without needing further raw elicitation",
+    "consumers": [
+      "modelling-complex-systems",
+      "requirements-validation"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "requirements-discovery-service",
+    "name": "Requirements Discovery Service",
+    "capability_code": "requirements-elicitation",
+    "purpose": "Surface stakeholder needs before design begins",
+    "inputs": [
+      "domain-model",
+      "vision"
+    ],
+    "outputs": [
+      "requirements-backlog"
+    ],
+    "service_level": [
+      {
+        "code": "completeness",
+        "label": "Completeness",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "stakeholder-coverage",
+        "label": "Stakeholder coverage",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "ambiguity-free",
+        "label": "Ambiguity-free",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "requirements-management policy; also draws on stakeholder access",
+    "success": "sponsor confirms requirement set represents intent",
+    "consumers": [
+      "requirements-analysis",
+      "architecture-design"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "root-cause-synthesis-service",
+    "name": "Root-Cause Synthesis Service",
+    "capability_code": "autonomous-root-cause-synthesis",
+    "purpose": "reconstruct a full root-cause chain the instant an incident occurs",
+    "inputs": [
+      "source-code",
+      "configuration-files"
+    ],
+    "outputs": [
+      "root-cause-analysis-report"
+    ],
+    "service_level": [
+      {
+        "code": "accuracy",
+        "label": "Accuracy",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "completeness",
+        "label": "Completeness",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "time-to-synthesis",
+        "label": "Time-to-synthesis",
+        "target_level": "maximum",
+        "target": 24,
+        "units": "hours"
+      }
+    ],
+    "governance": "incident-management policy; also draws on infrastructure state and decision history",
+    "success": "root cause confirmed correct on human review",
+    "consumers": [
+      "operating-production-systems",
+      "governing-engineering-decisions"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "software-implementation-service",
+    "name": "Software Implementation Service",
+    "capability_code": "software-construction",
+    "purpose": "deliver a working component satisfying agreed expectation",
+    "inputs": [
+      "solution-architecture-document",
+      "engineering-standard"
+    ],
+    "outputs": [
+      "source-code"
+    ],
+    "service_level": [
+      {
+        "code": "functional-correctness",
+        "label": "Functional correctness",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "adherence-to-standard",
+        "label": "Adherence to standard",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "maintainability",
+        "label": "Maintainability",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "coding standard, security policy",
+    "success": "component satisfies architectural and functional specification",
+    "consumers": [
+      "software-validation"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "solution-option-recommendation-service",
+    "name": "Solution Option Recommendation Service",
+    "capability_code": "solution-options",
+    "purpose": "compare candidate solution options against the business need and recommend the one delivering the greatest net value",
+    "inputs": [
+      "requirements-specification"
+    ],
+    "outputs": [
+      "solution-options-analysis"
+    ],
+    "service_level": [
+      {
+        "code": "completeness-of-options-considered",
+        "label": "Completeness of options considered",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "transparency-and-defensibility-of-comparison-criteria",
+        "label": "Transparency and defensibility of comparison criteria",
+        "target_level": "exact",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "full-traceability-from-recommendation-back-to-requirement",
+        "label": "Full traceability from recommendation back to requirement",
+        "target_level": "minimum",
+        "target": 100,
+        "units": "percent"
+      }
+    ],
+    "governance": "investment/procurement governance policy, architecture standard where options are technical; also draws on the candidate solution options and a cost/risk/value estimate for each",
+    "success": "sponsoring authority accepts the recommendation, or explicitly overrides it with documented rationale",
+    "consumers": [
+      "architecture-design",
+      "governing-engineering-decisions"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "stakeholder-intent-reconciliation-service",
+    "name": "Stakeholder Intent Reconciliation Service",
+    "capability_code": "continuous-stakeholder-intent-reconciliation",
+    "purpose": "keep requirement understanding synchronised with scattered, ongoing stakeholder signal",
+    "inputs": [],
+    "outputs": [],
+    "service_level": [
+      {
+        "code": "currency",
+        "label": "Currency",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "conflict-detection",
+        "label": "Conflict detection",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "requirements policy; draws on meetings, tickets, support conversations, and email; produces a continuously reconciled intent baseline",
+    "success": "no stale intent baseline older than defined threshold",
+    "consumers": [
+      "requirements-elicitation",
+      "requirements-analysis",
+      "requirements-validation",
+      "requirements-prioritising"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "standard-refinement-service",
+    "name": "Standard Refinement Service",
+    "capability_code": "engineering-practice-improvement",
+    "purpose": "keep engineering standards current with accumulated evidence",
+    "inputs": [
+      "review-report"
+    ],
+    "outputs": [
+      "engineering-standard"
+    ],
+    "service_level": [
+      {
+        "code": "adoption-rate",
+        "label": "Adoption rate",
+        "target_level": "minimum",
+        "target": 85,
+        "units": "percent"
+      },
+      {
+        "code": "defect-reduction-impact",
+        "label": "Defect-reduction impact",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "standards-governance policy; also draws on evidence from service delivery; output also includes a checklist and practice guidance alongside the revised standard",
+    "success": "revised standard formally published",
+    "consumers": [],
+    "version": "1.0.0"
+  },
+  {
+    "code": "standard-synthesis-service",
+    "name": "Standard Synthesis Service",
+    "capability_code": "autonomous-standard-synthesis",
+    "purpose": "draft or refine engineering standards directly from accumulating evidence",
+    "inputs": [],
+    "outputs": [
+      "engineering-standard"
+    ],
+    "service_level": [
+      {
+        "code": "evidentiary-grounding",
+        "label": "Evidentiary grounding",
+        "target_level": "exact",
+        "target": 100,
+        "units": "percent"
+      },
+      {
+        "code": "adoption-rate-post-publication",
+        "label": "Adoption rate post-publication",
+        "target_level": "minimum",
+        "target": 85,
+        "units": "percent"
+      }
+    ],
+    "governance": "standards-governance policy; draws on evidence from service delivery across the organisation",
+    "success": "proposed revision formally adopted",
+    "consumers": [
+      "governing-engineering-decisions"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "system-model-service",
+    "name": "System Model Service",
+    "capability_code": "modelling-complex-systems",
+    "purpose": "represent structural and behavioural complexity before committing to design",
+    "inputs": [
+      "requirements-specification",
+      "domain-model"
+    ],
+    "outputs": [
+      "system-model"
+    ],
+    "service_level": [
+      {
+        "code": "internal-consistency",
+        "label": "Internal consistency",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "completeness-against-requirements",
+        "label": "Completeness against requirements",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "modelling standard; also draws on system/environment constraints",
+    "success": "model reviewed and accepted as basis for architecture",
+    "consumers": [
+      "architecture-design"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "technical-documentation-service",
+    "name": "Technical Documentation Service",
+    "capability_code": "engineering-documentation",
+    "purpose": "keep an accurate, current representation of engineering knowledge",
+    "inputs": [
+      "architecture-decision-record",
+      "source-code",
+      "requirements-specification"
+    ],
+    "outputs": [
+      "user-technical-documentation"
+    ],
+    "service_level": [
+      {
+        "code": "currency",
+        "label": "Currency",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "completeness",
+        "label": "Completeness",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "clarity",
+        "label": "Clarity",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "documentation standard",
+    "success": "documentation matches current system state",
+    "consumers": [
+      "operating-production-systems",
+      "recovering-organisational-knowledge",
+      "vendor-supplier-management"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "threat-anticipation-service",
+    "name": "Threat Anticipation Service",
+    "capability_code": "predictive-threat-pattern-anticipation",
+    "purpose": "check the organisation's own exposure the moment a new attack pattern emerges elsewhere",
+    "inputs": [],
+    "outputs": [
+      "security-assessment-report"
+    ],
+    "service_level": [
+      {
+        "code": "time-to-check-after-new-pattern-publication",
+        "label": "Time-to-check after new pattern publication",
+        "target_level": "maximum",
+        "target": 24,
+        "units": "hours"
+      }
+    ],
+    "governance": "security policy; also draws on external threat intelligence and the internal system inventory",
+    "success": "exposure checked and mitigated before exploitation",
+    "consumers": [
+      "protect-organisational-assets"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "vendor-management-service",
+    "name": "Vendor Management Service",
+    "capability_code": "vendor-supplier-management",
+    "purpose": "formally manage relationships with external vendors, suppliers and service providers",
+    "inputs": [],
+    "outputs": [
+      "vendor-contract",
+      "vendor-assessment",
+      "vendor-performance-record"
+    ],
+    "service_level": [
+      {
+        "code": "contract-compliance-rate",
+        "label": "Contract-compliance rate",
+        "target_level": "minimum",
+        "target": 85,
+        "units": "percent"
+      },
+      {
+        "code": "vendor-performance-against-sla",
+        "label": "Vendor performance against SLA",
+        "target_level": "minimum",
+        "target": 85,
+        "units": "percent"
+      },
+      {
+        "code": "completeness-of-risk-assessment",
+        "label": "Completeness of risk assessment",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      }
+    ],
+    "governance": "procurement policy, third-party risk-management standard; also draws on vendor/supplier candidates, contractual requirements, and third-party risk criteria",
+    "success": "vendor relationship delivers contracted value within acceptable risk, or is terminated per policy",
+    "consumers": [
+      "software-construction",
+      "protect-organisational-assets"
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "code": "vulnerability-assessment-service",
+    "name": "Vulnerability Assessment Service",
+    "capability_code": "protect-organisational-assets",
+    "purpose": "identify and reduce exposure to security threat",
+    "inputs": [],
+    "outputs": [
+      "security-assessment-report"
+    ],
+    "service_level": [
+      {
+        "code": "coverage",
+        "label": "Coverage",
+        "target_level": "minimum",
+        "target": 90,
+        "units": "percent"
+      },
+      {
+        "code": "false-negative-minimisation",
+        "label": "False-negative minimisation",
+        "target_level": "maximum",
+        "target": 5,
+        "units": "percent"
+      }
+    ],
+    "governance": "security policy, regulatory obligation; also draws on system artefacts and current threat intelligence; also produces a policy enforcement record",
+    "success": "no unmitigated critical vulnerability at release",
+    "consumers": [
+      "architecture-design",
+      "software-construction",
+      "software-release"
+    ],
+    "version": "1.0.0"
+  }
+]

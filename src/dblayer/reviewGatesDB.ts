@@ -35,6 +35,8 @@ export const reviewGatesDB = {
     // CR-060, revised same day — see qualityGatesDB.upsert's own
     // recommendedChecklistIds comment.
     recommendedChecklistIds?: string[];
+    authorId: string;
+    authorBadge: string;
   }): Promise<DbResult<ReviewGateRow>> {
     const client = await pool.connect();
     try {
@@ -60,10 +62,10 @@ export const reviewGatesDB = {
         await client.query("UPDATE review_gates SET is_active = false WHERE id = $1", [current.id]);
       }
       const { rows } = await client.query<ReviewGateRow>(
-        `INSERT INTO review_gates (code, name, entity_type, from_state, to_state, originating_pack_id, version, is_active, checklist_ids, recommended_checklist_ids)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8, $9)
+        `INSERT INTO review_gates (code, name, entity_type, from_state, to_state, originating_pack_id, version, is_active, checklist_ids, recommended_checklist_ids, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8, $9, $10, $11)
          RETURNING *`,
-        [input.code, input.name, input.entityType, input.fromState, input.toState, input.originatingPackId, nextVersion, checklistIds, recommendedChecklistIds]
+        [input.code, input.name, input.entityType, input.fromState, input.toState, input.originatingPackId, nextVersion, checklistIds, recommendedChecklistIds, input.authorId, input.authorBadge]
       );
       await client.query("COMMIT");
       return { data: rows[0] };

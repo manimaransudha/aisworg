@@ -14,7 +14,7 @@ import { seusDB } from "../../dblayer/seusDB.js";
 import { ebmsDB } from "../../dblayer/ebmsDB.js";
 import { dispatchEngine } from "./dispatchEngine.js";
 import { createObligation } from "../../routes/seu/core/obligations.js";
-import { raiseAttentionItem } from "../../routes/seu/core/attentionItems.js";
+import { raiseAttentionItem, resolveSystemActor } from "../../routes/seu/core/attentionItems.js";
 import { eventBus } from "./eventBus.js";
 import { logger } from "../../utils/logger.js";
 import type { EventHandler } from "./eventBus.js";
@@ -72,12 +72,15 @@ export const redispatchHandler: EventHandler = async (event: EventRow) => {
     // dispatchEngine.ts's own rejectDispatch: a human resolving the
     // Obligation below must be able to re-attempt this exact hop.
     await commandsDB.updateStatus(command.id, "Failed");
+    const systemActor = await resolveSystemActor(command.seu_id);
     await createObligation({
       relatedObjectType: command.entity_type,
       relatedObjectId: command.entity_id,
       category: "Operational",
       title: `Dispatch gave up on Work Item ${workItem.id} after ${attempts} attempts`,
       description: `Command ${command.id} (${command.from_state} -> ${command.to_state}): no Participant became Available after ${attempts} redispatch attempts (limit ${maxAttempts}).`,
+      actorId: systemActor.actorId,
+      authorBadge: systemActor.authorBadge,
     });
     await raiseAttentionItem({
       seuId: command.seu_id,
@@ -87,6 +90,7 @@ export const redispatchHandler: EventHandler = async (event: EventRow) => {
       description: `Command ${command.id} (${command.from_state} -> ${command.to_state}) needs a Participant. Redispatch stopped at the configured limit (${maxAttempts}). Resolve the Obligation once addressed.`,
       relatedObjectType: command.entity_type,
       relatedObjectId: command.entity_id,
+      ...systemActor,
     });
     await eventBus.publish({
       eventType: "DispatchRejected",
@@ -109,6 +113,7 @@ export const redispatchHandler: EventHandler = async (event: EventRow) => {
       description: `Command ${command.id} (${command.from_state} -> ${command.to_state}) is still waiting for an available Participant. Redispatch continues (limit ${maxAttempts ?? "none configured"}).`,
       relatedObjectType: command.entity_type,
       relatedObjectId: command.entity_id,
+      ...(await resolveSystemActor(command.seu_id)),
     });
   }
 

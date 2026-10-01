@@ -17,13 +17,18 @@ export const deliverablesDB = {
     // join key — see migration 236). Null for the manual "add a Deliverable
     // to a live SEU" path, which has no catalogue entry to draw one from.
     code?: string | null;
+    // NOT NULL, no DB default (deliverables_schema_recovery.sql) — the real
+    // acting participant (FK participants(id), not participants_master) and
+    // the badge it acted under. No fallback: every caller must resolve these.
+    authorId: string;
+    authorBadge: string;
   }): Promise<DbResult<DeliverableRow>> {
     try {
       const { rows } = await query<DeliverableRow>(
-        `INSERT INTO deliverables (seu_id, name, category, acquisition_scope, producing_capability_id, code)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO deliverables (seu_id, name, category, acquisition_scope, producing_capability_id, code, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [input.seuId, input.name, input.category ?? null, input.acquisitionScope ?? "SEU", input.producingCapabilityId ?? null, input.code ?? null]
+        [input.seuId, input.name, input.category ?? null, input.acquisitionScope ?? "SEU", input.producingCapabilityId ?? null, input.code ?? null, input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

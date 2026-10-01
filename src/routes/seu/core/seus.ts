@@ -133,7 +133,7 @@ async function withCommissionValidated<T extends { id: string; lifecycleState: s
 // viewer: undefined (or a Platform/Tenant Admin badge holder) sees every
 // SEU; otherwise the Registry is scoped to SEUs the viewer requested or is a
 // Participant on (SDK UI Layer Plan, "SEU Registry visibility").
-export async function listSeus(viewer?: { userId: number | null; isAdmin: boolean }): Promise<SeuListItem[]> {
+export async function listSeus(viewer?: { userId: string | null; isAdmin: boolean }): Promise<SeuListItem[]> {
   const viewerId = viewer && !viewer.isAdmin && viewer.userId != null ? viewer.userId : undefined;
   const { data } = await seusDB.listWithObjectiveStatement(viewerId);
   const withStates = await withPossibleNextStates(
@@ -152,7 +152,7 @@ export async function listSeus(viewer?: { userId: number | null; isAdmin: boolea
 // Paginated / searchable / sortable list for the SEUs Registry view.
 export async function listSeusPaginated(
   params: ListParams,
-  viewer?: { userId: number | null; isAdmin: boolean }
+  viewer?: { userId: string | null; isAdmin: boolean }
 ): Promise<ListResult<SeuListItem>> {
   const viewerId = viewer && !viewer.isAdmin && viewer.userId != null ? viewer.userId : undefined;
   const { items, total } = await seusDB.listWithObjectiveStatementPaginated(params, viewerId);

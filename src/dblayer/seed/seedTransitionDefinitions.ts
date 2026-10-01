@@ -26,8 +26,15 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import pool, { query } from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
+import { userDB } from "../userDB.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// authoredBy is a participants_master.id (ontology_concepts.author_id).
+export interface SeedActor {
+  authoredBy: string;
+  authorBadge: string;
+}
 
 interface TransitionDefinitionSeed {
   entityType: string;
@@ -87,7 +94,7 @@ export async function backfillPolicyCode(code: string, policyId: string): Promis
   }
 }
 
-export async function seedTransitionDefinitions(): Promise<void> {
+export async function seedTransitionDefinitions(actor: SeedActor): Promise<void> {
   const seeds = loadSeeds();
   const client = await pool.connect();
   try {
@@ -109,8 +116,8 @@ export async function seedTransitionDefinitions(): Promise<void> {
       }
 
       await client.query(
-        `INSERT INTO transition_definitions (entity_type, from_state, to_state, required_authority_rule_id, required_policy_ids, trigger, submit_verb, event_type, version_event, submit_version_event)
-         VALUES ($1, $2, $3, $4, $5::uuid[], $6, $7, $8, $9, $10)
+        `INSERT INTO transition_definitions (entity_type, from_state, to_state, required_authority_rule_id, required_policy_ids, trigger, submit_verb, event_type, version_event, submit_version_event, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5::uuid[], $6, $7, $8, $9, $10, $11, $12)
          ON CONFLICT (entity_type, from_state, to_state)
          DO UPDATE SET required_authority_rule_id = EXCLUDED.required_authority_rule_id,
                        required_policy_ids = EXCLUDED.required_policy_ids,
@@ -121,7 +128,7 @@ export async function seedTransitionDefinitions(): Promise<void> {
                        submit_version_event = EXCLUDED.submit_version_event`,
         [
           seed.entityType, seed.fromState, seed.toState, ruleId, policyIds, seed.trigger ?? "manual", seed.submitVerb ?? null,
-          seed.eventType ?? null, seed.versionEvent ?? null, seed.submitVersionEvent ?? null,
+          seed.eventType ?? null, seed.versionEvent ?? null, seed.submitVersionEvent ?? null, actor.authoredBy, actor.authorBadge,
         ]
       );
     }
@@ -136,12 +143,13 @@ export async function seedTransitionDefinitions(): Promise<void> {
   }
 }
 
-const isMain = import.meta.url === `file://${process.argv[1]}`;
-if (isMain) {
-  seedTransitionDefinitions()
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const { actorId, actorBadge } = await userDB.getSuperuserId();
+  if (!actorId) throw new Error("No participants_master row for user_id 1 -- log in as root first.");
+  seedTransitionDefinitions({ authoredBy: actorId, authorBadge: actorBadge })
+    .then(() => process.exit(0))
     .catch((err) => {
-      logger.error("[seed:transition-definitions] failed", err as Error);
-      process.exitCode = 1;
-    })
-    .finally(() => pool.end());
+      logger.error("[seedTransitionDefinitions] failed", err as Error);
+      process.exit(1);
+    });
 }

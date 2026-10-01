@@ -30,7 +30,6 @@ router.post("/seus/:id/quality-gate-waivers", async (req: Request, res: Response
       entityId,
       rationale,
       actorId,
-      grantedBy: req.session?.user?.id ?? null,
       expiresAt: typeof expiresAt === "string" ? expiresAt : null,
     });
     if (!result.ok) return res.status(403).json({ error: result.reason });

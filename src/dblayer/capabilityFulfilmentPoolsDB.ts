@@ -12,13 +12,15 @@ export const capabilityFulfilmentPoolsDB = {
     seuCapabilityId: string | null;
     capabilityId: string | null;
     participantIds: string[];
+    authorId: string;
+    authorBadge: string;
   }): Promise<DbResult<CapabilityFulfilmentPoolRow>> {
     try {
       const { rows } = await query<CapabilityFulfilmentPoolRow>(
-        `INSERT INTO capability_fulfilment_pools (seu_id, seu_capability_id, capability_id, participant_ids)
-         VALUES ($1, $2, $3, $4::uuid[])
+        `INSERT INTO capability_fulfilment_pools (seu_id, seu_capability_id, capability_id, participant_ids, author_id, author_badge)
+         VALUES ($1, $2, $3, $4::uuid[], $5, $6)
          RETURNING *`,
-        [input.seuId, input.seuCapabilityId, input.capabilityId, input.participantIds]
+        [input.seuId, input.seuCapabilityId, input.capabilityId, input.participantIds, input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

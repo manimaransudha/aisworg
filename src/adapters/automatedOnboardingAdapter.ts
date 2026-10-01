@@ -30,6 +30,7 @@ export const automatedOnboardingAdapter: ParticipantOnboardingAdapter = {
       cost: 5 + (i % 10) * 2,
       behaviourContext: [],
       authorisedRole: mockDefaultAuthorisedRole(),
+      userId: null,
     };
   },
 };

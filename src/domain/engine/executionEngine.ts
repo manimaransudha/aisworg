@@ -38,11 +38,11 @@ import { obligationsDB } from "../../dblayer/obligationsDB.js";
 import { decisionsDB } from "../../dblayer/decisionsDB.js";
 import { deliverableReferencesDB } from "../../dblayer/deliverableReferencesDB.js";
 import { checkSustainedQualityGateBlocking } from "../../routes/seu/core/telemetry.js";
-import { raiseAttentionItem } from "../../routes/seu/core/attentionItems.js";
+import { raiseAttentionItem, resolveAuthor, resolveSystemActor } from "../../routes/seu/core/attentionItems.js";
 import { raiseObligationForBlockedTransition } from "../../routes/seu/core/obligations.js";
 import { attentionItemsDB } from "../../dblayer/attentionItemsDB.js";
 import { authorityRulesDB } from "../../dblayer/authorityRulesDB.js";
-import type { CommandRow, DeliverableRow, DependencyDefinitionRow, GovernanceEvaluationOutcomeInput, TransitionEntityType } from "../../dblayer/seuTypes.js";
+import type { CommandRow, DeliverableRow, DependencyDefinitionRow, GovernanceEvaluationOutcomeDraft, TransitionEntityType } from "../../dblayer/seuTypes.js";
 
 // ExecutionResult removed: execute() is now an event-boundary function, not a
 // return-value function. Its caller must be an event consumer (nothing else
@@ -56,7 +56,7 @@ import type { CommandRow, DeliverableRow, DependencyDefinitionRow, GovernanceEva
 // re-exports this one for its "not ok, not dispatched" cases); kept here
 // since this is now where each of these outcomes is actually decided.
 export type DeliverableGovernanceResult =
-  | { ok: true; fromState: string; governanceOutcome: GovernanceEvaluationOutcomeInput; actingBadgeType: string | null }
+  | { ok: true; fromState: string; governanceOutcome: GovernanceEvaluationOutcomeDraft; actingBadgeType: string | null }
   | { ok: false; reason: "dependency_not_satisfied"; rows: DependencyDefinitionRow[] }
   | { ok: false; reason: "seu_blocked" | "obligation_blocked" | "decision_blocked"; detail: string }
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
@@ -150,12 +150,69 @@ export const executionEngine = {
       return { ok: false, reason: "already_in_flight", detail: `a Command for this exact hop is already ${inFlight.status} (Command ${inFlight.id})` };
     }
 
+    // CR-107 item 10 — Authority checked directly (badgeAuthorityEngine),
+    // not via transitionEngine.evaluate's own bundled call: that function
+    // doesn't apply state or publish either, so routing through it here
+    // bought nothing except also re-running its own required_policy_ids/
+    // required_quality_gate_ids checks, which are always empty on every real
+    // Deliverable row today (Deliverable keeps using its own separate
+    // qualityGateEngine.evaluate/policyEngine.evaluate calls below for the
+    // real thing) — dropped here as dead weight, not silently lost coverage.
+    // Unlike SEU's own Activated -> Operational row, Deliverable's verbs are
+    // real and live (create/approve/baseline, authorityVocabulary.json), so
+    // this is an actually-exercised path.
+    //
+    // Resolved before the Quality Gate check below (not after, as it used to
+    // be) — quality_gate_evaluations.author_id/author_badge are NOT NULL and
+    // need this transition's real resolved acting badge, same pattern as
+    // obligations.ts's own transitionObligation.
+    const { data: definition } = await transitionDefinitionsDB.find("Deliverable", fromState, targetState);
+    if (!definition) {
+      return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Deliverable ${fromState} -> ${targetState}` };
+    }
+    let applicableAuthorityRuleId: string | null = null;
+    // Owner (2026-09-22): "why do we even need this? the intent is to log
+    // the badge along with the actor_id" — the real authority check right
+    // here already knows exactly which badge authorised this transition
+    // (root, or requiredBadge itself, since Deliverable has no alternates);
+    // captured and returned below so the caller (transitionDeliverable)
+    // doesn't need a second, separate lookup (the old resolveAutoActingBadge,
+    // now removed) to re-derive the same answer.
+    let actingBadgeType: string | null = null;
+    let requiredBadge: string | null = null;
+    if (definition.verb) {
+      requiredBadge = `deliverable_${definition.verb}`;
+      const auth = await badgeAuthorityEngine.authorise({ actorId: input.actorId ?? "", requiredBadge });
+      if (!auth.allowed) {
+        return { ok: false, reason: "authority_denied", detail: `acting badge check failed: ${auth.reason}` };
+      }
+      actingBadgeType = auth.via === "root" ? "root" : (auth.matchedBadge ?? requiredBadge);
+      const { data: authorityRule } = await authorityRulesDB.findByCode(requiredBadge);
+      applicableAuthorityRuleId = authorityRule?.id ?? null;
+    }
+
+    // Real, already-resolved participants(id) + badge of whoever is running
+    // this evaluation (quality_gate_evaluations.author_id/author_badge are
+    // NOT NULL, no fallback) — a real actorId resolves to its participants
+    // row via resolveAuthor; a system-driven rescan (deliverableKickoffHandler,
+    // no actorId) uses the SEU's own requested_by, badged "system", same as
+    // the Blocked-outcome Attention Item raise below already does.
+    const { authorId: qualityGateAuthorId, authorBadge: qualityGateAuthorBadge } = input.actorId
+      ? { authorId: (await resolveAuthor(deliverable.seu_id, input.actorId)).authorId, authorBadge: actingBadgeType ?? requiredBadge ?? "system" }
+      : await (async () => {
+          const systemActor = await resolveSystemActor(deliverable.seu_id);
+          const { authorId } = await resolveAuthor(deliverable.seu_id, systemActor.actorId);
+          return { authorId, authorBadge: systemActor.authorBadge };
+        })();
+
     const qualityGateResult = await qualityGateEngine.evaluate({
       entityType: "Deliverable",
       entityId: deliverable.id,
       seuId: deliverable.seu_id,
       fromState,
       toState: targetState,
+      authorId: qualityGateAuthorId,
+      authorBadge: qualityGateAuthorBadge,
     });
     if (qualityGateResult.outcome === "Blocked") {
       // Ch.35 §11: a sustained pattern of blocking is Telemetry's concern,
@@ -166,6 +223,7 @@ export const executionEngine = {
       // automatically continue" case Ch.34's own worked examples call out as
       // requiring it. Deduplicated per (SEU, Deliverable) so retries of the
       // same blocked attempt don't flood the inbox.
+      const systemActor = await resolveSystemActor(deliverable.seu_id);
       await raiseAttentionItem({
         seuId: deliverable.seu_id,
         category: "Action Required",
@@ -173,6 +231,7 @@ export const executionEngine = {
         description: qualityGateResult.reason,
         relatedObjectType: "Deliverable",
         relatedObjectId: deliverable.id,
+        ...systemActor,
       });
       return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
     }
@@ -200,40 +259,6 @@ export const executionEngine = {
       return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${policyResult.policyCode}` };
     }
 
-    // CR-107 item 10 — Authority checked directly (badgeAuthorityEngine),
-    // not via transitionEngine.evaluate's own bundled call: that function
-    // doesn't apply state or publish either, so routing through it here
-    // bought nothing except also re-running its own required_policy_ids/
-    // required_quality_gate_ids checks, which are always empty on every real
-    // Deliverable row today (Deliverable keeps using its own separate
-    // qualityGateEngine.evaluate/policyEngine.evaluate calls above for the
-    // real thing) — dropped here as dead weight, not silently lost coverage.
-    // Unlike SEU's own Activated -> Operational row, Deliverable's verbs are
-    // real and live (create/approve/baseline, authorityVocabulary.json), so
-    // this is an actually-exercised path.
-    const { data: definition } = await transitionDefinitionsDB.find("Deliverable", fromState, targetState);
-    if (!definition) {
-      return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Deliverable ${fromState} -> ${targetState}` };
-    }
-    let applicableAuthorityRuleId: string | null = null;
-    // Owner (2026-09-22): "why do we even need this? the intent is to log
-    // the badge along with the actor_id" — the real authority check right
-    // here already knows exactly which badge authorised this transition
-    // (root, or requiredBadge itself, since Deliverable has no alternates);
-    // captured and returned below so the caller (transitionDeliverable)
-    // doesn't need a second, separate lookup (the old resolveAutoActingBadge,
-    // now removed) to re-derive the same answer.
-    let actingBadgeType: string | null = null;
-    if (definition.verb) {
-      const requiredBadge = `deliverable_${definition.verb}`;
-      const auth = await badgeAuthorityEngine.authorise({ actorId: input.actorId ?? "", requiredBadge });
-      if (!auth.allowed) {
-        return { ok: false, reason: "authority_denied", detail: `acting badge check failed: ${auth.reason}` };
-      }
-      actingBadgeType = auth.via === "root" ? "root" : (auth.matchedBadge ?? requiredBadge);
-      const { data: authorityRule } = await authorityRulesDB.findByCode(requiredBadge);
-      applicableAuthorityRuleId = authorityRule?.id ?? null;
-    }
     // CR-072 — a manual transition whose row declares submit_verb cannot be
     // attempted until its own from_state has actually been submitted
     // (triggerEngine), regardless of whether the acting actor holds this
@@ -287,7 +312,7 @@ export const executionEngine = {
     // and "Waived" (the one short-circuiting gate) ever carry one.
     const qualityGateOutcome = qualityGateResult.outcome === "NotApplicable" ? "NotApplicable" : qualityGateResult.outcome === "Waived" ? "Waived" : "Passed";
     const waivedGate = qualityGateResult.outcome === "Waived" ? qualityGateResult.gate : null;
-    const outcome: GovernanceEvaluationOutcomeInput["outcome"] =
+    const outcome: GovernanceEvaluationOutcomeDraft["outcome"] =
       qualityGateOutcome === "Waived" ? "Waived" : policyResult.deviatedPolicyIds.length > 0 ? "Approved-with-Conditions" : "Approved";
     const rationaleParts = [
       qualityGateOutcome === "NotApplicable" ? "no applicable Quality Gate" : waivedGate ? `Quality Gate "${waivedGate.name}": Waived` : `Quality Gate(s): ${qualityGateOutcome}`,
@@ -295,7 +320,7 @@ export const executionEngine = {
       applicableAuthorityRuleId ? "Authority check passed" : "no Authority rule required",
     ];
 
-    const governanceOutcome: GovernanceEvaluationOutcomeInput = {
+    const governanceOutcome: GovernanceEvaluationOutcomeDraft = {
       seu_id: deliverable.seu_id,
       entity_type: "Deliverable",
       entity_id: deliverable.id,
@@ -323,7 +348,8 @@ export const executionEngine = {
     fromState: string;
     toState: string;
     producingCapabilityId: string | null;
-    requestedBy: number | null;
+    requestedBy: string | null;
+    actorId?: string;
     actingBadgeType?: string | null;
     targetCompletionAt?: Date | null;
     correlationId: string;
@@ -332,11 +358,23 @@ export const executionEngine = {
     // first, then stamps the Command with the resulting id
     // (governanceOutcomeRef). Optional/null for command types that don't
     // route through evaluateDeliverableTransition yet.
-    governanceOutcome?: GovernanceEvaluationOutcomeInput | null;
+    governanceOutcome?: GovernanceEvaluationOutcomeDraft | null;
   }): Promise<void> {
     let governanceOutcomeId: string | null = null;
     if (input.governanceOutcome) {
-      const { data: outcome, error: outcomeError } = await governanceEvaluationOutcomesDB.create(input.governanceOutcome);
+      // author_id/author_badge are NOT NULL on governance_evaluation_outcomes
+      // — no fallback: this record attributes who caused it, so it requires
+      // the same real actorId/resolved badge evaluateDeliverableTransition
+      // already produced for this transition (see resolveAuthor's own
+      // seu_id-scoped participants.id FK note in attentionItems.ts).
+      if (!input.actorId) throw new Error("cannot record governance evaluation outcome without a real actorId");
+      if (!input.actingBadgeType) throw new Error("cannot record governance evaluation outcome without a resolved acting badge");
+      const { authorId } = await resolveAuthor(input.seuId, input.actorId);
+      const { data: outcome, error: outcomeError } = await governanceEvaluationOutcomesDB.create({
+        ...input.governanceOutcome,
+        author_id: authorId,
+        author_badge: input.actingBadgeType,
+      });
       if (outcomeError || !outcome) throw outcomeError ?? new Error("failed to record governance evaluation outcome");
       governanceOutcomeId = outcome.id;
     }
@@ -350,6 +388,14 @@ export const executionEngine = {
     // NO_CAPABILITY_DECLARED path; eligibleParticipantPoolId stays null.
     let eligibleParticipantPoolId: string | null = null;
     if (input.producingCapabilityId) {
+      // author_id/author_badge are NOT NULL on capability_fulfilment_pools —
+      // no fallback: this snapshot records who caused it, so it requires the
+      // same real actorId/resolved badge evaluateDeliverableTransition
+      // already produced for this transition (see resolveAuthor's own
+      // seu_id-scoped participants.id FK note in attentionItems.ts).
+      if (!input.actorId) throw new Error("cannot persist eligible-Participant pool without a real actorId");
+      if (!input.actingBadgeType) throw new Error("cannot persist eligible-Participant pool without a resolved acting badge");
+      const { authorId } = await resolveAuthor(input.seuId, input.actorId);
       const { data: seuCapability } = await seuCapabilitiesDB.findBySeuIdAndCapabilityId(input.seuId, input.producingCapabilityId);
       const { data: fulfilments } = seuCapability
         ? await capabilityFulfilmentsDB.findActiveManyBySeuCapabilityId(seuCapability.id)
@@ -359,6 +405,8 @@ export const executionEngine = {
         seuCapabilityId: seuCapability?.id ?? null,
         capabilityId: input.producingCapabilityId,
         participantIds: (fulfilments ?? []).map((f) => f.participant_id),
+        authorId,
+        authorBadge: input.actingBadgeType,
       });
       if (poolError || !pool) throw poolError ?? new Error("failed to persist eligible-Participant pool");
       eligibleParticipantPoolId = pool.id;

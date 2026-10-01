@@ -1,11 +1,17 @@
 import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { assertCanonicalCategory, syncConceptFromEntity, retireConceptForEntity } from "./ontology.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import type { ServiceDefinitionRow, ServiceLevelExpectation } from "../../../dblayer/seuTypes.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 // CR-086 follow-on — Service Definition authoring (Book 3 Ch.11), mirroring
 // core/deliverableDefinitions.ts in shape. Two differences from that
@@ -145,13 +151,13 @@ export type TransitionServiceDefinitionResult = { ok: true; serviceDefinition: S
 // genuinely becoming (or ceasing to be) Active, mirroring
 // syncOntologyOnActivate/demoteOntologyIfNoOtherActive in
 // core/deliverableDefinitions.ts exactly, one concept type over.
-async function syncOntologyOnActivate(row: ServiceDefinitionRow): Promise<void> {
-  await syncConceptFromEntity("service-name", row.code, row.name, row.purpose ?? null, row.tenant_id);
+async function syncOntologyOnActivate(row: ServiceDefinitionRow, actorId: string): Promise<void> {
+  await syncConceptFromEntity("service-name", row.code, row.name, row.purpose ?? null, row.tenant_id, actorId);
 }
 
-async function demoteOntologyIfNoOtherActive(row: ServiceDefinitionRow): Promise<void> {
+async function demoteOntologyIfNoOtherActive(row: ServiceDefinitionRow, actorId: string, actorBadge: string): Promise<void> {
   const { data: stillActive } = await serviceDefinitionsDB.findActiveByCode(row.code, row.tenant_id);
-  if (!stillActive) await retireConceptForEntity("service-name", row.code, row.tenant_id);
+  if (!stillActive) await retireConceptForEntity("service-name", row.code, row.tenant_id, actorId, actorBadge);
 }
 
 // Version Feature Plan.md §3/§4 (Ch.11, migration 188) — event_type is now
@@ -159,7 +165,7 @@ async function demoteOntologyIfNoOtherActive(row: ServiceDefinitionRow): Promise
 // TransitionOutcome), replacing the hardcoded EVENT_BY_TARGET_STATE map this
 // used to carry — mirrors how Template's/Profile's identical maps were
 // replaced, migrations 185/187.
-export async function transitionServiceDefinition(input: { serviceDefinitionId: string; targetState: ServiceDefinitionRow["status"]; actorRole: string; actorId?: string }): Promise<TransitionServiceDefinitionResult> {
+export async function transitionServiceDefinition(input: { serviceDefinitionId: string; targetState: ServiceDefinitionRow["status"]; actorRole: string; actorId: string }): Promise<TransitionServiceDefinitionResult> {
   const { data: serviceDefinition } = await serviceDefinitionsDB.findById(input.serviceDefinitionId);
   if (!serviceDefinition) return { ok: false, reason: "not_found" };
   const fromState = serviceDefinition.status;
@@ -178,8 +184,14 @@ export async function transitionServiceDefinition(input: { serviceDefinitionId: 
   const { data: updated, error } = await serviceDefinitionsDB.updateStatus(serviceDefinition.id, input.targetState);
   if (error || !updated) throw error ?? new Error("failed to update Service Definition status");
 
-  if (input.targetState === "Active") await syncOntologyOnActivate(updated);
-  else if (fromState === "Active") await demoteOntologyIfNoOtherActive(updated);
+  if (input.targetState === "Active" || fromState === "Active") {
+    if (!input.actorId) throw new Error("a real actorId is required to sync the service-name Ontology concept");
+    if (input.targetState === "Active") await syncOntologyOnActivate(updated, input.actorId);
+    else {
+      if (!gate.authorityBadge) throw new Error("no resolved authority badge for this transition — cannot record the service-name Ontology concept's retirement");
+      await demoteOntologyIfNoOtherActive(updated, input.actorId, gate.authorityBadge);
+    }
+  }
 
   await eventBus.publish({
     eventType: gate.eventType ?? "ServiceDefinitionTransitioned",
@@ -206,20 +218,22 @@ const AUTHORING_NEXT_STATE: Partial<Record<ServiceDefinitionRow["status"], Servi
   Retired: "Archived",
 };
 
-export async function advanceServiceDefinitionOneStep(serviceDefinition: ServiceDefinitionRow, actorRole: string, actorId: string | undefined): Promise<TransitionServiceDefinitionResult> {
+export async function advanceServiceDefinitionOneStep(serviceDefinition: ServiceDefinitionRow, actorRole: string, actorId: string): Promise<TransitionServiceDefinitionResult> {
   const targetState = AUTHORING_NEXT_STATE[serviceDefinition.status];
   if (!targetState) return { ok: false, reason: "no_further_step", detail: `Service Definition is already ${serviceDefinition.status} — no further authoring step` };
   return transitionServiceDefinition({ serviceDefinitionId: serviceDefinition.id, targetState, actorRole, actorId });
 }
 
 // Registry "Copy" action, mirrors copyDeliverableDefinitionAsNewDraft.
-export async function copyServiceDefinitionAsNewDraft(serviceDefinitionId: string, actorId: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
+export async function copyServiceDefinitionAsNewDraft(serviceDefinitionId: string, actorId: string, authorBadge: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await serviceDefinitionsDB.findById(serviceDefinitionId);
   if (!source) return { ok: false, errors: ["Service Definition not found"] };
   // CR-114 follow-on — same carry-forward-the-source's-own-pin reasoning as
   // templates.ts's copyTemplateAsNewDraft.
   const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Service");
   if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Service`] };
+  const { data: copyMaster } = await participantsMasterDB.findById(actorId);
+  if (!copyMaster) return { ok: false, errors: [`No superuser provisioned.`] };
   const { data: newDraft, error } = await serviceDefinitionsDB.createDraft({
     code: source.code,
     name: source.name,
@@ -232,7 +246,8 @@ export async function copyServiceDefinitionAsNewDraft(serviceDefinitionId: strin
     success: source.success,
     consumers: source.consumers,
     version: source.version,
-    authoredBy: Number(actorId),
+    authoredBy: copyMaster.id,
+    authorBadge,
     draftContent: {
       code: source.code, name: source.name, capabilityCode: source.capability_code, purpose: source.purpose ?? "", inputs: source.inputs,
       outputs: source.outputs, serviceLevel: source.service_level, governance: source.governance ?? "", success: source.success ?? "", consumers: source.consumers,

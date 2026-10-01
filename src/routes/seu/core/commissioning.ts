@@ -14,7 +14,6 @@ import { seuCapabilitiesDB } from "../../../dblayer/seuCapabilitiesDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
-import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
 import type { CompositionSource } from "../../../domain/engine/compositionEngine.js";
 import { unravelComposition, detectCompositionConflicts, formatCompositionConflict } from "../../../domain/engine/profileCompositionUnravel.js";
@@ -26,13 +25,20 @@ import { policyEngine } from "../../../domain/engine/policyEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { logger } from "../../../utils/logger.js";
 import { createObjective, ensureOneShotContainer } from "./objectives.js";
-import { raiseAttentionItem } from "./attentionItems.js";
+import { raiseAttentionItem, resolveAuthor, resolveSystemActor } from "./attentionItems.js";
 import { raiseObligationForBlockedTransition, raiseObligationsForPackDefinitions } from "./obligations.js";
 import { findCandidateTemplates } from "./templates.js";
-import { findOrCreateDefaultProfile, extractProfileDetails, getProfilePackSelections, extractExposedParameterOverrides } from "./profiles.js";
+// findOrCreateDefaultProfile decommissioned (owner: no silent default-Profile
+// creation as part of commissioning) — commented out, not imported.
+import { /* findOrCreateDefaultProfile, */ extractProfileDetails, getProfilePackSelections, extractExposedParameterOverrides, listRealProfilesForTemplate } from "./profiles.js";
 import type { ProfileDetail } from "./profiles.js";
 import { resolveLabels } from "./ontology.js";
 import type { CommissioningReport, SeuLifecycleState, SeuRow, TemplateRow, ProfileRow, ObjectiveRow, CapabilityRow, TemplateDeliverableSeed, EbmCompositionReport, EbmComposedPack, EbmRow } from "../../../dblayer/seuTypes.js";
+import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 // commissionSeu itself can no longer produce a full CommissioningReport
 // synchronously (design/mvp-build-plan/SEU Composition.md, "Structural
@@ -184,8 +190,8 @@ export async function commissionSeu(input: {
   // SEU Composition.md, "Whatever we validated is what should go into the SEU").
   resolvedCompositionConflicts?: Record<string, unknown>;
   actorRole: string;
-  actorId?: string;
-  requestedBy?: number | null;
+  actorId: string;
+  requestedBy: string;
   // Participant Integration — Plan step 6: which tenant owns this SEU. Defaults
   // to the seeded default tenant; determines which edge configuration its Work
   // Items run against.
@@ -354,7 +360,7 @@ export async function finalizeCommissioning(input: {
   profiles: ProfileRow[];
   tenantId: string | null;
   actorRole: string;
-  actorId?: string;
+  actorId: string;
   correlationId: string;
   causationId: string;
 }): Promise<FinalizeCommissioningResult> {
@@ -402,7 +408,11 @@ export async function finalizeCommissioning(input: {
     for (const c of caps ?? []) requiredCapabilitiesById.set(c.id, c);
   }
   const requiredCapabilities = [...requiredCapabilitiesById.values()];
-  await seuCapabilitiesDB.createMany(seu.id, requiredCapabilities.map((c) => c.id));
+  // Ungoverned step (see systemActor comment below, same PRE_ASSETS_STEPS
+  // reasoning) — no resolved authority badge in scope here either.
+  const systemActor = await resolveSystemActor(seu.id);
+  const { authorId: capabilityAuthorId } = await resolveAuthor(seu.id, systemActor.actorId);
+  await seuCapabilitiesDB.createMany(seu.id, requiredCapabilities.map((c) => c.id), capabilityAuthorId, systemActor.authorBadge);
 
   // CR-039/CR-041 — the dependency graph itself is not created here. It's
   // owner-scoped (dependency_definitions, CR-043's polymorphic owner),
@@ -450,6 +460,8 @@ export async function finalizeCommissioning(input: {
   for (const t of templates) {
     for (const seed of t.deliverable_catalogue) deliverableCatalogueByCode.set(seed.code, seed);
   }
+  // Same systemActor resolved above for seu_capabilities' own author_id/badge.
+  const deliverableAuthorId = capabilityAuthorId;
   const deliverableIdByName = new Map<string, string>();
   for (const seed of deliverableCatalogueByCode.values()) {
     const producingCapability = producingCapabilityByDeliverableCode.get(seed.code);
@@ -459,6 +471,8 @@ export async function finalizeCommissioning(input: {
       name,
       code: seed.code,
       producingCapabilityId: producingCapability?.id ?? null,
+      authorId: deliverableAuthorId,
+      authorBadge: systemActor.authorBadge,
     });
     if (deliverable) deliverableIdByName.set(name, deliverable.id);
   }
@@ -524,7 +538,7 @@ export async function finalizeCommissioning(input: {
 // anything, the same self-filter obligationResolvedHandler already used.
 // A SEU no longer at "Activated" (already Operational via another path, or
 // genuinely failed since) is a no-op, not an error.
-export async function attemptSeuCommenceWork(input: { seuId: string; correlationId: string; causationId: string; actorId?: string }): Promise<void> {
+export async function attemptSeuCommenceWork(input: { seuId: string; correlationId: string; causationId: string; actorId: string }): Promise<void> {
   const { data: seu } = await seusDB.findById(input.seuId);
   if (!seu) {
     logger.error(`[executionEngine] attemptSeuCommenceWork: SEU not found: ${input.seuId}`);
@@ -621,7 +635,7 @@ export type TransitionEbmResult =
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string }
   | { ok: false; reason: "ebm_retired"; detail: string };
 
-export async function transitionEbm(input: { ebmId: string; targetState: string; actorRole: string; actorId?: string }): Promise<TransitionEbmResult> {
+export async function transitionEbm(input: { ebmId: string; targetState: string; actorRole: string; actorId: string }): Promise<TransitionEbmResult> {
   const { data: ebm } = await ebmsDB.findById(input.ebmId);
   if (!ebm) return { ok: false, reason: "not_found" };
 
@@ -666,6 +680,8 @@ export async function transitionEbm(input: { ebmId: string; targetState: string;
       // Owner: "the user has to be notified" — raiseAttentionItem (Ch.34),
       // the same deduplication-aware mechanism other core modules already
       // exist to call, just never had a live caller until now.
+      if (!input.actorId) throw new Error(`EBM ${ebm.id} retirement has no acting user to record as this Attention Item's author`);
+      if (!gate.authorityBadge) throw new Error(`EBM ${ebm.id} retirement has no resolved authority badge to record as this Attention Item's author badge`);
       await raiseAttentionItem({
         seuId: ebm.seu_id,
         category: "EBM Retired",
@@ -675,6 +691,8 @@ export async function transitionEbm(input: { ebmId: string; targetState: string;
         relatedObjectType: "EBM",
         relatedObjectId: ebm.id,
         triggeringEventId: retiredEvent.id,
+        actorId: input.actorId,
+        authorBadge: gate.authorityBadge,
       });
       return { ok: false, reason: "ebm_retired", detail: `references no longer live: ${deadReferences.join("; ")}` };
     }
@@ -739,13 +757,20 @@ export async function commissionFromForm(input: {
   statement: string;
   requiredCapabilityCodes: string[];
   actorRole: string;
-  actorId?: string;
-  requestedBy?: number | null;
+  actorId: string;
+  requestedBy: string;
   tenantId?: string | null;
 }): Promise<CommissionFromFormResult> {
   // CR-009: a bare Engineering Objective needs a parent — hang it under the
   // reused Strategic container root (owner decision, 2026-08-13).
   const container = await ensureOneShotContainer(input.requestedBy);
+
+  // objective_capabilities.author_id/author_badge are NOT NULL (schema
+  // recovery audit) — createObjective itself resolves them off requestedBy's
+  // own real held badges (resolveCapabilityAuthor, core/objectives.ts), same
+  // as every other caller; requestedBy is this helper's own acting user
+  // (input.actorId is only used downstream for commissionSeu's own
+  // authorisation, a separate concern).
   const { objective } = await createObjective({
     statement: input.statement,
     requiredCapabilityCodes: input.requiredCapabilityCodes,
@@ -768,7 +793,19 @@ export async function commissionFromForm(input: {
     };
   }
 
-  const profile = await findOrCreateDefaultProfile(template.id);
+  // DECOMMISSIONED — no silent default-Profile creation (owner: "this path
+  // should be disallowed"). This one-shot form path has no UI seam for the
+  // human to pick a Profile, so it now hard-fails instead of synthesizing one.
+  // const profile = await findOrCreateDefaultProfile(template.id);
+  const realProfiles = await listRealProfilesForTemplate(template.id);
+  const profile = realProfiles.find((p) => p.environment === "development") ?? realProfiles[0];
+  if (!profile) {
+    return {
+      ok: false,
+      stage: "select_template",
+      reason: `no real Profile exists yet for Template ${template.code} — a Profile must be authored before commissioning`,
+    };
+  }
 
   // Resolved explicitly here, not left to commissionSeu's own fallback: that
   // fallback now derives from the Objective's sponsoring_authority (§18.11)
@@ -848,14 +885,20 @@ export async function commissionFromExistingObjective(input: {
   // payload for the EBM Composer. See commissionSeu's own field comment.
   resolvedCompositionConflicts?: Record<string, unknown>;
   actorRole: string;
-  actorId?: string;
-  requestedBy?: number | null;
+  actorId: string;
+  requestedBy: string;
 }): Promise<CommissionResult> {
   const templateIds = [...new Set(input.selections.map((s) => s.templateId))];
   const profileIds: string[] = [];
   for (const s of input.selections) {
-    const profileId = s.profileId ?? (await findOrCreateDefaultProfile(s.templateId)).id;
-    profileIds.push(profileId);
+    // DECOMMISSIONED — no silent default-Profile creation (owner: "this path
+    // should be disallowed and all the fallback decommissioned"). A
+    // selection with no profileId is now a hard failure, not a fallback.
+    // const profileId = s.profileId ?? (await findOrCreateDefaultProfile(s.templateId)).id;
+    if (!s.profileId) {
+      return { ok: false, stage: "select_profile", reason: `no Profile chosen for Template ${s.templateId} — a real Profile must be selected before commissioning` };
+    }
+    profileIds.push(s.profileId);
   }
 
   return commissionSeu({

@@ -6,6 +6,7 @@
 // platform requires a real noun_verb badge (CR-006).
 import { qualityGatesDB } from "../../../dblayer/qualityGatesDB.js";
 import { qualityGateWaiversDB } from "../../../dblayer/qualityGateWaiversDB.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import type { QualityGateWaiverRow } from "../../../dblayer/seuTypes.js";
@@ -21,7 +22,6 @@ export async function grantQualityGateWaiver(input: {
   entityId: string;
   rationale: string;
   actorId: string;
-  grantedBy: number | null;
   expiresAt?: string | null;
 }): Promise<GrantQualityGateWaiverResult> {
   if (!input.rationale?.trim()) return { ok: false, reason: "rationale is required" };
@@ -32,13 +32,16 @@ export async function grantQualityGateWaiver(input: {
   const { data: gate } = await qualityGatesDB.findByIds([input.qualityGateId]);
   if (!gate || gate.length === 0) return { ok: false, reason: "quality gate not found" };
 
+  const { data: master } = await participantsMasterDB.findById(input.actorId);
+  if (!master) return { ok: false, reason: `No superuser provisioned.` };
+
   const { data: waiver, error } = await qualityGateWaiversDB.grant({
     qualityGateId: input.qualityGateId,
     seuId: input.seuId,
     entityType: input.entityType,
     entityId: input.entityId,
     rationale: input.rationale,
-    grantedBy: input.grantedBy,
+    grantedBy: master.id,
     authorityBadge: QUALITY_GATE_WAIVE_BADGE,
     expiresAt: input.expiresAt,
   });

@@ -19,14 +19,40 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { objectivesDB } from "../src/dblayer/objectivesDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
-import { ensureWebAppTemplateFixture } from "./testFixtures.js";
+import { participantsDB } from "../src/dblayer/participantsDB.js";
+import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
+import { ensureWebAppTemplateFixture, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+
+// deliverables.author_id is a FK to participants(id) (the SEU-scoped
+// engagement row), not participants_master directly — same two-hop shape
+// resolveAuthor (core/attentionItems.ts) uses for every other seu_id-scoped
+// author column. This suite calls deliverablesDB.create directly (not
+// through a route), so it resolves its own root actor the same way.
+async function rootDeliverableAuthor(seuId: string): Promise<string> {
+  const { data: root } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
+  if (!root) throw new Error("No participants_master row for the superuser -- is db:clean-slate seeded?");
+  const { data: participant, error } = await participantsDB.create({ seuId, type: "Human", displayName: "root", participantId: root.id });
+  if (error || !participant) throw error ?? new Error("failed to create root participant fixture");
+  return participant.id;
+}
+
+// objective_root_sequences.author_id/author_badge are NOT NULL — this suite
+// calls objectivesDB.create directly (not through the route/createObjective,
+// which resolves this itself), so it resolves its own root actor for the
+// same requestedBy: 1001 user_id these tests already use.
+async function rootObjectiveAuthor(): Promise<string> {
+  const { data: root } = await participantsMasterDB.findById(TESTER_ALL_ID);
+  if (!root) throw new Error("No participants_master row for tester-all -- is db:clean-slate seeded?");
+  return root.id;
+}
 
 test("dependencyDefinitionEngine: a target with no incoming rows is ready trivially", async () => {
   await ensureWebAppTemplateFixture();
   const { data: template } = await templatesDB.findByCode("test-enterprise-web-application");
   assert.ok(template);
 
-  const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic", requestedBy: 1001 });
+  const objAuthorId = await rootObjectiveAuthor();
+  const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic", requestedBy: 1001, authorId: objAuthorId, authorBadge: "root" });
   const { data: profile } = await profilesDB.findByCode("test-profile-default-development");
   const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id });
   assert.ok(seu);
@@ -56,12 +82,14 @@ test("dependencyDefinitionEngine: a Deliverable-type row gates its target, and r
   const { data: template } = await templatesDB.findByCode("test-enterprise-web-application");
   assert.ok(template);
 
-  const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic", requestedBy: 1001 });
+  const objAuthorId = await rootObjectiveAuthor();
+  const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic", requestedBy: 1001, authorId: objAuthorId, authorBadge: "root" });
   const { data: profile } = await profilesDB.findByCode("test-profile-default-development");
   const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id });
   assert.ok(seu);
 
-  const { data: upstream } = await deliverablesDB.create({ seuId: seu!.id, name: "Requirements Analysis Model", category: "Documentation" });
+  const authorId = await rootDeliverableAuthor(seu!.id);
+  const { data: upstream } = await deliverablesDB.create({ seuId: seu!.id, name: "Requirements Analysis Model", category: "Documentation", authorId, authorBadge: "root" });
   assert.ok(upstream);
 
   const before = await dependencyDefinitionEngine.isTargetReady(seu!.id, "Deliverable", "Architecture Decision Record", "In Progress");
@@ -85,13 +113,15 @@ test("dependencyDefinitionEngine.evaluateAndPublishFromTransition publishes Deli
   const { data: template } = await templatesDB.findByCode("test-enterprise-web-application");
   assert.ok(template);
 
-  const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic", requestedBy: 1001 });
+  const objAuthorId = await rootObjectiveAuthor();
+  const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic", requestedBy: 1001, authorId: objAuthorId, authorBadge: "root" });
   const { data: profile } = await profilesDB.findByCode("test-profile-default-development");
   const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id });
   assert.ok(seu);
 
-  const { data: upstream } = await deliverablesDB.create({ seuId: seu!.id, name: "Requirements Analysis Model", category: "Documentation" });
-  const { data: downstream } = await deliverablesDB.create({ seuId: seu!.id, name: "Architecture Decision Record", category: "Documentation" });
+  const authorId = await rootDeliverableAuthor(seu!.id);
+  const { data: upstream } = await deliverablesDB.create({ seuId: seu!.id, name: "Requirements Analysis Model", category: "Documentation", authorId, authorBadge: "root" });
+  const { data: downstream } = await deliverablesDB.create({ seuId: seu!.id, name: "Architecture Decision Record", category: "Documentation", authorId, authorBadge: "root" });
   assert.ok(upstream && downstream);
 
   const { eventsDB } = await import("../src/dblayer/eventsDB.js");

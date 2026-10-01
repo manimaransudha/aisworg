@@ -22,7 +22,6 @@ export interface TransitionDefinitionListItem {
   // enforcement collapses onto it (`noun_verb`). Display-only for now.
   nounVerbBadge: string | null;
   authorityRuleCode: string | null;
-  requiredBadgeType: string | null;
   authorisedRole: string | null;
   policyCount: number;
   qualityGateCount: number;
@@ -42,7 +41,6 @@ export async function listCurrentTransitionDefinitions(): Promise<TransitionDefi
     retiredAt: r.retired_at,
     nounVerbBadge: r.verb ? `${r.entity_type.toLowerCase()}_${r.verb}` : null,
     authorityRuleCode: r.authority_rule_code,
-    requiredBadgeType: r.required_badge_type,
     authorisedRole: r.authorised_role,
     policyCount: r.policy_count,
     qualityGateCount: r.quality_gate_count,

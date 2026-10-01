@@ -11,6 +11,7 @@ import { capabilityFulfilmentsDB } from "../../../dblayer/capabilityFulfilmentsD
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { assertCanonicalCategory } from "./ontology.js";
+import { resolveAuthor } from "./attentionItems.js";
 import type { ParticipantRow, ParticipantType } from "../../../dblayer/seuTypes.js";
 
 export type TransitionParticipantResult =
@@ -45,7 +46,7 @@ export async function transitionParticipant(input: { participantId: string; targ
     fromState,
     toState: input.targetState,
     actorRole: input.actorRole,
-    actorId: input.actorId,
+    actorId: input.actorId ?? "",
     seuId: participant.seu_id,
     entityId: participant.id,
     context: { participant },
@@ -106,6 +107,7 @@ export async function replaceParticipant(input: {
   newParticipantMasterId?: string | null;
   actorRole: string;
   actorId?: string;
+  authorBadge: string;
 }): Promise<ReplaceParticipantResult> {
   const { data: oldParticipant } = await participantsDB.findById(input.oldParticipantId);
   if (!oldParticipant) return { ok: false, reason: "not_found", detail: `Participant not found: ${input.oldParticipantId}` };
@@ -145,10 +147,13 @@ export async function replaceParticipant(input: {
   // would conflate two different Participants' tenure into a single row's
   // established_at/revoked_at history).
   await capabilityFulfilmentsDB.revoke(fulfilment.id);
+  const { authorId } = await resolveAuthor(oldParticipant.seu_id, input.actorId ?? "");
   const { data: newFulfilment, error: fulfilmentErr } = await capabilityFulfilmentsDB.create({
     seuCapabilityId: fulfilment.seu_capability_id,
     participantId: newParticipant.id,
     fulfilmentStrategy: input.newParticipantType,
+    authorId,
+    authorBadge: input.authorBadge,
   });
   if (fulfilmentErr || !newFulfilment) throw fulfilmentErr ?? new Error("failed to establish replacement capability fulfilment");
 

@@ -10,13 +10,15 @@ export const externalInteractionsDB = {
     direction: InteractionDirection;
     targetSystem: string;
     purpose?: string | null;
+    authorId: string;
+    authorBadge: string;
   }): Promise<DbResult<ExternalInteractionRow>> {
     try {
       const { rows } = await query<ExternalInteractionRow>(
-        `INSERT INTO external_interactions (seu_id, deliverable_id, interaction_type, direction, target_system, purpose)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO external_interactions (seu_id, deliverable_id, interaction_type, direction, target_system, purpose, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [input.seuId, input.deliverableId ?? null, input.interactionType, input.direction, input.targetSystem, input.purpose ?? null]
+        [input.seuId, input.deliverableId ?? null, input.interactionType, input.direction, input.targetSystem, input.purpose ?? null, input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

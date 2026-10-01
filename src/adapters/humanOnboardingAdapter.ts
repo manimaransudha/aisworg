@@ -57,6 +57,7 @@ export const humanOnboardingAdapter: ParticipantOnboardingAdapter = {
             ]
           : [{ policy: "background-verification", payload: { status: "completed" } }],
       authorisedRole: mockDefaultAuthorisedRole(),
+      userId: null,
     };
   },
 };

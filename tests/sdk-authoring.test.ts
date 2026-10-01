@@ -470,7 +470,7 @@ function validTemplateContent(code: string, templateVersion: string): Record<str
 
 test("Template authoring (entity-direct): the same pipeline as Pack produces a real Active Template row", async () => {
   const templateVersion = uniqueVersion();
-  const created = await createAuthoringDraft({ kind: "Template", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, content: validTemplateContent(REAL_TEMPLATE_CODE, templateVersion) });
+  const created = await createAuthoringDraft({ kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, content: validTemplateContent(REAL_TEMPLATE_CODE, templateVersion) });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
   if (!created.ok) return;
   createdTemplateIds.push(created.draftId);
@@ -519,7 +519,7 @@ test("Profile authoring (entity-direct): produces a real Active Profile row refe
 
 test("Template authoring: referential validation rejects a mandatoryPackCode that doesn't resolve to a real Pack (blocks publish)", async () => {
   const templateVersion = uniqueVersion();
-  const created = await createAuthoringDraft({ kind: "Template", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, content: validTemplateContent(REAL_TEMPLATE_CODE, templateVersion) });
+  const created = await createAuthoringDraft({ kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, content: validTemplateContent(REAL_TEMPLATE_CODE, templateVersion) });
   assert.equal(created.ok, true);
   if (!created.ok) return;
   createdTemplateIds.push(created.draftId);
@@ -551,7 +551,7 @@ test("CR-026: a tenant author inheriting an Active Platform Template gets a Draf
   // A tampered/stale submission tries to pick a different code — the server
   // must ignore it and lock to the parent's own, not just the UI.
   const created = await createAuthoringDraft({
-    kind: "Template", schemaDefinitionId: await schemaDefinitionIdFor("Template"),
+    kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"),
     actorId: ROOT_ACTOR_ID,
     tenantId: DEMO_TENANT_ID,
     parentTemplateId: parent.id,
@@ -595,7 +595,7 @@ test("CR-026: publishing a Derived Template is rejected if it drops one of its p
   const inheritedContent = inherited.content as Record<string, unknown>;
   const sanitisedContent = inheritedContent;
 
-  const created = await createAuthoringDraft({ kind: "Template", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, tenantId: ATHENS_TENANT_ID, parentTemplateId: parent.id, content: sanitisedContent });
+  const created = await createAuthoringDraft({ kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, tenantId: ATHENS_TENANT_ID, parentTemplateId: parent.id, content: sanitisedContent });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
   if (!created.ok) return;
   createdTemplateIds.push(created.draftId);
@@ -695,7 +695,7 @@ test("Deliverable Definition authoring (entity-direct): produces a real Active r
   const definitionVersion = uniqueVersion();
   createdOntologyConceptCodes.push(code);
 
-  const created = await createAuthoringDraft({ kind: "Deliverable", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(code, definitionVersion) });
+  const created = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(code, definitionVersion) });
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
   if (!created.ok) return;
   createdDeliverableDefinitionIds.push(created.draftId);
@@ -728,24 +728,24 @@ test("Deliverable Definition authoring (entity-direct): produces a real Active r
 });
 
 test("Deliverable Definition authoring: validation rejects an empty code, a non-semver version, and a duplicate code+version+tenant", async () => {
-  const emptyCode = await createAuthoringDraft({ kind: "Deliverable", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent("", uniqueVersion()) });
+  const emptyCode = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent("", uniqueVersion()) });
   assert.equal(emptyCode.ok, false);
   assert.match((!emptyCode.ok && emptyCode.errors.join(";")) || "", /code is required/);
 
   const code = `sdk-test-deliverable-badver-${randomUUID()}`;
-  const badVersion = await createAuthoringDraft({ kind: "Deliverable", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(code, "not-a-version") });
+  const badVersion = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(code, "not-a-version") });
   assert.equal(badVersion.ok, false);
   assert.match((!badVersion.ok && badVersion.errors.join(";")) || "", /semver/);
 
   const dupeCode = `sdk-test-deliverable-dupe-${randomUUID()}`;
   const dupeVersion = uniqueVersion();
   createdOntologyConceptCodes.push(dupeCode);
-  const first = await createAuthoringDraft({ kind: "Deliverable", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(dupeCode, dupeVersion) });
+  const first = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(dupeCode, dupeVersion) });
   assert.equal(first.ok, true, !first.ok ? first.errors.join("; ") : undefined);
   if (!first.ok) return;
   createdDeliverableDefinitionIds.push(first.draftId);
 
-  const second = await createAuthoringDraft({ kind: "Deliverable", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(dupeCode, dupeVersion) });
+  const second = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(dupeCode, dupeVersion) });
   assert.equal(second.ok, false);
   assert.match((!second.ok && second.errors.join(";")) || "", /already exists at version/);
 });
@@ -759,7 +759,7 @@ test("CR-049: inheriting from an Active Platform Deliverable Definition offers a
   const parentCode = `sdk-test-deliverable-parent-${randomUUID()}`;
   const parentVersion = uniqueVersion();
   createdOntologyConceptCodes.push(parentCode);
-  const parentCreated = await createAuthoringDraft({ kind: "Deliverable", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(parentCode, parentVersion) });
+  const parentCreated = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(parentCode, parentVersion) });
   assert.equal(parentCreated.ok, true, !parentCreated.ok ? parentCreated.errors.join("; ") : undefined);
   if (!parentCreated.ok) return;
   createdDeliverableDefinitionIds.push(parentCreated.draftId);
@@ -773,7 +773,7 @@ test("CR-049: inheriting from an Active Platform Deliverable Definition offers a
   const childCode = `sdk-test-deliverable-child-${randomUUID()}`;
   createdOntologyConceptCodes.push(childCode);
   const child = await createAuthoringDraft({
-    kind: "Deliverable", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"),
+    kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"),
     actorId: ROOT_ACTOR_ID,
     tenantId: DEMO_TENANT_ID,
     parentDeliverableDefinitionId: parent!.id,
@@ -803,14 +803,14 @@ test("Deliverable Definition: a second Version of the same code superseding the 
   const code = `sdk-test-deliverable-supersede-${randomUUID()}`;
   createdOntologyConceptCodes.push(code);
 
-  const v1 = await createAuthoringDraft({ kind: "Deliverable", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(code, "1.0.0") });
+  const v1 = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(code, "1.0.0") });
   assert.equal(v1.ok, true, !v1.ok ? v1.errors.join("; ") : undefined);
   if (!v1.ok) return;
   createdDeliverableDefinitionIds.push(v1.draftId);
   const v1Published = await advanceToActive("Deliverable", v1.draftId, ROOT_ACTOR_ID, "general");
   assert.equal(v1Published.ok, true, !v1Published.ok ? v1Published.errors.join("; ") : undefined);
 
-  const v2 = await createAuthoringDraft({ kind: "Deliverable", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: { code, description: "Updated description for v2", definitionVersion: "1.0.1" } });
+  const v2 = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: { code, description: "Updated description for v2", definitionVersion: "1.0.1" } });
   assert.equal(v2.ok, true, !v2.ok ? v2.errors.join("; ") : undefined);
   if (!v2.ok) return;
   createdDeliverableDefinitionIds.push(v2.draftId);

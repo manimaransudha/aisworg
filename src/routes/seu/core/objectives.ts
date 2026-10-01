@@ -1,10 +1,12 @@
 import { objectivesDB } from "../../../dblayer/objectivesDB.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { triggerEngine } from "../../../domain/engine/triggerEngine.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
+import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 import { eventsDB } from "../../../dblayer/eventsDB.js";
 import { userDB } from "../../../dblayer/userDB.js";
 import { findCandidateTemplates } from "./templates.js";
@@ -55,13 +57,30 @@ async function resolveRequiredCapabilities(codes: string[]): Promise<RequiredCap
   });
 }
 
+// objective_capabilities.author_id/author_badge are NOT NULL, no default
+// (schema recovery audit) — resolved off the requesting user's own real,
+// live held badges intersected with what POST /objectives actually requires
+// (route_authority), not a literal (same discipline as web/objectives.ts's
+// compose-ebm handler). requestedBy is always the acting user here (every
+// createObjective/updateObjective caller sets it to the session user id),
+// so there is no separate actorId to thread through.
+async function resolveCapabilityAuthor(requestedBy: string): Promise<{ authorId: string; authorBadge: string }> {
+  const { data: master } = await participantsMasterDB.findById(requestedBy);
+  if (!master) throw new Error(`No superuser provisioned.`);
+  const { isRoot, badgeTypes } = await badgeAuthorityEngine.getHeldBadges(String(requestedBy));
+  const authRow = lookupRouteAuthority("POST", "/aisworg/seu/objectives");
+  const authorBadge = isRoot ? "root" : authRow?.badges.find((b) => badgeTypes.has(b));
+  if (!authorBadge) throw new Error("no held badge authorises this action — cannot record an author badge");
+  return { authorId: master.id, authorBadge };
+}
+
 export async function createObjective(input: {
   statement: string;
   requiredCapabilityCodes: string[];
   tier?: ObjectiveTier;
   status?: ObjectiveStatus;
   parentObjectiveId?: string | null;
-  requestedBy?: number | null;
+  requestedBy: string;
   // ensureOneShotContainer's Strategic root is a single sentinel-matched
   // container REUSED ACROSS EVERY TENANT (commissionFromForm), not minted per
   // tenant, permanently Active, its own sponsoring_authority fixed to
@@ -129,9 +148,10 @@ export async function createObjective(input: {
       // badgeAuthorityEngine.getHeldBadges, the ONE canonical check
       // requireBadge's own resolveHeldBadges also delegates to, not a
       // second, hand-rolled badge_grants query re-deriving root here.
-      const { isRoot } = await badgeAuthorityEngine.getHeldBadges(String(input.requestedBy));
+      const { isRoot } = await badgeAuthorityEngine.getHeldBadges(input.requestedBy);
       if (!isRoot) {
-        const requester = await userDB.findById(input.requestedBy);
+        const { data: requester } = await participantsMasterDB.findById(input.requestedBy);
+        console.log(JSON.stringify(requester))
         const requesterTenantId = requester?.tenant_id ?? null;
         const parentTenantId = parent.sponsoring_authority?.tenant ?? null;
         if (parentTenantId === null || requesterTenantId === null || parentTenantId !== requesterTenantId) {
@@ -141,17 +161,28 @@ export async function createObjective(input: {
     }
   }
 
+  // objective_root_sequences.author_id/author_badge are NOT NULL — only
+  // needed when creating a root (no parentObjectiveId), the branch that
+  // inserts into that table, but resolved unconditionally here since
+  // resolveCapabilityAuthor is cheap and requestedBy is already required.
+  const { authorId, authorBadge } = await resolveCapabilityAuthor(input.requestedBy!);
+
   const { data: objective, error } = await objectivesDB.create({
     statement: input.statement,
     tier,
     status: input.status,
     parentObjectiveId: input.parentObjectiveId,
     requestedBy: input.requestedBy,
+    authorId,
+    authorBadge,
   });
   if (error || !objective) throw error ?? new Error("failed to create objective");
 
   const requiredCapabilities = await resolveRequiredCapabilities(input.requiredCapabilityCodes);
-  await objectivesDB.addCapabilities(objective.id, requiredCapabilities.map((c) => c.code));
+  if (requiredCapabilities.length > 0) {
+    const { authorId, authorBadge } = await resolveCapabilityAuthor(input.requestedBy!);
+    await objectivesDB.addCapabilities(objective.id, requiredCapabilities.map((c) => c.code), authorId, authorBadge);
+  }
   return { objective, requiredCapabilities };
 }
 
@@ -162,7 +193,7 @@ export async function createObjective(input: {
 // 2026-08-13). Reused by sentinel statement, not minted per SEU.
 export const ONE_SHOT_CONTAINER_STATEMENT = "Uncategorised — directly-commissioned SEUs";
 
-export async function ensureOneShotContainer(requestedBy?: number | null): Promise<ObjectiveRow> {
+export async function ensureOneShotContainer(requestedBy:string): Promise<ObjectiveRow> {
   const { data: existing } = await objectivesDB.findStrategicByStatement(ONE_SHOT_CONTAINER_STATEMENT);
   if (existing) return existing;
   const { objective } = await createObjective({
@@ -584,14 +615,19 @@ export async function getObjectiveDetail(id: string): Promise<ObjectiveDetailVie
       })
     );
 
-    // One row per real Profile (never repeated across Capabilities); a
-    // Template with no real Profile yet gets its own single row instead
-    // (profile: null — "a default will be created" on commission).
+    // One row per real Profile (never repeated across Capabilities). A
+    // Template with no real Profile yet used to get its own single
+    // "profile: null" row ("a default will be created" on commission) —
+    // DECOMMISSIONED (owner: "this path should be disallowed and all the
+    // fallback decommissioned. Creating a profile should not [be] combined
+    // with this") — such a Template is now simply omitted: it offers no row
+    // until a real Profile exists for it.
     commissioningOptions = relevant.flatMap((c): ObjectiveCommissioningRow[] => {
       const capabilities = coveredCapabilities(c);
       const profiles = profilesByTemplateId.get(c.id) ?? [];
       const base = { templateId: c.id, templateCode: c.code, templateName: c.name, capabilities };
-      return profiles.length > 0 ? profiles.map((profile) => ({ ...base, profile })) : [{ ...base, profile: null }];
+      // return profiles.length > 0 ? profiles.map((profile) => ({ ...base, profile })) : [{ ...base, profile: null }];
+      return profiles.map((profile) => ({ ...base, profile }));
     });
   }
 
@@ -633,7 +669,7 @@ export async function getObjectiveDetail(id: string): Promise<ObjectiveDetailVie
 // as transitionObjective's own real actions — this is a real state-changing
 // act (an event, even if not a status change), not just a list-rendering
 // visibility hint the way CR-071's platformBadges-avoidance concern was about.
-export async function submitObjective(id: string, actorId?: number | null): Promise<void> {
+export async function submitObjective(id: string, actorId: string): Promise<void> {
   const { data: objective } = await objectivesDB.findById(id);
   if (!objective) throw new Error(`Objective not found: ${id}`);
   const { data: transitions } = await transitionDefinitionsDB.findPossibleNextTransitions("Objective", objective.status);
@@ -687,7 +723,7 @@ export async function isObjectiveEditLocked(id: string): Promise<boolean> {
 
 export async function updateObjective(
   id: string,
-  input: { statement?: string; requiredCapabilityCodes?: string[]; requestedBy?: number | null; bumpVersion?: boolean }
+  input: { statement?: string; requiredCapabilityCodes?: string[]; requestedBy: string; bumpVersion?: boolean }
 ): Promise<ObjectiveRow> {
   // CR-075 (owner: "Only propose can edit every field... All other states
   // can only add comments") — statement/Capabilities are only editable while
@@ -703,7 +739,13 @@ export async function updateObjective(
 
   if (input.requiredCapabilityCodes) {
     const requiredCapabilities = await resolveRequiredCapabilities(input.requiredCapabilityCodes);
-    const { error: setErr } = await objectivesDB.setRequiredCapabilities(id, requiredCapabilities.map((c) => c.code));
+    let authorId: string | undefined;
+    let authorBadge: string | undefined;
+    if (requiredCapabilities.length > 0) {
+      if (input.requestedBy == null) throw new Error("no acting user to record as this Objective's capability author — log in first");
+      ({ authorId, authorBadge } = await resolveCapabilityAuthor(input.requestedBy));
+    }
+    const { error: setErr } = await objectivesDB.setRequiredCapabilities(id, requiredCapabilities.map((c) => c.code), authorId, authorBadge);
     if (setErr) throw setErr;
   }
 
@@ -825,7 +867,7 @@ export async function deleteObjective(id: string): Promise<void> {
 // + SEUs preserved). Descendants that are not Active have no →Retired edge and
 // are skipped and reported, not force-changed. A denial on the target itself
 // (e.g. missing badge) is thrown so the caller can surface it.
-export async function retireObjectiveSubtree(input: { objectiveId: string; actorRole: string; actorId?: string }): Promise<{ retired: string[]; skipped: Array<{ id: string; status: ObjectiveStatus }> }> {
+export async function retireObjectiveSubtree(input: { objectiveId: string; actorRole: string; actorId: string }): Promise<{ retired: string[]; skipped: Array<{ id: string; status: ObjectiveStatus }> }> {
   const { data: node } = await objectivesDB.findById(input.objectiveId);
   if (!node) throw new Error(`Objective not found: ${input.objectiveId}`);
   if (node.status !== "Active") {
@@ -1006,7 +1048,7 @@ export type TransitionObjectiveResult =
 // is NOT NULL, so there is nowhere to record an evaluation against. Logged
 // as a real, structural limitation, not silently skipped.
 
-export async function transitionObjective(input: { objectiveId: string; targetState: ObjectiveStatus; actorRole: string; actorId?: string; comment?: string }): Promise<TransitionObjectiveResult> {
+export async function transitionObjective(input: { objectiveId: string; targetState: ObjectiveStatus; actorRole: string; actorId: string; comment?: string }): Promise<TransitionObjectiveResult> {
   const { data: objective } = await objectivesDB.findById(input.objectiveId);
   if (!objective) return { ok: false, reason: "not_found" };
 
@@ -1048,7 +1090,7 @@ export async function transitionObjective(input: { objectiveId: string; targetSt
   if (error || !updated) throw error ?? new Error("failed to update objective status");
 
   if (trimmedComment) {
-    await objectivesDB.addComment(objective.id, input.actorId != null ? Number(input.actorId) : null, trimmedComment);
+    await objectivesDB.addComment(objective.id, input.actorId, trimmedComment);
   }
 
   // Version Feature Plan.md §3 — eventType now comes straight off the

@@ -31,7 +31,7 @@ import { deriveExposableParameterCandidates, deriveOverridableParameterCandidate
 import { validateProfileSeed, publishProfile, extractExposedParameterOverrides, type ProfileSeedInput } from "../src/routes/seu/core/profiles.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
-import { uniqueTestPackVersion } from "./testFixtures.js";
+import { uniqueTestPackVersion, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 
 // A real, already-seeded, Active canonical Policy — confirmed directly
 // against the live DB (no *.pack.json adopts it today, but the Definition
@@ -50,6 +50,8 @@ async function buildFixturePack(): Promise<{ packId: string; packCode: string; c
     packVersion: "1.0.0",
     installationClassification: "Optional",
     contributions: {},
+    authoredBy: ROOT_ACTOR_ID,
+    authorBadge: ROOT_ACTOR_BADGE,
     schemaDefinitionId: packSchema!.id,
   });
   assert.ok(!packError && pack, packError?.message);
@@ -59,6 +61,8 @@ async function buildFixturePack(): Promise<{ packId: string; packCode: string; c
     name: "ADR Required (fixture adoption)",
     governedTransition: "deliverable.transition",
     originatingPackId: pack!.id,
+    authorId: pack!.authored_by,
+    authorBadge: "root",
   });
   assert.ok(!policyError && policy, policyError?.message);
 
@@ -66,6 +70,8 @@ async function buildFixturePack(): Promise<{ packId: string; packCode: string; c
     name: `CR-088 fixture checklist ${randomUUID()}`,
     items: [{ statement: "Fixture item tagged for filtering.", configurableKey: "type", configurableValue: "required" }],
     originatingPackId: pack!.id,
+    authorId: pack!.authored_by,
+    authorBadge: "root",
   });
   assert.ok(!checklistError && checklist, checklistError?.message);
 
@@ -112,7 +118,7 @@ async function buildFixtureTemplate(input: { packCode: string; checklistId: stri
   const templateCode = CR088_TEMPLATE_CODE;
   const { data: template, error } = await templatesDB.upsert({ code: templateCode, name: "CR-088 fixture Template", templateVersion: uniqueTestPackVersion(), deliverableCatalogue: [] });
   assert.ok(!error && template, error?.message);
-  await templatesDB.setMandatoryPacks(template!.id, [input.packCode]);
+  await templatesDB.setMandatoryPacks(template!.id, [input.packCode], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   const { error: draftContentError } = await templatesDB.setDraftContent(template!.id, {
     purpose: "CR-088 test fixture Template. Exercises filter-shaped exposable parameter overridability.",
     exposedParameters: [
@@ -174,7 +180,7 @@ test("Profile override: a real value from the candidate's own valueOptions is ac
   const validation = await validateProfileSeed(seed);
   assert.equal(validation.ok, true, !validation.ok ? `unexpected validation errors: ${validation.errors.join("; ")}` : undefined);
 
-  const result = await publishProfile({ seed, actorRole: "power", actorId: "1001" });
+  const result = await publishProfile({ seed, actorRole: "power", actorId: TESTER_ALL_ID });
   assert.equal(result.ok, true, !result.ok ? result.errors.join("; ") : undefined);
   if (!result.ok) return;
 
@@ -230,7 +236,7 @@ test("publishTemplate: materialises a non-sparse exposedParameters set from the 
       deliverableCatalogue: [],
     },
     actorRole: "power",
-    actorId: "1001",
+    actorId: TESTER_ALL_ID,
   });
   assert.equal(result.ok, true, !result.ok ? JSON.stringify(result.errors) : undefined);
   if (!result.ok) return;

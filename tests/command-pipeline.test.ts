@@ -25,7 +25,7 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
-import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
+import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { executionEngine } from "../src/domain/engine/executionEngine.js";

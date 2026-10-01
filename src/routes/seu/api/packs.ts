@@ -7,10 +7,15 @@ import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { listPacksWithNextStates, transitionPack } from "../core/packs.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
-import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { requireTenant } from "../../../middleware/requireTenant.js";
 import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
 import type { PackStatus } from "../../../dblayer/seuTypes.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 // CR-076 follow-up (Pack) — same two gap shapes already found and fixed on
 // api/objectives.ts: an unfiltered list route, and a single multi-target
@@ -66,7 +71,8 @@ function postPackTransition(targetState: PackStatus) {
     try {
       const { comment } = req.body ?? {};
       const actorRole = req.session?.user?.role ?? "general";
-      const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
+      if (req.session?.user?.id == null) { res.status(401).json({ error: "not authenticated" }); return; }
+      const actorId = String(req.session.user.id);
       const result = await transitionPack({ packId: String(req.params.id), targetState, actorRole, actorId, comment: typeof comment === "string" ? comment : undefined });
       if (!result.ok) {
         if (result.reason === "not_found") { res.status(404).json({ error: "Pack not found" }); return; }

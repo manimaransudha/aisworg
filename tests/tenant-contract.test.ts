@@ -17,7 +17,7 @@ import type { AddressInfo } from "node:net";
 import pool from "../src/utils/db.js";
 import { commissionSeu } from "../src/routes/seu/core/commissioning.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
-import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
+import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { createObjective, submitObjective, transitionObjective } from "../src/routes/seu/core/objectives.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
@@ -149,7 +149,7 @@ test("two tenants sharing no edge choice run on the same core; each Work Item ro
   assert.ok(reqAnalysisCapId);
 
   // Tenant A: GitHub, HMAC callback auth, query-only attestation, orchestrator /a.
-  const { data: tenantA } = await tenantsDB.create({ code: `acme-${randomUUID().slice(0, 8)}`, name: "Acme Corp" });
+  const { data: tenantA } = await tenantsDB.create({ code: `acme-${randomUUID().slice(0, 8)}`, name: "Acme Corp", authorId: "1", authorBadge: "root" });
   assert.ok(tenantA);
   await tenantContractsDB.upsert({
     tenantId: tenantA!.id,
@@ -157,10 +157,10 @@ test("two tenants sharing no edge choice run on the same core; each Work Item ro
     callbackAuth: { scheme: "hmac" },
     attestationConfig: { mode: "query-only" },
   });
-  await executionTargetsDB.upsert({ tenantId: tenantA!.id, capabilityId: reqAnalysisCapId, mode: "external-orchestrator", adapterEndpoint: `${captureBase}/a`, adapterAuthRef: "token-a" });
+  await executionTargetsDB.upsert({ tenantId: tenantA!.id, capabilityId: reqAnalysisCapId, mode: "external-orchestrator", authorId: "1", authorBadge: "root", adapterEndpoint: `${captureBase}/a`, adapterAuthRef: "token-a" });
 
   // Tenant B: GitLab, JWT callback auth, signed attestation, orchestrator /b.
-  const { data: tenantB } = await tenantsDB.create({ code: `globex-${randomUUID().slice(0, 8)}`, name: "Globex" });
+  const { data: tenantB } = await tenantsDB.create({ code: `globex-${randomUUID().slice(0, 8)}`, name: "Globex", authorId: "1", authorBadge: "root" });
   assert.ok(tenantB);
   await tenantContractsDB.upsert({
     tenantId: tenantB!.id,
@@ -168,7 +168,7 @@ test("two tenants sharing no edge choice run on the same core; each Work Item ro
     callbackAuth: { scheme: "jwt" },
     attestationConfig: { mode: "signed", format: "sigstore" },
   });
-  await executionTargetsDB.upsert({ tenantId: tenantB!.id, capabilityId: reqAnalysisCapId, mode: "external-orchestrator", adapterEndpoint: `${captureBase}/b`, adapterAuthRef: "token-b" });
+  await executionTargetsDB.upsert({ tenantId: tenantB!.id, capabilityId: reqAnalysisCapId, mode: "external-orchestrator", authorId: "1", authorBadge: "root", adapterEndpoint: `${captureBase}/b`, adapterAuthRef: "token-b" });
 
   // Same code path for both — only the tenant differs.
   const widA = await commissionAndDispatch("tenant-a", tenantA!.id);

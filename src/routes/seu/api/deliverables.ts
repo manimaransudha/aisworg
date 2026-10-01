@@ -15,7 +15,8 @@ router.post("/seus/:id/deliverables", async (req: Request, res: Response) => {
     if (typeof name !== "string" || !name.trim() || typeof category !== "string" || !category.trim()) {
       return res.status(400).json({ error: "name and category are required" });
     }
-    const result = await createDeliverable({ seuId: String(req.params.id), name, category });
+    if (req.session?.user?.id == null) return res.status(401).json({ error: "authentication required" });
+    const result = await createDeliverable({ seuId: String(req.params.id), name, category, actorId: String(req.session.user.id) });
     res.status(201).json({ deliverable: result.deliverable });
   } catch (err) {
     logger.error("[api/seu/deliverables] POST /seus/:id/deliverables error", err as Error);

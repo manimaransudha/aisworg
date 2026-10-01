@@ -11,9 +11,14 @@ import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
 import { listPolicyDefinitionsWithNextStates, copyPolicyDefinitionAsNewDraft } from "../core/policyDefinitions.js";
-import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 const POLICY_DEFINITION_STATES = ["Draft", "Validated", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
@@ -55,8 +60,9 @@ router.post("/policy-definitions/:id/copy", async (req: Request, res: Response) 
   if (!actorId) return flashError(req, res, backTo, "Sign in required.");
   const auth = await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "policy_define" });
   if (!auth.allowed) return flashError(req, res, backTo, "You don't hold the policy_define badge.");
+  const authorBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? "policy_define");
   try {
-    const result = await copyPolicyDefinitionAsNewDraft(String(req.params.id), actorId);
+    const result = await copyPolicyDefinitionAsNewDraft(String(req.params.id), actorId, authorBadge);
     if (!result.ok) return flashError(req, res, backTo, `Copy failed: ${result.errors.join("; ")}`);
     return flashSuccess(req, res, `/aisworg/seu/sdk/policy-authoring/${result.draftId}`, "Policy Definition copied — a new Draft is ready to edit.");
   } catch (err) {

@@ -31,7 +31,7 @@ export interface ObjectiveRow {
   // NOT NULL (migration 127) — CR-068 deferred this to app-level enforcement
   // only (createObjective already guaranteed it); promoted to a real DB
   // constraint once every caller's real behavior confirmed it always holds.
-  requested_by: number;
+  requested_by: string;
   // CR-068 — user-friendly hierarchical id ("1", "1.2", "1.2.3"), system-
   // assigned once at creation, frozen on re-parent. next_child_seq is this
   // Objective's own counter for its children's segments; null on a legacy row
@@ -109,6 +109,8 @@ export interface ServiceRow {
   version: string;
   is_active: boolean;
   originating_pack_id: string | null;
+  author_id: string;
+  author_badge: string;
   created_at: string;
 }
 
@@ -373,9 +375,11 @@ export interface PackRow {
   composition_sources: Array<{ packCode: string }>;
   // CR-018 — recorded-but-unenforced §8/§13 metadata.
   metadata: Record<string, unknown>;
-  // Entity-direct authoring (bug fix correcting CR-014): the real user authoring
-  // this Draft. Null for migration/CLI-seeded Packs (no human author).
-  authored_by: number | null;
+  // Entity-direct authoring (bug fix correcting CR-014): the real
+  // participants_master row authoring this Draft. NOT NULL, participants_master-scoped
+  // (same convention as templates.authored_by/profiles.authored_by).
+  authored_by: string;
+  author_badge: string;
   // Pack ownership (owner: "Packs will have ownership... platform or the
   // tenant"): always a real tenants.id — the reserved Platform tenant for a
   // platform-wide Pack, never NULL (same convention users.tenant_id uses).
@@ -462,7 +466,11 @@ export interface TemplateRow {
   status: PackStatus;
   parent_template_id: string | null;
   deliverable_catalogue: TemplateDeliverableSeed[];
-  authored_by: number | null;
+  // authored_by/author_badge are NOT NULL, participants_master-scoped (same
+  // discipline as capability_definitions/service_definitions) — every write
+  // must resolve and pass its own real actor + badge, never a default/null.
+  authored_by: string;
+  author_badge: string;
   draft_content: Record<string, unknown>;
   // CR-026: Template ownership, mirroring packs.tenant_id (migration 044) —
   // always a real tenants.id, the reserved Platform tenant for a
@@ -485,7 +493,8 @@ export interface DeliverableDefinitionRow {
   version: string;
   status: PackStatus;
   draft_content: Record<string, unknown>;
-  authored_by: number | null;
+  authored_by: string;
+  author_badge: string;
   tenant_id: string;
   parent_deliverable_definition_id: string | null;
   created_at: string;
@@ -536,7 +545,8 @@ export interface ServiceDefinitionRow {
   version: string;
   status: ServiceDefinitionStatus;
   draft_content: Record<string, unknown>;
-  authored_by: number | null;
+  authored_by: string;
+  author_badge: string;
   tenant_id: string;
   parent_service_definition_id: string | null;
   created_at: string;
@@ -571,7 +581,8 @@ export interface CapabilityDefinitionRow {
   version: string;
   status: CapabilityDefinitionStatus;
   draft_content: Record<string, unknown>;
-  authored_by: number | null;
+  authored_by: string;
+  author_badge: string;
   tenant_id: string;
   parent_capability_definition_id: string | null;
   created_at: string;
@@ -714,7 +725,8 @@ export interface PolicyDefinitionRow {
   version: string;
   status: PolicyDefinitionStatus;
   draft_content: Record<string, unknown>;
-  authored_by: number | null;
+  authored_by: string;
+  author_badge: string;
   tenant_id: string;
   parent_policy_definition_id: string | null;
   created_at: string;
@@ -729,7 +741,8 @@ export interface ProfileRow {
   config_parameters: Record<string, unknown>;
   environment: string;
   status: PackStatus;
-  authored_by: number | null;
+  authored_by: string;
+  author_badge: string;
   draft_content: Record<string, unknown>;
   // Profile identity foundation (owner, 2026-08-19): mirrors packs.tenant_id /
   // templates.tenant_id + template_version + parent_template_id exactly
@@ -869,7 +882,7 @@ export interface SeuRow {
   tenant_id: string | null;
   active_ebm_id: string | null;
   lifecycle_state: SeuLifecycleState;
-  requested_by: number | null;
+  requested_by: string | null;
   commissioning_report: CommissioningReport | Record<string, never>;
   // migration 180 — Compose EBM's own real output (unravelComposition/
   // detectCompositionConflicts), written by ebmComposerHandler and by
@@ -962,7 +975,7 @@ export interface ParticipantMasterRow {
   // Only ever set for a Human-type master — the real login this identity
   // corresponds to (carries forward participants.user_id's old purpose,
   // the SDK UI Layer Plan's "SEUs I'm a Participant on" visibility filter).
-  user_id: number | null;
+  user_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -979,6 +992,8 @@ export interface CapabilityFulfilmentRow {
   fulfilment_strategy: FulfilmentStrategy;
   established_at: string;
   revoked_at: string | null;
+  author_id: string;
+  author_badge: string;
 }
 
 export type AcquisitionScope = "SEU" | "Capability" | "Enterprise" | "Platform";
@@ -1133,7 +1148,14 @@ export type TransitionEntityType =
   // old flat is_active boolean. No Draft/Validated/Published prefix: a
   // concept goes live the moment it's added (no review workflow, §18.8), so
   // Active is the initial state, not a birth transition.
-  | "Ontology";
+  | "Ontology"
+  // CR-115 — Ch.39 §15 SDK Element Schema lifecycle (schema_definitions'
+  // own lifecycle_state): Created -> Validated -> Tested -> Packaged ->
+  // Published, with a Packaged -> PublicationRejected branch. Entity-direct
+  // authoring (Created is the row's own INSERT-time default, not a birth
+  // transition), same convention as Ontology/Pack/Template/Profile/Service/
+  // Policy/Capability above.
+  | "SchemaDefinition";
 
 export interface TransitionDefinitionRow {
   id: string;
@@ -1207,6 +1229,8 @@ export interface GovernanceEvaluationOutcomeRow {
   consulted_obligation_ids: string[];
   open_attention_item_ids: string[];
   originating_pack_id: string | null;
+  author_id: string;
+  author_badge: string;
   evaluated_at: string;
   created_at: string;
 }
@@ -1215,6 +1239,11 @@ export interface GovernanceEvaluationOutcomeRow {
 // — not yet a persisted row. execute() is the write boundary that inserts
 // it (governanceEvaluationOutcomesDB.create) and gets id/evaluated_at back.
 export type GovernanceEvaluationOutcomeInput = Omit<GovernanceEvaluationOutcomeRow, "id" | "created_at" | "evaluated_at">;
+
+// evaluateDeliverableTransition itself doesn't yet know who's authoring the
+// outcome (that's resolved in execute(), same real actorId/actingBadgeType
+// the eligible-Participant pool snapshot uses) — it builds everything else.
+export type GovernanceEvaluationOutcomeDraft = Omit<GovernanceEvaluationOutcomeInput, "author_id" | "author_badge">;
 
 export type CommandStatus = "Generated" | "Dispatched" | "Completed" | "Deferred" | "Cancelled" | "Failed";
 
@@ -1227,7 +1256,7 @@ export interface CommandRow {
   from_state: string;
   to_state: string;
   status: CommandStatus;
-  requested_by: number | null;
+  requested_by: string;
   acting_badge_type: string | null;
   correlation_id: string;
   // CR-109 §6.2 — governanceOutcomeRef: set once at creation, in execute(),
@@ -1256,6 +1285,8 @@ export interface CapabilityFulfilmentPoolRow {
   capability_id: string | null;
   participant_ids: string[];
   resolved_at: string;
+  author_id: string;
+  author_badge: string;
 }
 
 // Participant Integration & Attestation — Plan step 2 (Resolution 3). The raw
@@ -1270,6 +1301,8 @@ export interface DeliverableReferenceRow {
   from_state: string;
   to_state: string;
   reference: string | null;
+  author_id: string;
+  author_badge: string;
   created_at: string;
 }
 
@@ -1359,6 +1392,14 @@ export interface OntologyConceptRow {
   // "tenant's own row wins" resolution every other Ontology concept already
   // has (see ontologyDB.findConcept's own tenant-preference ordering).
   is_mandatory: boolean | null;
+  // Migration 285 — participants_master.id + the badge behind it, both NOT
+  // NULL, same "never defaulted" discipline as schema_definitions
+  // (seedSchemaDefinitions.ts's own header). Creation itself stays ungoverned
+  // (no transition, per core/ontology.ts's own header) — this only records
+  // who made the write and under which held badge, same as capability_definitions'
+  // own authored_by/author_badge on createDraft.
+  author_id: string;
+  author_badge: string;
 }
 
 // CR-113 item 6 — mirrors ObjectiveCommentRow/objective_comments (migration
@@ -1451,6 +1492,8 @@ export interface ReviewRow {
   // tell which transition's Review was intended, or that the Review
   // actually followed the gate's own declared prompt/participant contract).
   review_gate_id: string | null;
+  author_id: string;
+  author_badge: string;
   created_at: string;
   updated_at: string;
 }
@@ -1506,7 +1549,7 @@ export interface AttestationRow {
   to_state: string;
   reference: string | null;
   acting_badge_type: string | null;
-  requested_by: number | null;
+  requested_by: string | null;
   created_at: string;
 }
 
@@ -1599,8 +1642,8 @@ export interface EventRow {
   // Accountability record (bug fix correcting CR-014): the real acting user and
   // the resolved `noun_verb` badge the transition was authorised under. Null for
   // pre-existing rows and ungoverned/system events that have no actor.
-  actor_id: string | null;
-  authority_badge: string | null;
+  actor_id: string;
+  authority_badge: string;
   occurred_at: string;
   sequence: string; // BIGSERIAL comes back as string via pg's default int8 handling
   // Ch.30 Event Bus redesign — per-handler dispatch outcome, keyed by
@@ -1662,6 +1705,11 @@ export interface ObligationRow {
   // each { occurred_at, actor_id, changes: { field: { from, to } } }. Written
   // only by reviseObligation, never by a transition.
   revision_history: Array<Record<string, unknown>>;
+  // Migration adding author_id/author_badge (obligations_schema_recovery.sql)
+  // — same shape as every other seu_id-scoped entity's authorship pair:
+  // author_id is a FK to participants(id), not participants_master.
+  author_id: string;
+  author_badge: string;
   created_at: string;
   updated_at: string;
 }
@@ -1742,6 +1790,8 @@ export interface ChecklistRow {
   items: ChecklistItem[];
   created_at: string;
   updated_at: string;
+  author_id: string;
+  author_badge: string;
 }
 
 export interface QualityGateEvaluationRow {
@@ -1813,6 +1863,8 @@ export interface EvidenceRow {
   validation_dimensions: EvidenceValidationAssessment[];
   // CR-051 item 4 (Ch.17 §15/§20.13) — supersession chain, nullable.
   supersedes_evidence_id: string | null;
+  author_id: string;
+  author_badge: string;
   created_at: string;
   updated_at: string;
 }
@@ -1825,6 +1877,8 @@ export interface EvidenceRelationshipRow {
   evidence_id: string;
   related_object_type: TransitionEntityType;
   related_object_id: string;
+  author_id: string;
+  author_badge: string;
   created_at: string;
 }
 
@@ -2009,6 +2063,8 @@ export interface ExternalInteractionRow {
   status: string;
   created_at: string;
   updated_at: string;
+  author_id: string;
+  author_badge: string;
 }
 
 // Phase 10 (badge model) — design/mvp-build-plan/Phase 10 - User Management
@@ -2022,6 +2078,8 @@ export interface TenantRow {
   name: string;
   status: string;
   is_system: boolean; // CR-004: reserved non-engineering tenant (the 'platform' home)
+  author_id: string;
+  author_badge: string;
   created_at: string;
 }
 
@@ -2080,6 +2138,14 @@ export interface SchemaDefinitionRow {
   compatible_versions: number[];
   incompatible_versions: number[];
   created_at: string;
+  // CR-115 — Ch.39 §15 SDK Element Schema lifecycle (transition_definitions,
+  // entity_type='SchemaDefinition'). author_id/author_badge mirror
+  // knowledge_items' own precedent (migration 239): set at creation
+  // (ungoverned) and updated alongside lifecycle_state on every governed
+  // transition thereafter (Publish/Reject).
+  lifecycle_state: "Created" | "Validated" | "Tested" | "Packaged" | "Published" | "PublicationRejected";
+  author_id: string | null;
+  author_badge: string | null;
 }
 
 // The bootstrap Deliverable only carries lifecycle state — this is where the
@@ -2092,6 +2158,8 @@ export interface DeliverableAuthoringContentRow {
   deliverable_id: string;
   schema_definition_id: string;
   content: Record<string, unknown>;
+  author_id: string;
+  author_badge: string;
   updated_at: string;
 }
 

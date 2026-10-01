@@ -42,7 +42,6 @@ import {
   listInheritableTemplates, inheritedTemplateContent, listInheritableProfiles, inheritedProfileContent, inheritedPackVersionContent,
   type AuthoringDraftSummary,
 } from "../core/sdkAuthoring.js";
-import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { checklistsDB } from "../../../dblayer/checklistsDB.js";
@@ -50,6 +49,9 @@ import { transitionPack, packCodeVersionSummaries } from "../core/packs.js";
 import { transitionTemplate, PACK_SELECTION_SLOTS, deriveCapabilityCodesFromPackCodes, deriveCapabilityProducingPacksFromPackCodes, deriveExposableParameterCandidates, deriveOverridableParameterCandidates, getPackSelectionsByCategory, type ExposableParameterCandidate, type ExposedParameter, type PackSelectionsByCategory } from "../core/templates.js";
 import { transitionProfile, CONFIGURATION_PARAMETER_FIELDS, type ExposedParameterOverride } from "../core/profiles.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
+import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
+import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 import { transitionDeliverableDefinition, listInheritableDeliverableDefinitions, inheritedDeliverableDefinitionContent } from "../core/deliverableDefinitions.js";
 import { transitionServiceDefinition, listInheritableServiceDefinitions, inheritedServiceDefinitionContent } from "../core/serviceDefinitions.js";
 import { transitionPolicyDefinition } from "../core/policyDefinitions.js";
@@ -62,6 +64,12 @@ import {
 } from "../core/authorityVocabulary.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import type { SchemaDefinitionEntityKind, ServiceLevelExpectation, TemplateDependencyGraphEntry } from "../../../dblayer/seuTypes.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 const KIND_BY_SLUG: Record<string, SchemaDefinitionEntityKind> = {
   "pack-authoring": "Pack",
@@ -396,9 +404,29 @@ const TD_INDEX = "/aisworg/seu/sdk/transition-definition-authoring";
 const wrote = (req: Request, res: Response, back: string, r: { ok: true } | { ok: false; error: string }, okMsg: string) =>
   r.ok ? flashSuccess(req, res, back, okMsg) : flashError(req, res, back, r.error);
 
+// authority_nouns.author_id/author_badge are NOT NULL -- resolve the real
+// acting participants_master row and the real held badge this route's own
+// route_authority gate requires, never a default.
+async function resolveAuthorityVocabAuthor(req: Request): Promise<{ authorId: string; authorBadge: string } | { error: string }> {
+  if (req.session?.user?.id == null) {
+    return { error: "No logged-in user on this session." };
+  }
+  const userId = String(req.session.user.id) ;
+  
+  const { data: master } = await participantsMasterDB.findById(userId);
+  if (!master) return { error: `No superuser provisioned.` };
+  const authRow = lookupRouteAuthority(req.method, req.path);
+  const held = await resolveHeldBadges(req);
+  const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+  if (!authorBadge) return { error: "No held badge authorises this action -- cannot record an author badge." };
+  return { authorId: master.id, authorBadge };
+}
+
 router.post("/authority/nouns/add", async (req: Request, res: Response) => {
   const { code, label, description } = req.body ?? {};
-  wrote(req, res, AUTH_NOUNS, await addNoun(String(code ?? ""), String(label ?? ""), description ? String(description) : null), `Noun "${code}" added.`);
+  const author = await resolveAuthorityVocabAuthor(req);
+  if ("error" in author) return flashError(req, res, AUTH_NOUNS, author.error);
+  wrote(req, res, AUTH_NOUNS, await addNoun(String(code ?? ""), String(label ?? ""), description ? String(description) : null, author.authorId, author.authorBadge), `Noun "${code}" added.`);
 });
 router.post("/authority/nouns/retire", async (req: Request, res: Response) => {
   const { code } = req.body ?? {};
@@ -407,7 +435,9 @@ router.post("/authority/nouns/retire", async (req: Request, res: Response) => {
 
 router.post("/authority/verbs/add", async (req: Request, res: Response) => {
   const { code, label, description } = req.body ?? {};
-  wrote(req, res, AUTH_VERBS, await addVerb(String(code ?? ""), String(label ?? ""), description ? String(description) : null), `Verb "${code}" added.`);
+  const author = await resolveAuthorityVocabAuthor(req);
+  if ("error" in author) return flashError(req, res, AUTH_VERBS, author.error);
+  wrote(req, res, AUTH_VERBS, await addVerb(String(code ?? ""), String(label ?? ""), description ? String(description) : null, author.authorId, author.authorBadge), `Verb "${code}" added.`);
 });
 router.post("/authority/verbs/retire", async (req: Request, res: Response) => {
   const { code } = req.body ?? {};
@@ -416,7 +446,9 @@ router.post("/authority/verbs/retire", async (req: Request, res: Response) => {
 
 router.post("/authority/mapping/add", async (req: Request, res: Response) => {
   const { nounCode, verbCode, trigger } = req.body ?? {};
-  wrote(req, res, AUTH_MAPPING, await addMapping(String(nounCode ?? ""), String(verbCode ?? ""), trigger ? String(trigger) : undefined), `Mapping ${nounCode} → ${verbCode} added.`);
+  const author = await resolveAuthorityVocabAuthor(req);
+  if ("error" in author) return flashError(req, res, AUTH_MAPPING, author.error);
+  wrote(req, res, AUTH_MAPPING, await addMapping(String(nounCode ?? ""), String(verbCode ?? ""), trigger ? String(trigger) : undefined, author.authorId, author.authorBadge), `Mapping ${nounCode} → ${verbCode} added.`);
 });
 router.post("/authority/mapping/retire", async (req: Request, res: Response) => {
   const { nounCode, verbCode } = req.body ?? {};
@@ -1409,7 +1441,13 @@ router.post("/sdk/:slug", requireDefineBadge(), async (req: Request, res: Respon
     const parentTemplateId = kind === "Template" && typeof req.body?.parentTemplateId === "string" && req.body.parentTemplateId.trim() ? req.body.parentTemplateId.trim() : undefined;
     const parentProfileId = kind === "Profile" && typeof req.body?.parentProfileId === "string" && req.body.parentProfileId.trim() ? req.body.parentProfileId.trim() : undefined;
     const parentDeliverableDefinitionId = kind === "Deliverable" && typeof req.body?.parentDeliverableDefinitionId === "string" && req.body.parentDeliverableDefinitionId.trim() ? req.body.parentDeliverableDefinitionId.trim() : undefined;
-    const result = await createAuthoringDraft({ kind, actorId, tenantId, parentTemplateId, parentProfileId, parentDeliverableDefinitionId, content, schemaDefinitionId: resolved.schemaDefinitionId });
+    // The real badge requireAuthoring("define") already verified this actor
+    // holds (root, or this kind's own {kind}_define) -- resolved once here so
+    // capability_definitions' own NOT NULL author_badge column gets the real
+    // value, not a guess.
+    const held = await heldBadges(req);
+    const authorBadge = held.has("root") ? "root" : authoringBadge(kind, "define");
+    const result = await createAuthoringDraft({ kind, actorId, authorBadge, tenantId, parentTemplateId, parentProfileId, parentDeliverableDefinitionId, content, schemaDefinitionId: resolved.schemaDefinitionId });
     if (!result.ok) return flashError(req, res, backToIndex(slug), result.errors.join("; "));
     return flashSuccess(req, res, backTo(slug, result.draftId), `Started a new ${kind} draft.`);
   } catch (err) {
@@ -1582,7 +1620,10 @@ router.post("/sdk/:slug/:draftId/transition", requireDraftTenantScope(), require
   // string to resolve the badge above — guaranteed present here.
   const { targetState, comment } = req.body ?? {};
   const actorRole = req.session?.user?.role ?? "general";
-  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
+  if (req.session?.user?.id == null) {
+    return flashError(req, res, backTo, "You must be logged in to create an Objective.");
+  }
+  const actorId = String(req.session.user.id);
   try {
     if (kind === "Pack") {
       // CR-080 — comment is only actually required by transitionPack itself

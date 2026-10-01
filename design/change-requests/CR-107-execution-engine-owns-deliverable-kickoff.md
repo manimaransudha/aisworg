@@ -1,8 +1,8 @@
 # CR-107 — Execution Engine must own deciding when a Deliverable is eligible to start (Book 3 Ch.31/Ch.33), so a blocking Obligation actually gates engineering work
 
-**Raised:** 2026-09-15 · **Origin:** split out of CR-106 while verifying its Obligation-raising mechanism live — an SEU blocked at its own commence-work hop (a real, open Obligation on record) still let its head-of-chain Deliverable move `Defined -> In Progress`, because nothing in the codebase connects the two. **Status:** 🟡 Raised — findings recorded, design not started.
+**Raised:** 2026-09-15 · **Origin:** split out of CR-106 while verifying its Obligation-raising mechanism live — an SEU blocked at its own commence-work hop (a real, open Obligation on record) still let its head-of-chain Deliverable move `Defined -> In Progress`, because nothing in the codebase connects the two. 
 
-## ✅ Built — 2026-09-16
+**Status:** ✅ Built — 2026-09-16
 
 All 11 design points below are implemented, not just designed. Summary:
 

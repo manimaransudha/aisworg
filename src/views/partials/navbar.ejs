@@ -353,7 +353,7 @@
 
           <!-- Settings / user menu -->
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle <%= ['seu-identity','seu-tenant-admin-users','seu-events'].includes(currentPage) ? 'active' : '' %>"
+            <a class="nav-link dropdown-toggle <%= ['seu-identity','seu-tenant-admin-users','seu-events','seu-data-migrations'].includes(currentPage) ? 'active' : '' %>"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Settings">
               <% if (_u?.avatar_url) { %>
                 <img src="<%= _u.avatar_url %>" width="24" height="24"
@@ -382,6 +382,11 @@
               <% if (_navRouteVisible['GET /aisworg/seu/events']) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-events' ? 'active' : '' %>" href="/aisworg/seu/events">
                 <i class="bi bi-broadcast me-2"></i>Event Bus
+              </a></li>
+              <% } %>
+              <% if (_navRouteVisible['GET /aisworg/seu/data-migrations']) { %>
+              <li><a class="dropdown-item <%= currentPage === 'seu-data-migrations' ? 'active' : '' %>" href="/aisworg/seu/data-migrations">
+                <i class="bi bi-database-gear me-2"></i>Data Migrations
               </a></li>
               <% } %>
               <li><hr class="dropdown-divider"></li>

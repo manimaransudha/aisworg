@@ -14,8 +14,9 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
-import { PLATFORM_TENANT_ID } from "../constants.js";
+import { getPlatformTenantId} from "../constants.js";
 import type { PolicyCondition, PolicyScope } from "../seuTypes.js";
+import { userDB } from "../userDB.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "data");
@@ -50,7 +51,7 @@ interface PolicyDefinitionSeedFile {
 
 function loadJson(fileName: string): PolicyDefinitionSeedFile {
   return JSON.parse(readFileSync(path.join(dataDir, fileName), "utf8")) as PolicyDefinitionSeedFile;
-}
+} 
 
 const POLICY_DEFINITION_FILES = [
   "policy-architecture-documentation-required.json",
@@ -87,21 +88,40 @@ const POLICY_DEFINITION_FILES = [
   "policy-change-and-decision-governance-artifact-completeness.json",
   "policy-vendor-and-compliance-evidence-completeness.json",
   "policy-organisational-knowledge-currency.json",
-  // CR-104 follow-up — real, seeded validation fixtures for the SEU-scoped
-  // and Eligibility-scoped Policy scopes (owner: "we have to fix publishPack
-  // also. it should not override anything" — these adopt through the same
-  // real Definition -> Pack -> materialised Policy path every other real
-  // Policy does, no bypass).
+];
+
+// CR-104 follow-up — real, seeded validation fixtures for the SEU-scoped
+// and Eligibility-scoped Policy scopes (owner: "we have to fix publishPack
+// also. it should not override anything" — these adopt through the same
+// real Definition -> Pack -> materialised Policy path every other real
+// Policy does, no bypass).
+const TEST_POLICY_DEFINITION_FILES = [
   "policy-cr104-demo-seu-commence-work.json",
   "policy-cr104-demo-background-check.json",
 ];
 
-export async function seedPolicyDefinitions(): Promise<void> {
+const ALL_POLICY_FILES = [
+  ...POLICY_DEFINITION_FILES,
+  ...(process.env.NODE_ENV !== "production" ? TEST_POLICY_DEFINITION_FILES : [])
+];
+export interface SeedActor {
+  authoredBy: string;
+  authorBadge: string;
+}
+
+// get platform tenant id
+const PLATFORM_TENANT_ID = await getPlatformTenantId();
+  
+export async function seedPolicyDefinitions(actor: SeedActor): Promise<void> {
+  // authored_by/author_badge are NOT NULL, participants_master-scoped --
+  // resolve once, not a default (same discipline as seedServiceDefinitions.ts,
+  // db:clean-slate's own root-actor convention elsewhere in this directory).
+  
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     let count = 0;
-    for (const file of POLICY_DEFINITION_FILES) {
+    for (const file of ALL_POLICY_FILES) {
       const seed = loadJson(file);
       // Migrations 214/216/219 — mechanical fold of the old independent
       // names/lifecycle-transitions/governingCondition fields into each
@@ -122,8 +142,8 @@ export async function seedPolicyDefinitions(): Promise<void> {
           : applicabilityDeliverables,
       }));
       await client.query(
-        `INSERT INTO policy_definitions (code, name, description, category, constraint_type, applicability_environments, conditions, scope, version, status, draft_content, tenant_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Active', $10, $11)
+        `INSERT INTO policy_definitions (code, name, description, category, constraint_type, applicability_environments, conditions, scope, version, status, draft_content, tenant_id, authored_by, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Active', $10, $11, $12, $13)
          ON CONFLICT (code, version, tenant_id) DO UPDATE SET
            name = EXCLUDED.name, description = EXCLUDED.description, category = EXCLUDED.category, constraint_type = EXCLUDED.constraint_type,
            applicability_environments = EXCLUDED.applicability_environments,
@@ -135,6 +155,7 @@ export async function seedPolicyDefinitions(): Promise<void> {
           seed.applicabilityEnvironments,
           JSON.stringify(conditions), seed.scope ?? "Transition",
           seed.version, JSON.stringify(seed), PLATFORM_TENANT_ID,
+          actor.authoredBy, actor.authorBadge
         ]
       );
       count++;
@@ -151,7 +172,9 @@ export async function seedPolicyDefinitions(): Promise<void> {
 
 const isMain = import.meta.url === `file://${process.argv[1]}`;
 if (isMain) {
-  seedPolicyDefinitions()
+  const { actorId, actorBadge } = await userDB.getSuperuserId();
+  if (!actorId) throw new Error(`Provision a superuser before this operation.`);
+  seedPolicyDefinitions({ authoredBy: actorId, authorBadge: actorBadge })
     .catch((err) => {
       logger.error("[seed:policy-definitions] failed", err as Error);
       process.exitCode = 1;

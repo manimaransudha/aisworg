@@ -27,6 +27,8 @@ export const servicesDB = {
     contractDescription: string;
     serviceLevel?: ServiceLevelExpectation[];
     originatingPackId: string;
+    authorId: string;
+    authorBadge: string;
   }): Promise<DbResult<ServiceRow>> {
     const client = await pool.connect();
     try {
@@ -52,8 +54,8 @@ export const servicesDB = {
         await client.query("UPDATE services SET is_active = false WHERE id = $1", [current.id]);
       }
       const { rows } = await client.query<ServiceRow>(
-        `INSERT INTO services (code, providing_capability_id, name, contract_description, service_level, originating_pack_id, version, is_active)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+        `INSERT INTO services (code, providing_capability_id, name, contract_description, service_level, originating_pack_id, version, is_active, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8, $9)
          RETURNING *`,
         [
           input.code,
@@ -63,6 +65,8 @@ export const servicesDB = {
           JSON.stringify(serviceLevel),
           input.originatingPackId,
           nextVersion,
+          input.authorId,
+          input.authorBadge,
         ]
       );
       await client.query("COMMIT");

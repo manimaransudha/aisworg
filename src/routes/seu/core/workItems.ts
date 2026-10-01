@@ -17,6 +17,7 @@ import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { deliverableReferencesDB } from "../../../dblayer/deliverableReferencesDB.js";
 import { attestationsDB } from "../../../dblayer/attestationsDB.js";
 import { participantsDB } from "../../../dblayer/participantsDB.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { dependencyDefinitionEngine } from "../../../domain/engine/dependencyDefinitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
@@ -94,6 +95,8 @@ export async function completeWorkItem(input: {
     // reporting failure or blockage is exactly the "cannot automatically
     // continue" case that needs human attention.
     const { data: deliverable } = await deliverablesDB.findById(command.entity_id);
+    if (command.requested_by == null) throw new Error(`Command ${command.id} has no requested_by — cannot author the Attention Item raised off its failure`);
+    if (!command.acting_badge_type) throw new Error(`Command ${command.id} has no acting_badge_type — cannot author the Attention Item raised off its failure`);
     await raiseAttentionItem({
       seuId: command.seu_id,
       category: "Exception",
@@ -102,6 +105,8 @@ export async function completeWorkItem(input: {
       description: `A Participant reported "${input.outcome}" for the ${command.from_state} -> ${command.to_state} transition. The transition was not applied.`,
       relatedObjectType: "Deliverable",
       relatedObjectId: command.entity_id,
+      actorId: String(command.requested_by),
+      authorBadge: command.acting_badge_type,
     });
 
     return { ok: true, outcome: input.outcome, workItem: currentWorkItem };
@@ -132,6 +137,19 @@ export async function completeWorkItem(input: {
   // completion — production and acceptance alike — because Work Items are
   // transient (Ch.32) and the empty-centre presence check + Ch.20 traceability
   // must read a durable home, not work_items.output_reference.
+  // Accountability (Ch.30/CR-014 pattern, reused): deliverable_references.author_id
+  // FKs to participants(id), not participants_master/users directly, so
+  // command.requested_by (a users.id) needs the two-hop resolution to this
+  // SEU's own participants row. command.acting_badge_type is already the real
+  // authority this transition was dispatched under — no re-derivation, no
+  // system substitute.
+  if (command.requested_by == null) throw new Error(`Command ${command.id} has no requested_by — cannot author the deliverable_references row for its completion`);
+  if (!command.acting_badge_type) throw new Error(`Command ${command.id} has no acting_badge_type — cannot author the deliverable_references row for its completion`);
+  const { data: authorMaster } = await participantsMasterDB.findById(command.requested_by);
+  if (!authorMaster) throw new Error(`No superuser provisioned.`);
+  const { data: authorParticipant } = await participantsDB.findBySeuIdAndParticipantMasterId(command.seu_id, authorMaster.id);
+  if (!authorParticipant) throw new Error(`No participants row for participant master ${authorMaster.id} in SEU ${command.seu_id} — cannot author the deliverable_references row for Command ${command.id}`);
+
   await deliverableReferencesDB.record({
     seuId: command.seu_id,
     deliverableId: command.entity_id,
@@ -140,6 +158,8 @@ export async function completeWorkItem(input: {
     fromState: command.from_state,
     toState: command.to_state,
     reference: input.reference ?? null,
+    authorId: authorParticipant.id,
+    authorBadge: command.acting_badge_type,
   });
 
   // Attestation (Resolution 3): minted ONLY at an acceptance transition — the

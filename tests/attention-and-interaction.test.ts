@@ -14,9 +14,10 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
-import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
+import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
 import { transitionDeliverableSync as transitionDeliverable } from "./testFixtures.js";
-import { createObligation, transitionObligation } from "../src/routes/seu/core/obligations.js";
+import { transitionObligation } from "../src/routes/seu/core/obligations.js";
+import { createObligationAsRoot as createObligation } from "./testFixtures.js";
 import { createAttentionItem, listAttentionItemsBySeu, transitionAttentionItem } from "../src/routes/seu/core/attentionItems.js";
 import { createExternalInteraction, listExternalInteractionsBySeu, transitionExternalInteraction } from "../src/routes/seu/core/externalInteractions.js";
 import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
@@ -175,7 +176,7 @@ test("rejects an External Interaction created against a Deliverable that does no
   const { seuId: otherSeuId } = await commissionAndFulfilRequirementsSpec("phase8-interaction-wrong-seu-b");
 
   await assert.rejects(
-    () => createExternalInteraction({ seuId: otherSeuId, deliverableId, interactionType: "Status Update", direction: "Outbound", targetSystem: "Test" }),
+    () => createExternalInteraction({ seuId: otherSeuId, deliverableId, interactionType: "Status Update", direction: "Outbound", targetSystem: "Test", actorId: "1", authorBadge: "root" }),
     /does not belong to SEU/
   );
 });

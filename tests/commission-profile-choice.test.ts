@@ -26,7 +26,7 @@ import { getObjectiveDetail } from "../src/routes/seu/core/objectives.js";
 import { commissionFromExistingObjective } from "../src/routes/seu/core/commissioning.js";
 import { publishProfile } from "../src/routes/seu/core/profiles.js";
 import { getSeuEbmView } from "../src/routes/seu/core/seus.js";
-import { ensureEventSubscriptionsLoaded, driveCommissioningToActive } from "./testFixtures.js";
+import { ensureEventSubscriptionsLoaded, driveCommissioningToActive, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 
 before(async () => {
   // Must run before this file's own first commissionFromExistingObjective
@@ -149,13 +149,13 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   });
   assert.equal(templateErr, undefined);
   const { data: capabilities } = await capabilitiesDB.findByCodes(["requirements-analysis", "architecture-design"]);
-  await templatesDB.setRequiredCapabilities(template!.id, (capabilities ?? []).map((c) => c.id));
+  await templatesDB.setRequiredCapabilities(template!.id, (capabilities ?? []).map((c) => c.id), ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   // technology-nodejs.pack.json declares a real `required` dependency on
   // "development" — never checked as a blocking concern before this session's
   // own detectCompositionConflicts (design/mvp-build-plan/SEU Composition.md);
   // this test's own Template must mandate it too, or selecting the nodejs
   // Pack as optional leaves that dependency genuinely unsatisfied.
-  await templatesDB.setMandatoryPacks(template!.id, ["development"]);
+  await templatesDB.setMandatoryPacks(template!.id, ["development"], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
 
   // Two real Profiles for the same Template — one plain, one declaring
   // technology-nodejs as optional, so composing it is directly observable.
@@ -168,13 +168,13 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   const plainPublished = await publishProfile({
     seed: { code: plainCode, name: "Plain Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: [], profileVersion: "1.0.0", ...mandatoryConfigParams },
     actorRole: "power",
-    actorId: "1001",
+    actorId: TESTER_ALL_ID,
   });
   assert.equal(plainPublished.ok, true, !plainPublished.ok ? plainPublished.errors.join("; ") : undefined);
   const nodejsPublished = await publishProfile({
     seed: { code: nodejsCode, name: "Nodejs Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: ["technology-nodejs"], profileVersion: "1.0.0", ...mandatoryConfigParams },
     actorRole: "power",
-    actorId: "1001",
+    actorId: TESTER_ALL_ID,
   });
   assert.equal(nodejsPublished.ok, true, !nodejsPublished.ok ? nodejsPublished.errors.join("; ") : undefined);
   if (!nodejsPublished.ok || !plainPublished.ok) return;
@@ -201,10 +201,10 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   }
 
   // 2. Explicitly choosing the Template + nodejs Profile actually composes it.
-  const requestedChoice = await commissionFromExistingObjective({ objectiveId: objective.id, selections: [{ templateId: template!.id, profileId: nodejsPublished.profileId }], actorRole: "super", actorId: "1001" });
+  const requestedChoice = await commissionFromExistingObjective({ objectiveId: objective.id, selections: [{ templateId: template!.id, profileId: nodejsPublished.profileId }], actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(requestedChoice.ok, true, !requestedChoice.ok ? JSON.stringify(requestedChoice) : undefined);
   if (!requestedChoice.ok) return;
-  const chosen = await driveCommissioningToActive({ seuId: requestedChoice.seu.id, actorRole: "super", actorId: "1001" });
+  const chosen = await driveCommissioningToActive({ seuId: requestedChoice.seu.id, actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(chosen.ok, true, !chosen.ok ? `commissioning failed: ${chosen.reason}` : undefined);
   if (!chosen.ok) return;
   // composedPacks moved off SeuDetailView onto its own EBM page/read model
@@ -219,6 +219,6 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   // the human's own choice now, never auto-derived — but is the one thing
   // this path never asked the human to pick before either.
   const { objective: objective2 } = await createObjective({ statement: `verify-profile-choice-fallback-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design"], tier: "Engineering", parentObjectiveId: pcRoot.id, requestedBy: 1001,});
-  const autoPicked = await commissionFromExistingObjective({ objectiveId: objective2.id, selections: [{ templateId: template!.id }], actorRole: "super", actorId: "1001" });
+  const autoPicked = await commissionFromExistingObjective({ objectiveId: objective2.id, selections: [{ templateId: template!.id }], actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(autoPicked.ok, true, !autoPicked.ok ? JSON.stringify(autoPicked) : undefined);
 });

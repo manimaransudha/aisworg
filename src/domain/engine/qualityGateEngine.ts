@@ -78,6 +78,11 @@ export const qualityGateEngine = {
     fromState: string;
     toState: string;
     context?: Record<string, unknown>;
+    // Real, already-resolved participants(id) + badge of whoever is running
+    // this evaluation — no fallback; every caller must resolve these before
+    // calling in (author_id/author_badge are NOT NULL on quality_gate_evaluations).
+    authorId: string;
+    authorBadge: string;
   }): Promise<QualityGateListEvaluationResult> {
     // CR-104 — for a SEU-scoped entity (real seuId, an EBM already
     // materialised), Quality Gates are matched via this SEU's own EBM
@@ -140,7 +145,7 @@ export const qualityGateEngine = {
   // multi-gate check above shares.
   async evaluateByIds(
     gateIds: string[],
-    input: { entityType: TransitionEntityType; entityId: string; seuId: string | null; context?: Record<string, unknown> }
+    input: { entityType: TransitionEntityType; entityId: string; seuId: string | null; context?: Record<string, unknown>; authorId: string; authorBadge: string }
   ): Promise<QualityGateListEvaluationResult> {
     if (gateIds.length === 0) return { outcome: "NotApplicable" };
     const { data: gates } = await qualityGatesDB.findByIds(gateIds);
@@ -153,7 +158,7 @@ export const qualityGateEngine = {
 
   async evaluateGate(
     gate: QualityGateRow,
-    input: { entityType: TransitionEntityType; entityId: string; seuId: string | null; context?: Record<string, unknown> }
+    input: { entityType: TransitionEntityType; entityId: string; seuId: string | null; context?: Record<string, unknown>; authorId: string; authorBadge: string }
   ): Promise<QualityGateEvaluationResult> {
     const criteriaType = (gate.criteria as { type?: string }).type;
 
@@ -284,7 +289,7 @@ export const qualityGateEngine = {
   // also applies to.
   async blockOrWaive(
     gate: QualityGateRow,
-    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string },
+    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string; authorId: string; authorBadge: string },
     reason: string,
     detail: Record<string, unknown>
   ): Promise<QualityGateEvaluationResult> {
@@ -293,8 +298,11 @@ export const qualityGateEngine = {
     return this.recordAndBlock(gate, input, reason, detail);
   },
 
-  async recordAndPass(gate: QualityGateRow, input: { seuId: string | null; entityType: TransitionEntityType; entityId: string }): Promise<QualityGateEvaluationResult> {
-    await qualityGateEvaluationsDB.create({ qualityGateId: gate.id, seuId: input.seuId, entityType: input.entityType, entityId: input.entityId, outcome: "Passed" });
+  async recordAndPass(
+    gate: QualityGateRow,
+    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string; authorId: string; authorBadge: string }
+  ): Promise<QualityGateEvaluationResult> {
+    await qualityGateEvaluationsDB.create({ qualityGateId: gate.id, seuId: input.seuId, entityType: input.entityType, entityId: input.entityId, outcome: "Passed", authorId: input.authorId, authorBadge: input.authorBadge });
     // Ch.26 §15: the Quality Gate subsystem itself should publish this — a
     // real gap found in Phase 7's audit (evaluations were only ever written
     // to quality_gate_evaluations, never announced on the event bus).
@@ -311,11 +319,11 @@ export const qualityGateEngine = {
 
   async recordAndBlock(
     gate: QualityGateRow,
-    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string },
+    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string; authorId: string; authorBadge: string },
     reason: string,
     detail: Record<string, unknown>
   ): Promise<QualityGateEvaluationResult> {
-    await qualityGateEvaluationsDB.create({ qualityGateId: gate.id, seuId: input.seuId, entityType: input.entityType, entityId: input.entityId, outcome: "Blocked", detail });
+    await qualityGateEvaluationsDB.create({ qualityGateId: gate.id, seuId: input.seuId, entityType: input.entityType, entityId: input.entityId, outcome: "Blocked", detail, authorId: input.authorId, authorBadge: input.authorBadge });
     await eventBus.publish({
       eventType: "QualityGateBlocked",
       originatingObjectType: "QualityGate",
@@ -329,11 +337,11 @@ export const qualityGateEngine = {
 
   async recordAndWaive(
     gate: QualityGateRow,
-    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string },
+    input: { seuId: string | null; entityType: TransitionEntityType; entityId: string; authorId: string; authorBadge: string },
     reason: string,
     waiverId: string
   ): Promise<QualityGateEvaluationResult> {
-    await qualityGateEvaluationsDB.create({ qualityGateId: gate.id, seuId: input.seuId, entityType: input.entityType, entityId: input.entityId, outcome: "Waived", detail: { reason, waiverId } });
+    await qualityGateEvaluationsDB.create({ qualityGateId: gate.id, seuId: input.seuId, entityType: input.entityType, entityId: input.entityId, outcome: "Waived", detail: { reason, waiverId }, authorId: input.authorId, authorBadge: input.authorBadge });
     await eventBus.publish({
       eventType: "QualityGateWaived",
       originatingObjectType: "QualityGate",

@@ -35,6 +35,8 @@ import path from "node:path";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { publishPack, type PackSeedInput } from "../../routes/seu/core/packs.js";
+import { getPlatformTenantId } from "../constants.js";
+import { userDB } from "../userDB.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "data");
@@ -71,13 +73,19 @@ const DOMAIN_TECHNOLOGY_PACK_FILES = [
   "technology-kubernetes.pack.json",
   "technology-sql.pack.json",
 ];
-
-export async function seedDomainTechnologyPacks(): Promise<void> {
+export interface SeedActor {
+  authoredBy: string;
+  authorBadge: string;
+}
+export async function seedDomainTechnologyPacks(actor: SeedActor): Promise<void> {
   // Published concurrently — all 4 depend only on `development` (already
   // Active by the time this step runs, see the file header), never on each
   // other, and their own capability codes were already de-collided (2026-08-28
   // fix, above) precisely so they can coexist. No shared mutable state between
   // them, only network round-trip time to overlap.
+  
+  // get platform tenant id
+  const PLATFORM_TENANT_ID = await getPlatformTenantId();
   const results = await Promise.allSettled(
     DOMAIN_TECHNOLOGY_PACK_FILES.map(async (file) => {
       const seed = loadJson<PackSeedInput>(file);
@@ -101,7 +109,9 @@ export async function seedDomainTechnologyPacks(): Promise<void> {
 
 const isMain = import.meta.url === `file://${process.argv[1]}`;
 if (isMain) {
-  seedDomainTechnologyPacks()
+  const { actorId, actorBadge } = await userDB.getSuperuserId();
+    if (!actorId) throw new Error(`No participants_master row for user_id ${actorId} -- log in as root first.`);
+  seedDomainTechnologyPacks({ authoredBy: actorId, authorBadge: actorBadge })
     .catch((err) => {
       logger.error("[seed:domain-technology-packs] failed", err as Error);
       process.exitCode = 1;

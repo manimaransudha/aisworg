@@ -20,7 +20,7 @@ import { commandsDB } from "../../dblayer/commandsDB.js";
 import { servicesDB } from "../../dblayer/servicesDB.js";
 import { eventBus } from "./eventBus.js";
 import { createObligation } from "../../routes/seu/core/obligations.js";
-import { raiseAttentionItem } from "../../routes/seu/core/attentionItems.js";
+import { raiseAttentionItem, resolveSystemActor } from "../../routes/seu/core/attentionItems.js";
 import { loadAvailableCandidates, selectParticipant } from "./dispatchStrategies.js";
 import type { CommandRow, ServiceRow, WorkItemRow } from "../../dblayer/seuTypes.js";
 
@@ -55,12 +55,15 @@ async function rejectDispatch(input: { workItem: WorkItemRow; command: CommandRo
     // the Obligation below must be able to re-attempt this exact hop, which
     // a Command stuck at Generated/Dispatched/Deferred forever would block.
     await commandsDB.updateStatus(input.command.id, "Failed");
+    const systemActor = await resolveSystemActor(input.seuId);
     await createObligation({
       relatedObjectType: input.command.entity_type,
       relatedObjectId: input.command.entity_id,
       category: "Operational",
       title: `Dispatch could not find a Participant for Work Item ${input.workItem.id} (${reason})`,
       description: `Command ${input.command.id} (${input.command.from_state} -> ${input.command.to_state}): ${reason}.`,
+      actorId: systemActor.actorId,
+      authorBadge: systemActor.authorBadge,
     });
     await raiseAttentionItem({
       seuId: input.seuId,
@@ -70,6 +73,7 @@ async function rejectDispatch(input: { workItem: WorkItemRow; command: CommandRo
       description: `Command ${input.command.id} (${input.command.from_state} -> ${input.command.to_state}) needs a Participant, and none is available (${reason}). Resolve the Obligation once addressed.`,
       relatedObjectType: input.command.entity_type,
       relatedObjectId: input.command.entity_id,
+      ...systemActor,
     });
   }
   await eventBus.publish({

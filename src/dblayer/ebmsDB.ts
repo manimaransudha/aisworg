@@ -7,6 +7,8 @@ export const ebmsDB = {
     seuId: string;
     templateId: string;
     profileId: string;
+    authorId: string;
+    authorBadge: string;
     composedPacks: EbmComposedPack[];
     compositionReport: EbmCompositionReport;
     // migration 182 — the real resolved behavioural content (Chapter 3 §7),
@@ -38,13 +40,15 @@ export const ebmsDB = {
       // happened; only the separate, later Activate transition (updateStatus
       // below) ever sets 'Active'.
       const { rows } = await query<EbmRow>(
-        `INSERT INTO ebms (seu_id, template_id, profile_id, composed_packs, composition_report, behaviors, applicable_quality_gate_ids, applicable_policy_ids, seu_scoped_policy_ids, status, version)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Composed', (SELECT COALESCE(MAX(version), 0) + 1 FROM ebms WHERE seu_id = $1))
+        `INSERT INTO ebms (seu_id, template_id, profile_id, author_id, author_badge, composed_packs, composition_report, behaviors, applicable_quality_gate_ids, applicable_policy_ids, seu_scoped_policy_ids, status, version)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'Composed', (SELECT COALESCE(MAX(version), 0) + 1 FROM ebms WHERE seu_id = $1))
          RETURNING *`,
         [
           input.seuId,
           input.templateId,
           input.profileId,
+          input.authorId,
+          input.authorBadge,
           JSON.stringify(input.composedPacks),
           JSON.stringify(input.compositionReport),
           input.behaviors ? JSON.stringify(input.behaviors) : null,

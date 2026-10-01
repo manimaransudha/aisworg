@@ -1,7 +1,8 @@
-import { query } from "../utils/db.js";
+import { query, bulkInsert } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import { PLATFORM_TENANT_ID } from "./constants.js";
+import { PLATFORM_TENANT_NAME } from "./constants.js";
 import type { DbResult, OntologyConceptRow, OntologyConceptCommentRow, TenantConceptAliasRow } from "./seuTypes.js";
+import { tenantsDB } from "./tenantsDB.js"
 
 // Ontology Model — Plan (Phase 17, Ch.18). The canonical registry + per-tenant
 // alias store. The core only ever reads/writes canonical codes; the alias is a
@@ -15,9 +16,13 @@ import type { DbResult, OntologyConceptRow, OntologyConceptCommentRow, TenantCon
 export interface OntologyViewer { isRoot: boolean; tenantId: string | null }
 
 // null => no filter (root sees every tenant's concepts, unscoped).
-function visibleTenantIds(viewer: OntologyViewer): string[] | null {
+async function visibleTenantIds(viewer: OntologyViewer): Promise<string[] | null> {
   if (viewer.isRoot) return null;
-  const ids = new Set([PLATFORM_TENANT_ID]);
+
+  const { data, error } = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+  if (error || !data) throw new Error("Error retrieving Platform details");
+  const platformTenantId = data.id;
+  const ids = new Set([platformTenantId]);
   if (viewer.tenantId) ids.add(viewer.tenantId);
   return [...ids];
 }
@@ -41,11 +46,11 @@ export const ontologyDB = {
   // row was before (off-canonical, rejected by assertCanonicalCategory).
   async findConcept(conceptType: string, code: string, viewer: OntologyViewer): Promise<DbResult<OntologyConceptRow | null>> {
     try {
-      const tenantIds = visibleTenantIds(viewer);
+      const tenantIds = await visibleTenantIds(viewer);
       const { rows } = tenantIds
         ? await query<OntologyConceptRow>(
             "SELECT * FROM ontology_concepts WHERE concept_type = $1 AND code = $2 AND status = 'Active' AND tenant_id = ANY($3::uuid[]) ORDER BY (tenant_id = $4) DESC LIMIT 1",
-            [conceptType, code, tenantIds, viewer.tenantId ?? PLATFORM_TENANT_ID]
+            [conceptType, code, tenantIds, viewer.tenantId ?? tenantIds[0]]
           )
         : await query<OntologyConceptRow>("SELECT * FROM ontology_concepts WHERE concept_type = $1 AND code = $2 AND status = 'Active' LIMIT 1", [conceptType, code]);
       return { data: rows[0] ?? null };
@@ -120,7 +125,7 @@ export const ontologyDB = {
   // available" — a real read of that history, not just a hidden flag).
   async findConceptsByType(conceptType: string, viewer: OntologyViewer, opts?: { includeInactive?: boolean }): Promise<DbResult<OntologyConceptRow[]>> {
     try {
-      const tenantIds = visibleTenantIds(viewer);
+      const tenantIds = await visibleTenantIds(viewer);
       const activeClause = opts?.includeInactive ? "" : " AND status = 'Active'";
       const order = opts?.includeInactive ? "ORDER BY code, version DESC" : "ORDER BY code";
       const { rows } = tenantIds
@@ -141,7 +146,7 @@ export const ontologyDB = {
   // table, so this is derived from ontology_concepts itself, not a lookup).
   async listDistinctConceptTypes(viewer: OntologyViewer): Promise<DbResult<string[]>> {
     try {
-      const tenantIds = visibleTenantIds(viewer);
+      const tenantIds = await visibleTenantIds(viewer);
       const { rows } = tenantIds
         ? await query<{ concept_type: string }>("SELECT DISTINCT concept_type FROM ontology_concepts WHERE tenant_id = ANY($1::uuid[]) ORDER BY concept_type", [tenantIds])
         : await query<{ concept_type: string }>("SELECT DISTINCT concept_type FROM ontology_concepts ORDER BY concept_type");
@@ -169,7 +174,7 @@ export const ontologyDB = {
   // review table exists to catch.
   async findConceptTypeUiGroupings(viewer: OntologyViewer): Promise<DbResult<Array<{ concept_type: string; ui_grouping: string }>>> {
     try {
-      const tenantIds = visibleTenantIds(viewer);
+      const tenantIds = await visibleTenantIds(viewer);
       const { rows } = tenantIds
         ? await query<{ concept_type: string; ui_grouping: string }>(
             `SELECT DISTINCT concept_type, ui_grouping FROM ontology_concepts
@@ -196,7 +201,7 @@ export const ontologyDB = {
   // nothing set yet.
   async findAllActiveConcepts(viewer: OntologyViewer): Promise<DbResult<Array<{ concept_type: string; code: string; default_label: string; text_type: "text" | "markdown"; ui_grouping: string | null; tenant_id: string }>>> {
     try {
-      const tenantIds = visibleTenantIds(viewer);
+      const tenantIds = await visibleTenantIds(viewer);
       const { rows } = tenantIds
         ? await query<{ concept_type: string; code: string; default_label: string; text_type: "text" | "markdown"; ui_grouping: string | null; tenant_id: string }>(
             `SELECT concept_type, code, default_label, text_type, ui_grouping, tenant_id FROM ontology_concepts WHERE status = 'Active' AND tenant_id = ANY($1::uuid[])
@@ -221,7 +226,7 @@ export const ontologyDB = {
   // category tab's own page load, not just the Metadata page's.
   async findDistinctUiGroupings(viewer: OntologyViewer): Promise<DbResult<string[]>> {
     try {
-      const tenantIds = visibleTenantIds(viewer);
+      const tenantIds = await visibleTenantIds(viewer);
       const { rows } = tenantIds
         ? await query<{ ui_grouping: string }>(
             "SELECT DISTINCT ui_grouping FROM ontology_concepts WHERE ui_grouping IS NOT NULL AND status = 'Active' AND tenant_id = ANY($1::uuid[]) ORDER BY ui_grouping",
@@ -251,17 +256,21 @@ export const ontologyDB = {
     // genuinely new code as 'Draft'; every other caller keeps the
     // long-standing 'Active' default.
     status?: OntologyConceptRow["status"];
+    // author_id/author_badge (migration 285), both NOT NULL — never
+    // defaulted, same discipline as schemaDefinitionsDB.create.
+    authorId: string; authorBadge: string;
   }): Promise<DbResult<OntologyConceptRow>> {
     try {
       const { rows } = await query<OntologyConceptRow>(
-        `INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id, version, status, description, contributed_by_pack, composition_strategy, composition_sources, text_type, ui_grouping)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12)
+        `INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id, version, status, description, contributed_by_pack, composition_strategy, composition_sources, text_type, ui_grouping, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13, $14)
          RETURNING *`,
         [
           input.conceptType, input.code, input.defaultLabel, input.tenantId, input.version, input.status ?? "Active",
           input.description ?? null, input.contributedByPack ?? null,
           input.compositionStrategy ?? null, JSON.stringify(input.compositionSources ?? []),
           input.textType ?? "markdown", input.uiGrouping ?? null,
+          input.authorId, input.authorBadge,
         ]
       );
       return { data: rows[0] };
@@ -275,6 +284,34 @@ export const ontologyDB = {
   // auto-supersede-previous-Active step on a new version both go through
   // this; the authority/event-publish decisions live in core/ontology.ts,
   // same split as templatesDB.updateStatus/transitionTemplate.
+  // Baseline-data recovery only (seedOntologyConcepts.ts) — one batch write
+  // for every missing (concept_type, code, tenant_id) row, never a live
+  // per-row query (CLAUDE.md's Ontology-seeding rule). Every row lands
+  // version '1.0.0' / status 'Active' — these ARE canonical baseline
+  // concepts, not a user's own Draft addition (addConcept's own path).
+  async bulkInsertConceptVersions(
+    rows: Array<{
+      conceptType: string; code: string; defaultLabel: string; description: string | null; tenantId: string;
+      isMandatory: boolean | null; textType: "text" | "markdown"; uiGrouping: string | null;
+      authorId: string; authorBadge: string;
+    }>
+  ): Promise<DbResult<OntologyConceptRow[]>> {
+    try {
+      const { rows: inserted } = await bulkInsert<OntologyConceptRow>(
+        "ontology_concepts",
+        ["concept_type", "code", "default_label", "description", "tenant_id", "is_mandatory", "text_type", "ui_grouping", "version", "status", "author_id", "author_badge"],
+        rows.map((r) => [
+          r.conceptType, r.code, r.defaultLabel, r.description, r.tenantId, r.isMandatory, r.textType, r.uiGrouping,
+          "1.0.0", "Active", r.authorId, r.authorBadge,
+        ])
+      );
+      return { data: inserted };
+    } catch (err) {
+      logger.error("[ontologyDB] bulkInsertConceptVersions error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
   async updateConceptStatus(id: string, status: OntologyConceptRow["status"]): Promise<DbResult<OntologyConceptRow | null>> {
     try {
       const { rows } = await query<OntologyConceptRow>("UPDATE ontology_concepts SET status = $1 WHERE id = $2 RETURNING *", [status, id]);
@@ -352,7 +389,7 @@ export const ontologyDB = {
   // tenant's).
   async findDraftConcepts(viewer: OntologyViewer): Promise<DbResult<OntologyConceptRow[]>> {
     try {
-      const tenantIds = visibleTenantIds(viewer);
+      const tenantIds = await visibleTenantIds(viewer);
       const { rows } = tenantIds
         ? await query<OntologyConceptRow>(
             "SELECT * FROM ontology_concepts WHERE status = 'Draft' AND tenant_id = ANY($1::uuid[]) ORDER BY created_at",
@@ -369,7 +406,7 @@ export const ontologyDB = {
   // CR-113 item 6 — mirrors objectivesDB.addComment/getComments exactly
   // (objective_comments, migration 125): append-only, never UPDATEd/DELETEd
   // at the application layer.
-  async addConceptComment(conceptId: string, actorId: number | null, commentText: string): Promise<DbResult<OntologyConceptCommentRow>> {
+  async addConceptComment(conceptId: string, actorId: string, commentText: string): Promise<DbResult<OntologyConceptCommentRow>> {
     try {
       const { rows } = await query<OntologyConceptCommentRow>(
         `INSERT INTO ontology_concept_comments (concept_id, actor_id, comment_text)

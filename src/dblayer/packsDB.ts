@@ -1,9 +1,14 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import { PLATFORM_TENANT_ID } from "./constants.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validatePackWriteAgainstSchema } from "../routes/seu/core/packWriteValidator.js";
 import type { DbResult, PackCategory, PackClassification, PackCommentRow, PackContributions, PackRow, PackStatus } from "./seuTypes.js";
+import { tenantsDB } from "./tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "./constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 export const packsDB = {
   // Ch.41 VM-002 "Versions are immutable" — a plain INSERT, no ON CONFLICT
@@ -31,8 +36,13 @@ export const packsDB = {
     dependencies?: Array<{ packCode: string; version: string; type: "required" | "optional" | "conditional" | "incompatible" }>;
     compositionSources?: Array<{ packCode: string }>;
     metadata?: Record<string, unknown>;
-    authoredBy?: number | null;
-    tenantId?: string;
+    // authored_by/author_badge are NOT NULL, participants_master-scoped (same
+    // convention as templatesDB.createDraft/profilesDB.createDraft) — every
+    // caller must resolve and pass the real participants_master.id and the
+    // real held badge; no DB-layer fallback.
+    authoredBy: string;
+    authorBadge: string;
+    tenantId: string;
     // CR-114 follow-on — mandatory (owner: "Otherwise all this build is of no
     // use" — an optional field with a silent findLatest fallback let every
     // caller keep ignoring schema versioning entirely). Every caller must
@@ -64,8 +74,8 @@ export const packsDB = {
       if (!schemaRow) return { error: new Error(`schema_definitions row "${input.schemaDefinitionId}" not found`) };
 
       const { rows } = await query<PackRow>(
-        `INSERT INTO packs (code, name, category, pack_version, status, installation_classification, contributions, dependencies, composition_sources, metadata, authored_by, tenant_id, schema_definition_id)
-         VALUES ($1, $2, $3, $4, 'Draft', $5, $6, $7, $8, $9, $10, $11, $12)
+        `INSERT INTO packs (code, name, category, pack_version, status, installation_classification, contributions, dependencies, composition_sources, metadata, authored_by, author_badge, tenant_id, schema_definition_id)
+         VALUES ($1, $2, $3, $4, 'Draft', $5, $6, $7, $8, $9, $10, $11, $12, $13)
          RETURNING *`,
         [
           input.code,
@@ -77,7 +87,8 @@ export const packsDB = {
           JSON.stringify(input.dependencies ?? []),
           JSON.stringify(input.compositionSources ?? []),
           JSON.stringify(input.metadata ?? {}),
-          input.authoredBy ?? null,
+          input.authoredBy,
+          input.authorBadge,
           input.tenantId ?? PLATFORM_TENANT_ID,
           schemaRow?.id ?? null,
         ]

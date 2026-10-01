@@ -15,7 +15,7 @@ router.post("/knowledge", async (req: Request, res: Response) => {
     if (typeof seuId !== "string" || typeof deliverableId !== "string" || typeof category !== "string" || !category.trim() || typeof title !== "string" || !title.trim()) {
       return res.status(400).json({ error: "seuId, deliverableId, category and title are required" });
     }
-    const userId = req.session?.user?.id != null ? Number(req.session.user.id) : undefined;
+    const userId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
     const knowledgeItem = await createKnowledgeItem({
       seuId,
       deliverableId,
@@ -59,7 +59,7 @@ router.post("/knowledge/:id/validation-notes", async (req: Request, res: Respons
     if (typeof noteText !== "string" || !noteText.trim()) {
       return res.status(400).json({ error: "noteText is required" });
     }
-    const actorUserId = req.session?.user?.id != null ? Number(req.session.user.id) : undefined;
+    const actorUserId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
     const note = await addKnowledgeValidationNote({ knowledgeItemId: String(req.params.id), noteText, actorUserId });
     res.status(201).json({ note });
   } catch (err) {
@@ -109,7 +109,7 @@ router.post("/knowledge/:id/promote-scope", async (req: Request, res: Response) 
     }
     const actorRole = req.session?.user?.role ?? "general";
     const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
-    const userId = req.session?.user?.id != null ? Number(req.session.user.id) : undefined;
+    const userId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
     const result = await promoteKnowledgeItemScope({ knowledgeItemId: String(req.params.id), targetScope: targetScope as AcquisitionScope, actorRole, actorId, userId });
 
     if (!result.ok) {
@@ -132,7 +132,7 @@ router.post("/knowledge/:id/transition", async (req: Request, res: Response) => 
     }
     const actorRole = req.session?.user?.role ?? "general";
     const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
-    const userId = req.session?.user?.id != null ? Number(req.session.user.id) : undefined;
+    const userId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
     const result = await transitionKnowledgeItem({ knowledgeItemId: String(req.params.id), targetState, actorRole, actorId, userId });
 
     if (!result.ok) {

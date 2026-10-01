@@ -12,6 +12,7 @@ import { listSeusPaginated, getSeuDetailView, getSeuEbmView } from "../core/seus
 import { parseListParams } from "../../../utils/listQuery.js";
 import { getObjectiveDetail, listCommissionableObjectives } from "../core/objectives.js";
 import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
+import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 import { fulfilCapabilityWithParticipants, releaseParticipants } from "../core/capabilities.js";
 import { replaceParticipant } from "../core/participants.js";
 import { transitionDeliverable } from "../core/deliverables.js";
@@ -164,11 +165,20 @@ router.post("/seus/:id/capabilities/:capabilityId/fulfil", async (req: Request, 
     return flashError(req, res, backTo, "At least one Participant is required.");
   }
 
+  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
+  if (!actorId) return flashError(req, res, backTo, "No acting user to record as this Capability Fulfilment's author — log in first.");
+  const authRow = lookupRouteAuthority(req.method, req.path);
+  const held = await resolveHeldBadges(req);
+  const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+  if (!authorBadge) return flashError(req, res, backTo, "No held badge authorises this action — cannot record an author badge.");
+
   try {
     const results = await fulfilCapabilityWithParticipants({
       seuId,
       capabilityId: String(req.params.capabilityId),
       participantMasterIds,
+      actorId,
+      authorBadge,
     });
     const names = results.map((r) => r.participant.display_name).join(", ");
     return flashSuccess(req, res, backTo, `Capability "${results[0].capabilityCode}" fulfilled by ${names}.`);
@@ -193,6 +203,11 @@ router.post("/seus/:id/capabilities/:capabilityId/participant/:participantId/rep
     return flashError(req, res, backTo, "Replacement Participant type and display name are required.");
   }
 
+  const authRow = lookupRouteAuthority(req.method, req.path);
+  const held = await resolveHeldBadges(req);
+  const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+  if (!authorBadge) return flashError(req, res, backTo, "No held badge authorises this action — cannot record an author badge.");
+
   try {
     const result = await replaceParticipant({
       oldParticipantId: String(req.params.participantId),
@@ -200,6 +215,7 @@ router.post("/seus/:id/capabilities/:capabilityId/participant/:participantId/rep
       newDisplayName: displayName,
       actorRole: req.session?.user?.role ?? "general",
       actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      authorBadge,
     });
     if (!result.ok) {
       return flashError(req, res, backTo, `Replacement blocked: ${result.detail}`);
@@ -261,7 +277,7 @@ router.post("/seus/:id/deliverables/:deliverableId/transition", async (req: Requ
       targetState,
       actorRole: req.session?.user?.role ?? "general",
       actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
-      requestedBy: req.session?.user?.id ?? null,
+      requestedBy: req.session?.user?.id != null ? String(req.session.user.id) : null,
     });
     if (!result.ok) {
       const reason = result.reason === "dependency_not_satisfied" ? "one or more dependencies aren't Satisfied yet" : "detail" in result ? result.detail : result.reason;
@@ -299,11 +315,12 @@ router.post("/seus/:id/ebm/transition", async (req: Request, res: Response) => {
     if (!seu || !seu.active_ebm_id) {
       return flashError(req, res, backTo, "This SEU has no Engineering Behavior Model to transition yet.");
     }
+    if (req.session?.user?.id == null) return flashError(req, res, backTo, "Authentication required.");
     const result = await transitionEbm({
       ebmId: seu.active_ebm_id,
       targetState,
       actorRole: req.session?.user?.role ?? "general",
-      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      actorId: String(req.session.user.id),
     });
     if (!result.ok) {
       const reason = result.reason === "not_found" ? "EBM not found" : result.detail;
@@ -331,11 +348,12 @@ router.post("/seus/:id/obligations/:obligationId/transition", async (req: Reques
   }
 
   try {
+    if (req.session?.user?.id == null) return flashError(req, res, backTo, "Authentication required.");
     const result = await transitionObligation({
       obligationId: String(req.params.obligationId),
       targetState,
       actorRole: req.session?.user?.role ?? "general",
-      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      actorId: String(req.session.user.id),
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
@@ -355,9 +373,10 @@ router.post("/seus/:id/obligations/:obligationId/revise", async (req: Request, r
   const { title, description, category, severity, priority, completionCriteria, assignedEntityType, assignedEntityId } = req.body ?? {};
 
   try {
+    if (req.session?.user?.id == null) return flashError(req, res, backTo, "Authentication required.");
     await reviseObligation({
       obligationId: String(req.params.obligationId),
-      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      actorId: String(req.session.user.id),
       title: typeof title === "string" ? title : undefined,
       description: typeof description === "string" ? description : undefined,
       category: typeof category === "string" ? category : undefined,
@@ -384,6 +403,13 @@ router.post("/seus/:id/attention-items", async (req: Request, res: Response) => 
     return flashError(req, res, backTo, "Category and title are required.");
   }
 
+  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
+  if (!actorId) return flashError(req, res, backTo, "No acting user to record as this Attention Item's author — log in first.");
+  const authRow = lookupRouteAuthority(req.method, req.path);
+  const held = await resolveHeldBadges(req);
+  const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+  if (!authorBadge) return flashError(req, res, backTo, "No held badge authorises this action — cannot record an author badge.");
+
   try {
     const attentionItem = await createAttentionItem({
       seuId,
@@ -392,6 +418,8 @@ router.post("/seus/:id/attention-items", async (req: Request, res: Response) => 
       category,
       title,
       priority,
+      actorId,
+      authorBadge,
     });
     return flashSuccess(req, res, backTo, `Attention Item "${attentionItem.title}" created (${attentionItem.category}, ${attentionItem.priority}).`);
   } catch (err) {
@@ -411,11 +439,12 @@ router.post("/seus/:id/attention-items/:attentionItemId/transition", async (req:
   }
 
   try {
+    if (req.session?.user?.id == null) return flashError(req, res, backTo, "Authentication required.");
     const result = await transitionAttentionItem({
       attentionItemId: String(req.params.attentionItemId),
       targetState,
       actorRole: req.session?.user?.role ?? "general",
-      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      actorId: String(req.session.user.id),
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
@@ -438,10 +467,17 @@ router.post("/seus/:id/evidence", async (req: Request, res: Response) => {
     return flashError(req, res, backTo, "Deliverable, category and title are required.");
   }
 
+  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
+  if (!actorId) return flashError(req, res, backTo, "No acting user to record as this Evidence's author — log in first.");
+  const authRow = lookupRouteAuthority(req.method, req.path);
+  const held = await resolveHeldBadges(req);
+  const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+  if (!authorBadge) return flashError(req, res, backTo, "No held badge authorises this action — cannot record an author badge.");
+
   try {
     const evidence = await createEvidence({
       seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category, title, description, source,
-      supersedesEvidenceId: predecessorEvidenceId || null,
+      supersedesEvidenceId: predecessorEvidenceId || null, actorId, authorBadge,
     });
     return flashSuccess(req, res, backTo, `Evidence "${evidence.title}" collected (${evidence.category}).`);
   } catch (err) {
@@ -513,8 +549,15 @@ router.post("/seus/:id/evidence/:evidenceId/link", async (req: Request, res: Res
     return flashError(req, res, backTo, "Deliverable is required.");
   }
 
+  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
+  if (!actorId) return flashError(req, res, backTo, "No acting user to record as this link's author — log in first.");
+  const authRow = lookupRouteAuthority(req.method, req.path);
+  const held = await resolveHeldBadges(req);
+  const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+  if (!authorBadge) return flashError(req, res, backTo, "No held badge authorises this action — cannot record an author badge.");
+
   try {
-    const result = await linkEvidenceToObject(String(req.params.evidenceId), "Deliverable", deliverableId);
+    const result = await linkEvidenceToObject(String(req.params.evidenceId), "Deliverable", deliverableId, actorId, authorBadge);
     if (!result.ok) {
       if (result.reason === "not_found") return flashError(req, res, backTo, "Evidence not found.");
       return flashError(req, res, backTo, `Could not link Evidence: ${result.detail}`);
@@ -548,7 +591,7 @@ router.post("/seus/:id/knowledge", async (req: Request, res: Response) => {
       title,
       description,
       acquisitionScope: acquisitionScope as AcquisitionScope | undefined,
-      userId: req.session?.user?.id != null ? Number(req.session.user.id) : undefined,
+      userId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
     });
     return flashSuccess(req, res, backTo, `Knowledge Item "${knowledgeItem.title}" observed (${knowledgeItem.category}, ${knowledgeItem.acquisition_scope} scope).`);
   } catch (err) {
@@ -573,7 +616,7 @@ router.post("/seus/:id/knowledge/:knowledgeItemId/transition", async (req: Reque
       targetState,
       actorRole: req.session?.user?.role ?? "general",
       actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
-      userId: req.session?.user?.id != null ? Number(req.session.user.id) : undefined,
+      userId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
@@ -602,7 +645,7 @@ router.post("/seus/:id/knowledge/:knowledgeItemId/promote-scope", async (req: Re
       targetScope: targetScope as AcquisitionScope,
       actorRole: req.session?.user?.role ?? "general",
       actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
-      userId: req.session?.user?.id != null ? Number(req.session.user.id) : undefined,
+      userId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;
@@ -694,6 +737,13 @@ router.post("/seus/:id/external-interactions", async (req: Request, res: Respons
     return flashError(req, res, backTo, "Interaction type, direction and target system are required.");
   }
 
+  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
+  if (!actorId) return flashError(req, res, backTo, "No acting user to record as this External Interaction's author — log in first.");
+  const authRow = lookupRouteAuthority(req.method, req.path);
+  const held = await resolveHeldBadges(req);
+  const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+  if (!authorBadge) return flashError(req, res, backTo, "No held badge authorises this action — cannot record an author badge.");
+
   try {
     const interaction = await createExternalInteraction({
       seuId,
@@ -702,6 +752,8 @@ router.post("/seus/:id/external-interactions", async (req: Request, res: Respons
       direction: direction as InteractionDirection,
       targetSystem,
       purpose,
+      actorId,
+      authorBadge,
     });
     return flashSuccess(req, res, backTo, `External Interaction with "${interaction.target_system}" recorded (${interaction.interaction_type}, ${interaction.direction}).`);
   } catch (err) {

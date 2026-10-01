@@ -37,6 +37,7 @@ export const aiOnboardingAdapter: ParticipantOnboardingAdapter = {
       // verification, qualitygate) applies to an AI Participant yet.
       behaviourContext: [],
       authorisedRole: mockDefaultAuthorisedRole(),
+      userId: null,
     };
   },
 };

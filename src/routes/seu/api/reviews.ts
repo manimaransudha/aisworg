@@ -8,6 +8,8 @@ import { logger } from "../../../utils/logger.js";
 import { createReview, listReviewsWithNextStates, transitionReview } from "../core/reviews.js";
 import { createFinding, listFindingsByReview, transitionFinding, convertFindingToObligation } from "../core/findings.js";
 import type { ReviewOutcome, TransitionEntityType } from "../../../dblayer/seuTypes.js";
+import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
+import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 
 // Review Model — Plan (Phase 14, Ch.25 §18: Review APIs). A Review is a governed
 // evaluation whose outcome Governance consumes; Findings are its traceable
@@ -20,6 +22,13 @@ router.post("/reviews", async (req: Request, res: Response) => {
     if (typeof seuId !== "string" || typeof relatedObjectType !== "string" || typeof relatedObjectId !== "string" || typeof category !== "string" || !category.trim() || typeof name !== "string" || !name.trim()) {
       return res.status(400).json({ error: "seuId, relatedObjectType, relatedObjectId, category and name are required" });
     }
+    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
+    if (!actorId) return res.status(401).json({ error: "no acting user to record as this Review's author — log in first" });
+    const authRow = lookupRouteAuthority(req.method, req.path);
+    const held = await resolveHeldBadges(req);
+    const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+    if (!authorBadge) return res.status(403).json({ error: "no held badge authorises this action — cannot record an author badge" });
+
     const review = await createReview({
       seuId,
       relatedObjectType: relatedObjectType as TransitionEntityType,
@@ -28,6 +37,8 @@ router.post("/reviews", async (req: Request, res: Response) => {
       name,
       criteria: typeof criteria === "object" && criteria ? criteria : undefined,
       reviewer: typeof reviewer === "string" ? reviewer : null,
+      actorId,
+      authorBadge,
     });
     res.status(201).json({ review });
   } catch (err) {
@@ -76,11 +87,20 @@ router.post("/reviews/:id/findings", async (req: Request, res: Response) => {
   try {
     const { severity, title, description } = req.body ?? {};
     if (typeof title !== "string" || !title.trim()) return res.status(400).json({ error: "title is required" });
+    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
+    if (!actorId) return res.status(401).json({ error: "no acting user to record as this Finding's author — log in first" });
+    const authRow = lookupRouteAuthority(req.method, req.path);
+    const held = await resolveHeldBadges(req);
+    const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+    if (!authorBadge) return res.status(403).json({ error: "no held badge authorises this action — cannot record an author badge" });
+
     const finding = await createFinding({
       reviewId: String(req.params.id),
       severity: typeof severity === "string" && severity.trim() ? severity : "Medium",
       title,
       description: typeof description === "string" ? description : null,
+      actorId,
+      authorBadge,
     });
     res.status(201).json({ finding });
   } catch (err) {
@@ -120,10 +140,16 @@ router.post("/findings/:id/transition", async (req: Request, res: Response) => {
 router.post("/findings/:id/convert-to-obligation", async (req: Request, res: Response) => {
   try {
     const { category, severity } = req.body ?? {};
+    if (req.session?.user?.id == null) return res.status(401).json({ error: "authentication required" });
+    const actorId = String(req.session.user.id);
+    const held = await resolveHeldBadges(req);
+    const authorBadge = held.isRoot ? "root" : [...held.badgeTypes][0] ?? "general";
     const result = await convertFindingToObligation({
       findingId: String(req.params.id),
       category: typeof category === "string" ? category : undefined,
       severity: typeof severity === "string" ? severity : undefined,
+      actorId,
+      authorBadge,
     });
     if (!result.ok) {
       const status = result.reason === "not_found" ? 404 : 409;

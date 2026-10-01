@@ -1,11 +1,17 @@
 import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { assertCanonicalCategory } from "./ontology.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import type { CapabilityDefinitionRow, CapabilityRole } from "../../../dblayer/seuTypes.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 // CR-111 — Capability Definition authoring, mirroring
 // core/serviceDefinitions.ts in shape (Service Definition's own lean 6-state
@@ -116,7 +122,7 @@ export type TransitionCapabilityDefinitionResult = { ok: true; capabilityDefinit
 // wired in at build time (migration 273 + seedTransitionDefinitions' own
 // data file), read straight off the resolved Transition Definition, same as
 // transitionServiceDefinition/transitionPolicyDefinition already do.
-export async function transitionCapabilityDefinition(input: { capabilityDefinitionId: string; targetState: CapabilityDefinitionRow["status"]; actorRole: string; actorId?: string }): Promise<TransitionCapabilityDefinitionResult> {
+export async function transitionCapabilityDefinition(input: { capabilityDefinitionId: string; targetState: CapabilityDefinitionRow["status"]; actorRole: string; actorId: string }): Promise<TransitionCapabilityDefinitionResult> {
   const { data: capabilityDefinition } = await capabilityDefinitionsDB.findById(input.capabilityDefinitionId);
   if (!capabilityDefinition) return { ok: false, reason: "not_found" };
   const fromState = capabilityDefinition.status;
@@ -128,7 +134,13 @@ export async function transitionCapabilityDefinition(input: { capabilityDefiniti
     return { ok: false, reason: gate.reason };
   }
 
-  const { data: updated, error } = await capabilityDefinitionsDB.updateStatus(capabilityDefinition.id, input.targetState);
+  // authored_by is participants_master-scoped and NOT NULL -- resolve the
+  // real actor, never a default.
+  if (!input.actorId) return { ok: false, reason: "no_actor", detail: "no actorId supplied for this transition" };
+  const { data: transitionMaster } = await participantsMasterDB.findById(input.actorId);
+  if (!transitionMaster) return { ok: false, reason: "no_actor", detail: `No superuser provisioned.` };
+
+  const { data: updated, error } = await capabilityDefinitionsDB.updateStatus(capabilityDefinition.id, input.targetState, gate.authorityBadge, transitionMaster.id);
   if (error || !updated) throw error ?? new Error("failed to update Capability Definition status");
 
   await eventBus.publish({
@@ -138,7 +150,7 @@ export async function transitionCapabilityDefinition(input: { capabilityDefiniti
     seuId: null, // platform catalog entity, not SEU-scoped
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: updated.code },
-    actorId: input.actorId ?? null,
+    actorId: input.actorId,
     authorityBadge: gate.authorityBadge,
   });
   return { ok: true, capabilityDefinition: updated };
@@ -154,27 +166,30 @@ const AUTHORING_NEXT_STATE: Partial<Record<CapabilityDefinitionRow["status"], Ca
   Retired: "Archived",
 };
 
-export async function advanceCapabilityDefinitionOneStep(capabilityDefinition: CapabilityDefinitionRow, actorRole: string, actorId: string | undefined): Promise<TransitionCapabilityDefinitionResult> {
+export async function advanceCapabilityDefinitionOneStep(capabilityDefinition: CapabilityDefinitionRow, actorRole: string, actorId: string): Promise<TransitionCapabilityDefinitionResult> {
   const targetState = AUTHORING_NEXT_STATE[capabilityDefinition.status];
   if (!targetState) return { ok: false, reason: "no_further_step", detail: `Capability Definition is already ${capabilityDefinition.status} — no further authoring step` };
   return transitionCapabilityDefinition({ capabilityDefinitionId: capabilityDefinition.id, targetState, actorRole, actorId });
 }
 
 // Registry "Copy" action, mirrors copyServiceDefinitionAsNewDraft.
-export async function copyCapabilityDefinitionAsNewDraft(capabilityDefinitionId: string, actorId: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
+export async function copyCapabilityDefinitionAsNewDraft(capabilityDefinitionId: string, actorId: string, authorBadge: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await capabilityDefinitionsDB.findById(capabilityDefinitionId);
   if (!source) return { ok: false, errors: ["Capability Definition not found"] };
   // CR-114 follow-on — same carry-forward-the-source's-own-pin reasoning as
   // templates.ts's copyTemplateAsNewDraft.
   const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Capability");
   if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Capability`] };
+  const { data: copyMaster } = await participantsMasterDB.findById(actorId);
+  if (!copyMaster) return { ok: false, errors: [`No superuser provisioned.`] };
   const { data: newDraft, error } = await capabilityDefinitionsDB.createDraft({
     code: source.code,
     defaultLabel: source.default_label,
     description: source.description,
     roles: source.roles,
     version: source.version,
-    authoredBy: Number(actorId),
+    authoredBy: copyMaster.id,
+    authorBadge,
     draftContent: { code: source.code, defaultLabel: source.default_label, description: source.description ?? "", roles: source.roles },
     tenantId: source.tenant_id,
     parentCapabilityDefinitionId: source.parent_capability_definition_id,

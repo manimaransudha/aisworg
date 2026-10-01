@@ -15,8 +15,8 @@ export const governanceEvaluationOutcomesDB = {
            (seu_id, entity_type, entity_id, from_state, to_state, outcome, rationale,
             quality_gate_id, quality_gate_outcome, applicable_authority_rule_id,
             satisfied_policy_ids, deviated_policy_ids, consulted_obligation_ids,
-            open_attention_item_ids, originating_pack_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            open_attention_item_ids, originating_pack_id, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
          RETURNING *`,
         [
           input.seu_id,
@@ -34,6 +34,8 @@ export const governanceEvaluationOutcomesDB = {
           input.consulted_obligation_ids,
           input.open_attention_item_ids,
           input.originating_pack_id,
+          input.author_id,
+          input.author_badge,
         ]
       );
       return { data: rows[0] };

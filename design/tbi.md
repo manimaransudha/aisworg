@@ -104,3 +104,66 @@ routes/seu/web/events.ts:18 — /events, 'super'
 No — /aisworg/seu/identity/users is not tenant-scoped. getIdentityDashboardView (its own comment at identity.ts:242 confirms this) loads SELECT id, email, ... FROM users with no tenant filter — every user across every tenant. It's gated by requirePlatformBadge("root") only, which is Platform-wide root authority, not a tenant scope.
 
 There is a tenant-scoped counterpart: listUsersForTenant(tenantId) (identity.ts:256), filtered WHERE tenant_id = $1 — that's used by the separate tenant_super-gated tenant-admin page (tenantAdmin.ts), not by /identity/users.
+
+
+
+---------
+## Add this to Packs chapter
+
+
+### Platform Packs
+
+Provide default platform behaviour.
+
+Examples:
+
+- Engineering Practices
+- Default Authority
+- Default Policies
+- Default Quality Gates
+
+### Organisation Packs
+
+Represent organisational engineering practices.
+
+Examples:
+
+- TCS Engineering Practices
+- Accenture Engineering Practices
+- Infosys Engineering Practices
+
+
+### Customer Packs
+
+Represent customer-specific requirements.
+
+Examples:
+
+- Cigna Engineering Requirements
+- HSBC Delivery Standards
+
+
+### Domain Packs
+
+Represent domain knowledge.
+
+Examples:
+
+- HIPAA
+- Banking
+- Insurance
+- Telecom
+- Automotive
+
+
+### Technology Packs
+
+Represent technology ecosystems.
+
+Examples:
+
+- Java
+- .NET
+- Node.js
+- Kubernetes
+- React

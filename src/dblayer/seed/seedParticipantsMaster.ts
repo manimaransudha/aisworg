@@ -60,9 +60,9 @@ const bcrypt = require("bcryptjs");
 // no ON CONFLICT is correct here — same assumption participantsMasterDB's own
 // createMany already relies on in this exact file.
 
-// const TENANT_CODES = ["platform", "demo", "default", "Athens", "Babylon", "Cambodia"];
-const TENANT_CODES = ["default"];
-const PARTICIPANTS_PER_TENANT_PER_TYPE = 500;
+// const TENANT_CODES = ["platform", "demo", "Athens", "Babylon", "Cambodia"];
+const TENANT_CODES = ["demo"];
+const PARTICIPANTS_PER_TENANT_PER_TYPE = 5;
 
 // Still bounded — participantsMasterDB.create is one query per row (the
 // per-field Ontology round trips are gone), but 12,000 rows sequential is
@@ -81,7 +81,8 @@ interface CanonicalSets {
 }
 
 async function codesOf(conceptType: string, viewer: OntologyViewer): Promise<Set<string>> {
-  const { data } = await ontologyDB.findConceptsByType(conceptType, viewer);
+  const { data, error } = await ontologyDB.findConceptsByType(conceptType, viewer);
+  console.log(`[codesOf] conceptType=${conceptType} viewer=${JSON.stringify(viewer)} error=${error ? String(error) : "none"} rows=${data?.length ?? "undefined"}`);
   return new Set((data ?? []).map((c) => c.code));
 }
 
@@ -196,7 +197,6 @@ export async function seedParticipantsMaster(): Promise<void> {
         const userRows = rows.map((row, idx) => [
           humanEmails[idx],
           row.displayName,
-          "general",
           "local",
           true,
           false,
@@ -206,12 +206,12 @@ export async function seedParticipantsMaster(): Promise<void> {
         ]);
         const { rows: insertedUsers } = await bulkInsert(
           "users",
-          ["email", "name", "role", "auth_provider", "is_active", "is_protected", "type", "tenant_id", "password_hash"],
+          ["email", "name", "auth_provider", "is_active", "is_protected", "type", "tenant_id", "password_hash"],
           userRows
         );
-        const createdUsers = insertedUsers as unknown as Array<{ email: string; id: number }>;
+        const createdUsers = insertedUsers as unknown as Array<{ email: string; id: string }>;
         usersCreated += createdUsers.length;
-        const userIdByEmail = new Map<string, number>(createdUsers.map((u) => [u.email, u.id]));
+        const userIdByEmail = new Map<string, string>(createdUsers.map((u) => [u.email, u.id]));
         rows.forEach((row, idx) => {
           row.userId = userIdByEmail.get(humanEmails[idx] as string) ?? null;
         });

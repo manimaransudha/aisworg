@@ -40,14 +40,16 @@ export const dependencyDefinitionsDB = {
     toName: string;
     toState: string;
     relationshipKind?: DependencyRelationshipKind;
+    authorId: string;
+    authorBadge: string;
   }): Promise<DbResult<DependencyDefinitionRow | undefined>> {
     try {
       const { rows } = await query<DependencyDefinitionRow>(
-        `INSERT INTO dependency_definitions (owning_entity_type, owning_entity_id, from_entity_type, from_name, from_state, to_entity_type, to_name, to_state, relationship_kind)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `INSERT INTO dependency_definitions (owning_entity_type, owning_entity_id, from_entity_type, from_name, from_state, to_entity_type, to_name, to_state, relationship_kind, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          ON CONFLICT ON CONSTRAINT dependency_definitions_natural_key DO NOTHING
          RETURNING *`,
-        [input.owningEntityType, input.owningEntityId, input.fromEntityType, input.fromName ?? null, input.fromState, input.toEntityType, input.toName, input.toState, input.relationshipKind ?? "dependency"]
+        [input.owningEntityType, input.owningEntityId, input.fromEntityType, input.fromName ?? null, input.fromState, input.toEntityType, input.toName, input.toState, input.relationshipKind ?? "dependency", input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

@@ -18,12 +18,17 @@ import { objectivesDB } from "../../dblayer/objectivesDB.js";
 import { templatesDB } from "../../dblayer/templatesDB.js";
 import { profilesDB } from "../../dblayer/profilesDB.js";
 import { checkRequestLiveness, type LivenessCheck } from "../../routes/seu/core/commissioning.js";
-import { PLATFORM_TENANT_ID } from "../../dblayer/constants.js";
 import { logger } from "../../utils/logger.js";
 import { eventBus } from "./eventBus.js";
 import { transitionEngine } from "./transitionEngine.js";
 import type { EventHandler } from "./eventBus.js";
 import type { EventRow } from "../../dblayer/seuTypes.js";
+import { tenantsDB } from "../../dblayer/tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "../../dblayer/constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 interface CommissionRequestedPayload {
   seuId: string;
@@ -58,7 +63,7 @@ export const validateRequestHandler: EventHandler = async (event: EventRow) => {
     fromState: "Pending",
     toState: "Commissioned",
     actorRole: "system",
-    actorId: event.actor_id ?? undefined,
+    actorId: event.actor_id,
     context: { profile, objective },
   });
   // Owner: "Show details of what was checked and what passed the check and

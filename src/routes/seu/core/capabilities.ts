@@ -24,6 +24,7 @@ import { eventBus } from "../../../domain/engine/eventBus.js";
 import { assertCanonicalCategory } from "./ontology.js";
 import { findEligibleParticipants, getSeuCompetencyRequirements, resolveEligibilityPolicies } from "./participantEligibility.js";
 import { transitionParticipant } from "./participants.js";
+import { resolveAuthor } from "./attentionItems.js";
 import type { CapabilityFulfilmentRow, FulfilmentStrategy, ParticipantRow, ParticipantType, SeuRow } from "../../../dblayer/seuTypes.js";
 
 export interface FulfilCapabilityResult {
@@ -74,6 +75,8 @@ async function fulfilOne(
   seu: SeuRow,
   seuCapability: SeuCapabilityWithCode,
   resolved: { type: ParticipantType; displayName: string; participantMasterId: string | null },
+  actorId: string,
+  authorBadge: string,
   strategyOverride?: FulfilmentStrategy
 ): Promise<FulfilCapabilityResult> {
   const { data: participant, error: participantErr } = await participantsDB.create({
@@ -84,10 +87,13 @@ async function fulfilOne(
   });
   if (participantErr || !participant) throw participantErr ?? new Error("failed to create participant");
 
+  const { authorId } = await resolveAuthor(seu.id, actorId);
   const { data: fulfilment, error: fulfilmentErr } = await capabilityFulfilmentsDB.create({
     seuCapabilityId: seuCapability.id,
     participantId: participant.id,
     fulfilmentStrategy: strategyOverride ?? resolved.type,
+    authorId,
+    authorBadge,
   });
   if (fulfilmentErr || !fulfilment) throw fulfilmentErr ?? new Error("failed to create capability fulfilment");
 
@@ -146,17 +152,19 @@ export async function fulfilCapability(input: {
   participantMasterId?: string;
   participantType?: ParticipantType;
   displayName?: string;
+  actorId: string;
+  authorBadge: string;
 }): Promise<FulfilCapabilityResult> {
   const { seu, seuCapability } = await loadContext(input.seuId, input.capabilityId);
 
   if (input.participantMasterId) {
     const { data: excludeParticipantMasterIds } = await capabilityFulfilmentsDB.findReleasedParticipantMasterIds(seuCapability.id);
     const resolved = await resolveMasterParticipant(seu, seuCapability, input.participantMasterId, excludeParticipantMasterIds ?? []);
-    return fulfilOne(seu, seuCapability, resolved);
+    return fulfilOne(seu, seuCapability, resolved, input.actorId, input.authorBadge);
   }
   if (input.participantType && input.displayName) {
     await assertCanonicalCategory("participant-types", input.participantType);
-    return fulfilOne(seu, seuCapability, { type: input.participantType, displayName: input.displayName, participantMasterId: null });
+    return fulfilOne(seu, seuCapability, { type: input.participantType, displayName: input.displayName, participantMasterId: null }, input.actorId, input.authorBadge);
   }
   throw new Error("either participantMasterId or participantType+displayName is required");
 }
@@ -174,6 +182,8 @@ export async function fulfilCapabilityWithParticipants(input: {
   seuId: string;
   capabilityId: string;
   participantMasterIds: string[];
+  actorId: string;
+  authorBadge: string;
 }): Promise<FulfilCapabilityResult[]> {
   if (input.participantMasterIds.length === 0) throw new Error("at least one Participant is required");
 
@@ -184,7 +194,7 @@ export async function fulfilCapabilityWithParticipants(input: {
   const results: FulfilCapabilityResult[] = [];
   for (const participantMasterId of input.participantMasterIds) {
     const resolved = await resolveMasterParticipant(seu, seuCapability, participantMasterId, excludeParticipantMasterIds ?? []);
-    results.push(await fulfilOne(seu, seuCapability, resolved, strategy));
+    results.push(await fulfilOne(seu, seuCapability, resolved, input.actorId, input.authorBadge, strategy));
   }
   return results;
 }

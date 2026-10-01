@@ -16,15 +16,18 @@ export const capabilitiesDB = {
     description?: string | null;
     version: string;
     originatingPackId: string;
+    authorId: string;
+    authorBadge: string;
   }): Promise<DbResult<CapabilityRow>> {
     try {
       const { rows } = await query<CapabilityRow>(
-        `INSERT INTO capabilities (code, name, description, version, originating_pack_id)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO capabilities (code, name, description, version, originating_pack_id, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (originating_pack_id, code) DO UPDATE
-           SET name = EXCLUDED.name, description = EXCLUDED.description, version = EXCLUDED.version
+           SET name = EXCLUDED.name, description = EXCLUDED.description, version = EXCLUDED.version,
+               author_id = EXCLUDED.author_id, author_badge = EXCLUDED.author_badge
          RETURNING *`,
-        [input.code, input.name, input.description ?? null, input.version, input.originatingPackId]
+        [input.code, input.name, input.description ?? null, input.version, input.originatingPackId, input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

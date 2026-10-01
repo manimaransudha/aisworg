@@ -17,11 +17,12 @@ import assert from "node:assert/strict";
 
 import pool from "../src/utils/db.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
+import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { publishTemplate, transitionTemplate, type TemplateSeedInput } from "../src/routes/seu/core/templates.js";
-import { uniqueTestPackVersion } from "./testFixtures.js";
+import { uniqueTestPackVersion, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 // "api-platform" — a real, platform-seeded template-categories Ontology
 // concept (migration 053) — Template's `code` must resolve to one of these,
@@ -52,10 +53,14 @@ async function freshTemplateDraft(): Promise<{ id: string }> {
   // mandatory.
   const { data: templateSchema } = await schemaDefinitionsDB.findLatest("Template");
   if (!templateSchema) throw new Error("no schema_definitions grammar for Template");
+  const { data: root } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
+  if (!root) throw new Error("No participants_master row for user_id 1 -- log in as root first.");
   const { data: draft, error } = await templatesDB.createDraft({
     code: "api-platform",
     name: "Test Template Draft",
     templateVersion: uniqueTestPackVersion(),
+    authoredBy: root.id,
+    authorBadge: "root",
     draftContent: { purpose: "Test Template fixture for the Ch.6 event/lifecycle table check." },
     schemaDefinitionId: templateSchema.id,
   });
@@ -118,7 +123,7 @@ test("DEFINITION: every Template transition_definitions row matches Events and L
 // publishPack exactly), so a fresh publish fires all four events in order,
 // not just the first one.
 test("DRIVEN: row 1 (New) creates a real Draft and walks it to Active, firing TemplateCreated then the real governed events", async () => {
-  const created = await publishTemplate({ seed: await freshTemplateSeed(), actorRole: "power", actorId: "1001" });
+  const created = await publishTemplate({ seed: await freshTemplateSeed(), actorRole: "power", actorId: TESTER_ALL_ID });
   assert.equal(created.ok, true, created.ok ? undefined : created.errors.join("; "));
   if (!created.ok) return;
 
@@ -133,7 +138,7 @@ test("DRIVEN: row 1 (New) creates a real Draft and walks it to Active, firing Te
 test("DRIVEN: row 3 (Validate) publishes TemplateValidated, matching transition_definitions.event_type", async () => {
   const draft = await freshTemplateDraft();
 
-  const result = await transitionTemplate({ templateId: draft.id, targetState: "Validated", actorRole: "power", actorId: "1001" });
+  const result = await transitionTemplate({ templateId: draft.id, targetState: "Validated", actorRole: "power", actorId: TESTER_ALL_ID });
   assert.equal(result.ok, true, result.ok ? undefined : `${result.reason}: ${result.detail}`);
 
   const { data: events } = await eventsDB.findByOriginatingObject("Template", draft.id);
@@ -147,12 +152,12 @@ test("DRIVEN: row 3 (Validate) publishes TemplateValidated, matching transition_
 test("DRIVEN: rows 4-8 (Publish/Activate/Deprecate/Retire/Archive) each publish their matching event", async () => {
   const draft = await freshTemplateDraft();
 
-  await transitionTemplate({ templateId: draft.id, targetState: "Validated", actorRole: "power", actorId: "1001" });
-  await transitionTemplate({ templateId: draft.id, targetState: "Published", actorRole: "power", actorId: "1001" });
-  await transitionTemplate({ templateId: draft.id, targetState: "Active", actorRole: "power", actorId: "1001" });
-  await transitionTemplate({ templateId: draft.id, targetState: "Deprecated", actorRole: "power", actorId: "1001" });
-  await transitionTemplate({ templateId: draft.id, targetState: "Retired", actorRole: "power", actorId: "1001" });
-  const archived = await transitionTemplate({ templateId: draft.id, targetState: "Archived", actorRole: "power", actorId: "1001" });
+  await transitionTemplate({ templateId: draft.id, targetState: "Validated", actorRole: "power", actorId: TESTER_ALL_ID });
+  await transitionTemplate({ templateId: draft.id, targetState: "Published", actorRole: "power", actorId: TESTER_ALL_ID });
+  await transitionTemplate({ templateId: draft.id, targetState: "Active", actorRole: "power", actorId: TESTER_ALL_ID });
+  await transitionTemplate({ templateId: draft.id, targetState: "Deprecated", actorRole: "power", actorId: TESTER_ALL_ID });
+  await transitionTemplate({ templateId: draft.id, targetState: "Retired", actorRole: "power", actorId: TESTER_ALL_ID });
+  const archived = await transitionTemplate({ templateId: draft.id, targetState: "Archived", actorRole: "power", actorId: TESTER_ALL_ID });
   assert.equal(archived.ok, true, archived.ok ? undefined : `${archived.reason}: ${archived.detail}`);
 
   const { data: events } = await eventsDB.findByOriginatingObject("Template", draft.id);

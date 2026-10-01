@@ -19,6 +19,8 @@ import path from "node:path";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { publishPack, type PackSeedInput } from "../../routes/seu/core/packs.js";
+import { userDB } from "../userDB.js";
+import { getPlatformTenantId } from "../constants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "data");
@@ -26,8 +28,14 @@ const dataDir = path.join(__dirname, "data");
 function loadJson<T>(fileName: string): T {
   return JSON.parse(readFileSync(path.join(dataDir, fileName), "utf8")) as T;
 }
-
-export async function seedLegacyKnowledgeRecoveryPack(): Promise<void> {
+export interface SeedActor {
+  authoredBy: string;
+  authorBadge: string;
+}
+// get platform tenant id
+const PLATFORM_TENANT_ID = await getPlatformTenantId();
+  
+export async function seedLegacyKnowledgeRecoveryPack(actor: SeedActor): Promise<void> {
   const seed = loadJson<PackSeedInput>("legacy-knowledge-recovery.pack.json");
   // System context (seed script): runs as root holder "1", same convention
   // every other Pack-publishing seed step uses.
@@ -40,7 +48,10 @@ export async function seedLegacyKnowledgeRecoveryPack(): Promise<void> {
 
 const isMain = import.meta.url === `file://${process.argv[1]}`;
 if (isMain) {
-  seedLegacyKnowledgeRecoveryPack()
+  const { actorId, actorBadge } = await userDB.getSuperuserId();
+  if (!actorId) throw new Error(`Provision a superuser before this operation.`);
+    
+  seedLegacyKnowledgeRecoveryPack({ authoredBy: actorId, authorBadge: actorBadge })
     .catch((err) => {
       logger.error("[seed:legacy-knowledge-recovery-pack] failed", err as Error);
       process.exitCode = 1;

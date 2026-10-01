@@ -20,7 +20,7 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { objectivesDB } from "../src/dblayer/objectivesDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
-import { uniqueTestPackVersion } from "./testFixtures.js";
+import { uniqueTestPackVersion, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 // Post-MVP Phase 9's own "Done when" line asked for a second,
 // independently-versioned Pack composed alongside the first — this exercises
@@ -39,12 +39,12 @@ test("compositionEngine.compose resolves a Template's mandatory Pack plus a Prof
 
   const mandatory = await publishPack({
     seed: { code: mandatoryCode, name: "Test Mandatory Pack", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} },
-    actorRole: "power", actorId: "1001",
+    actorRole: "power", actorId: TESTER_ALL_ID,
     activate: true,
   });
   const optional = await publishPack({
     seed: { code: optionalCode, name: "Test Optional Pack", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} },
-    actorRole: "power", actorId: "1001",
+    actorRole: "power", actorId: TESTER_ALL_ID,
     activate: true,
   });
   assert.equal(mandatory.ok, true);
@@ -52,11 +52,11 @@ test("compositionEngine.compose resolves a Template's mandatory Pack plus a Prof
 
   const { data: template } = await templatesDB.upsert({ code: `test-compose-template-${randomUUID()}`, name: "Compose Test Template" });
   assert.ok(template);
-  await templatesDB.setMandatoryPacks(template!.id, [mandatory.pack!.code]);
+  await templatesDB.setMandatoryPacks(template!.id, [mandatory.pack!.code], ROOT_ACTOR_ID, "root");
 
-  const { data: profile } = await profilesDB.upsert({ code: `test-compose-profile-${randomUUID()}`, name: "Compose Test Profile", baseTemplateId: template!.id, environment: "development" });
+  const { data: profile } = await profilesDB.upsert({ code: `test-compose-profile-${randomUUID()}`, name: "Compose Test Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
   assert.ok(profile);
-  await profilesDB.setOptionalPacks(profile!.id, [optional.pack!.code]);
+  await profilesDB.setOptionalPacks(profile!.id, [optional.pack!.code], profile!.authored_by, "root");
 
   const first = await compositionEngine.compose({ templateIds: [template!.id], profileIds: [profile!.id] });
   const second = await compositionEngine.compose({ templateIds: [template!.id], profileIds: [profile!.id] });
@@ -74,7 +74,7 @@ test("transitionEngine.evaluate allows an authorised, policy-satisfied SEU trans
     fromState: "Pending",
     toState: "Commissioned",
     actorRole: "general",
-    actorId: "1001",
+    actorId: TESTER_ALL_ID,
     context: {},
   });
   assert.equal(outcome.allowed, true);
@@ -97,7 +97,7 @@ test("transitionEngine.evaluate rejects a transition with no Transition Definiti
     entityType: "SEU",
     fromState: "Commissioned",
     toState: "Archived",
-    actorRole: "super", actorId: "1001",
+    actorRole: "super", actorId: TESTER_ALL_ID,
   });
   assert.equal(outcome.allowed, false);
   if (!outcome.allowed) assert.equal(outcome.reason, "no_transition_definition");
@@ -110,14 +110,14 @@ test("transitionEngine.evaluate handles the Objective entity type (Post-MVP Phas
   // real enforcement, not just a UI filter. A synthetic id is enough — the
   // events table has no FK to a real objectives row.
   const submittedObjectiveId = randomUUID();
-  await triggerEngine.submit({ entityType: "Objective", entityId: submittedObjectiveId, fromState: "Proposed", actorId: "1001" });
+  await triggerEngine.submit({ entityType: "Objective", entityId: submittedObjectiveId, fromState: "Proposed", actorId: TESTER_ALL_ID });
 
   const allowed = await transitionEngine.evaluate({
     entityType: "Objective",
     fromState: "Proposed",
     toState: "Active",
     actorRole: "general",
-    actorId: "1001",
+    actorId: TESTER_ALL_ID,
     context: {},
     entityId: submittedObjectiveId,
   });
@@ -128,7 +128,7 @@ test("transitionEngine.evaluate handles the Objective entity type (Post-MVP Phas
     fromState: "Proposed",
     toState: "Active",
     actorRole: "general",
-    actorId: "1001",
+    actorId: TESTER_ALL_ID,
     context: {},
     entityId: randomUUID(), // a different, never-submitted id
   });
@@ -149,7 +149,7 @@ test("transitionEngine.evaluate handles the Objective entity type (Post-MVP Phas
     entityType: "Objective",
     fromState: "Proposed",
     toState: "Retired",
-    actorRole: "super", actorId: "1001",
+    actorRole: "super", actorId: TESTER_ALL_ID,
   });
   assert.equal(undefinedTransition.allowed, false);
   if (!undefinedTransition.allowed) assert.equal(undefinedTransition.reason, "no_transition_definition");
@@ -221,8 +221,9 @@ test("eventBus.publish returns well before a slow registered handler resolves", 
     handlerFinished = true;
   };
 
-  await query("INSERT INTO event_registry (event_type) VALUES ($1)", [eventType]);
-  await query("INSERT INTO event_subscriptions (event_type, handler_name) VALUES ($1, $2)", [eventType, handlerName]);
+  const rootActorId = ROOT_ACTOR_ID;
+  await query("INSERT INTO event_registry (event_type, author_id, author_badge) VALUES ($1, $2, $3)", [eventType, rootActorId, "root"]);
+  await query("INSERT INTO event_subscriptions (event_type, handler_name, author_id, author_badge) VALUES ($1, $2, $3, $4)", [eventType, handlerName, rootActorId, "root"]);
   try {
     await eventBus.loadSubscriptions();
 

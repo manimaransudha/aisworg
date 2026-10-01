@@ -14,7 +14,7 @@ import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsD
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { raiseAttentionItem } from "./attentionItems.js";
+import { raiseAttentionItem, resolveAuthor } from "./attentionItems.js";
 import type { ExternalInteractionRow, InteractionDirection } from "../../../dblayer/seuTypes.js";
 
 export async function createExternalInteraction(input: {
@@ -24,6 +24,8 @@ export async function createExternalInteraction(input: {
   direction: InteractionDirection;
   targetSystem: string;
   purpose?: string | null;
+  actorId: string;
+  authorBadge: string;
 }): Promise<ExternalInteractionRow> {
   if (input.deliverableId) {
     const { data: deliverable } = await deliverablesDB.findById(input.deliverableId);
@@ -31,7 +33,9 @@ export async function createExternalInteraction(input: {
     if (deliverable.seu_id !== input.seuId) throw new Error(`deliverable ${input.deliverableId} does not belong to SEU ${input.seuId}`);
   }
 
-  const { data: interaction, error } = await externalInteractionsDB.create(input);
+  const { authorId } = await resolveAuthor(input.seuId, input.actorId);
+
+  const { data: interaction, error } = await externalInteractionsDB.create({ ...input, authorId, authorBadge: input.authorBadge });
   if (error || !interaction) throw error ?? new Error("failed to create external interaction");
 
   await eventBus.publish({
@@ -82,23 +86,13 @@ export async function transitionExternalInteraction(input: { interactionId: stri
 
   const fromState = interaction.status;
 
-  const qualityGateResult = await qualityGateEngine.evaluate({
-    entityType: "ExternalInteraction",
-    entityId: interaction.id,
-    seuId: interaction.seu_id,
-    fromState,
-    toState: input.targetState,
-  });
-  if (qualityGateResult.outcome === "Blocked") {
-    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
-  }
-
   const gate = await transitionEngine.evaluate({
     entityType: "ExternalInteraction",
     fromState,
     toState: input.targetState,
     actorRole: input.actorRole,
-    actorId: input.actorId,
+    actorId: input.actorId ?? "",
+    entityId: interaction.id,
     context: { interaction },
   });
   if (!gate.allowed) {
@@ -107,6 +101,22 @@ export async function transitionExternalInteraction(input: { interactionId: stri
     if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
     if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
+  }
+
+  if (!input.actorId) throw new Error("actorId is required to transition an ExternalInteraction");
+  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ExternalInteraction ${fromState} -> ${input.targetState} — Transition Definition declares no verb`);
+  const { authorId } = await resolveAuthor(interaction.seu_id, input.actorId);
+  const qualityGateResult = await qualityGateEngine.evaluate({
+    entityType: "ExternalInteraction",
+    entityId: interaction.id,
+    seuId: interaction.seu_id,
+    fromState,
+    toState: input.targetState,
+    authorId,
+    authorBadge: gate.authorityBadge,
+  });
+  if (qualityGateResult.outcome === "Blocked") {
+    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
   }
 
   const { data: updated, error } = await externalInteractionsDB.updateStatus(interaction.id, input.targetState);
@@ -124,6 +134,8 @@ export async function transitionExternalInteraction(input: { interactionId: stri
   });
 
   if (input.targetState === "Failed") {
+    if (!input.actorId) throw new Error(`ExternalInteraction ${interaction.id} failure has no acting user to record as this Attention Item's author`);
+    if (!gate.authorityBadge) throw new Error(`ExternalInteraction ${interaction.id} failure has no resolved authority badge to record as this Attention Item's author badge`);
     await raiseAttentionItem({
       seuId: interaction.seu_id,
       category: "Exception",
@@ -132,6 +144,8 @@ export async function transitionExternalInteraction(input: { interactionId: stri
       description: `Interaction ${interaction.id} (${interaction.interaction_type}, ${interaction.direction} to/from "${interaction.target_system}") failed. Ch.36 §13: engineering state is unaffected — External Interactions never modify it directly — but this requires review before retrying.`,
       relatedObjectType: "ExternalInteraction",
       relatedObjectId: interaction.id,
+      actorId: input.actorId,
+      authorBadge: gate.authorityBadge,
     });
   }
 

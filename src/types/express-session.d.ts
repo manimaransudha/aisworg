@@ -7,7 +7,7 @@ import "express-session";
 declare module "express-session" {
   interface SessionData {
     user?: {
-      id: number;
+      id: string;
       email: string;
       name: string;
       avatar_url: string | null;

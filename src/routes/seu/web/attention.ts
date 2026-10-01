@@ -46,11 +46,12 @@ router.post("/attention/:id/transition", async (req: Request, res: Response) => 
   }
 
   try {
+    if (req.session?.user?.id == null) return flashError(req, res, backTo, "Authentication required.");
     const result = await transitionAttentionItem({
       attentionItemId: String(req.params.id),
       targetState,
       actorRole: req.session?.user?.role ?? "general",
-      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      actorId: String(req.session.user.id),
     });
     if (!result.ok) {
       const reason = "detail" in result ? result.detail : result.reason;

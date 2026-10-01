@@ -20,7 +20,7 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
-import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
+import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { transitionParticipant, replaceParticipant } from "../src/routes/seu/core/participants.js";
@@ -160,7 +160,8 @@ test("Build order step 4: replaceParticipant hands a Capability Fulfilment from 
     oldParticipantId: oldParticipant.id,
     newParticipantType: "Human",
     newDisplayName: "Participant lifecycle replacement analyst",
-    actorRole: "super", actorId: "1001",
+    actorRole: "super", actorId: "1",
+    authorBadge: "root",
   });
   assert.equal(result.ok, true, !result.ok ? JSON.stringify(result) : undefined);
   if (!result.ok) return;
@@ -192,7 +193,8 @@ test("Build order step 4: replaceParticipant works from Executing, not just Idle
     oldParticipantId: oldParticipant.id,
     newParticipantType: "AI",
     newDisplayName: "Participant lifecycle replacement (mid-work)",
-    actorRole: "super", actorId: "1001",
+    actorRole: "super", actorId: "1",
+    authorBadge: "root",
   });
   assert.equal(result.ok, true, !result.ok ? JSON.stringify(result) : undefined);
   if (!result.ok) return;

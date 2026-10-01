@@ -17,6 +17,8 @@ import path from "node:path";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { publishPack, type PackSeedInput } from "../../routes/seu/core/packs.js";
+import { userDB } from "../userDB.js";
+import { getPlatformTenantId } from "../constants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "data");
@@ -47,8 +49,14 @@ const INTEGRATION_PACK_FILES = [
   "integration-sonarqube.pack.json",
   "integration-terraform.pack.json",
 ];
-
-export async function seedIntegrationPacks(): Promise<void> {
+export interface SeedActor {
+  authoredBy: string;
+  authorBadge: string;
+}
+// get platform tenant id
+const PLATFORM_TENANT_ID = await getPlatformTenantId();
+  
+export async function seedIntegrationPacks(actor: SeedActor): Promise<void> {
   const results = await Promise.allSettled(
     INTEGRATION_PACK_FILES.map(async (file) => {
       const seed = loadJson<PackSeedInput>(file);
@@ -72,7 +80,9 @@ export async function seedIntegrationPacks(): Promise<void> {
 
 const isMain = import.meta.url === `file://${process.argv[1]}`;
 if (isMain) {
-  seedIntegrationPacks()
+  const { actorId, actorBadge } = await userDB.getSuperuserId();
+  if (!actorId) throw new Error(`Provision a superuser before this operation.`);  
+  seedIntegrationPacks({ authoredBy: actorId, authorBadge: actorBadge })
     .catch((err) => {
       logger.error("[seed:integration-packs] failed", err as Error);
       process.exitCode = 1;

@@ -28,7 +28,9 @@ import { objectivesDB } from "../../../dblayer/objectivesDB.js";
 import { parseListParams, paginateList, listResult } from "../../../utils/listQuery.js";
 import { commissionFromExistingObjective, previewCommissioningValidation, applyConflictStrategy } from "../core/commissioning.js";
 import type { LivenessCheck } from "../core/commissioning.js";
-import { findOrCreateDefaultProfile } from "../core/profiles.js";
+// findOrCreateDefaultProfile decommissioned (owner: no silent default-Profile
+// creation as part of commissioning) — commented out, not imported.
+// import { findOrCreateDefaultProfile } from "../core/profiles.js";
 import type { ProfileDetail } from "../core/profiles.js";
 import { seusDB } from "../../../dblayer/seusDB.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
@@ -37,9 +39,14 @@ import { eventBus } from "../../../domain/engine/eventBus.js";
 import { listConceptsForType } from "../core/ontology.js";
 import type { ObjectiveStatus, ObjectiveTier, EbmCompositionReport, EbmComposedPack } from "../../../dblayer/seuTypes.js";
 import type { UnraveledComposition, CompositionConflict } from "../../../domain/engine/profileCompositionUnravel.js";
-import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
 import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
+import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
+import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 // Which child tiers a node of a given tier may contextually add (the buttons the
 // tree offers). Strategic is only ever created from the empty/root affordance.
@@ -271,6 +278,10 @@ router.post(
     return flashError(req, res, backToNew, "Statement and at least one required Capability are required.");
   }
 
+  if (req.session?.user?.id == null) {
+    return flashError(req, res, backToNew, "You must be logged in to create an Objective.");
+  }
+
   try {
     const { objective } = await createObjective({
       statement,
@@ -278,7 +289,7 @@ router.post(
       tier: (tier || undefined) as ObjectiveTier | undefined,
       status: "Proposed",
       parentObjectiveId: parentId,
-      requestedBy: req.session?.user?.id ?? null,
+      requestedBy: String(req.session.user.id),
     });
     // CR-075 (owner: "The create strategic objective is not taking me to the
     // list page") — same principle as Edit's Save: the list, not the
@@ -391,7 +402,11 @@ router.post("/objectives/:id/submit", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
   const backTo = `/aisworg/seu/objectives/${objectiveId}`;
   try {
-    await submitObjective(objectiveId, req.session?.user?.id ?? null);
+    if (req.session?.user?.id == null) {
+    return flashError(req, res, backTo, "You must be logged in to create an Objective.");
+  }
+
+    await submitObjective(objectiveId, String(req.session.user.id));
     return flashSuccess(req, res, backTo, "Submitted — awaiting the next transition.");
   } catch (err) {
     logger.error("[web/seu/objectives] POST /objectives/:id/submit error", err as Error);
@@ -416,12 +431,14 @@ router.post("/objectives/:id/update", async (req: Request, res: Response) => {
     stashFormInput(req, { statement: typeof statement === "string" ? statement : "", requiredCapabilityCodes: codes });
     return flashError(req, res, backTo, "At least one required Capability is required.");
   }
-
+  if (req.session?.user?.id == null) {
+    return flashError(req, res, backTo, "You must be logged in to create an Objective.");
+  }
   try {
     const updated = await updateObjective(objectiveId, {
       statement: typeof statement === "string" && statement.trim() ? statement : undefined,
       requiredCapabilityCodes: codes,
-      requestedBy: req.session?.user?.id ?? null,
+      requestedBy: String(req.session.user.id),
       bumpVersion,
     });
     const msg = bumpVersion ? `Objective updated to v${updated.version}.` : `Objective updated (still v${updated.version}).`;
@@ -475,11 +492,15 @@ router.post("/objectives/:id/delete", async (req: Request, res: Response) => {
 router.post("/objectives/:id/retire", async (req: Request, res: Response) => {
   const objectiveId = String(req.params.id);
   const backTo = `/aisworg/seu/objectives/${objectiveId}`;
+  if (req.session?.user?.id == null) {
+    return flashError(req, res, backTo, "You must be logged in to create an Objective.");
+  }
+
   try {
     const { retired, skipped } = await retireObjectiveSubtree({
       objectiveId,
       actorRole: req.session?.user?.role ?? "general",
-      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      actorId: String(req.session.user.id),
     });
     const msg = skipped.length
       ? `Retired ${retired.length} Objective(s); skipped ${skipped.length} (not Active).`
@@ -505,12 +526,16 @@ function postObjectiveTransition(targetState: ObjectiveStatus) {
     const objectiveId = String(req.params.id);
     const backTo = `/aisworg/seu/objectives/${objectiveId}`;
     const { comment } = req.body ?? {};
+    if (req.session?.user?.id == null) {
+    return flashError(req, res, backTo, "You must be logged in to create an Objective.");
+  }
+
     try {
       const result = await transitionObjective({
         objectiveId,
         targetState,
         actorRole: req.session?.user?.role ?? "general",
-        actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+        actorId: String(req.session.user.id),
         comment: typeof comment === "string" ? comment : undefined,
       });
       if (!result.ok) {
@@ -692,7 +717,14 @@ router.post("/objectives/:id/validate-commission", async (req: Request, res: Res
       // for "Apply & re-validate", which is Compose EBM's own concern now).
       return res.redirect("/aisworg/seu/seus");
     }
-    const profileId = selection.profileId ?? (await findOrCreateDefaultProfile(selection.templateId)).id;
+    // DECOMMISSIONED — no silent default-Profile creation (owner: "this path
+    // should be disallowed and all the fallback decommissioned"). A
+    // selection with no profileId is now a hard failure, not a fallback.
+    // const profileId = selection.profileId ?? (await findOrCreateDefaultProfile(selection.templateId)).id;
+    if (!selection.profileId) {
+      return flashError(req, res, backTo, "No Profile chosen — a real Profile must be selected before commissioning.");
+    }
+    const profileId = selection.profileId;
     // Same tenant resolution commissionSeu itself uses (§18.11: "An SEU's
     // Tenant is set from its Objective's Tenant") — commissionSeu no
     // longer sets tenant_id at all once it finds this row already exists,
@@ -702,11 +734,14 @@ router.post("/objectives/:id/validate-commission", async (req: Request, res: Res
       const { data: defaultTenant } = await tenantsDB.findDefault();
       seuTenantId = defaultTenant?.id ?? null;
     }
+    if (req.session?.user?.id == null) {
+    return flashError(req, res, backTo, "You must be logged in to create an Objective.");
+  }
     const { data: newSeu, error: seuErr } = await seusDB.create({
       objectiveId,
       templateId: selection.templateId,
       profileId,
-      requestedBy: req.session?.user?.id ?? null,
+      requestedBy: String(req.session.user.id),
       tenantId: seuTenantId,
     });
     if (seuErr || !newSeu) return flashError(req, res, backTo, (seuErr ?? new Error("failed to create SEU")).message);
@@ -717,7 +752,7 @@ router.post("/objectives/:id/validate-commission", async (req: Request, res: Res
       seuId: newSeu.id,
       correlationId: eventBus.newCorrelationId(),
       payload: { seuId: newSeu.id },
-      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+      actorId: String(req.session.user.id),
     });
     // Hard stop — validateRequestHandler, not this request, computes and
     // persists the result; nothing here has it yet to show. Owner: "Queue to
@@ -812,15 +847,25 @@ router.post("/objectives/:id/compose-ebm", async (req: Request, res: Response) =
     // composition completes here." — consumed by compositionCompletedHandler,
     // the sole place ebmsDB.create() is called from (ebmComposerHandler
     // itself only composes now, never creates).
+    if (req.session?.user?.id == null) {
+    return flashError(req, res, backTo, "You must be logged in to create an Objective.");
+  }
+
     if (compositionConflicts.length === 0) {
+      const actorId = String(req.session.user.id);
+      if (!actorId) return flashError(req, res, backTo, "no acting user to record as this EBM's author — log in first");
+      const authRow = lookupRouteAuthority(req.method, req.path);
+      const held = await resolveHeldBadges(req);
+      const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+      if (!authorBadge) return flashError(req, res, backTo, "no held badge authorises this action — cannot record an author badge");
       await eventBus.publish({
         eventType: "CompositionCompleted",
         originatingObjectType: "SEU",
         originatingObjectId: existingSeu.id,
         seuId: existingSeu.id,
         correlationId: eventBus.newCorrelationId(),
-        payload: { seuId: existingSeu.id },
-        actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
+        payload: { seuId: existingSeu.id, authorBadge },
+        actorId,
       });
     }
     if (strategyError) {
@@ -986,14 +1031,18 @@ router.post("/objectives/:id/commission", async (req: Request, res: Response) =>
     // zero-conflict result the human already confirmed, instead of the old,
     // now-removed compositionEngine.compose() call re-deriving its own.
     const resolvedCompositionConflicts = parsePreviouslyResolvedCompositionConflicts(req.body ?? {});
+    if (req.session?.user?.id == null) {
+    return flashError(req, res, backTo, "You must be logged in to create an Objective.");
+  }
+
     const result = await commissionFromExistingObjective({
       objectiveId,
       selections,
       resolvedParameterOverrides,
       resolvedCompositionConflicts,
-      actorRole: req.session?.user?.role ?? "general",
-      actorId: req.session?.user?.id != null ? String(req.session.user.id) : undefined,
-      requestedBy: req.session?.user?.id ?? null,
+      actorRole: "general",
+      actorId: String(req.session.user.id),
+      requestedBy:String(req.session.user.id),
     });
     if (!result.ok) {
       return flashError(req, res, backTo, `Commissioning failed at "${result.stage}": ${result.reason}`);
@@ -1029,13 +1078,15 @@ router.post("/objectives/:id/comments", async (req: Request, res: Response) => {
   // CR-075 — the Post form now lives on Edit, not the view page.
   const backTo = `/aisworg/seu/objectives/${objectiveId}/edit`;
   const { comment } = req.body ?? {};
-
+  if (req.session?.user?.id == null) {
+    return flashError(req, res, backTo, "You must be logged in to create an Objective.");
+  }
   try {
     const { canComment } = await getObjectiveViewerContext(req);
     if (!canComment) return flashError(req, res, backTo, "You don't hold a badge for this Objective.");
     if (typeof comment !== "string" || !comment.trim()) return flashError(req, res, backTo, "Comment text is required.");
 
-    const { error } = await objectivesDB.addComment(objectiveId, req.session?.user?.id ?? null, comment.trim());
+    const { error } = await objectivesDB.addComment(objectiveId, String(req.session.user.id), comment.trim());
     if (error) throw error;
     return flashSuccess(req, res, backTo, "Comment added.");
   } catch (err) {

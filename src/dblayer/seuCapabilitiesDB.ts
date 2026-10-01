@@ -8,16 +8,16 @@ export interface SeuCapabilityWithCode extends SeuCapabilityRow {
 }
 
 export const seuCapabilitiesDB = {
-  async createMany(seuId: string, capabilityIds: string[]): Promise<DbResult<SeuCapabilityRow[]>> {
+  async createMany(seuId: string, capabilityIds: string[], authorId: string, authorBadge: string): Promise<DbResult<SeuCapabilityRow[]>> {
     try {
       const rows: SeuCapabilityRow[] = [];
       for (const capabilityId of capabilityIds) {
         const { rows: inserted } = await query<SeuCapabilityRow>(
-          `INSERT INTO seu_capabilities (seu_id, capability_id)
-           VALUES ($1, $2)
+          `INSERT INTO seu_capabilities (seu_id, capability_id, author_id, author_badge)
+           VALUES ($1, $2, $3, $4)
            ON CONFLICT (seu_id, capability_id) DO NOTHING
            RETURNING *`,
-          [seuId, capabilityId]
+          [seuId, capabilityId, authorId, authorBadge]
         );
         if (inserted[0]) rows.push(inserted[0]);
       }

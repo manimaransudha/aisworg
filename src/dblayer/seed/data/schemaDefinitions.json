@@ -1,0 +1,2354 @@
+[
+  {
+    "entity_kind": "Capability",
+    "version": 1,
+    "schema": {
+      "type": "object",
+      "required": [
+        "code",
+        "defaultLabel"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "x-help": "The Capability's own canonical Ontology identity (capability-name concept type, migration 046), e.g. \"requirements-analysis\".",
+          "minLength": 1,
+          "x-ontology": true,
+          "x-referential-source": "capability-name"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "x-help": "role-name concept (migration 263).",
+                "x-ontology": true,
+                "x-referential": "role-name"
+              },
+              "worktypes": {
+                "type": "array",
+                "x-help": "worktype-name concept(s) (migration 264) this role covers.",
+                "x-multi": true,
+                "x-ontology": true,
+                "x-referential": "worktype-name"
+              }
+            },
+            "x-property-order": [
+              "name",
+              "worktypes"
+            ]
+          },
+          "x-help": "The roles this Capability decomposes into, each with the worktypes it covers — what Capability fulfillment is matched against.",
+          "x-widget": "referential-list"
+        },
+        "description": {
+          "type": "string",
+          "x-help": "What this Capability covers.",
+          "x-widget": "textarea"
+        },
+        "defaultLabel": {
+          "type": "string",
+          "x-help": "Display label, e.g. \"Analysing engineering requirements\".",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "entity_kind": "Deliverable",
+    "version": 1,
+    "schema": {
+      "type": "object",
+      "required": [
+        "code",
+        "definitionVersion"
+      ],
+      "x-groups": [
+        {
+          "key": "metadata",
+          "label": "Identity & Metadata"
+        }
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "x-help": "The deliverable's canonical name, e.g. \"Requirements Specification\" — this is what ends up in a Template's Deliverable Catalogue picker.",
+          "x-group": "metadata",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "x-help": "What this kind of Deliverable is for — authored once on the Definition, not re-typed per SEU instance.",
+          "x-group": "metadata",
+          "x-widget": "textarea"
+        },
+        "definitionVersion": {
+          "type": "string",
+          "x-help": "semver, e.g. 1.0.0",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "x-group": "metadata"
+        }
+      },
+      "x-property-order": [
+        "code",
+        "description",
+        "definitionVersion"
+      ]
+    }
+  },
+  {
+    "entity_kind": "Pack",
+    "version": 1,
+    "schema": {
+      "type": "object",
+      "required": [
+        "code",
+        "name",
+        "category",
+        "packVersion",
+        "installationClassification"
+      ],
+      "x-groups": [
+        {
+          "key": "metadata",
+          "label": "Identity & Metadata"
+        },
+        {
+          "key": "compatibility",
+          "label": "Compatibility"
+        }
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "x-help": "Identity code for this Pack, sourced from the Ontology vocabulary of its own category (Ch.18). Not a capability; see Capability Contributions for what this Pack contributes to.",
+          "x-group": "metadata",
+          "x-widget": "referential-select",
+          "minLength": 1,
+          "x-ontology": true,
+          "x-ontology-composable": true,
+          "x-referential-source-by": "category",
+          "x-referential-source-suffix": "-name"
+        },
+        "name": {
+          "type": "string",
+          "x-group": "metadata",
+          "minLength": 1
+        },
+        "category": {
+          "type": "string",
+          "x-help": "Pack category (Ch.18 Ontology, concept type category:pack)",
+          "x-group": "metadata",
+          "x-widget": "referential-select",
+          "x-ontology": true,
+          "x-referential-source": "category:pack",
+          "x-ontology-composable": true
+        },
+        "description": {
+          "type": "string",
+          "x-help": "what this Pack contributes (Ch.5 §8)",
+          "x-group": "metadata"
+        },
+        "packVersion": {
+          "type": "string",
+          "x-help": "semver, e.g. 1.0.0",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "x-group": "metadata",
+          "x-widget": "version"
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "enum": [
+                  "required",
+                  "optional",
+                  "conditional",
+                  "incompatible"
+                ],
+                "type": "string",
+                "default": "required"
+              },
+              "version": {
+                "type": "string"
+              },
+              "packCode": {
+                "type": "string",
+                "x-referential": "pack-code"
+              }
+            }
+          },
+          "x-widget": "referential-list",
+          "x-referential-source": "pack-code"
+        },
+        "migrationGuidance": {
+          "type": "string",
+          "x-help": "migration guidance where applicable (§13)",
+          "x-group": "compatibility"
+        },
+        "compositionSources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "packCode": {
+                "type": "string",
+                "x-label": "Pack",
+                "x-referential": "pack-code"
+              }
+            }
+          },
+          "x-help": "Pack(s) this Composition Strategy combines from (§8/§21) — how many, and whether they must share this Pack's own code, depends on the chosen strategy.",
+          "x-group": "metadata",
+          "x-widget": "referential-list",
+          "x-show-when": "compositionStrategy"
+        },
+        "compositionStrategy": {
+          "type": "string",
+          "x-help": "how contributions compose (§8; recorded, not yet enforced — §19.8)",
+          "x-group": "metadata",
+          "x-widget": "referential-select",
+          "x-ontology": true,
+          "x-referential-source": "composition-strategy"
+        },
+        "contributionPolicies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-help": "§9 Policies / Standards this Pack adopts from the canonical Policy Definitions (Ch.24), scoped to whichever ones govern a deliverable-name produced by this Pack own declared Capabilities.",
+          "x-widget": "referential-multi-select"
+        },
+        "contributionServices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "x-help": "Which canonical Service Definition this Pack composes."
+              },
+              "serviceLevel": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "target"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "target": {
+                      "type": "number"
+                    }
+                  }
+                },
+                "x-help": "This Pack own overrides of the Service Definition own Service Level targets -- leave a row unchanged to inherit the Definition own target."
+              }
+            },
+            "x-property-order": [
+              "code",
+              "serviceLevel"
+            ]
+          },
+          "x-help": "§7 Services this Pack composes, from the canonical Service Definitions (Ch.11) aligned to this Pack own declared Capabilities.",
+          "x-widget": "referential-list"
+        },
+        "contributionChecklists": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "items"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "x-help": "A short, human-readable name for this Checklist, unique within this Pack."
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "statement"
+                  ],
+                  "properties": {
+                    "group": {
+                      "type": "string",
+                      "x-help": "Optional: a short category label grouping related items within this Checklist (e.g. \"Formatting\", \"Naming conventions\") — purely organisational, not a scoping mechanism."
+                    },
+                    "statement": {
+                      "type": "string",
+                      "x-help": "The claim being verified, in plain language.",
+                      "x-format": "markdown"
+                    },
+                    "configurableKey": {
+                      "type": "string",
+                      "x-help": "Optional: which named dimension this item is tagged against (e.g. \"type\") — Template exposes this dimension as a configurable parameter; a Profile filters by its value. Leave blank if this item should always be included, unconditionally.",
+                      "x-ontology": true,
+                      "x-referential": "checklist-configurable-dimension"
+                    },
+                    "configurableValue": {
+                      "type": "string",
+                      "x-help": "Optional: this item own value for the dimension named above (e.g. \"required\") — only meaningful when Configurable Dimension is also set.",
+                      "x-ontology": true,
+                      "x-referential": "checklist-configurable-value"
+                    }
+                  },
+                  "x-property-order": [
+                    "statement",
+                    "group",
+                    "configurableKey",
+                    "configurableValue"
+                  ]
+                },
+                "x-help": "The ordered verification items a Participant works through."
+              },
+              "description": {
+                "type": "string",
+                "x-help": "Optional: what this Checklist verifies, in plain language."
+              }
+            },
+            "x-property-order": [
+              "name",
+              "description",
+              "items"
+            ]
+          },
+          "x-help": "Ch.47 Checklists — reusable, cross-Pack-referenceable lists of verification Items. A Checklist carries no scope of its own; Review Gates and Quality Gates reference it by id via checklistIds.",
+          "x-widget": "referential-list"
+        },
+        "contributionReviewGates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "code",
+              "name",
+              "governedTransition"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "x-help": "Which deliverable type this Review Gate is for — a Pack can declare several, one per deliverable type.",
+                "x-referential": "deliverable-name"
+              },
+              "name": {
+                "type": "string",
+                "x-help": "A short, human-readable name for this Review Gate."
+              },
+              "prompt": {
+                "type": "string",
+                "x-help": "The instruction given to the AI/human participant performing this review.",
+                "x-format": "markdown"
+              },
+              "assurance": {
+                "type": "string",
+                "x-help": "Optional confidence/severity threshold at which an AI result escalates to a human (declared only — not yet enforced)."
+              },
+              "statement": {
+                "type": "string",
+                "x-help": "The human-readable standard this review confirms, in plain language.",
+                "x-label": "Description",
+                "x-format": "markdown"
+              },
+              "participant": {
+                "enum": [
+                  "AI",
+                  "AI+human",
+                  "human"
+                ],
+                "type": "string",
+                "x-help": "Who executes this review: an AI participant, an AI participant paired with a human, or a human authority."
+              },
+              "checklistIds": {
+                "type": "array",
+                "x-help": "Which of this Pack's own Checklists (any version/tenant sharing this Pack's code) must complete for this gate. All listed Checklists are required (AND); a Checklist shared by more than one gate only runs once.",
+                "x-multi": true,
+                "x-referential": "checklist"
+              },
+              "classification": {
+                "enum": [
+                  "machine-verifiable",
+                  "judgment",
+                  "human-attested"
+                ],
+                "type": "string",
+                "x-help": "Reviews are judgment by nature (§20.5) — almost always judgment or human-attested."
+              },
+              "outputContract": {
+                "enum": [
+                  "passed-failed-notes",
+                  "assessment-acceptance"
+                ],
+                "type": "string",
+                "x-help": "The shape of the result: a plain Passed/Failed plus notes, or an assessment a human must separately accept."
+              },
+              "externalEvidence": {
+                "type": "boolean",
+                "x-help": "Check this if verified by an external Integration connector rather than direct review."
+              },
+              "governedTransition": {
+                "type": "string",
+                "x-help": "The exact transition this Review Gate applies to — picked from existing Transition Definitions only.",
+                "x-referential": "transition-definition"
+              },
+              "recommendedChecklistIds": {
+                "type": "array",
+                "x-help": "Advisory Checklists (this Pack's own code only) — completing them does not block this gate, unlike checklistIds.",
+                "x-multi": true,
+                "x-referential": "checklist"
+              }
+            },
+            "x-property-order": [
+              "code",
+              "name",
+              "governedTransition",
+              "checklistIds",
+              "recommendedChecklistIds",
+              "participant",
+              "assurance",
+              "classification",
+              "outputContract",
+              "externalEvidence",
+              "statement",
+              "prompt"
+            ]
+          },
+          "x-help": "§9 Review Gates (judgment by nature — §20.5)",
+          "x-widget": "referential-list"
+        },
+        "contributionCapabilities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "x-help": "Which capability this Pack contributes to (Ch.18 Ontology, concept type capability-name).",
+                "x-ontology": true,
+                "x-referential": "capability-name"
+              }
+            },
+            "x-property-order": [
+              "code"
+            ]
+          },
+          "x-help": "§9 Capabilities this Pack contributes — reusable engineering competencies, independent of who or what performs them.",
+          "x-widget": "referential-list"
+        },
+        "contributionCompetencies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "dimension",
+              "value"
+            ],
+            "properties": {
+              "value": {
+                "type": "string",
+                "x-help": "Click or start typing to browse existing values for the chosen dimension, or type a new one — publishing is blocked until it becomes a real, registered Ontology concept.",
+                "x-ontology": true,
+                "x-referential-source-by": "dimension",
+                "x-referential-source-suffix": ""
+              },
+              "dimension": {
+                "type": "string",
+                "x-help": "Which Pack-category competency dimension this represents (usually matches the category of this Pack).",
+                "x-ontology": true,
+                "x-referential": "category:pack"
+              }
+            },
+            "x-property-order": [
+              "dimension",
+              "value"
+            ]
+          },
+          "x-help": "CR-099 — which competency (Ontology category:pack dimension + the value within that dimension) this Pack represents. Required when the Pack category is Technology or Domain.",
+          "x-widget": "referential-list"
+        },
+        "contributionQualityGates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "category",
+              "name",
+              "governedTransition",
+              "criteriaType"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "x-help": "A short, human-readable name for this gate."
+              },
+              "prompt": {
+                "type": "string",
+                "x-help": "The instruction given to the AI participant executing this check (machine-verifiable or judgment classifications).",
+                "x-format": "markdown"
+              },
+              "category": {
+                "type": "string",
+                "x-help": "The Evidence category this gate checks for — also becomes the gate’s own identifier (one gate per category, per transition).",
+                "x-ontology": true,
+                "x-referential": "category:evidence",
+                "x-ontology-composable": true
+              },
+              "assurance": {
+                "type": "string",
+                "x-help": "Optional confidence/severity threshold at which an AI result escalates to a human (declared only — not yet enforced)."
+              },
+              "statement": {
+                "type": "string",
+                "x-help": "The human-readable standard this gate enforces, in plain language (e.g. \"No hardcoded passwords\").",
+                "x-label": "Description",
+                "x-format": "markdown"
+              },
+              "participant": {
+                "enum": [
+                  "AI",
+                  "AI+human",
+                  "human"
+                ],
+                "type": "string",
+                "x-help": "Who executes this check: an AI participant, an AI participant paired with a human, or a human authority."
+              },
+              "checklistIds": {
+                "type": "array",
+                "x-help": "Which of this Pack's own Checklists (any version/tenant sharing this Pack's code) must complete for this gate. All listed Checklists are required (AND); a Checklist shared by more than one gate only runs once.",
+                "x-multi": true,
+                "x-referential": "checklist"
+              },
+              "criteriaType": {
+                "enum": [
+                  "no_unresolved_obligations",
+                  "requires_accepted_evidence_or_approved_decision",
+                  "requires_accepted_review",
+                  "requires_active_policy"
+                ],
+                "type": "string",
+                "x-help": "What this gate checks: no unresolved Obligations · Accepted Evidence of this gate’s Category (or an Approved Decision, any category) · an Accepted, passing Review · a satisfied Policy."
+              },
+              "classification": {
+                "enum": [
+                  "machine-verifiable",
+                  "judgment",
+                  "human-attested"
+                ],
+                "type": "string",
+                "x-help": "machine-verifiable = an AI/tool determines the result directly · judgment = an AI assessment a human must accept · human-attested = an authoritative human act an AI can’t perform."
+              },
+              "outputContract": {
+                "enum": [
+                  "passed-failed-notes",
+                  "assessment-acceptance"
+                ],
+                "type": "string",
+                "x-help": "The shape of the result: a plain Passed/Failed plus notes, or an assessment a human must separately accept."
+              },
+              "deliverableName": {
+                "type": "string",
+                "x-help": "Only used when Criteria Type is requires_accepted_review — which of this Pack’s own Review Gates (by deliverable type) must have an Accepted, passing Review.",
+                "x-referential": "self:contributionReviewGates"
+              },
+              "externalEvidence": {
+                "type": "boolean",
+                "x-help": "Check this if a machine-verifiable item is verified by an external Integration connector (e.g. a CI result) rather than direct artifact analysis."
+              },
+              "governedTransition": {
+                "type": "string",
+                "x-help": "The exact transition this gate applies to — picked from existing Transition Definitions only.",
+                "x-referential": "transition-definition"
+              },
+              "requiredPolicyCodes": {
+                "type": "array",
+                "x-help": "Only used when Criteria Type is requires_active_policy — which of this Pack's own code's Policies (any version/tenant sharing this Pack's code) must be satisfied.",
+                "x-multi": true,
+                "x-referential": "policy"
+              },
+              "recommendedChecklistIds": {
+                "type": "array",
+                "x-help": "Advisory Checklists (this Pack's own code only) — completing them does not block this gate, unlike checklistIds.",
+                "x-multi": true,
+                "x-referential": "checklist"
+              },
+              "applicabilityDeliverableNames": {
+                "type": "array",
+                "x-help": "Which Deliverable(s) (by name) this gate applies to. Empty = every Deliverable reaching this transition.",
+                "x-multi": true,
+                "x-referential": "deliverable-name"
+              }
+            },
+            "x-property-order": [
+              "category",
+              "name",
+              "governedTransition",
+              "criteriaType",
+              "deliverableName",
+              "requiredPolicyCodes",
+              "checklistIds",
+              "recommendedChecklistIds",
+              "participant",
+              "assurance",
+              "classification",
+              "outputContract",
+              "externalEvidence",
+              "statement",
+              "prompt",
+              "applicabilityDeliverableNames"
+            ]
+          },
+          "x-help": "§9 Quality Gates (verifiable — §20)",
+          "x-widget": "referential-list"
+        },
+        "incompatiblePackVersions": {
+          "type": "string",
+          "x-help": "comma-separated incompatible pack codes/versions (§13)",
+          "x-group": "compatibility"
+        },
+        "supportedPlatformVersion": {
+          "type": "string",
+          "x-help": "target platform version (§8/§13)",
+          "x-group": "compatibility"
+        },
+        "contributionAuthorityRules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "authorisedRole": {
+                "type": "string"
+              },
+              "governedTransition": {
+                "type": "string"
+              }
+            }
+          },
+          "x-help": "§9 Decision Rules",
+          "x-widget": "referential-list"
+        },
+        "installationClassification": {
+          "type": "string",
+          "x-help": "Pack installation classification (Ch.18 Ontology, concept type installation-classification)",
+          "x-group": "metadata",
+          "x-widget": "referential-select",
+          "x-ontology": true,
+          "x-referential-source": "installation-classification"
+        },
+        "maxSupportedPlatformVersion": {
+          "type": "string",
+          "x-help": "maximum supported platform version, optional (§13)",
+          "x-group": "compatibility"
+        },
+        "minSupportedPlatformVersion": {
+          "type": "string",
+          "x-help": "minimum supported platform version (§13)",
+          "x-group": "compatibility"
+        },
+        "contributionEngineeringCapital": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "type",
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "type": "string",
+                "x-help": "Where this resource actually lives."
+              },
+              "type": {
+                "type": "string",
+                "x-help": "What kind of Engineering Capital this is.",
+                "x-ontology": true,
+                "x-referential": "engineering-capital",
+                "x-ontology-composable": true
+              }
+            },
+            "x-property-order": [
+              "type",
+              "url"
+            ]
+          },
+          "x-help": "§9 Engineering Capital — Engineering Behaviour / Engineering Metrics / Reusable Components / Engineering Templates this Pack contributes. Minimal declaration for now: a type and a URL to the actual resource.",
+          "x-widget": "referential-list"
+        },
+        "contributionObligationDefinitions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "code",
+              "category"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "x-help": "A short, unique identifier for this Obligation Definition, scoped to this Pack."
+              },
+              "title": {
+                "type": "string"
+              },
+              "origin": {
+                "type": "string",
+                "x-help": "Which kind of source raises this Obligation (Ch.23 §10). Declaration only — not yet wired to any automated raising mechanism beyond what already exists (Telemetry, Knowledge promotion).",
+                "x-ontology": true,
+                "x-referential": "category:obligation-origin"
+              },
+              "prompt": {
+                "type": "string",
+                "x-format": "markdown"
+              },
+              "category": {
+                "type": "string",
+                "x-help": "This Obligation's category (Ch.23 §7).",
+                "x-ontology": true,
+                "x-referential": "category:obligation",
+                "x-ontology-composable": true
+              },
+              "priority": {
+                "type": "string",
+                "x-ontology": true,
+                "x-referential": "category:obligation-priority"
+              },
+              "severity": {
+                "type": "string",
+                "x-ontology": true,
+                "x-referential": "category:obligation-severity"
+              },
+              "assurance": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string",
+                "x-format": "markdown"
+              },
+              "participant": {
+                "enum": [
+                  "AI",
+                  "AI+human",
+                  "human"
+                ],
+                "type": "string"
+              },
+              "classification": {
+                "enum": [
+                  "machine-verifiable",
+                  "judgment",
+                  "human-attested"
+                ],
+                "type": "string"
+              },
+              "outputContract": {
+                "enum": [
+                  "passed-failed-notes",
+                  "assessment-acceptance"
+                ],
+                "type": "string"
+              },
+              "externalEvidence": {
+                "type": "boolean"
+              },
+              "requiredEvidence": {
+                "type": "object",
+                "x-help": "Ch.17 §8 — the type of evidence needed to satisfy/close this Obligation.",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "category": {
+                    "type": "string",
+                    "x-help": "Ch.17 §7.",
+                    "x-ontology": true,
+                    "x-referential": "category:evidence"
+                  },
+                  "description": {
+                    "type": "string",
+                    "x-format": "markdown"
+                  },
+                  "collectionMethod": {
+                    "type": "string",
+                    "x-help": "How this evidence is meant to be gathered."
+                  }
+                },
+                "x-property-order": [
+                  "title",
+                  "category",
+                  "description",
+                  "collectionMethod"
+                ]
+              },
+              "completionCriteria": {
+                "type": "string"
+              },
+              "applicabilityDeliverables": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "name"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "x-help": "A real Authority Vocabulary noun (SEU, Ontology, Participant, ...).",
+                      "x-referential": "noun"
+                    },
+                    "transitions": {
+                      "type": "array",
+                      "x-help": "This noun's own real transitions; choose the ones whose entity type matches this row's own name.",
+                      "x-multi": true,
+                      "x-referential": "transition-definition"
+                    },
+                    "governingCondition": {
+                      "type": "object",
+                      "x-help": "The real, machine-evaluated rule for whether this row currently triggers the Obligation. Left with no Type chosen, it defaults to always_true — the Obligation is raised whenever this row's name/transitions match, unconditionally (unchanged from migration 249). A chosen type narrows that: the Obligation is raised only when it evaluates true.",
+                      "properties": {
+                        "type": {
+                          "enum": [
+                            "always_true",
+                            "field_in",
+                            "comparison",
+                            "threshold"
+                          ],
+                          "type": "string"
+                        },
+                        "field": {
+                          "type": "string",
+                          "x-help": "The context field this rule checks (dot-path, e.g. testCoveragePercent).",
+                          "x-show-when": "type",
+                          "x-show-when-values": [
+                            "field_in",
+                            "comparison",
+                            "threshold"
+                          ]
+                        },
+                        "value": {
+                          "type": "string",
+                          "x-help": "The value to compare the field against.",
+                          "x-show-when": "type",
+                          "x-show-when-values": [
+                            "comparison",
+                            "threshold"
+                          ]
+                        },
+                        "values": {
+                          "type": "string",
+                          "x-help": "Comma-separated list of acceptable values.",
+                          "x-show-when": "type",
+                          "x-show-when-values": [
+                            "field_in"
+                          ]
+                        },
+                        "operator": {
+                          "enum": [
+                            "gt",
+                            "gte",
+                            "lt",
+                            "lte",
+                            "eq",
+                            "neq"
+                          ],
+                          "type": "string",
+                          "x-help": "threshold only ever uses gte/gt — a floor, never a ceiling.",
+                          "x-show-when": "type",
+                          "x-show-when-values": [
+                            "comparison",
+                            "threshold"
+                          ]
+                        }
+                      },
+                      "x-property-order": [
+                        "type",
+                        "field",
+                        "operator",
+                        "values",
+                        "value"
+                      ]
+                    }
+                  },
+                  "x-property-order": [
+                    "name",
+                    "transitions",
+                    "governingCondition"
+                  ]
+                },
+                "x-help": "Which noun(s) (SEU, Ontology, Participant, ...) and real transition(s) raise this Obligation. Same mechanism as Policy's own scope=Eligibility applicabilityDeliverables — a Pack never knows Deliverable identity, so name is always a real Authority Vocabulary noun, never a Deliverable name.",
+                "x-widget": "referential-list"
+              }
+            },
+            "x-property-order": [
+              "code",
+              "category",
+              "title",
+              "description",
+              "origin",
+              "applicabilityDeliverables",
+              "priority",
+              "severity",
+              "completionCriteria",
+              "requiredEvidence",
+              "classification",
+              "prompt",
+              "participant",
+              "outputContract",
+              "assurance",
+              "externalEvidence"
+            ]
+          },
+          "x-help": "§9 Obligation Definitions — a declared type of Obligation this Pack can raise. A real Obligation instance is created at SEU-execution time (Telemetry, Knowledge promotion, manual API); this is the definition only.",
+          "x-widget": "referential-list"
+        }
+      },
+      "x-property-order": [
+        "category",
+        "code",
+        "packVersion",
+        "name",
+        "description",
+        "installationClassification",
+        "compositionStrategy",
+        "compositionSources",
+        "supportedPlatformVersion",
+        "minSupportedPlatformVersion",
+        "maxSupportedPlatformVersion",
+        "incompatiblePackVersions",
+        "migrationGuidance"
+      ]
+    }
+  },
+  {
+    "entity_kind": "Policy",
+    "version": 1,
+    "schema": {
+      "type": "object",
+      "required": [
+        "code",
+        "name",
+        "category",
+        "constraintType"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "x-help": "A short, unique identifier for this canonical Policy (e.g. \"architecture-documentation-required\").",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "x-help": "Display name, e.g. \"Architecture Documentation Required\".",
+          "minLength": 1
+        },
+        "category": {
+          "type": "string",
+          "x-help": "Ch.24 §7's own Policy category — independent of, and never needs to match, any Gate that references this Policy.",
+          "x-widget": "referential-select",
+          "x-ontology": true,
+          "x-referential-source": "category:policy"
+        },
+        "conditions": {
+          "type": "array",
+          "x-help": "The independently-checkable predicates this Policy declares, as a JSON array. Each condition: statement, requiredEvidence[] (always present, [] if none), severity (x-configurable), exceptionRules[] (always present, [] if none), relatedObligations[] (always present, [] if none).",
+          "x-widget": "json"
+        },
+        "description": {
+          "type": "string",
+          "x-help": "What this Policy requires, in plain language.",
+          "x-widget": "textarea"
+        },
+        "constraintType": {
+          "enum": [
+            "Policy",
+            "Standard"
+          ],
+          "type": "string",
+          "x-help": "Policy = mandatory, blocks the governed transition on violation. Standard = preferred, traceable but never blocks. Configurable: cascades Pack → Template → Profile.",
+          "x-configurable": true
+        },
+        "applicabilityEnvironments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-help": "Which environments this Policy governs. Empty = matches every environment today; narrowable downstream (configurable).",
+          "x-widget": "referential-multi-select",
+          "x-ontology": true,
+          "x-configurable": true,
+          "x-referential-source": "category:environment"
+        },
+        "applicabilityDeliverableNames": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-help": "Which deliverable-names this Policy governs. Empty = matches every deliverable today; narrowable downstream (configurable).",
+          "x-widget": "referential-multi-select",
+          "x-ontology": true,
+          "x-configurable": true,
+          "x-referential-source": "deliverable-name"
+        },
+        "applicabilityDeliverableLifecycle": {
+          "type": "string",
+          "x-help": "Comma-separated Deliverable lifecycle states this Policy governs, from: Defined, In Progress, Approved, Baselined (real transition_definitions states for entity_type=Deliverable, not Ontology). Empty = matches every state today; narrowable downstream (configurable).",
+          "x-configurable": true
+        }
+      },
+      "x-property-order": [
+        "code",
+        "name",
+        "description",
+        "category",
+        "constraintType",
+        "applicabilityDeliverableNames",
+        "applicabilityEnvironments",
+        "applicabilityDeliverableLifecycle",
+        "conditions"
+      ]
+    }
+  },
+  {
+    "entity_kind": "Policy",
+    "version": 2,
+    "schema": {
+      "type": "object",
+      "required": [
+        "code",
+        "name",
+        "category",
+        "constraintType"
+      ],
+      "x-groups": [
+        {
+          "key": "metadata",
+          "label": "Identity & Metadata"
+        },
+        {
+          "key": "governance",
+          "label": "Governance"
+        }
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "x-help": "A short, unique identifier for this canonical Policy (e.g. \"architecture-documentation-required\").",
+          "x-group": "metadata",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "x-help": "Display name, e.g. \"Architecture Documentation Required\".",
+          "x-group": "metadata",
+          "minLength": 1
+        },
+        "scope": {
+          "enum": [
+            "Transition",
+            "Eligibility"
+          ],
+          "type": "string",
+          "x-help": "CR-104. Transition (default) governs a real state hop — leave governedTransition blank to derive it from applicabilityDeliverableLifecycle (Deliverable, unchanged default), or set it directly for a non-Deliverable entity (e.g. an SEU's own transition). Eligibility governs Capability Fulfilment participant selection instead — no transition at all; governedTransition is ignored.",
+          "default": "Transition",
+          "x-group": "metadata"
+        },
+        "category": {
+          "type": "string",
+          "x-help": "Ch.24 §7's own Policy category — independent of, and never needs to match, any Gate that references this Policy.",
+          "x-group": "metadata",
+          "x-widget": "referential-select",
+          "x-ontology": true,
+          "x-referential-source": "category:policy",
+          "x-ontology-composable": true
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "statement"
+            ],
+            "properties": {
+              "severity": {
+                "type": "string",
+                "x-ontology": true,
+                "x-referential": "category:policy-condition-severity"
+              },
+              "statement": {
+                "type": "string",
+                "x-help": "What this condition requires, in full — e.g. \"Background verification of all employees joining is mandated. HR performs the check and provides evidence in the form of certificate CF001, signed by HR.\"",
+                "x-format": "markdown"
+              },
+              "exceptionRules": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "exceptionStatement"
+                  ],
+                  "properties": {
+                    "duration": {
+                      "type": "string",
+                      "x-help": "Ch.24 — how long this exception remains in effect, e.g. \"90 days\", \"Until next release\"."
+                    },
+                    "identifier": {
+                      "type": "string",
+                      "x-help": "Assigned automatically on save.",
+                      "x-generated": true
+                    },
+                    "exceptionScope": {
+                      "type": "string",
+                      "x-help": "Ch.24 — what this exception applies to, e.g. \"This SEU only\", \"All Deliverables of type X\". Distinct from the Policy's own scope (Transition/Eligibility)."
+                    },
+                    "exceptionApprovers": {
+                      "type": "array",
+                      "x-help": "Who may approve this exception — real Authority Vocabulary badges (noun_verb), the same authority requireBadge checks at execution time.",
+                      "x-multi": true,
+                      "x-referential": "authority-badge"
+                    },
+                    "exceptionStatement": {
+                      "type": "string",
+                      "x-format": "markdown"
+                    },
+                    "reviewRequirements": {
+                      "type": "string",
+                      "x-help": "Ch.24 — what review this exception itself requires, e.g. a recurring check-in, a follow-up audit."
+                    },
+                    "exceptionComposition": {
+                      "enum": [
+                        "all",
+                        "any"
+                      ],
+                      "type": "string",
+                      "x-help": "Whether every listed approver must approve (all) or any one is sufficient (any)."
+                    }
+                  },
+                  "x-property-order": [
+                    "identifier",
+                    "exceptionStatement",
+                    "duration",
+                    "exceptionScope",
+                    "exceptionApprovers",
+                    "exceptionComposition",
+                    "reviewRequirements"
+                  ]
+                },
+                "x-help": "Permitted exceptions to this condition.",
+                "x-show-when": "constraintType",
+                "x-show-when-values": [
+                  "Policy"
+                ]
+              },
+              "requiredEvidence": {
+                "type": "object",
+                "x-help": "Ch.17 §8 — the type of evidence needed to satisfy this condition.",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "category": {
+                    "type": "string",
+                    "x-help": "Ch.17 §7.",
+                    "x-ontology": true,
+                    "x-referential": "category:evidence"
+                  },
+                  "description": {
+                    "type": "string",
+                    "x-format": "markdown"
+                  },
+                  "collectionMethod": {
+                    "type": "string",
+                    "x-help": "How this evidence is meant to be gathered."
+                  }
+                },
+                "x-property-order": [
+                  "title",
+                  "category",
+                  "description",
+                  "collectionMethod"
+                ]
+              },
+              "relatedObligations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "category"
+                  ],
+                  "properties": {
+                    "title": {
+                      "type": "string"
+                    },
+                    "origin": {
+                      "type": "string",
+                      "x-help": "Ch.23 §10.",
+                      "x-ontology": true,
+                      "x-referential": "category:obligation-origin"
+                    },
+                    "category": {
+                      "type": "string",
+                      "x-help": "Ch.23 §7.",
+                      "x-ontology": true,
+                      "x-referential": "category:obligation"
+                    },
+                    "priority": {
+                      "type": "string",
+                      "x-ontology": true,
+                      "x-referential": "category:obligation-priority"
+                    },
+                    "severity": {
+                      "type": "string",
+                      "x-ontology": true,
+                      "x-referential": "category:obligation-severity"
+                    },
+                    "description": {
+                      "type": "string",
+                      "x-format": "markdown"
+                    },
+                    "requiredEvidence": {
+                      "type": "object",
+                      "x-help": "Ch.17 §8 — the type of evidence needed to satisfy/close this Obligation.",
+                      "properties": {
+                        "title": {
+                          "type": "string"
+                        },
+                        "category": {
+                          "type": "string",
+                          "x-help": "Ch.17 §7.",
+                          "x-ontology": true,
+                          "x-referential": "category:evidence"
+                        },
+                        "description": {
+                          "type": "string",
+                          "x-format": "markdown"
+                        },
+                        "collectionMethod": {
+                          "type": "string",
+                          "x-help": "How this evidence is meant to be gathered."
+                        }
+                      },
+                      "x-property-order": [
+                        "title",
+                        "category",
+                        "description",
+                        "collectionMethod"
+                      ]
+                    },
+                    "completionCriteria": {
+                      "type": "string",
+                      "x-format": "markdown"
+                    }
+                  },
+                  "x-property-order": [
+                    "category",
+                    "title",
+                    "description",
+                    "origin",
+                    "priority",
+                    "severity",
+                    "completionCriteria",
+                    "requiredEvidence"
+                  ]
+                },
+                "x-help": "Obligation Definitions this condition raises on violation (Ch.23's own Definition-side shape) — declaration only; the real Obligation instance is created at SEU-execution time."
+              },
+              "applicabilityDeliverables": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "name"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "x-referential-source-by-value": {
+                        "field": "scope",
+                        "values": {
+                          "Eligibility": {
+                            "source": "noun",
+                            "ontology": false
+                          }
+                        },
+                        "default": {
+                          "source": "deliverable-name",
+                          "ontology": true
+                        }
+                      }
+                    },
+                    "transitions": {
+                      "type": "array",
+                      "x-help": "This condition's own real transitions — filtered live to this row's own name (or to Deliverable, under scope=Transition).",
+                      "x-multi": true,
+                      "x-referential": "transition-definition"
+                    },
+                    "governingCondition": {
+                      "type": "object",
+                      "x-help": "The real, machine-evaluated rule for THIS deliverable/transition. Left with no Type chosen, it is manual/human-attested — never checked by the engine.",
+                      "properties": {
+                        "type": {
+                          "enum": [
+                            "always_true",
+                            "field_in",
+                            "comparison",
+                            "threshold"
+                          ],
+                          "type": "string"
+                        },
+                        "field": {
+                          "type": "string",
+                          "x-help": "The context field this rule checks (dot-path, e.g. testCoveragePercent).",
+                          "x-show-when": "type",
+                          "x-show-when-values": [
+                            "field_in",
+                            "comparison",
+                            "threshold"
+                          ]
+                        },
+                        "value": {
+                          "type": "string",
+                          "x-help": "The value to compare the field against.",
+                          "x-show-when": "type",
+                          "x-show-when-values": [
+                            "comparison",
+                            "threshold"
+                          ]
+                        },
+                        "values": {
+                          "type": "string",
+                          "x-help": "Comma-separated list of acceptable values.",
+                          "x-show-when": "type",
+                          "x-show-when-values": [
+                            "field_in"
+                          ]
+                        },
+                        "operator": {
+                          "enum": [
+                            "gt",
+                            "gte",
+                            "lt",
+                            "lte",
+                            "eq",
+                            "neq"
+                          ],
+                          "type": "string",
+                          "x-help": "threshold only ever uses gte/gt — a floor, never a ceiling.",
+                          "x-show-when": "type",
+                          "x-show-when-values": [
+                            "comparison",
+                            "threshold"
+                          ]
+                        }
+                      },
+                      "x-property-order": [
+                        "type",
+                        "field",
+                        "operator",
+                        "values",
+                        "value"
+                      ]
+                    }
+                  },
+                  "x-property-order": [
+                    "name",
+                    "transitions",
+                    "governingCondition"
+                  ]
+                },
+                "x-help": "Which deliverable(s)/noun(s) and transition(s) this specific condition governs. If the Policy's own scope is Transition, name is an Ontology deliverable-name; if Eligibility, name is a real Authority Vocabulary noun (SEU, Ontology, ...) and transitions are that noun's own real transitions."
+              }
+            },
+            "x-property-order": [
+              "statement",
+              "severity",
+              "applicabilityDeliverables",
+              "requiredEvidence",
+              "relatedObligations",
+              "exceptionRules"
+            ]
+          },
+          "x-help": "Ch.24 §8 — the independently-checkable predicates this Policy declares. Each condition carries its own applicability, its own severity, and its own governingCondition — a condition left without one is manual/human-attested, never engine-checked.",
+          "x-group": "governance",
+          "x-widget": "referential-list"
+        },
+        "description": {
+          "type": "string",
+          "x-help": "What this Policy requires, in plain language.",
+          "x-group": "metadata",
+          "x-widget": "textarea"
+        },
+        "constraintType": {
+          "enum": [
+            "Policy",
+            "Standard"
+          ],
+          "type": "string",
+          "x-help": "Policy = mandatory, blocks the governed transition on violation. Standard = preferred, traceable but never blocks. Configurable: cascades Pack → Template → Profile.",
+          "x-group": "metadata",
+          "x-configurable": true
+        },
+        "applicabilityEnvironments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-help": "Which environments this Policy governs. Empty = matches every environment today; narrowable downstream (configurable).",
+          "x-group": "metadata",
+          "x-widget": "referential-multi-select",
+          "x-ontology": true,
+          "x-configurable": true,
+          "x-referential-source": "category:environment",
+          "x-ontology-composable": true
+        }
+      },
+      "x-property-order": [
+        "code",
+        "name",
+        "description",
+        "category",
+        "constraintType",
+        "scope",
+        "applicabilityEnvironments",
+        "conditions"
+      ]
+    }
+  },
+  {
+    "entity_kind": "Profile",
+    "version": 1,
+    "schema": {
+      "type": "object",
+      "required": [
+        "name",
+        "baseTemplateCode",
+        "environment",
+        "profileVersion"
+      ],
+      "x-groups": [
+        {
+          "key": "metadata",
+          "label": "Identity & Metadata"
+        },
+        {
+          "key": "packSelection",
+          "label": "Pack Codes"
+        }
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "x-group": "metadata",
+          "minLength": 1
+        },
+        "domain": {
+          "type": "string",
+          "x-help": "Ch.7 §10 Configuration Parameters. Unioned with composed Packs' own Domain competency values at EBM composition (CR-101).",
+          "x-widget": "referential-select",
+          "x-ontology": true,
+          "x-referential-source": "domain"
+        },
+        "readme": {
+          "type": "string",
+          "x-help": "Per-SEU README.md-style free-form field (CR-109) — anything not covered by a structured Configuration Parameter.",
+          "x-widget": "textarea"
+        },
+        "description": {
+          "type": "string",
+          "x-help": "What this Profile is for and when to choose it.",
+          "x-group": "metadata",
+          "x-widget": "textarea"
+        },
+        "environment": {
+          "type": "string",
+          "x-help": "Ch.7 §7 Environment.",
+          "x-widget": "referential-select",
+          "x-ontology": true,
+          "x-referential-source": "category:environment",
+          "x-ontology-composable": true
+        },
+        "profileVersion": {
+          "type": "string",
+          "x-help": "semver, e.g. 1.0.0",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "x-group": "metadata",
+          "x-widget": "version"
+        },
+        "domainPackCodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "packCode"
+            ],
+            "properties": {
+              "packCode": {
+                "type": "string",
+                "x-referential": "pack-code:Domain"
+              }
+            }
+          },
+          "x-help": "Packs categorised Domain",
+          "x-group": "packSelection",
+          "x-widget": "referential-list"
+        },
+        "baseTemplateCode": {
+          "type": "string",
+          "x-group": "metadata",
+          "x-widget": "referential-select",
+          "x-referential-source": "template-code"
+        },
+        "featureFlagCodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "featureCode"
+            ],
+            "properties": {
+              "featureCode": {
+                "type": "string",
+                "x-ontology": true,
+                "x-referential": "feature-flag"
+              }
+            }
+          },
+          "x-group": "metadata",
+          "x-widget": "referential-list"
+        },
+        "deploymentTargets": {
+          "type": "object",
+          "x-help": "CI/CD-pickable deployment target specifics (Ch.7 §5) — distinct from Environment (development/staging/production): free-form JSON for now, so any pipeline-specific shape can be added without a schema change.",
+          "x-group": "metadata",
+          "x-widget": "json"
+        },
+        "optionalPackCodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "packCode"
+            ],
+            "properties": {
+              "packCode": {
+                "type": "string",
+                "x-referential": "pack-code"
+              }
+            }
+          },
+          "x-widget": "referential-list"
+        },
+        "compositionOptions": {
+          "type": "object",
+          "x-help": "Declared for documentation today; not yet enforced by the Composition Engine (Ch.5 §19.9 treatment).",
+          "x-group": "metadata",
+          "x-widget": "json"
+        },
+        "deploymentStrategy": {
+          "type": "string",
+          "x-help": "Ch.7 §10 Configuration Parameters.",
+          "x-widget": "referential-select",
+          "x-ontology": true,
+          "x-referential-source": "deployment-strategy"
+        },
+        "documentationLevel": {
+          "type": "string",
+          "x-help": "Ch.7 §10 Configuration Parameters.",
+          "x-widget": "referential-select",
+          "x-ontology": true,
+          "x-referential-source": "documentation-level"
+        },
+        "knowledgeLocations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "inputLocation": {
+                "type": "string"
+              },
+              "capabilityCode": {
+                "type": "string",
+                "x-referential": "capability-name"
+              },
+              "outputLocation": {
+                "type": "string"
+              },
+              "deliverableCode": {
+                "type": "string",
+                "x-referential": "deliverable-name"
+              }
+            }
+          },
+          "x-help": "Ch.6 §13 / Ch.32 §7 Input/Output Knowledge Location, one entry per Deliverable or Capability that needs one (CR-109). Exactly one of deliverableCode/capabilityCode per entry.",
+          "x-widget": "referential-list"
+        },
+        "compliancePackCodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "packCode"
+            ],
+            "properties": {
+              "packCode": {
+                "type": "string",
+                "x-referential": "pack-code:Compliance"
+              }
+            }
+          },
+          "x-help": "Packs categorised Compliance",
+          "x-group": "packSelection",
+          "x-widget": "referential-list"
+        },
+        "targetCloudProvider": {
+          "type": "string",
+          "x-help": "Ch.7 §10 Configuration Parameters.",
+          "x-widget": "referential-select",
+          "x-ontology": true,
+          "x-referential-source": "target-cloud-provider"
+        },
+        "technologyPackCodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "packCode"
+            ],
+            "properties": {
+              "packCode": {
+                "type": "string",
+                "x-referential": "pack-code:Technology"
+              }
+            }
+          },
+          "x-help": "Packs categorised Technology",
+          "x-group": "packSelection",
+          "x-widget": "referential-list"
+        },
+        "aiProviderPreference": {
+          "type": "string",
+          "x-help": "Ch.7 §10 Configuration Parameters.",
+          "x-widget": "referential-select",
+          "x-ontology": true,
+          "x-referential-source": "ai-provider-preference"
+        },
+        "engineeringPackCodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "packCode"
+            ],
+            "properties": {
+              "packCode": {
+                "type": "string",
+                "x-referential": "pack-code:Engineering"
+              }
+            }
+          },
+          "x-help": "Packs categorised Engineering",
+          "x-group": "packSelection",
+          "x-widget": "referential-list"
+        },
+        "integrationPackCodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "packCode"
+            ],
+            "properties": {
+              "packCode": {
+                "type": "string",
+                "x-referential": "pack-code:Integration"
+              }
+            }
+          },
+          "x-help": "Packs categorised Integration",
+          "x-group": "packSelection",
+          "x-widget": "referential-list"
+        },
+        "organisationPackCodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "packCode"
+            ],
+            "properties": {
+              "packCode": {
+                "type": "string",
+                "x-referential": "pack-code:Organisation"
+              }
+            }
+          },
+          "x-help": "Packs categorised Organisation",
+          "x-group": "packSelection",
+          "x-widget": "referential-list"
+        },
+        "redispatchMaxAttempts": {
+          "type": "number",
+          "x-help": "Ch.33 §14 Redispatch — N. Maximum automatic retry attempts before Dispatch gives up and raises an Obligation. Must be greater than redispatchAttentionThreshold."
+        },
+        "sourceControlProvider": {
+          "type": "string",
+          "x-help": "Ch.7 §10 Configuration Parameters.",
+          "x-widget": "referential-select",
+          "x-ontology": true,
+          "x-referential-source": "source-control-provider"
+        },
+        "developmentMethodology": {
+          "type": "string",
+          "x-help": "Ch.7 §10 Configuration Parameters. Ch.6 §13's own Development Methodology example (CR-088).",
+          "x-widget": "referential-select",
+          "x-ontology": true,
+          "x-referential-source": "development-methodology"
+        },
+        "environmentConfiguration": {
+          "type": "object",
+          "x-help": "Ch.7 §5/§10 Environment Configuration — free-form key/value pairs a CI/CD pipeline reads (e.g. SUPABASE_URL), never a closed vocabulary. Distinct from Environment (development/staging/production).",
+          "x-widget": "json"
+        },
+        "additionalCapabilityCodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "capabilityCode"
+            ],
+            "properties": {
+              "capabilityCode": {
+                "type": "string",
+                "x-ontology": true,
+                "x-referential": "capability-name"
+              }
+            }
+          },
+          "x-help": "Capabilities this Profile enables beyond whatever its base Template already requires (Ch.7 §5 Optional Capability Enablement) — the Profile-level escape hatch for a genuinely per-commissioning excess, so the Template itself never has to over-provision for the general case.",
+          "x-group": "metadata",
+          "x-widget": "referential-list"
+        },
+        "exposedParameterOverrides": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "sourceType",
+              "sourceCode",
+              "parameterName",
+              "value"
+            ],
+            "properties": {
+              "value": {
+                "type": "string"
+              },
+              "sourceCode": {
+                "type": "string"
+              },
+              "sourceType": {
+                "enum": [
+                  "service",
+                  "policy",
+                  "checklist"
+                ],
+                "type": "string"
+              },
+              "parameterName": {
+                "type": "string"
+              }
+            }
+          },
+          "x-help": "This Profile's own overriding value for each of its base Template's configurable parameters the Template flagged as overridable. Authored via the Parameter Overrides tab, not typed here directly. Leaving a candidate out keeps the Template's own value.",
+          "x-widget": "json"
+        },
+        "defaultRepositoryStructure": {
+          "type": "string",
+          "x-help": "Ch.7 §10 Configuration Parameters.",
+          "x-widget": "referential-select",
+          "x-ontology": true,
+          "x-referential-source": "default-repository-structure"
+        },
+        "dispatchStrategyPreference": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "order": {
+                "type": "number"
+              },
+              "strategy": {
+                "type": "string",
+                "x-referential": "dispatch-strategy-preference"
+              }
+            }
+          },
+          "x-help": "Ch.33 §9 Dispatch Strategies, tried in ascending order — the Dispatch Engine falls through to the next entry if a strategy finds no viable Participant.",
+          "x-widget": "referential-list"
+        },
+        "primaryProgrammingLanguage": {
+          "type": "string",
+          "x-help": "Ch.7 §10 Configuration Parameters.",
+          "x-widget": "referential-select",
+          "x-ontology": true,
+          "x-referential-source": "primary-programming-language"
+        },
+        "redispatchAttentionThreshold": {
+          "type": "number",
+          "x-help": "Ch.33 §14 Redispatch — M. Attempt number at which an informational Attention Item is raised (retries continue). Must be less than redispatchMaxAttempts."
+        },
+        "participatingOrganisationCodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "organisationCode"
+            ],
+            "properties": {
+              "organisationCode": {
+                "type": "string",
+                "x-ontology": true,
+                "x-referential": "participating-organisations"
+              }
+            }
+          },
+          "x-help": "Ch.7 §5/§12 Participating Organisations. No values exist yet — populated when multi-tenancy is implemented.",
+          "x-widget": "referential-list"
+        }
+      },
+      "x-property-order": [
+        "name",
+        "profileVersion",
+        "description",
+        "environment",
+        "baseTemplateCode",
+        "featureFlagCodes",
+        "deploymentTargets",
+        "additionalCapabilityCodes",
+        "compositionOptions",
+        "compliancePackCodes",
+        "domainPackCodes",
+        "engineeringPackCodes",
+        "integrationPackCodes",
+        "organisationPackCodes",
+        "technologyPackCodes"
+      ]
+    }
+  },
+  {
+    "entity_kind": "Service",
+    "version": 1,
+    "schema": {
+      "type": "object",
+      "required": [
+        "code",
+        "name",
+        "capabilityCode"
+      ],
+      "x-groups": [
+        {
+          "key": "metadata",
+          "label": "Identity & Metadata"
+        }
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "x-help": "The Service's own canonical, Ontology-governed identity (service-name concept type) — independent of the Capability it aligns to, e.g. \"requirements-discovery-service\".",
+          "x-group": "metadata",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "x-help": "Display name, e.g. \"Requirements Discovery Service\".",
+          "x-group": "metadata",
+          "minLength": 1
+        },
+        "inputs": {
+          "type": "string",
+          "x-help": "What this Service consumes to do its work.",
+          "x-group": "metadata",
+          "x-widget": "referential-multi-select",
+          "x-ontology": true,
+          "x-referential-source": "deliverable-name"
+        },
+        "outputs": {
+          "type": "string",
+          "x-help": "What this Service produces.",
+          "x-group": "metadata",
+          "x-widget": "referential-multi-select",
+          "x-ontology": true,
+          "x-referential-source": "deliverable-name"
+        },
+        "purpose": {
+          "type": "string",
+          "x-help": "What this Service is for.",
+          "x-group": "metadata",
+          "x-widget": "textarea"
+        },
+        "success": {
+          "type": "string",
+          "x-help": "What confirms this Service met its purpose.",
+          "x-group": "metadata",
+          "x-widget": "textarea"
+        },
+        "consumers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-help": "capability-name code(s) that consume this Service. Leave empty if consumed universally or by non-capability actors.",
+          "x-group": "metadata",
+          "x-widget": "referential-multi-select",
+          "x-ontology": true,
+          "x-referential-source": "capability-name"
+        },
+        "governance": {
+          "type": "string",
+          "x-help": "The policy/standard this Service's delivery is governed by.",
+          "x-group": "metadata",
+          "x-widget": "textarea"
+        },
+        "serviceLevel": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "code",
+              "label",
+              "target_level",
+              "target",
+              "units"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "x-help": "A short, stable identifier for this expectation, e.g. \"ambiguity-free\"."
+              },
+              "label": {
+                "type": "string",
+                "x-help": "Human-readable description, e.g. \"Percent unambiguous requirements\"."
+              },
+              "units": {
+                "type": "string",
+                "x-help": "The unit target is measured in, e.g. \"percent\", \"hours\", \"count\"."
+              },
+              "target": {
+                "type": "number",
+                "x-help": "The numeric target, e.g. 60."
+              },
+              "target_level": {
+                "enum": [
+                  "minimum",
+                  "maximum",
+                  "exact"
+                ],
+                "type": "string",
+                "x-help": "Whether target is a floor, a ceiling, or must be met exactly."
+              }
+            },
+            "x-property-order": [
+              "code",
+              "label",
+              "target_level",
+              "target",
+              "units"
+            ]
+          },
+          "x-help": "The measurable expectations this Service declares for its own delivery (Ch.11 §8) — as many rows as needed.",
+          "x-group": "metadata",
+          "x-widget": "referential-list"
+        },
+        "capabilityCode": {
+          "type": "string",
+          "x-help": "The single capability-name code this Service Definition is aligned 1:1 to.",
+          "x-group": "metadata",
+          "x-widget": "referential-select",
+          "minLength": 1,
+          "x-ontology": true,
+          "x-referential-source": "capability-name"
+        }
+      },
+      "x-property-order": [
+        "code",
+        "name",
+        "purpose",
+        "capabilityCode",
+        "serviceLevel",
+        "governance",
+        "consumers",
+        "success",
+        "inputs",
+        "outputs"
+      ]
+    }
+  },
+  {
+    "entity_kind": "Template",
+    "version": 1,
+    "schema": {
+      "type": "object",
+      "required": [
+        "code",
+        "name",
+        "purpose",
+        "templateVersion"
+      ],
+      "x-groups": [
+        {
+          "key": "metadata",
+          "label": "Identity & Metadata"
+        },
+        {
+          "key": "packSelection",
+          "label": "Pack Codes"
+        },
+        {
+          "key": "deliverables",
+          "label": "Deliverable Catalogue"
+        }
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "x-help": "Template category (Ch.18 Ontology, concept type template-categories; Ch.6 §8)",
+          "x-group": "metadata",
+          "x-widget": "referential-select",
+          "minLength": 1,
+          "x-ontology": true,
+          "x-referential-source": "template-categories",
+          "x-ontology-composable": true
+        },
+        "name": {
+          "type": "string",
+          "x-group": "metadata",
+          "minLength": 1
+        },
+        "purpose": {
+          "type": "string",
+          "x-help": "What this Template is for and when to choose it — pre-filled with guidance for the selected category; edit to describe this specific Template.",
+          "x-group": "metadata",
+          "x-widget": "textarea",
+          "minLength": 1
+        },
+        "dependencyGraph": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "toCode": {
+                "type": "string",
+                "x-help": "The gated deliverableCatalogue entry, by its own code.",
+                "x-referential": "self:deliverableCatalogue"
+              },
+              "fromCode": {
+                "type": "string",
+                "x-help": "Only used when From Type is Deliverable — the prerequisite deliverableCatalogue entry, by its own code.",
+                "x-referential": "self:deliverableCatalogue"
+              },
+              "fromType": {
+                "enum": [
+                  "Deliverable",
+                  "Capability"
+                ],
+                "type": "string"
+              },
+              "requiredState": {
+                "type": "string",
+                "default": "Approved"
+              },
+              "relationshipKind": {
+                "enum": [
+                  "dependency",
+                  "derivation",
+                  "implementation",
+                  "decomposition"
+                ],
+                "type": "string",
+                "x-help": "Only meaningful for a Deliverable-type prerequisite (Ch.15 §12). Implementation/Decomposition carry over unchanged on Template Inheritance (a tenant may rename either end to their own specialised Deliverable, but not restructure the edge); Derivation is freely editable; plain Dependency is unrestricted, as today.",
+                "default": "dependency"
+              },
+              "fromCapabilityCode": {
+                "type": "string",
+                "x-help": "Only used when From Type is Capability — the Capability that must be fulfilled.",
+                "x-referential-source-derived-by": "requiredCapabilityCodes"
+              }
+            },
+            "x-property-order": [
+              "toCode",
+              "fromType",
+              "fromCode",
+              "fromCapabilityCode",
+              "requiredState",
+              "relationshipKind"
+            ]
+          },
+          "x-help": "What each Deliverable in the catalogue above requires before it can start — pick the gated Deliverable, whether the prerequisite is another Deliverable or a Capability, name it, and (optionally) the state it must reach.",
+          "x-group": "deliverables",
+          "x-widget": "referential-list"
+        },
+        "domainPackCodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "packCode"
+            ],
+            "properties": {
+              "packCode": {
+                "type": "string",
+                "x-referential": "pack-code:Domain"
+              }
+            }
+          },
+          "x-help": "Packs categorised Domain",
+          "x-group": "packSelection",
+          "x-widget": "referential-list"
+        },
+        "templateVersion": {
+          "type": "string",
+          "x-help": "semver, e.g. 1.0.0",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "x-group": "metadata",
+          "x-widget": "version"
+        },
+        "exposedParameters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "sourceType",
+              "sourceCode",
+              "parameterName",
+              "overridable"
+            ],
+            "properties": {
+              "value": {
+                "type": "string"
+              },
+              "sourceCode": {
+                "type": "string"
+              },
+              "sourceType": {
+                "enum": [
+                  "service",
+                  "policy",
+                  "checklist"
+                ],
+                "type": "string"
+              },
+              "overridable": {
+                "type": "boolean",
+                "default": true
+              },
+              "parameterName": {
+                "type": "string"
+              }
+            }
+          },
+          "x-help": "Which of this Template's configurable parameters (Service Level targets, Policy constraint types and applicability, Checklist configurable tags) a Profile may override, and Template's own value for the ones it sets. Authored via the Exposable Parameters tab, not typed here directly.",
+          "x-widget": "json"
+        },
+        "compliancePackCodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "packCode"
+            ],
+            "properties": {
+              "packCode": {
+                "type": "string",
+                "x-referential": "pack-code:Compliance"
+              }
+            }
+          },
+          "x-help": "Packs categorised Compliance",
+          "x-group": "packSelection",
+          "x-widget": "referential-list"
+        },
+        "technologyPackCodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "packCode"
+            ],
+            "properties": {
+              "packCode": {
+                "type": "string",
+                "x-referential": "pack-code:Technology"
+              }
+            }
+          },
+          "x-help": "Packs categorised Technology",
+          "x-group": "packSelection",
+          "x-widget": "referential-list"
+        },
+        "deliverableCatalogue": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "x-help": "The deliverable-name Ontology concept this catalogue entry produces.",
+                "x-ontology": true,
+                "x-referential": "deliverable-name",
+                "x-ontology-composable": true
+              }
+            }
+          },
+          "x-help": "What this Template's SEU produces — pick from the deliverable-name Ontology vocabulary, its category, and (once Packs are selected above) which Capability produces it.",
+          "x-group": "deliverables",
+          "x-widget": "referential-list"
+        },
+        "engineeringPackCodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "packCode"
+            ],
+            "properties": {
+              "packCode": {
+                "type": "string",
+                "x-referential": "pack-code:Engineering"
+              }
+            }
+          },
+          "x-help": "Packs categorised Engineering",
+          "x-group": "packSelection",
+          "x-widget": "referential-list"
+        },
+        "integrationPackCodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "packCode"
+            ],
+            "properties": {
+              "packCode": {
+                "type": "string",
+                "x-referential": "pack-code:Integration"
+              }
+            }
+          },
+          "x-help": "Packs categorised Integration",
+          "x-group": "packSelection",
+          "x-widget": "referential-list"
+        },
+        "organisationPackCodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "packCode"
+            ],
+            "properties": {
+              "packCode": {
+                "type": "string",
+                "x-referential": "pack-code:Organisation"
+              }
+            }
+          },
+          "x-help": "Packs categorised Organisation",
+          "x-group": "packSelection",
+          "x-widget": "referential-list"
+        }
+      },
+      "x-property-order": [
+        "code",
+        "name",
+        "purpose",
+        "templateVersion",
+        "compliancePackCodes",
+        "domainPackCodes",
+        "engineeringPackCodes",
+        "integrationPackCodes",
+        "organisationPackCodes",
+        "technologyPackCodes",
+        "deliverableCatalogue",
+        "dependencyGraph"
+      ]
+    }
+  },
+  {
+    "entity_kind": "TransitionDefinition",
+    "version": 1,
+    "schema": {
+      "type": "object",
+      "required": [
+        "entityType",
+        "fromState",
+        "toState"
+      ],
+      "properties": {
+        "toState": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fromState": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entityType": {
+          "enum": [
+            "SEU",
+            "Deliverable",
+            "Objective",
+            "Obligation",
+            "Evidence",
+            "Knowledge",
+            "Decision",
+            "KnowledgeScope",
+            "AttentionItem",
+            "ExternalInteraction",
+            "Pack"
+          ],
+          "type": "string"
+        },
+        "createsObligation": {
+          "type": "string",
+          "x-help": "an Obligation category to raise on success, or leave blank for none — stored, not yet enforced by any engine code"
+        },
+        "requiredPolicyCodes": {
+          "type": "array",
+          "x-help": "array of policies.code",
+          "x-widget": "json"
+        },
+        "requiredQualityGateCodes": {
+          "type": "array",
+          "x-help": "array of quality_gates.code — each gate's own (entityType, fromState, toState) must match this transition's",
+          "x-widget": "json"
+        },
+        "requiredAuthorityRuleCode": {
+          "type": "string",
+          "x-help": "an authority_rules.code, or leave blank for none"
+        }
+      }
+    }
+  }
+]

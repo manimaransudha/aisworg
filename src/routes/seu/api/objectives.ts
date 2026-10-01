@@ -38,6 +38,7 @@ router.post(
     if (typeof statement !== "string" || !statement.trim() || !Array.isArray(requiredCapabilityCodes) || requiredCapabilityCodes.length === 0) {
       return res.status(400).json({ error: "statement (string) and a non-empty requiredCapabilityCodes (string[]) are required" });
     }
+    if (req.session?.user?.id == null) return res.status(401).json({ error: "authentication required" });
 
     const { objective, requiredCapabilities } = await createObjective({
       statement,
@@ -45,7 +46,7 @@ router.post(
       tier: tier as ObjectiveTier | undefined,
       status: status as ObjectiveStatus | undefined,
       parentObjectiveId: parentObjectiveId ?? null,
-      requestedBy: req.session?.user?.id ?? null,
+      requestedBy: String(req.session.user.id),
     });
 
     res.status(201).json({
@@ -109,9 +110,11 @@ router.get("/objectives/:id", async (req: Request, res: Response) => {
 router.post("/objectives/:id/update", async (req: Request, res: Response) => {
   try {
     const { statement, requiredCapabilityCodes, bumpVersion } = req.body ?? {};
+    if (req.session?.user?.id == null) return res.status(401).json({ error: "authentication required" });
     const updated = await updateObjective(String(req.params.id), {
       statement,
       requiredCapabilityCodes: Array.isArray(requiredCapabilityCodes) ? requiredCapabilityCodes : undefined,
+      requestedBy: String(req.session.user.id),
       bumpVersion: typeof bumpVersion === "boolean" ? bumpVersion : undefined,
     });
     res.status(200).json({ objective: updated });
@@ -137,7 +140,11 @@ function postTransition(targetState: ObjectiveStatus) {
     try {
       const { comment } = req.body ?? {};
       const actorRole = req.session?.user?.role ?? "general";
-      const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
+      if (req.session?.user?.id == null) {
+        res.status(401).json({ error: "authentication required" });
+        return;
+      }
+      const actorId = String(req.session.user.id);
       const result = await transitionObjective({
         objectiveId: String(req.params.id),
         targetState,

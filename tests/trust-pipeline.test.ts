@@ -12,14 +12,14 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
-import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
+import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
 import { transitionDeliverableSync as transitionDeliverable } from "./testFixtures.js";
-import { createEvidence, transitionEvidence, linkEvidenceToObject, listEvidenceRelationships, listEvidenceLinkedToSeu } from "../src/routes/seu/core/evidence.js";
+import { transitionEvidence, linkEvidenceToObject, listEvidenceRelationships, listEvidenceLinkedToSeu } from "../src/routes/seu/core/evidence.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { evidenceDB } from "../src/dblayer/evidenceDB.js";
 import { addKnowledgeValidationNote, createKnowledgeItem, listKnowledgeValidationNotes, transitionKnowledgeItem, updateKnowledgeReferences } from "../src/routes/seu/core/knowledge.js";
 import { createDecision, transitionDecision } from "../src/routes/seu/core/decisions.js";
-import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot as createEvidence } from "./testFixtures.js";
 
 async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>) {
   await ensureWebAppTemplateFixture();
@@ -260,7 +260,7 @@ test("Evidence can be linked to more than one object, findByRelatedObject finds 
   assert.ok(relationshipsBefore.some((r) => r.related_object_type === "SEU" && r.related_object_id === seuA));
 
   // Link to a SECOND Deliverable belonging to a DIFFERENT SEU entirely.
-  const linked = await linkEvidenceToObject(evidence.id, "Deliverable", deliverableB);
+  const linked = await linkEvidenceToObject(evidence.id, "Deliverable", deliverableB, "1", "root");
   assert.equal(linked.ok, true, !linked.ok ? linked.detail : undefined);
 
   const relationshipsAfter = await listEvidenceRelationships(evidence.id);
@@ -273,18 +273,18 @@ test("Evidence can be linked to more than one object, findByRelatedObject finds 
   assert.ok((foundViaB ?? []).some((e) => e.id === evidence.id), "cross-SEU: found via a Deliverable belonging to a different SEU than the Evidence's own origin");
 
   // Re-linking the same relationship is a no-op, not an error.
-  const relinked = await linkEvidenceToObject(evidence.id, "Deliverable", deliverableB);
+  const relinked = await linkEvidenceToObject(evidence.id, "Deliverable", deliverableB, "1", "root");
   assert.equal(relinked.ok, true);
   const relationshipsAfterRelink = await listEvidenceRelationships(evidence.id);
   assert.equal(relationshipsAfterRelink.length, 3, "re-linking the same object is idempotent");
 
   // Linking a non-existent Deliverable is rejected.
-  const invalid = await linkEvidenceToObject(evidence.id, "Deliverable", randomUUID());
+  const invalid = await linkEvidenceToObject(evidence.id, "Deliverable", randomUUID(), "1", "root");
   assert.equal(invalid.ok, false);
   if (!invalid.ok) assert.equal(invalid.reason, "invalid");
 
   // Linking against a non-existent Evidence row is rejected.
-  const notFound = await linkEvidenceToObject(randomUUID(), "Deliverable", deliverableA);
+  const notFound = await linkEvidenceToObject(randomUUID(), "Deliverable", deliverableA, "1", "root");
   assert.equal(notFound.ok, false);
   if (!notFound.ok) assert.equal(notFound.reason, "not_found");
 });
@@ -318,11 +318,11 @@ test("Evidence preserves its full provenance as evidence_relationships rows — 
     category: "Validation Evidence", title: "Provenance-tagged evidence",
   });
 
-  const linkedParticipant = await linkEvidenceToObject(evidence.id, "Participant", participant.id);
+  const linkedParticipant = await linkEvidenceToObject(evidence.id, "Participant", participant.id, "1", "root");
   assert.equal(linkedParticipant.ok, true);
-  const linkedCapability = await linkEvidenceToObject(evidence.id, "Capability", reqAnalysisCapability.capabilityId);
+  const linkedCapability = await linkEvidenceToObject(evidence.id, "Capability", reqAnalysisCapability.capabilityId, "1", "root");
   assert.equal(linkedCapability.ok, true);
-  const linkedDecision = await linkEvidenceToObject(evidence.id, "Decision", decision.id);
+  const linkedDecision = await linkEvidenceToObject(evidence.id, "Decision", decision.id, "1", "root");
   assert.equal(linkedDecision.ok, true);
 
   const relationships = await listEvidenceRelationships(evidence.id);
@@ -358,7 +358,7 @@ test("Superseding an Evidence Item does not cascade — the predecessor's own re
   const { seuId: seu2, deliverableId: seu2Deliverable } = await commissionAndApproveRequirementsSpec("phase5-evidence-supersede-b");
 
   const v1 = await createEvidence({ seuId: seu1, relatedObjectType: "Deliverable", relatedObjectId: seu1Deliverable, category: "Validation Evidence", title: "V1: shared test results" });
-  const linked = await linkEvidenceToObject(v1.id, "Deliverable", seu2Deliverable);
+  const linked = await linkEvidenceToObject(v1.id, "Deliverable", seu2Deliverable, "1", "root");
   assert.equal(linked.ok, true, !linked.ok ? linked.detail : undefined);
 
   // V1 must be discoverable as a supersede-predecessor from SEU2's own page,

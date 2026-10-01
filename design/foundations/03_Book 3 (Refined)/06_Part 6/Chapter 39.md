@@ -1,12 +1,12 @@
-# Chapter 39 – Pack SDK Architecture
+# Chapter 39 – SEU Design Kit (SDK) Architecture
 
 ## 1. Purpose
 
-The Pack SDK Architecture defines the development framework used to create, validate, test, package and publish Packs for the Software Engineering Unit (SEU) Platform.
+The SEU Design Kit (SDK) Architecture defines how the Platform Elements are created, versioned, composed, validated, deployed and managed within the Software Engineering Unit (SEU) platform.
 
-The SDK provides a stable contract between the Platform Core and Pack developers.
+The SDK provides a stable contract between the Platform Core and the Elements developers.
 
-The SDK enables platform evolution through extension rather than modification.
+The SDK enables platform evolution through extension rather than modification. Every engineering behaviour, governance model, domain capability and organisational customisation shall be introduced through SDK elements rather than modifications to the Runtime Kernel.
 
 ---
 
@@ -15,41 +15,40 @@ The SDK enables platform evolution through extension rather than modification.
 This chapter defines:
 
 - SDK architecture
-- Pack authoring
-- Pack validation
-- Pack testing
-- Pack packaging
-- Pack publishing
+- SDK authoring
+- SDK validation
+- SDK testing
+- SDK packaging
+- SDK publishing
 
 This chapter does not define:
 
 - Runtime Kernel implementation
-- Pack registry implementation
 - engineering behaviour
 - deployment infrastructure
-
+ 
 ---
 
 ## 3. Architectural Position
 
 ```
-Pack Developer
+Platform Elements Developer
 
 ↓
 
-Pack SDK
+SEU Design Kit (SDK)
 
 ↓
 
-Pack Package
+Element Package
 
 ↓
 
-Pack Registry
+Element Registry
 
 ↓
 
-Pack Composition Engine
+Composition Engine
 
 ↓
 
@@ -60,13 +59,13 @@ Engineering Behavior Model
 Runtime Kernel
 ```
 
-The SDK is the sole supported mechanism for creating production Packs.
+The SDK is the sole supported mechanism for creating production Schemas.
 
 ---
 
 ## 4. Definition
 
-The Pack SDK is the development framework that enables creation of versioned, declarative Packs that conform to platform standards.
+The SDK is the development framework that enables creation of versioned, declarative Elements that conform to platform standards.
 
 The SDK shall provide:
 
@@ -77,9 +76,9 @@ The SDK shall provide:
 - packaging tools
 - publishing tools
 
-The SDK defines **how Packs are produced**.
+The SDK defines **how Platform Elements are produced**.
 
-It does not define **what Packs contain**.
+It does not define **what Platform Elements contain**.
 
 ---
 
@@ -87,7 +86,7 @@ It does not define **what Packs contain**.
 
 ### SDK-001
 
-Every production Pack shall be created using the SDK.
+Every production Platform Element shall be created using the SDK.
 
 ### SDK-002
 
@@ -99,7 +98,7 @@ SDK outputs shall be deterministic.
 
 ### SDK-004
 
-The SDK shall validate Packs before publication.
+The SDK shall validate the before publication.
 
 ### SDK-005
 
@@ -115,15 +114,15 @@ The SDK shall evolve independently of the Runtime Kernel.
 
 ### FR-39.1
 
-The SDK shall provide Pack project templates.
+The SDK shall provide Element widgets.
 
 ### FR-39.2
 
-The SDK shall validate Pack schemas.
+The SDK shall validate Element schemas.
 
 ### FR-39.3
 
-The SDK shall validate Pack dependencies.
+The SDK shall validate Element dependencies.
 
 ### FR-39.4
 
@@ -135,25 +134,25 @@ The SDK shall support automated testing.
 
 ### FR-39.6
 
-The SDK shall package Packs into a deployable artefact.
+The SDK shall package Element into a deployable artefact.
 
 ### FR-39.7
 
-The SDK shall support publishing to one or more Pack Registries.
+The SDK shall support publishing to the element Registries.
 
 ---
 
 ## 7. SDK Components
 
-The SDK shall provide the following capabilities.
+The SDK shall provide the following features.
 
-### Project Generator
+### Schema Generator
 
-Creates Pack projects using standard layouts.
+Creates Element Schemas using standard layouts.
 
 ### Schema Validator
 
-Validates declarative Pack definitions.
+Validates declarative Element Schema definitions.
 
 ### Dependency Validator
 
@@ -161,55 +160,37 @@ Ensures dependency consistency.
 
 ### Compatibility Validator
 
-Checks compatibility against platform versions and Pack dependencies.
+Checks compatibility against platform versions and Element Schema dependencies.
 
 ### Test Framework
 
-Executes Pack validation tests.
+Executes Element Schema validation tests.
 
 ### Packaging Service
 
-Creates immutable Pack artefacts.
+Creates immutable Element Schema artefacts.
 
 ### Publishing Service
 
-Publishes validated Packs to authorised registries.
+Publishes validated Element Schemas to authorised registries.
 
 ---
 
-## 8. Pack Project Structure
+## 8. SDK Elements Taxonomy
 
-The SDK shall define a canonical project structure.
+An SDK element is a versioned, declarative package that contributes engineering behaviour or engineering metadata to the platform.
 
-Illustrative structure:
+The SDK is responsible for:
 
-```
-pack/
+- SDK element discovery
+- validation
+- dependency management
+- version compatibility
+- composition
+- activation
+- lifecycle management
 
-manifest/
-
-profiles/
-
-templates/
-
-policies/
-
-authority/
-
-quality-gates/
-
-reviews/
-
-ontology/
-
-documentation/
-
-tests/
-
-examples/
-```
-
-Additional folders may be introduced by future SDK versions.
+The Runtime Kernel consumes the composed result through Engineering Behavior Model. 
 
 ---
 
@@ -245,7 +226,7 @@ Tests shall execute independently of the Runtime Kernel.
 
 ## 11. Packaging
 
-Packaging shall produce an immutable Pack artefact containing:
+Packaging shall produce an immutable schema artefact containing:
 
 - declarative definitions
 - metadata
@@ -262,13 +243,13 @@ Packaging shall be deterministic.
 
 Publishing shall:
 
-- verify Pack signatures
+- verify Schema signatures
 - validate permissions
 - enforce versioning rules
 - update registry metadata
-- publish Pack documentation
+- publish Schema documentation
 
-Publishing shall not modify Pack contents.
+Publishing shall not modify Schema contents.
 
 ---
 
@@ -290,14 +271,13 @@ SDK extensions shall not modify SDK core behaviour.
 
 The SDK shall preserve:
 
-- Pack source version
-- build version
+- version
 - validation results
 - test results
 - publishing history
 - digital signatures
 
-Every published Pack shall be reproducible.
+Every published Schema shall be reproducible.
 
 ---
 
@@ -305,12 +285,12 @@ Every published Pack shall be reproducible.
 
 The SDK shall publish:
 
-- PackProjectCreated
-- PackValidated
-- PackTested
-- PackPackaged
-- PackPublished
-- PackPublicationRejected
+- SDKElementSchemaCreated
+- SDKElementSchemaValidated
+- SDKElementSchemaTested
+- SDKElementSchemaPackaged
+- SDKElementSchemaPublished
+- SDKElementSchemaPublicationRejected
 
 ---
 
@@ -322,7 +302,7 @@ The SDK shall:
 - support offline development
 - remain platform-independent
 - produce deterministic outputs
-- support future SDK versions without breaking existing Packs
+- support future SDK versions 
 
 ---
 
@@ -330,13 +310,13 @@ The SDK shall:
 
 The implementation shall satisfy the following criteria.
 
-✓ Packs can be created using standard project templates.
+✓ SDK Elements can be created using Element Schema.
 
 ✓ Validation detects structural and semantic errors.
 
 ✓ Packaging is deterministic.
 
-✓ Published Packs are reproducible.
+✓ Published Schemas are reproducible.
 
 ✓ SDK supports automated build pipelines.
 
@@ -348,11 +328,25 @@ The implementation shall satisfy the following criteria.
 
 Implementation of this chapter shall produce:
 
-- Pack SDK
+- SDK framework
 - Project generator
 - Validation framework
 - Testing framework
 - Packaging service
 - Publishing service
 - SDK documentation
-- Reference Pack templates
+- Reference schemas
+
+---
+
+## 19. Implementation Notes
+
+CR-115 gives `schema_definitions` (the Element Schema registry) a real lifecycle and authorship, per §15's own event vocabulary.
+
+`lifecycle_state`: `Created` → `Validated` → `Tested` → `Packaged` → `Published`, with a `Packaged` → `PublicationRejected` branch (`transition_definitions`, `entity_type = 'SchemaDefinition'`).
+
+`Created`/`Validated`/`Tested`/`Packaged` are `governed`-trigger, verb-null hops, auto-advanced server-side in the same request as the SDK's own inline schema and compatibility validation (§9), immediately after the row is inserted — there is no separate user-triggered action for the Schema Generator/Validator/Compatibility Validator/Test Framework/Packaging Service today. `Packaged` → `Published` and `Packaged` → `PublicationRejected` are the two real, manual, badge-gated decisions (`schemadefinition_publish` / `schemadefinition_reject`), surfaced as Publish/Reject actions on a Packaged schema version.
+
+`author_id` is set at creation; `author_badge` is set on each governed transition thereafter, from the resolved authority.
+
+Not yet implemented: digital signatures (§11/§12), packaging as a distinct immutable artefact format, and a documentation-publishing step.

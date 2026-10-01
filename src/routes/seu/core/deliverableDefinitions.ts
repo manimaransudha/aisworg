@@ -3,9 +3,15 @@ import { syncConceptFromEntity, retireConceptForEntity } from "./ontology.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import type { DeliverableDefinitionRow } from "../../../dblayer/seuTypes.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 // CR-049 Phase 1 — Deliverable Definition authoring, mirroring core/templates.ts
 // in shape. The one thing this touches that Template's own materialisation
@@ -109,20 +115,20 @@ const EVENT_BY_TARGET_STATE: Record<string, string> = {
 // only place this CR touches Ontology, and only at the moment of genuinely
 // becoming (or ceasing to be) Active, never earlier (a Draft/Validated/
 // Published Definition must stay invisible to that picker).
-async function syncOntologyOnActivate(row: DeliverableDefinitionRow): Promise<void> {
-  await syncConceptFromEntity("deliverable-name", row.code, row.code, row.description ?? null, row.tenant_id);
+async function syncOntologyOnActivate(row: DeliverableDefinitionRow, actorId: string): Promise<void> {
+  await syncConceptFromEntity("deliverable-name", row.code, row.code, row.description ?? null, row.tenant_id, actorId);
 }
 
 // Only retires the Ontology-side row if no OTHER Version of this same
 // (code, tenant) is still Active — a supersession (a newer Version reaching
 // Active) already re-upserted this same Ontology row (same code+tenant key)
 // with the new Version's own content; retiring here would wrongly undo that.
-async function demoteOntologyIfNoOtherActive(row: DeliverableDefinitionRow): Promise<void> {
+async function demoteOntologyIfNoOtherActive(row: DeliverableDefinitionRow, actorId: string, actorBadge: string): Promise<void> {
   const { data: stillActive } = await deliverableDefinitionsDB.findActiveByCode(row.code, row.tenant_id);
-  if (!stillActive) await retireConceptForEntity("deliverable-name", row.code, row.tenant_id);
+  if (!stillActive) await retireConceptForEntity("deliverable-name", row.code, row.tenant_id, actorId, actorBadge);
 }
 
-export async function transitionDeliverableDefinition(input: { deliverableDefinitionId: string; targetState: DeliverableDefinitionRow["status"]; actorRole: string; actorId?: string }): Promise<TransitionDeliverableDefinitionResult> {
+export async function transitionDeliverableDefinition(input: { deliverableDefinitionId: string; targetState: DeliverableDefinitionRow["status"]; actorRole: string; actorId: string }): Promise<TransitionDeliverableDefinitionResult> {
   const { data: concept } = await deliverableDefinitionsDB.findById(input.deliverableDefinitionId);
   if (!concept) return { ok: false, reason: "not_found" };
   const fromState = concept.status;
@@ -133,16 +139,24 @@ export async function transitionDeliverableDefinition(input: { deliverableDefini
     if (gate.reason === "policy_blocked") return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
     return { ok: false, reason: gate.reason };
   }
-
+  if (!gate.authorityBadge) {
+    return { ok: false, reason: "not_authorised" };
+  }
   if (input.targetState === "Active" && TERMINAL_REACTIVATABLE_STATES.has(fromState)) {
-    return reactivateAsNewVersion(concept, input.actorRole, input.actorId);
+    return reactivateAsNewVersion(concept, input.actorRole, input.actorId, gate.authorityBadge);
   }
 
   const { data: updated, error } = await deliverableDefinitionsDB.updateStatus(concept.id, input.targetState);
   if (error || !updated) throw error ?? new Error("failed to update Deliverable Definition status");
 
-  if (input.targetState === "Active") await syncOntologyOnActivate(updated);
-  else if (fromState === "Active") await demoteOntologyIfNoOtherActive(updated);
+  if (input.targetState === "Active" || fromState === "Active") {
+    if (!input.actorId) throw new Error("a real actorId is required to sync the deliverable-name Ontology concept");
+    if (input.targetState === "Active") await syncOntologyOnActivate(updated, input.actorId);
+    else {
+      if (!gate.authorityBadge) throw new Error("no resolved authority badge for this transition — cannot record the deliverable-name Ontology concept's retirement");
+      await demoteOntologyIfNoOtherActive(updated, input.actorId, gate.authorityBadge);
+    }
+  }
 
   await eventBus.publish({
     eventType: EVENT_BY_TARGET_STATE[input.targetState] ?? "DeliverableDefinitionTransitioned",
@@ -174,17 +188,28 @@ async function nextAvailablePatchVersion(code: string, fromVersion: string, tena
 // a brand new Version at the next available patch, driven straight through
 // Validated -> Published -> Active, then supersedes whatever else was
 // Active for this code+tenant.
-async function reactivateAsNewVersion(concept: DeliverableDefinitionRow, actorRole: string, actorId: string | undefined): Promise<TransitionDeliverableDefinitionResult> {
+async function reactivateAsNewVersion(concept: DeliverableDefinitionRow, actorRole: string, actorId: string, authorBadge: string): Promise<TransitionDeliverableDefinitionResult> {
   const nextVersion = await nextAvailablePatchVersion(concept.code, concept.version, concept.tenant_id);
   // CR-114 follow-on — same carry-forward-the-source's-own-pin reasoning as
   // templates.ts's reactivateAsNewVersion.
   const { data: reactivationSchema } = concept.schema_definition_id ? { data: { id: concept.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Deliverable");
   if (!reactivationSchema) return { ok: false, reason: "policy_blocked", detail: `no schema_definitions grammar for Deliverable` };
+  // deliverable_definitions.authored_by/author_badge are participants_master-
+  // scoped and NOT NULL — the new Version's Draft is authored by the real
+  // actor performing this reactivation, under the real badge
+  // transitionEngine.evaluate (above) just authorised this hop under, never
+  // carried forward from the terminal row's own original author (mirrors
+  // templates.ts's reactivateAsNewVersion exactly).
+  if (!actorId) return { ok: false, reason: "policy_blocked", detail: "reactivation requires a real actorId to author the new Version's Draft" };
+  if (!authorBadge) return { ok: false, reason: "policy_blocked", detail: "no authority badge resolved for this Deliverable Definition reactivation" };
+  const { data: reactivateMaster } = await participantsMasterDB.findById(actorId);
+  if (!reactivateMaster) return { ok: false, reason: "policy_blocked", detail: `No superuser provisioned.` };
   const { data: newDraft, error } = await deliverableDefinitionsDB.createDraft({
     code: concept.code,
     description: concept.description,
     version: nextVersion,
-    authoredBy: concept.authored_by,
+    authoredBy: reactivateMaster.id,
+    authorBadge,
     draftContent: { code: concept.code, description: concept.description, definitionVersion: nextVersion },
     tenantId: concept.tenant_id,
     parentDeliverableDefinitionId: concept.parent_deliverable_definition_id,
@@ -219,7 +244,7 @@ const AUTHORING_NEXT_STATE: Partial<Record<DeliverableDefinitionRow["status"], D
   Retired: "Archived",
 };
 
-export async function advanceDeliverableDefinitionOneStep(concept: DeliverableDefinitionRow, actorRole: string, actorId: string | undefined): Promise<TransitionDeliverableDefinitionResult> {
+export async function advanceDeliverableDefinitionOneStep(concept: DeliverableDefinitionRow, actorRole: string, actorId: string): Promise<TransitionDeliverableDefinitionResult> {
   const targetState = AUTHORING_NEXT_STATE[concept.status];
   if (!targetState) return { ok: false, reason: "no_further_step", detail: `Deliverable Definition is already ${concept.status} — no further authoring step` };
 
@@ -238,7 +263,7 @@ export async function advanceDeliverableDefinitionOneStep(concept: DeliverableDe
 
 // Registry "Copy" action, mirrors copyTemplateAsNewDraft — stops at Draft
 // instead of driving straight through to Active.
-export async function copyDeliverableDefinitionAsNewDraft(deliverableDefinitionId: string, actorId: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
+export async function copyDeliverableDefinitionAsNewDraft(deliverableDefinitionId: string, actorId: string, authorBadge: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await deliverableDefinitionsDB.findById(deliverableDefinitionId);
   if (!source) return { ok: false, errors: ["Deliverable Definition not found"] };
   const nextVersion = await nextAvailablePatchVersion(source.code, source.version, source.tenant_id);
@@ -246,11 +271,18 @@ export async function copyDeliverableDefinitionAsNewDraft(deliverableDefinitionI
   // templates.ts's copyTemplateAsNewDraft.
   const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Deliverable");
   if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Deliverable`] };
+  // deliverable_definitions.authored_by/author_badge are participants_master-
+  // scoped and NOT NULL — resolve the real participant + the real badge the
+  // caller already verified (web/deliverableDefinitionRegistry.ts's own
+  // badgeAuthorityEngine check), mirroring copyTemplateAsNewDraft exactly.
+  const { data: copyMaster } = await participantsMasterDB.findById(actorId);
+  if (!copyMaster) return { ok: false, errors: [`No superuser provisioned.`] };
   const { data: newDraft, error } = await deliverableDefinitionsDB.createDraft({
     code: source.code,
     description: source.description,
     version: nextVersion,
-    authoredBy: Number(actorId),
+    authoredBy: copyMaster.id,
+    authorBadge,
     draftContent: { code: source.code, description: source.description, definitionVersion: nextVersion },
     tenantId: source.tenant_id,
     parentDeliverableDefinitionId: source.parent_deliverable_definition_id,

@@ -11,6 +11,7 @@ import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { assertCanonicalCategory } from "./ontology.js";
+import { resolveAuthor } from "./attentionItems.js";
 import type { DecisionAlternative, DecisionRelatedObjectGroup, DecisionRow } from "../../../dblayer/seuTypes.js";
 
 // participant_id on decisions.* points at the per-SEU engagement
@@ -19,8 +20,8 @@ import type { DecisionAlternative, DecisionRelatedObjectGroup, DecisionRow } fro
 // for an actor with no Participant identity on this SEU (e.g. an
 // admin/root user acting directly) — participant_id then stays unset,
 // which is honest, not an error.
-async function resolveParticipantId(userId: number, seuId: string): Promise<string | null> {
-  const { data: master } = await participantsMasterDB.findByUserId(userId);
+async function resolveParticipantId(userId: string, seuId: string): Promise<string | null> {
+  const { data: master } = await participantsMasterDB.findById(userId);
   if (!master) return null;
   const { data: engagements } = await participantsDB.findByParticipantMasterId(master.id);
   return (engagements ?? []).find((p) => p.seu_id === seuId)?.id ?? null;
@@ -28,7 +29,7 @@ async function resolveParticipantId(userId: number, seuId: string): Promise<stri
 
 export async function createDecision(input: {
   seuId: string;
-  userId?: number | null;
+  userId?: string | null;
   originatingType?: string | null;
   originatingId?: string | null;
   relatedObjects: DecisionRelatedObjectGroup[];
@@ -123,17 +124,6 @@ export async function transitionDecision(input: { decisionId: string; targetStat
 
   const fromState = decision.status;
 
-  const qualityGateResult = await qualityGateEngine.evaluate({
-    entityType: "Decision",
-    entityId: decision.id,
-    seuId: decision.seu_id,
-    fromState,
-    toState: input.targetState,
-  });
-  if (qualityGateResult.outcome === "Blocked") {
-    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
-  }
-
   // entityId now passed — was missing, the same latent submit_verb gap
   // every other entity's Version Feature Plan pass found and fixed (no
   // Decision row declares submit_verb today, but the gate would silently
@@ -143,7 +133,7 @@ export async function transitionDecision(input: { decisionId: string; targetStat
     fromState,
     toState: input.targetState,
     actorRole: input.actorRole,
-    actorId: input.actorId,
+    actorId: input.actorId ?? "",
     entityId: decision.id,
     context: { decision },
   });
@@ -155,10 +145,29 @@ export async function transitionDecision(input: { decisionId: string; targetStat
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }
 
+  // Post-completion fix (Open Design Questions.md #3): Quality Gates used to
+  // apply to Deliverable transitions only — same check obligations.ts's own
+  // transitionObligation runs, generalised to every SEU-scoped entity type.
+  if (!input.actorId) throw new Error("actorId is required to transition a Decision");
+  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for Decision ${fromState} -> ${input.targetState} — Transition Definition declares no verb`);
+  const { authorId } = await resolveAuthor(decision.seu_id, input.actorId);
+  const qualityGateResult = await qualityGateEngine.evaluate({
+    entityType: "Decision",
+    entityId: decision.id,
+    seuId: decision.seu_id,
+    fromState,
+    toState: input.targetState,
+    authorId,
+    authorBadge: gate.authorityBadge,
+  });
+  if (qualityGateResult.outcome === "Blocked") {
+    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
+  }
+
   // participant_id/authority_badge updated on every governed transition —
   // the row always reflects the most recent actor; full per-hop history
   // stays in events (actorId/authorityBadge on the publish below).
-  const participantId = input.actorId != null && !Number.isNaN(Number(input.actorId)) ? await resolveParticipantId(Number(input.actorId), decision.seu_id) : null;
+  const participantId = await resolveParticipantId(input.actorId, decision.seu_id);
 
   const { data: updated, error } = await decisionsDB.updateStatus(decision.id, input.targetState, { participantId, authorityBadge: gate.authorityBadge });
   if (error || !updated) throw error ?? new Error("failed to update decision status");

@@ -1,80 +1,3 @@
-// Shared test-only fixture — NOT part of any production seed pipeline
-// (cleanSlate.ts). Several tests were written against
-// test-enterprise-web-application/test-profile-default-development, which
-// used to be seeded ambiently by seedSeu.ts; that script is retired entirely now (owner,
-// 2026-08-20: it left platform-core-engineering/technology-nodejs un-reset by
-// every later db:clean-slate — "That is polluting the db") and
-// db:clean-slate deliberately no longer recreates these two either way (the
-// intended path post-reset is authoring through the SDK UI, not a pre-seeded
-// demo — see Database Clean Slate — Instructions.md). That's the right call
-// for the real database, but it left these tests depending on ambient state
-// nothing guarantees anymore.
-//
-// Fix: reuse the exact original seed data (web-application.template.json /
-// default-development.profile.json — still real files, just no longer
-// referenced by any production script) via one idempotent, test-scoped
-// helper, instead of each test file re-deriving its own throwaway Template
-// and losing the specific shape (dependsOnCapabilityServiceCodes wiring,
-// mandatoryPackCodes) some of these tests are specifically about. Safe to
-// call from many test files/processes concurrently (upsert, not create) and
-// safe to leave in place after a real db:clean-slate run — it recreates
-// itself the next time tests run.
-//
-// 2026-08-25 (owner: "alter the test suites to use the seeded packs, not
-// the legacy ones") — web-application.template.json's own mandatoryPackCodes
-// no longer names platform-core-engineering/technology-nodejs (both
-// confirmed permanently unpublishable — no working bootstrap path, and 69
-// CRs of real design work since either was the source of truth). It named 3
-// real, always-seeded OpenUP capability-pattern Packs instead — briefly.
-//
-// 2026-08-25, later same day — briefly moved onto test-only twins
-// (test-requirements-analysis/test-architecture-solution-design/
-// test-development, seedTestFixturePacks.ts / migration 119) after a live
-// collision was found: tests/sdk-authoring.test.ts reused the literal code
-// "software-construction" for its own throwaway authored-Pack tests, and since only
-// one Pack version per code can be Active, every run of that file deprecated
-// this fixture's real dependency out from under every other test file.
-//
-// 2026-08-25, reverted back to the real Pack codes same day — the twins
-// introduced a worse, systemic problem: capabilities.code is Pack-scoped
-// (CR-065), not globally unique, so having BOTH the real Pack and its twin
-// simultaneously Active meant every capability code this fixture derives
-// (requirements-analysis/architecture/development) now had TWO rows.
-// capabilitiesDB.findByCodes (used by createObjective wherever
-// requiredCapabilityCodes is passed — ~30 test files) has no Pack scoping at
-// all, so it silently returned double the expected capabilities platform-
-// wide the moment both Packs were Active together. Fixed properly instead:
-// sdk-authoring.test.ts now mints its own randomized, per-run
-// capability-name concept (registerTestOntologyCode) rather than reusing any
-// shared identity, so this fixture no longer needs to avoid the real Packs
-// at all — the original collision is solved at its actual source.
-//
-// 2026-08-29 (CR-079 bug fix) — sdk-authoring.test.ts's own randomized,
-// per-run capability-name concept is gone too (registerTestOntologyCode
-// removed entirely — see testFixtures.ts's own uniqueTestPackVersion note).
-// It now uses a stable, migration-seeded engineering-name code
-// ("test-sdk-pack", migration 134) instead, same as every other test file —
-// the mechanism changed, but the principle the 2026-08-25 fix above
-// established still holds: sdk-authoring.test.ts has its own distinct Pack
-// identity, separate from this fixture's own real Pack dependencies, so
-// there's still nothing for this fixture to avoid.
-//
-// 2026-08-27 — the fixture's OWN identity renamed: `enterprise-web-application`
-// (web-application.template.json) collided with a REAL production Template,
-// `enterprise-web-application-parent.template.json` (one of the 9 standard
-// Templates, seedSdlcStandardTemplates.ts) — same code, different
-// templateVersion, so templatesDB.upsert's own (code, template_version,
-// tenant_id) ON CONFLICT never merged them; both rows coexisted, and
-// templatesDB.findByCode's "most recent wins" resolution non-deterministically
-// picked whichever was seeded last, silently handing several tests the real
-// 9-deliverable Template instead of this fixture's own 3-deliverable one.
-// Same collision class as the Pack-code/capability-code ones above, one layer
-// up. Renamed to `test-enterprise-web-application` /
-// `test-profile-default-development` — never touches templatesDB.upsert's
-// Ontology validation (that only applies to the real authoring pipeline,
-// createAuthoringDraft/publishAuthoringDraft — this fixture calls
-// templatesDB.upsert directly), so no new Ontology concept was needed, unlike
-// the Pack-code rename earlier.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
@@ -89,15 +12,22 @@ import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { seedAllTestFixturePacks } from "../src/dblayer/seed/seedTestFixturePacks.js";
-import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
+import { getPlatformTenantId, getTesterId } from "../src/dblayer/constants.js";
+import { userDB } from "../src/dblayer/userDB.js";
 import { commissionFromForm, transitionEbm, previewCommissioningValidation } from "../src/routes/seu/core/commissioning.js";
 import { publishProfile, type ProfileSeedInput } from "../src/routes/seu/core/profiles.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
+import { participantsDB } from "../src/dblayer/participantsDB.js";
+import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
+import { createEvidence } from "../src/routes/seu/core/evidence.js";
+import { createReview } from "../src/routes/seu/core/reviews.js";
+import { createFinding } from "../src/routes/seu/core/findings.js";
+import { reviewsDB } from "../src/dblayer/reviewsDB.js";
 import { getSeuCompetencyRequirements } from "../src/routes/seu/core/participantEligibility.js";
-import { transitionObligation } from "../src/routes/seu/core/obligations.js";
+import { transitionObligation, createObligation, resolveSeuIdFromRelatedObject } from "../src/routes/seu/core/obligations.js";
 import { policyDefinitionsDB } from "../src/dblayer/policyDefinitionsDB.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { transitionAttentionItem } from "../src/routes/seu/core/attentionItems.js";
@@ -107,7 +37,9 @@ import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import type { CommandRow, DeliverableRow, EventRow, ObligationRow, ProfileRow, SeuRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../src/dblayer/seuTypes.js";
-
+// get platform tenant id
+const PLATFORM_TENANT_ID = await getPlatformTenantId();
+  
 // Test-only Pack twins (migration 119 / seedTestFixturePacks.ts) — every real
 // seed Pack mirrored under a `test-` prefixed code. NOT used by
 // ensureWebAppTemplateFixture/ensureCoreEngineeringQualityGates below any
@@ -184,9 +116,16 @@ type ProfileSeed = ProfileSeedInput;
 // TEXT; these hold noun_verb grants so tests act as a non-root, badge-holding
 // actor. tester-all authorises any transition; creator/approver are for
 // separation-of-duties assertions.
-export const TESTER_ALL_ID = "1001";
-export const TESTER_CREATOR_ID = "1002";
-export const TESTER_APPROVER_ID = "1003";
+export const TESTER_ALL_ID = await getTesterId("tester-all@test.local");
+export const TESTER_CREATOR_ID = await getTesterId("tester-creator@test.local");
+export const TESTER_APPROVER_ID = await getTesterId("tester-approver@test.local");
+
+// userDB.getSuperuserId() — the one real, governed resolution of the
+// SUPERUSER_EMAIL-provisioned "root" actor (participants_master id +
+// authorBadge "root"), same mechanism every src/dblayer/seed/*.ts script
+// already uses. The *AsRoot fixture helpers below author as this actor, not
+// as TESTER_ALL_ID (a badge-holding tester, not root).
+export const { actorId: ROOT_ACTOR_ID, actorBadge: ROOT_ACTOR_BADGE } = await userDB.getSuperuserId();
 
 // Model A made transitionDeliverable async (Participant Integration Plan): a
 // governed transition is *dispatched*, and the Deliverable only moves when a
@@ -223,7 +162,7 @@ export async function waitForDispatchedWorkItem(deliverableId: string, fromState
   let command: CommandRow | null = null;
   await waitUntilAsync(async () => {
     const { data } = await commandsDB.findInFlight("Deliverable", deliverableId, fromState, toState);
-    command = data;
+    command = data ?? null;
     return data?.status === "Dispatched" || data?.status === "Deferred";
   });
   console.log(`[waitForDispatchedWorkItem] stage 1 result: command=${command ? `${(command as CommandRow).id} status=${(command as CommandRow).status}` : "null (not found / timed out)"}`);
@@ -255,7 +194,7 @@ export async function transitionDeliverableSync(input: {
   actorRole?: string;
   actorId?: string;
   actingBadgeType?: string;
-  requestedBy?: number | null;
+  requestedBy?: string | null;
 }): Promise<{ ok: true; deliverable: DeliverableRow; appliedTransition: { fromState: string; toState: string } } | Extract<TransitionDeliverableResult, { ok: false }>> {
   // Captured before the request, not read off its own ok:true result — so
   // this still has a real fromState even when deliverableKickoffHandler's
@@ -281,7 +220,7 @@ export async function transitionDeliverableSync(input: {
     command = null;
     await waitUntilAsync(async () => {
       const { data } = await commandsDB.findInFlight("Deliverable", input.deliverableId, fromState, input.targetState);
-      command = data;
+      command = data ?? null;
       if (data?.status === "Dispatched") return true;
       // Only bail early to retry when we know SOMEONE ELSE's Command is what
       // we're waiting on — it can resolve away (Failed) with nothing ever
@@ -479,8 +418,8 @@ export async function driveCommissioningToActive(input: {
     originatingObjectId: input.seuId,
     seuId: input.seuId,
     correlationId: eventBus.newCorrelationId(),
-    payload: { seuId: input.seuId },
-    actorId: input.actorId ?? null,
+    payload: { seuId: input.seuId, authorBadge: "root" },
+    actorId: input.actorId ?? "1",
   });
 
   // Wait for the REAL, already-dispatched compositionCompletedHandler to
@@ -498,7 +437,13 @@ export async function driveCommissioningToActive(input: {
     return !!failedEvent;
   }, input.timeoutMs);
 
-  if (!seuAfterCompose?.active_ebm_id) {
+  // TS narrows a `let` reassigned inside an async closure (the
+  // waitUntilAsync callback above) to `never` at every read site after the
+  // closure returns — a known compiler limitation, not an actual runtime
+  // possibility. A local cast, same workaround `command` already uses above,
+  // sidesteps it without weakening the real null check.
+  const composedSeu = seuAfterCompose as SeuRow | null;
+  if (!composedSeu?.active_ebm_id) {
     const payload = failedEvent?.payload as { conflicts?: string[]; reason?: string } | undefined;
     const reason = payload?.conflicts?.join(" | ") ?? payload?.reason ?? "Compose EBM did not complete in time";
     return { ok: false, stage: "compose_ebm", reason, seuId: input.seuId };
@@ -509,12 +454,12 @@ export async function driveCommissioningToActive(input: {
   // on the EBM (owner: "Validate and Activate are 2 separate events. I can
   // validate an EBM and not yet activate it"), same shape as the SEU detail
   // page's own real "Apply" form (detail.ejs).
-  const validateResult = await transitionEbm({ ebmId: seuAfterCompose.active_ebm_id, targetState: "Validated", actorRole: input.actorRole, actorId: input.actorId });
+  const validateResult = await transitionEbm({ ebmId: composedSeu.active_ebm_id, targetState: "Validated", actorRole: input.actorRole, actorId: input.actorId ?? TESTER_ALL_ID });
   if (!validateResult.ok) {
     return { ok: false, stage: "validate_engineering_model", reason: validateResult.reason === "not_found" ? "EBM not found" : validateResult.detail, seuId: input.seuId };
   }
 
-  const activateResult = await transitionEbm({ ebmId: seuAfterCompose.active_ebm_id, targetState: "Active", actorRole: input.actorRole, actorId: input.actorId });
+  const activateResult = await transitionEbm({ ebmId: composedSeu.active_ebm_id, targetState: "Active", actorRole: input.actorRole, actorId: input.actorId ?? TESTER_ALL_ID });
   if (!activateResult.ok) {
     return { ok: false, stage: "activate", reason: activateResult.reason === "not_found" ? "EBM not found" : activateResult.detail, seuId: input.seuId };
   }
@@ -545,7 +490,7 @@ export async function driveCommissioningToActive(input: {
       const { data: deliverables } = await deliverablesDB.findBySeuId(input.seuId);
       return !!deliverables && deliverables.length > 0;
     }, input.timeoutMs);
-    console.log(`[driveCommissioningToActive] beforeCommenceWork firing seuId=${input.seuId} lifecycle_state=${seu?.lifecycle_state} at t=${Date.now()}`);
+    console.log(`[driveCommissioningToActive] beforeCommenceWork firing seuId=${input.seuId} lifecycle_state=${(seu as SeuRow | null)?.lifecycle_state} at t=${Date.now()}`);
     await input.beforeCommenceWork(input.seuId);
     console.log(`[driveCommissioningToActive] beforeCommenceWork done seuId=${input.seuId} at t=${Date.now()}`);
   }
@@ -602,12 +547,14 @@ export async function driveCommissioningToActive(input: {
   if (blockingObligation) {
     return { ok: false, stage: "blocked", reason: `blocked, Obligation raised: ${blockingObligation.title}`, seuId: input.seuId };
   }
-  if (!finalSeu || finalSeu.lifecycle_state !== "Operational") {
+  // Same async-closure narrowing workaround as composedSeu above.
+  const resolvedSeu = finalSeu as SeuRow | null;
+  if (!resolvedSeu || resolvedSeu.lifecycle_state !== "Operational") {
     const payload = activateFailedEvent?.payload as { reason?: string } | undefined;
-    const reason = payload?.reason ?? `expected Operational after Activate, got ${finalSeu?.lifecycle_state ?? "SEU not found"}`;
+    const reason = payload?.reason ?? `expected Operational after Activate, got ${resolvedSeu?.lifecycle_state ?? "SEU not found"}`;
     return { ok: false, stage: "activate", reason, seuId: input.seuId };
   }
-  return { ok: true, seu: finalSeu };
+  return { ok: true, seu: resolvedSeu };
 }
 
 // Test-only fixture: a real participants_master row guaranteed eligible for
@@ -635,14 +582,90 @@ export async function ensureEligibleParticipant(seuId: string, capabilityCodes: 
     heldCompetency[dimension] = codes.map((code) => ({ code, proficiency: "Expert" }));
   }
   const { data: participant, error } = await participantsMasterDB.create({
-    tenantId: seu.tenant_id,
+    tenantId: seu.tenant_id ?? PLATFORM_TENANT_ID,
     type: "Human",
     displayName: `Test Fixture Participant ${randomUUID()}`,
     capabilities: capabilityCodes,
     competency: heldCompetency,
+    userId: null,
   });
   if (error || !participant) throw error ?? new Error("ensureEligibleParticipant: failed to create participants_master row");
   return participant.id;
+}
+
+// capability_fulfilments.author_id is a real Ch.13 participants(id) FK
+// (schema recovery pass, capability_fulfilments_schema_recovery.sql) —
+// fulfilCapability now resolves it via resolveAuthor(seuId, actorId), which
+// needs a real participants_master row for the acting user_id AND a real
+// participants row for that master inside this exact SEU. Root (user_id 1)
+// already has the participants_master row (012_badge_model seeds its
+// authorised_badges); this ensures the per-SEU participants row a test's
+// root actor needs, then hands back the "1"/"root" pair every test call
+// site can use directly instead of re-deriving this per test.
+async function ensureRootActorParticipant(seuId: string): Promise<void> {
+  const { data: master, error: masterErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
+  if (masterErr || !master) throw masterErr ?? new Error("ensureRootActorParticipant: no participants_master row for the superuser — is db:clean-slate seeded?");
+  const { data: existing } = await participantsDB.findBySeuIdAndParticipantMasterId(seuId, master.id);
+  if (existing) return;
+  const { error } = await participantsDB.create({ seuId, type: master.type, displayName: master.display_name, participantId: master.id });
+  if (error) throw error;
+}
+
+export async function fulfilCapabilityAsRoot(input: {
+  seuId: string;
+  capabilityId: string;
+  participantMasterId?: string;
+  participantType?: import("../src/dblayer/seuTypes.js").ParticipantType;
+  displayName?: string;
+}): ReturnType<typeof fulfilCapability> {
+  await ensureRootActorParticipant(input.seuId);
+  return fulfilCapability({ ...input, actorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+}
+
+// evidence.author_id/author_badge (schema recovery pass, evidenceDB.ts) —
+// createEvidence now resolves author_id via the same seuId+participants_master
+// two-hop as fulfilCapability's author_id. Same root/"1" convention as above.
+export async function createEvidenceAsRoot(
+  input: Omit<Parameters<typeof createEvidence>[0], "actorId" | "authorBadge">
+): ReturnType<typeof createEvidence> {
+  await ensureRootActorParticipant(input.seuId);
+  return createEvidence({ ...input, actorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+}
+
+// reviews.author_id/author_badge (schema recovery pass, reviewsDB.ts) — same
+// root/"1" convention as createEvidenceAsRoot above.
+export async function createReviewAsRoot(
+  input: Omit<Parameters<typeof createReview>[0], "actorId" | "authorBadge">
+): ReturnType<typeof createReview> {
+  await ensureRootActorParticipant(input.seuId);
+  return createReview({ ...input, actorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+}
+
+// findings.author_id/author_badge (schema recovery pass, findingsDB.ts) —
+// same root/"1" convention as createReviewAsRoot above. createFinding has no
+// seuId param of its own (it derives one internally from the Review), so
+// this resolves the Review's seu_id first before ensuring root's participants
+// row in it.
+export async function createFindingAsRoot(
+  input: Omit<Parameters<typeof createFinding>[0], "actorId" | "authorBadge">
+): ReturnType<typeof createFinding> {
+  const { data: review } = await reviewsDB.findById(input.reviewId);
+  if (!review) throw new Error(`review not found: ${input.reviewId}`);
+  await ensureRootActorParticipant(review.seu_id);
+  return createFinding({ ...input, actorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+}
+
+// obligations.author_id/author_badge (schema recovery pass, obligationsDB.ts)
+// — same root/"1" convention as above. createObligation has no seuId param
+// of its own (it derives one internally from relatedObjectType/relatedObjectId,
+// resolveSeuIdFromRelatedObject), so this resolves the same way before
+// ensuring root's participants row in it.
+export async function createObligationAsRoot(
+  input: Omit<Parameters<typeof createObligation>[0], "actorId" | "authorBadge">
+): ReturnType<typeof createObligation> {
+  const seuId = await resolveSeuIdFromRelatedObject(input.relatedObjectType, input.relatedObjectId);
+  await ensureRootActorParticipant(seuId);
+  return createObligation({ ...input, actorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
 }
 
 // This is a real, event-driven platform (pub/sub, not a linear call chain):
@@ -707,11 +730,15 @@ export async function ensurePolicyDefinitionWithObligation(input: {
   // is now mandatory.
   const { data: policySchema } = await schemaDefinitionsDB.findLatest("Policy");
   if (!policySchema) throw new Error("no schema_definitions grammar for Policy");
+  const { data: rootMaster, error: rootMasterErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
+  if (rootMasterErr || !rootMaster) throw rootMasterErr ?? new Error("ensurePolicyDefinitionWithObligation(): no participants_master row for the superuser — is db:clean-slate seeded?");
   const { data: draft, error } = await policyDefinitionsDB.createDraft({
     code: input.code,
     name: input.name,
     category: input.category,
     scope: "Transition",
+    authoredBy: rootMaster.id,
+    authorBadge: "root",
     schemaDefinitionId: policySchema.id,
     conditions: [
       {
@@ -750,7 +777,8 @@ export async function ensurePolicyDefinitionWithObligation(input: {
 // assertions (Obligation/Attention-Item counts, Quality Gate messages), and
 // again after driving any hop whose own completion could unblock the next
 // one the automatic rescan will immediately, unprompted, attempt.
-export async function resolveDispatchRejectionObligations(seuId: string, actorId = "1001"): Promise<void> {
+export async function resolveDispatchRejectionObligations(seuId: string, actorId = ROOT_ACTOR_ID): Promise<void> {
+  await ensureRootActorParticipant(seuId);
   const { data: deliverables } = await deliverablesDB.findBySeuId(seuId);
   for (const deliverable of deliverables ?? []) {
     await resolveDispatchRejectionObligationsForDeliverable(deliverable.id, actorId);
@@ -825,9 +853,12 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
     if (purposeErr) throw purposeErr;
   }
 
+  const { data: rootMasterForPacks, error: rootMasterForPacksErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
+  if (rootMasterForPacksErr || !rootMasterForPacks) throw rootMasterForPacksErr ?? new Error("seed(): no participants_master row for the superuser — is db:clean-slate seeded?");
+
   const { data: existingMandatory } = await templatesDB.getMandatoryPackCodes(template.id);
   if (!sameSet(existingMandatory ?? [], templateSeed.mandatoryPackCodes)) {
-    await templatesDB.setMandatoryPacks(template.id, templateSeed.mandatoryPackCodes);
+    await templatesDB.setMandatoryPacks(template.id, templateSeed.mandatoryPackCodes, rootMasterForPacks.id, ROOT_ACTOR_BADGE);
   }
 
   // CR-038 — requiredCapabilityCodes is derived from the real mandatory-Pack
@@ -865,7 +896,7 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
 
   const { data: existingRequired } = await templatesDB.getRequiredCapabilities(template.id);
   if (!sameSet((existingRequired ?? []).map((c) => c.id), requiredCapabilityIds)) {
-    await templatesDB.setRequiredCapabilities(template.id, requiredCapabilityIds);
+    await templatesDB.setRequiredCapabilities(template.id, requiredCapabilityIds, rootMasterForPacks.id, ROOT_ACTOR_BADGE);
   }
 
   // CR-039/CR-041 — same guard as above: the seed's dependencyGraph never
@@ -875,12 +906,16 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
   // about (belt-and-braces alongside migration 075's real unique constraint).
   const { data: existingDependencyDefinitions } = await dependencyDefinitionsDB.findByOwner("Template", template.id);
   if (!existingDependencyDefinitions || existingDependencyDefinitions.length === 0) {
+    const { data: rootMaster, error: rootMasterErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
+    if (rootMasterErr || !rootMaster) throw rootMasterErr ?? new Error("seed(): no participants_master row for the superuser — is db:clean-slate seeded?");
     await materialiseDependencyGraph({
       owningEntityType: "Template",
       owningEntityId: template.id,
       deliverableCatalogue: templateSeed.deliverableCatalogue,
       dependencyGraph: templateSeed.dependencyGraph ?? [],
       tenantId: PLATFORM_TENANT_ID,
+      authorId: rootMaster.id,
+      authorBadge: ROOT_ACTOR_BADGE,
     });
   }
 
@@ -914,9 +949,9 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
   // uniqueness SELECT before the INSERT, so the loser of the same race can
   // surface this clean "already exists" message instead of ever reaching the
   // raw profiles_code_version_tenant_key constraint — match both.
-  let profileResult = await publishProfile({ seed: profileSeed, actorRole: "super", actorId: "1" });
+  let profileResult = await publishProfile({ seed: profileSeed, actorRole: "super", actorId: ROOT_ACTOR_ID });
   if (!profileResult.ok && profileResult.errors.some((e) => e.includes("profiles_code_version_tenant_key") || e.includes("already exists at version"))) {
-    profileResult = await publishProfile({ seed: profileSeed, actorRole: "super", actorId: "1" });
+    profileResult = await publishProfile({ seed: profileSeed, actorRole: "super", actorId: ROOT_ACTOR_ID });
   }
   if (!profileResult.ok) throw new Error(`profile publish failed: ${profileSeed.code}: ${profileResult.errors.join("; ")}`);
   const { data: profile, error: profileErr } = await profilesDB.findById(profileResult.profileId);
@@ -964,6 +999,8 @@ async function seedCoreGates(): Promise<void> {
     toState: "Approved",
     criteria: { type: "no_unresolved_obligations" },
     originatingPackId: corePack.id,
+    authorId: corePack.authored_by,
+    authorBadge: corePack.author_badge,
   });
 
   await qualityGatesDB.upsert({
@@ -974,5 +1011,7 @@ async function seedCoreGates(): Promise<void> {
     toState: "Baselined",
     criteria: { type: "requires_accepted_evidence_or_approved_decision" },
     originatingPackId: corePack.id,
+    authorId: corePack.authored_by,
+    authorBadge: corePack.author_badge,
   });
 }

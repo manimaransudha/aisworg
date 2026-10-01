@@ -129,7 +129,7 @@ if (process.env.NODE_ENV === 'test') {
             (async () => {
                 const user = await userDB.findById(Number(testUserId));
                 if (!user) return next(new Error(`x-test-user-id ${testUserId}: no such user`));
-                req.session.user = buildSessionUser(user);
+                req.session.user = await buildSessionUser(user);
                 await ensureBadgeBootstrap(user);
                 req.session.user.platformBadges = await getPlatformBadges(String(user.id));
                 next();
@@ -137,27 +137,6 @@ if (process.env.NODE_ENV === 'test') {
             return;
         }
 
-        req.session.user = {
-            id: 1,
-            email: 'manimaransudha@gmail.com',
-            name: 'Sudha Manimaran',
-            role: 'super',
-            is_active: true,
-            // Phase 10 (badge model): this shim bypasses the real login
-            // flow entirely, so ensureBadgeBootstrap/getPlatformBadges
-            // (routes/web/auth.js) never run for it. Hardcoded here to
-            // match the root badge_grants row 012_badge_model.sql seeds
-            // for this same fixed dev identity (holder_id '1') — without
-            // this, requirePlatformBadge('root') denies every request
-            // from this identity silently (no flash message, redirects
-            // back to referer), which looks like "nothing happens" on
-            // click rather than an actual permission error.
-            platformBadges: ['root'],
-            // CR-004: the shim identity is the platform (root) user.
-            type: 'Platform',
-            tenant_id: null
-
-        };
         next();
     });
 }
@@ -264,6 +243,7 @@ app.use(async (req, res, next) => {
                 { method: "GET", path: "/aisworg/seu/identity" },
                 { method: "GET", path: "/aisworg/seu/events" },
                 { method: "GET", path: "/aisworg/seu/tenant-admin/users" },
+                { method: "GET", path: "/aisworg/seu/data-migrations" },
             ]);
         }
     } catch (err) {

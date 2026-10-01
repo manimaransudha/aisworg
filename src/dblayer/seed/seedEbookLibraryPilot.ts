@@ -1,11 +1,4 @@
-// Standalone dry-run addition — NOT part of the regular `pnpm seed:seu`
-// pipeline, does not modify seedSeu.ts. Seeds the Template + Profile for the
-// e-book library pilot scenario, using the same templatesDB/profilesDB calls
-// seedSeu.ts's own seedTemplate/seedProfile use. Run once with:
-//   npx tsx src/dblayer/seed/seedEbookLibraryPilot.ts
-// Assumes domain-ebook-library and technology-nodejs Packs are already
-// published (domain-ebook-library via `pnpm pack:publish ... --activate`,
-// technology-nodejs already part of the base seed).
+// Standalone dry-run addition
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -14,10 +7,12 @@ import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { templatesDB } from "../templatesDB.js";
 import { profilesDB } from "../profilesDB.js";
+import { participantsMasterDB } from "../participantsMasterDB.js";
 import { capabilitiesDB } from "../capabilitiesDB.js";
 import { packsDB } from "../packsDB.js";
 import { materialiseDependencyGraph } from "../../domain/engine/materialiseDependencyGraph.js";
 import type { TemplateDeliverableSeed, TemplateDependencyGraphEntry } from "../seuTypes.js";
+import { userDB } from "../userDB.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "data");
@@ -43,8 +38,13 @@ interface ProfileSeed {
   environment: string;
   optionalPackCodes?: string[];
 }
+// authoredBy is a participants_master.id 
+export interface SeedActor {
+  authoredBy: string;
+  authorBadge: string;
+}
+async function run(actor: SeedActor): Promise<void> {
 
-async function run(): Promise<void> {
   try {
     const templateSeed = loadJson<TemplateSeed>("ebook-library.template.json");
     const profileSeed = loadJson<ProfileSeed>("ebook-library-development.profile.json");
@@ -56,7 +56,7 @@ async function run(): Promise<void> {
       deliverableCatalogue: templateSeed.deliverableCatalogue,
     });
     if (templateErr || !template) throw templateErr ?? new Error(`template upsert failed: ${templateSeed.code}`);
-
+    
     // CR-039/CR-041 — materialised at seed time (Template-scoped), not at
     // commissioning. dependencyGraph is the real authored source.
     await materialiseDependencyGraph({
@@ -65,6 +65,8 @@ async function run(): Promise<void> {
       deliverableCatalogue: templateSeed.deliverableCatalogue,
       dependencyGraph: templateSeed.dependencyGraph ?? [],
       tenantId: template.tenant_id,
+      authorId: actor.authoredBy,
+      authorBadge: actor.authorBadge,
     });
 
     const { data: capabilities } = await capabilitiesDB.findByCodes(templateSeed.requiredCapabilityCodes);
@@ -74,7 +76,7 @@ async function run(): Promise<void> {
       if (!id) throw new Error(`template ${templateSeed.code} requires unknown capability ${code} — is its contributing Pack published?`);
       return id;
     });
-    await templatesDB.setRequiredCapabilities(template.id, requiredCapabilityIds);
+    await templatesDB.setRequiredCapabilities(template.id, requiredCapabilityIds, actor.authoredBy, actor.authorBadge);
 
     // Bug fix (013_template_profile_pack_by_code.sql): template_packs/
     // profile_packs now store the Pack's code, resolved to whichever Version
@@ -92,7 +94,7 @@ async function run(): Promise<void> {
       const { data: pack } = await packsDB.findByCode(code);
       if (!pack) throw new Error(`template ${templateSeed.code} requires unknown pack ${code}`);
     }
-    await templatesDB.setMandatoryPacks(template.id, templateSeed.mandatoryPackCodes);
+    await templatesDB.setMandatoryPacks(template.id, templateSeed.mandatoryPackCodes, actor.authoredBy, actor.authorBadge,);
 
     logger.info(`[seed:ebook-library-pilot] template ${template.code} -> ${template.id}`);
 
@@ -100,6 +102,8 @@ async function run(): Promise<void> {
       code: profileSeed.code,
       name: profileSeed.name,
       baseTemplateId: template.id,
+      authoredBy: actor.authoredBy,
+      authorBadge:actor.authorBadge,
       environment: profileSeed.environment,
     });
     if (profileErr || !profile) throw profileErr ?? new Error(`profile upsert failed: ${profileSeed.code}`);
@@ -109,7 +113,7 @@ async function run(): Promise<void> {
       const { data: pack } = await packsDB.findByCode(code);
       if (!pack) throw new Error(`profile ${profileSeed.code} requires unknown pack ${code}`);
     }
-    await profilesDB.setOptionalPacks(profile.id, optionalPackCodes);
+    await profilesDB.setOptionalPacks(profile.id, optionalPackCodes, actor.authoredBy, actor.authorBadge);
 
     logger.info(`[seed:ebook-library-pilot] profile ${profile.code} -> ${profile.id} (${optionalPackCodes.length} optional Pack(s))`);
     logger.info("[seed:ebook-library-pilot] done.");
@@ -120,5 +124,7 @@ async function run(): Promise<void> {
     await pool.end();
   }
 }
-
-run();
+const { actorId, actorBadge } = await userDB.getSuperuserId();
+if (!actorId) throw new Error(`Provision a superuser before this operation.`);
+  
+run({ authoredBy: actorId, authorBadge: actorBadge });

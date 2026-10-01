@@ -110,23 +110,23 @@ export async function activeMappingByNoun(): Promise<Record<string, string[]>> {
 }
 
 // ── add ───────────────────────────────────────────────────────────────────
-export async function addNoun(code: string, label: string, description: string | null): Promise<WriteResult> {
+export async function addNoun(code: string, label: string, description: string | null, authorId: string, authorBadge: string): Promise<WriteResult> {
   const c = code.trim();
   if (!CODE_RE.test(c)) return { ok: false, error: `Noun code "${code}" is not a valid code (letters, digits, _ or -; must start with a letter).` };
   if (!label.trim()) return { ok: false, error: "Label is required." };
-  const { error } = await authorityVocabularyDB.addNoun(c, label.trim(), description?.trim() || null);
+  const { error } = await authorityVocabularyDB.addNoun(c, label.trim(), description?.trim() || null, authorId, authorBadge);
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
-export async function addVerb(code: string, label: string, description: string | null): Promise<WriteResult> {
+export async function addVerb(code: string, label: string, description: string | null, authorId: string, authorBadge: string): Promise<WriteResult> {
   const c = code.trim();
   if (!CODE_RE.test(c)) return { ok: false, error: `Verb code "${code}" is not a valid code (letters, digits, _ or -; must start with a letter).` };
   if (!label.trim()) return { ok: false, error: "Label is required." };
-  const { error } = await authorityVocabularyDB.addVerb(c, label.trim(), description?.trim() || null);
+  const { error } = await authorityVocabularyDB.addVerb(c, label.trim(), description?.trim() || null, authorId, authorBadge);
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
-export async function addMapping(nounCode: string, verbCode: string, trigger?: string): Promise<WriteResult> {
+export async function addMapping(nounCode: string, verbCode: string, trigger: string | undefined, authorId: string, authorBadge: string): Promise<WriteResult> {
   if (!nounCode || !verbCode) return { ok: false, error: "Both a noun and a verb are required." };
   if (trigger !== undefined && trigger !== "manual" && trigger !== "governed") {
     return { ok: false, error: `trigger must be "manual" or "governed", got "${trigger}"` };
@@ -140,7 +140,7 @@ export async function addMapping(nounCode: string, verbCode: string, trigger?: s
   // already has real, wired transitions must never silently change their
   // trigger (the mapping upsert below is idempotent; only its OWN default
   // moves, nothing downstream of it).
-  const { error } = await authorityVocabularyDB.addMapping(nounCode, verbCode, (trigger as "manual" | "governed" | undefined) ?? "manual");
+  const { error } = await authorityVocabularyDB.addMapping(nounCode, verbCode, (trigger as "manual" | "governed" | undefined) ?? "manual", authorId, authorBadge);
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 

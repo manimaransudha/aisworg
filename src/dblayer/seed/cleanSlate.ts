@@ -1,71 +1,21 @@
-// Database Clean Slate — Instructions for the Other Session
-// (design/mvp-build-plan/Database Clean Slate — Instructions.md).
-//
+// Database Clean Slate — Use only for non-prod environments
 // Wipes demo/usage data and test-fixture pollution while leaving the
 // platform in exactly the state it needs to be in for the SDK UI and every
 // governed entity type to work immediately afterward. Run:
 //   pnpm db:clean-slate
-//
-// Design notes beyond the instructions doc:
-//
-// 1. No Pack is exempt from the wipe-and-reseed cycle — every real Pack
-//    (OpenUP capability patterns, SDLC-phase, domain/technology, test-fixture
-//    twins) is deleted here and recreated fresh by the reseed steps below.
-//    The vocabulary tables that hang off Packs (capabilities, services,
-//    authority_rules, policies, quality_gates, checklists, execution_targets)
-//    are cleared first, keyed off `originating_pack_id IS NOT NULL` — a NULL
-//    origin is real, migration-seeded vocabulary (the 4 SDK-authoring
-//    Capabilities, 2 base Authority Rules), never Pack-attributable junk, and
-//    always survives. metric_definitions is never Pack-attributed at all
-//    (identifier allow-list instead). transition_definitions is wiped and
-//    reseeded fresh from transitionDefinitions.json by
-//    seedTransitionDefinitions() below, since it otherwise accumulates
-//    test-fixture rows; the authority rules/policies it references all
-//    survive the vocabulary filtering above, so the reseed resolves every
-//    code, and the verb column is then back-filled by
-//    seedAuthorityVocabulary().
-//
-// 1a. compliance_frameworks/compliance_requirements are wiped
-//    unconditionally — no seed Pack (including the 33 real Compliance Packs,
-//    step 6c) declares anything in `contributionsCompliance`, the one field
-//    that would ever populate these two tables; those Packs express their
-//    requirements through the ordinary, already-materializing contribution
-//    kinds (Policies, Checklists, Quality Gates, ...) instead. So unlike
-//    capabilities/authority_rules, a NULL originating_pack_id here means
-//    "dry-run fixture," not "real migration-seeded vocabulary" — nothing
-//    real to protect.
-//
-// 2. dependency_edges and ebms are real usage data with NO ACTION FKs that
-//    block the seus/deliverables/templates/profiles wipe if left behind —
-//    included in the usage-data TRUNCATE.
-//
-// 3. app_config is not part of this platform — Donchian-channel/trading
-//    config for a different application sharing this Postgres schema
-//    (seeded in the base schema.sql, not any SEU migration; owned by a
-//    different table-owner role than every SEU-platform table). Never
-//    touched here. `users`, by contrast, lives only in the `aisworg`
-//    database and is this platform's own auth table (the other app's
-//    accounts are in a separate, Postgres-isolated `endow` database) — wiped
-//    in step 1b like everything else.
-//
-// 4. schema_definitions (the "schema registry") is INSERT-only at the
-//    application layer (createSchemaVersion never updates/deletes), so every
-//    version authored via the SDK UI would otherwise persist forever. A
-//    minimum-clean DB holds exactly version 1 per kind (seeded idempotently
-//    by migrations 014/015/016); step 2e trims back to that.
-//
-// Everything runs inside one transaction — an unexpected FK conflict (e.g.
-// from a table added by a migration since this script was last reviewed)
-// rolls back cleanly instead of leaving the database half-wiped.
 import "dotenv/config";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
+import { seedTenantsBaseline } from "./seedBaselineTenants.js";
 import { seedIdentityBaseline } from "./seedIdentityBaseline.js";
 import { seedEbookLibraryObjectives } from "./seedEbookLibraryObjectives.js";
 import { seedParticipantsMaster } from "./seedParticipantsMaster.js";
-import { seedTransitionDefinitions } from "./seedTransitionDefinitions.js";
-import { seedAuthorityVocabulary } from "./seedAuthorityVocabulary.js";
-import { seedEventSubscriptions } from "./seedEventSubscriptions.js";
+// transition_definitions/authority_noun_verbs/event_registry/event_subscriptions
+// are DATA_MIGRATION_TARGETS tables (core/dataMigrations.ts)
+// should be safe to load from clean-slate. In prod, use data-migrations
+// import { seedTransitionDefinitions } from "./seedTransitionDefinitions.js";
+// import { seedAuthorityVocabulary } from "./seedAuthorityVocabulary.js";
+// import { seedEventSubscriptions } from "./seedEventSubscriptions.js";
 import { seedCapabilityPatternPacks } from "./seedCapabilityPatternPacks.js";
 import { seedDomainTechnologyPacks } from "./seedDomainTechnologyPacks.js";
 import { seedCompliancePacks } from "./seedCompliancePacks.js";
@@ -77,176 +27,22 @@ import { seedDomainSpecialisationPacks } from "./seedDomainSpecialisationPacks.j
 import { seedSdlcStandardTemplates } from "./seedSdlcStandardTemplates.js";
 import { seedPolicyDefinitions } from "./seedPolicyDefinitions.js";
 import { seedCr104Demo } from "./seedCr104Demo.js";
-import { seedAllTestFixturePacks } from "./seedTestFixturePacks.js";
 import { seedAllTabsPackFixture } from "./seedAllTabsPackFixture.js";
-
-// template-categories (migration 053) is a fixed, real 9-value business
-// classification — every one of the 9 real codes is already claimed by a
-// real seeded Template (seedSdlcStandardTemplates.ts), so tests/testFixtures.ts's
-// shared Template fixture (`test-enterprise-web-application`, used as the
-// CR-026 inheritance parent in sdk-authoring.test.ts) has no free real code
-// to borrow. Same `test-<code>` treatment capability-name already gets above
-// for every test-fixture Pack twin.
-const TEMPLATE_CATEGORY_TEST_CONCEPTS: Array<[code: string, label: string]> = [
-  ["test-enterprise-web-application", "Test: Web Application"],
-  // design/mvp-build-plan/SEU Composition.md — dedicated to
-  // cr088-filter-shaped-overrides.test.ts's own publishTemplate coverage for
-  // the "Template should have persisted all the applicable service levels"
-  // fix (materialisePackSelectionsAndCapabilities now materialises a
-  // non-sparse exposedParameters set) — its own code, not sharing
-  // test-enterprise-web-application (that one's a memoized, widely-reused
-  // fixture elsewhere — testFixtures.ts's ensureWebAppTemplateFixture).
-  ["test-cr088-publish-template", "Test: CR-088 publishTemplate Fixture"],
-  // design/design whiteboards.md/schema_implementation.md — buildFixtureTemplate
-  // (cr088-filter-shaped-overrides.test.ts) used to mint a fresh
-  // `test-cr088-template-<randomUUID>` code per call, which never went
-  // through publishTemplate's own assertCanonicalCategory check (it pokes
-  // templatesDB.upsert/setDraftContent directly), so it was never caught —
-  // until Template's write-time validator (this session) started enforcing
-  // it there too. Same fix as the rest of this list: one stable, permanent
-  // code, uniqueness moved to templateVersion (uniqueTestPackVersion).
-  ["test-cr088-overridable-template", "Test: CR-088 Overridable Parameters Fixture"],
-];
-
-// CR-079 step (a) — the six new category-scoped Pack-identity concept types
-// (migration 132), mirrored here the same way capability-name's own Pack
-// codes are above: every real Pack's own current code, grouped by its real
-// category, plus each one's test-fixture twin. Kept in exact sync with
-// migration 132's own INSERT — this dual-source pattern is a known,
-// accepted drift risk (already caught once for capability-name: technology-c/
-// technology-cpp existed only in this file's own list, not migration 119),
-// not a new one introduced here.
-const CATEGORY_SCOPED_PACK_NAME_CONCEPTS: Array<[conceptType: string, code: string, label: string]> = [
-  ["compliance-name", "security-privacy-compliance", "Security, Privacy & Compliance (SDLC Phase 4)"],
-  ["compliance-name", "test-security-privacy-compliance", "Security, Privacy & Compliance (SDLC Phase 4)"],
-  ["domain-name", "domain-ebook-library", "E-Book Library Domain Practices"],
-  ["domain-name", "test-domain-ebook-library", "E-Book Library Domain Practices"],
-  ["engineering-name", "architecture-solution-design", "Architecture (OpenUP Capability Pattern)"],
-  ["engineering-name", "configuration-management", "Configuration & Change Management (OpenUP Capability Pattern)"],
-  ["engineering-name", "development", "Development (OpenUP Capability Pattern)"],
-  ["engineering-name", "experience-design", "Experience Design (SDLC Phase 2)"],
-  ["engineering-name", "hypercare-stabilization", "Hypercare & Stabilization (SDLC Phase 12)"],
-  ["engineering-name", "implementation-engineering", "Implementation (SDLC Phase 7)"],
-  ["engineering-name", "internationalization-localization", "Internationalization & Localization (SDLC Phase 14)"],
-  ["engineering-name", "launch-management", "Launch (SDLC Phase 11)"],
-  ["engineering-name", "ongoing-operations-governance", "Ongoing Operations & Governance (SDLC Phase 15)"],
-  ["engineering-name", "platform-developer-experience", "Platform & Developer Experience (SDLC Phase 5)"],
-  ["engineering-name", "project-management", "Project Management (OpenUP Capability Pattern)"],
-  ["engineering-name", "quality-engineering-hardening", "Quality Engineering & Hardening (SDLC Phase 8)"],
-  ["engineering-name", "requirements-analysis", "Requirements (OpenUP Capability Pattern)"],
-  ["engineering-name", "scale-performance-optimization", "Scale & Performance Optimization (SDLC Phase 9)"],
-  ["engineering-name", "technical-architecture-discovery", "Technical Discovery & Architecture (SDLC Phase 3)"],
-  ["engineering-name", "test-configuration-management", "Configuration & Change Management (OpenUP Capability Pattern)"],
-  ["engineering-name", "test-experience-design", "Experience Design (SDLC Phase 2)"],
-  ["engineering-name", "test-hypercare-stabilization", "Hypercare & Stabilization (SDLC Phase 12)"],
-  ["engineering-name", "test-implementation-engineering", "Implementation (SDLC Phase 7)"],
-  ["engineering-name", "test-internationalization-localization", "Internationalization & Localization (SDLC Phase 14)"],
-  ["engineering-name", "test-launch-management", "Launch (SDLC Phase 11)"],
-  ["engineering-name", "test-ongoing-operations-governance", "Ongoing Operations & Governance (SDLC Phase 15)"],
-  ["engineering-name", "test-platform-developer-experience", "Platform & Developer Experience (SDLC Phase 5)"],
-  ["engineering-name", "test-project-management", "Project Management (OpenUP Capability Pattern)"],
-  ["engineering-name", "test-quality-engineering-hardening", "Quality Engineering & Hardening (SDLC Phase 8)"],
-  ["engineering-name", "test-scale-performance-optimization", "Scale & Performance Optimization (SDLC Phase 9)"],
-  ["engineering-name", "test-technical-architecture-discovery", "Technical Discovery & Architecture (SDLC Phase 3)"],
-  ["engineering-name", "test-testing-qa", "Test (OpenUP Capability Pattern)"],
-  ["engineering-name", "testing-qa", "Test (OpenUP Capability Pattern)"],
-  // CR-079 bug fix / CR-080 / CR-081 — migrations 134/135/136/138/139's own
-  // stable test-run Pack identity codes (registerTestOntologyCode's
-  // dynamically-minted junk, removed; replaced by these permanent concepts —
-  // see migration 134's own header). Missed from this dual-source list when
-  // each migration was first added; caught and closed together here rather
-  // than one at a time, per the SAME known-drift-risk pattern already
-  // flagged above for capability-name/technology-c/technology-cpp.
-  ["engineering-name", "test-comp-arity", "Test: Composition Arity"],
-  ["engineering-name", "test-comp-samecode", "Test: Composition Same Code"],
-  ["engineering-name", "test-comp-cd", "Test: Composition Conflict Detection"],
-  ["engineering-name", "test-compose-specialize-parent", "Test: Compose Specialize Parent"],
-  ["engineering-name", "test-compose-specialize-child", "Test: Compose Specialize Child"],
-  ["engineering-name", "test-compose-union-a", "Test: Compose Union A"],
-  ["engineering-name", "test-compose-union-b", "Test: Compose Union B"],
-  ["engineering-name", "test-compose-union-child", "Test: Compose Union Child"],
-  ["engineering-name", "test-compose-merge-shared", "Test: Compose Merge Shared"],
-  ["engineering-name", "test-compose-merge-child", "Test: Compose Merge Child"],
-  ["engineering-name", "test-compose-intersect-a", "Test: Compose Intersect A"],
-  ["engineering-name", "test-compose-intersect-b", "Test: Compose Intersect B"],
-  ["engineering-name", "test-compose-intersect-child", "Test: Compose Intersect Child"],
-  ["engineering-name", "test-compose-supplement-base", "Test: Compose Supplement Base"],
-  ["engineering-name", "test-compose-supplement-extra", "Test: Compose Supplement Extra"],
-  ["engineering-name", "test-compose-supplement-child", "Test: Compose Supplement Child"],
-  ["engineering-name", "test-compose-override", "Test: Compose Override"],
-  ["engineering-name", "test-compose-override-draft", "Test: Compose Override Draft"],
-  ["engineering-name", "test-compose-notdraft-parent", "Test: Compose Not-Draft Parent"],
-  ["engineering-name", "test-compose-mandatory", "Test: Compose Mandatory"],
-  ["engineering-name", "test-compose-optional", "Test: Compose Optional"],
-  ["engineering-name", "test-pack", "Test: Pack"],
-  ["engineering-name", "test-conflict", "Test: Conflict"],
-  ["engineering-name", "test-live-code", "Test: Live Code"],
-  ["engineering-name", "test-reactivate-supersede", "Test: Reactivate Supersede"],
-  ["engineering-name", "test-tenant-scoped", "Test: Tenant Scoped"],
-  ["engineering-name", "test-tenant-reactivate", "Test: Tenant Reactivate"],
-  ["engineering-name", "webflow-phase9-pack", "Test: WebFlow Phase 9 Pack"],
-  ["engineering-name", "test-sdk-pack", "Test: SDK Pack"],
-  ["engineering-name", "test-pack-versioning", "Test: Pack Versioning"],
-  ["engineering-name", "test-pack-no-active-version", "Test: Pack No Active Version"],
-  ["engineering-name", "test-pack-still-active", "Test: Pack Still Active"],
-  ["engineering-name", "test-pack-reject", "Test: Pack Reject"],
-  ["engineering-name", "test-pack-sequence", "Test: Pack Version Sequence"],
-  ["engineering-name", "test-pack-all-tabs", "Test: All Tabs Populated"],
-  ["organisation-name", "backlog-release-planning", "Backlog & Release Planning (SDLC Phase 6)"],
-  ["organisation-name", "beta-early-access-management", "Beta / Early Access (SDLC Phase 10)"],
-  ["organisation-name", "growth-optimization", "Growth & Optimization (SDLC Phase 13)"],
-  ["organisation-name", "product-discovery", "Product Discovery (SDLC Phase 1)"],
-  ["organisation-name", "test-backlog-release-planning", "Backlog & Release Planning (SDLC Phase 6)"],
-  ["organisation-name", "test-beta-early-access-management", "Beta / Early Access (SDLC Phase 10)"],
-  ["organisation-name", "test-growth-optimization", "Growth & Optimization (SDLC Phase 13)"],
-  ["organisation-name", "test-product-discovery", "Product Discovery (SDLC Phase 1)"],
-  ["organisation-name", "test-vision-opportunity-framing", "Vision & Opportunity (SDLC Phase 0)"],
-  ["organisation-name", "vision-opportunity-framing", "Vision & Opportunity (SDLC Phase 0)"],
-  // migration 134 — governance-ebm-sharpening.test.ts's own two Packs use category: "Organisation".
-  ["organisation-name", "conflict-a", "Test: Conflict A"],
-  ["organisation-name", "conflict-b", "Test: Conflict B"],
-  // design/mvp-build-plan/SEU Composition.md — governance-ebm-sharpening.test.ts's
-  // own retry-after-Failed and Validate-Request-liveness tests, same stable-
-  // test-Pack-name treatment as conflict-a/conflict-b above (CR-079: "the
-  // test script should use a code present in the ontology," never a random
-  // per-run suffix). retry-conflict-a/b retired — the Retry test now uses a
-  // since-Retired mandatory Pack (a validate_request-stage failure, the only
-  // path that actually reaches lifecycle_state "Failed"), not a Compose-EBM
-  // conflict, which leaves the SEU Pending instead.
-  ["organisation-name", "retry-stale-pack-test", "Test: Retry Stale Pack"],
-  ["organisation-name", "stale-pack-test", "Test: Stale Pack"],
-  // CR-104 real seed validation fixtures (seedCr104Demo.ts) — not test-only,
-  // loaded by db:clean-slate itself.
-  ["organisation-name", "cr104-demo-mandatory", "CR-104 Demo: Platform-Mandatory Pack"],
-  ["organisation-name", "cr104-demo-seu-eligibility-policies", "CR-104 Demo: SEU-Scoped & Eligibility-Scoped Policies"],
-  ["technology-name", "technology-c", "C Engineering Practices"],
-  ["technology-name", "technology-cpp", "C++ Engineering Practices"],
-  ["technology-name", "technology-nodejs", "Node.js Engineering Practices"],
-  ["technology-name", "technology-sass", "SASS Engineering Practices"],
-  ["technology-name", "technology-html", "HTML Engineering Practices"],
-  ["technology-name", "technology-git", "Git Engineering Practices"],
-  ["technology-name", "technology-css", "Cascading Style Sheets Engineering Practices"],
-  ["technology-name", "technology-react", "React Engineering Practices"],
-  ["technology-name", "technology-react-native", "React Native Engineering Practices"],
-  ["technology-name", "technology-js", "JavaScript Engineering Practices"],
-  ["technology-name", "technology-php", "PHP Engineering Practices"],
-  ["technology-name", "technology-rust", "Rust Engineering Practices"],
-  ["technology-name", "technology-rails", "Ruby on Rails Engineering Practices"],
-  ["technology-name", "technology-oracle", "Oracle Database Engineering Practices"],
-  ["technology-name", "technology-db2", "IBM DB2 Engineering Practices"],
-  ["technology-name", "technology-cobol", "COBOL Mainframe Engineering Practices"],
-  ["technology-name", "technology-python", "Python Engineering Practices"],
-  ["technology-name", "technology-java", "Java Engineering Practices"],
-  ["technology-name", "technology-go", "Go Engineering Practices"],
-  ["technology-name", "technology-csharp", "C# .NET Engineering Practices"],
-  ["technology-name", "technology-swift", "Swift iOS Engineering Practices"],
-  ["technology-name", "technology-kotlin", "Kotlin Android Engineering Practices"],
-  ["technology-name", "technology-docker", "Docker Containerization Engineering Practices"],
-  ["technology-name", "technology-kubernetes", "Kubernetes Cloud-Native Engineering Practices"],
-  ["technology-name", "technology-sql", "SQL Database Engineering Practices"],
-  ["technology-name", "test-technology-nodejs", "Node.js Engineering Practices"],
-];
-
+import { seedRouteAuthority } from "./seedRouteAuthority.js";
+import { seedOntologyConcepts } from "./seedOntologyConcepts.js";
+import { userDB } from "../userDB.js";
+import { RESERVED_TENANT_CODES } from "../constants.js";
+import { seedTransitionDefinitions } from "./seedTransitionDefinitions.js";
+import { seedAuthorityVocabulary } from "./seedAuthorityVocabulary.js";
+import { seedEventSubscriptions } from "./seedEventSubscriptions.js";
+import { seedCapabilityDefinitions } from "./seedCapabilityDefinitions.js";
+import { seedSchemaDefinitions } from "./seedSchemaDefinitions.js";
+import { seedServiceDefinitions } from "./seedServiceDefinitions.js";
+ 
+// Get superuser information for running clean-slate
+const { userId, actorId, actorBadge } = await userDB.getSuperuserId();
+console.log('User id', userId, 'Actor Id', actorId, 'Actor badge', actorBadge);
+ 
 const REAL_METRIC_IDENTIFIERS = [
   "deliverable-cycle-time",
   "quality-gate-latency",
@@ -279,10 +75,7 @@ const USAGE_DATA_TABLES = [
   "capability_fulfilments",
   "seu_capabilities",
   "participants",
-  // CR-098 — the participants.participant_id FK requires this to be wiped
-  // in the same TRUNCATE (Postgres resolves the whole dependency graph
-  // across every table in this one statement regardless of list order).
-  "participants_master",
+  // "participants_master",
   "deliverable_authoring_content",
   "deliverables",
   "ebms",
@@ -301,208 +94,145 @@ async function run(): Promise<void> {
     // wiped) FKs into templates/profiles, and deleting a Template/Profile
     // while a stale ebms row still referenced it would otherwise fail.
     await client.query(`TRUNCATE TABLE ${USAGE_DATA_TABLES.join(", ")} CASCADE`);
-    logger.info(`[db:clean-slate] step 1 — truncated ${USAGE_DATA_TABLES.length} usage-data tables.`);
+    logger.info(`[db:clean-slate] step 1 — truncated ${USAGE_DATA_TABLES.length} usage-data tables`);
 
-    // Step 1b — users. clean-slate is a dev/test-only reset (never run in
-    // production), so every account goes: real usage data, not a fixture. The
-    // god identity (SUPERUSER_EMAIL) is re-created automatically on the next
-    // login — passportConfig upserts the row and badgeBootstrap grants it root
-    // — so nothing needs preserving here. RESTART IDENTITY resets the serial so
-    // that first login comes back as id 1, matching the NODE_ENV=test
-    // auto-login shim and the holder_id '1' root grant 012_badge_model seeds.
-    // CASCADE covers the requested_by / user_id FKs (objectives, seus, commands,
-    // participants, attestations) — all already emptied in step 1. NOTE: this
-    // `users` table lives ONLY in the `aisworg` database; the other app's users
-    // are in a SEPARATE `endow` database (Postgres-isolated), so wiping here
-    // cannot touch them — the older "shared infrastructure" note (below, on
-    // app_config) does NOT apply to users.
-    await client.query("TRUNCATE TABLE users RESTART IDENTITY CASCADE");
-    logger.info("[db:clean-slate] step 1b — truncated users (RESTART IDENTITY); god user re-created on next login.");
-
-    // Step 1c retired (owner, 2026-09-22: "Remove badge_grant. clean-slate:
-    // remove badge_grant. I want the table dropped" — migration 260 drops
-    // badge_grants outright). Root's own authority for holder '1' no longer
-    // lives there at all — seedIdentityBaseline.ts's own step re-seeds user
-    // 1's participants_master.authorised_badges ([{"badge":"root",...}])
-    // every run, which badgeAuthorityEngine.getHeldBadges reads directly; no
-    // separate post-truncate restore is needed any more.
-
-    // Step 1d-2 — CR-079 step (a): the six new category-scoped Pack-identity
-    // concepts (migration 132), same idempotent-insert treatment as step 1d
-    // above, needed before step (b)'s validatePackSeed rewiring can check a
-    // real or test Pack's own code against its own category's vocabulary
-    // instead of capability-name.
-    for (const [conceptType, code, label] of CATEGORY_SCOPED_PACK_NAME_CONCEPTS) {
-      await client.query(
-        `INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id)
-         VALUES ($1, $2, $3, '11111111-1111-1111-1111-111111111111')
-         ON CONFLICT (concept_type, code, tenant_id, version) DO NOTHING`,
-        [conceptType, code, label]
-      );
-    }
-    logger.info(`[db:clean-slate] step 1d-2 — ensured ${CATEGORY_SCOPED_PACK_NAME_CONCEPTS.length} category-scoped Pack-name Ontology concepts.`);
-
-    // Step 1e — template-categories test concept(s) (see
-    // TEMPLATE_CATEGORY_TEST_CONCEPTS's own comment). Not consumed by any
-    // step below (cleanSlate.ts's own step 8 only ever publishes real
-    // production Templates) — this is a plain idempotent insert ensuring the
-    // concept exists in the DB before any later test run walks a Draft
-    // locked to one of these codes through publish-time Ontology validation
-    // (sdk-authoring.test.ts's CR-026 tests).
-    for (const [code, label] of TEMPLATE_CATEGORY_TEST_CONCEPTS) {
-      await client.query(
-        `INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id)
-         VALUES ('template-categories', $1, $2, '11111111-1111-1111-1111-111111111111')
-         ON CONFLICT (concept_type, code, tenant_id, version) DO NOTHING`,
-        [code, label]
-      );
-    }
-    logger.info(`[db:clean-slate] step 1e — ensured ${TEMPLATE_CATEGORY_TEST_CONCEPTS.length} template-categories test concept(s).`);
-
-    // Step 2a — every Profile, then every Template (profiles first:
-    // profiles.base_template_id -> templates is NO ACTION, so a surviving
-    // profile would block deleting the template it points at if templates
-    // went first). Cascades template_capabilities, template_packs,
-    // profile_packs automatically (real ON DELETE CASCADE FKs).
-    // dependency_definitions has a polymorphic owner (Template/Pack/Profile)
-    // that Postgres can't express as a real FK, so Template/Profile-owned
-    // rows are deleted explicitly here before their owner goes; Pack-owned
-    // rows are handled in step 2c below, alongside the Pack deletion itself.
-    // Every Template's own rows are re-materialised fresh from its own
-    // authored dependencyGraph by seedSdlcStandardTemplates()'s own call to
-    // materialiseDependencyGraph in step 7 anyway. Matches the README's own
-    // claim: "a clean-slate database has no commissionable Template."
-    const dependencyDefsForTemplatesProfilesDeleted = await client.query(
-      "DELETE FROM dependency_definitions WHERE owning_entity_type IN ('Template', 'Profile')"
+    // Step 2 — users. clean-slate is a dev/test-only reset (never run in
+    // production), so every account goes: real usage data, not a fixture. 
+    const superuserEmail = (process.env.SUPERUSER_EMAIL || "").toLowerCase();
+    await client.query(
+    `DELETE FROM participants_master
+    WHERE user_id IS DISTINCT FROM $1`,
+    [userId]
     );
+    await client.query(
+    `DELETE FROM users
+     WHERE lower(email) <> $1`,
+    [superuserEmail]
+    );
+    logger.info("[db:clean-slate] step 2 — truncated users");
+
+    // Step 3 — delete dependency definitions for templates and profiles
+    const dependencyDefsForTemplatesProfilesDeleted = await client.query(
+      "DELETE FROM dependency_definitions WHERE owning_entity_type IN ('Template', 'Profile', 'Pack')"
+    );
+    logger.info(
+      `[db:clean-slate] step 3 — deleted ${dependencyDefsForTemplatesProfilesDeleted.rowCount} Template/Profile/Pack owned dependency_definitions.`
+    );
+
+    // Step 4 — delete  profiles
     const profilesDeleted = await client.query("DELETE FROM profiles");
+    logger.info(
+      `[db:clean-slate] step 4 — deleted ${profilesDeleted.rowCount} Profiles.`
+    );
+
+    // Step 5 — delete templates
     const templatesDeleted = await client.query("DELETE FROM templates");
     logger.info(
-      `[db:clean-slate] step 2a — deleted ${dependencyDefsForTemplatesProfilesDeleted.rowCount} Template/Profile-owned dependency_definitions rows, ${profilesDeleted.rowCount} profiles, ${templatesDeleted.rowCount} templates.`
+      `[db:clean-slate] step 5 — deleted ${templatesDeleted.rowCount} templates.`
     );
 
-    // Step 2b — vocabulary rows attributed to a Pack, deleted unconditionally
-    // wherever originating_pack_id IS NOT NULL — no Pack is exempt from the
-    // wipe-and-reseed cycle, so nothing here needs a keep-by-code allow-list
-    // either: whatever Pack a kept row was attributed to would just get
-    // deleted anyway in step 2c below, orphaning the FK (real, observed for
-    // both quality_gates and policies before this was corrected). Everything
-    // real gets recreated fresh by the reseed steps further down. Order
-    // matters: services must go before capabilities
-    // (services.providing_capability_id is NO ACTION). originating_pack_id
-    // IS NULL rows are always kept — real, migration-seeded vocabulary (the
-    // 4 SDK-authoring Capabilities, 2 base Authority Rules), not
-    // Pack-attributable junk.
+    // Step 6 — delete quality gates
     const qgDeleted = await client.query("DELETE FROM quality_gates WHERE originating_pack_id IS NOT NULL");
-    const rgDeleted = await client.query("DELETE FROM review_gates WHERE originating_pack_id IS NOT NULL");
-    // checklists has a real FK into packs (NOT NULL, unlike review_gates'
-    // nullable one — every Checklist has a real originating Pack).
-    const clDeleted = await client.query("DELETE FROM checklists");
-    const policiesDeleted = await client.query("DELETE FROM policies WHERE originating_pack_id IS NOT NULL");
-    // transition_definitions.required_authority_rule_id is a real (NO ACTION)
-    // FK into authority_rules — required_policy_ids/required_quality_gate_ids
-    // are plain UUID[] columns, not real FKs, so only this one column can
-    // block the delete below. transition_definitions itself is deliberately
-    // NOT wiped in this transaction (see the NOTE below step 2e — step 4
-    // owns its own atomic wipe+reseed, run after this transaction commits),
-    // so a stale row left over from before this run can still reference an
-    // authority_rule about to be deleted here. Real, observed crash: "update
-    // or delete on table authority_rules violates foreign key constraint
-    // transition_definitions_required_authority_rule_id_fkey". Deleting the
-    // handful of stale referencing rows first is harmless — step 4 replaces
-    // the entire table moments later regardless.
-    await client.query(
-      "DELETE FROM transition_definitions WHERE required_authority_rule_id IN (SELECT id FROM authority_rules WHERE originating_pack_id IS NOT NULL)"
+    logger.info(
+      `[db:clean-slate] step 6 — deleted ${qgDeleted.rowCount} quality gates.`
     );
-    const authorityRulesDeleted = await client.query("DELETE FROM authority_rules WHERE originating_pack_id IS NOT NULL");
+
+    // Step 7 — delete review gates
+    const rgDeleted = await client.query("DELETE FROM review_gates WHERE originating_pack_id IS NOT NULL");
+    logger.info(
+      `[db:clean-slate] step 7 — deleted ${rgDeleted.rowCount} review gates.`
+    );
+
+    // Step 8 — delete checklists
+    const clDeleted = await client.query("DELETE FROM checklists");
+    logger.info(
+      `[db:clean-slate] step 8 — deleted ${clDeleted.rowCount} checklists.`
+    );
+
+    // Step 9 — delete policies
+    const policiesDeleted = await client.query("DELETE FROM policies WHERE originating_pack_id IS NOT NULL");
+    logger.info(
+      `[db:clean-slate] step 9 — deleted ${policiesDeleted.rowCount} policies.`
+    );
+
+    // Step 10 — delete authority rules
+    // const authorityRulesDeleted = await client.query("DELETE FROM authority_rules WHERE originating_pack_id IS NOT NULL");
+    // logger.info(
+    //   `[db:clean-slate] step 10 — deleted ${authorityRulesDeleted.rowCount} authority rules.`
+    // );
+
+    // Step 11 — delete services rules
     const servicesDeleted = await client.query("DELETE FROM services WHERE originating_pack_id IS NOT NULL");
-    // execution_targets (migration 025) has a NOT NULL, NO ACTION FK into
-    // capabilities (one row per Capability, "how a Participant fulfilling it
-    // is reached"), never caught by step 2d's own execution_targets delete
-    // below (tenant-scoped, for non-reserved tenants only, and runs AFTER
-    // this step anyway) — real, observed crash: "update or delete on table
-    // capabilities violates foreign key constraint
-    // execution_targets_capability_id_fkey". Must run before the
-    // capabilitiesDeleted query below.
+    logger.info(
+      `[db:clean-slate] step 11 — deleted ${servicesDeleted.rowCount} services.`
+    );
+
+    // Step 12 — delete execution targets
     const executionTargetsDeleted = await client.query(
       "DELETE FROM execution_targets WHERE capability_id IN (SELECT id FROM capabilities WHERE originating_pack_id IS NOT NULL)"
     );
-    const capabilitiesDeleted = await client.query("DELETE FROM capabilities WHERE originating_pack_id IS NOT NULL");
-    const metricsDeleted = await client.query("DELETE FROM metric_definitions WHERE identifier != ALL($1::text[])", [REAL_METRIC_IDENTIFIERS]);
-    // compliance_requirements/compliance_frameworks (Ch.27, Phase 15) — no
-    // seed Pack declares anything in `contributionsCompliance` (the 33 real
-    // Compliance Packs, step 6c, express their requirements through the
-    // ordinary contribution kinds instead), so unlike capabilities/
-    // authority_rules a NULL originating_pack_id here means "dry-run
-    // fixture," not "real, migration-seeded" — nothing to protect. Wiped
-    // unconditionally; requirements before frameworks (FK). No reseed step
-    // exists for either; compliance_waivers/compliance_evaluations are
-    // already empty by this point (CASCADEd from step 1's own seus truncate).
-    const complianceReqDeleted = await client.query("DELETE FROM compliance_requirements");
-    const complianceFwDeleted = await client.query("DELETE FROM compliance_frameworks");
     logger.info(
-      `[db:clean-slate] step 2b — deleted ${qgDeleted.rowCount} junk quality_gates, ${rgDeleted.rowCount} junk review_gates, ${clDeleted.rowCount} junk checklists, ${policiesDeleted.rowCount} policies, ${authorityRulesDeleted.rowCount} authority_rules, ${servicesDeleted.rowCount} services, ${executionTargetsDeleted.rowCount} execution_targets, ${capabilitiesDeleted.rowCount} capabilities, ${metricsDeleted.rowCount} metric_definitions, ${complianceReqDeleted.rowCount} compliance_requirements, ${complianceFwDeleted.rowCount} compliance_frameworks.`
+      `[db:clean-slate] step 12 — deleted ${executionTargetsDeleted.rowCount} execution targets.`
+    );
+    
+    // Step 13 — delete execution targets
+    const capabilitiesDeleted = await client.query("DELETE FROM capabilities WHERE originating_pack_id IS NOT NULL");
+    logger.info(
+      `[db:clean-slate] step 13 — deleted ${capabilitiesDeleted.rowCount} capabilities.`
     );
 
-    // Step 2c — every Pack, unconditionally. Safe now: every table with a NO
-    // ACTION FK into packs (authority_rules, capabilities,
-    // metric_definitions, policies, quality_gates, services), plus
-    // execution_targets' one-hop-removed FK into capabilities, has already
-    // been filtered above. template_packs/profile_packs store the Pack's
-    // code as plain text, not an FK (013_template_profile_pack_by_code.sql)
-    // — Pack deletion was never blocked by them. dependency_definitions rows
-    // owned by a Pack (CR-043's polymorphic owner — no real FK, so these
-    // would otherwise orphan silently rather than block or cascade) are
-    // cleaned up first, same as step 2a does for Template/Profile owners —
-    // no real Pack-owned rows exist today (nothing authors them yet), but
-    // this keeps the invariant true once something does.
-    // CR-080 — pack_comments (migration 137, Validated -> Draft Reject's own
-    // comment thread) has a real NO ACTION FK into packs, same as the tables
-    // named above — added here too, cleared before packsDeleted, same
-    // pattern. Currently always empty pre-reseed (nothing seeds one), so this
-    // was harmless to miss until the first real Reject actually ran — caught
-    // before that happened, not after clean-slate broke on it.
-    const packCommentsDeleted = await client.query("DELETE FROM pack_comments");
-    const dependencyDefsForPacksDeleted = await client.query("DELETE FROM dependency_definitions WHERE owning_entity_type = 'Pack'");
-    const packsDeleted = await client.query("DELETE FROM packs");
-    logger.info(`[db:clean-slate] step 2c — deleted ${packCommentsDeleted.rowCount} pack_comments, ${dependencyDefsForPacksDeleted.rowCount} Pack-owned dependency_definitions rows, ${packsDeleted.rowCount} packs.`);
+    // Step 14 — delete metrics
+    const metricsDeleted = await client.query("DELETE FROM metric_definitions WHERE identifier != ALL($1::text[])", [REAL_METRIC_IDENTIFIERS]);
+    logger.info(
+      `[db:clean-slate] step 14 — deleted ${metricsDeleted.rowCount} metrics definitions.`
+    );
 
-    // Step 2d — non-reserved Tenants (and everything FK-bound to them). The
-    // reserved tenants are fixtures that must survive: 'default' (commissioning
-    // fallback), plus CR-004's 'platform' (Platform-user home) and 'demo'
-    // (Google-OAuth sandbox). Extra tenants come from the dry-run suite or
-    // manual creation and otherwise linger in every tenant dropdown. All tenant
-    // FKs are RESTRICT (no ON DELETE CASCADE), so each dependent is cleared
-    // first, in FK order, before the tenants themselves. Rows scoped to the
-    // reserved tenants survive (config).
-    const RESERVED_TENANT_CODES = ["default", "platform", "demo"];
+    // Step 15 — delete compliance requests
+    const complianceReqDeleted = await client.query("DELETE FROM compliance_requirements");
+    logger.info(
+      `[db:clean-slate] step 15 — deleted ${complianceReqDeleted.rowCount} compliance requirements.`
+    );
+
+    // Step 16 — delete compliance requests
+    const complianceFwDeleted = await client.query("DELETE FROM compliance_frameworks");
+    logger.info(
+      `[db:clean-slate] step 16 — deleted ${complianceFwDeleted.rowCount} compliance_frameworks.`
+    );
+    
+    // Step 17 — delete pack comments
+    const packCommentsDeleted = await client.query("DELETE FROM pack_comments");
+    logger.info(
+      `[db:clean-slate] step 17 — deleted ${packCommentsDeleted.rowCount} pack comments.`
+    );
+    
+    // Step 18 — delete packs
+    // const packsDeleted = await client.query("DELETE FROM packs");
+    // logger.info(
+    //   `[db:clean-slate] step 18 — deleted ${packsDeleted.rowCount} packs.`
+    // );
+    
+    // Step 19 - reserved tenants survive
     const { rows: reservedRows } = await client.query("SELECT id FROM tenants WHERE code = ANY($1::text[])", [RESERVED_TENANT_CODES]);
     const reservedIds = reservedRows.map((r) => r.id as string);
     if (!reservedIds.length) {
       throw new Error("no reserved tenant found — migrations seed 'default'/'platform'/'demo'; refusing to wipe the tenants table without a survivor. Rolling back.");
     }
     await client.query("DELETE FROM tenant_contracts WHERE tenant_id <> ALL($1::uuid[])", [reservedIds]);
-    await client.query("DELETE FROM execution_targets WHERE tenant_id IS NOT NULL AND tenant_id <> ALL($1::uuid[])", [reservedIds]);
+    // await client.query("DELETE FROM execution_targets WHERE tenant_id IS NOT NULL AND tenant_id <> ALL($1::uuid[])", [reservedIds]);
     await client.query("DELETE FROM tenant_concept_aliases WHERE tenant_id <> ALL($1::uuid[])", [reservedIds]);
     // Tenant-added badge variants/tiers (Layer-2/3) reference a tenant; the
     // Platform-recommended defaults (tenant_id IS NULL) are vocabulary and stay.
-    await client.query("DELETE FROM badge_tiers WHERE tenant_id IS NOT NULL AND tenant_id <> ALL($1::uuid[])", [reservedIds]);
-    await client.query("DELETE FROM badge_types WHERE tenant_id IS NOT NULL AND tenant_id <> ALL($1::uuid[])", [reservedIds]);
+    // await client.query("DELETE FROM badge_tiers WHERE tenant_id IS NOT NULL AND tenant_id <> ALL($1::uuid[])", [reservedIds]);
+    // await client.query("DELETE FROM badge_types WHERE tenant_id IS NOT NULL AND tenant_id <> ALL($1::uuid[])", [reservedIds]);
     const tenantsDeleted = await client.query("DELETE FROM tenants WHERE id <> ALL($1::uuid[])", [reservedIds]);
-    logger.info(`[db:clean-slate] step 2d — deleted ${tenantsDeleted.rowCount} non-reserved tenants (+ their contracts, execution targets, aliases, badge variants).`);
+    logger.info(`[db:clean-slate] step 19 — deleted ${tenantsDeleted.rowCount} non-reserved tenants (+ their contracts and aliases).`);
 
-    // Step 2e — the schema registry (schema_definitions). createSchemaVersion is
-    // INSERT-only (never updates/deletes), so every schema version authored via
-    // the SDK UI adds a row and lingers forever — test/dry-run authoring leaves
-    // dozens-to-hundreds of stale versions (156 TransitionDefinition versions
-    // observed on a real dev DB). The migration-seeded minimum is exactly version
-    // 1 per kind (014/015/016, idempotent), which is what a "clean" DB should
-    // hold. Trim back to it: delete every version > 1. FK-safe — the only table
-    // referencing schema_definitions is deliverable_authoring_content, truncated
-    // in step 1.
-    const schemaVersionsDeleted = await client.query("DELETE FROM schema_definitions WHERE version > 1");
-    logger.info(`[db:clean-slate] step 2e — trimmed ${schemaVersionsDeleted.rowCount} authored schema_definitions versions (kept version 1 per kind).`);
-
+    // Step 2e — the schema registry (schema_definitions). 
+    // schema_definitions is a DATA_MIGRATION_TARGETS table (core/dataMigrations.ts)
+    // — no longer trimmed/seeded through clean-slate; run the "Schema
+    // definitions" Data Migration from the admin UI instead.
+    // const schemaVersionsDeleted = await client.query("DELETE FROM schema_definitions WHERE version > 1");
+    // logger.info(`[db:clean-slate] step 2e — trimmed ${schemaVersionsDeleted.rowCount} authored schema_definitions versions (kept version 1 per kind).`);
     // NOTE (CR-006): transition_definitions and the authority vocabulary
     // (nouns/verbs/mapping) are NOT wiped here in the main transaction — the
     // reseed steps below own them, each rebuilding fresh with an atomic
@@ -518,163 +248,35 @@ async function run(): Promise<void> {
     client.release();
   }
 
-  // Step 3 — restore the identity baseline (tenants + users) captured from a
-  // live dump, so a reset lands on a known identity state rather than an empty
-  // auth table. Idempotent upserts; advances the users serial past the seeded
-  // ids. Runs after the wipe (step 1b truncated users, step 2d the tenants).
+  // Seed baseline tenants
+  await seedTenantsBaseline();
+  
+  // Seed baseline users
   await seedIdentityBaseline();
+  
+  // Upload the DATAMIGRATION tables
+  // These need platform superuser ; Do every time you recover the schema. Not otherwise 
+  await seedOntologyConcepts({ authoredBy: actorId, authorBadge: actorBadge });
+  await seedRouteAuthority({ authoredBy: actorId, authorBadge: actorBadge});
+  await seedAuthorityVocabulary({ authoredBy: actorId, authorBadge: actorBadge});
+  await seedEventSubscriptions({ authoredBy: actorId, authorBadge: actorBadge}); //
+  await seedTransitionDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
+  await seedSchemaDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
+  await seedCapabilityDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
+  await seedServiceDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
+  // Create default profiles. 
 
-  // Step 3b — owner-provided worked example (example.md): an ebook library
-  // management system's Objective decomposition (owner: "Create a seed file
-  // for the objective so i do not have to create it every time. Let it stay
-  // in the proposed phase."), seeded once here rather than hand-created on
-  // every reset. Depends only on step 3's users (createObjective's own
-  // requestedBy attribution) — no Capability/Pack/Template dependency, since
-  // none of these nodes declare a required Capability.
-  await seedEbookLibraryObjectives();
-
-  // Step 3c — CR-098: clean-slate calls the Participant onboarding adapter
-  // registry (src/adapters/participantOnboardingRegistry.ts), not a
-  // hardcoded generator (owner: "clean-slate has to call the adapter. But
-  // the adapter has to be an 'adapter'. For every client deployment this
-  // will change to integrate with their specific details.") — 50
-  // participants_master rows per tenant (Athens/Babylon/Cambodia) PER
-  // registered Participant Type (AI/Human/Automated/External), 600 total,
-  // each spread across every real capability-name code. Depends only on
-  // step 3's tenants + the Ontology concepts migrations 046/050/068/071/130
-  // (capability-name), 049 (category:pack — CR-099's competency dimension
-  // vocabulary), and 194/195 (participant-types, competency values,
-  // behaviour-context-policy) already seed statically.
+  // Seed participants master
+  // This should use Demo tenant; retain on root for now
   await seedParticipantsMaster();
-
-  // Step 4 — CR-006 transition definitions: wipe the accumulated graph
-  // (incl. test-fixture pollution) and reseed fresh from
-  // transitionDefinitions.json. Atomic wipe+reseed inside the module. Must
-  // run BEFORE the vocabulary seed, which back-fills `verb` onto these
-  // fresh rows. An unresolvable requiredAuthorityRuleCode/requiredPolicyCodes
-  // entry doesn't throw — left null/[] and self-healed via
-  // backfillAuthorityRuleCode/backfillPolicyCode, called from
-  // core/packs.ts's materializeContributions during Pack publish (steps 6-7 below)
-  // — whichever Pack ends up declaring a matching code wires it up.
-  // core-engineering.pack.json (the original source of most of these codes)
-  // is not loaded: its own code collides with openup-development.pack.json's,
-  // and its capabilities duplicate what the real OpenUP packs already
-  // provide (see openup-development.pack.json's own policies for where its
-  // 12 real baseline policies live now instead).
-  await seedTransitionDefinitions();
-
-  // Step 5 — CR-006 authority vocabulary (nouns/verbs/mapping) + back-fill the
-  // verb per transition. Atomic wipe+reseed; depends on step 4's fresh rows.
-  await seedAuthorityVocabulary();
-
-  // Step 5b — Ch.30 Event Bus redesign: Event Registry + Event Subscriptions
-  // (the one real subscription, WorkItemDispatched -> assignmentDelivery,
-  // migrated off the old imperative eventBus.subscribe() call).
-  await seedEventSubscriptions();
-
-  // Step 6 — EPF/OpenUP capability-pattern Packs. Must run AFTER steps 4/5:
-  // publishing each Pack drives it through transitionEngine (Draft ->
-  // Validated -> Published -> Active), which needs Pack's own
-  // transition_definitions rows (step 4) and their back-filled verb (step 5)
-  // to resolve — every real Pack publish needs this ordering. Rerun-safe
-  // (publishPack is a no-op on an already-published (code, version)).
-  await seedCapabilityPatternPacks();
-
-  // Step 6b — domain-ebook-library / technology-nodejs / technology-c /
-  // technology-cpp, real standalone Packs. Every one depends on `development`,
-  // so must run after step 6 above. Rerun-safe.
-  await seedDomainTechnologyPacks();
-
-  // Step 6c — 33 real, standalone Compliance Packs (owner: "I added
-  // compliance packs. Wipe and seed them in clean-slate."). None declares
-  // any `dependencies` (confirmed directly), so — unlike step 6b — this
-  // doesn't need to run after anything specific; kept here for locality
-  // with the other standalone-Pack steps. Rerun-safe.
-  await seedCompliancePacks();
-
-  // Step 6d — 24 real, standalone Domain Packs (owner: "I added domain
-  // packs. These have to be seeded using cleanSlate."). Same as step 6c —
-  // no `dependencies`, no ordering requirement. Rerun-safe.
-  await seedDomainPacks();
-
-  // Step 6e — 20 real, standalone Integration Packs (owner: "added new
-  // integration-* packs"). Same as steps 6c/6d — no `dependencies`, no
-  // ordering requirement. Rerun-safe.
-  await seedIntegrationPacks();
-
-  // Step 7 — SDLC-phase Packs. Same ordering reasoning as step 6 — needs
-  // transition_definitions (step 4) and the back-filled verb (step 5) to
-  // drive Draft -> Validated -> Published -> Active. Rerun-safe.
-  await seedSdlcPhasePacks();
-
-  // Step 7a — Legacy Knowledge Recovery Pack (CR-087) — the `legacy-modernisation`
-  // capability's own Pack, no seeded Pack contributed it before. Same ordering
-  // reasoning as step 7. Rerun-safe.
-  await seedLegacyKnowledgeRecoveryPack();
-
-  // Step 7a2 — the 3 new domain-specialisation Packs CR-087's own capability
-  // call-out approved (AI Model Engineering / Embedded Firmware Engineering /
-  // Data Pipeline Engineering). Same ordering reasoning as step 7. Rerun-safe.
-  await seedDomainSpecialisationPacks();
-
-  // Step 7b — test-fixture Pack twins (one per real seed Pack, `test-`
-  // prefixed code — see seedTestFixturePacks.ts's own header). Same ordering
-  // reasoning as steps 6/7; step 1d above already ensured their Ontology
-  // concepts exist. Exists to keep tests from colliding with — and silently
-  // deprecating — the real Packs steps 6/7 just seeded (only one Pack
-  // version per code can be Active; a test file that mints its own
-  // throwaway versions under a REAL Pack's code deprecates it). Rerun-safe.
-  // await seedAllTestFixturePacks();
-
-  // Step 7c — owner: "Create atleast one pack seed json which has all the
-  // tabs populated." test-pack-all-tabs.pack.json deliberately populates
-  // every generated-form tab at once (Identity & Metadata, Compatibility,
-  // Dependencies, and every Contribution type) — a single realistic fixture
-  // for authoring-UI/validation work to exercise all of them against,
-  // unlike steps 6/6b/7's real Packs (each only populates the handful of
-  // tabs its own real content needs) or step 7b's twins (several explicitly
-  // strip reviewGates/checklists — see that file's own header). Must run
-  // after step 6 (needs architecture-solution-design, its own required
-  // dependency, already Active). Migration 140 registers its own stable
-  // engineering-name concept. Rerun-safe.
-  await seedAllTabsPackFixture();
-
-  // Step 8 — the 9 standard Templates (+ default Profiles), one per real
-  // template-categories Ontology concept, drawing on steps 6/6b/7's real
-  // Packs (core-engineering.pack.json is not loaded — see step 4's own
-  // comment). Publishes through publishTemplate/publishProfile now (the same
-  // validated entry points the interactive SDK authoring flow uses —
-  // validateTemplateSeed/validateProfileSeed, Ontology-checked — instead of
-  // calling templatesDB.upsert/profilesDB.upsert directly). Underneath, both
-  // are still a direct upsert, not transitionEngine-driven (unlike Pack's own
-  // Draft -> Validated -> Published -> Active walk), so still no dependency
-  // on steps 4/5 themselves. Must run after step 7 (needs its Packs'
-  // Capabilities to exist). Rerun-safe (upsert semantics).
-  await seedSdlcStandardTemplates();
-
-  // Step 9 — CR-089's 34 canonical Policy Definitions (design/fragments/
-  // policies.md), one JSON file per Policy (src/dblayer/seed/data/policy-*.json).
-  // A standalone catalog table with no relationship to any other entity
-  // (owner: "there is no relationship with any other entity") — no
-  // dependency on any prior step's Packs/Templates; only real Ontology
-  // vocabulary (deliverable-name, category:environment, category:policy —
-  // all seeded by the base schema/earlier migrations, not by any step
-  // above). Upsert semantics (ON CONFLICT DO UPDATE), rerun-safe, and never
-  // wipes a real author's own in-progress Draft the way a blanket TRUNCATE
-  // would (same reasoning schema_definitions' own step 2e trims-back-rather-
-  // than-wipes for).
-  await seedPolicyDefinitions();
-
-  // Step 10 — CR-104 validation fixtures (owner: "Create seed data similar
-  // to the test data you created for testing CR-104... so I can use that as
-  // the base for my further validation"): a real, Platform-Mandatory Pack
-  // (composes into every Template automatically) plus a second Pack, adopted
-  // only by its own dedicated Profile (baseTemplateCode "saas-product"),
-  // carrying an SEU-scoped Policy and an Eligibility-scoped Policy. Must run
-  // after step 8 (needs the real "saas-product" Template/Profile to already
-  // exist). Rerun-safe.
-  await seedCr104Demo();
-
+  
+  await seedPolicyDefinitions({ authoredBy: actorId, authorBadge: actorBadge });
+  await seedCapabilityPatternPacks({ authoredBy: actorId, authorBadge: actorBadge });
+  await seedSdlcStandardTemplates({ authoredBy: actorId, authorBadge: actorBadge });
+  await seedEbookLibraryObjectives(); // this needs an upgrade
+  await seedCr104Demo({ authoredBy: actorId, authorBadge: actorBadge });
+  
+  
   logger.info("[db:clean-slate] done. Sanity-check next: hit /aisworg/seu/sdk/pack-authoring (Create starts a fresh Draft directly — no bootstrap Template needed) and /aisworg/seu/telemetry (zero Deliverables measured) as a real user.");
 }
 

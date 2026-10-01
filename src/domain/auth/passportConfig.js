@@ -7,6 +7,8 @@ const bcrypt          = require('bcryptjs');
 
 import { userDB }  from '../../dblayer/userDB.js';
 import { tenantsDB } from '../../dblayer/tenantsDB.js';
+import {participantsMasterDB} from '../../dblayer/participantsMasterDB.js';
+import {DEMO_TENANT_NAME} from '../../dblayer/constants.js';
 import { logger }  from '../../utils/logger.js';
 
 const SUPERUSER_EMAIL = (process.env.SUPERUSER_EMAIL || '').toLowerCase();
@@ -14,6 +16,7 @@ const SUPERUSER_EMAIL = (process.env.SUPERUSER_EMAIL || '').toLowerCase();
 function applyRoleOverride(user) {
   if (SUPERUSER_EMAIL && user.email.toLowerCase() === SUPERUSER_EMAIL) {
     user.role = 'super';
+    user.tenant_id = '';
   }
   return user;
 }
@@ -49,29 +52,60 @@ export function configurePassport() {
           }
 
           if (!user) {
+
+            // A Platform tenant has to exist by default. Otherwise create one. 
+            const existing = await tenantsDB.ensurePlatformTenant();
+            if (existing.error) return done(existing.error);
+
+            const isSuper = SUPERUSER_EMAIL && email.toLowerCase() === SUPERUSER_EMAIL;
+
             // CR-004: the SUPERUSER is the platform identity; every other Google
             // self-signup lands active in the operational 'demo' sandbox tenant
             // (frictionless play), never Platform.
-            const isSuper = SUPERUSER_EMAIL && email.toLowerCase() === SUPERUSER_EMAIL;
             const homeCode = isSuper ? 'platform' : 'demo';
-            const { data: home } = await tenantsDB.findByCode(homeCode);
             user = await userDB.create({
               email,
               name:          profile.displayName,
               avatar_url:    profile.photos?.[0]?.value || null,
-              role:          'general',
+              // role:          'general',
               auth_provider: 'google',
               provider_id:   profile.id,
               is_active:     true,
               type:          isSuper ? 'Platform' : 'Tenant',
-              tenant_id:     home?.id ?? null,
+              tenant_id: existing.data
             });
-            logger.info(`[Auth] New Google user created: ${email} (${isSuper ? 'Platform' : 'Tenant/demo'})`);
+            logger.info(`[Auth] New Google user created: (${isSuper ? 'Platform' : 'Tenant/demo'})`);
           } else {
             await userDB.updateLastLogin(email);
           }
+          // insert this userid in participants_master table if not already present
+          const {data: existingParticipant, error: participantLookupErr} = await participantsMasterDB.findByUserId(user.id);
+          if (participantLookupErr) return done(participantLookupErr);
+          if (!existingParticipant) {
+            const isSuper = SUPERUSER_EMAIL && user.email.toLowerCase() === SUPERUSER_EMAIL;
+            let participantTenantId;
+            if (isSuper) {
+              const {data, error} = await tenantsDB.ensurePlatformTenant();
+              if (error) return done(error);
+              participantTenantId = data;
+            } else {
+              const {data, error} = await tenantsDB.findByName(DEMO_TENANT_NAME);
+              if (error) return done(error);
+              participantTenantId = data.id;
+            }
 
-          applyRoleOverride(user);
+            const {error: participantCreateErr} = await participantsMasterDB.create({
+              tenantId: participantTenantId,
+              type: 'Human',
+              displayName: user.name || user.email,
+              authorisedRole: isSuper ? [{role: 'superuser', effective_till: '9999-12-31', seu_ids: []}] : [],
+              authorisedBadges: isSuper ? [{badge: 'root', effective_till: '9999-12-31', seu_ids: []}] : [],
+              userId: user.id,
+            });
+            if (participantCreateErr) return done(participantCreateErr);
+          }
+
+          // applyRoleOverride(user);
 
           if (!user.is_active) {
             return done(null, false, { message: 'disabled' });

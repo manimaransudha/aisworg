@@ -17,9 +17,13 @@ import { tenantsDB } from "../dblayer/tenantsDB.js";
 import { badgeTypesDB } from "../dblayer/badgeTypesDB.js";
 import { participantsMasterDB } from "../dblayer/participantsMasterDB.js";
 import { transitionDefinitionsDB } from "../dblayer/transitionDefinitionsDB.js";
-import { PLATFORM_TENANT_ID } from "../dblayer/constants.js";
 import type { TenantRow, BadgeTypeRow } from "../dblayer/seuTypes.js";
 import { logger } from "../utils/logger.js";
+import { PLATFORM_TENANT_NAME } from "../dblayer/constants.js";
+
+let result = await tenantsDB.ensurePlatformTenant();
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data;
 
 const SUPERUSER_EMAIL = (process.env.SUPERUSER_EMAIL || "").toLowerCase();
 
@@ -135,7 +139,7 @@ export async function isAssumableBadgeCode(code: string, tenantId: string | null
  */
 export async function setActingNounVerbBadge(
   req: Request,
-  input: { userId: number; tenantId: string | null; badgeType: string | null; previousBadgeType: string | null }
+  input: { userId: string; tenantId: string | null; badgeType: string | null; previousBadgeType: string | null }
 ): Promise<void> {
   if (!devActAsAvailable(req)) return;
   const toAdd = input.badgeType && input.badgeType !== "root" ? input.badgeType : null;

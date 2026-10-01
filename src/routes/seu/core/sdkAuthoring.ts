@@ -18,13 +18,13 @@
 //     both). The authorisation model is identical for all three — NOT a
 //     special authoring path.
 import { packsDB } from "../../../dblayer/packsDB.js";
-import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { profilesDB } from "../../../dblayer/profilesDB.js";
 import { deliverableDefinitionsDB } from "../../../dblayer/deliverableDefinitionsDB.js";
 import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
 import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
 import { capabilityDefinitionsDB } from "../../../dblayer/capabilityDefinitionsDB.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import {
   advancePackOneStep, validatePackSeed, packMetadataFromSeed, findActiveCompositionSource, packCodeVersionSummaries, alternateBadgesForPackTransition,
   type PackSeedInput,
@@ -61,6 +61,12 @@ import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsD
 import { listCurrentTransitionDefinitions } from "./transitionDefinitions.js";
 import type { CapabilityRole, EvidenceDefinition, PackContributions, PackRow, PolicyCondition, ProfileRow, SchemaDefinitionEntityKind, ServiceLevelExpectation, TemplateRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { randomUUID } from "node:crypto";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 // ---------------------------------------------------------------------------
 // Content reassembly (unchanged from the previous flattened-form handling).
@@ -1132,7 +1138,7 @@ async function withDefaultTemplatePurpose(content: Record<string, unknown>, code
 // `value` is unregistered under its own `dimension`'s (lower-cased) concept
 // type exactly the same way an unregistered Pack `code` is unregistered
 // under its category's `-name` concept type.
-async function emitConceptCreatedForCompetencies(packId: string, packCode: string, competencies: Array<{ dimension?: string; value?: string }> | undefined, ctx: { actorId?: string | null; badge?: string | null; tenantId?: string }): Promise<void> {
+async function emitConceptCreatedForCompetencies(packId: string, packCode: string, competencies: Array<{ dimension?: string; value?: string }> | undefined, ctx: { actorId: string; badge: string; tenantId?: string }): Promise<void> {
   for (const comp of competencies ?? []) {
     if (!comp.dimension?.trim() || !comp.value?.trim()) continue;
     await emitConceptCreated({ originatingObjectType: "Pack", originatingObjectId: packId, originatingEntityCode: packCode, code: comp.value, conceptType: comp.dimension.toLowerCase(), ...ctx });
@@ -1155,8 +1161,8 @@ async function emitConceptCreatedForCompetencies(packId: string, packCode: strin
 // draft) before calling this; every per-kind branch below uses it both for
 // the DB write's own schema_definition_id column and for whichever grammar
 // proposeComposableOntologyValues/etc. run against.
-export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntityKind; actorId: string; tenantId?: string; parentTemplateId?: string; parentProfileId?: string; parentDeliverableDefinitionId?: string; parentServiceDefinitionId?: string; parentPolicyDefinitionId?: string; parentCapabilityDefinitionId?: string; content: Record<string, unknown>; schemaDefinitionId: string }): Promise<AuthoringResult> {
-  const authoredBy = Number(input.actorId);
+export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntityKind; actorId: string; authorBadge: string; tenantId?: string; parentTemplateId?: string; parentProfileId?: string; parentDeliverableDefinitionId?: string; parentServiceDefinitionId?: string; parentPolicyDefinitionId?: string; parentCapabilityDefinitionId?: string; content: Record<string, unknown>; schemaDefinitionId: string }): Promise<AuthoringResult> {
+  const authoredBy = input.actorId;
   if (input.kind === "Pack") {
     // A Pack Draft is created directly (status Draft) from the authored content;
     // full structural/referential validation is the publish-time gate, not the
@@ -1167,6 +1173,12 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     const seed = toPackSeedInput(input.content);
     const collision = await assertPackCodeVersionFree(seed.code, seed.packVersion, input.tenantId ?? PLATFORM_TENANT_ID);
     if (collision) return { ok: false, errors: [collision] };
+    // authored_by/author_badge are NOT NULL, participants_master-scoped (same
+    // convention as Template/Profile above) — resolve the real participant +
+    // the real badge requireBadge already verified upstream, never a default.
+    const { data: packMaster } = await participantsMasterDB.findById(authoredBy);
+    if (!packMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+    if (!input.authorBadge) return { ok: false, errors: ["no author badge resolved for this Pack write"] };
     const { data: pack, error } = await packsDB.create({
       code: seed.code,
       name: (seed.name as string) || "(untitled Pack)",
@@ -1177,8 +1189,9 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       dependencies: seed.dependencies,
       compositionSources: seed.compositionSources,
       metadata: packMetadataFromSeed(seed),
-      authoredBy,
-      tenantId: input.tenantId,
+      authoredBy: packMaster.id,
+      authorBadge: input.authorBadge,
+      tenantId: input.tenantId ?? PLATFORM_TENANT_ID,
       schemaDefinitionId: input.schemaDefinitionId,
     });
     if (error || !pack) return { ok: false, errors: [(error ?? new Error("failed to create Pack draft")).message] };
@@ -1235,7 +1248,14 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     const collision = await assertTemplateCodeVersionFree(code, templateVersion, tenantId);
     if (collision) return { ok: false, errors: [collision] };
     const draftContent = await withDefaultTemplatePurpose({ ...input.content, code }, code, tenantId);
-    const { data: t, error } = await templatesDB.createDraft({ code, name: (draftContent.name as string) || "(untitled Template)", templateVersion, authoredBy, draftContent, tenantId, parentTemplateId: input.parentTemplateId ?? null, schemaDefinitionId: input.schemaDefinitionId });
+    // templates.authored_by/author_badge are participants_master-scoped and
+    // NOT NULL (same discipline as service_definitions/capability_definitions
+    // above) -- resolve the real participant + the real badge requireBadge
+    // already verified upstream, never a default.
+    const { data: templateMaster } = await participantsMasterDB.findById(authoredBy);
+    if (!templateMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+    if (!input.authorBadge) return { ok: false, errors: ["no author badge resolved for this Template write"] };
+    const { data: t, error } = await templatesDB.createDraft({ code, name: (draftContent.name as string) || "(untitled Template)", templateVersion, authoredBy: templateMaster.id, authorBadge: input.authorBadge, draftContent, tenantId, parentTemplateId: input.parentTemplateId ?? null, schemaDefinitionId: input.schemaDefinitionId });
     if (error || !t) return { ok: false, errors: [(error ?? new Error("failed to create Template draft")).message] };
     // CR-113 — Template's own `code` is x-ontology-composable (mirrors
     // Pack's own `code`): an unregistered value is proposed, not rejected,
@@ -1272,12 +1292,20 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     const collision = await assertProfileCodeVersionFree(code, profileVersion, tenantId);
     if (collision) return { ok: false, errors: [collision] };
 
+    // profiles.authored_by/author_badge are participants_master-scoped and
+    // NOT NULL (same discipline as Template/Service/Capability above) —
+    // resolve the real participant + the real badge requireBadge already
+    // verified upstream, never a default.
+    const { data: profileMaster } = await participantsMasterDB.findById(authoredBy);
+    if (!profileMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+    if (!input.authorBadge) return { ok: false, errors: ["no author badge resolved for this Profile write"] };
     const { data: p, error } = await profilesDB.createDraft({
       code,
       name: (input.content.name as string) || "(untitled Profile)",
       baseTemplateId: template.id,
       environment: (input.content.environment as string) || "development",
-      authoredBy,
+      authoredBy: profileMaster.id,
+      authorBadge: input.authorBadge,
       draftContent: { ...input.content, code },
       profileVersion,
       tenantId,
@@ -1309,11 +1337,19 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     }
     const validation = await validateDeliverableDefinitionSeed({ ...seed, tenantId, parentDeliverableDefinitionId: input.parentDeliverableDefinitionId }, undefined);
     if (!validation.ok) return { ok: false, errors: validation.errors };
+    // deliverable_definitions.authored_by/author_badge are participants_
+    // master-scoped and NOT NULL (same discipline as Template/Profile above)
+    // — resolve the real participant + the real badge requireBadge already
+    // verified upstream, never a default.
+    const { data: deliverableMaster } = await participantsMasterDB.findById(authoredBy);
+    if (!deliverableMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+    if (!input.authorBadge) return { ok: false, errors: ["no author badge resolved for this Deliverable Definition write"] };
     const { data: d, error } = await deliverableDefinitionsDB.createDraft({
       code: seed.code,
       description: seed.description ?? null,
       version: seed.definitionVersion,
-      authoredBy,
+      authoredBy: deliverableMaster.id,
+      authorBadge: input.authorBadge,
       draftContent: input.content,
       tenantId,
       parentDeliverableDefinitionId: input.parentDeliverableDefinitionId ?? null,
@@ -1335,6 +1371,14 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     }
     const validation = await validateServiceDefinitionSeed({ ...seed, tenantId, parentServiceDefinitionId: input.parentServiceDefinitionId }, undefined);
     if (!validation.ok) return { ok: false, errors: validation.errors };
+    // service_definitions.authored_by/author_badge are participants_master-
+    // scoped and NOT NULL (unlike every other kind here, still a raw bigint
+    // users.id) -- resolve the real participant + the real badge requireBadge
+    // already verified upstream (web/sdkAuthoring.ts's requireAuthoring),
+    // never a default.
+    const { data: serviceMaster } = await participantsMasterDB.findById(authoredBy);
+    if (!serviceMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+    if (!input.authorBadge) return { ok: false, errors: ["no author badge resolved for this Service Definition write"] };
     const { data: s, error } = await serviceDefinitionsDB.createDraft({
       code: seed.code,
       name: seed.name,
@@ -1347,7 +1391,8 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       success: seed.success ?? null,
       consumers: seed.consumers ?? [],
       version: seed.version,
-      authoredBy,
+      authoredBy: serviceMaster.id,
+      authorBadge: input.authorBadge,
       draftContent: input.content,
       tenantId,
       parentServiceDefinitionId: input.parentServiceDefinitionId ?? null,
@@ -1368,6 +1413,12 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     }
     const validation = await validatePolicyDefinitionSeed({ ...seed, tenantId, parentPolicyDefinitionId: input.parentPolicyDefinitionId }, undefined, true);
     if (!validation.ok) return { ok: false, errors: validation.errors };
+    // policy_definitions.authored_by/author_badge are NOT NULL,
+    // participants_master-scoped -- resolve the real participant + the real
+    // badge requireBadge already verified upstream, never a default.
+    const { data: policyMaster } = await participantsMasterDB.findById(authoredBy);
+    if (!policyMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+    if (!input.authorBadge) return { ok: false, errors: ["no author badge resolved for this Policy Definition write"] };
     const { data: p, error } = await policyDefinitionsDB.createDraft({
       code: seed.code,
       name: seed.name,
@@ -1378,7 +1429,8 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       conditions: seed.conditions ?? [],
       scope: seed.scope,
       version: seed.version,
-      authoredBy,
+      authoredBy: policyMaster.id,
+      authorBadge: input.authorBadge,
       draftContent: input.content,
       tenantId,
       parentPolicyDefinitionId: input.parentPolicyDefinitionId ?? null,
@@ -1402,13 +1454,22 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     }
     const validation = await validateCapabilityDefinitionSeed({ ...seed, tenantId, parentCapabilityDefinitionId: input.parentCapabilityDefinitionId }, undefined);
     if (!validation.ok) return { ok: false, errors: validation.errors };
+    // capability_definitions.authored_by/author_badge are participants_master-
+    // scoped and NOT NULL (unlike every other kind here, still a raw bigint
+    // users.id) -- resolve the real participant + the real badge requireBadge
+    // already verified upstream (web/sdkAuthoring.ts's requireAuthoring),
+    // never a default.
+    const { data: capabilityMaster } = await participantsMasterDB.findById(authoredBy);
+    if (!capabilityMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+    if (!input.authorBadge) return { ok: false, errors: ["no author badge resolved for this Capability Definition write"] };
     const { data: c, error } = await capabilityDefinitionsDB.createDraft({
       code: seed.code,
       defaultLabel: seed.defaultLabel,
       description: seed.description ?? null,
       roles: seed.roles ?? [],
       version: seed.version,
-      authoredBy,
+      authoredBy: capabilityMaster.id,
+      authorBadge: input.authorBadge,
       draftContent: input.content,
       tenantId,
       parentCapabilityDefinitionId: input.parentCapabilityDefinitionId ?? null,
@@ -1452,10 +1513,12 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     // so Save always runs proposeComposableOntologyValues against this
     // row's OWN already-pinned version, never a freshly submitted one.
     const { data: packSchema } = existingPack.schema_definition_id ? await schemaDefinitionsDB.findById(existingPack.schema_definition_id) : await schemaDefinitionsDB.findLatest("Pack");
-    if (packSchema) {
+    if (packSchema && input.actorId) {
       await proposeComposableOntologyValues(packSchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Pack", originatingObjectId: input.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: "pack_define", tenantId: existingPack.tenant_id });
     }
-    await emitConceptCreatedForCompetencies(input.id, seed.code, seed.contributions.competencies, { actorId: input.actorId, badge: "pack_define", tenantId: existingPack.tenant_id });
+    if (input.actorId) {
+      await emitConceptCreatedForCompetencies(input.id, seed.code, seed.contributions.competencies, { actorId: input.actorId, badge: "pack_define", tenantId: existingPack.tenant_id });
+    }
     return { ok: true };
   }
   if (input.kind === "Template") {
@@ -1483,7 +1546,7 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     // branch above: run against this row's OWN pinned version, never a
     // freshly submitted one.
     const { data: templateSchema } = existingTemplate.schema_definition_id ? await schemaDefinitionsDB.findById(existingTemplate.schema_definition_id) : await schemaDefinitionsDB.findLatest("Template");
-    if (templateSchema) {
+    if (templateSchema && input.actorId) {
       await proposeComposableOntologyValues(templateSchema.schema as JsonSchemaDocument, draftContent, { originatingObjectType: "Template", originatingObjectId: input.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: "template_define", tenantId: existingTemplate.tenant_id });
     }
     return { ok: true };
@@ -1517,7 +1580,7 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     // CR-114 follow-on — same immutable-once-set pin as Pack's own save
     // branch above.
     const { data: profileSchema } = existingProfile.schema_definition_id ? await schemaDefinitionsDB.findById(existingProfile.schema_definition_id) : await schemaDefinitionsDB.findLatest("Profile");
-    if (profileSchema) {
+    if (profileSchema && input.actorId) {
       await proposeComposableOntologyValues(profileSchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Profile", originatingObjectId: input.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: "profile_define", tenantId: existingProfile.tenant_id });
     }
     return { ok: true };
@@ -1566,7 +1629,7 @@ export async function saveAuthoringDraft(input: { kind: SchemaDefinitionEntityKi
     // CR-114 follow-on — same immutable-once-set pin as Pack's own save
     // branch above.
     const { data: policySchema } = existing.schema_definition_id ? await schemaDefinitionsDB.findById(existing.schema_definition_id) : await schemaDefinitionsDB.findLatest("Policy");
-    if (policySchema) {
+    if (policySchema && input.actorId) {
       await proposeComposableOntologyValues(policySchema.schema as JsonSchemaDocument, input.content, { originatingObjectType: "Policy", originatingObjectId: input.id, originatingEntityCode: seed.code, actorId: input.actorId, badge: "policy_define", tenantId: existing.tenant_id });
     }
     return { ok: true };
@@ -1655,7 +1718,7 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
       // publish time." Mirrors Pack's own split.
       const validation = await validateTemplateSeed(seed, { skipComposableChecks: true });
       if (!validation.ok) return { ok: false, errors: validation.errors };
-      const materialiseResult = await materialiseTemplateDraft(t.id, seed);
+      const materialiseResult = await materialiseTemplateDraft(t.id, seed, t.authored_by, t.author_badge);
       if (!materialiseResult.ok) return materialiseResult;
     }
     if (t.status === "Validated") {
@@ -1679,7 +1742,7 @@ export async function publishAuthoringDraft(input: { kind: SchemaDefinitionEntit
       const seed = toProfileSeedInput({ code: p.code, name: p.name, ...(p.draft_content ?? {}), profileVersion: p.profile_version, tenantId: p.tenant_id, parentProfileId: p.parent_profile_id });
       const validation = await validateProfileSeed(seed);
       if (!validation.ok) return { ok: false, errors: validation.errors };
-      const materialiseResult = await materialiseProfileDraft(p.id, seed);
+      const materialiseResult = await materialiseProfileDraft(p.id, seed, p.authored_by, p.author_badge);
       if (!materialiseResult.ok) return materialiseResult;
     }
     if (p.status === "Validated") {

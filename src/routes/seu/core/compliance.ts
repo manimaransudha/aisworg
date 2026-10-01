@@ -178,7 +178,7 @@ export async function evaluateCompliance(seuId: string, opts?: { persist?: boole
   return { seuId, status, frameworks: frameworkCodes, results, conflicts, counts };
 }
 
-export async function grantWaiver(input: { seuId: string; requirementCode: string; rationale: string; grantedBy?: number | null; expiresAt?: string | null }) {
+export async function grantWaiver(input: { seuId: string; requirementCode: string; rationale: string; grantedBy: string; authorBadge: string; expiresAt?: string | null }) {
   const { data: requirement } = await complianceDB.findRequirementByCode(input.requirementCode);
   if (!requirement) throw new Error(`compliance requirement not found: ${input.requirementCode}`);
   const { data: waiver, error } = await complianceDB.grantWaiver(input);

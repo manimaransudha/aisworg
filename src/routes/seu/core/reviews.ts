@@ -5,6 +5,8 @@
 // immutable (FR-25.5) and that Governance consumes via the Quality Gate (step 2).
 import { reviewsDB } from "../../../dblayer/reviewsDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
+import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
@@ -12,6 +14,16 @@ import { eventBus } from "../../../domain/engine/eventBus.js";
 import type { ReviewOutcome, ReviewRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 
 const PASSING_OUTCOMES = new Set<ReviewOutcome>(["Passed", "Passed with Recommendations"]);
+
+// reviews.author_id is a `participants` row (SEU-scoped engagement), not a
+// participants_master row directly — same two-hop resolution as evidence.ts.
+async function resolveAuthorId(seuId: string, actorId: string): Promise<string> {
+  const { data: master } = await participantsMasterDB.findById(actorId);
+  if (!master) throw new Error(`No superuser provisioned.`);
+  const { data: participant } = await participantsDB.findBySeuIdAndParticipantMasterId(seuId, master.id);
+  if (!participant) throw new Error(`actor ${actorId} has no participant engagement in SEU ${seuId}`);
+  return participant.id;
+}
 
 export async function createReview(input: {
   seuId: string;
@@ -26,12 +38,16 @@ export async function createReview(input: {
   // response to a gate's declared prompt/participant contract; null for a
   // standalone Review unrelated to any gate.
   reviewGateId?: string | null;
+  actorId: string;
+  authorBadge: string;
 }): Promise<ReviewRow> {
   if (input.relatedObjectType === "Deliverable") {
     const { data: deliverable } = await deliverablesDB.findById(input.relatedObjectId);
     if (!deliverable) throw new Error(`deliverable not found: ${input.relatedObjectId}`);
     if (deliverable.seu_id !== input.seuId) throw new Error(`deliverable ${input.relatedObjectId} does not belong to SEU ${input.seuId}`);
   }
+
+  const authorId = await resolveAuthorId(input.seuId, input.actorId);
 
   const { data: review, error } = await reviewsDB.create({
     seuId: input.seuId,
@@ -42,6 +58,8 @@ export async function createReview(input: {
     criteria: input.criteria,
     reviewer: input.reviewer,
     reviewGateId: input.reviewGateId,
+    authorId,
+    authorBadge: input.authorBadge,
   });
   if (error || !review) throw error ?? new Error("failed to create review");
 
@@ -99,21 +117,24 @@ export async function transitionReview(input: {
 
   const fromState = review.status;
 
-  // Governance still evaluates a gate on the Review's own lifecycle for
-  // uniformity (there are none seeded on Review today, so this passes).
-  const qualityGateResult = await qualityGateEngine.evaluate({ entityType: "Review", entityId: review.id, seuId: review.seu_id, fromState, toState: input.targetState });
-  if (qualityGateResult.outcome === "Blocked") {
-    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
-  }
-
   const gate = await transitionEngine.evaluate({ entityType: "Review", fromState, toState: input.targetState, actorRole: input.actorRole,
-    actorId: input.actorId, context: { review } });
+    actorId: input.actorId ?? "", entityId: review.id, context: { review } });
   if (!gate.allowed) {
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Review ${fromState} -> ${input.targetState}` };
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
     if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
     if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
+  }
+
+  // Governance still evaluates a gate on the Review's own lifecycle for
+  // uniformity (there are none seeded on Review today, so this passes).
+  if (!input.actorId) throw new Error("actorId is required to transition a Review");
+  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for Review ${fromState} -> ${input.targetState} — Transition Definition declares no verb`);
+  const authorId = await resolveAuthorId(review.seu_id, input.actorId);
+  const qualityGateResult = await qualityGateEngine.evaluate({ entityType: "Review", entityId: review.id, seuId: review.seu_id, fromState, toState: input.targetState, authorId, authorBadge: gate.authorityBadge });
+  if (qualityGateResult.outcome === "Blocked") {
+    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
   }
 
   let updated: ReviewRow;

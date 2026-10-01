@@ -66,8 +66,8 @@ router.post("/tenant-admin/users/:id/badges", async (req: Request, res: Response
   // reset the tenant_super's search/filter/sort state.
   const back = safeBack(req, usersBackTo);
   if (!tenantId) return flashError(req, res, back, "Your account has no tenant assigned.");
-  const userId = Number(req.params.id);
-  if (!Number.isInteger(userId)) return flashError(req, res, back, "Invalid user id.");
+  const userId = String(req.params.id);
+  if (!userId) return flashError(req, res, back, "Invalid user id.");
   // A <select multiple> posts one badge per selection under the same key —
   // express's urlencoded parser gives an array for 2+, a single selection
   // arrives as a bare string, so both shapes need normalising.

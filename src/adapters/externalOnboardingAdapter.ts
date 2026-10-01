@@ -30,6 +30,7 @@ export const externalOnboardingAdapter: ParticipantOnboardingAdapter = {
       cost: 600 + (i % 10) * 75,
       behaviourContext: [],
       authorisedRole: mockDefaultAuthorisedRole(),
+      userId: null,
     };
   },
 };

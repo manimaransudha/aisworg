@@ -45,8 +45,8 @@ router.post("/dev/act-as", async (req: Request, res: Response) => {
 
     (req.session as unknown as { actAs?: { tenantId: string | null; badgeType: string } }).actAs = { tenantId, badgeType };
 
-    const userId = req.session?.user?.id != null ? Number(req.session.user.id) : null;
-    if (userId != null && Number.isInteger(userId)) {
+    const userId = req.session?.user?.id != null ? String(req.session.user.id) : null;
+    if (userId != null) {
       await setActingNounVerbBadge(req, { userId, tenantId, badgeType, previousBadgeType: previous?.badgeType ?? null });
     }
 
@@ -62,8 +62,8 @@ router.post("/dev/act-as", async (req: Request, res: Response) => {
 router.post("/dev/act-as/reset", async (req: Request, res: Response) => {
   const back = (req.headers.referer as string) || "/aisworg";
   const previous = currentActAs(req);
-  const userId = req.session?.user?.id != null ? Number(req.session.user.id) : null;
-  if (userId != null && Number.isInteger(userId) && previous) {
+  const userId = req.session?.user?.id != null ? String(req.session.user.id) : null;
+  if (userId != null && previous) {
     await setActingNounVerbBadge(req, { userId, tenantId: previous.tenantId, badgeType: null, previousBadgeType: previous.badgeType });
   }
   delete (req.session as unknown as { actAs?: unknown }).actAs;

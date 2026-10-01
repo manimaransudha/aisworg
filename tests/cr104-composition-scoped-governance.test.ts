@@ -29,7 +29,7 @@ import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { policyEngine } from "../src/domain/engine/policyEngine.js";
 import { resolveOwningScope } from "../src/domain/engine/seuCompositionScope.js";
-import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded } from "./testFixtures.js";
+import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 // A category "Organisation" Pack's own `code` must be a canonical
 // organisation-name Ontology concept (validatePackSeed, packs.ts) — same
@@ -75,8 +75,8 @@ async function commissionAgainstTemplate(templateId: string, statementPrefix: st
   await ensureEventSubscriptionsLoaded();
   const { objective: root } = await createObjective({ statement: `${statementPrefix}-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed" });
   const { objective } = await createObjective({ statement: `${statementPrefix}-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: 1001 });
-  const { data: profile } = await profilesDB.upsert({ code: `${statementPrefix}-profile-${randomUUID()}`, name: statementPrefix, baseTemplateId: templateId, environment: "development" });
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [templateId], profileIds: [profile!.id], actorRole: "super", actorId: "1001" });
+  const { data: profile } = await profilesDB.upsert({ code: `${statementPrefix}-profile-${randomUUID()}`, name: statementPrefix, baseTemplateId: templateId, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
+  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [templateId], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : undefined);
   if (!requested.ok) throw new Error("unreachable");
   // CR-104 — this file drives several full commissioning cycles (2-4 SEUs
@@ -85,7 +85,7 @@ async function commissionAgainstTemplate(templateId: string, statementPrefix: st
   // (not a wider shared default) gives this specific heavy caller headroom
   // under real concurrent suite load without masking genuine slowness in
   // every other, lighter caller of this same fixture.
-  const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: "1001", timeoutMs: 30000 });
+  const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: TESTER_ALL_ID, timeoutMs: 30000 });
   assert.equal(result.ok, true, !result.ok ? `Compose EBM failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
   return result.seu;
@@ -111,7 +111,7 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
     },
   };
   await registerOrganisationName(scopedPack.code);
-  const published = await publishPack({ seed: scopedPack as any, actorRole: "super", actorId: "1001", activate: true });
+  const published = await publishPack({ seed: scopedPack as any, actorRole: "super", actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `scoped pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
   const { data: packRow } = await packsDB.findActiveByCode(scopedPack.code);
   assert.ok(packRow, "sanity check: the pack is really Active");
@@ -135,6 +135,8 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
     governedTransition: "Deliverable|Defined|In Progress",
     condition: { type: "always_true" },
     originatingPackId: packRow!.id,
+    authorId: packRow!.authored_by,
+    authorBadge: packRow!.author_badge,
   });
   assert.ok(!policyErr && policyRow, "scoped policy must upsert");
 
@@ -143,7 +145,7 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
 
   // Template A mandates the scoped Pack; Template B mandates nothing.
   const { data: templateWithPack } = await templatesDB.upsert({ code: `cr104-tpl-with-pack-${run}`, name: "CR-104 With Pack", deliverableCatalogue: [] });
-  await templatesDB.setMandatoryPacks(templateWithPack!.id, [scopedPack.code]);
+  await templatesDB.setMandatoryPacks(templateWithPack!.id, [scopedPack.code], ROOT_ACTOR_ID, "root");
   await templatesDB.setRequiredCapabilities(templateWithPack!.id, []);
   const { data: templateWithoutPack } = await templatesDB.upsert({ code: `cr104-tpl-without-pack-${run}`, name: "CR-104 Without Pack", deliverableCatalogue: [] });
   await templatesDB.setRequiredCapabilities(templateWithoutPack!.id, []);
@@ -196,30 +198,32 @@ test("CR-104: policyEngine.evaluate blocks on an unsatisfied 'Policy' constraint
   // Pack 1: only a Standard (non-blocking) policy.
   const standardPack = { code: `cr104-standard-pack-${run}`, name: "CR-104 Standard Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   await registerOrganisationName(standardPack.code);
-  assert.ok((await publishPack({ seed: standardPack as any, actorRole: "super", actorId: "1001", activate: true })).ok);
+  assert.ok((await publishPack({ seed: standardPack as any, actorRole: "super", actorId: TESTER_ALL_ID, activate: true })).ok);
   const { data: standardPackRow } = await packsDB.findActiveByCode(standardPack.code);
   const { data: standardPolicy } = await policiesDB.upsert({
     code: `cr104-standard-policy-${run}`, name: `CR-104 standard policy ${run}`, constraintType: "Standard",
     governedTransition: "Deliverable|Defined|In Progress", condition: unsatisfiedCondition, originatingPackId: standardPackRow!.id,
+    authorId: standardPackRow!.authored_by, authorBadge: standardPackRow!.author_badge,
   });
   assert.ok(standardPolicy);
   const { data: standardTemplate } = await templatesDB.upsert({ code: `cr104-standard-tpl-${run}`, name: "CR-104 Standard Template", deliverableCatalogue: [] });
-  await templatesDB.setMandatoryPacks(standardTemplate!.id, [standardPack.code]);
+  await templatesDB.setMandatoryPacks(standardTemplate!.id, [standardPack.code], ROOT_ACTOR_ID, "root");
   await templatesDB.setRequiredCapabilities(standardTemplate!.id, []);
   const standardSeu = await commissionAgainstTemplate(standardTemplate!.id, `cr104-standard-${run}`);
 
   // Pack 2: a real, blocking Policy constraint.
   const blockingPack = { code: `cr104-blocking-pack-${run}`, name: "CR-104 Blocking Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   await registerOrganisationName(blockingPack.code);
-  assert.ok((await publishPack({ seed: blockingPack as any, actorRole: "super", actorId: "1001", activate: true })).ok);
+  assert.ok((await publishPack({ seed: blockingPack as any, actorRole: "super", actorId: TESTER_ALL_ID, activate: true })).ok);
   const { data: blockingPackRow } = await packsDB.findActiveByCode(blockingPack.code);
   const { data: blockingPolicy } = await policiesDB.upsert({
     code: `cr104-blocking-policy-${run}`, name: `CR-104 blocking policy ${run}`, constraintType: "Policy",
     governedTransition: "Deliverable|Defined|In Progress", condition: unsatisfiedCondition, originatingPackId: blockingPackRow!.id,
+    authorId: blockingPackRow!.authored_by, authorBadge: blockingPackRow!.author_badge,
   });
   assert.ok(blockingPolicy);
   const { data: blockingTemplate } = await templatesDB.upsert({ code: `cr104-blocking-tpl-${run}`, name: "CR-104 Blocking Template", deliverableCatalogue: [] });
-  await templatesDB.setMandatoryPacks(blockingTemplate!.id, [blockingPack.code]);
+  await templatesDB.setMandatoryPacks(blockingTemplate!.id, [blockingPack.code], ROOT_ACTOR_ID, "root");
   await templatesDB.setRequiredCapabilities(blockingTemplate!.id, []);
   const blockingSeu = await commissionAgainstTemplate(blockingTemplate!.id, `cr104-blocking-${run}`);
 
@@ -247,7 +251,7 @@ test("CR-104: a Quality Gate's applicabilityDeliverableNames targets only the na
   };
   await registerOrganisationName(namedPack.code);
   await registerDeliverableName(targetedName);
-  const namedPublished = await publishPack({ seed: namedPack as any, actorRole: "super", actorId: "1001", activate: true });
+  const namedPublished = await publishPack({ seed: namedPack as any, actorRole: "super", actorId: TESTER_ALL_ID, activate: true });
   assert.ok(namedPublished.ok, `named pack must publish: ${!namedPublished.ok ? JSON.stringify(namedPublished) : ""}`);
 
   // Not run through publishTemplate's own validateTemplateSeed (which would
@@ -258,7 +262,7 @@ test("CR-104: a Quality Gate's applicabilityDeliverableNames targets only the na
   // Ontology concept resolves one, so an unregistered code still works
   // mechanically here.
   const { data: template } = await templatesDB.upsert({ code: `cr104-named-tpl-${run}`, name: "CR-104 Named Template", deliverableCatalogue: [{ code: targetedName }, { code: otherName }] });
-  await templatesDB.setMandatoryPacks(template!.id, [namedPack.code]);
+  await templatesDB.setMandatoryPacks(template!.id, [namedPack.code], ROOT_ACTOR_ID, "root");
   await templatesDB.setRequiredCapabilities(template!.id, []);
   const seu = await commissionAgainstTemplate(template!.id, `cr104-named-${run}`);
 

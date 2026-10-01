@@ -9,15 +9,41 @@ export const schemaDefinitionsDB = {
     schema: Record<string, unknown>;
     compatibleVersions?: number[];
     incompatibleVersions?: number[];
+    // author_id/author_badge are NOT NULL on the table -- every caller must
+    // resolve and pass its own real actor + badge (e.g. the logged-in
+    // session's participants_master.id and badge), never a default/null.
+    authorId: string;
+    authorBadge: string;
   }): Promise<DbResult<SchemaDefinitionRow>> {
     try {
       const { rows } = await query<SchemaDefinitionRow>(
-        `INSERT INTO schema_definitions (entity_kind, version, schema, compatible_versions, incompatible_versions) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [input.entityKind, input.version, JSON.stringify(input.schema), input.compatibleVersions ?? [], input.incompatibleVersions ?? []]
+        `INSERT INTO schema_definitions (entity_kind, version, schema, compatible_versions, incompatible_versions, author_id, author_badge) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [input.entityKind, input.version, JSON.stringify(input.schema), input.compatibleVersions ?? [], input.incompatibleVersions ?? [], input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {
       logger.error("[schemaDefinitionsDB] create error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // CR-115 — Ch.39 §15 lifecycle advance. Never touches `schema`/`version`
+  // (those stay immutable per the header note on createSchemaVersion) —
+  // lifecycle_state/author_id/author_badge are the only fields a governed
+  // transition ever updates on an existing row (author_id/author_badge
+  // mirror knowledgeItemsDB.updateStatus's own update-on-every-governed-
+  // transition treatment). authorId here is already a resolved
+  // participants_master.id, never a raw users.id.
+  async advanceLifecycle(id: string, toState: SchemaDefinitionRow["lifecycle_state"], authorityBadge: string | null, authorId?: string | null): Promise<DbResult<SchemaDefinitionRow>> {
+    try {
+      const { rows } = await query<SchemaDefinitionRow>(
+        `UPDATE schema_definitions SET lifecycle_state = $2, author_badge = COALESCE($3, author_badge), author_id = COALESCE($4, author_id) WHERE id = $1 RETURNING *`,
+        [id, toState, authorityBadge, authorId ?? null]
+      );
+      if (!rows[0]) return { error: new Error(`no schema_definitions row ${id}`) };
+      return { data: rows[0] };
+    } catch (err) {
+      logger.error("[schemaDefinitionsDB] advanceLifecycle error", err as Error);
       return { error: err as Error };
     }
   },

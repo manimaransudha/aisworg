@@ -1,9 +1,15 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import { PLATFORM_TENANT_ID } from "./constants.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validateTemplateWriteAgainstSchema } from "../routes/seu/core/templateWriteValidator.js";
 import type { CapabilityRow, DbResult, TemplateDeliverableSeed, TemplateRow } from "./seuTypes.js";
+import { tenantsDB } from "./tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "./constants.js";
+import { userDB } from "./userDB.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 // Also owns template_capabilities (required Capabilities) and template_packs
 // (mandatory Packs only — see Build Plan §5 item 6 for the Template/Profile split).
@@ -69,7 +75,11 @@ export const templatesDB = {
   // CR-114 follow-on — schemaDefinitionId is mandatory (owner: "Otherwise all
   // this build is of no use"); every caller must resolve and pass a real
   // schema_definition_id, no silent findLatest fallback.
-  async createDraft(input: { code: string; name: string; templateVersion?: string; authoredBy?: number | null; draftContent?: Record<string, unknown>; tenantId?: string; parentTemplateId?: string | null; schemaDefinitionId: string }): Promise<DbResult<TemplateRow>> {
+  // authored_by/author_badge are NOT NULL, participants_master-scoped (same
+  // discipline as capabilityDefinitionsDB/serviceDefinitionsDB.createDraft) —
+  // every caller must resolve and pass its own real actor (participants_master.id)
+  // + badge, never a default/null.
+  async createDraft(input: { code: string; name: string; templateVersion?: string; authoredBy: string; authorBadge: string; draftContent?: Record<string, unknown>; tenantId?: string; parentTemplateId?: string | null; schemaDefinitionId: string }): Promise<DbResult<TemplateRow>> {
     try {
       const templateVersion = input.templateVersion ?? "1.0.0";
       const draftContent = input.draftContent ?? {};
@@ -88,10 +98,10 @@ export const templatesDB = {
       if (!schemaRow) return { error: new Error(`schema_definitions row "${input.schemaDefinitionId}" not found`) };
 
       const { rows } = await query<TemplateRow>(
-        `INSERT INTO templates (code, name, template_version, status, deliverable_catalogue, authored_by, draft_content, tenant_id, parent_template_id, schema_definition_id)
-         VALUES ($1, $2, $3, 'Draft', '[]', $4, $5, $6, $7, $8)
+        `INSERT INTO templates (code, name, template_version, status, deliverable_catalogue, authored_by, author_badge, draft_content, tenant_id, parent_template_id, schema_definition_id)
+         VALUES ($1, $2, $3, 'Draft', '[]', $4, $5, $6, $7, $8, $9)
          RETURNING *`,
-        [input.code, input.name, templateVersion, input.authoredBy ?? null, JSON.stringify(draftContent), input.tenantId ?? PLATFORM_TENANT_ID, input.parentTemplateId ?? null, schemaRow?.id ?? null]
+        [input.code, input.name, templateVersion, input.authoredBy, input.authorBadge, JSON.stringify(draftContent), input.tenantId ?? PLATFORM_TENANT_ID, input.parentTemplateId ?? null, schemaRow?.id ?? null]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -387,9 +397,12 @@ export const templatesDB = {
     }
   },
 
-  async setRequiredCapabilities(templateId: string, capabilityIds: string[]): Promise<DbResult<void>> {
+  async setRequiredCapabilities(templateId: string, capabilityIds: string[], authorId?: string, authorBadge?: string): Promise<DbResult<void>> {
     try {
       await query("DELETE FROM template_capabilities WHERE template_id = $1", [templateId]);
+      if (capabilityIds.length > 0 && (!authorId || !authorBadge)) {
+        throw new Error("setRequiredCapabilities: authorId/authorBadge are required when capabilityIds is non-empty");
+      }
       // ON CONFLICT DO NOTHING — real, observed race: this DELETE+loop-INSERT
       // isn't atomic, and testFixtures.ts's shared fixture can be reached by
       // many concurrent `node --test` processes racing to write the exact
@@ -400,8 +413,10 @@ export const templatesDB = {
       // another process already wrote this exact row — safe to skip.
       for (const capabilityId of capabilityIds) {
         await query(
-          "INSERT INTO template_capabilities (template_id, capability_id) VALUES ($1, $2) ON CONFLICT (template_id, capability_id) DO NOTHING",
-          [templateId, capabilityId]
+          `INSERT INTO template_capabilities (template_id, capability_id, author_id, author_badge)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (template_id, capability_id) DO NOTHING`,
+          [templateId, capabilityId, authorId, authorBadge]
         );
       }
       return { data: undefined };
@@ -438,8 +453,8 @@ export const templatesDB = {
   // scoping the delete to list_kind='mandatory' is what stops this from
   // wiping out the six category-specific slots below when both are ever
   // touched for the same Template.
-  async setMandatoryPacks(templateId: string, packCodes: string[]): Promise<DbResult<void>> {
-    return templatesDB.setPackSelection(templateId, "mandatory", packCodes);
+  async setMandatoryPacks(templateId: string, packCodes: string[], authorId: string, authorBadge: string): Promise<DbResult<void>> {
+    return templatesDB.setPackSelection(templateId, "mandatory", packCodes, authorId, authorBadge);
   },
 
   async getMandatoryPackCodes(templateId: string): Promise<DbResult<string[]>> {
@@ -463,15 +478,15 @@ export const templatesDB = {
   // still used by callers that only care about the flat "every mandatory
   // Pack regardless of category" set, e.g. compositionEngine), these only
   // touch their own list_kind slot.
-  async setPackSelection(templateId: string, listKind: string, packCodes: string[]): Promise<DbResult<void>> {
+  async setPackSelection(templateId: string, listKind: string, packCodes: string[], authorId: string, authorBadge: string): Promise<DbResult<void>> {
     try {
       await query("DELETE FROM template_packs WHERE template_id = $1 AND list_kind = $2", [templateId, listKind]);
       // ON CONFLICT DO NOTHING — same concurrent-writer race as
       // setRequiredCapabilities above (see its own comment).
       for (const packCode of packCodes) {
         await query(
-          "INSERT INTO template_packs (template_id, pack_code, list_kind) VALUES ($1, $2, $3) ON CONFLICT (template_id, pack_code, list_kind) DO NOTHING",
-          [templateId, packCode, listKind]
+          "INSERT INTO template_packs (template_id, pack_code, list_kind, author_id, author_badge) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (template_id, pack_code, list_kind) DO NOTHING",
+          [templateId, packCode, listKind, authorId, authorBadge]
         );
       }
       return { data: undefined };

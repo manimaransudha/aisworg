@@ -16,7 +16,7 @@ export async function createParticipantMaster(input: {
   behaviourContext?: Array<{ policy: string; payload: Record<string, unknown> }>;
   authorisedRole?: Array<{ role: string; effective_till: string; seu_ids: string[] }>;
   isActive?: boolean;
-  userId?: number | null;
+  userId: string | null;
 }): Promise<ParticipantMasterRow> {
   const viewer: OntologyViewer = { isRoot: false, tenantId: input.tenantId };
 

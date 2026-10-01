@@ -14,10 +14,26 @@
       </div>
     <% } %>
 
-    <div class="mb-4">
-      <p class="text-muted small mb-1"><a href="/aisworg/seu/sdk/schema-registry">&larr; Schema Registry</a></p>
-      <h2 class="h3 mb-1 text-dark fw-bold"><%= schema.entityKind %> — v<%= schema.version %></h2>
-      <p class="text-muted small mb-0">Created <%= new Date(schema.createdAt).toLocaleString() %>. Immutable — a new edit is always a new version, never a change to this row.</p>
+    <div class="mb-4 d-flex justify-content-between align-items-start flex-wrap gap-3">
+      <div>
+        <p class="text-muted small mb-1"><a href="/aisworg/seu/sdk/schema-registry">&larr; Schema Registry</a></p>
+        <h2 class="h3 mb-1 text-dark fw-bold">
+          <%= schema.entityKind %> — v<%= schema.version %>
+          <span class="badge bg-<%= schema.lifecycleState === 'Published' ? 'success' : schema.lifecycleState === 'PublicationRejected' ? 'danger' : 'secondary' %> ms-2"><%= schema.lifecycleState %></span>
+        </h2>
+        <p class="text-muted small mb-0">Created <%= new Date(schema.createdAt).toLocaleString() %>. Schema/version are immutable — a new edit is always a new version, never a change to this row.</p>
+        <% if (schema.authorBadge) { %><p class="text-muted small mb-0">Last governed under <%= schema.authorBadge %>.</p><% } %>
+      </div>
+      <% if (schema.lifecycleState === 'Packaged') { %>
+        <div class="d-flex gap-2">
+          <form method="POST" action="/aisworg/seu/sdk/schema-registry/<%= schema.id %>/publish">
+            <button type="submit" class="btn btn-success btn-sm">Publish</button>
+          </form>
+          <form method="POST" action="/aisworg/seu/sdk/schema-registry/<%= schema.id %>/reject">
+            <button type="submit" class="btn btn-outline-danger btn-sm">Reject</button>
+          </form>
+        </div>
+      <% } %>
     </div>
 
     <div class="section-card mb-4">

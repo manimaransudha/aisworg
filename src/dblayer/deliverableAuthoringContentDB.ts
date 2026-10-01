@@ -3,13 +3,13 @@ import { logger } from "../utils/logger.js";
 import type { DbResult, DeliverableAuthoringContentRow } from "./seuTypes.js";
 
 export const deliverableAuthoringContentDB = {
-  async create(input: { deliverableId: string; schemaDefinitionId: string; content: Record<string, unknown> }): Promise<DbResult<DeliverableAuthoringContentRow>> {
+  async create(input: { deliverableId: string; schemaDefinitionId: string; content: Record<string, unknown>; authorId: string; authorBadge: string }): Promise<DbResult<DeliverableAuthoringContentRow>> {
     try {
       const { rows } = await query<DeliverableAuthoringContentRow>(
-        `INSERT INTO deliverable_authoring_content (deliverable_id, schema_definition_id, content)
-         VALUES ($1, $2, $3)
+        `INSERT INTO deliverable_authoring_content (deliverable_id, schema_definition_id, content, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5)
          RETURNING *`,
-        [input.deliverableId, input.schemaDefinitionId, JSON.stringify(input.content)]
+        [input.deliverableId, input.schemaDefinitionId, JSON.stringify(input.content), input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

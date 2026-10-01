@@ -124,10 +124,17 @@
                   <label class="card-tile profile-tile d-flex gap-2 h-100 mb-0" for="tp-<%= row.templateId %>-<%= row.profile ? row.profile.id : 'none' %>" style="cursor: pointer;">
                     <input class="form-check-input mt-1 flex-shrink-0" type="radio" name="templateProfile" value="<%= row.templateId %>|<%= row.profile ? row.profile.id : '' %>" id="tp-<%= row.templateId %>-<%= row.profile ? row.profile.id : 'none' %>">
                     <span class="small">
+                      <%# DECOMMISSIONED (owner: "this path should be disallowed and
+                          all the fallback decommissioned. Creating a profile should
+                          not [be] combined with this") -- commissioningOptions
+                          (core/objectives.ts) no longer emits a row.profile === null
+                          entry, so the old "No Profile yet -- a default will be
+                          created" else-branch here is unreachable. Removed from this
+                          template's control flow rather than left inline, since an
+                          EJS comment cannot safely contain its own "if/else" tags;
+                          see git history for the original markup. %>
                       <% if (row.profile) { %>
                         <span class="component-name"><%= row.profile.name %></span> <code class="text-muted small"><%= row.profile.code %></code> (<%= row.profile.environment %>)
-                      <% } else { %>
-                        <span class="component-name">No Profile yet</span> <span class="component-note">— a default will be created</span>
                       <% } %>
                       <div class="component-note">Template: <%= row.templateName %> <code class="text-muted"><%= row.templateCode %></code></div>
                       <% if (row.capabilities.length) { %>

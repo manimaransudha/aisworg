@@ -4,17 +4,41 @@
 // (Ch.17 model cleanup, migration 232) — see that migration's own header.
 import { evidenceDB } from "../../../dblayer/evidenceDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
+import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { assertCanonicalCategory } from "./ontology.js";
+import { resolveAuthor } from "./attentionItems.js";
 import type { EvidenceRow, EvidenceRelationshipRow, EvidenceValidationAssessment, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 
 async function assertRelatedObjectExists(relatedObjectType: TransitionEntityType, relatedObjectId: string): Promise<void> {
   if (relatedObjectType !== "Deliverable") return;
   const { data: deliverable } = await deliverablesDB.findById(relatedObjectId);
   if (!deliverable) throw new Error(`deliverable not found: ${relatedObjectId}`);
+}
+
+// evidence.author_id is a `participants` row (SEU-scoped engagement), not a
+// participants_master row directly — two hops from the acting user's id.
+// evidence_relationships.author_id references participants_master(id)
+// directly — one hop — so both ids are resolved and returned together.
+async function resolveAuthorIds(seuId: string, actorId: string): Promise<{ participantId: string; masterId: string }> {
+  const { data: master } = await participantsMasterDB.findById(actorId);
+  if (!master) throw new Error(`No superuser provisioned.`);
+  const { data: participant } = await participantsDB.findBySeuIdAndParticipantMasterId(seuId, master.id);
+  if (!participant) throw new Error(`actor ${actorId} has no participant engagement in SEU ${seuId}`);
+  return { participantId: participant.id, masterId: master.id };
+}
+
+// For call sites with no SEU context available yet (e.g. linking an existing
+// Evidence Item to another object) — evidence_relationships.author_id only
+// needs the direct participants_master hop.
+async function resolveAuthorMasterId(actorId: string): Promise<string> {
+  const { data: master } = await participantsMasterDB.findById(actorId);
+  if (!master) throw new Error(`No superuser provisioned.`);
+  return master.id;
 }
 
 export async function createEvidence(input: {
@@ -26,6 +50,8 @@ export async function createEvidence(input: {
   description?: string | null;
   source?: string | null;
   supersedesEvidenceId?: string | null;
+  actorId: string;
+  authorBadge: string;
 }): Promise<EvidenceRow> {
   await assertCanonicalCategory("category:evidence", input.category);
   await assertRelatedObjectExists(input.relatedObjectType, input.relatedObjectId);
@@ -33,6 +59,8 @@ export async function createEvidence(input: {
     const { data: predecessor } = await evidenceDB.findById(input.supersedesEvidenceId);
     if (!predecessor) throw new Error(`evidence not found: ${input.supersedesEvidenceId}`);
   }
+
+  const { participantId: authorId, masterId: authorMasterId } = await resolveAuthorIds(input.seuId, input.actorId);
 
   const { data: evidence, error } = await evidenceDB.create({
     seuId: input.seuId,
@@ -43,6 +71,9 @@ export async function createEvidence(input: {
     description: input.description,
     source: input.source,
     supersedesEvidenceId: input.supersedesEvidenceId,
+    authorId,
+    authorBadge: input.authorBadge,
+    authorMasterId,
   });
   if (error || !evidence) throw error ?? new Error("failed to create evidence");
 
@@ -96,7 +127,7 @@ export async function findEvidenceSupersededBy(evidenceId: string): Promise<Evid
 
 export type LinkEvidenceResult = { ok: true } | { ok: false; reason: "not_found" | "invalid"; detail?: string };
 
-export async function linkEvidenceToObject(evidenceId: string, relatedObjectType: TransitionEntityType, relatedObjectId: string): Promise<LinkEvidenceResult> {
+export async function linkEvidenceToObject(evidenceId: string, relatedObjectType: TransitionEntityType, relatedObjectId: string, actorId: string, authorBadge: string): Promise<LinkEvidenceResult> {
   const { data: evidence } = await evidenceDB.findById(evidenceId);
   if (!evidence) return { ok: false, reason: "not_found" };
 
@@ -106,7 +137,8 @@ export async function linkEvidenceToObject(evidenceId: string, relatedObjectType
     return { ok: false, reason: "invalid", detail: (err as Error).message };
   }
 
-  const { error } = await evidenceDB.addRelationship(evidenceId, relatedObjectType, relatedObjectId);
+  const authorMasterId = await resolveAuthorMasterId(actorId);
+  const { error } = await evidenceDB.addRelationship(evidenceId, relatedObjectType, relatedObjectId, authorMasterId, authorBadge);
   if (error) return { ok: false, reason: "invalid", detail: error.message };
 
   const { data: seuLinks } = await evidenceDB.findRelationshipsByEvidenceId(evidenceId);
@@ -198,23 +230,12 @@ export async function transitionEvidence(input: { evidenceId: string; targetStat
 
   const fromState = evidence.status;
 
-  const qualityGateResult = await qualityGateEngine.evaluate({
-    entityType: "Evidence",
-    entityId: evidence.id,
-    seuId,
-    fromState,
-    toState: input.targetState,
-  });
-  if (qualityGateResult.outcome === "Blocked") {
-    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
-  }
-
   const gate = await transitionEngine.evaluate({
     entityType: "Evidence",
     fromState,
     toState: input.targetState,
     actorRole: input.actorRole,
-    actorId: input.actorId,
+    actorId: input.actorId ?? "",
     entityId: evidence.id,
     context: { evidence },
   });
@@ -224,6 +245,28 @@ export async function transitionEvidence(input: { evidenceId: string; targetStat
     if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
     if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
+  }
+
+  // Post-completion fix (Open Design Questions.md #3): same check
+  // obligations.ts's own transitionObligation runs, generalised to every
+  // SEU-scoped entity type. quality_gate_evaluations.author_id references
+  // participants(id) — a real SEU-scoped engagement is required to record
+  // one, same as every other governed transition here.
+  if (!input.actorId) throw new Error("actorId is required to transition Evidence");
+  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for Evidence ${fromState} -> ${input.targetState} — Transition Definition declares no verb`);
+  if (!seuId) throw new Error(`Evidence ${evidence.id} has no SEU relationship — cannot resolve a governed author for its Quality Gate evaluation`);
+  const { authorId } = await resolveAuthor(seuId, input.actorId);
+  const qualityGateResult = await qualityGateEngine.evaluate({
+    entityType: "Evidence",
+    entityId: evidence.id,
+    seuId,
+    fromState,
+    toState: input.targetState,
+    authorId,
+    authorBadge: gate.authorityBadge,
+  });
+  if (qualityGateResult.outcome === "Blocked") {
+    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
   }
 
   const { data: updated, error } = await evidenceDB.updateStatus(evidence.id, input.targetState);

@@ -9,11 +9,10 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
-import { createEvidence } from "../src/routes/seu/core/evidence.js";
 import { setAlias, clearAlias, resolveLabels, resolveLabel } from "../src/routes/seu/core/ontology.js";
 import { evidenceDB } from "../src/dblayer/evidenceDB.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, createEvidenceAsRoot as createEvidence } from "./testFixtures.js";
 
 async function commissionSeu(prefix: string) {
   await ensureWebAppTemplateFixture();
@@ -41,8 +40,8 @@ test("write-path enforcement: an off-canonical category is rejected; a canonical
 
 test("tenant rename: two tenants see different labels for the SAME canonical code, but storage stays canonical (cross-tenant joinable)", async () => {
   const run = randomUUID().slice(0, 8);
-  const { data: atlas } = await tenantsDB.create({ code: `atlas-onto-${run}`, name: "Atlas" });
-  const { data: babylon } = await tenantsDB.create({ code: `babylon-onto-${run}`, name: "Babylon" });
+  const { data: atlas } = await tenantsDB.create({ code: `atlas-onto-${run}`, name: "Atlas", authorId: "1", authorBadge: "root" });
+  const { data: babylon } = await tenantsDB.create({ code: `babylon-onto-${run}`, name: "Babylon", authorId: "1", authorBadge: "root" });
   assert.ok(atlas && babylon);
 
   // Same canonical concept, two tenant labels.
@@ -67,7 +66,7 @@ test("tenant rename: two tenants see different labels for the SAME canonical cod
 
 test("clearing an alias reverts to the platform default", async () => {
   const run = randomUUID().slice(0, 8);
-  const { data: tenant } = await tenantsDB.create({ code: `clear-onto-${run}`, name: "Clear" });
+  const { data: tenant } = await tenantsDB.create({ code: `clear-onto-${run}`, name: "Clear", authorId: "1", authorBadge: "root" });
   assert.ok(tenant);
   await setAlias({ tenantId: tenant.id, conceptType: "category:obligation", canonicalCode: "Security", displayLabel: "SEC-CTRL" });
   assert.equal(await resolveLabel(tenant.id, "category:obligation", "Security"), "SEC-CTRL");
@@ -77,7 +76,7 @@ test("clearing an alias reverts to the platform default", async () => {
 
 test("aliasing an unknown concept is refused (tenants rename, never mint)", async () => {
   const run = randomUUID().slice(0, 8);
-  const { data: tenant } = await tenantsDB.create({ code: `mint-onto-${run}`, name: "Mint" });
+  const { data: tenant } = await tenantsDB.create({ code: `mint-onto-${run}`, name: "Mint", authorId: "1", authorBadge: "root" });
   assert.ok(tenant);
   await assert.rejects(
     () => setAlias({ tenantId: tenant.id, conceptType: "category:evidence", canonicalCode: "Not A Real Concept", displayLabel: "X" }),

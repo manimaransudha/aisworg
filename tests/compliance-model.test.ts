@@ -12,15 +12,16 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
-import { createObligation, transitionObligation } from "../src/routes/seu/core/obligations.js";
+import { transitionObligation } from "../src/routes/seu/core/obligations.js";
+import { createObligationAsRoot as createObligation } from "./testFixtures.js";
 import { evaluateCompliance, grantWaiver, generateComplianceReport, complianceHistory } from "../src/routes/seu/core/compliance.js";
 import { complianceDB } from "../src/dblayer/complianceDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 async function commissionSeu(prefix: string) {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromFormSync({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorRole: "super", actorId: "1001", requestedBy: 1001 });
+  const result = await commissionFromFormSync({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: 1001 });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
   const detail = await getSeuDetailView(result.seu.id);
@@ -48,8 +49,8 @@ test("compliance is evaluated per-SEU from engineering state: a required obligat
   const run = randomUUID().slice(0, 8);
   const fwCode = `sec-fw-${run}`;
   const reqCode = `sec-obl-${run}`;
-  await complianceDB.upsertFramework({ code: fwCode, name: "Security Framework", originatingPackId: corePack.id });
-  await complianceDB.upsertRequirement({ code: reqCode, frameworkCode: fwCode, name: "All Security obligations resolved", criteria: { type: "no_unresolved_obligations", category: "Security" }, severity: "High", originatingPackId: corePack.id });
+  await complianceDB.upsertFramework({ code: fwCode, name: "Security Framework", originatingPackId: corePack.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
+  await complianceDB.upsertRequirement({ code: reqCode, frameworkCode: fwCode, name: "All Security obligations resolved", criteria: { type: "no_unresolved_obligations", category: "Security" }, severity: "High", originatingPackId: corePack.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
 
   const { seuId, deliverableId } = await commissionSeu("compliance-eval");
 
@@ -72,7 +73,7 @@ test("compliance is evaluated per-SEU from engineering state: a required obligat
 
   // Resolve the obligation -> this requirement is satisfied again (deterministic from state).
   for (const st of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    await transitionObligation({ obligationId: obligation.id, targetState: st, actorRole: "super", actorId: "1001" });
+    await transitionObligation({ obligationId: obligation.id, targetState: st, actorRole: "super", actorId: ROOT_ACTOR_ID });
   }
   const third = await evaluateCompliance(seuId);
   assert.equal(third.results.find((r) => r.requirementCode === reqCode)?.state, "satisfied");
@@ -87,8 +88,8 @@ test("a Waiver moves an unsatisfied requirement to Compliant with Exceptions", a
   const run = randomUUID().slice(0, 8);
   const fwCode = `waiver-fw-${run}`;
   const reqCode = `waiver-req-${run}`;
-  await complianceDB.upsertFramework({ code: fwCode, name: "Waiver Framework", originatingPackId: corePack.id });
-  await complianceDB.upsertRequirement({ code: reqCode, frameworkCode: fwCode, name: "Requires an accepted architecture review", criteria: { type: "requires_accepted_review", category: "Architecture" }, originatingPackId: corePack.id });
+  await complianceDB.upsertFramework({ code: fwCode, name: "Waiver Framework", originatingPackId: corePack.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
+  await complianceDB.upsertRequirement({ code: reqCode, frameworkCode: fwCode, name: "Requires an accepted architecture review", criteria: { type: "requires_accepted_review", category: "Architecture" }, originatingPackId: corePack.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
 
   const { seuId } = await commissionSeu("compliance-waiver");
   // No such review exists -> Non-Compliant (this framework's single requirement unsatisfied).
@@ -109,9 +110,9 @@ test("minimal conflict detection (FR-27.7): two applicable requirements declarin
   const fwCode = `conflict-fw-${run}`;
   const a = `req-a-${run}`;
   const b = `req-b-${run}`;
-  await complianceDB.upsertFramework({ code: fwCode, name: "Conflict Framework", originatingPackId: corePack.id });
-  await complianceDB.upsertRequirement({ code: a, frameworkCode: fwCode, name: "Requirement A", criteria: { type: "requires_accepted_evidence" }, conflictsWith: [b], originatingPackId: corePack.id });
-  await complianceDB.upsertRequirement({ code: b, frameworkCode: fwCode, name: "Requirement B", criteria: { type: "requires_approved_decision" }, originatingPackId: corePack.id });
+  await complianceDB.upsertFramework({ code: fwCode, name: "Conflict Framework", originatingPackId: corePack.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
+  await complianceDB.upsertRequirement({ code: a, frameworkCode: fwCode, name: "Requirement A", criteria: { type: "requires_accepted_evidence" }, conflictsWith: [b], originatingPackId: corePack.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
+  await complianceDB.upsertRequirement({ code: b, frameworkCode: fwCode, name: "Requirement B", criteria: { type: "requires_approved_decision" }, originatingPackId: corePack.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
 
   const { seuId } = await commissionSeu("compliance-conflict");
   const result = await evaluateCompliance(seuId);
@@ -122,8 +123,8 @@ test("the compliance report is a projection of engineering state (Ch.27 §12)", 
   const { data: corePack } = await packsDB.findByCode("development");
   const run = randomUUID().slice(0, 8);
   const fwCode = `report-fw-${run}`;
-  await complianceDB.upsertFramework({ code: fwCode, name: "Report Framework", originatingPackId: corePack.id });
-  await complianceDB.upsertRequirement({ code: `report-req-${run}`, frameworkCode: fwCode, name: "No unresolved obligations", criteria: { type: "no_unresolved_obligations" }, originatingPackId: corePack.id });
+  await complianceDB.upsertFramework({ code: fwCode, name: "Report Framework", originatingPackId: corePack.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
+  await complianceDB.upsertRequirement({ code: `report-req-${run}`, frameworkCode: fwCode, name: "No unresolved obligations", criteria: { type: "no_unresolved_obligations" }, originatingPackId: corePack.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
 
   const { seuId } = await commissionSeu("compliance-report");
   const report = await generateComplianceReport(seuId);

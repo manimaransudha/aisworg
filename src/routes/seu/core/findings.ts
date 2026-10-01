@@ -6,23 +6,39 @@
 // decides what a Finding becomes.
 import { findingsDB } from "../../../dblayer/findingsDB.js";
 import { reviewsDB } from "../../../dblayer/reviewsDB.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
+import { participantsDB } from "../../../dblayer/participantsDB.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { raiseAttentionItem } from "./attentionItems.js";
+import { raiseAttentionItem, resolveSystemActor } from "./attentionItems.js";
 import { createObligation } from "./obligations.js";
 import type { FindingRow } from "../../../dblayer/seuTypes.js";
 
 const BLOCKING_SEVERITIES = new Set(["High", "Critical"]);
+
+// findings.author_id is a `participants` row (SEU-scoped engagement), not a
+// participants_master row directly — same two-hop resolution as reviews.ts.
+async function resolveAuthorId(seuId: string, actorId: string): Promise<string> {
+  const { data: master } = await participantsMasterDB.findById(actorId);
+  if (!master) throw new Error(`No superuser provisioned.`);
+  const { data: participant } = await participantsDB.findBySeuIdAndParticipantMasterId(seuId, master.id);
+  if (!participant) throw new Error(`actor ${actorId} has no participant engagement in SEU ${seuId}`);
+  return participant.id;
+}
 
 export async function createFinding(input: {
   reviewId: string;
   severity: string;
   title: string;
   description?: string | null;
+  actorId: string;
+  authorBadge: string;
 }): Promise<FindingRow> {
   const { data: review } = await reviewsDB.findById(input.reviewId);
   if (!review) throw new Error(`review not found: ${input.reviewId}`);
+
+  const authorId = await resolveAuthorId(review.seu_id, input.actorId);
 
   const { data: finding, error } = await findingsDB.create({
     reviewId: review.id,
@@ -32,6 +48,8 @@ export async function createFinding(input: {
     severity: input.severity,
     title: input.title,
     description: input.description,
+    authorId,
+    authorBadge: input.authorBadge,
   });
   if (error || !finding) throw error ?? new Error("failed to create finding");
 
@@ -56,6 +74,7 @@ export async function createFinding(input: {
       description: input.description ?? `A ${input.severity} finding was raised by review "${review.name}".`,
       relatedObjectType: review.related_object_type,
       relatedObjectId: review.related_object_id,
+      ...(await resolveSystemActor(review.seu_id)),
     });
   }
 
@@ -79,7 +98,7 @@ export async function transitionFinding(input: { findingId: string; targetState:
 
   const fromState = finding.status;
   const gate = await transitionEngine.evaluate({ entityType: "Finding", fromState, toState: input.targetState, actorRole: input.actorRole,
-    actorId: input.actorId, context: { finding } });
+    actorId: input.actorId ?? "", entityId: finding.id, context: { finding } });
   if (!gate.allowed) {
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Finding ${fromState} -> ${input.targetState}` };
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
@@ -111,7 +130,7 @@ export type ConvertFindingResult =
 
 // Manual conversion of a Finding to an Obligation (Ch.25 §12). Idempotent-safe:
 // a Finding already linked to an Obligation is not converted twice.
-export async function convertFindingToObligation(input: { findingId: string; category?: string; severity?: string }): Promise<ConvertFindingResult> {
+export async function convertFindingToObligation(input: { findingId: string; category?: string; severity?: string; actorId: string; authorBadge: string }): Promise<ConvertFindingResult> {
   const { data: finding } = await findingsDB.findById(input.findingId);
   if (!finding) return { ok: false, reason: "not_found", detail: `finding not found: ${input.findingId}` };
   if (finding.obligation_id) return { ok: false, reason: "already_converted", detail: `finding ${finding.id} is already linked to Obligation ${finding.obligation_id}` };
@@ -123,6 +142,8 @@ export async function convertFindingToObligation(input: { findingId: string; cat
     title: finding.title,
     description: finding.description,
     severity: input.severity ?? finding.severity,
+    actorId: input.actorId,
+    authorBadge: input.authorBadge,
   });
 
   const { data: linked } = await findingsDB.setObligationId(finding.id, obligation.id);

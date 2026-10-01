@@ -23,7 +23,8 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { createAttentionItem } from "../src/routes/seu/core/attentionItems.js";
-import { createObligation, transitionObligation } from "../src/routes/seu/core/obligations.js";
+import { transitionObligation } from "../src/routes/seu/core/obligations.js";
+import { createObligationAsRoot as createObligation } from "./testFixtures.js";
 import { transitionEngine } from "../src/domain/engine/transitionEngine.js";
 import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
@@ -77,6 +78,8 @@ test("transitionEngine.evaluate itself enforces an authored Transition Definitio
     toState,
     criteria: { type: "no_unresolved_obligations" },
     originatingPackId: await anyRealPackId(),
+    authorId: "1",
+    authorBadge: "root",
   });
   assert.ok(!gateError && gate, gateError?.message);
 
@@ -131,10 +134,10 @@ test("Mapping's Allow trigger seeds a new Transition Definition, but re-Allowing
   const fromState = `td-mapping-from-${randomUUID()}`;
   const toState = `td-mapping-to-${randomUUID()}`;
 
-  const verbAdded = await addVerb(verbCode, "Test trigger verb", null);
+  const verbAdded = await addVerb(verbCode, "Test trigger verb", null, "1", "root");
   assert.equal(verbAdded.ok, true, !verbAdded.ok ? verbAdded.error : undefined);
 
-  const allowed = await addMapping(nounCode, verbCode, "governed");
+  const allowed = await addMapping(nounCode, verbCode, "governed", "1", "root");
   assert.equal(allowed.ok, true, !allowed.ok ? allowed.error : undefined);
 
   const created = await addTransitionDefinition({ entityType: nounCode, fromState, toState, verb: verbCode });
@@ -150,7 +153,7 @@ test("Mapping's Allow trigger seeds a new Transition Definition, but re-Allowing
   // Re-submitting Allow for the SAME pair with a DIFFERENT trigger — this is
   // exactly what the first pass got wrong: it must move the mapping's own
   // default, but must never touch the transition that already exists.
-  const reAllowed = await addMapping(nounCode, verbCode, "manual");
+  const reAllowed = await addMapping(nounCode, verbCode, "manual", "1", "root");
   assert.equal(reAllowed.ok, true, !reAllowed.ok ? reAllowed.error : undefined);
 
   const { data: rowAfterReAllow } = await transitionDefinitionsDB.find(nounCode, fromState, toState);

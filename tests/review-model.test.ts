@@ -12,8 +12,8 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
-import { createReview, transitionReview } from "../src/routes/seu/core/reviews.js";
-import { createFinding, transitionFinding, convertFindingToObligation } from "../src/routes/seu/core/findings.js";
+import { transitionReview } from "../src/routes/seu/core/reviews.js";
+import { transitionFinding, convertFindingToObligation } from "../src/routes/seu/core/findings.js";
 import { explainDeliverable } from "../src/routes/seu/core/traceability.js";
 import { reviewsDB } from "../src/dblayer/reviewsDB.js";
 import { findingsDB } from "../src/dblayer/findingsDB.js";
@@ -22,7 +22,7 @@ import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { reviewGatesDB } from "../src/dblayer/reviewGatesDB.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, createReviewAsRoot, createFindingAsRoot } from "./testFixtures.js";
 
 async function commissionSeu(prefix: string) {
   await ensureWebAppTemplateFixture();
@@ -51,7 +51,7 @@ async function walkReviewToAccepted(reviewId: string, outcome: "Passed" | "Passe
 test("a Review runs its full lifecycle without modifying the reviewed object; its outcome is set at Completion and is immutable", async () => {
   const { seuId, deliverable } = await commissionSeu("review-lifecycle");
 
-  const review = await createReview({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Architecture", name: "Architecture Review of Requirements Analysis Model" });
+  const review = await createReviewAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Architecture", name: "Architecture Review of Requirements Analysis Model" });
   assert.equal(review.status, "Planned");
   assert.equal(review.outcome, null, "a fresh Review has no outcome");
 
@@ -106,6 +106,8 @@ test("requires_accepted_review Quality Gate blocks a transition until an Accepte
     fromState,
     toState,
     originatingPackId: corePack!.id,
+    authorId: corePack!.authored_by,
+    authorBadge: corePack!.author_badge,
   });
   assert.ok(reviewGate);
   await qualityGatesDB.upsert({
@@ -116,6 +118,8 @@ test("requires_accepted_review Quality Gate blocks a transition until an Accepte
     toState,
     criteria: { type: "requires_accepted_review", reviewGateId: reviewGate!.id },
     originatingPackId: corePack!.id,
+    authorId: corePack!.authored_by,
+    authorBadge: corePack!.author_badge,
   });
 
   const { seuId, deliverable } = await commissionSeu("review-gate");
@@ -124,34 +128,34 @@ test("requires_accepted_review Quality Gate blocks a transition until an Accepte
   assert.equal((await evalGate()).outcome, "Blocked", "no Review yet -> blocked");
 
   // A Failed Architecture review does NOT satisfy it.
-  const failed = await createReview({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Architecture", name: "Arch review (fails)", reviewGateId: reviewGate!.id });
+  const failed = await createReviewAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Architecture", name: "Arch review (fails)", reviewGateId: reviewGate!.id });
   await walkReviewToAccepted(failed.id, "Failed");
   assert.equal((await evalGate()).outcome, "Blocked", "an Accepted but Failed Review does not satisfy the gate");
 
   // A passing review NOT linked to this Review Gate does NOT satisfy it — the
   // FK match (CR-059) replaces the old free-text category comparison.
-  const unlinkedReview = await createReview({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Code", name: "Code review (passes, unlinked)" });
+  const unlinkedReview = await createReviewAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Code", name: "Code review (passes, unlinked)" });
   await walkReviewToAccepted(unlinkedReview.id, "Passed");
   assert.equal((await evalGate()).outcome, "Blocked", "a passing Review not linked to the required Review Gate does not satisfy it");
 
   // An Accepted + passing Review linked to the required Review Gate satisfies it.
-  const arch = await createReview({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Architecture", name: "Arch review (passes)", reviewGateId: reviewGate!.id });
+  const arch = await createReviewAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Architecture", name: "Arch review (passes)", reviewGateId: reviewGate!.id });
   await walkReviewToAccepted(arch.id, "Passed");
   assert.equal((await evalGate()).outcome, "Passed", "an Accepted, passing Review linked to the required Review Gate satisfies the gate");
 });
 
 test("Findings: a High-severity Finding auto-surfaces an Attention Item; a Finding resolves and can be converted to an Obligation", async () => {
   const { seuId, deliverable } = await commissionSeu("review-findings");
-  const review = await createReview({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Security", name: "Security Review" });
+  const review = await createReviewAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Security", name: "Security Review" });
 
   // A Low-severity finding does not auto-raise Attention.
-  const low = await createFinding({ reviewId: review.id, severity: "Low", title: "Minor naming nit" });
+  const low = await createFindingAsRoot({ reviewId: review.id, severity: "Low", title: "Minor naming nit" });
   assert.equal(low.status, "Open");
   const afterLow = (await attentionItemsDB.findBySeuId(seuId)).data ?? [];
   assert.equal(afterLow.some((a) => a.title.includes("Minor naming nit")), false, "a Low finding does not auto-surface Attention");
 
   // A High-severity finding auto-surfaces an Attention Item (Decision C).
-  const high = await createFinding({ reviewId: review.id, severity: "High", title: "Unvalidated input on enrollment endpoint", description: "SQL injection risk" });
+  const high = await createFindingAsRoot({ reviewId: review.id, severity: "High", title: "Unvalidated input on enrollment endpoint", description: "SQL injection risk" });
   const openException = await attentionItemsDB.findOpenByRelatedObject(seuId, "Action Required", "Deliverable", deliverable.id);
   assert.ok(openException, "a High finding auto-surfaces an Attention Item");
 
@@ -180,9 +184,9 @@ test("Findings: a High-severity Finding auto-surfaces an Attention Item; a Findi
 
 test("Traceability (Ch.25 §14): a Deliverable's explanation lists the Reviews that evaluated it and the Findings they produced", async () => {
   const { seuId, deliverable } = await commissionSeu("review-traceability");
-  const review = await createReview({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Design", name: "Design Review" });
+  const review = await createReviewAsRoot({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverable.id, category: "Design", name: "Design Review" });
   await walkReviewToAccepted(review.id, "Passed with Recommendations");
-  const finding = await createFinding({ reviewId: review.id, severity: "Medium", title: "Consider caching the catalogue query" });
+  const finding = await createFindingAsRoot({ reviewId: review.id, severity: "Medium", title: "Consider caching the catalogue query" });
 
   const explanation = await explainDeliverable(deliverable.id);
   assert.ok(explanation);

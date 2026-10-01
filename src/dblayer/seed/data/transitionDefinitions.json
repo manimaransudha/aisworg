@@ -1347,5 +1347,53 @@
     "requiredPolicyCodes": [],
     "eventType": "ConceptRejected",
     "versionEvent": null
+  },
+  {
+    "entityType": "SchemaDefinition",
+    "fromState": "Created",
+    "toState": "Validated",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": [],
+    "trigger": "governed",
+    "eventType": "SDKElementSchemaValidated",
+    "versionEvent": null
+  },
+  {
+    "entityType": "SchemaDefinition",
+    "fromState": "Validated",
+    "toState": "Tested",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": [],
+    "trigger": "governed",
+    "eventType": "SDKElementSchemaTested",
+    "versionEvent": null
+  },
+  {
+    "entityType": "SchemaDefinition",
+    "fromState": "Tested",
+    "toState": "Packaged",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": [],
+    "trigger": "governed",
+    "eventType": "SDKElementSchemaPackaged",
+    "versionEvent": null
+  },
+  {
+    "entityType": "SchemaDefinition",
+    "fromState": "Packaged",
+    "toState": "Published",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": [],
+    "eventType": "SDKElementSchemaPublished",
+    "versionEvent": null
+  },
+  {
+    "entityType": "SchemaDefinition",
+    "fromState": "Packaged",
+    "toState": "PublicationRejected",
+    "requiredAuthorityRuleCode": null,
+    "requiredPolicyCodes": [],
+    "eventType": "SDKElementSchemaPublicationRejected",
+    "versionEvent": null
   }
 ]

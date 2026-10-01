@@ -118,7 +118,7 @@ export const knowledgeItemsDB = {
   // Ch.16 §11/§14 — append-only validation/review notes (knowledge_validation_notes,
   // migration 239), never overwritten. Same discipline as objective_comments/
   // pack_comments — no forced gate on any one transition (owner: "no forced gate").
-  async addValidationNote(input: { knowledgeItemId: string; noteText: string; actorId?: number | null }): Promise<DbResult<KnowledgeValidationNoteRow>> {
+  async addValidationNote(input: { knowledgeItemId: string; noteText: string; actorId?: string | null }): Promise<DbResult<KnowledgeValidationNoteRow>> {
     try {
       const { rows } = await query<KnowledgeValidationNoteRow>(
         `INSERT INTO knowledge_validation_notes (knowledge_item_id, note_text, actor_id)

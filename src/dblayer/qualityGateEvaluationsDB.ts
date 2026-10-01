@@ -10,13 +10,15 @@ export const qualityGateEvaluationsDB = {
     entityId: string;
     outcome: QualityGateOutcomeValue;
     detail?: Record<string, unknown>;
+    authorId: string;
+    authorBadge: string;
   }): Promise<DbResult<QualityGateEvaluationRow>> {
     try {
       const { rows } = await query<QualityGateEvaluationRow>(
-        `INSERT INTO quality_gate_evaluations (quality_gate_id, seu_id, entity_type, entity_id, outcome, detail)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO quality_gate_evaluations (quality_gate_id, seu_id, entity_type, entity_id, outcome, detail, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [input.qualityGateId, input.seuId, input.entityType, input.entityId, input.outcome, JSON.stringify(input.detail ?? {})]
+        [input.qualityGateId, input.seuId, input.entityType, input.entityId, input.outcome, JSON.stringify(input.detail ?? {}), input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

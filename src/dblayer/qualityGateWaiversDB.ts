@@ -12,7 +12,7 @@ export const qualityGateWaiversDB = {
     entityType: string;
     entityId: string;
     rationale: string;
-    grantedBy: number | null;
+    grantedBy: string | null;
     authorityBadge: string;
     expiresAt?: string | null;
   }): Promise<DbResult<QualityGateWaiverRow>> {

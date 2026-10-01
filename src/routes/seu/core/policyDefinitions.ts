@@ -1,13 +1,19 @@
 import { policyDefinitionsDB } from "../../../dblayer/policyDefinitionsDB.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { assertCanonicalCategory, validateComposableFieldsAgainstSchema } from "./ontology.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { listActiveNouns, activeMappingByNoun } from "./authorityVocabulary.js";
 import type { EvidenceDefinition, PolicyDefinitionRow, PolicyCondition, PolicyScope } from "../../../dblayer/seuTypes.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 // CR-089 — Policy Definition authoring (Book 3 Ch.24), mirroring
 // core/serviceDefinitions.ts in shape. Two differences from that entity's
@@ -334,7 +340,7 @@ export type TransitionPolicyDefinitionResult = { ok: true; policyDefinition: Pol
 // event_type/version_event for every real Policy hop (Ch.24 §13); this map
 // is retired in favor of reading gate.eventType straight off that row, same
 // as transitionTemplate/transitionProfile already do.
-export async function transitionPolicyDefinition(input: { policyDefinitionId: string; targetState: PolicyDefinitionRow["status"]; actorRole: string; actorId?: string }): Promise<TransitionPolicyDefinitionResult> {
+export async function transitionPolicyDefinition(input: { policyDefinitionId: string; targetState: PolicyDefinitionRow["status"]; actorRole: string; actorId: string }): Promise<TransitionPolicyDefinitionResult> {
   const { data: policyDefinition } = await policyDefinitionsDB.findById(input.policyDefinitionId);
   if (!policyDefinition) return { ok: false, reason: "not_found" };
   const fromState = policyDefinition.status;
@@ -345,7 +351,9 @@ export async function transitionPolicyDefinition(input: { policyDefinitionId: st
     if (gate.reason === "policy_blocked") return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
     return { ok: false, reason: gate.reason };
   }
-
+  if (!gate.authorityBadge) {
+    return { ok: false, reason: "not_authorised" };
+  }
   const { data: updated, error } = await policyDefinitionsDB.updateStatus(policyDefinition.id, input.targetState);
   if (error || !updated) throw error ?? new Error("failed to update Policy Definition status");
 
@@ -356,7 +364,7 @@ export async function transitionPolicyDefinition(input: { policyDefinitionId: st
     seuId: null, // platform catalog entity, not SEU-scoped
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: updated.code },
-    actorId: input.actorId ?? null,
+    actorId: input.actorId,
     authorityBadge: gate.authorityBadge,
   });
   return { ok: true, policyDefinition: updated };
@@ -373,20 +381,22 @@ const AUTHORING_NEXT_STATE: Partial<Record<PolicyDefinitionRow["status"], Policy
   Retired: "Archived",
 };
 
-export async function advancePolicyDefinitionOneStep(policyDefinition: PolicyDefinitionRow, actorRole: string, actorId: string | undefined): Promise<TransitionPolicyDefinitionResult> {
+export async function advancePolicyDefinitionOneStep(policyDefinition: PolicyDefinitionRow, actorRole: string, actorId: string): Promise<TransitionPolicyDefinitionResult> {
   const targetState = AUTHORING_NEXT_STATE[policyDefinition.status];
   if (!targetState) return { ok: false, reason: "no_further_step", detail: `Policy Definition is already ${policyDefinition.status} — no further authoring step` };
   return transitionPolicyDefinition({ policyDefinitionId: policyDefinition.id, targetState, actorRole, actorId });
 }
 
 // Registry "Copy" action, mirrors copyServiceDefinitionAsNewDraft.
-export async function copyPolicyDefinitionAsNewDraft(policyDefinitionId: string, actorId: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
+export async function copyPolicyDefinitionAsNewDraft(policyDefinitionId: string, actorId: string, authorBadge: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await policyDefinitionsDB.findById(policyDefinitionId);
   if (!source) return { ok: false, errors: ["Policy Definition not found"] };
   // CR-114 follow-on — same carry-forward-the-source's-own-pin reasoning as
   // templates.ts's copyTemplateAsNewDraft.
   const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Policy");
   if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Policy`] };
+  const { data: copyMaster } = await participantsMasterDB.findById(actorId);
+  if (!copyMaster) return { ok: false, errors: [`No superuser provisioned.`] };
   const { data: newDraft, error } = await policyDefinitionsDB.createDraft({
     code: source.code,
     name: source.name,
@@ -397,7 +407,8 @@ export async function copyPolicyDefinitionAsNewDraft(policyDefinitionId: string,
     conditions: source.conditions,
     scope: source.scope,
     version: source.version,
-    authoredBy: Number(actorId),
+    authoredBy: copyMaster.id,
+    authorBadge,
     draftContent: {
       code: source.code, name: source.name, description: source.description ?? "", category: source.category, constraintType: source.constraint_type,
       applicabilityEnvironments: source.applicability_environments,

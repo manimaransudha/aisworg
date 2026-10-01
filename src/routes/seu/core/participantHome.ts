@@ -32,7 +32,7 @@ export interface ParticipantHomeView {
 // off the SAME `participants.id` this engagement row's own `id` is (not
 // participants_master.id — Evidence/Work Item participant references all
 // point at the per-SEU engagement, per migration 195's own comment).
-async function scopeToParticipant(detail: SeuDetailView, participantId: string, userId: number): Promise<ParticipantScopedSeuView> {
+async function scopeToParticipant(detail: SeuDetailView, participantId: string, userId: string): Promise<ParticipantScopedSeuView> {
   const { data: commands } = await commandsDB.findBySeuId(detail.seu.id);
   const { data: workItems } = await workItemsDB.findByCommandIds((commands ?? []).map((c) => c.id));
   const myCommandIds = new Set((workItems ?? []).filter((w) => w.participant_id === participantId).map((w) => w.command_id));
@@ -95,8 +95,8 @@ async function scopeToParticipant(detail: SeuDetailView, participantId: string, 
   };
 }
 
-export async function getParticipantHomeView(userId: number): Promise<ParticipantHomeView> {
-  const { data: master } = await participantsMasterDB.findByUserId(userId);
+export async function getParticipantHomeView(userId: string): Promise<ParticipantHomeView> {
+  const { data: master } = await participantsMasterDB.findById(userId);
   if (!master) return { master: null, engagements: [] };
 
   const { data: engagementRows } = await participantsDB.findByParticipantMasterId(master.id);
@@ -123,8 +123,8 @@ export async function getParticipantHomeView(userId: number): Promise<Participan
 // transition logic of its own.
 export type CompleteMyWorkItemResult = CompleteWorkItemResult | { ok: false; reason: "not_mine"; detail: string };
 
-export async function completeMyWorkItem(input: { userId: number; workItemId: string; outcome: WorkItemOutcome; reference?: string | null }): Promise<CompleteMyWorkItemResult> {
-  const { data: master } = await participantsMasterDB.findByUserId(input.userId);
+export async function completeMyWorkItem(input: { userId: string; workItemId: string; outcome: WorkItemOutcome; reference?: string | null }): Promise<CompleteMyWorkItemResult> {
+  const { data: master } = await participantsMasterDB.findById(input.userId);
   if (!master) return { ok: false, reason: "not_mine", detail: "No Participant identity is registered for your account." };
 
   const { data: workItem } = await workItemsDB.findById(input.workItemId);
@@ -156,7 +156,7 @@ export async function completeMyWorkItem(input: { userId: number; workItemId: st
 export type RaiseMyObligationResult = { ok: true; obligation: ObligationRow } | { ok: false; reason: "not_mine"; detail: string };
 
 export async function raiseMyObligation(input: {
-  userId: number;
+  userId: string;
   seuId: string;
   deliverableId: string;
   category: string;
@@ -165,8 +165,8 @@ export async function raiseMyObligation(input: {
   severity?: string;
   completionCriteria?: string;
 }): Promise<RaiseMyObligationResult> {
-  const { data: master } = await participantsMasterDB.findByUserId(input.userId);
-  if (!master) return { ok: false, reason: "not_mine", detail: "No Participant identity is registered for your account." };
+  const { data: master } = await participantsMasterDB.findById(input.userId);
+  if (!master) return { ok: false, reason: "not_mine", detail: "No participant information." };
 
   const { data: engagementRows } = await participantsDB.findByParticipantMasterId(master.id);
   const engagement = (engagementRows ?? []).find((p) => p.seu_id === input.seuId);
@@ -180,6 +180,13 @@ export async function raiseMyObligation(input: {
     return { ok: false, reason: "not_mine", detail: "This Deliverable is not assigned to you." };
   }
 
+  // route_authority declares no badge/role requirement for this route (a
+  // Participant self-raising an Obligation about their own assigned
+  // Deliverable) — authorBadge here is attribution, whichever real badge
+  // this actor actually holds, not a second authorization gate.
+  const { isRoot, badgeTypes } = await badgeAuthorityEngine.getHeldBadges(input.userId);
+  const authorBadge = isRoot ? "root" : [...badgeTypes][0] ?? "general";
+
   const obligation = await createObligation({
     relatedObjectType: "Deliverable",
     relatedObjectId: input.deliverableId,
@@ -191,6 +198,8 @@ export async function raiseMyObligation(input: {
     origin: "Participants",
     originatingEntityType: "Participant",
     originatingEntityId: engagement.id,
+    actorId: input.userId,
+    authorBadge,
   });
   return { ok: true, obligation };
 }

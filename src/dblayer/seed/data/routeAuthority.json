@@ -1,0 +1,1963 @@
+[
+  {
+    "method": "GET",
+    "path": "/",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/attention-items",
+    "badges": [],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/attention-items/:id/transition",
+    "badges": [],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/commission",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/compliance/frameworks",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/compliance/requirements",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/decisions",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/decisions",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/decisions/:id/transition",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/deliverables/:id/traceability",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/deliverables/:id/transition",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/evidence",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/evidence",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/evidence/:id/link",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/evidence/:id/transition",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/evidence/:id/validate",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/execution-targets",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/execution-targets/:capabilityId",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/external-interactions",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/external-interactions",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/external-interactions/:id/transition",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/findings/:id/convert-to-obligation",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/findings/:id/transition",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/knowledge",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/knowledge",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/knowledge/:id/promote-scope",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "PATCH",
+    "path": "/aisworg/api/seu/knowledge/:id/references",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/knowledge/:id/transition",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/knowledge/:id/validation-notes",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/knowledge/:id/validation-notes",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/knowledge/capital",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/objectives",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/objectives",
+    "badges": [
+      "objective_propose","objective_all"
+    ],
+    "roles": [],
+    "match_mode": "any"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/objectives/:id",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/objectives/:id/transition/achieve",
+    "badges": [
+      "objective_achieve"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/objectives/:id/transition/activate",
+    "badges": [
+      "objective_activate"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/objectives/:id/transition/archive",
+    "badges": [
+      "objective_archive"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/objectives/:id/transition/reject",
+    "badges": [
+      "objective_reject"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/objectives/:id/transition/retire",
+    "badges": [
+      "objective_retire"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/objectives/:id/transition/supersede",
+    "badges": [
+      "objective_supersede"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/objectives/:id/update",
+    "badges": [
+      "objective_propose"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/objectives/suggest-capabilities",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/obligations",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/obligations",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "PATCH",
+    "path": "/aisworg/api/seu/obligations/:id",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/obligations/:id/transition",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/ontology/concepts",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/packs",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/packs/:id/transition/activate",
+    "badges": [
+      "pack_activate"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/packs/:id/transition/archive",
+    "badges": [
+      "pack_archive"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/packs/:id/transition/publish",
+    "badges": [
+      "pack_publish"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/packs/:id/transition/reject",
+    "badges": [
+      "pack_reject",
+      "pack_validate"
+    ],
+    "roles": [],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/packs/:id/transition/retire",
+    "badges": [
+      "pack_retire"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/packs/:id/transition/validate",
+    "badges": [
+      "pack_validate",
+      "pack_define",
+      "pack_reject"
+    ],
+    "roles": [],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/profiles",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/reviews",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/reviews",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/reviews/:id/findings",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/reviews/:id/findings",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/reviews/:id/transition",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/services",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/seus/:id",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/seus/:id/compliance",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/seus/:id/compliance/history",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/seus/:id/compliance/report",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/seus/:id/compliance/waivers",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/seus/:id/deliverables",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/seus/:id/events",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/seus/:id/governance-model",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/seus/:id/quality-gate-waivers",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/seus/:id/quality-gate-waivers",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/telemetry",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/templates",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/tenants",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/tenants",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/tenants/:id/aliases",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/tenants/:id/aliases",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/tenants/:id/contract",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/tenants/:id/contract",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/api/seu/tenants/:id/vocabulary",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/work-items/:id/result",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/api/seu/work-items/sweep-stalled",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/auth/disabled",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/auth/forgot-password",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/auth/forgot-password",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/auth/google",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/auth/google/callback",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/auth/login",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/auth/login",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/auth/logout",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/auth/reset-password",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/auth/reset-password",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/auth/users",
+    "badges": [],
+    "roles": [
+      "superuser"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/auth/users/create",
+    "badges": [],
+    "roles": [
+      "superuser"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/auth/users/resend",
+    "badges": [],
+    "roles": [
+      "superuser"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/auth/users/role",
+    "badges": [],
+    "roles": [
+      "superuser"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/auth/users/toggle",
+    "badges": [],
+    "roles": [
+      "superuser"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/auth/verify",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/auth/verify",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/demo/tts",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/demo/voice-config",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/login",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/logout",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/quickview",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/quickview/seus/:seuId/obligations",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/quickview/work-items/:workItemId/complete",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/settings",
+    "badges": [],
+    "roles": [
+      "superuser"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/settings/:key",
+    "badges": [],
+    "roles": [
+      "superuser"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/attention",
+    "badges": [],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/attention/:id/transition",
+    "badges": [],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/authority/mapping",
+    "badges": [
+      "transitiondefinition_define"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/authority/mapping/add",
+    "badges": [
+      "transitiondefinition_define"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/authority/mapping/edit-trigger",
+    "badges": [
+      "transitiondefinition_define"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/authority/mapping/retire",
+    "badges": [
+      "transitiondefinition_define"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/authority/nouns",
+    "badges": [
+      "transitiondefinition_define"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/authority/nouns/add",
+    "badges": [
+      "transitiondefinition_define"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/authority/nouns/retire",
+    "badges": [
+      "transitiondefinition_define"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/authority/transition-definitions/:id",
+    "badges": [
+      "transitiondefinition_define"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/authority/transition-definitions/:id/edit",
+    "badges": [
+      "transitiondefinition_define"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/authority/transition-definitions/:id/update",
+    "badges": [
+      "transitiondefinition_define"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/authority/transition-definitions/add",
+    "badges": [
+      "transitiondefinition_define"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/authority/transition-definitions/retire",
+    "badges": [
+      "transitiondefinition_define"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/authority/verbs",
+    "badges": [
+      "transitiondefinition_define"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/authority/verbs/add",
+    "badges": [
+      "transitiondefinition_define"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/authority/verbs/retire",
+    "badges": [
+      "transitiondefinition_define"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/capability-definitions",
+    "badges": [],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/capability-definitions/:id/copy",
+    "badges": [],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/deliverable-definitions",
+    "badges": [],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/deliverable-definitions/:id/copy",
+    "badges": [],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/dev/act-as",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/dev/act-as/reset",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/events",
+    "badges": [],
+    "roles": [
+      "superuser"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/identity",
+    "badges": [
+      "root"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/identity/badges",
+    "badges": [
+      "identity_manage"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/identity/badges/:id/update",
+    "badges": [
+      "identity_manage"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/identity/tenants",
+    "badges": [
+      "root"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/identity/tenants",
+    "badges": [
+      "root"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/identity/users",
+    "badges": [
+      "identity_manage"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/identity/users",
+    "badges": [
+      "identity_manage"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/identity/users/:id/update",
+    "badges": [
+      "identity_manage"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/knowledge/capital",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/objectives",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/objectives",
+    "badges": [
+      "objective_propose"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/objectives/:id",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/objectives/:id/children",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/objectives/:id/comments",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/objectives/:id/commission",
+    "badges": [
+      "seu_commission"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/objectives/:id/compose-ebm",
+    "badges": [
+      "seu_commission"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/objectives/:id/compose-ebm",
+    "badges": [
+      "seu_commission"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/objectives/:id/delete",
+    "badges": [
+      "objective_propose"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/objectives/:id/edit",
+    "badges": [
+      "objective_propose"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/objectives/:id/move",
+    "badges": [
+      "objective_propose"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/objectives/:id/retire",
+    "badges": [
+      "objective_retire"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/objectives/:id/submit",
+    "badges": [
+      "objective_propose"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/objectives/:id/transition/activate",
+    "badges": [
+      "objective_activate"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/objectives/:id/transition/archive",
+    "badges": [
+      "objective_archive"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/objectives/:id/transition/reject",
+    "badges": [
+      "objective_reject"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/objectives/:id/transition/retire",
+    "badges": [
+      "objective_retire"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/objectives/:id/transition/supersede",
+    "badges": [
+      "objective_supersede"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/objectives/:id/update",
+    "badges": [
+      "objective_propose"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/objectives/:id/validate-commission",
+    "badges": [
+      "seu_commission"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/objectives/:id/validate-commission",
+    "badges": [
+      "seu_commission"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/objectives/new",
+    "badges": [
+      "objective_propose"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/packs",
+    "badges": [],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/participants",
+    "badges": [],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/policy-definitions",
+    "badges": [],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/policy-definitions/:id/copy",
+    "badges": [],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/profiles",
+    "badges": [],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/profiles/:id/copy",
+    "badges": [],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/route-authority",
+    "badges": [
+      "root"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/route-authority",
+    "badges": [
+      "root"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/route-authority/:id/delete",
+    "badges": [
+      "root"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/route-authority/:id/edit",
+    "badges": [
+      "root"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/route-authority/:id/update",
+    "badges": [
+      "root"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/route-authority/new",
+    "badges": [
+      "root"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/sdk/:slug",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/sdk/:slug",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/sdk/:slug/:draftId",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/sdk/:slug/:draftId/compose",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/sdk/:slug/:draftId/import",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/sdk/:slug/:draftId/publish",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/sdk/:slug/:draftId/save",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/sdk/:slug/:draftId/transition",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/sdk/:slug/new",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/sdk/ontology",
+    "badges": [
+      "ontology_define",
+      "ontology_manage"
+    ],
+    "roles": [],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/sdk/ontology/add",
+    "badges": [
+      "ontology_define",
+      "ontology_manage"
+    ],
+    "roles": [],
+    "match_mode": "any"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/sdk/ontology/approvals",
+    "badges": [
+      "ontology_approve"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/sdk/ontology/approvals/approve",
+    "badges": [
+      "ontology_approve"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/sdk/ontology/approvals/reject",
+    "badges": [
+      "ontology_approve"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/sdk/ontology/archive",
+    "badges": [
+      "ontology_define",
+      "ontology_manage"
+    ],
+    "roles": [],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/sdk/ontology/compose",
+    "badges": [
+      "ontology_define",
+      "ontology_manage"
+    ],
+    "roles": [],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/sdk/ontology/deprecate",
+    "badges": [
+      "ontology_define",
+      "ontology_manage"
+    ],
+    "roles": [],
+    "match_mode": "any"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/sdk/ontology/metadata",
+    "badges": [
+      "ontology_define",
+      "ontology_manage"
+    ],
+    "roles": [],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/sdk/ontology/quick-retire",
+    "badges": [
+      "ontology_define",
+      "ontology_manage"
+    ],
+    "roles": [],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/sdk/ontology/retire",
+    "badges": [
+      "ontology_define",
+      "ontology_manage"
+    ],
+    "roles": [],
+    "match_mode": "any"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/sdk/ontology/update-meta",
+    "badges": [
+      "ontology_define",
+      "ontology_manage"
+    ],
+    "roles": [],
+    "match_mode": "any"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/sdk/schema-registry",
+    "badges": [
+      "root"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/sdk/schema-registry",
+    "badges": [
+      "root"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/sdk/schema-registry/:id",
+    "badges": [
+      "root"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/sdk/schema-registry/:id/publish",
+    "badges": [],
+    "roles": [
+      "root"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/sdk/schema-registry/:id/reject",
+    "badges": [],
+    "roles": [
+      "root"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/sdk/schema-registry/new",
+    "badges": [
+      "root"
+    ],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/sdk/schema-registry/publish",
+    "badges": [],
+    "roles": [
+      "root"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/service-definitions",
+    "badges": [],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/service-definitions/:id/copy",
+    "badges": [],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/services",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/seus",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/seus/:id",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/attention-items",
+    "badges": [],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/attention-items/:attentionItemId/transition",
+    "badges": [],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/capabilities/:capabilityId/fulfil",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/capabilities/:capabilityId/participant/:participantId/replace",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/capabilities/:capabilityId/release",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/seus/:id/compliance",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/compliance/waivers",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/decisions",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/decisions/:decisionId/transition",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/deliverables/:deliverableId/transition",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/seus/:id/ebm",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/ebm/transition",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/evidence",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/evidence/:evidenceId/link",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/evidence/:evidenceId/transition",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/evidence/:evidenceId/validate",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/external-interactions",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/external-interactions/:interactionId/transition",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/findings/:findingId/convert",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/findings/:findingId/transition",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/knowledge",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/knowledge/:knowledgeItemId/promote-scope",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/knowledge/:knowledgeItemId/transition",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/obligations/:obligationId/revise",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/obligations/:obligationId/transition",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/seus/:id/reviews",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/reviews",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/reviews/:reviewId/findings",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/reviews/:reviewId/transition",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/seus/:id/work-items/:workItemId/complete",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/seus/:id/work-queue",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/seus/new",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/telemetry",
+    "badges": [],
+    "roles": [],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/templates",
+    "badges": [],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/templates/:id/copy",
+    "badges": [],
+    "roles": [
+      "participant"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
+    "path": "/aisworg/seu/tenant-admin/users",
+    "badges": [],
+    "roles": [
+      "tenant_admin"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "POST",
+    "path": "/aisworg/seu/tenant-admin/users/:id/badges",
+    "badges": [],
+    "roles": [
+      "tenant_admin"
+    ],
+    "match_mode": "all"
+  }
+]

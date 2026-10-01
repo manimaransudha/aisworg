@@ -14,7 +14,7 @@ type ParticipantMasterInput = {
   authorisedRole?: Array<{ role: string; effective_till: string; seu_ids: string[] }>;
   authorisedBadges?: Array<{ badge: string; effective_till: string; seu_ids: string[] }>;
   isActive?: boolean;
-  userId?: number | null;
+  userId: string | null;
 };
 
 const PARTICIPANTS_MASTER_COLUMNS = [
@@ -90,7 +90,7 @@ export const participantsMasterDB = {
   // CR-103 — resolves the participants_master identity behind a logged-in
   // user, for that user's own "SEUs I'm a Participant on" home page. Only
   // ever set for a Human-type master (migration 195's own user_id comment).
-  async findByUserId(userId: number): Promise<DbResult<ParticipantMasterRow | null>> {
+  async findByUserId(userId: string): Promise<DbResult<ParticipantMasterRow | null>> {
     try {
       const { rows } = await query<ParticipantMasterRow>("SELECT * FROM participants_master WHERE user_id = $1", [userId]);
       return { data: rows[0] ?? null };

@@ -12,9 +12,14 @@
 // model.
 import { participantsMasterDB } from "../../dblayer/participantsMasterDB.js";
 import { ontologyDB } from "../../dblayer/ontologyDB.js";
-import { PLATFORM_TENANT_ID } from "../../dblayer/constants.js";
 import { badgeAuthorityEngine } from "../engine/badgeAuthorityEngine.js";
 import { logger } from "../../utils/logger.js";
+import { tenantsDB } from "../../dblayer/tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "../../dblayer/constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 const SUPERUSER_EMAIL = (process.env.SUPERUSER_EMAIL || "").toLowerCase();
 
@@ -62,13 +67,13 @@ export async function getPlatformBadges(holderId: string): Promise<string[]> {
 // badge_grants. getPlatformBadges above reads it back via
 // badgeAuthorityEngine.getHeldBadges, so requirePlatformBadge's session
 // cache still sees it.
-export async function ensureBadgeBootstrap(user: { id: number | string; email: string }): Promise<void> {
+export async function ensureBadgeBootstrap(user: { id: string | string; email: string }): Promise<void> {
   try {
     if (user.email?.toLowerCase() !== SUPERUSER_EMAIL || !SUPERUSER_EMAIL) return;
-    const userId = Number(user.id);
+    const userId = user.id;
     if (!Number.isInteger(userId)) return;
 
-    const { data: existing } = await participantsMasterDB.findByUserId(userId);
+    const { data: existing } = await participantsMasterDB.findById(userId);
     let master = existing;
     if (!master) {
       const created = await participantsMasterDB.create({

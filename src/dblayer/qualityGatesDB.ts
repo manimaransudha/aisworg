@@ -41,6 +41,8 @@ export const qualityGatesDB = {
     // CR-104 — real deliverable-name codes this gate targets; empty/omitted
     // = every Deliverable on this transition (unchanged default behaviour).
     applicabilityDeliverableNames?: string[];
+    authorId: string;
+    authorBadge: string;
   }): Promise<DbResult<QualityGateRow>> {
     const client = await pool.connect();
     try {
@@ -75,10 +77,10 @@ export const qualityGatesDB = {
         await client.query("UPDATE quality_gates SET is_active = false WHERE id = $1", [current.id]);
       }
       const { rows } = await client.query<QualityGateRow>(
-        `INSERT INTO quality_gates (code, name, category, entity_type, from_state, to_state, criteria, originating_pack_id, version, is_active, checklist_ids, recommended_checklist_ids, applicability_deliverable_names)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10, $11, $12)
+        `INSERT INTO quality_gates (code, name, category, entity_type, from_state, to_state, criteria, originating_pack_id, version, is_active, checklist_ids, recommended_checklist_ids, applicability_deliverable_names, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10, $11, $12, $13, $14)
          RETURNING *`,
-        [code, input.name, category, input.entityType, input.fromState, input.toState, JSON.stringify(criteria), input.originatingPackId, nextVersion, checklistIds, recommendedChecklistIds, applicabilityDeliverableNames]
+        [code, input.name, category, input.entityType, input.fromState, input.toState, JSON.stringify(criteria), input.originatingPackId, nextVersion, checklistIds, recommendedChecklistIds, applicabilityDeliverableNames, input.authorId, input.authorBadge]
       );
       await client.query("COMMIT");
       return { data: rows[0] };

@@ -21,7 +21,7 @@ export const objectivesDB = {
   //     SELECT ... FOR UPDATE needed.
   //   - a Strategic root: its segment is tenant-scoped (owner: "use the
   //     tenant_id ... indirectly related ... through the user that proposes
-  //     it"), resolved via requestedBy -> users.tenant_id, then issued from
+  //     it"), resolved via requestedBy -> participants_master.tenant_id, then issued from
   //     objective_root_sequences (a root has no parent row of its own to hold
   //     a counter on) via the same atomic INSERT ... ON CONFLICT ... RETURNING
   //     idiom.
@@ -36,11 +36,23 @@ export const objectivesDB = {
     status?: ObjectiveStatus;
     parentObjectiveId?: string | null;
     // NOT NULL (migration 127) — required here too, not just on ObjectiveRow.
-    requestedBy: number;
+    requestedBy: string;
+    // objective_root_sequences.author_id/author_badge are NOT NULL with no
+    // DB default — required whenever a root (no parentObjectiveId) is being
+    // created, since that branch inserts into that table.
+    authorId: string;
+    authorBadge: string;
   }): Promise<DbResult<ObjectiveRow>> {
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
+      // requested_by is NOT NULL (migration 127) -- enforced here regardless
+      // of branch, not just in the no-parent branch below which needed it
+      // for its own tenant-sequence lookup anyway.
+      if (input.requestedBy == null) throw new Error("an Objective must be attributed to a real requestedBy — this can never be null");
+      // objectives.author_badge is NOT NULL, no DB default — required for every
+      // create, child or root.
+      if (!input.authorBadge) throw new Error("creating an Objective requires authorBadge — this can never be null");
       let displayId: string;
       let sponsoringAuthority: SponsoringAuthority;
 
@@ -57,25 +69,27 @@ export const objectivesDB = {
         displayId = `${parent.parent_display_id}.${parent.seq}`;
         sponsoringAuthority = parent.parent_sponsoring_authority ?? { tenant: null };
       } else {
-        if (input.requestedBy == null) throw new Error("a Strategic (root) Objective needs a real requestedBy to resolve which tenant's sequence to number it under");
-        const { rows: userRows } = await client.query<{ tenant_id: string }>("SELECT tenant_id FROM users WHERE id = $1", [input.requestedBy]);
-        const tenantId = userRows[0]?.tenant_id;
-        if (!tenantId) throw new Error(`cannot resolve a tenant for requestedBy user ${input.requestedBy}`);
+        // author_id/author_badge are NOT NULL, no DB default — required for
+        // this branch's INSERT, not optional/fallback-coalesced.
+        if (!input.authorId || !input.authorBadge) throw new Error("creating a root Objective requires authorId/authorBadge — this can never be null");
+        const { rows: participantRows } = await client.query<{ tenant_id: string }>("SELECT tenant_id FROM participants_master WHERE id = $1", [input.requestedBy]);
+        const tenantId = participantRows[0]?.tenant_id;
+        if (!tenantId) throw new Error(`cannot resolve a tenant for requestedBy participant ${input.requestedBy}`);
         const { rows: seqRows } = await client.query<{ seq: number }>(
-          `INSERT INTO objective_root_sequences (tenant_id, next_seq) VALUES ($1, 2)
-           ON CONFLICT (tenant_id) DO UPDATE SET next_seq = objective_root_sequences.next_seq + 1
+          `INSERT INTO objective_root_sequences (tenant_id, next_seq, author_id, author_badge) VALUES ($1, 2, $2, $3)
+           ON CONFLICT (tenant_id) DO UPDATE SET next_seq = objective_root_sequences.next_seq + 1, author_id = $2, author_badge = $3
            RETURNING next_seq - 1 AS seq`,
-          [tenantId]
+          [tenantId, input.authorId, input.authorBadge]
         );
         displayId = String(seqRows[0].seq);
         sponsoringAuthority = { tenant: tenantId };
       }
 
       const { rows } = await client.query<ObjectiveRow>(
-        `INSERT INTO objectives (statement, tier, status, parent_objective_id, requested_by, display_id, sponsoring_authority)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO objectives (statement, tier, status, parent_objective_id, requested_by, display_id, sponsoring_authority, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [input.statement, input.tier ?? "Engineering", input.status ?? "Active", input.parentObjectiveId ?? null, input.requestedBy ?? null, displayId, JSON.stringify(sponsoringAuthority)]
+        [input.statement, input.tier ?? "Engineering", input.status ?? "Active", input.parentObjectiveId ?? null, input.requestedBy, displayId, JSON.stringify(sponsoringAuthority), input.authorBadge]
       );
       await client.query("COMMIT");
       return { data: rows[0] };
@@ -301,7 +315,7 @@ export const objectivesDB = {
   // bumpVersion (default true) — owner: "add a save without versioning. in
   // which case the current version carries over" — false leaves version
   // untouched instead of advancing its patch segment.
-  async update(id: string, input: { statement?: string; requestedBy?: number | null; bumpVersion?: boolean }): Promise<DbResult<ObjectiveRow>> {
+  async update(id: string, input: { statement?: string; requestedBy: string; bumpVersion?: boolean }): Promise<DbResult<ObjectiveRow>> {
     try {
       const { rows } = await query<ObjectiveRow>(
         `UPDATE objectives
@@ -335,14 +349,17 @@ export const objectivesDB = {
 
   // CR-086 step 2 — capabilityCodes are bare capability-name Ontology codes
   // now, not capabilities.id (migration 150).
-  async addCapabilities(objectiveId: string, capabilityCodes: string[]): Promise<DbResult<void>> {
+  async addCapabilities(objectiveId: string, capabilityCodes: string[], authorId?: string, authorBadge?: string): Promise<DbResult<void>> {
     try {
+      if (capabilityCodes.length > 0 && (!authorId || !authorBadge)) {
+        throw new Error("addCapabilities: authorId/authorBadge are required when capabilityCodes is non-empty");
+      }
       for (const code of capabilityCodes) {
         await query(
-          `INSERT INTO objective_capabilities (objective_id, capability_code)
-           VALUES ($1, $2)
+          `INSERT INTO objective_capabilities (objective_id, capability_code, author_id, author_badge)
+           VALUES ($1, $2, $3, $4)
            ON CONFLICT (objective_id, capability_code) DO NOTHING`,
-          [objectiveId, code]
+          [objectiveId, code, authorId, authorBadge]
         );
       }
       return { data: undefined };
@@ -355,15 +372,18 @@ export const objectivesDB = {
   // Replaces the full required-Capability set for an edit (owner: "Allow
   // edit of required capabilities") — delete-then-insert, same "set"
   // idiom as profilesDB.setPackSelection/templatesDB.setMandatoryPacks.
-  async setRequiredCapabilities(objectiveId: string, capabilityCodes: string[]): Promise<DbResult<void>> {
+  async setRequiredCapabilities(objectiveId: string, capabilityCodes: string[], authorId?: string, authorBadge?: string): Promise<DbResult<void>> {
     try {
       await query("DELETE FROM objective_capabilities WHERE objective_id = $1", [objectiveId]);
+      if (capabilityCodes.length > 0 && (!authorId || !authorBadge)) {
+        throw new Error("setRequiredCapabilities: authorId/authorBadge are required when capabilityCodes is non-empty");
+      }
       for (const code of capabilityCodes) {
         await query(
-          `INSERT INTO objective_capabilities (objective_id, capability_code)
-           VALUES ($1, $2)
+          `INSERT INTO objective_capabilities (objective_id, capability_code, author_id, author_badge)
+           VALUES ($1, $2, $3, $4)
            ON CONFLICT (objective_id, capability_code) DO NOTHING`,
-          [objectiveId, code]
+          [objectiveId, code, authorId, authorBadge]
         );
       }
       return { data: undefined };
@@ -406,7 +426,7 @@ export const objectivesDB = {
   // CR-073 — general-purpose, append-only comment thread. Never updated or
   // deleted at the application layer; oldest first (a narrative history, not
   // an activity feed).
-  async addComment(objectiveId: string, actorId: number | null, commentText: string): Promise<DbResult<ObjectiveCommentRow>> {
+  async addComment(objectiveId: string, actorId: string, commentText: string): Promise<DbResult<ObjectiveCommentRow>> {
     try {
       const { rows } = await query<ObjectiveCommentRow>(
         `INSERT INTO objective_comments (objective_id, actor_id, comment_text)

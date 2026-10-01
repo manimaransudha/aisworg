@@ -7,13 +7,18 @@
 // competency (dimension = category:pack, CR-099), behavioural compatibility
 // with the EBM, required knowledge, required authority, engineering
 // constraints, Pack-specific requirements — without touching either caller.
-import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { unravelComposition } from "../../../domain/engine/profileCompositionUnravel.js";
 import { evaluateCondition, type GoverningCondition } from "../../../domain/engine/governingCondition.js";
 import type { ParticipantMasterRow, PolicyRow, SeuRow } from "../../../dblayer/seuTypes.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 export interface EligibilityCriteria {
   tenantId: string;

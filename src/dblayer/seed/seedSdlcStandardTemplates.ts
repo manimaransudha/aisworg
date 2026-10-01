@@ -28,6 +28,8 @@ import { publishTemplate, PACK_SELECTION_SLOTS } from "../../routes/seu/core/tem
 import { publishProfile } from "../../routes/seu/core/profiles.js";
 import type { TemplateDeliverableSeed, TemplateDependencyGraphEntry } from "../seuTypes.js";
 import type { ExposedParameter } from "../../routes/seu/core/templates.js";
+import { getPlatformTenantId } from "../constants.js";
+import { userDB } from "../userDB.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "data");
@@ -35,7 +37,10 @@ const dataDir = path.join(__dirname, "data");
 function loadJson<T>(fileName: string): T {
   return JSON.parse(readFileSync(path.join(dataDir, fileName), "utf8")) as T;
 }
-
+export interface SeedActor {
+  authoredBy: string;
+  authorBadge: string;
+}
 interface TemplateSeed {
   code: string;
   templateVersion?: string;
@@ -118,11 +123,19 @@ const STANDARD_TEMPLATE_FILES: Array<{ template: string; profile: string }> = [
   { template: "mobile-application.template.json", profile: "mobile-application-development.profile.json" },
   { template: "package-implementation.template.json", profile: "package-implementation-development.profile.json" },
 ];
-
-async function seedOne(templateFile: string, profileFile: string): Promise<void> {
+const TEST_TEMPLATES: Array<{ template: string; profile: string }> = [
+  { template: "cr104-demo-minimal.template.json", profile: "cr104-demo-development.profile.json" },
+];
+const ALL_TEMPLATES: Array<{ template: string; profile: string }> = [
+  ...STANDARD_TEMPLATE_FILES,
+  ...(process.env.NODE_ENV !== "production" ? TEST_TEMPLATES : [])
+];
+async function seedOne(templateFile: string, profileFile: string, actor: SeedActor): Promise<void> {
   const templateSeed = loadJson<TemplateSeed>(templateFile);
   const profileSeed = loadJson<ProfileSeed>(profileFile);
-
+  // get platform tenant id
+  const PLATFORM_TENANT_ID = await getPlatformTenantId();  
+    
   // publishTemplate's own TemplateSeedInput (CR-038) buckets mandatory Packs
   // into six category-scoped fields, not one flat list — bucket the JSON
   // file's own unchanged mandatoryPackCodes by each Pack's real category. A
@@ -158,10 +171,11 @@ async function seedOne(templateFile: string, profileFile: string): Promise<void>
       dependencyGraph: templateSeed.dependencyGraph,
       exposedParameters: templateSeed.exposedParameters,
       purpose: templateSeed.purpose,
+      tenantId: PLATFORM_TENANT_ID,
       ...packSelections,
     },
-    actorRole: "super",
-    actorId: "1",
+    actorRole: actor.authorBadge,
+    actorId: actor.authoredBy
   });
   if (!templateResult.ok) throw new Error(`[seed:sdlc-standard-templates] failed to publish template "${templateSeed.code}": ${templateResult.errors.join("; ")}`);
   logger.info(`[seed:sdlc-standard-templates] template ${templateSeed.code} -> ${templateResult.templateId}`);
@@ -175,6 +189,7 @@ async function seedOne(templateFile: string, profileFile: string): Promise<void>
       name: profileSeed.name,
       baseTemplateCode: profileSeed.baseTemplateCode,
       environment: profileSeed.environment,
+      tenantId: PLATFORM_TENANT_ID,
       optionalPackCodes: profileSeed.optionalPackCodes ?? [],
       technologyPackCodes: profileSeed.technologyPackCodes ?? [],
       domainPackCodes: profileSeed.domainPackCodes ?? [],
@@ -194,23 +209,26 @@ async function seedOne(templateFile: string, profileFile: string): Promise<void>
       documentationLevel: profileSeed.documentationLevel,
       exposedParameterOverrides: profileSeed.exposedParameterOverrides,
     },
-    actorRole: "super",
-    actorId: "1",
+    actorRole: actor.authorBadge,
+    actorId: actor.authoredBy
   });
   if (!profileResult.ok) throw new Error(`[seed:sdlc-standard-templates] failed to publish profile "${profileSeed.code}": ${profileResult.errors.join("; ")}`);
   logger.info(`[seed:sdlc-standard-templates] profile ${profileSeed.code} -> ${profileResult.profileId}`);
 }
 
-export async function seedSdlcStandardTemplates(): Promise<void> {
-  for (const { template, profile } of STANDARD_TEMPLATE_FILES) {
-    await seedOne(template, profile);
+export async function seedSdlcStandardTemplates(actor: SeedActor): Promise<void> {
+  for (const { template, profile } of ALL_TEMPLATES) {
+    await seedOne(template, profile, actor);
   }
-  logger.info(`[seed:sdlc-standard-templates] done — ${STANDARD_TEMPLATE_FILES.length} standard Templates seeded.`);
+  logger.info(`[seed:sdlc-standard-templates] done — ${ALL_TEMPLATES.length} standard Templates seeded.`);
 }
 
 const isMain = import.meta.url === `file://${process.argv[1]}`;
 if (isMain) {
-  seedSdlcStandardTemplates()
+  const { actorId, actorBadge } = await userDB.getSuperuserId();
+  if (!actorId) throw new Error(`No participants_master row for user_id ${actorId} -- log in as root first.`);
+      
+  seedSdlcStandardTemplates({ authoredBy: actorId, authorBadge: actorBadge })
     .catch((err) => {
       logger.error("[seed:sdlc-standard-templates] failed", err as Error);
       process.exitCode = 1;

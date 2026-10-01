@@ -18,7 +18,8 @@ import pool from "../src/utils/db.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
-import { createObligation, transitionObligation, reviseObligation } from "../src/routes/seu/core/obligations.js";
+import { transitionObligation, reviseObligation } from "../src/routes/seu/core/obligations.js";
+import { createObligationAsRoot as createObligation } from "./testFixtures.js";
 import { commissionFromFormSync, ensureEventSubscriptionsLoaded, resolveDispatchRejectionObligations } from "./testFixtures.js";
 
 before(async () => {

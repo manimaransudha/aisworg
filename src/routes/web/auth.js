@@ -67,7 +67,7 @@ router.post('/login', loginLimiter, (req, res, next) => {
       return res.redirect('/aisworg/login');
     }
 
-    req.session.user = buildSessionUser(user);
+    req.session.user = await buildSessionUser(user);
     await ensureBadgeBootstrap(user);
     req.session.user.platformBadges = await getPlatformBadges(String(user.id));
     logger.info(`[Auth] Local login: ${user.email} (${user.role})`);
@@ -91,7 +91,7 @@ router.get('/google/callback',
   passport.authenticate('google', { session: false, failureRedirect: '/aisworg/login' }),
   async (req, res) => {
     if (!req.user) return res.redirect('/aisworg/auth/disabled');
-    req.session.user = buildSessionUser(req.user);
+    req.session.user = await buildSessionUser(req.user);
     await ensureBadgeBootstrap(req.user);
     req.session.user.platformBadges = await getPlatformBadges(String(req.user.id));
     logger.info(`[Auth] Google login: ${req.user.email} (${req.user.role})`);
@@ -161,7 +161,7 @@ router.post('/verify', loginLimiter, async (req, res) => {
   const hash = await bcrypt.hash(password, 12);
   const activated = await userDB.activateWithPassword(user.email, hash);
 
-  req.session.user = buildSessionUser(activated);
+  req.session.user = await buildSessionUser(activated);
   await ensureBadgeBootstrap(activated);
   req.session.user.platformBadges = await getPlatformBadges(String(activated.id));
   logger.info(`[Auth] Account activated: ${activated.email} (${activated.role})`);

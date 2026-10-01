@@ -14,8 +14,15 @@ import path from "node:path";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { ontologyDB } from "../ontologyDB.js";
+import { userDB } from "../userDB.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// authoredBy is a participants_master.id
+export interface SeedActor {
+  authoredBy: string;
+  authorBadge: string;
+}
 
 interface EventTypeSeed {
   eventType: string;
@@ -40,7 +47,7 @@ function loadSeed(): EventSubscriptionsSeed {
   return JSON.parse(raw) as EventSubscriptionsSeed;
 }
 
-export async function seedEventSubscriptions(): Promise<void> {
+export async function seedEventSubscriptions(actor: SeedActor): Promise<void> {
   const seed = loadSeed();
   // Loaded once and checked in-memory below, rather than a live Ontology
   // query per event type in the loop.
@@ -60,17 +67,17 @@ export async function seedEventSubscriptions(): Promise<void> {
         throw new Error(`"${et.category}" is not a canonical category:event-types concept. Allowed: ${[...canonicalEventCategoryCodes].join(", ") || "(none registered)"}`);
       }
       await client.query(
-        `INSERT INTO event_registry (event_type, description, category) VALUES ($1, $2, $3)
+        `INSERT INTO event_registry (event_type, description, category, author_id, author_badge) VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (event_type) DO UPDATE SET description = EXCLUDED.description, category = EXCLUDED.category`,
-        [et.eventType, et.description ?? null, et.category ?? null]
+        [et.eventType, et.description ?? null, et.category ?? null, actor.authoredBy, actor.authorBadge]
       );
     }
 
     for (const sub of seed.subscriptions) {
       await client.query(
-        `INSERT INTO event_subscriptions (event_type, handler_name) VALUES ($1, $2)
+        `INSERT INTO event_subscriptions (event_type, handler_name, author_id, author_badge) VALUES ($1, $2, $3, $4)
          ON CONFLICT (event_type, handler_name) DO NOTHING`,
-        [sub.eventType, sub.handlerName]
+        [sub.eventType, sub.handlerName, actor.authoredBy, actor.authorBadge]
       );
     }
 
@@ -84,12 +91,14 @@ export async function seedEventSubscriptions(): Promise<void> {
   }
 }
 
-const isMain = import.meta.url === `file://${process.argv[1]}`;
-if (isMain) {
-  seedEventSubscriptions()
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const { participantsMasterDB } = await import("../participantsMasterDB.js");
+  const { actorId, actorBadge } = await userDB.getSuperuserId(); 
+  if (!actorId) throw new Error("No participants_master row for user_id 1 -- log in as root first.");
+  seedEventSubscriptions({ authoredBy: actorId, authorBadge: actorBadge })
+    .then(() => process.exit(0))
     .catch((err) => {
       logger.error("[seed:event-subscriptions] failed", err as Error);
-      process.exitCode = 1;
-    })
-    .finally(() => pool.end());
+      process.exit(1);
+    });
 }

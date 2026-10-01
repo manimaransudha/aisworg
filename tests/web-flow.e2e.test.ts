@@ -31,7 +31,7 @@ import { appConfig } from "../src/config/appconfig.js";
 import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
-import { createObligation } from "../src/routes/seu/core/obligations.js";
+import { createObligationAsRoot as createObligation } from "./testFixtures.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
 import { publishProfile } from "../src/routes/seu/core/profiles.js";
 import { commissionSeu as commissionSeuCore } from "../src/routes/seu/core/commissioning.js";
@@ -40,7 +40,8 @@ import { objectivesDB } from "../src/dblayer/objectivesDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
-import { ensureWebAppTemplateFixture, uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, waitUntilAsync, resolveDispatchRejectionObligations } from "./testFixtures.js";
+import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
+import { ensureWebAppTemplateFixture, uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, waitUntilAsync, resolveDispatchRejectionObligations, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import type { CommandRow, WorkItemRow } from "../src/dblayer/seuTypes.js";
 
@@ -895,7 +896,7 @@ async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: st
     },
   };
   await registerOrganisationName(packSeed.code);
-  const published = await publishPack({ seed: packSeed as any, actorRole: "super", actorId: "1001", activate: true });
+  const published = await publishPack({ seed: packSeed as any, actorRole: "super", actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `isolated Phase8 pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
 
   const { data: template } = await templatesDB.upsert({
@@ -903,9 +904,11 @@ async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: st
     name: "WebFlow Phase8 Isolated Template",
     deliverableCatalogue: [{ code: "requirements-analysis-model" }],
   });
-  await templatesDB.setMandatoryPacks(template!.id, [packSeed.code]);
+  await templatesDB.setMandatoryPacks(template!.id, [packSeed.code], ROOT_ACTOR_ID, "root");
   const { data: requiredCapabilities } = await capabilitiesDB.findByCodes(["requirements-analysis"]);
-  await templatesDB.setRequiredCapabilities(template!.id, (requiredCapabilities ?? []).map((c) => c.id));
+  const { data: rootMasterForCapabilities, error: rootMasterForCapabilitiesErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
+  if (rootMasterForCapabilitiesErr || !rootMasterForCapabilities) throw rootMasterForCapabilitiesErr ?? new Error("no participants_master row for user_id 1 -- is db:clean-slate seeded?");
+  await templatesDB.setRequiredCapabilities(template!.id, (requiredCapabilities ?? []).map((c) => c.id), rootMasterForCapabilities.id, "root");
 
   const profilePublish = await publishProfile({
     seed: {
@@ -918,7 +921,7 @@ async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: st
       primaryProgrammingLanguage: "typescript",
       sourceControlProvider: "github",
     },
-    actorRole: "super", actorId: "1001",
+    actorRole: "super", actorId: TESTER_ALL_ID,
   });
   assert.ok(profilePublish.ok, `isolated Phase8 profile must publish: ${!profilePublish.ok ? JSON.stringify(profilePublish.errors) : ""}`);
   const { data: profile } = await profilesDB.findById(profilePublish.profileId);
@@ -1096,7 +1099,7 @@ test("Phase 9 — a Pack published through the SDK is visible on the platform-wi
     installationClassification: "Optional" as const,
     contributions: {},
   };
-  const published = await publishPack({ seed, actorRole: "power", actorId: "1001", activate: true });
+  const published = await publishPack({ seed, actorRole: "power", actorId: TESTER_ALL_ID, activate: true });
   assert.equal(published.ok, true, !published.ok ? JSON.stringify(published.errors) : undefined);
   assert.equal(published.pack!.status, "Active");
 

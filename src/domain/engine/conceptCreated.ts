@@ -29,6 +29,10 @@ export const conceptCreatedHandler: EventHandler = async (event: EventRow) => {
     logger.error(`[conceptCreated] malformed payload on event ${event.id}: missing code/conceptType/tenantId`);
     return;
   }
+  if (!event.actor_id || !event.authority_badge) {
+    logger.error(`[conceptCreated] event ${event.id} has no actor_id/authority_badge — cannot author the Draft concept insert`);
+    return;
+  }
   const { data: existing } = await ontologyDB.findLatestVersion(conceptType, code, tenantId);
   if (existing) return; // already inserted (a retried/duplicate event) or has since become a real concept.
 
@@ -38,6 +42,7 @@ export const conceptCreatedHandler: EventHandler = async (event: EventRow) => {
   // label input.
   const { error } = await ontologyDB.insertConceptVersion({
     conceptType, code, tenantId, version: "1.0.0", defaultLabel: code, status: "Draft",
+    authorId: event.actor_id, authorBadge: event.authority_badge,
   });
   if (error) logger.error(`[conceptCreated] failed to insert Draft concept ${conceptType}/${code} (tenant ${tenantId})`, error);
 };

@@ -15,6 +15,7 @@ import { requireBadge } from "../../../middleware/requireBadge.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { routeAuthorityDB } from "../../../dblayer/routeAuthorityDB.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { refreshRouteAuthorityCache } from "../../../domain/identity/routeAuthorityCache.js";
 import { listGrantableNounVerbBadges, listAdminSurfaceBadgeCodes } from "../core/identity.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
@@ -22,6 +23,17 @@ import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 const backTo = "/aisworg/seu/route-authority";
 const adminBadge = process.env.ROUTE_AUTHORITY_ADMIN_BADGE || "root";
 const gate = requireBadge([adminBadge], { redirectTo: "/aisworg" });
+
+// route_authority.author_id/author_badge are participants_master-scoped and
+// NOT NULL -- resolve the real actor + the real badge this screen's own
+// gate (adminBadge, above) already verified, never a default.
+async function resolveRouteAuthorityAuthor(req: Request): Promise<{ authorId: string; authorBadge: string } | { error: string }> {
+  const userId = req.session?.user?.id != null ? String(req.session.user.id) : null;
+  if (!userId) return { error: "No logged-in user on this session." };
+  const { data: master } = await participantsMasterDB.findById(userId);
+  if (!master) return { error: `No superuser provisioned.` };
+  return { authorId: master.id, authorBadge: adminBadge };
+}
 
 async function grantableBadgeCodes(): Promise<string[]> {
   const [nounVerb, adminSurface] = await Promise.all([listGrantableNounVerbBadges(), listAdminSurfaceBadgeCodes()]);
@@ -74,7 +86,7 @@ router.get("/route-authority/new", gate, attachVM("seu/route-authority/edit"), a
 /** GET /aisworg/seu/route-authority/:id/edit */
 router.get("/route-authority/:id/edit", gate, attachVM("seu/route-authority/edit"), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { data: row } = await routeAuthorityDB.findById(req.params.id);
+    const { data: row } = await routeAuthorityDB.findById(String(req.params.id));
     if (!row) return flashError(req, res, backTo, "Route authority row not found.");
     req.vm.req.title = `Edit ${row.method} ${row.path}`;
     req.vm.req.row = row;
@@ -103,7 +115,9 @@ router.post("/route-authority", gate, async (req: Request, res: Response) => {
   try {
     const parsed = readForm(req.body ?? {});
     if ("error" in parsed) return flashError(req, res, `${backTo}/new`, parsed.error);
-    const { data, error } = await routeAuthorityDB.create(parsed);
+    const author = await resolveRouteAuthorityAuthor(req);
+    if ("error" in author) return flashError(req, res, `${backTo}/new`, author.error);
+    const { data, error } = await routeAuthorityDB.create({ ...parsed, authorId: author.authorId, authorBadge: author.authorBadge });
     if (error || !data) return flashError(req, res, `${backTo}/new`, error?.message ?? "Could not create row.");
     await refreshRouteAuthorityCache();
     return flashSuccess(req, res, backTo, `${data.method} ${data.path} added.`);
@@ -115,7 +129,7 @@ router.post("/route-authority", gate, async (req: Request, res: Response) => {
 
 /** POST /aisworg/seu/route-authority/:id/update */
 router.post("/route-authority/:id/update", gate, async (req: Request, res: Response) => {
-  const id = req.params.id;
+  const id = String(req.params.id);
   try {
     const parsed = readForm(req.body ?? {});
     if ("error" in parsed) return flashError(req, res, `${backTo}/${id}/edit`, parsed.error);
@@ -132,7 +146,7 @@ router.post("/route-authority/:id/update", gate, async (req: Request, res: Respo
 /** POST /aisworg/seu/route-authority/:id/delete */
 router.post("/route-authority/:id/delete", gate, async (req: Request, res: Response) => {
   try {
-    const { error } = await routeAuthorityDB.delete(req.params.id);
+    const { error } = await routeAuthorityDB.delete(String(req.params.id));
     if (error) return flashError(req, res, backTo, error.message);
     await refreshRouteAuthorityCache();
     return flashSuccess(req, res, backTo, "Row deleted.");

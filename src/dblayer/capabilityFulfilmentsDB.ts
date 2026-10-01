@@ -7,13 +7,15 @@ export const capabilityFulfilmentsDB = {
     seuCapabilityId: string;
     participantId: string;
     fulfilmentStrategy?: FulfilmentStrategy;
+    authorId: string;
+    authorBadge: string;
   }): Promise<DbResult<CapabilityFulfilmentRow>> {
     try {
       const { rows } = await query<CapabilityFulfilmentRow>(
-        `INSERT INTO capability_fulfilments (seu_capability_id, participant_id, fulfilment_strategy)
-         VALUES ($1, $2, $3)
+        `INSERT INTO capability_fulfilments (seu_capability_id, participant_id, fulfilment_strategy, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5)
          RETURNING *`,
-        [input.seuCapabilityId, input.participantId, input.fulfilmentStrategy ?? "AI"]
+        [input.seuCapabilityId, input.participantId, input.fulfilmentStrategy ?? "AI", input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

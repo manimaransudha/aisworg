@@ -19,23 +19,29 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { policyDefinitionsDB } from "../src/dblayer/policyDefinitionsDB.js";
+import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { transitionPolicyDefinition } from "../src/routes/seu/core/policyDefinitions.js";
 import type { PolicyDefinitionRow } from "../src/dblayer/seuTypes.js";
 import { randomUUID } from "node:crypto";
+import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 async function freshPolicyDefinitionDraft(): Promise<{ id: string }> {
   // CR-114 follow-on — policyDefinitionsDB.createDraft's schemaDefinitionId
   // is now mandatory.
   const { data: policySchema } = await schemaDefinitionsDB.findLatest("Policy");
   if (!policySchema) throw new Error("no schema_definitions grammar for Policy");
+  const { data: rootMaster, error: rootMasterErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
+  if (rootMasterErr || !rootMaster) throw rootMasterErr ?? new Error("freshPolicyDefinitionDraft(): no participants_master row for user_id 1 — is db:clean-slate seeded?");
   const { data: draft, error } = await policyDefinitionsDB.createDraft({
     code: `test-policy-lifecycle-${randomUUID()}`,
     name: "Test Policy Definition",
     category: "Engineering",
     version: "1.0.0",
+    authoredBy: rootMaster.id,
+    authorBadge: "root",
     schemaDefinitionId: policySchema.id,
   });
   if (error || !draft) throw error ?? new Error("failed to create Policy Definition draft");
@@ -76,7 +82,7 @@ test("DRIVEN: every hop publishes its matching event, in order", async () => {
   const draft = await freshPolicyDefinitionDraft();
 
   for (const row of POLICY_DEFINITION_TABLE) {
-    const result = await transitionPolicyDefinition({ policyDefinitionId: draft.id, targetState: row.toState as PolicyDefinitionRow["status"], actorRole: "power", actorId: "1001" });
+    const result = await transitionPolicyDefinition({ policyDefinitionId: draft.id, targetState: row.toState as PolicyDefinitionRow["status"], actorRole: "power", actorId: TESTER_ALL_ID });
     assert.equal(result.ok, true, result.ok ? undefined : `row ${row.row} (${row.description}): ${result.reason}: ${result.detail}`);
   }
 

@@ -31,8 +31,13 @@ import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { listConceptTypes, listConceptsForType, addConcept, deprecateConcept, retireConcept, archiveConcept, composeConcept, updateConceptMeta, quickRetireConcept, listAllConceptsForPicker, listDistinctUiGroupings, getConceptTypeNav, tabsForActiveType, approveConcept, rejectConcept, listDraftConceptsForApproval, type OntologyActor } from "../core/ontology.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
-import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { renderMarkdown } from "../../../domain/sdk/markdownRender.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 const backTo = "/aisworg/seu/sdk/ontology";
 
@@ -57,7 +62,13 @@ async function heldBadges(req: Request): Promise<Set<string>> {
 
 function actorFrom(req: Request, held: Set<string>): OntologyActor {
   const userId = req.session?.user?.id;
-  return { isRoot: held.has("root"), tenantId: req.session?.user?.tenant_id ?? null, actorId: userId != null ? String(userId) : null };
+  if (userId == null) throw new Error("no acting user to record as this concept's author — log in first.");
+  return {
+    isRoot: held.has("root"),
+    tenantId: req.session?.user?.tenant_id ?? null,
+    actorId: String(userId),
+    actorBadge: held.has("root") ? "root" : "ontology_define",
+  };
 }
 
 /** GET /aisworg/seu/sdk/ontology — concept_types as tabs; ?type= selects which one's concepts are listed. */

@@ -11,7 +11,7 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
-import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
+import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { sweepStalledWorkItems } from "../src/routes/seu/core/workItemHeartbeat.js";
 import { servicesDB } from "../src/dblayer/servicesDB.js";
@@ -57,6 +57,8 @@ async function commissionDispatchAndDeclareSla(prefix: string, opts?: { slaSecon
       { label: "Turnaround Time", target: String(opts?.slaSeconds ?? SLA_SECONDS) },
     ],
     originatingPackId: svc.originating_pack_id!,
+    authorId: svc.author_id,
+    authorBadge: svc.author_badge,
   });
 
   await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });

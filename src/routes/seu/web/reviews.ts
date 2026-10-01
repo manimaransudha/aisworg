@@ -10,6 +10,8 @@ import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
+import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
+import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 import { listReviewsWithNextStates, createReview, transitionReview } from "../core/reviews.js";
 import { listFindingsByReview, createFinding, transitionFinding, convertFindingToObligation } from "../core/findings.js";
 import type { ReviewOutcome } from "../../../dblayer/seuTypes.js";
@@ -55,7 +57,14 @@ router.post("/seus/:id/reviews", async (req: Request, res: Response) => {
     return flashError(req, res, backTo, "Deliverable, category and name are required.");
   }
   try {
-    await createReview({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category, name });
+    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
+    if (!actorId) return flashError(req, res, backTo, "No acting user to record as this Review's author — log in first.");
+    const authRow = lookupRouteAuthority(req.method, req.path);
+    const held = await resolveHeldBadges(req);
+    const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+    if (!authorBadge) return flashError(req, res, backTo, "No held badge authorises this action — cannot record an author badge.");
+
+    await createReview({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category, name, actorId, authorBadge });
     return flashSuccess(req, res, backTo, `Review "${name}" planned (${category}).`);
   } catch (err) {
     logger.error("[web/seu/reviews] POST /seus/:id/reviews error", err as Error);
@@ -96,11 +105,20 @@ router.post("/seus/:id/reviews/:reviewId/findings", async (req: Request, res: Re
   const { severity, title, description } = req.body ?? {};
   if (typeof title !== "string" || !title.trim()) return flashError(req, res, backTo, "Finding title is required.");
   try {
+    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
+    if (!actorId) return flashError(req, res, backTo, "No acting user to record as this Finding's author — log in first.");
+    const authRow = lookupRouteAuthority(req.method, req.path);
+    const held = await resolveHeldBadges(req);
+    const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+    if (!authorBadge) return flashError(req, res, backTo, "No held badge authorises this action — cannot record an author badge.");
+
     await createFinding({
       reviewId: String(req.params.reviewId),
       severity: typeof severity === "string" && severity.trim() ? severity : "Medium",
       title,
       description: typeof description === "string" ? description : null,
+      actorId,
+      authorBadge,
     });
     return flashSuccess(req, res, backTo, `Finding "${title}" raised.`);
   } catch (err) {
@@ -133,7 +151,11 @@ router.post("/seus/:id/findings/:findingId/convert", async (req: Request, res: R
   const seuId = String(req.params.id);
   const backTo = `/aisworg/seu/seus/${seuId}/reviews`;
   try {
-    const result = await convertFindingToObligation({ findingId: String(req.params.findingId), category: typeof req.body?.category === "string" ? req.body.category : undefined });
+    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
+    if (!actorId) return flashError(req, res, backTo, "Authentication required.");
+    const held = await resolveHeldBadges(req);
+    const authorBadge = held.isRoot ? "root" : [...held.badgeTypes][0] ?? "general";
+    const result = await convertFindingToObligation({ findingId: String(req.params.findingId), category: typeof req.body?.category === "string" ? req.body.category : undefined, actorId, authorBadge });
     if (!result.ok) return flashError(req, res, backTo, `Could not convert Finding: ${result.detail}`);
     return flashSuccess(req, res, backTo, `Finding converted to an Obligation.`);
   } catch (err) {

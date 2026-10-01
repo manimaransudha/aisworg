@@ -28,11 +28,19 @@ import path from "node:path";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { publishPack, type PackSeedInput } from "../../routes/seu/core/packs.js";
+import { userDB } from "../userDB.js";
+import { getPlatformTenantId } from "../constants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "data");
-
-export async function seedAllTabsPackFixture(): Promise<void> {
+export interface SeedActor {
+  authoredBy: string;
+  authorBadge: string;
+}
+// get platform tenant id
+const PLATFORM_TENANT_ID = await getPlatformTenantId();
+  
+export async function seedAllTabsPackFixture(actor: SeedActor): Promise<void> {
   const seed = JSON.parse(readFileSync(path.join(dataDir, "test-pack-all-tabs.pack.json"), "utf8")) as PackSeedInput;
   // Same convention every other seed script uses (root holder "1" bypasses
   // noun×verb authority — CR-006) — publishPack/createPackDraft are
@@ -46,7 +54,10 @@ export async function seedAllTabsPackFixture(): Promise<void> {
 
 const isMain = import.meta.url === `file://${process.argv[1]}`;
 if (isMain) {
-  seedAllTabsPackFixture()
+  const { actorId, actorBadge } = await userDB.getSuperuserId();
+  if (!actorId) throw new Error(`Provision a superuser before this operation.`);
+    
+  seedAllTabsPackFixture({ authoredBy: actorId, authorBadge: actorBadge })
     .catch((err) => {
       logger.error("[seed:all-tabs-pack-fixture] failed", err as Error);
       process.exitCode = 1;

@@ -10,20 +10,24 @@ export const executionTargetsDB = {
     tenantId: string;
     capabilityId: string;
     mode: ExecutionMode;
+    authorId: string;
+    authorBadge: string;
     adapterEndpoint?: string | null;
     adapterAuthRef?: string | null;
   }): Promise<DbResult<ExecutionTargetRow>> {
     try {
       const { rows } = await query<ExecutionTargetRow>(
-        `INSERT INTO execution_targets (tenant_id, capability_id, mode, adapter_endpoint, adapter_auth_ref)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO execution_targets (tenant_id, capability_id, mode, adapter_endpoint, adapter_auth_ref, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (tenant_id, capability_id) DO UPDATE
            SET mode = EXCLUDED.mode,
                adapter_endpoint = EXCLUDED.adapter_endpoint,
                adapter_auth_ref = EXCLUDED.adapter_auth_ref,
+               author_id = EXCLUDED.author_id,
+               author_badge = EXCLUDED.author_badge,
                updated_at = NOW()
          RETURNING *`,
-        [input.tenantId, input.capabilityId, input.mode, input.adapterEndpoint ?? null, input.adapterAuthRef ?? null]
+        [input.tenantId, input.capabilityId, input.mode, input.adapterEndpoint ?? null, input.adapterAuthRef ?? null, input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

@@ -7,7 +7,26 @@ import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { executionTargetsDB } from "../../../dblayer/executionTargetsDB.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
+import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
+import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
 import type { ExecutionMode } from "../../../dblayer/seuTypes.js";
+
+// execution_targets.author_id/author_badge are NOT NULL -- resolve the real
+// acting participants_master row and the real held badge this route's own
+// route_authority gate requires, never a default (same pattern as
+// sdkAuthoring.ts's resolveAuthorityVocabAuthor).
+async function resolveExecutionTargetAuthor(req: Request): Promise<{ authorId: string; authorBadge: string } | { error: string }> {
+  const userId = req.session?.user?.id;
+  if (!(userId)) return { error: "No logged-in user on this session." };
+  const { data: master } = await participantsMasterDB.findById(userId);
+  if (!master) return { error: `No superuser provisioned.` };
+  const authRow = lookupRouteAuthority(req.method, req.path);
+  const held = await resolveHeldBadges(req);
+  const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+  if (!authorBadge) return { error: "No held badge authorises this action -- cannot record an author badge." };
+  return { authorId: master.id, authorBadge };
+}
 
 // Participant Integration — Plan step 6 (Contract declaration #2, tenant-scoped).
 // Register how a tenant's Participant for a Capability is reached: human-on-UI
@@ -33,10 +52,15 @@ router.post("/execution-targets", async (req: Request, res: Response) => {
     const tenantId = await resolveTenantId(body);
     if (!tenantId) return res.status(400).json({ error: "no tenant resolved (and no default tenant seeded)" });
 
+    const author = await resolveExecutionTargetAuthor(req);
+    if ("error" in author) return res.status(400).json({ error: author.error });
+
     const { data, error } = await executionTargetsDB.upsert({
       tenantId,
       capabilityId,
       mode: mode as ExecutionMode,
+      authorId: author.authorId,
+      authorBadge: author.authorBadge,
       adapterEndpoint: typeof adapterEndpoint === "string" ? adapterEndpoint : null,
       adapterAuthRef: typeof adapterAuthRef === "string" ? adapterAuthRef : null,
     });

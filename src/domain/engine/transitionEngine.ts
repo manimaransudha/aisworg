@@ -12,6 +12,8 @@
 // ROLE_LEVEL role fork have been removed.
 import { policiesDB } from "../../dblayer/policiesDB.js";
 import { transitionDefinitionsDB } from "../../dblayer/transitionDefinitionsDB.js";
+import { participantsDB } from "../../dblayer/participantsDB.js";
+import { participantsMasterDB } from "../../dblayer/participantsMasterDB.js";
 import { badgeAuthorityEngine } from "./badgeAuthorityEngine.js";
 import { qualityGateEngine } from "./qualityGateEngine.js";
 import { eventBus } from "./eventBus.js";
@@ -66,7 +68,7 @@ export const transitionEngine = {
     // CR-006 — the acting identity; authorisation is "does this actor hold the
     // transition's noun_verb badge (or root)". Required for every governed
     // transition; absent ⇒ denied (the exception).
-    actorId?: string;
+    actorId: string;
     context?: Record<string, unknown>;
     // Only required when the resolved Transition Definition declares
     // required_quality_gate_ids — every pre-existing row has none, so
@@ -95,7 +97,7 @@ export const transitionEngine = {
     if (definition.verb) {
       const canonicalBadge = `${input.entityType.toLowerCase()}_${definition.verb}`;
       const requiredBadge = input.alternateBadges?.length ? [canonicalBadge, ...input.alternateBadges] : canonicalBadge;
-      const auth = await badgeAuthorityEngine.authorise({ actorId: input.actorId ?? "", requiredBadge });
+      const auth = await badgeAuthorityEngine.authorise({ actorId: input.actorId, requiredBadge });
       if (!auth.allowed) {
         return { allowed: false, reason: "authority_denied", authorityRuleCode: canonicalBadge, badgeDenialReason: auth.reason };
       }
@@ -174,10 +176,26 @@ export const transitionEngine = {
     }
 
     if (definition.required_quality_gate_ids.length > 0 && input.entityId && input.seuId) {
+      // quality_gate_evaluations.author_id/author_badge are NOT NULL — this
+      // transition already authorised under `authorityBadge` above (or is
+      // ungoverned, in which case there is no real badge to record and this
+      // must fail rather than invent one). author_id is a FK to
+      // participants(id), the SEU-scoped engagement row for the acting
+      // user's participants_master identity — same two-hop resolution
+      // resolveAuthor (routes/seu/core/attentionItems.ts) already uses.
+      if (!authorityBadge) {
+        throw new Error(`Quality Gate evaluation for ${input.entityType} ${input.fromState}->${input.toState} requires a resolved authority badge, but this transition is ungoverned (no verb declared).`);
+      }
+      const { data: master } = await participantsMasterDB.findById(input.actorId);
+      if (!master) throw new Error(`No superuser provisioned.`);
+      const { data: participant } = await participantsDB.findBySeuIdAndParticipantMasterId(input.seuId, master.id);
+      if (!participant) throw new Error(`No participants row for participants_master ${master.id} in SEU ${input.seuId}.`);
       const qualityGateResult = await qualityGateEngine.evaluateByIds(definition.required_quality_gate_ids, {
         entityType: input.entityType,
         entityId: input.entityId,
         seuId: input.seuId,
+        authorId: participant.id,
+        authorBadge: authorityBadge,
       });
       if (qualityGateResult.outcome === "Blocked") {
         return { allowed: false, reason: "quality_gate_blocked", gateCode: qualityGateResult.gate.code, gateName: qualityGateResult.gate.name, detail: qualityGateResult.reason };

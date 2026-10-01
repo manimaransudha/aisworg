@@ -34,6 +34,7 @@
             <th><%- sortLink('Kind', 'kind', list, _base) %></th>
             <th><%- sortLink('Version', 'version', list, _base) %></th>
             <th><%- sortLink('Created', 'created', list, _base) %></th>
+            <th>Lifecycle</th>
             <th></th>
           </tr></thead>
           <tbody>
@@ -42,11 +43,12 @@
                 <td><span class="badge bg-light text-dark border"><%= s.entityKind %></span></td>
                 <td>v<%= s.version %></td>
                 <td class="text-muted small"><%= new Date(s.createdAt).toLocaleString() %></td>
+                <td><span class="badge bg-<%= s.lifecycleState === 'Published' ? 'success' : s.lifecycleState === 'PublicationRejected' ? 'danger' : 'secondary' %>"><%= s.lifecycleState %></span></td>
                 <td><a class="btn btn-sm btn-outline-primary" href="/aisworg/seu/sdk/schema-registry/<%= s.id %>">View</a></td>
               </tr>
             <% }) %>
             <% if (list.total === 0) { %>
-              <tr><td colspan="4" class="text-muted small text-center py-3"><%= list.q ? 'No schema versions match your search.' : 'No schema versions yet.' %></td></tr>
+              <tr><td colspan="5" class="text-muted small text-center py-3"><%= list.q ? 'No schema versions match your search.' : 'No schema versions yet.' %></td></tr>
             <% } %>
           </tbody>
         </table>

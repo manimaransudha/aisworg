@@ -5,7 +5,6 @@ const router = express.Router();
 
 import { router as objectivesRouter } from "./objectives.js";
 import { router as templatesRouter } from "./templates.js";
-import { router as profilesRouter } from "./profiles.js";
 import { router as seusRouter } from "./seus.js";
 import { router as deliverablesRouter } from "./deliverables.js";
 import { router as servicesRouter } from "./services.js";
@@ -27,7 +26,6 @@ import { router as ontologyRouter } from "./ontology.js";
 
 router.use(objectivesRouter);
 router.use(templatesRouter);
-router.use(profilesRouter);
 router.use(seusRouter);
 router.use(deliverablesRouter);
 router.use(servicesRouter);

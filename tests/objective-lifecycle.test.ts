@@ -259,7 +259,11 @@ test("reParentObjective refuses a cross-tenant move, and listReParentCandidates 
   });
   const { objective: athensChild } = await createObjective({
     statement: `phase1-tenant-move-athens-child-${randomUUID()}`,
-    requiredCapabilityCodes: ["architecture-design"], tier: "Engineering",
+    // requestedBy 2001 only holds objective_achieve (CR-006 fixture), not
+    // objective_propose — no real badge to author a Capability with here,
+    // and this test never asserts on the Capability itself, only cross-tenant
+    // move behaviour, so leave it capability-less rather than fabricate one.
+    requiredCapabilityCodes: [], tier: "Engineering",
     parentObjectiveId: athensRoot.id, requestedBy: 2001, status: "Proposed",
   });
 

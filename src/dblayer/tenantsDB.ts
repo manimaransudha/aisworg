@@ -1,20 +1,47 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import type { DbResult, TenantRow } from "./seuTypes.js";
+import { PLATFORM_TENANT_NAME, TEMP_TENANT_ID } from "./constants.js";
 
 // Participant Integration — Plan step 6 (Resolution 8). The minimal tenancy
 // slice. A Capability, Template, and the whole engineering core are tenant-
 // invariant; a tenant differs only in its edge configuration.
 export const tenantsDB = {
-  async create(input: { code: string; name: string }): Promise<DbResult<TenantRow>> {
+  // author_id/author_badge are NOT NULL on the table -- every caller must
+  // resolve and pass its own real actor + badge (the logged-in session's
+  // user id and held badge), never a default/null.
+  async create(input: { code: string; name: string; authorId: string; authorBadge: string, is_system: boolean}): Promise<DbResult<TenantRow>> {
     try {
       const { rows } = await query<TenantRow>(
-        "INSERT INTO tenants (code, name) VALUES ($1, $2) RETURNING *",
-        [input.code, input.name]
+        "INSERT INTO tenants (code, name, author_id, author_badge, is_system) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+        [input.code, input.name, input.authorId, input.authorBadge, input.is_system]
       );
       return { data: rows[0] };
     } catch (err) {
       logger.error("[tenantsDB] create error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // Returns the platform tenant's id, creating it (self-authored, fixed id
+  // TEMP_TENANT_ID matching the schema-recovery seed) if it doesn't exist yet.
+  async ensurePlatformTenant(): Promise<DbResult<string>> {
+    try {
+      const existing = await this.findByCode("platform");
+      if (existing.error) return { error: existing.error };
+      if (existing.data) return { data: existing.data.id };
+
+      const { rows } = await query<TenantRow>(
+        `INSERT INTO tenants (code, name, status, is_system, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *`,
+        ["platform", PLATFORM_TENANT_NAME, "Operational", true, TEMP_TENANT_ID, "bootstrap"]
+      );
+      const platformId = rows[0].id;
+      await query("UPDATE tenants SET author_id = id WHERE id = $1", [platformId]);
+      return { data: platformId };
+    } catch (err) {
+      logger.error("[tenantsDB] ensurePlatformTenant error", err as Error);
       return { error: err as Error };
     }
   },
@@ -25,6 +52,16 @@ export const tenantsDB = {
       return { data: rows[0] ?? null };
     } catch (err) {
       logger.error("[tenantsDB] findById error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  async findByName(name: string): Promise<DbResult<TenantRow | null>> {
+    try {
+      const { rows } = await query<TenantRow>("SELECT * FROM tenants WHERE name = $1", [name]);
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[tenantsDB] findByName error", err as Error);
       return { error: err as Error };
     }
   },

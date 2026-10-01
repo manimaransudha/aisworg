@@ -17,19 +17,23 @@
 // something that merely happens to match by coincidence.
 import { createObjective } from "../../routes/seu/core/objectives.js";
 import { logger } from "../../utils/logger.js";
+import { getTesterId, TEST_ALL_EMAIL } from "../constants.js";
+import { userDB } from "../userDB.js";
 
 // Test — All Badges (seedIdentityBaseline.ts's own TESTER_ALL_ID) — the same
 // requestedBy convention every other test/seed fixture in this codebase
 // already uses (e.g. tests/commission-profile-choice.test.ts).
-const REQUESTED_BY = 1001;
+
 
 export async function seedEbookLibraryObjectives(): Promise<void> {
+  const REQUESTED_BY = await getTesterId(TEST_ALL_EMAIL);
+
   const { objective: root } = await createObjective({
     statement: "Deliver an ebook library management system enabling members to browse, borrow and return digital books.",
     requiredCapabilityCodes: [],
     tier: "Strategic",
     status: "Proposed",
-    requestedBy: REQUESTED_BY,
+    requestedBy: REQUESTED_BY
   });
 
   const { objective: manageBooks } = await createObjective({

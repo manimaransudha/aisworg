@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
+import { userDB } from "../userDB.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -44,12 +45,17 @@ interface AuthorityVocabulary {
   authoringMappings?: AuthoringMapping[];
 }
 
+interface SeedActor {
+  authoredBy: string;
+  authorBadge: string;
+}
+
 function loadVocabulary(): AuthorityVocabulary {
   const raw = readFileSync(path.join(__dirname, "data", "authorityVocabulary.json"), "utf8");
   return JSON.parse(raw) as AuthorityVocabulary;
 }
 
-export async function seedAuthorityVocabulary(): Promise<void> {
+export async function seedAuthorityVocabulary(actor: SeedActor): Promise<void> {
   const vocab = loadVocabulary();
   const client = await pool.connect();
   try {
@@ -63,18 +69,20 @@ export async function seedAuthorityVocabulary(): Promise<void> {
     // Nouns (Work outcome) — upsert by code.
     for (const n of vocab.nouns) {
       await client.query(
-        `INSERT INTO authority_nouns (code, label, description) VALUES ($1, $2, $3)
-         ON CONFLICT (code) DO UPDATE SET label = EXCLUDED.label, description = EXCLUDED.description, is_active = TRUE`,
-        [n.code, n.label, n.description ?? null]
+        `INSERT INTO authority_nouns (code, label, description, author_id, author_badge)
+        VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (code) DO UPDATE SET label = EXCLUDED.label, description = EXCLUDED.description, is_active = TRUE, author_id = EXCLUDED.author_id, author_badge = EXCLUDED.author_badge`,
+        [n.code, n.label, n.description ?? null, actor.authoredBy,  actor.authorBadge]
       );
     }
 
     // Verbs (Work process) — upsert by code.
     for (const v of vocab.verbs) {
       await client.query(
-        `INSERT INTO authority_verbs (code, label, description) VALUES ($1, $2, $3)
-         ON CONFLICT (code) DO UPDATE SET label = EXCLUDED.label, description = EXCLUDED.description, is_active = TRUE`,
-        [v.code, v.label, v.description ?? null]
+        `INSERT INTO authority_verbs (code, label, description, author_id, author_badge)
+        VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (code) DO UPDATE SET label = EXCLUDED.label, description = EXCLUDED.description, is_active = TRUE, author_id = EXCLUDED.author_id, author_badge = EXCLUDED.author_badge`,
+        [v.code, v.label, v.description ?? null, actor.authoredBy,  actor.authorBadge]
       );
     }
 
@@ -97,9 +105,10 @@ export async function seedAuthorityVocabulary(): Promise<void> {
     }
     for (const [nounCode, verbCode] of pairs) {
       await client.query(
-        `INSERT INTO authority_noun_verbs (noun_code, verb_code) VALUES ($1, $2)
-         ON CONFLICT (noun_code, verb_code) DO NOTHING`,
-        [nounCode, verbCode]
+        `INSERT INTO authority_noun_verbs (noun_code, verb_code, author_id, author_badge)
+        VALUES ($1, $2, $3, $4)
+         ON CONFLICT (noun_code, verb_code) DO UPDATE SET  author_id = EXCLUDED.author_id, author_badge = EXCLUDED.author_badge`,
+        [nounCode, verbCode, actor.authoredBy,  actor.authorBadge]
       );
     }
 
@@ -124,7 +133,7 @@ export async function seedAuthorityVocabulary(): Promise<void> {
       `[seed:authority-vocab] ${vocab.nouns.length} nouns, ${vocab.verbs.length} verbs, ${pairs.length} noun-verb mappings; verb set on ${matched} transition definition rows.`
     );
     if (unmatched.length) {
-      logger.warn(`[seed:authority-vocab] ${unmatched.length} seeded transitions had no matching transition_definitions row: ${unmatched.join("; ")}`);
+      logger.warn(`[seed:authority-vocab] ${unmatched.length} seeded transitions had no matching transition_definitions row`);
     }
   } catch (err) {
     await client.query("ROLLBACK");
@@ -136,7 +145,9 @@ export async function seedAuthorityVocabulary(): Promise<void> {
 
 const isMain = import.meta.url === `file://${process.argv[1]}`;
 if (isMain) {
-  seedAuthorityVocabulary()
+  const { actorId, actorBadge } = await userDB.getSuperuserId();
+  if (!actorId) throw new Error("No participants_master row for user_id 1 -- log in as root first.");
+  seedAuthorityVocabulary({ authoredBy: actorId, authorBadge: actorBadge })
     .catch((err) => {
       logger.error("[seed:authority-vocab] failed", err as Error);
       process.exitCode = 1;

@@ -19,7 +19,6 @@ import { packsDB } from "../../../dblayer/packsDB.js";
 import { assertCanonicalCategory, validateOntologyFieldsAgainstSchema, validateComposableFieldsAgainstSchema } from "./ontology.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
-import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 import { capabilitiesDB } from "../../../dblayer/capabilitiesDB.js";
 import { serviceDefinitionsDB } from "../../../dblayer/serviceDefinitionsDB.js";
@@ -38,6 +37,16 @@ import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
 import type { PackCategory, PackClassification, PackContributions, PackRow, PolicyCondition, PolicyDefinitionRow, PolicyScope, TransitionEntityType } from "../../../dblayer/seuTypes.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
+import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
+
+
 
 // CR-058 — governedTransition is authored as a single delimited value
 // ("EntityType|fromState|toState"), picked from a referential list of real
@@ -729,7 +738,7 @@ export interface PublishPackResult {
 // afterwards (including a second real Pack, or a second version of the
 // first) has no such ordering problem and can just call the combined
 // publishPack below.
-export async function createPackDraft(seed: PackSeedInput): Promise<{ ok: true; pack: PackRow; alreadyExists: boolean } | { ok: false; errors: string[] }> {
+export async function createPackDraft(seed: PackSeedInput, authorId: string, authorBadge: string): Promise<{ ok: true; pack: PackRow; alreadyExists: boolean } | { ok: false; errors: string[] }> {
   const validation = await validatePackSeed(seed);
   if (!validation.ok) return { ok: false, errors: validation.errors };
 
@@ -747,7 +756,7 @@ export async function createPackDraft(seed: PackSeedInput): Promise<{ ok: true; 
   // form, which lets an author pick) always pins to whatever's latest.
   const { data: packSchema } = await schemaDefinitionsDB.findLatest("Pack");
   if (!packSchema) return { ok: false, errors: [`no schema_definitions grammar for Pack`] };
-  const { data: pack, error } = await packsDB.create({ ...seed, metadata: packMetadataFromSeed(seed), schemaDefinitionId: packSchema.id });
+  const { data: pack, error } = await packsDB.create({ ...seed, metadata: packMetadataFromSeed(seed), schemaDefinitionId: packSchema.id, authoredBy: authorId, authorBadge, tenantId: seed.tenantId ?? PLATFORM_TENANT_ID });
   if (error || !pack) return { ok: false, errors: [(error ?? new Error("failed to create pack")).message] };
 
   // Version Feature Plan.md — materializeContributions must finish before the event
@@ -774,7 +783,7 @@ export async function createPackDraft(seed: PackSeedInput): Promise<{ ok: true; 
 // real, governed transitionEngine evaluation — not a direct status write.
 // A no-op (returns the pack unchanged) if it's already past Draft, so this
 // is safe to call again on a re-seeded, already-published Pack.
-export async function advancePackLifecycle(pack: PackRow, actorRole: string, actorId: string | undefined, options?: { activate?: boolean }): Promise<PublishPackResult> {
+export async function advancePackLifecycle(pack: PackRow, actorRole: string, actorId: string, options?: { activate?: boolean }): Promise<PublishPackResult> {
   let currentPack = pack;
 
   if (currentPack.status === "Draft") {
@@ -821,7 +830,7 @@ const AUTHORING_NEXT_STATE: Partial<Record<PackRow["status"], PackRow["status"]>
   Published: "Active",
 };
 
-export async function advancePackOneStep(pack: PackRow, actorRole: string, actorId: string | undefined): Promise<PublishPackResult> {
+export async function advancePackOneStep(pack: PackRow, actorRole: string, actorId: string): Promise<PublishPackResult> {
   const targetState = AUTHORING_NEXT_STATE[pack.status];
   if (!targetState) return { ok: false, pack, errors: [`Pack is already ${pack.status} — no further authoring step`] };
 
@@ -851,8 +860,21 @@ export async function advancePackOneStep(pack: PackRow, actorRole: string, actor
 // exact same (code, packVersion) again is a no-op that returns the existing
 // immutable row (VM-002) — the seed script and CLI can be re-run freely,
 // same discipline as every migration in this codebase.
-export async function publishPack(input: { seed: PackSeedInput; actorRole: string; actorId?: string; activate?: boolean }): Promise<PublishPackResult> {
-  const draft = await createPackDraft(input.seed);
+// export async function publishPack(input: { seed: PackSeedInput; actorRole: string; actorId: string; activate?: boolean }): Promise<PublishPackResult> {
+//   const draft = await createPackDraft(input.seed);
+//   if (!draft.ok) return { ok: false, errors: draft.errors };
+
+//   const advanced = await advancePackLifecycle(draft.pack, input.actorRole, input.actorId, { activate: input.activate });
+//   return { ...advanced, alreadyPublished: draft.alreadyExists };
+// }
+export async function publishPack(input: { seed: PackSeedInput; actorRole: string; actorId: string; activate?: boolean }): Promise<PublishPackResult> {
+  const auth = await badgeAuthorityEngine.authorise({ actorId: input.actorId, requiredBadge: "pack_define" });
+  if (!auth.allowed) return { ok: false, errors: [`actor "${input.actorId}" does not hold pack_define`] };
+  const { data: packMaster } = await participantsMasterDB.findById(input.actorId);
+  if (!packMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+  const authorBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? "pack_define");
+
+  const draft = await createPackDraft(input.seed, packMaster.id, authorBadge);
   if (!draft.ok) return { ok: false, errors: draft.errors };
 
   const advanced = await advancePackLifecycle(draft.pack, input.actorRole, input.actorId, { activate: input.activate });
@@ -874,6 +896,8 @@ async function materializeContributions(pack: PackRow, seed: PackSeedInput): Pro
       description: concept?.description ?? null,
       version: pack.pack_version,
       originatingPackId: pack.id,
+      authorId: pack.authored_by,
+      authorBadge: pack.author_badge,
     });
     if (error || !capability) throw error ?? new Error(`capability upsert failed: ${cap.code}`);
     capabilityIdByCode.set(cap.code, capability.id);
@@ -901,6 +925,8 @@ async function materializeContributions(pack: PackRow, seed: PackSeedInput): Pro
       contractDescription: definition.purpose ?? "",
       serviceLevel: mergedServiceLevel,
       originatingPackId: pack.id,
+      authorId: pack.authored_by,
+      authorBadge: pack.author_badge,
     });
     if (error) throw error;
   }
@@ -911,6 +937,8 @@ async function materializeContributions(pack: PackRow, seed: PackSeedInput): Pro
       governedTransition: rule.governedTransition,
       authorisedRole: rule.authorisedRole,
       originatingPackId: pack.id,
+      authorId: pack.authored_by,
+      authorBadge: pack.author_badge,
     });
     if (error || !createdRule) throw error ?? new Error(`authority rule upsert failed: ${rule.code}`);
     // 2026-08-25 — self-heals any transition_definitions row that wanted
@@ -960,6 +988,8 @@ async function materializeContributions(pack: PackRow, seed: PackSeedInput): Pro
           severity: cond.severity || "Medium",
           originatingPackId: pack.id,
           applicabilityDeliverableNames: deliverableNames,
+          authorId: pack.authored_by,
+          authorBadge: pack.author_badge,
         });
         if (error || !created) throw error ?? new Error(`policy upsert failed: ${code}`);
         createdIds.push(created.id);
@@ -985,6 +1015,8 @@ async function materializeContributions(pack: PackRow, seed: PackSeedInput): Pro
       description: cl.description,
       items: cl.items,
       originatingPackId: pack.id,
+      authorId: pack.authored_by,
+      authorBadge: pack.author_badge,
     });
     if (error || !checklist) throw error ?? new Error(`checklist upsert failed: ${cl.name}`);
     checklistIdByName.set(cl.name, checklist.id);
@@ -1011,6 +1043,8 @@ async function materializeContributions(pack: PackRow, seed: PackSeedInput): Pro
       originatingPackId: pack.id,
       checklistIds: resolveChecklistIds(rg.checklistIds),
       recommendedChecklistIds: resolveChecklistIds(rg.recommendedChecklistIds),
+      authorId: pack.authored_by,
+      authorBadge: pack.author_badge,
     });
     if (error || !reviewGate) throw error ?? new Error(`review gate upsert failed: ${rg.code}`);
     reviewGateIdByCode.set(rg.code, reviewGate.id);
@@ -1049,6 +1083,8 @@ async function materializeContributions(pack: PackRow, seed: PackSeedInput): Pro
       checklistIds: resolveChecklistIds(gate.checklistIds),
       recommendedChecklistIds: resolveChecklistIds(gate.recommendedChecklistIds),
       applicabilityDeliverableNames: gate.applicabilityDeliverableNames ?? [],
+      authorId: pack.authored_by,
+      authorBadge: pack.author_badge,
     });
     if (error) throw error;
   }
@@ -1096,7 +1132,7 @@ export function alternateBadgesForPackTransition(fromState: string, toState: str
   return ALTERNATE_BADGES[`${fromState}->${toState}`];
 }
 
-export async function transitionPack(input: { packId: string; targetState: string; actorRole: string; actorId?: string; comment?: string }): Promise<TransitionPackResult> {
+export async function transitionPack(input: { packId: string; targetState: string; actorRole: string; actorId: string; comment?: string }): Promise<TransitionPackResult> {
   const { data: pack } = await packsDB.findById(input.packId);
   if (!pack) return { ok: false, reason: "not_found" };
 

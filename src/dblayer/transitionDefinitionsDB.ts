@@ -14,7 +14,6 @@ export interface TransitionDefinitionListRow {
   is_active: boolean;
   retired_at: string | null;
   authority_rule_code: string | null;
-  required_badge_type: string | null;
   authorised_role: string | null;
   policy_count: number;
   quality_gate_count: number;
@@ -30,7 +29,6 @@ export const transitionDefinitionsDB = {
       const { rows } = await query<TransitionDefinitionListRow>(
         `SELECT td.id, td.entity_type, td.from_state, td.to_state, td.verb, td.is_active, td.retired_at,
                 ar.code AS authority_rule_code,
-                ar.required_badge_type,
                 ar.authorised_role,
                 COALESCE(array_length(td.required_policy_ids, 1), 0) AS policy_count,
                 COALESCE(array_length(td.required_quality_gate_ids, 1), 0) AS quality_gate_count,

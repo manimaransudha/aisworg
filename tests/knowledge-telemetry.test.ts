@@ -11,9 +11,8 @@ import { randomUUID } from "node:crypto";
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { createKnowledgeItem } from "../src/routes/seu/core/knowledge.js";
-import { createEvidence } from "../src/routes/seu/core/evidence.js";
 import { getKnowledgeMetrics } from "../src/routes/seu/core/telemetry.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, createEvidenceAsRoot as createEvidence } from "./testFixtures.js";
 
 async function commissionTestSeuWithDeliverable(statementPrefix: string) {
   await ensureWebAppTemplateFixture();

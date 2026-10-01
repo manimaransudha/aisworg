@@ -61,6 +61,8 @@ export async function materialiseDependencyGraph(input: {
   deliverableCatalogue: TemplateDeliverableSeed[];
   dependencyGraph: TemplateDependencyGraphEntry[];
   tenantId: string;
+  authorId: string;
+  authorBadge: string;
 }): Promise<DbResult<DependencyDefinitionRow[]>> {
   const validCodes = new Set(input.deliverableCatalogue.map((entry) => entry.code));
   const labelByCode = await resolveLabels(input.tenantId, "deliverable-name");
@@ -93,6 +95,8 @@ export async function materialiseDependencyGraph(input: {
         toName: toLabel(entry.toCode),
         toState: GATED_TO_STATE,
         relationshipKind: entry.relationshipKind ?? "dependency",
+        authorId: input.authorId,
+        authorBadge: input.authorBadge,
       });
       if (data) created.push(data);
       continue;

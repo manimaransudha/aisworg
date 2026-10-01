@@ -16,6 +16,8 @@ export interface RouteAuthorityRow {
   roles: string[];
   match_mode: "all" | "any";
   description: string | null;
+  author_id: string;
+  author_badge: string;
   created_at: string;
   updated_at: string;
 }
@@ -43,12 +45,17 @@ export const routeAuthorityDB = {
     }
   },
 
-  async create(input: { method: string; path: string; badges: string[]; roles: string[]; matchMode: "all" | "any"; description: string | null }): Promise<DbResult<RouteAuthorityRow>> {
+  // author_id/author_badge are NOT NULL, participants_master-scoped -- every
+  // caller must resolve and pass its own real actor + badge, never a
+  // default/null (same discipline as capabilityDefinitionsDB.ts). Set once
+  // at creation only -- update() never touches them, same as every other
+  // flat-authored table's authored_by.
+  async create(input: { method: string; path: string; badges: string[]; roles: string[]; matchMode: "all" | "any"; description: string | null; authorId: string; authorBadge: string }): Promise<DbResult<RouteAuthorityRow>> {
     try {
       const { rows } = await query<RouteAuthorityRow>(
-        `INSERT INTO route_authority (method, path, badges, roles, match_mode, description)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [input.method, input.path, input.badges, input.roles, input.matchMode, input.description]
+        `INSERT INTO route_authority (method, path, badges, roles, match_mode, description, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [input.method, input.path, input.badges, input.roles, input.matchMode, input.description, input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

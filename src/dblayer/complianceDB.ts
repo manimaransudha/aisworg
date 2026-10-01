@@ -6,14 +6,14 @@ import type { ComplianceEvaluationRow, ComplianceFrameworkRow, ComplianceRequire
 // Pack-contributed (upsert by code); waivers and evaluation snapshots are
 // per-SEU. Evaluation snapshots are append-only (immutable history, FR-27.6).
 export const complianceDB = {
-  async upsertFramework(input: { code: string; name: string; description?: string | null; originatingPackId?: string | null }): Promise<DbResult<ComplianceFrameworkRow>> {
+  async upsertFramework(input: { code: string; name: string; description?: string | null; originatingPackId?: string | null; authorId: string; authorBadge: string }): Promise<DbResult<ComplianceFrameworkRow>> {
     try {
       const { rows } = await query<ComplianceFrameworkRow>(
-        `INSERT INTO compliance_frameworks (code, name, description, originating_pack_id)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, originating_pack_id = EXCLUDED.originating_pack_id
+        `INSERT INTO compliance_frameworks (code, name, description, originating_pack_id, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, originating_pack_id = EXCLUDED.originating_pack_id, author_id = EXCLUDED.author_id, author_badge = EXCLUDED.author_badge
          RETURNING *`,
-        [input.code, input.name, input.description ?? null, input.originatingPackId ?? null]
+        [input.code, input.name, input.description ?? null, input.originatingPackId ?? null, input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -31,16 +31,19 @@ export const complianceDB = {
     severity?: string;
     conflictsWith?: string[];
     originatingPackId?: string | null;
+    authorId: string;
+    authorBadge: string;
   }): Promise<DbResult<ComplianceRequirementRow>> {
     try {
       const { rows } = await query<ComplianceRequirementRow>(
-        `INSERT INTO compliance_requirements (code, framework_code, name, description, criteria, severity, conflicts_with, originating_pack_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `INSERT INTO compliance_requirements (code, framework_code, name, description, criteria, severity, conflicts_with, originating_pack_id, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          ON CONFLICT (code) DO UPDATE
            SET framework_code = EXCLUDED.framework_code, name = EXCLUDED.name, description = EXCLUDED.description,
-               criteria = EXCLUDED.criteria, severity = EXCLUDED.severity, conflicts_with = EXCLUDED.conflicts_with, originating_pack_id = EXCLUDED.originating_pack_id
+               criteria = EXCLUDED.criteria, severity = EXCLUDED.severity, conflicts_with = EXCLUDED.conflicts_with, originating_pack_id = EXCLUDED.originating_pack_id,
+               author_id = EXCLUDED.author_id, author_badge = EXCLUDED.author_badge
          RETURNING *`,
-        [input.code, input.frameworkCode, input.name, input.description ?? null, JSON.stringify(input.criteria), input.severity ?? "Medium", input.conflictsWith ?? [], input.originatingPackId ?? null]
+        [input.code, input.frameworkCode, input.name, input.description ?? null, JSON.stringify(input.criteria), input.severity ?? "Medium", input.conflictsWith ?? [], input.originatingPackId ?? null, input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -96,12 +99,12 @@ export const complianceDB = {
     }
   },
 
-  async grantWaiver(input: { seuId: string; requirementCode: string; rationale: string; grantedBy?: number | null; expiresAt?: string | null }): Promise<DbResult<ComplianceWaiverRow>> {
+  async grantWaiver(input: { seuId: string; requirementCode: string; rationale: string; grantedBy: string; authorBadge: string; expiresAt?: string | null }): Promise<DbResult<ComplianceWaiverRow>> {
     try {
       const { rows } = await query<ComplianceWaiverRow>(
-        `INSERT INTO compliance_waivers (seu_id, requirement_code, rationale, granted_by, expires_at)
-         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [input.seuId, input.requirementCode, input.rationale, input.grantedBy ?? null, input.expiresAt ?? null]
+        `INSERT INTO compliance_waivers (seu_id, requirement_code, rationale, granted_by, author_badge, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [input.seuId, input.requirementCode, input.rationale, input.grantedBy, input.authorBadge, input.expiresAt ?? null]
       );
       return { data: rows[0] };
     } catch (err) {

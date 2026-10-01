@@ -8,6 +8,7 @@ import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
+import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { logger } from "../../../utils/logger.js";
 import {
@@ -168,8 +169,17 @@ router.post("/identity/tenants", async (req: Request, res: Response) => {
   if (typeof code !== "string" || !code.trim() || typeof name !== "string" || !name.trim()) {
     return flashError(req, res, tenantsBackTo, "Tenant code and name are required.");
   }
+  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
+  if (!actorId) return flashError(req, res, tenantsBackTo, "No actor resolved for this Tenant creation.");
+  // The required badge(s) for this route are route_authority's own data
+  // (CR-110), not a literal here -- authorBadge is whichever of those this
+  // session's actual held badges satisfies.
+  const authRow = lookupRouteAuthority(req.method, req.path);
+  const held = await resolveHeldBadges(req);
+  const authorBadge = authRow?.badges.find((b) => held.has(b));
+  if (!authorBadge) return flashError(req, res, tenantsBackTo, "No author badge resolved for this Tenant creation.");
   try {
-    const result = await createTenant({ code: code.trim(), name: name.trim() });
+    const result = await createTenant({ code: code.trim(), name: name.trim(), authorId: actorId, authorBadge, is_system: false });
     if (!result.ok) return flashError(req, res, tenantsBackTo, `Could not create Tenant: ${result.detail}`);
     return flashSuccess(req, res, tenantsBackTo, `Tenant "${result.tenant.name}" created. Create its admin user (type Tenant) and grant Tenant Admin from Badge Management.`);
   } catch (err) {
@@ -211,8 +221,8 @@ router.post("/identity/users", async (req: Request, res: Response) => {
  *  multi-select (setAuthorisedRoles) are two separate DB edits — users vs
  *  participants_master — run together from this one form submit. */
 router.post("/identity/users/:id/update", async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  if (!Number.isInteger(id)) return flashError(req, res, usersBackTo, "Invalid user id.");
+  const id = String(req.params.id);
+  if (!id) return flashError(req, res, usersBackTo, "Invalid user id.");
   // An unchecked checkbox submits no key at all — its absence IS "false".
   const isActive = req.body?.isActive === "true";
   const rawRoles = req.body?.roles;
@@ -238,8 +248,8 @@ router.post("/identity/users/:id/update", async (req: Request, res: Response) =>
  *  /identity/users/:id/update's own authorised_role form, for
  *  authorised_badges instead. */
 router.post("/identity/badges/:id/update", async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  if (!Number.isInteger(id)) return flashError(req, res, badgesBackTo, "Invalid user id.");
+  const id = String(req.params.id);
+  if (!id) return flashError(req, res, badgesBackTo, "Invalid user id.");
   const rawBadges = req.body?.badges;
   const badges = (Array.isArray(rawBadges) ? rawBadges : rawBadges ? [rawBadges] : []).filter((b): b is string => typeof b === "string" && b.trim() !== "");
   try {

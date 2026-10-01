@@ -1,9 +1,14 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import { PLATFORM_TENANT_ID } from "./constants.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validateCapabilityDefinitionWriteAgainstSchema } from "../routes/seu/core/capabilityDefinitionWriteValidator.js";
 import type { DbResult, CapabilityDefinitionRow, CapabilityRole } from "./seuTypes.js";
+import { tenantsDB } from "./tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "./constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 // CR-111 — Capability Registry. Own table (265_capability_role_ontology.sql,
 // restructured 273_capability_definition_registry.sql), mirroring
@@ -17,7 +22,11 @@ export const capabilityDefinitionsDB = {
     description?: string | null;
     roles?: CapabilityRole[];
     version?: string;
-    authoredBy?: number | null;
+    // authored_by/author_badge are NOT NULL, participants_master-scoped --
+    // every caller must resolve and pass its own real actor (participants_master.id)
+    // + badge, never a default/null (same discipline as schema_definitions).
+    authoredBy: string;
+    authorBadge: string;
     draftContent?: Record<string, unknown>;
     tenantId?: string;
     parentCapabilityDefinitionId?: string | null;
@@ -28,6 +37,13 @@ export const capabilityDefinitionsDB = {
     try {
       const version = input.version ?? "1.0.0";
       const draftContent = input.draftContent ?? {};
+      const tenantId = input.tenantId ?? PLATFORM_TENANT_ID;
+
+      const { rows: dupRows } = await query<{ id: string }>(
+        "SELECT id FROM capability_definitions WHERE code = $1 AND version = $2 AND tenant_id = $3",
+        [input.code, version, tenantId]
+      );
+      if (dupRows.length > 0) return { data: undefined } as DbResult<CapabilityDefinitionRow>;
 
       const errors = await validateCapabilityDefinitionWriteAgainstSchema({
         code: input.code,
@@ -45,8 +61,9 @@ export const capabilityDefinitionsDB = {
       if (!schemaRow) return { error: new Error(`schema_definitions row "${input.schemaDefinitionId}" not found`) };
 
       const { rows } = await query<CapabilityDefinitionRow>(
-        `INSERT INTO capability_definitions (code, default_label, description, roles, version, status, authored_by, draft_content, tenant_id, parent_capability_definition_id, schema_definition_id)
-         VALUES ($1, $2, $3, $4, $5, 'Defined', $6, $7, $8, $9, $10)
+        `INSERT INTO capability_definitions (code, default_label, description, roles, version, status, authored_by, author_badge, draft_content, tenant_id, parent_capability_definition_id, schema_definition_id)
+         VALUES ($1, $2, $3, $4, $5, 'Defined', $6, $7, $8, $9, $10, $11)
+         ON CONFLICT (code, version, tenant_id) DO NOTHING
          RETURNING *`,
         [
           input.code,
@@ -54,9 +71,10 @@ export const capabilityDefinitionsDB = {
           input.description ?? null,
           JSON.stringify(input.roles ?? []),
           version,
-          input.authoredBy ?? null,
+          input.authoredBy,
+          input.authorBadge,
           JSON.stringify(draftContent),
-          input.tenantId ?? PLATFORM_TENANT_ID,
+          tenantId,
           input.parentCapabilityDefinitionId ?? null,
           schemaRow?.id ?? null,
         ]
@@ -104,9 +122,17 @@ export const capabilityDefinitionsDB = {
     }
   },
 
-  async updateStatus(id: string, status: CapabilityDefinitionRow["status"]): Promise<DbResult<CapabilityDefinitionRow>> {
+  // authorityBadge mirrors schemaDefinitionsDB.advanceLifecycle's own
+  // COALESCE convention -- every governed transition records who/what badge
+  // performed it; a null gate.authorityBadge (an ungoverned hop, no
+  // requiredAuthorityRuleCode) leaves the prior badge in place rather than
+  // clobbering it with null.
+  async updateStatus(id: string, status: CapabilityDefinitionRow["status"], authorityBadge: string | null, authoredBy: string): Promise<DbResult<CapabilityDefinitionRow>> {
     try {
-      const { rows } = await query<CapabilityDefinitionRow>("UPDATE capability_definitions SET status = $1 WHERE id = $2 RETURNING *", [status, id]);
+      const { rows } = await query<CapabilityDefinitionRow>(
+        "UPDATE capability_definitions SET status = $1, author_badge = COALESCE($2, author_badge), authored_by = $3 WHERE id = $4 RETURNING *",
+        [status, authorityBadge, authoredBy, id]
+      );
       return { data: rows[0] };
     } catch (err) {
       logger.error("[capabilityDefinitionsDB] updateStatus error", err as Error);

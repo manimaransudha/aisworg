@@ -17,13 +17,15 @@ export const deliverableReferencesDB = {
     fromState: string;
     toState: string;
     reference: string | null;
+    authorId: string;
+    authorBadge: string;
   }): Promise<DbResult<DeliverableReferenceRow>> {
     try {
       const { rows } = await query<DeliverableReferenceRow>(
-        `INSERT INTO deliverable_references (seu_id, deliverable_id, work_item_id, participant_id, from_state, to_state, reference)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO deliverable_references (seu_id, deliverable_id, work_item_id, participant_id, from_state, to_state, reference, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING *`,
-        [input.seuId, input.deliverableId, input.workItemId, input.participantId, input.fromState, input.toState, input.reference]
+        [input.seuId, input.deliverableId, input.workItemId, input.participantId, input.fromState, input.toState, input.reference, input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

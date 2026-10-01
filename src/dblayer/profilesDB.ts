@@ -1,9 +1,15 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import { PLATFORM_TENANT_ID } from "./constants.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validateProfileWriteAgainstSchema } from "../routes/seu/core/profileWriteValidator.js";
 import type { DbResult, ProfileRow } from "./seuTypes.js";
+import { tenantsDB } from "./tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "./constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
+
 
 // Also owns profile_packs — Profile owns everything selectable/optional on top
 // of the Template's mandatory set (Build Plan §5 item 6).
@@ -31,6 +37,8 @@ export const profilesDB = {
     code: string;
     name: string;
     baseTemplateId: string;
+    authoredBy: string;
+    authorBadge: string;
     environment?: string;
     profileVersion?: string;
     tenantId?: string;
@@ -38,8 +46,8 @@ export const profilesDB = {
   }): Promise<DbResult<ProfileRow>> {
     try {
       const { rows } = await query<ProfileRow>(
-        `INSERT INTO profiles (code, name, base_template_id, environment, profile_version, tenant_id, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO profiles (code, name, base_template_id, authored_by, author_badge, environment, profile_version, tenant_id, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          ON CONFLICT (code, profile_version, tenant_id) DO UPDATE
            SET name = EXCLUDED.name, base_template_id = EXCLUDED.base_template_id,
                environment = EXCLUDED.environment
@@ -48,6 +56,8 @@ export const profilesDB = {
           input.code,
           input.name,
           input.baseTemplateId,
+          input.authoredBy,
+          input.authorBadge,
           input.environment ?? "development",
           input.profileVersion ?? "1.0.0",
           input.tenantId ?? PLATFORM_TENANT_ID,
@@ -75,6 +85,8 @@ export const profilesDB = {
   async create(input: {
     baseTemplateId: string;
     baseTemplateCode: string;
+    authoredBy: string;
+    authorBadge: string;
     environment?: string;
   }): Promise<DbResult<ProfileRow>> {
     try {
@@ -95,10 +107,10 @@ export const profilesDB = {
       const { data: schemaRow } = await schemaDefinitionsDB.findLatest("Profile");
 
       const { rows } = await query<ProfileRow>(
-        `INSERT INTO profiles (code, name, base_template_id, environment, status, schema_definition_id)
-         VALUES ($1, $2, $3, $4, 'Active', $5)
+        `INSERT INTO profiles (code, name, base_template_id, authored_by, author_badge, environment, status, schema_definition_id)
+         VALUES ($1, $2, $3, $4, $5, $6, 'Active', $7)
          RETURNING *`,
-        [code, name, input.baseTemplateId, environment, schemaRow?.id ?? null]
+        [code, name, input.baseTemplateId, input.authoredBy, input.authorBadge, environment, schemaRow?.id ?? null]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -120,7 +132,8 @@ export const profilesDB = {
     name: string;
     baseTemplateId: string;
     environment?: string;
-    authoredBy?: number | null;
+    authoredBy: string;
+    authorBadge: string;
     draftContent?: Record<string, unknown>;
     profileVersion?: string;
     tenantId?: string;
@@ -149,15 +162,16 @@ export const profilesDB = {
       if (!schemaRow) return { error: new Error(`schema_definitions row "${input.schemaDefinitionId}" not found`) };
 
       const { rows } = await query<ProfileRow>(
-        `INSERT INTO profiles (code, name, base_template_id, environment, status, authored_by, draft_content, profile_version, tenant_id, parent_profile_id, schema_definition_id)
-         VALUES ($1, $2, $3, $4, 'Draft', $5, $6, $7, $8, $9, $10)
+        `INSERT INTO profiles (code, name, base_template_id, environment, status, authored_by, author_badge, draft_content, profile_version, tenant_id, parent_profile_id, schema_definition_id)
+         VALUES ($1, $2, $3, $4, 'Draft', $5, $6, $7, $8, $9, $10, $11)
          RETURNING *`,
         [
           input.code,
           input.name,
           input.baseTemplateId,
           environment,
-          input.authoredBy ?? null,
+          input.authoredBy,
+          input.authorBadge,
           JSON.stringify(draftContent),
           profileVersion,
           input.tenantId ?? PLATFORM_TENANT_ID,
@@ -362,7 +376,7 @@ export const profilesDB = {
     }
   },
 
-  async findDrafts(authoredBy?: number | null): Promise<DbResult<ProfileRow[]>> {
+  async findDrafts(authoredBy?: string | null): Promise<DbResult<ProfileRow[]>> {
     try {
       const { rows } = authoredBy == null
         ? await query<ProfileRow>("SELECT * FROM profiles WHERE status IN ('Draft', 'Validated') ORDER BY created_at DESC")
@@ -449,7 +463,7 @@ export const profilesDB = {
   // by `list_kind` (migration 067) rather than five tables —
   // setOptionalPacks/getOptionalPackCodes below default to `list_kind =
   // 'optional'`, the pre-existing list's own identity.
-  async setPackSelection(profileId: string, listKind: string, packCodes: string[]): Promise<DbResult<void>> {
+  async setPackSelection(profileId: string, listKind: string, packCodes: string[], authorId: string, authorBadge: string): Promise<DbResult<void>> {
     try {
       await query("DELETE FROM profile_packs WHERE profile_id = $1 AND list_kind = $2", [profileId, listKind]);
       // ON CONFLICT DO NOTHING — same concurrent-writer race as
@@ -459,8 +473,8 @@ export const profilesDB = {
       // processes racing to write the exact same target rows the first time.
       for (const packCode of packCodes) {
         await query(
-          "INSERT INTO profile_packs (profile_id, pack_code, list_kind) VALUES ($1, $2, $3) ON CONFLICT (profile_id, pack_code, list_kind) DO NOTHING",
-          [profileId, packCode, listKind]
+          "INSERT INTO profile_packs (profile_id, pack_code, list_kind, author_id, author_badge) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (profile_id, pack_code, list_kind) DO NOTHING",
+          [profileId, packCode, listKind, authorId, authorBadge]
         );
       }
       return { data: undefined };
@@ -483,8 +497,8 @@ export const profilesDB = {
     }
   },
 
-  async setOptionalPacks(profileId: string, packCodes: string[]): Promise<DbResult<void>> {
-    return profilesDB.setPackSelection(profileId, "optional", packCodes);
+  async setOptionalPacks(profileId: string, packCodes: string[], authorId: string, authorBadge: string): Promise<DbResult<void>> {
+    return profilesDB.setPackSelection(profileId, "optional", packCodes, authorId, authorBadge);
   },
 
   async getOptionalPackCodes(profileId: string): Promise<DbResult<string[]>> {

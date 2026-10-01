@@ -7,6 +7,8 @@ import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { tenantContractsDB } from "../../../dblayer/tenantContractsDB.js";
+import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
+import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 
 // Participant Integration — Plan step 6. Deployment-time contract config: a
 // tenant, and its edge declarations (VCS binding #1, callback auth #3,
@@ -28,9 +30,18 @@ router.post("/tenants", async (req: Request, res: Response) => {
   try {
     const { code, name } = req.body ?? {};
     if (typeof code !== "string" || !code.trim()) return res.status(400).json({ error: "code is required" });
+    const actorId = req.session?.user?.id != null ? String(req.session.user.id) : undefined;
+    if (!actorId) return res.status(401).json({ error: "no actor resolved for this tenant creation" });
+    // The required badge(s) for this route are route_authority's own data
+    // (CR-110), not a literal here -- authorBadge is whichever of those this
+    // session's actual held badges satisfies.
+    const authRow = lookupRouteAuthority(req.method, req.path);
+    const held = await resolveHeldBadges(req);
+    const authorBadge = authRow?.badges.find((b) => held.has(b));
+    if (!authorBadge) return res.status(403).json({ error: "no author badge resolved for this tenant creation" });
     const existing = await tenantsDB.findByCode(code);
     if (existing.data) return res.status(409).json({ error: `tenant code already exists: ${code}` });
-    const { data, error } = await tenantsDB.create({ code, name: typeof name === "string" && name.trim() ? name : code });
+    const { data, error } = await tenantsDB.create({ code, name: typeof name === "string" && name.trim() ? name : code, authorId: actorId, authorBadge, is_system: false });
     if (error || !data) throw error ?? new Error("failed to create tenant");
     res.status(201).json({ tenant: data });
   } catch (err) {

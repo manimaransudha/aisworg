@@ -20,6 +20,8 @@
 // that was ever Governance's concern to decide.
 import { workItemsDB } from "../../dblayer/workItemsDB.js";
 import { deliverablesDB } from "../../dblayer/deliverablesDB.js";
+import { participantsMasterDB } from "../../dblayer/participantsMasterDB.js";
+import { participantsDB } from "../../dblayer/participantsDB.js";
 import { seusDB } from "../../dblayer/seusDB.js";
 import { ebmsDB } from "../../dblayer/ebmsDB.js";
 import { capabilitiesDB } from "../../dblayer/capabilitiesDB.js";
@@ -198,6 +200,24 @@ async function buildDeliverableExecutionContext(command: CommandRow): Promise<Wo
   };
 }
 
+// author_id is a FK to participants(id) — the SEU-scoped engagement row for
+// the platform-wide participants_master identity, not the identity itself
+// (same two-hop resolution attentionItems.ts's own resolveAuthor uses). The
+// Command already carries the real requested_by/acting_badge_type from the
+// transition that generated it (Ch.32's own CommandRow fields) — nothing new
+// is authorised here, this just carries that same actor/badge onto the Work
+// Item it produced. No fallback: a Command with no requested_by, or a
+// requester with no participants row in this SEU, cannot generate one.
+async function resolveWorkItemAuthor(command: CommandRow): Promise<{ authorId: string; authorBadge: string }> {
+  if (command.requested_by == null) throw new Error(`Command ${command.id} has no requested_by — cannot author its Work Item`);
+  if (!command.acting_badge_type) throw new Error(`Command ${command.id} has no acting_badge_type — cannot author its Work Item`);
+  const { data: master } = await participantsMasterDB.findById(command.requested_by);
+  if (!master) throw new Error(`No superuser provisioned.`);
+  const { data: participant } = await participantsDB.findBySeuIdAndParticipantMasterId(command.seu_id, master.id);
+  if (!participant) throw new Error(`No participants row for participants_master ${master.id} in SEU ${command.seu_id}`);
+  return { authorId: participant.id, authorBadge: command.acting_badge_type };
+}
+
 export const workItemGenerator = {
   // targetCompletionAt: the assigner's explicit deadline override (Participant
   // Integration Plan step 4), carried through from CommandGenerated's own
@@ -207,8 +227,9 @@ export const workItemGenerator = {
   // no longer run in the same call stack as the caller that received it.
   async generate(input: { command: CommandRow; seuId: string | null; correlationId: string; causationEventId: string | null; targetCompletionAt?: string | null }): Promise<WorkItemRow> {
     const executionContext = input.command.entity_type === "Deliverable" ? await buildDeliverableExecutionContext(input.command) : null;
+    const { authorId, authorBadge } = await resolveWorkItemAuthor(input.command);
 
-    const { data: workItem, error } = await workItemsDB.create({ commandId: input.command.id, executionContext });
+    const { data: workItem, error } = await workItemsDB.create({ commandId: input.command.id, authorId, authorBadge, executionContext });
     if (error || !workItem) throw error ?? new Error("failed to generate work item");
 
     await eventBus.publish({

@@ -13,13 +13,15 @@ export const findingsDB = {
     severity: string;
     title: string;
     description?: string | null;
+    authorId: string;
+    authorBadge: string;
   }): Promise<DbResult<FindingRow>> {
     try {
       const { rows } = await query<FindingRow>(
-        `INSERT INTO findings (review_id, seu_id, related_object_type, related_object_id, severity, title, description)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO findings (review_id, seu_id, related_object_type, related_object_id, severity, title, description, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING *`,
-        [input.reviewId, input.seuId, input.relatedObjectType, input.relatedObjectId, input.severity, input.title, input.description ?? null]
+        [input.reviewId, input.seuId, input.relatedObjectType, input.relatedObjectId, input.severity, input.title, input.description ?? null, input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

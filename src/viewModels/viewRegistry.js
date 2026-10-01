@@ -47,6 +47,7 @@ import {seu_workqueue_indexVM} from "./seu_workqueue_index.js";
 import {seu_reviews_indexVM} from "./seu_reviews_index.js";
 import {seu_compliance_indexVM} from "./seu_compliance_index.js";
 import {seu_events_indexVM} from "./seu_events_index.js";
+import {seu_data_migrations_indexVM} from "./seu_data_migrations_index.js";
 
 // export const viewModels = {
 //   "auth/login": auth_loginVM,
@@ -94,6 +95,7 @@ export const viewModels = {
   "seu/sdk/schema-registry/detail": seu_sdk_schema_registry_detailVM,
   "seu/sdk/schema-registry/new": seu_sdk_schema_registry_newVM,
   "seu/sdk/schema-registry/review": seu_sdk_schema_registry_reviewVM,
+  "seu/data-migrations/index": seu_data_migrations_indexVM,
   "seu/sdk/ontology/index": seu_sdk_ontology_indexVM,
   "seu/sdk/ontology/metadata": seu_sdk_ontology_metadataVM,
   "seu/sdk/ontology/approvals": seu_sdk_ontology_approvalsVM,

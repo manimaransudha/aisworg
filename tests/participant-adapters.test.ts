@@ -15,7 +15,7 @@ import type { AddressInfo } from "node:net";
 
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
-import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
+import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
 import { transitionDeliverable } from "../src/routes/seu/core/deliverables.js";
 import { executionTargetsDB } from "../src/dblayer/executionTargetsDB.js";
 import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
@@ -126,7 +126,7 @@ test("both adapters implement the one contract; the registry resolves by mode; a
 
 test("external-orchestrator: dispatching delivers the assignment to the tenant endpoint over the adapter", async () => {
   const { seuId, deliverableId, capabilityId } = await commissionAndFulfil("adapter-external");
-  await executionTargetsDB.upsert({ tenantId: defaultTenantId, capabilityId, mode: "external-orchestrator", adapterEndpoint: captureUrl, adapterAuthRef: "secret-token" });
+  await executionTargetsDB.upsert({ tenantId: defaultTenantId, capabilityId, mode: "external-orchestrator", authorId: "1", authorBadge: "root", adapterEndpoint: captureUrl, adapterAuthRef: "secret-token" });
 
   const before = captured.length;
   const dispatched = await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
@@ -169,7 +169,7 @@ test("human-on-UI (default, no execution target): dispatching makes no external 
 test("the platform-side flow is identical either way: the Deliverable is dispatched-and-outstanding regardless of adapter", async () => {
   // Same Capability, both modes, same observable platform result (outstanding).
   const external = await commissionAndFulfil("adapter-invariance-ext");
-  await executionTargetsDB.upsert({ tenantId: defaultTenantId, capabilityId: external.capabilityId, mode: "external-orchestrator", adapterEndpoint: captureUrl });
+  await executionTargetsDB.upsert({ tenantId: defaultTenantId, capabilityId: external.capabilityId, mode: "external-orchestrator", authorId: "1", authorBadge: "root", adapterEndpoint: captureUrl });
   const d1 = await transitionDeliverable({ deliverableId: external.deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
   if (!d1.ok) assert.equal(d1.reason, "already_in_flight", JSON.stringify(d1));
 

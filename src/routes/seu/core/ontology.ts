@@ -12,13 +12,20 @@
 // everywhere else); everyone else reads Platform + their own tenant, and can
 // only ever write their own.
 import { ontologyDB, type OntologyViewer } from "../../../dblayer/ontologyDB.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { eventsDB } from "../../../dblayer/eventsDB.js";
-import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
 import type { JsonSchemaDocument, JsonSchemaProperty } from "../../../domain/sdk/formGenerator.js";
 import type { OntologyConceptRow } from "../../../dblayer/seuTypes.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
+
 
 // actorId, added by migration 190's governed lifecycle — every real
 // transition (deprecate/retire/archive) and every Version-publishing action
@@ -27,7 +34,21 @@ import type { OntologyConceptRow } from "../../../dblayer/seuTypes.js";
 // itself to. Optional so every pre-existing OntologyViewer-shaped call site
 // (resolveLabels, setAlias, the read-only helpers) keeps compiling unchanged.
 export interface OntologyActor extends OntologyViewer {
-  actorId?: string | null;
+  actorId: string;
+  actorBadge: String;
+}
+
+// Migration 285 — author_id/author_badge are NOT NULL on ontology_concepts,
+// never defaulted (schemaDefinitionsDB.create's own discipline). Creation
+// itself stays ungoverned (no transition — see this file's own header), so
+// authorBadge here is descriptive metadata, not a badgeAuthorityEngine
+// grant check (that check already happened at the route's own gate,
+// `ontology_define`, before addConcept/createConceptVersion is ever called).
+async function resolveAuthor(actor: OntologyActor): Promise<{ authorId: string; authorBadge: string }> {
+  if (!actor.actorId) throw new Error("no acting user to record as this concept's author");
+  const { data: master } = await participantsMasterDB.findById(actor.actorId);
+  if (!master) throw new Error(`No participants_master row for id ${actor.actorId} — log in first.`);
+  return { authorId: master.id, authorBadge: actor.isRoot ? "root" : "ontology_define" };
 }
 
 export const CATEGORY_CONCEPT_TYPE: Record<string, string> = {
@@ -221,8 +242,8 @@ export async function emitConceptCreated(input: {
   conceptType: string;
   fieldName?: string;
   sourceRow?: Record<string, unknown>;
-  actorId?: string | null;
-  badge?: string | null;
+  actorId: string;
+  badge: string;
   tenantId?: string;
 }): Promise<void> {
   const code = input.code.trim();
@@ -250,8 +271,8 @@ export async function emitConceptCreated(input: {
       originatingEntityCode: input.originatingEntityCode ?? null,
       sourceRow: input.sourceRow ?? null,
     },
-    actorId: input.actorId ?? null,
-    authorityBadge: input.badge ?? null,
+    actorId: input.actorId,
+    authorityBadge: input.badge,
   });
 }
 
@@ -327,7 +348,7 @@ async function collectComposableValues(
 export async function proposeComposableOntologyValues(
   schema: JsonSchemaDocument,
   content: Record<string, unknown>,
-  ctx: { originatingObjectType: string; originatingObjectId: string; originatingEntityCode?: string | null; actorId?: string | null; badge?: string | null; tenantId?: string }
+  ctx: { originatingObjectType: string; originatingObjectId: string; originatingEntityCode?: string | null; actorId: string; badge: string; tenantId?: string }
 ): Promise<void> {
   await collectComposableValues(schema.properties ?? {}, content, content, async (conceptType, value, fieldName, _label, row) => {
     await emitConceptCreated({ ...ctx, code: value, conceptType, fieldName, sourceRow: row });
@@ -524,9 +545,11 @@ export async function addConcept(
   const { data: latest } = await ontologyDB.findLatestVersion(conceptType, code, tenantId);
   if (!latest) {
     const version = "1.0.0";
+    const { authorId, authorBadge } = await resolveAuthor(actor);
     const { data: created, error } = await ontologyDB.insertConceptVersion({
       conceptType, code, tenantId, version, defaultLabel, description: description || null,
       textType: input.textType, uiGrouping: input.uiGrouping, status: "Draft",
+      authorId, authorBadge,
     });
     if (error || !created) throw error ?? new Error("failed to add concept");
     await eventBus.publish({
@@ -540,8 +563,8 @@ export async function addConcept(
         defaultLabel, description: description || null,
         textType: created.text_type, uiGrouping: created.ui_grouping,
       },
-      actorId: actor.actorId ?? null,
-      authorityBadge: null,
+      actorId: authorId,
+      authorityBadge: authorBadge,
     });
     return created;
   }
@@ -568,12 +591,14 @@ async function createConceptVersion(
   // Publishing a new Version without explicitly naming textType/uiGrouping
   // inherits both from the prior Version (base) — a plain label/description
   // edit shouldn't silently reset the render mode or drop group membership.
+  const { authorId, authorBadge } = await resolveAuthor(actor);
   const { data: created, error } = await ontologyDB.insertConceptVersion({
     conceptType: input.conceptType, code: input.code, tenantId: input.tenantId, version: nextVersion,
     defaultLabel: input.defaultLabel, description: input.description, contributedByPack: input.contributedByPack ?? null,
     compositionStrategy: input.compositionStrategy ?? null, compositionSources: input.compositionSources ?? [],
     textType: input.textType ?? base?.text_type ?? "markdown",
     uiGrouping: input.uiGrouping !== undefined ? input.uiGrouping : (base?.ui_grouping ?? null),
+    authorId, authorBadge,
   });
   if (error || !created) throw error ?? new Error("failed to create concept version");
 
@@ -588,8 +613,8 @@ async function createConceptVersion(
     seuId: null,
     correlationId: eventBus.newCorrelationId(),
     payload: { conceptType: input.conceptType, code: input.code, version: nextVersion },
-    actorId: actor.actorId ?? null,
-    authorityBadge: null,
+    actorId: authorId,
+    authorityBadge: authorBadge,
   });
 
   if (previousActive && previousActive.id !== created.id) {
@@ -601,8 +626,8 @@ async function createConceptVersion(
       seuId: null,
       correlationId: eventBus.newCorrelationId(),
       payload: { conceptType: input.conceptType, code: input.code, version: previousActive.version, reason: "superseded by new version" },
-      actorId: actor.actorId ?? null,
-      authorityBadge: null,
+      actorId: authorId,
+      authorityBadge: authorBadge,
     });
   }
 
@@ -672,9 +697,10 @@ async function transitionConcept(
   if (error || !updated) throw error ?? new Error("failed to update concept status");
 
   if (fromState === "Draft" && toState === "Draft") {
-    await ontologyDB.addConceptComment(concept.id, actor.actorId ? Number(actor.actorId) : null, trimmedComment);
+    await ontologyDB.addConceptComment(concept.id, actor.actorId, trimmedComment);
   }
 
+  const { authorId } = await resolveAuthor(actor);
   await eventBus.publish({
     eventType: gate.eventType ?? `OntologyConcept${toState}`,
     originatingObjectType: "Ontology",
@@ -682,7 +708,7 @@ async function transitionConcept(
     seuId: null,
     correlationId: eventBus.newCorrelationId(),
     payload: { conceptType, code, fromState, toState, version: concept.version },
-    actorId: actor.actorId ?? null,
+    actorId: authorId,
     authorityBadge: gate.authorityBadge,
   });
 
@@ -778,6 +804,7 @@ export async function updateConceptMeta(
   const { data: updated, error } = await ontologyDB.updateConceptMeta(concept.id, updates);
   if (error || !updated) throw error ?? new Error("failed to update concept");
 
+  const { authorId, authorBadge } = await resolveAuthor(actor);
   await eventBus.publish({
     eventType: "ConceptUpdated",
     originatingObjectType: "Ontology",
@@ -785,8 +812,8 @@ export async function updateConceptMeta(
     seuId: null,
     correlationId: eventBus.newCorrelationId(),
     payload: { conceptType, code, version: updated.version, textType: updated.text_type, uiGrouping: updated.ui_grouping },
-    actorId: actor.actorId ?? null,
-    authorityBadge: null,
+    actorId: authorId,
+    authorityBadge: authorBadge,
   });
 
   return updated;
@@ -822,8 +849,8 @@ export async function listDistinctUiGroupings(viewer: OntologyViewer): Promise<s
 // assertion) and retireConcept's transitionEngine gate (there is no second
 // human decision here to badge-check; it's a mechanical mirror of a decision
 // already made and authorised on the calling entity's own transition).
-export async function syncConceptFromEntity(conceptType: string, code: string, defaultLabel: string, description: string | null, tenantId: string): Promise<OntologyConceptRow> {
-  return createConceptVersion({ conceptType, code, tenantId, defaultLabel, description }, { isRoot: true, tenantId, actorId: null });
+export async function syncConceptFromEntity(conceptType: string, code: string, defaultLabel: string, description: string | null, tenantId: string, actorId: string): Promise<OntologyConceptRow> {
+  return createConceptVersion({ conceptType, code, tenantId, defaultLabel, description }, { isRoot: true, tenantId, actorId, actorBadge: "root" });
 }
 
 // Mirrors the OLD ontologyDB.retireConcept's own direct-flip behaviour
@@ -831,7 +858,7 @@ export async function syncConceptFromEntity(conceptType: string, code: string, d
 // eligibility themselves (only called once no other Version of the same
 // code is still Active), so this is a plain status set, not a re-run of the
 // Deprecated -> Retired governed gate real user-driven retireConcept uses.
-export async function retireConceptForEntity(conceptType: string, code: string, tenantId: string): Promise<void> {
+export async function retireConceptForEntity(conceptType: string, code: string, tenantId: string, actorId: string, actorBadge: string): Promise<void> {
   const { data: concept } = await ontologyDB.findActiveConcept(conceptType, code, tenantId);
   if (!concept) return;
   await ontologyDB.updateConceptStatus(concept.id, "Retired");
@@ -842,8 +869,8 @@ export async function retireConceptForEntity(conceptType: string, code: string, 
     seuId: null,
     correlationId: eventBus.newCorrelationId(),
     payload: { conceptType, code, version: concept.version, reason: "no other Version of this code remains Active" },
-    actorId: null,
-    authorityBadge: null,
+    actorId: actorId,
+    authorityBadge: actorBadge,
   });
 }
 
@@ -912,7 +939,7 @@ export async function composeConcept(
     seuId: null,
     correlationId: eventBus.newCorrelationId(),
     payload: { conceptType, code, version: result.version, strategy: input.strategy, composedFrom },
-    actorId: actor.actorId ?? null,
+    actorId: actor.actorId,
     authorityBadge: null,
   });
 

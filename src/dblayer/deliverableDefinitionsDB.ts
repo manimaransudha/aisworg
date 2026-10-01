@@ -1,9 +1,14 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import { PLATFORM_TENANT_ID } from "./constants.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validateDeliverableDefinitionWriteAgainstSchema } from "../routes/seu/core/deliverableDefinitionWriteValidator.js";
 import type { DbResult, DeliverableDefinitionRow } from "./seuTypes.js";
+import { tenantsDB } from "./tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "./constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 // CR-049 Phase 1 — Deliverable Definition, a first-class authored entity.
 // Own table (081_deliverable_definitions.sql), mirroring templatesDB.ts's own
@@ -14,7 +19,12 @@ export const deliverableDefinitionsDB = {
     code: string;
     description?: string | null;
     version?: string;
-    authoredBy?: number | null;
+    // deliverable_definitions.authored_by/author_badge are NOT NULL,
+    // participants_master-scoped (same discipline as templates.ts/profiles.ts
+    // above) — every caller must resolve and pass the real participant id +
+    // the real badge requireBadge already verified upstream, never a default.
+    authoredBy: string;
+    authorBadge: string;
     draftContent?: Record<string, unknown>;
     tenantId?: string;
     parentDeliverableDefinitionId?: string | null;
@@ -40,14 +50,15 @@ export const deliverableDefinitionsDB = {
       if (!schemaRow) return { error: new Error(`schema_definitions row "${input.schemaDefinitionId}" not found`) };
 
       const { rows } = await query<DeliverableDefinitionRow>(
-        `INSERT INTO deliverable_definitions (code, description, version, status, authored_by, draft_content, tenant_id, parent_deliverable_definition_id, schema_definition_id)
-         VALUES ($1, $2, $3, 'Draft', $4, $5, $6, $7, $8)
+        `INSERT INTO deliverable_definitions (code, description, version, status, authored_by, author_badge, draft_content, tenant_id, parent_deliverable_definition_id, schema_definition_id)
+         VALUES ($1, $2, $3, 'Draft', $4, $5, $6, $7, $8, $9)
          RETURNING *`,
         [
           input.code,
           input.description ?? null,
           version,
-          input.authoredBy ?? null,
+          input.authoredBy,
+          input.authorBadge,
           JSON.stringify(draftContent),
           input.tenantId ?? PLATFORM_TENANT_ID,
           input.parentDeliverableDefinitionId ?? null,

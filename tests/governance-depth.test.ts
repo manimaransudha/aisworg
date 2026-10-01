@@ -14,9 +14,10 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
-import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
+import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
 import { transitionDeliverableSync as transitionDeliverable, ensureCoreEngineeringQualityGates } from "./testFixtures.js";
-import { createObligation, transitionObligation } from "../src/routes/seu/core/obligations.js";
+import { transitionObligation } from "../src/routes/seu/core/obligations.js";
+import { createObligationAsRoot as createObligation } from "./testFixtures.js";
 import { dependencyDefinitionEngine } from "../src/domain/engine/dependencyDefinitionEngine.js";
 import { transitionEngine } from "../src/domain/engine/transitionEngine.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
@@ -153,6 +154,8 @@ test("Constraint Type (Ch.24): a Standard-type Policy violation doesn't block a 
     condition: { type: "field_in", field: "x", values: ["never-matches"] },
     severity: "High",
     originatingPackId: pack.id,
+    authorId: pack.authored_by,
+    authorBadge: "root",
   });
   const { data: blockingPolicy } = await policiesDB.upsert({
     code: `test-policy-blocking-${unique}`,
@@ -163,6 +166,8 @@ test("Constraint Type (Ch.24): a Standard-type Policy violation doesn't block a 
     condition: { type: "field_in", field: "x", values: ["never-matches"] },
     severity: "Low",
     originatingPackId: pack.id,
+    authorId: pack.authored_by,
+    authorBadge: "root",
   });
   assert.ok(standardPolicy && blockingPolicy);
 

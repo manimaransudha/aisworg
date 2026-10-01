@@ -41,23 +41,14 @@ function isExpired(effectiveTill: string, now: Date): boolean {
 }
 
 async function getHeldBadges(actorId: string): Promise<HeldBadgeState> {
-  const numericId = actorId.trim() !== "" ? Number(actorId) : NaN;
-  if (Number.isInteger(numericId)) {
-    const { data: master } = await participantsMasterDB.findByUserId(numericId);
+  // const numericId = actorId.trim() !== "" ? Number(actorId) : NaN;
+  // if (Number.isInteger(numericId)) {
+    const { data: master } = await participantsMasterDB.findById(actorId);
     const now = new Date();
     const badgeTypes = new Set(
       (master?.authorised_badges ?? []).filter((entry) => !isExpired(entry.effective_till, now)).map((entry) => entry.badge)
     );
     return { isRoot: badgeTypes.has(ROOT_BADGE_CODE), badgeTypes };
-  }
-  // Owner (2026-09-22): "there is no fallback to legacy. comment it out." A
-  // non-numeric actorId (e.g. dev/actAs.ts's synthetic "dev-actas:5:..."
-  // holder ids) now resolves to no held badges at all — no badge_grants
-  // fallback.
-  return { isRoot: false, badgeTypes: new Set() };
-  // const { data: grants } = await badgeGrantsDB.findActiveForHolder(actorId);
-  // const badgeTypes = new Set((grants ?? []).map((g) => g.badge_type));
-  // return { isRoot: badgeTypes.has(ROOT_BADGE_CODE), badgeTypes };
 }
 
 export const badgeAuthorityEngine = {

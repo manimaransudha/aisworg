@@ -15,9 +15,14 @@ import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { qualityGateEngine, RESOLVED_OBLIGATION_STATUSES } from "../../../domain/engine/qualityGateEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { assertCanonicalCategory } from "./ontology.js";
-import { raiseAttentionItem } from "./attentionItems.js";
-import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
+import { raiseAttentionItem, resolveAuthor, resolveSystemActor } from "./attentionItems.js";
 import type { AttentionItemRow, ObligationDefinition, ObligationRow, PolicyApplicabilityDeliverable, TransitionEntityType } from "../../../dblayer/seuTypes.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 // related_object_type/id are polymorphic (Open Design Questions.md #3) — an
 // Obligation can now attach to any governed entity, not just a Deliverable.
@@ -29,7 +34,7 @@ import type { AttentionItemRow, ObligationDefinition, ObligationRow, PolicyAppli
 // class of bug the old explicit seuId param allowed — a caller passing a
 // seuId that didn't match its own relatedObjectId — since there's no longer
 // a second value to mismatch against.
-async function resolveSeuIdFromRelatedObject(relatedObjectType: TransitionEntityType, relatedObjectId: string): Promise<string> {
+export async function resolveSeuIdFromRelatedObject(relatedObjectType: TransitionEntityType, relatedObjectId: string): Promise<string> {
   if (relatedObjectType === "SEU") return relatedObjectId;
   if (relatedObjectType === "Deliverable") {
     const { data: deliverable } = await deliverablesDB.findById(relatedObjectId);
@@ -75,6 +80,8 @@ export async function createObligation(input: {
   originatingEntityId?: string | null;
   assignedEntityType?: string | null;
   assignedEntityId?: string | null;
+  actorId: string;
+  authorBadge: string;
 }): Promise<ObligationRow> {
   await assertCanonicalCategory("category:obligation", input.category);
   if (input.origin) await assertCanonicalCategory("category:obligation-origin", input.origin);
@@ -88,6 +95,8 @@ export async function createObligation(input: {
     originatingEntityType = "EBM";
     originatingEntityId = seu?.active_ebm_id ?? null;
   }
+
+  const { authorId } = await resolveAuthor(seuId, input.actorId);
 
   const { data: obligation, error } = await obligationsDB.create({
     seuId,
@@ -106,6 +115,8 @@ export async function createObligation(input: {
     originatingEntityId,
     assignedEntityType: input.assignedEntityType ?? null,
     assignedEntityId: input.assignedEntityId ?? null,
+    authorId,
+    authorBadge: input.authorBadge,
   });
   if (error || !obligation) throw error ?? new Error("failed to create obligation");
 
@@ -165,6 +176,7 @@ export async function raiseObligationForBlockedTransition(input: {
   toState: string;
   policyCode: string;
 }): Promise<{ obligations: ObligationRow[]; attentionItems: AttentionItemRow[] }> {
+  const systemActor = await resolveSystemActor(input.seuId);
   const { data: policy } = await policiesDB.findByCode(input.policyCode);
   if (!policy) throw new Error(`policy "${input.policyCode}" not found while raising a blocked-transition Obligation`);
 
@@ -205,6 +217,8 @@ export async function raiseObligationForBlockedTransition(input: {
         blockedToState: input.toState,
         originatingEntityType: "Policy",
         originatingEntityId: policy.id,
+        actorId: systemActor.actorId,
+        authorBadge: systemActor.authorBadge,
       }));
     obligations.push(obligation);
 
@@ -215,6 +229,7 @@ export async function raiseObligationForBlockedTransition(input: {
       description: declared.description,
       relatedObjectType: input.relatedObjectType,
       relatedObjectId: input.relatedObjectId,
+      ...systemActor,
     });
     attentionItems.push(attentionItem);
   }
@@ -256,6 +271,7 @@ export async function raiseObligationsForPackDefinitions(input: {
   toState: string;
   context?: Record<string, unknown>;
 }): Promise<{ obligations: ObligationRow[]; attentionItems: AttentionItemRow[] }> {
+  const systemActor = await resolveSystemActor(input.seuId);
   const { data: ebm } = await ebmsDB.findById(input.ebmId);
   const pool = (ebm?.behaviors as { pool?: Array<{ propertyName: string; value: unknown; source?: { id?: string } }> } | null)?.pool ?? [];
   const governedTransition = `${input.relatedObjectType}|${input.fromState}|${input.toState}`;
@@ -313,6 +329,8 @@ export async function raiseObligationsForPackDefinitions(input: {
         blockedToState: input.toState,
         originatingEntityType: packId ? "Pack" : undefined,
         originatingEntityId: packId,
+        actorId: systemActor.actorId,
+        authorBadge: systemActor.authorBadge,
       }));
     obligations.push(obligation);
 
@@ -323,6 +341,7 @@ export async function raiseObligationsForPackDefinitions(input: {
       description: def.description,
       relatedObjectType: input.relatedObjectType,
       relatedObjectId: input.relatedObjectId,
+      ...systemActor,
     });
     attentionItems.push(attentionItem);
   }
@@ -352,7 +371,7 @@ const REVISABLE_FIELD_TO_COLUMN: Record<(typeof REVISABLE_FIELDS)[number], "titl
 
 export async function reviseObligation(input: {
   obligationId: string;
-  actorId?: string;
+  actorId: string;
   title?: string;
   description?: string | null;
   category?: string;
@@ -417,26 +436,11 @@ export type TransitionObligationResult =
   | { ok: false; reason: "quality_gate_blocked"; detail: string }
   | { ok: false; reason: "authority_denied" | "policy_blocked" | "no_transition_definition" | "not_submitted"; detail: string };
 
-export async function transitionObligation(input: { obligationId: string; targetState: string; actorRole: string; actorId?: string }): Promise<TransitionObligationResult> {
+export async function transitionObligation(input: { obligationId: string; targetState: string; actorRole: string; actorId: string }): Promise<TransitionObligationResult> {
   const { data: obligation } = await obligationsDB.findById(input.obligationId);
   if (!obligation) return { ok: false, reason: "not_found" };
 
   const fromState = obligation.status;
-
-  // Post-completion fix (Open Design Questions.md #3): Quality Gates used to
-  // apply to Deliverable transitions only, even though quality_gates.entity_type
-  // was never actually restricted to it — same check transitionDeliverable
-  // has always run, now generalised to every SEU-scoped entity type.
-  const qualityGateResult = await qualityGateEngine.evaluate({
-    entityType: "Obligation",
-    entityId: obligation.id,
-    seuId: obligation.seu_id,
-    fromState,
-    toState: input.targetState,
-  });
-  if (qualityGateResult.outcome === "Blocked") {
-    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
-  }
 
   const gate = await transitionEngine.evaluate({
     entityType: "Obligation",
@@ -452,6 +456,26 @@ export async function transitionObligation(input: { obligationId: string; target
     if (gate.reason === "quality_gate_blocked") return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${gate.gateName}" blocked: ${gate.detail}` };
     if (gate.reason === "not_submitted") return { ok: false, reason: "not_submitted", detail: `must be submitted first (requires badge ${gate.submitBadge})` };
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
+  }
+
+  // Post-completion fix (Open Design Questions.md #3): Quality Gates used to
+  // apply to Deliverable transitions only, even though quality_gates.entity_type
+  // was never actually restricted to it — same check transitionDeliverable
+  // has always run, now generalised to every SEU-scoped entity type.
+  if (!input.actorId) throw new Error("actorId is required to transition an Obligation");
+  if (!gate.authorityBadge) throw new Error(`no authority badge resolved for Obligation ${fromState} -> ${input.targetState} — Transition Definition declares no verb`);
+  const { authorId } = await resolveAuthor(obligation.seu_id, input.actorId);
+  const qualityGateResult = await qualityGateEngine.evaluate({
+    entityType: "Obligation",
+    entityId: obligation.id,
+    seuId: obligation.seu_id,
+    fromState,
+    toState: input.targetState,
+    authorId,
+    authorBadge: gate.authorityBadge,
+  });
+  if (qualityGateResult.outcome === "Blocked") {
+    return { ok: false, reason: "quality_gate_blocked", detail: `Quality Gate "${qualityGateResult.gate.name}" blocked: ${qualityGateResult.reason}` };
   }
 
   const { data: updated, error } = await obligationsDB.updateStatus(obligation.id, input.targetState);

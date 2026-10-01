@@ -20,26 +20,33 @@ export const evidenceDB = {
     description?: string | null;
     source?: string | null;
     supersedesEvidenceId?: string | null;
+    authorId: string;
+    authorBadge: string;
+    // evidence_relationships.author_id references participants_master(id)
+    // directly (one hop), unlike evidence.author_id which references the
+    // SEU-scoped participants(id) row (two hops) — distinct ids, do not
+    // conflate them.
+    authorMasterId: string;
   }): Promise<DbResult<EvidenceRow>> {
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
       const { rows } = await client.query<EvidenceRow>(
-        `INSERT INTO evidence (category, title, description, source, supersedes_evidence_id)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO evidence (category, title, description, source, supersedes_evidence_id, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING *`,
-        [input.category, input.title, input.description ?? null, input.source ?? null, input.supersedesEvidenceId ?? null]
+        [input.category, input.title, input.description ?? null, input.source ?? null, input.supersedesEvidenceId ?? null, input.authorId, input.authorBadge]
       );
       const evidence = rows[0];
       await client.query(
-        `INSERT INTO evidence_relationships (evidence_id, related_object_type, related_object_id) VALUES ($1, 'SEU', $2)`,
-        [evidence.id, input.seuId]
+        `INSERT INTO evidence_relationships (evidence_id, related_object_type, related_object_id, author_id, author_badge) VALUES ($1, 'SEU', $2, $3, $4)`,
+        [evidence.id, input.seuId, input.authorMasterId, input.authorBadge]
       );
       if (input.relatedObjectType !== "SEU" || input.relatedObjectId !== input.seuId) {
         await client.query(
-          `INSERT INTO evidence_relationships (evidence_id, related_object_type, related_object_id) VALUES ($1, $2, $3)
+          `INSERT INTO evidence_relationships (evidence_id, related_object_type, related_object_id, author_id, author_badge) VALUES ($1, $2, $3, $4, $5)
            ON CONFLICT ON CONSTRAINT evidence_relationships_unique DO NOTHING`,
-          [evidence.id, input.relatedObjectType, input.relatedObjectId]
+          [evidence.id, input.relatedObjectType, input.relatedObjectId, input.authorMasterId, input.authorBadge]
         );
       }
       await client.query("COMMIT");
@@ -56,14 +63,14 @@ export const evidenceDB = {
   // Every relationship after the first (or the only relationship, for an
   // Evidence row created before this without one). Idempotent: re-linking
   // the same (evidence, object) pair is a no-op, not an error.
-  async addRelationship(evidenceId: string, relatedObjectType: TransitionEntityType, relatedObjectId: string): Promise<DbResult<EvidenceRelationshipRow | undefined>> {
+  async addRelationship(evidenceId: string, relatedObjectType: TransitionEntityType, relatedObjectId: string, authorMasterId: string, authorBadge: string): Promise<DbResult<EvidenceRelationshipRow | undefined>> {
     try {
       const { rows } = await query<EvidenceRelationshipRow>(
-        `INSERT INTO evidence_relationships (evidence_id, related_object_type, related_object_id)
-         VALUES ($1, $2, $3)
+        `INSERT INTO evidence_relationships (evidence_id, related_object_type, related_object_id, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT ON CONSTRAINT evidence_relationships_unique DO NOTHING
          RETURNING *`,
-        [evidenceId, relatedObjectType, relatedObjectId]
+        [evidenceId, relatedObjectType, relatedObjectId, authorMasterId, authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

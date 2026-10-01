@@ -10,7 +10,7 @@ export const commandsDB = {
     commandType: string;
     fromState: string;
     toState: string;
-    requestedBy: number | null;
+    requestedBy: string | null;
     // Participant Integration & Attestation — Plan step 2: the badge code
     // that authorised this transition, resolved at dispatch and carried so
     // the acceptance attestation can record who certified the state

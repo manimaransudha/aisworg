@@ -26,7 +26,7 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { publishProfile } from "../src/routes/seu/core/profiles.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
-import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync, ensurePolicyDefinitionWithObligation } from "./testFixtures.js";
+import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync, ensurePolicyDefinitionWithObligation, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 import type { SeuRow } from "../src/dblayer/seuTypes.js";
 
 async function registerOrganisationName(code: string): Promise<void> {
@@ -46,7 +46,7 @@ async function registerOrganisationName(code: string): Promise<void> {
 async function commissionBlockedSeu(run: string) {
   const pack = { code: `cr107-seu-policy-pack-${run}`, name: "CR-107 SEU Policy Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   await registerOrganisationName(pack.code);
-  const published = await publishPack({ seed: pack as any, actorRole: "super", actorId: "1001", activate: true });
+  const published = await publishPack({ seed: pack as any, actorRole: "super", actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `seu policy pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
   const { data: packRow } = await packsDB.findActiveByCode(pack.code);
 
@@ -56,6 +56,8 @@ async function commissionBlockedSeu(run: string) {
     scope: "Transition", governedTransition: "SEU|Activated|Operational",
     condition: { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] },
     originatingPackId: packRow!.id,
+    authorId: packRow!.authored_by,
+    authorBadge: packRow!.author_badge,
   });
   assert.ok(seuPolicy);
   // raiseObligationForBlockedTransition now raises nothing at all unless the
@@ -68,7 +70,7 @@ async function commissionBlockedSeu(run: string) {
     code: `cr107-tpl-${run}`, name: "CR-107 Template",
     deliverableCatalogue: [{ code: "requirements-analysis-model" }],
   });
-  await templatesDB.setMandatoryPacks(template!.id, [pack.code]);
+  await templatesDB.setMandatoryPacks(template!.id, [pack.code], ROOT_ACTOR_ID, "root");
   await templatesDB.setRequiredCapabilities(template!.id, []);
 
   await ensureEventSubscriptionsLoaded();
@@ -88,16 +90,16 @@ async function commissionBlockedSeu(run: string) {
       redispatchAttentionThreshold: 2,
     },
     actorRole: "super",
-    actorId: "1001",
+    actorId: TESTER_ALL_ID,
   });
   assert.equal(profilePublish.ok, true, !profilePublish.ok ? JSON.stringify(profilePublish.errors) : undefined);
   if (!profilePublish.ok) throw new Error("unreachable");
   const { data: profile } = await profilesDB.findById(profilePublish.profileId);
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: "1001" });
+  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : undefined);
   if (!requested.ok) throw new Error("unreachable");
 
-  const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: "1001", timeoutMs: 30000 });
+  const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: TESTER_ALL_ID, timeoutMs: 30000 });
   assert.equal(result.ok, false, "an unsatisfied SEU-scoped Policy must block the Activated -> Operational hop");
   if (!result.ok) assert.equal(result.stage, "blocked");
 
@@ -120,7 +122,15 @@ async function commissionBlockedSeu(run: string) {
   const blockingObligation = (obligations ?? []).find((o) => o.blocked_to_state === "Operational");
   assert.ok(blockingObligation, "a real Obligation must be raised against the SEU for the blocked commence-work hop");
 
-  return { seu: seu!, headOfChain: headOfChain!, blockingObligation: blockingObligation!, packId: packRow!.id, policyCode: seuPolicy!.code };
+  return {
+    seu: seu!,
+    headOfChain: headOfChain!,
+    blockingObligation: blockingObligation!,
+    packId: packRow!.id,
+    authorId: packRow!.authored_by,
+    authorBadge: packRow!.author_badge,
+    policyCode: seuPolicy!.code,
+  };
 }
 
 test("CR-107: a Deliverable cannot start while its owning SEU is blocked by an open commence-work Obligation", async () => {
@@ -130,7 +140,7 @@ test("CR-107: a Deliverable cannot start while its owning SEU is blocked by an o
   // The actual bug this CR was raised over: before the fix, nothing checked
   // the owning SEU's own state here, so this call would succeed (dispatched)
   // despite the SEU sitting blocked.
-  const transitionResult = await transitionDeliverable({ deliverableId: headOfChain.id, targetState: "In Progress", actorRole: "super", actorId: "1001" });
+  const transitionResult = await transitionDeliverable({ deliverableId: headOfChain.id, targetState: "In Progress", actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(transitionResult.ok, false, "a head-of-chain Deliverable must not be able to start while its owning SEU is blocked");
   if (!transitionResult.ok) {
     assert.equal(transitionResult.reason, "seu_blocked");
@@ -145,12 +155,12 @@ test("CR-107: a Deliverable cannot start while its owning SEU is blocked by an o
 
 test("CR-107: once the blocking commence-work Obligation resolves, the Execution Engine's own retry unblocks both the SEU and its Deliverable", async () => {
   const run = randomUUID().slice(0, 8);
-  const { seu, headOfChain, blockingObligation, packId, policyCode } = await commissionBlockedSeu(run);
+  const { seu, headOfChain, blockingObligation, packId, authorId, authorBadge, policyCode } = await commissionBlockedSeu(run);
 
   // Confirmed blocked at the Deliverable level too, same as the test above —
   // establishing the "before" state this test's own resolution is judged
   // against.
-  const beforeResolve = await transitionDeliverable({ deliverableId: headOfChain.id, targetState: "In Progress", actorRole: "super", actorId: "1001" });
+  const beforeResolve = await transitionDeliverable({ deliverableId: headOfChain.id, targetState: "In Progress", actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(beforeResolve.ok, false);
 
   // The blocking Policy's own condition ({field_in: neverSet}) never becomes
@@ -168,6 +178,8 @@ test("CR-107: once the blocking commence-work Obligation resolves, the Execution
     scope: "Transition", governedTransition: "SEU|Activated|Operational",
     condition: { type: "always_true" },
     originatingPackId: packId,
+    authorId,
+    authorBadge,
   });
 
   // Drive the real Obligation through its full lifecycle to Verified — the
@@ -175,7 +187,7 @@ test("CR-107: once the blocking commence-work Obligation resolves, the Execution
   // direct DB write. Every hop is ungoverned (verb: null), so no badge is
   // needed.
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    const step = await transitionObligation({ obligationId: blockingObligation.id, targetState, actorRole: "super", actorId: "1001" });
+    const step = await transitionObligation({ obligationId: blockingObligation.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
     assert.equal(step.ok, true, !step.ok ? `Obligation ${targetState} step failed: ${JSON.stringify(step)}` : undefined);
   }
 
@@ -194,6 +206,6 @@ test("CR-107: once the blocking commence-work Obligation resolves, the Execution
   // And the Deliverable-level block (item 6/CR-107's own fix) must have
   // cleared too — the same fifth check that refused it above now finds no
   // open blocking Obligation on the SEU.
-  const afterResolve = await transitionDeliverable({ deliverableId: headOfChain.id, targetState: "In Progress", actorRole: "super", actorId: "1001" });
+  const afterResolve = await transitionDeliverable({ deliverableId: headOfChain.id, targetState: "In Progress", actorRole: "super", actorId: TESTER_ALL_ID });
   assert.notEqual((afterResolve as { reason?: string }).reason, "seu_blocked", "the Deliverable-level SEU-blocked check must clear once the SEU itself reaches Operational");
 });

@@ -6,11 +6,11 @@ export const workItemsDB = {
   // CR-109 §6.3 — executionContext is resolved by workItemGenerator.generate
   // before this insert, so it's written once, at creation, not patched in
   // afterward.
-  async create(input: { commandId: string; executionContext?: WorkItemExecutionContext | null }): Promise<DbResult<WorkItemRow>> {
+  async create(input: { commandId: string; authorId: string; authorBadge: string; executionContext?: WorkItemExecutionContext | null }): Promise<DbResult<WorkItemRow>> {
     try {
       const { rows } = await query<WorkItemRow>(
-        "INSERT INTO work_items (command_id, execution_context) VALUES ($1, $2) RETURNING *",
-        [input.commandId, input.executionContext ? JSON.stringify(input.executionContext) : null]
+        "INSERT INTO work_items (command_id, author_id, author_badge, execution_context) VALUES ($1, $2, $3, $4) RETURNING *",
+        [input.commandId, input.authorId, input.authorBadge, input.executionContext ? JSON.stringify(input.executionContext) : null]
       );
       return { data: rows[0] };
     } catch (err) {

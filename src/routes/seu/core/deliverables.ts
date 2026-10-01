@@ -5,6 +5,8 @@ import { executionEngine } from "../../../domain/engine/executionEngine.js";
 import type { DeliverableGovernanceResult } from "../../../domain/engine/executionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { assertCanonicalCategory, resolveLabels } from "./ontology.js";
+import { resolveAuthor } from "./attentionItems.js";
+import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import type { DeliverableRow } from "../../../dblayer/seuTypes.js";
 
 // CR-039 — a Deliverable created beyond commissioning ("beyond whatever the
@@ -19,7 +21,7 @@ import type { DeliverableRow } from "../../../dblayer/seuTypes.js";
 // "instantiate a catalogue entry commissioning didn't already create," not
 // "create anything." (Owner, 2026-08-20: "a new deliverable has to inherit
 // from the template so the dependencies are inherited.")
-export async function createDeliverable(input: { seuId: string; name: string; category: string }): Promise<{ deliverable: DeliverableRow }> {
+export async function createDeliverable(input: { seuId: string; name: string; category: string; actorId: string }): Promise<{ deliverable: DeliverableRow }> {
   await assertCanonicalCategory("category:deliverable", input.category);
 
   const { data: seu } = await seusDB.findById(input.seuId);
@@ -41,7 +43,15 @@ export async function createDeliverable(input: { seuId: string; name: string; ca
     throw new Error(`a Deliverable named "${input.name}" already exists on this SEU`);
   }
 
-  const { data: deliverable, error } = await deliverablesDB.create({ seuId: input.seuId, name: input.name, category: input.category });
+  // route_authority declares no badge/role requirement for this route ("add
+  // a Deliverable beyond the Template catalogue" has no birth transition/
+  // noun_verb yet, authorityVocabulary.json's own header) — authorBadge here
+  // is attribution, whichever real badge this actor actually holds, not a
+  // second authorization gate.
+  const { authorId } = await resolveAuthor(input.seuId, input.actorId);
+  const { isRoot, badgeTypes } = await badgeAuthorityEngine.getHeldBadges(input.actorId);
+  const authorBadge = isRoot ? "root" : [...badgeTypes][0] ?? "general";
+  const { data: deliverable, error } = await deliverablesDB.create({ seuId: input.seuId, name: input.name, category: input.category, authorId, authorBadge });
   if (error || !deliverable) throw error ?? new Error("failed to create deliverable");
 
   return { deliverable };
@@ -79,7 +89,7 @@ export async function transitionDeliverable(input: {
   actorRole?: string;
   actingBadgeType?: string;
   actorId?: string;
-  requestedBy?: number | null;
+  requestedBy?: string | null;
   // Participant Integration — Plan step 4: the assigner may override the SLA-
   // derived default deadline with an explicit target completion time.
   targetCompletionAt?: Date | null;
@@ -104,6 +114,7 @@ export async function transitionDeliverable(input: {
     toState: input.targetState,
     producingCapabilityId: deliverable.producing_capability_id,
     requestedBy: input.requestedBy ?? null,
+    actorId: input.actorId,
     actingBadgeType,
     targetCompletionAt: input.targetCompletionAt ?? null,
     correlationId,

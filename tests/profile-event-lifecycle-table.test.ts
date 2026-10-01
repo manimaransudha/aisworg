@@ -17,11 +17,12 @@ import assert from "node:assert/strict";
 import pool from "../src/utils/db.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
+import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { publishProfile, transitionProfile, type ProfileSeedInput } from "../src/routes/seu/core/profiles.js";
-import { uniqueTestPackVersion } from "./testFixtures.js";
+import { uniqueTestPackVersion, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 import { randomUUID } from "node:crypto";
 
 // A Profile always needs a real base Template to point at — created here via
@@ -66,10 +67,14 @@ async function freshProfileDraft(): Promise<{ id: string }> {
   // mandatory.
   const { data: profileSchema } = await schemaDefinitionsDB.findLatest("Profile");
   if (!profileSchema) throw new Error("no schema_definitions grammar for Profile");
+  const { data: root } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
+  if (!root) throw new Error("No participants_master row for user_id 1 -- log in as root first.");
   const { data: draft, error } = await profilesDB.createDraft({
     code: `test-profile-lifecycle-draft-${randomUUID()}`,
     name: "Test Profile Draft",
     baseTemplateId: template!.id,
+    authoredBy: root.id,
+    authorBadge: "root",
     profileVersion: uniqueTestPackVersion(),
     draftContent: { baseTemplateCode },
     schemaDefinitionId: profileSchema.id,
@@ -133,7 +138,7 @@ test("DEFINITION: every Profile transition_definitions row matches Events and Li
 // full governed lifecycle for real (mirroring publishPack/publishTemplate),
 // so a fresh publish fires all four events in order, not just the first one.
 test("DRIVEN: row 1 (New) creates a real Draft and walks it to Active, firing ProfileCreated then the real governed events", async () => {
-  const created = await publishProfile({ seed: await freshProfileSeed(), actorRole: "power", actorId: "1001" });
+  const created = await publishProfile({ seed: await freshProfileSeed(), actorRole: "power", actorId: TESTER_ALL_ID });
   assert.equal(created.ok, true, created.ok ? undefined : created.errors.join("; "));
   if (!created.ok) return;
 
@@ -148,7 +153,7 @@ test("DRIVEN: row 1 (New) creates a real Draft and walks it to Active, firing Pr
 test("DRIVEN: row 3 (Validate) publishes ProfileValidated, matching transition_definitions.event_type", async () => {
   const draft = await freshProfileDraft();
 
-  const result = await transitionProfile({ profileId: draft.id, targetState: "Validated", actorRole: "power", actorId: "1001" });
+  const result = await transitionProfile({ profileId: draft.id, targetState: "Validated", actorRole: "power", actorId: TESTER_ALL_ID });
   assert.equal(result.ok, true, result.ok ? undefined : `${result.reason}: ${result.detail}`);
 
   const { data: events } = await eventsDB.findByOriginatingObject("Profile", draft.id);
@@ -162,12 +167,12 @@ test("DRIVEN: row 3 (Validate) publishes ProfileValidated, matching transition_d
 test("DRIVEN: rows 4-8 (Publish/Activate/Deprecate/Retire/Archive) each publish their matching event", async () => {
   const draft = await freshProfileDraft();
 
-  await transitionProfile({ profileId: draft.id, targetState: "Validated", actorRole: "power", actorId: "1001" });
-  await transitionProfile({ profileId: draft.id, targetState: "Published", actorRole: "power", actorId: "1001" });
-  await transitionProfile({ profileId: draft.id, targetState: "Active", actorRole: "power", actorId: "1001" });
-  await transitionProfile({ profileId: draft.id, targetState: "Deprecated", actorRole: "power", actorId: "1001" });
-  await transitionProfile({ profileId: draft.id, targetState: "Retired", actorRole: "power", actorId: "1001" });
-  const archived = await transitionProfile({ profileId: draft.id, targetState: "Archived", actorRole: "power", actorId: "1001" });
+  await transitionProfile({ profileId: draft.id, targetState: "Validated", actorRole: "power", actorId: TESTER_ALL_ID });
+  await transitionProfile({ profileId: draft.id, targetState: "Published", actorRole: "power", actorId: TESTER_ALL_ID });
+  await transitionProfile({ profileId: draft.id, targetState: "Active", actorRole: "power", actorId: TESTER_ALL_ID });
+  await transitionProfile({ profileId: draft.id, targetState: "Deprecated", actorRole: "power", actorId: TESTER_ALL_ID });
+  await transitionProfile({ profileId: draft.id, targetState: "Retired", actorRole: "power", actorId: TESTER_ALL_ID });
+  const archived = await transitionProfile({ profileId: draft.id, targetState: "Archived", actorRole: "power", actorId: TESTER_ALL_ID });
   assert.equal(archived.ok, true, archived.ok ? undefined : `${archived.reason}: ${archived.detail}`);
 
   const { data: events } = await eventsDB.findByOriginatingObject("Profile", draft.id);

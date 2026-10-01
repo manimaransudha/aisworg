@@ -14,6 +14,8 @@ import { seusDB } from "../../dblayer/seusDB.js";
 import { ebmsDB } from "../../dblayer/ebmsDB.js";
 import { qualityGatesDB } from "../../dblayer/qualityGatesDB.js";
 import { policiesDB } from "../../dblayer/policiesDB.js";
+import { participantsMasterDB } from "../../dblayer/participantsMasterDB.js";
+import { participantsDB } from "../../dblayer/participantsDB.js";
 import { eventBus } from "./eventBus.js";
 import { logger } from "../../utils/logger.js";
 import type { EventHandler } from "./eventBus.js";
@@ -21,13 +23,35 @@ import type { EventRow, EbmCompositionReport, EbmComposedPack } from "../../dbla
 
 interface CompositionCompletedPayload {
   seuId: string;
+  authorBadge: string;
+}
+
+// ebms.author_id is a `participants` row (SEU-scoped engagement), not a
+// participants_master row directly — two hops from the acting user's id.
+async function resolveAuthorParticipantId(seuId: string, actorId: string): Promise<string> {
+  const { data: master } = await participantsMasterDB.findById(actorId);
+  if (!master) throw new Error(`No superuser provisioned.`);
+  const { data: participant } = await participantsDB.findBySeuIdAndParticipantMasterId(seuId, master.id);
+  if (!participant) throw new Error(`actor ${actorId} has no participant engagement in SEU ${seuId}`);
+  return participant.id;
 }
 
 export const compositionCompletedHandler: EventHandler = async (event: EventRow) => {
-  const { seuId } = event.payload as unknown as CompositionCompletedPayload;
+  const { seuId, authorBadge } = event.payload as unknown as CompositionCompletedPayload;
   const { data: seu } = await seusDB.findById(seuId);
   if (!seu) {
     logger.error(`[compositionCompleted] SEU not found: ${seuId}`);
+    return;
+  }
+  if (!event.actor_id) {
+    logger.error(`[compositionCompleted] no actor_id on CompositionCompleted event for SEU ${seuId}`);
+    return;
+  }
+  let authorId: string;
+  try {
+    authorId = await resolveAuthorParticipantId(seuId, event.actor_id);
+  } catch (err) {
+    logger.error(`[compositionCompleted] could not resolve author participant for SEU ${seuId}`, err as Error);
     return;
   }
   const stashed = seu.composition_report as {
@@ -84,6 +108,8 @@ export const compositionCompletedHandler: EventHandler = async (event: EventRow)
     seuId,
     templateId: seu.template_id,
     profileId: seu.profile_id,
+    authorId,
+    authorBadge,
     composedPacks: stashed?.composedPacks ?? [],
     compositionReport: stashed?.compositionReport ?? { warnings: [], conflicts: [], parameterConflicts: [], resolutions: [] },
     behaviors,

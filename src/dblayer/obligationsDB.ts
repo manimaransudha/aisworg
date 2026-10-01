@@ -20,16 +20,19 @@ export const obligationsDB = {
     originatingEntityId?: string | null;
     assignedEntityType?: string | null;
     assignedEntityId?: string | null;
+    authorId: string;
+    authorBadge: string;
   }): Promise<DbResult<ObligationRow>> {
     try {
       const { rows } = await query<ObligationRow>(
-        `INSERT INTO obligations (seu_id, related_object_type, related_object_id, category, title, description, severity, origin, priority, completion_criteria, blocked_from_state, blocked_to_state, originating_entity_type, originating_entity_id, assigned_entity_type, assigned_entity_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        `INSERT INTO obligations (seu_id, related_object_type, related_object_id, category, title, description, severity, origin, priority, completion_criteria, blocked_from_state, blocked_to_state, originating_entity_type, originating_entity_id, assigned_entity_type, assigned_entity_id, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
          RETURNING *`,
         [
           input.seuId, input.relatedObjectType, input.relatedObjectId, input.category, input.title, input.description ?? null, input.severity ?? "Medium",
           input.origin ?? null, input.priority ?? null, input.completionCriteria ?? null, input.blockedFromState ?? null, input.blockedToState ?? null,
           input.originatingEntityType ?? null, input.originatingEntityId ?? null, input.assignedEntityType ?? null, input.assignedEntityId ?? null,
+          input.authorId, input.authorBadge,
         ]
       );
       return { data: rows[0] };

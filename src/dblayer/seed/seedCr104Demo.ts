@@ -46,7 +46,12 @@ import { publishPack, type PackSeedInput } from "../../routes/seu/core/packs.js"
 import { publishTemplate } from "../../routes/seu/core/templates.js";
 import { publishProfile, type ProfileSeedInput } from "../../routes/seu/core/profiles.js";
 import type { TemplateDeliverableSeed, TemplateDependencyGraphEntry } from "../seuTypes.js";
-
+import { userDB } from "../userDB.js";
+// authoredBy is a participants_master.id 
+export interface SeedActor {
+  authoredBy: string;
+  authorBadge: string;
+}
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "data");
 
@@ -86,13 +91,13 @@ interface MinimalTemplateSeed {
   purpose: string;
 }
 
-export async function seedCr104Demo(): Promise<void> {
+export async function seedCr104Demo(actor: SeedActor): Promise<void> {
   const mandatorySeed = loadJson<PackSeedInput>("cr104-demo-mandatory.pack.json");
-  const mandatoryResult = await publishPack({ seed: mandatorySeed, actorRole: "super", actorId: "1", activate: true });
+  const mandatoryResult = await publishPack({ seed: mandatorySeed, actorRole: actor.authorBadge, actorId: actor.authoredBy, activate: true });
   if (!mandatoryResult.ok) throw new Error(`[seed:cr104-demo] failed to publish "${mandatorySeed.code}": ${(mandatoryResult.errors ?? []).join("; ")}`);
 
   const policyPackSeed = loadJson<PackSeedInput>("cr104-demo-seu-eligibility-policies.pack.json");
-  const policyPackResult = await publishPack({ seed: policyPackSeed, actorRole: "super", actorId: "1", activate: true });
+  const policyPackResult = await publishPack({ seed: policyPackSeed, actorRole: actor.authorBadge, actorId: actor.authoredBy, activate: true });
   if (!policyPackResult.ok) throw new Error(`[seed:cr104-demo] failed to publish "${policyPackSeed.code}": ${(policyPackResult.errors ?? []).join("; ")}`);
 
   // Must publish before the profile below — publishProfile resolves
@@ -108,13 +113,12 @@ export async function seedCr104Demo(): Promise<void> {
       dependencyGraph: minimalTemplateSeed.dependencyGraph,
       purpose: minimalTemplateSeed.purpose,
     },
-    actorRole: "super",
-    actorId: "1",
+    actorRole: actor.authorBadge, actorId: actor.authoredBy
   });
   if (!templateResult.ok) throw new Error(`[seed:cr104-demo] failed to publish template "${minimalTemplateSeed.code}": ${templateResult.errors.join("; ")}`);
 
   const profileSeed = loadJson<ProfileSeedInput>("cr104-demo-development.profile.json");
-  const profileResult = await publishProfile({ seed: profileSeed, actorRole: "super", actorId: "1" });
+  const profileResult = await publishProfile({ seed: profileSeed, actorRole: actor.authorBadge, actorId: actor.authoredBy });
   if (!profileResult.ok) throw new Error(`[seed:cr104-demo] failed to publish profile "${profileSeed.code}": ${profileResult.errors.join("; ")}`);
 
   logger.info(`[seed:cr104-demo] done — Pack "${mandatorySeed.code}" (Mandatory), Pack "${policyPackSeed.code}" (adopts 2 real Policy Definitions), Template "${minimalTemplateSeed.code}" -> ${templateResult.templateId}, Profile "${profileSeed.code}" -> ${profileResult.profileId}.`);
@@ -122,7 +126,10 @@ export async function seedCr104Demo(): Promise<void> {
 
 const isMain = import.meta.url === `file://${process.argv[1]}`;
 if (isMain) {
-  seedCr104Demo()
+  const { actorId, actorBadge } = await userDB.getSuperuserId();
+    if (!actorId) throw new Error(`Provision a superuser before this operation.`);
+    
+  seedCr104Demo({ authoredBy: actorId, authorBadge: actorBadge })
     .catch((err) => {
       logger.error("[seed:cr104-demo] failed", err as Error);
       process.exitCode = 1;

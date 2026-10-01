@@ -29,12 +29,13 @@ import { createAttentionItem } from "../src/routes/seu/core/attentionItems.js";
 import { checkSustainedPolicyWaivers, checkSustainedCapabilityShortages } from "../src/routes/seu/core/telemetry.js";
 import { transitionEngine } from "../src/domain/engine/transitionEngine.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
+import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { seuCapabilitiesDB } from "../src/dblayer/seuCapabilitiesDB.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 async function anyRealPackId(): Promise<string> {
   const { data: pack } = await packsDB.findByCode("development");
@@ -47,7 +48,7 @@ async function commissionTestSeu(statementPrefix: string): Promise<string> {
   const result = await commissionFromFormSync({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: "1001", requestedBy: 1001,
+    actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: 1001,
   });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
   if (!result.ok) throw new Error("unreachable");
@@ -58,6 +59,8 @@ test("Policy waiver: transitionEngine.evaluate records the deviation, and checkS
   const seuId = await commissionTestSeu("policy-waiver-generalization");
   const packId = await anyRealPackId();
   const attentionItem = await createAttentionItem({ seuId, category: "Action Required", title: "Policy waiver generalization test item" });
+  const { data: rootMaster, error: rootMasterErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
+  if (rootMasterErr || !rootMaster) throw rootMasterErr ?? new Error("no participants_master row for user_id 1 — is db:clean-slate seeded?");
 
   const fromState = `policy-waiver-from-${randomUUID()}`;
   const toState = `policy-waiver-to-${randomUUID()}`;
@@ -71,6 +74,8 @@ test("Policy waiver: transitionEngine.evaluate records the deviation, and checkS
     governedTransition: "test.transition",
     condition: { type: "field_in", field: "neverPresent", values: ["nothing-ever-matches"] },
     originatingPackId: packId,
+    authorId: rootMaster.id,
+    authorBadge: "root",
   });
   assert.ok(!policyError && policy, policyError?.message);
 
@@ -91,7 +96,7 @@ test("Policy waiver: transitionEngine.evaluate records the deviation, and checkS
       entityType: "AttentionItem",
       fromState,
       toState,
-      actorRole: "super", actorId: "1001",
+      actorRole: "super", actorId: TESTER_ALL_ID,
       entityId: attentionItem.id,
       seuId,
       context: {},

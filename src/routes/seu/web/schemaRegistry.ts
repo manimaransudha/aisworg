@@ -15,7 +15,7 @@ import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
-import { SCHEMA_ENTITY_KINDS, createSchemaVersion, reviewSchemaVersion, getSchemaDefinition, listSchemaDefinitions } from "../core/schemaRegistry.js";
+import { SCHEMA_ENTITY_KINDS, createSchemaVersion, reviewSchemaVersion, getSchemaDefinition, listSchemaDefinitions, publishSchemaVersion, rejectSchemaVersion } from "../core/schemaRegistry.js";
 import type { JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { SCHEMA_KINDS, TOP_LEVEL_WIDGET_KINDS, ITEM_WIDGET_KINDS, blankDocument, blankWidget, jsonSchemaToWidgetTree, widgetTreeToJsonSchema, parseAuthoredDocumentFromBody } from "../../../domain/sdk/schemaCompiler.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
@@ -26,7 +26,7 @@ const backTo = "/aisworg/seu/sdk/schema-registry";
 /** GET /aisworg/seu/sdk/schema-registry — every (entity kind, version) row. */
 router.get("/sdk/schema-registry", attachVM("seu/sdk/schema-registry/index"), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const schemas = (await listSchemaDefinitions()).map((s) => ({ id: s.id, entityKind: s.entity_kind, version: s.version, createdAt: s.created_at }));
+    const schemas = (await listSchemaDefinitions()).map((s) => ({ id: s.id, entityKind: s.entity_kind, version: s.version, createdAt: s.created_at, lifecycleState: s.lifecycle_state }));
     req.vm.req.title = "Schema Registry";
     req.vm.req.kinds = SCHEMA_ENTITY_KINDS;
     const params = parseListParams(req.query, { sortable: ["kind", "version", "created"], defaultSort: "kind", defaultDir: "asc" });
@@ -87,6 +87,11 @@ router.get("/sdk/schema-registry/:id", attachVM("seu/sdk/schema-registry/detail"
       createdAt: schema.created_at,
       compatibleVersions: schema.compatible_versions ?? [],
       incompatibleVersions: schema.incompatible_versions ?? [],
+      // CR-115 — Ch.39 §15 lifecycle. Publish/Reject only ever show for a
+      // Packaged row — the page is root-only, so no separate badge check is
+      // needed here (root already bypasses transitionEngine's own gate).
+      lifecycleState: schema.lifecycle_state,
+      authorBadge: schema.author_badge,
     };
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/sdk/schema-registry/detail", req.vm);
@@ -148,13 +153,35 @@ router.post("/sdk/schema-registry/publish", async (req: Request, res: Response) 
     const schemaJson = String(body.schemaJson ?? "");
     if (!entityKind || !schemaJson) return flashError(req, res, backTo, "Entity kind and schema are required.");
 
-    const result = await createSchemaVersion({ entityKind, schemaJson });
+    if (req.session?.user?.id == null) return flashError(req, res, backTo, "No logged-in user on this session.");
+    const actorId = String(req.session.user.id);
+    const result = await createSchemaVersion({ entityKind, schemaJson, actorId });
     if (!result.ok) return flashError(req, res, backTo, result.errors.join("; "));
-    return flashSuccess(req, res, `${backTo}/${result.schema.id}`, `${result.schema.entity_kind} schema v${result.schema.version} created.`);
+    return flashSuccess(req, res, `${backTo}/${result.schema.id}`, `${result.schema.entity_kind} schema v${result.schema.version} packaged — publish it below to make it live.`);
   } catch (err) {
     logger.error("[web/seu/schemaRegistry] POST /sdk/schema-registry/publish error", err as Error);
     return flashError(req, res, backTo, (err as Error).message);
   }
+});
+
+/** POST /aisworg/seu/sdk/schema-registry/:id/publish — Ch.39 §15's real, manual
+ *  Packaged -> Published decision (schemadefinition_publish). */
+router.post("/sdk/schema-registry/:id/publish", async (req: Request, res: Response) => {
+  const id = String(req.params.id);
+  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
+  const result = await publishSchemaVersion(id, actorId);
+  if (!result.ok) return flashError(req, res, `${backTo}/${id}`, result.error);
+  return flashSuccess(req, res, `${backTo}/${id}`, `${result.schema.entity_kind} schema v${result.schema.version} published.`);
+});
+
+/** POST /aisworg/seu/sdk/schema-registry/:id/reject — Ch.39 §15's Packaged ->
+ *  PublicationRejected decision (schemadefinition_reject). */
+router.post("/sdk/schema-registry/:id/reject", async (req: Request, res: Response) => {
+  const id = String(req.params.id);
+  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
+  const result = await rejectSchemaVersion(id, actorId);
+  if (!result.ok) return flashError(req, res, `${backTo}/${id}`, result.error);
+  return flashSuccess(req, res, `${backTo}/${id}`, `${result.schema.entity_kind} schema v${result.schema.version} publication rejected.`);
 });
 
 export { router };

@@ -59,8 +59,19 @@ function deny(req: Request, res: Response, api: boolean, reason: string): void {
 // "actions", and denying them here (fail-closed, no route_authority row)
 // planted a stray flash message that then surfaced on the user's next,
 // unrelated page render.
+//
+// /aisworg/seu/data-migrations is the SAME bootstrap exception as
+// route-authority itself, one level removed: it's the screen that
+// populates route_authority in the first place (seedRouteAuthority.ts), so
+// gating it BY route_authority is circular — on a table with zero rows
+// (exactly the state this seed exists to fix), visiting the page that would
+// fix it is itself denied, and the deny-redirect's Referer bounce between
+// two denied pages is an infinite loop (seen in practice, not theoretical).
+// web/dataMigrations.ts keeps its own literal root-only gate as the real
+// authority here, same pattern routeAuthorityRegistry.ts's own `gate` uses.
 function isSelfCrud(path: string): boolean {
-  return path === "/aisworg/seu/route-authority" || path.startsWith("/aisworg/seu/route-authority/");
+  return path === "/aisworg/seu/route-authority" || path.startsWith("/aisworg/seu/route-authority/")
+    || path === "/aisworg/seu/data-migrations" || path.startsWith("/aisworg/seu/data-migrations/");
 }
 
 export function routeAuthorityGate() {
@@ -72,7 +83,19 @@ export function routeAuthorityGate() {
     const api = apiMode(req.path);
     const found = lookupRouteAuthority(req.method, req.path);
 
+    // Same dev-only root bypass the "row found, badge missing" branch below
+    // already applies (rootBypassAllowed) -- a row-less path (table empty,
+    // or a route genuinely missing its row) must not lock root out entirely.
+    // Without this, an empty/incomplete route_authority (exactly the state
+    // this recovery/seed work starts from) denies EVERY route including the
+    // dashboard, for EVERYONE, with no way back in to fix it.
+    const rootBypassAllowedNoRow = process.env.NODE_ENV !== "production" && (req.session?.user?.platformBadges ?? []).includes("root");
+
     if (!found) {
+      if (rootBypassAllowedNoRow) {
+        next();
+        return;
+      }
       deny(req, res, api, "no route_authority row for this method+path");
       return;
     }

@@ -1,5 +1,6 @@
 import { query } from '../utils/db.js';
 import { logger } from '../utils/logger.js';
+import {participantsMasterDB} from './participantsMasterDB.js';
 
 export const userDB = {
 
@@ -14,6 +15,20 @@ export const userDB = {
       logger.error('[userDB] findByEmail error:', err);
       throw err;
     }
+  },
+
+  // users.id of the SUPERUSER_EMAIL user. Throws when the env var is unset
+  // or no users row matches — no silent fallback.
+  /** @returns {Promise<{userId: string, actorId: string, actorBadge: string}>} */
+  async getSuperuserId() {
+    const email = (process.env.SUPERUSER_EMAIL || '').toLowerCase();
+    if (!email) throw new Error('[userDB] getSuperuserId: SUPERUSER_EMAIL is not set');
+    const user = await this.findByEmail(email);
+    if (!user) throw new Error(`[userDB] getSuperuserId: superuser provisioning has to precede this activity`);
+    const {data: participant, error} = await participantsMasterDB.findByUserId(user.id);
+    if (error) throw error;
+    if (!participant) throw new Error(`superuser not registered as a participant`);
+    return {userId: user.id, actorId: participant.id, actorBadge: 'root'};
   },
 
   async findById(id) {
@@ -46,13 +61,13 @@ export const userDB = {
   },
 
   // CR-004: type ('Platform'|'Tenant') + tenant_id are now required columns.
-  async create({ email, name, avatar_url, role, auth_provider, provider_id, is_active = true, type, tenant_id }) {
+  async create({email, name, avatar_url, /* role, */ auth_provider, provider_id, is_active = true, type, tenant_id}) {
     try {
       const { rows } = await query(
-        `INSERT INTO users (email, name, avatar_url, role, auth_provider, provider_id, is_active, type, tenant_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `INSERT INTO users (email, name, avatar_url, auth_provider, provider_id, is_active, type, tenant_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [email.toLowerCase(), name, avatar_url, role, auth_provider, provider_id, is_active, type, tenant_id]
+        [email.toLowerCase(), name, avatar_url, auth_provider, provider_id, is_active, type, tenant_id]
       );
       return rows[0];
     } catch (err) {
@@ -61,21 +76,20 @@ export const userDB = {
     }
   },
 
-  async createLocalPending({ email, name, role, verification_token, verification_expires, type, tenant_id }) {
+  async createLocalPending({email, name, /* role, */ verification_token, verification_expires, type, tenant_id}) {
     try {
       const { rows } = await query(
-        `INSERT INTO users (email, name, role, auth_provider, is_active, verification_token, verification_expires, type, tenant_id)
-         VALUES ($1, $2, $3, 'local', FALSE, $4, $5, $6, $7)
+        `INSERT INTO users (email, name, auth_provider, is_active, verification_token, verification_expires, type, tenant_id)
+         VALUES ($1, $2, 'local', FALSE, $3, $4, $5, $6)
          ON CONFLICT (email) DO UPDATE
            SET name                 = EXCLUDED.name,
-               role                 = EXCLUDED.role,
                verification_token   = EXCLUDED.verification_token,
                verification_expires = EXCLUDED.verification_expires,
                is_active            = FALSE,
                type                 = EXCLUDED.type,
                tenant_id            = EXCLUDED.tenant_id
          RETURNING *`,
-        [email.toLowerCase(), name, role, verification_token, verification_expires, type, tenant_id]
+        [email.toLowerCase(), name, verification_token, verification_expires, type, tenant_id]
       );
       return rows[0];
     } catch (err) {
@@ -114,18 +128,19 @@ export const userDB = {
     }
   },
 
-  async updateRole(email, role) {
-    try {
-      const { rows } = await query(
-        'UPDATE users SET role = $1 WHERE email = $2 RETURNING *',
-        [role, email.toLowerCase()]
-      );
-      return rows[0] || null;
-    } catch (err) {
-      logger.error('[userDB] updateRole error:', err);
-      throw err;
-    }
-  },
+  // role column removed (CR: role != authority). Kept commented out pending removal of callers.
+  // async updateRole(email, role) {
+  //   try {
+  //     const { rows } = await query(
+  //       'UPDATE users SET role = $1 WHERE email = $2 RETURNING *',
+  //       [role, email.toLowerCase()]
+  //     );
+  //     return rows[0] || null;
+  //   } catch (err) {
+  //     logger.error('[userDB] updateRole error:', err);
+  //     throw err;
+  //   }
+  // },
 
   async setActive(email, is_active) {
     try {
@@ -144,7 +159,7 @@ export const userDB = {
   async listManaged(superuserEmail) {
     try {
       const { rows } = await query(
-        `SELECT id, email, name, avatar_url, role, auth_provider, is_active, created_at, last_login
+        `SELECT id, email, name, avatar_url, auth_provider, is_active, created_at, last_login
          FROM users
          WHERE email != $1
          ORDER BY created_at DESC`,

@@ -206,13 +206,13 @@ export const authorityVocabularyDB = {
   },
 
   // ── add (re-adding a retired row reactivates it) ──────────────────────────
-  async addNoun(code: string, label: string, description: string | null): Promise<DbResult<{ code: string }>> {
+  async addNoun(code: string, label: string, description: string | null, authorId: string, authorBadge: string): Promise<DbResult<{ code: string }>> {
     try {
       const { rows } = await query<{ code: string }>(
-        `INSERT INTO authority_nouns (code, label, description) VALUES ($1, $2, $3)
+        `INSERT INTO authority_nouns (code, label, description, author_id, author_badge) VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (code) DO UPDATE SET label = EXCLUDED.label, description = EXCLUDED.description, is_active = TRUE
          RETURNING code`,
-        [code, label, description]
+        [code, label, description, authorId, authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -221,13 +221,13 @@ export const authorityVocabularyDB = {
     }
   },
 
-  async addVerb(code: string, label: string, description: string | null): Promise<DbResult<{ code: string }>> {
+  async addVerb(code: string, label: string, description: string | null, authorId: string, authorBadge: string): Promise<DbResult<{ code: string }>> {
     try {
       const { rows } = await query<{ code: string }>(
-        `INSERT INTO authority_verbs (code, label, description) VALUES ($1, $2, $3)
+        `INSERT INTO authority_verbs (code, label, description, author_id, author_badge) VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (code) DO UPDATE SET label = EXCLUDED.label, description = EXCLUDED.description, is_active = TRUE
          RETURNING code`,
-        [code, label, description]
+        [code, label, description, authorId, authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -241,13 +241,19 @@ export const authorityVocabularyDB = {
   // Allow form's trigger choice unsafe before this column existed). A
   // resubmit of Allow for a pair that already exists updates its own default
   // going forward, same as it already reactivates is_active.
-  async addMapping(nounCode: string, verbCode: string, defaultTrigger: "manual" | "governed" = "manual"): Promise<DbResult<{ noun_code: string }>> {
+  async addMapping(
+    nounCode: string,
+    verbCode: string,
+    defaultTrigger: "manual" | "governed" = "manual",
+    authorId: string,
+    authorBadge: string
+  ): Promise<DbResult<{ noun_code: string }>> {
     try {
       const { rows } = await query<{ noun_code: string }>(
-        `INSERT INTO authority_noun_verbs (noun_code, verb_code, default_trigger) VALUES ($1, $2, $3)
+        `INSERT INTO authority_noun_verbs (noun_code, verb_code, default_trigger, author_id, author_badge) VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (noun_code, verb_code) DO UPDATE SET is_active = TRUE, default_trigger = EXCLUDED.default_trigger
          RETURNING noun_code`,
-        [nounCode, verbCode, defaultTrigger]
+        [nounCode, verbCode, defaultTrigger, authorId, authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

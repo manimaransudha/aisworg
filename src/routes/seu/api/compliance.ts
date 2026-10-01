@@ -6,7 +6,24 @@ const router = express.Router();
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { complianceDB } from "../../../dblayer/complianceDB.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
+import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
 import { evaluateCompliance, grantWaiver, generateComplianceReport, complianceHistory } from "../core/compliance.js";
+
+// route_authority declares no badges/roles for the two registration routes
+// below (an explicit "no requirement" row, routeAuthorityGate.ts) — the
+// gate itself already let the request through, so this resolves a real
+// actor + badge for attribution on the row (author_id/author_badge NOT
+// NULL), not a second authorization check.
+async function resolveConfigAuthor(req: Request): Promise<{ authorId: string; authorBadge: string } | { error: string }> {
+  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
+  if (!actorId) return { error: `No actor.` };
+  const { data: master } = await participantsMasterDB.findById(actorId);
+  if (!master) return { error: `No superuser provisioned.` };
+  const held = await resolveHeldBadges(req);
+  const authorBadge = held.isRoot ? "root" : [...held.badgeTypes][0] ?? "general";
+  return { authorId: master.id, authorBadge };
+}
 
 // Compliance Model — Plan (Phase 15, Ch.27 §18: Compliance APIs). Evaluation is
 // read-only and derived from engineering state. The framework/requirement
@@ -18,7 +35,9 @@ router.post("/compliance/frameworks", async (req: Request, res: Response) => {
   try {
     const { code, name, description, originatingPackId } = req.body ?? {};
     if (typeof code !== "string" || !code.trim() || typeof name !== "string" || !name.trim()) return res.status(400).json({ error: "code and name are required" });
-    const { data, error } = await complianceDB.upsertFramework({ code, name, description, originatingPackId: typeof originatingPackId === "string" ? originatingPackId : null });
+    const author = await resolveConfigAuthor(req);
+    if ("error" in author) return res.status(401).json({ error: author.error });
+    const { data, error } = await complianceDB.upsertFramework({ code, name, description, originatingPackId: typeof originatingPackId === "string" ? originatingPackId : null, ...author });
     if (error || !data) throw error ?? new Error("failed to register framework");
     res.status(200).json({ framework: data });
   } catch (err) {
@@ -35,11 +54,14 @@ router.post("/compliance/requirements", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "code, frameworkCode and name are required" });
     }
     if (typeof criteria !== "object" || !criteria) return res.status(400).json({ error: "criteria (declarative object) is required" });
+    const author = await resolveConfigAuthor(req);
+    if ("error" in author) return res.status(401).json({ error: author.error });
     const { data, error } = await complianceDB.upsertRequirement({
       code, frameworkCode, name, description,
       criteria, severity: typeof severity === "string" ? severity : undefined,
       conflictsWith: Array.isArray(conflictsWith) ? conflictsWith : undefined,
       originatingPackId: typeof originatingPackId === "string" ? originatingPackId : null,
+      ...author,
     });
     if (error || !data) throw error ?? new Error("failed to register requirement");
     res.status(200).json({ requirement: data });
@@ -86,7 +108,9 @@ router.post("/seus/:id/compliance/waivers", async (req: Request, res: Response) 
     if (typeof requirementCode !== "string" || !requirementCode.trim() || typeof rationale !== "string" || !rationale.trim()) {
       return res.status(400).json({ error: "requirementCode and rationale are required" });
     }
-    const waiver = await grantWaiver({ seuId: String(req.params.id), requirementCode, rationale, grantedBy: req.session?.user?.id ?? null, expiresAt: typeof expiresAt === "string" ? expiresAt : null });
+    const author = await resolveConfigAuthor(req);
+    if ("error" in author) return res.status(401).json({ error: author.error });
+    const waiver = await grantWaiver({ seuId: String(req.params.id), requirementCode, rationale, grantedBy: author.authorId, authorBadge: author.authorBadge, expiresAt: typeof expiresAt === "string" ? expiresAt : null });
     res.status(200).json({ waiver });
   } catch (err) {
     logger.error("[api/seu/compliance] POST waiver error", err as Error);

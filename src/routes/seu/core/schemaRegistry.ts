@@ -6,9 +6,24 @@
 // that — it can only ever INSERT a new (entity_kind, version) row, never
 // touch an existing one (schemaDefinitionsDB has no update function at all).
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import type { SchemaDefinitionEntityKind, SchemaDefinitionRow } from "../../../dblayer/seuTypes.js";
 import { diffSchemaVersions, type SchemaDifference } from "../../../domain/sdk/schemaCompiler.js";
 import type { JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
+import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
+import { eventBus } from "../../../domain/engine/eventBus.js";
+
+// author_id (schema_definitions -> participants_master, migration 281) is
+// never the raw actorId (a users.id) — same resolution knowledge.ts's own
+// resolveParticipantId already does for Knowledge, minus the seuId lookup
+// (Schema Definition has no seu_id at all: SDK grammar authoring is
+// platform-level, not owned by any one SEU). A user with no participants_master
+// row yet resolves to null, which is honest, not an error.
+async function resolveAuthorParticipantId(actorId: string): Promise<string> {
+  const { data: master } = await participantsMasterDB.findById(actorId);
+  if (!master) throw new Error(`No superuser provisioned.`);
+  return master.id;
+}
 
 // CR-019: TransitionDefinition is authored via the CR-007 /authority form (noun ×
 // verb), not a grammar — so it is not a schema-registry authorable kind. Existing
@@ -90,9 +105,53 @@ export async function reviewSchemaVersion(input: { entityKind: string; schemaJso
   return { ok: true, entityKind: validated.kind, schemaJson: input.schemaJson, report };
 }
 
-// Publish step — never trusts a compatibility verdict handed back from the
+// Ch.39 §15 auto-advance — Created -> Validated -> Tested -> Packaged. These
+// three hops are 'governed'/verb-null (no button, no badge): the SDK's own
+// schema validator/test framework/packaging service already ran inline,
+// above, before this row ever existed — there is no separate user-triggered
+// action for any of them today. Chained the same way commissioning.ts's
+// finalizeCommissioning already chains SEU's own ungoverned Pending->
+// Configured->Commissioned steps: one transitionEngine.evaluate + DB update
+// + eventBus.publish per hop, causationId threaded through.
+async function autoAdvanceToPackaged(schema: SchemaDefinitionRow): Promise<SchemaDefinitionRow> {
+  const hops: Array<["Created", "Validated"] | ["Validated", "Tested"] | ["Tested", "Packaged"]> = [
+    ["Created", "Validated"],
+    ["Validated", "Tested"],
+    ["Tested", "Packaged"],
+  ];
+  let current = schema;
+  for (const [from, to] of hops) {
+    const gate = await transitionEngine.evaluate({ entityType: "SchemaDefinition", fromState: from, toState: to, actorRole: "", actorId: "", entityId: current.id });
+    if (!gate.allowed) throw new Error(`cannot advance ${current.entity_kind} schema v${current.version} from ${from} to ${to}`);
+    const { data: updated, error } = await schemaDefinitionsDB.advanceLifecycle(current.id, to, gate.authorityBadge);
+    if (error || !updated) throw error ?? new Error(`failed to advance schema ${current.id} to ${to}`);
+    current = updated;
+    await eventBus.publish({
+      eventType: gate.eventType ?? `SchemaDefinition${to}`,
+      originatingObjectType: "SchemaDefinition",
+      originatingObjectId: current.id,
+      seuId: null,
+      correlationId: eventBus.newCorrelationId(),
+      payload: { entityKind: current.entity_kind, version: current.version, fromState: from, toState: to },
+      actorId: null,
+      authorityBadge: gate.authorityBadge,
+    });
+  }
+  return current;
+}
+
+// Creation step — never trusts a compatibility verdict handed back from the
 // client; recomputes it against current DB state and only then inserts.
-export async function createSchemaVersion(input: { entityKind: string; schemaJson: string }): Promise<CreateSchemaVersionResult> {
+// Lands the row at 'Packaged' (see autoAdvanceToPackaged above); the actual
+// user-decision Publish/Reject hop is publishSchemaVersion/
+// rejectSchemaVersion below.
+//
+// Badge-governed like every other write here: this whole router is root-only
+// (route_authority, migration 261/280 -- POST /sdk/schema-registry/publish
+// requires 'root'), already enforced upstream by routeAuthorityGate before
+// this ever runs -- so the real, resolved badge for this Created step is
+// 'root' itself, not an invented per-kind schemadefinition_define badge.
+export async function createSchemaVersion(input: { entityKind: string; schemaJson: string; actorId: string }): Promise<CreateSchemaVersionResult> {
   const validated = parseAndValidateSchema(input);
   if (!validated.ok) return validated;
   const { kind, parsed } = validated;
@@ -102,7 +161,53 @@ export async function createSchemaVersion(input: { entityKind: string; schemaJso
   const compatibleVersions = report.filter((e) => e.compatible).map((e) => e.version);
   const incompatibleVersions = report.filter((e) => !e.compatible).map((e) => e.version);
 
-  const { data: schema, error } = await schemaDefinitionsDB.create({ entityKind: kind, version: nextVersion, schema: parsed as Record<string, unknown>, compatibleVersions, incompatibleVersions });
-  if (error || !schema) return { ok: false, errors: [(error ?? new Error("failed to create schema version")).message] };
+  const authorId = await resolveAuthorParticipantId(input.actorId);
+  const { data: created, error } = await schemaDefinitionsDB.create({ entityKind: kind, version: nextVersion, schema: parsed as Record<string, unknown>, compatibleVersions, incompatibleVersions, authorId, authorBadge: "root" });
+  if (error || !created) return { ok: false, errors: [(error ?? new Error("failed to create schema version")).message] };
+
+  const schema = await autoAdvanceToPackaged(created);
   return { ok: true, schema };
+}
+
+export type PublishRejectResult = { ok: true; schema: SchemaDefinitionRow } | { ok: false; error: string };
+
+// The one real, badge-gated, manual decision in this lifecycle — moves a
+// Packaged row to Published (verb `publish`, badge schemadefinition_publish)
+// or PublicationRejected (verb `reject`, badge schemadefinition_reject).
+async function transitionPackagedSchema(id: string, toState: "Published" | "PublicationRejected", actorId: string | null): Promise<PublishRejectResult> {
+  const { data: schema } = await schemaDefinitionsDB.findById(id);
+  if (!schema) return { ok: false, error: "Schema version not found." };
+  if (schema.lifecycle_state !== "Packaged") return { ok: false, error: `Only a Packaged schema can be moved to ${toState} (this one is ${schema.lifecycle_state}).` };
+
+  if (!actorId) return { ok: false, error: "actorId is required to publish/reject a Schema Definition" };
+  const gate = await transitionEngine.evaluate({ entityType: "SchemaDefinition", fromState: "Packaged", toState, actorRole: "", actorId, entityId: id });
+  if (!gate.allowed) {
+    if (gate.reason === "authority_denied") return { ok: false, error: `requires badge ${gate.authorityRuleCode}` };
+    return { ok: false, error: gate.reason };
+  }
+
+  const authorId = await resolveAuthorParticipantId(actorId);
+  const { data: updated, error } = await schemaDefinitionsDB.advanceLifecycle(id, toState, gate.authorityBadge, authorId);
+  if (error || !updated) return { ok: false, error: (error ?? new Error("failed to update schema")).message };
+
+  await eventBus.publish({
+    eventType: gate.eventType ?? `SchemaDefinition${toState}`,
+    originatingObjectType: "SchemaDefinition",
+    originatingObjectId: id,
+    seuId: null,
+    correlationId: eventBus.newCorrelationId(),
+    payload: { entityKind: updated.entity_kind, version: updated.version, fromState: "Packaged", toState },
+    actorId,
+    authorityBadge: gate.authorityBadge,
+  });
+
+  return { ok: true, schema: updated };
+}
+
+export async function publishSchemaVersion(id: string, actorId: string | null): Promise<PublishRejectResult> {
+  return transitionPackagedSchema(id, "Published", actorId);
+}
+
+export async function rejectSchemaVersion(id: string, actorId: string | null): Promise<PublishRejectResult> {
+  return transitionPackagedSchema(id, "PublicationRejected", actorId);
 }

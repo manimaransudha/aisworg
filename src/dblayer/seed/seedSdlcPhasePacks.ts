@@ -26,6 +26,8 @@ import path from "node:path";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { publishPack, type PackSeedInput } from "../../routes/seu/core/packs.js";
+import { userDB } from "../userDB.js";
+import { getPlatformTenantId } from "../constants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "data");
@@ -53,8 +55,14 @@ const SDLC_PHASE_PACK_FILES = [
   "sdlc-phase-14-internationalization-localization.pack.json",
   "sdlc-phase-15-ongoing-operations-governance.pack.json",
 ];
-
-export async function seedSdlcPhasePacks(): Promise<void> {
+export interface SeedActor {
+  authoredBy: string;
+  authorBadge: string;
+}
+// get platform tenant id
+const PLATFORM_TENANT_ID = await getPlatformTenantId();
+  
+export async function seedSdlcPhasePacks(actor: SeedActor): Promise<void> {
   // Published concurrently — none of the 16 phase Packs declare a dependency
   // on another (confirmed against every file's own `dependencies`), each
   // publishes through its own row-scoped transitionPack/eventBus calls, and
@@ -87,7 +95,10 @@ export async function seedSdlcPhasePacks(): Promise<void> {
 
 const isMain = import.meta.url === `file://${process.argv[1]}`;
 if (isMain) {
-  seedSdlcPhasePacks()
+  const { actorId, actorBadge } = await userDB.getSuperuserId();
+  if (!actorId) throw new Error(`Provision a superuser before this operation.`);
+    
+  seedSdlcPhasePacks({ authoredBy: actorId, authorBadge: actorBadge })
     .catch((err) => {
       logger.error("[seed:sdlc-phase-packs] failed", err as Error);
       process.exitCode = 1;

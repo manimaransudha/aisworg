@@ -1,9 +1,14 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import { PLATFORM_TENANT_ID } from "./constants.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validatePolicyDefinitionWriteAgainstSchema } from "../routes/seu/core/policyDefinitionWriteValidator.js";
 import type { DbResult, PolicyDefinitionRow, PolicyCondition, PolicyScope } from "./seuTypes.js";
+import { tenantsDB } from "./tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "./constants.js";
+
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
 // CR-089 — Policy Definition (Book 3 Ch.24), a new standalone table
 // (167_policy_definitions.sql), mirroring serviceDefinitionsDB.ts's own shape
@@ -26,7 +31,12 @@ export const policyDefinitionsDB = {
     // behaviour ("Transition").
     scope?: PolicyScope;
     version?: string;
-    authoredBy?: number | null;
+    // authored_by/author_badge are NOT NULL, participants_master-scoped --
+    // every caller must resolve and pass its own real actor
+    // (participants_master.id) + badge, never a default/null (same
+    // discipline as serviceDefinitionsDB.ts).
+    authoredBy: string;
+    authorBadge: string;
     draftContent?: Record<string, unknown>;
     tenantId?: string;
     parentPolicyDefinitionId?: string | null;
@@ -60,8 +70,8 @@ export const policyDefinitionsDB = {
       if (!schemaRow) return { error: new Error(`schema_definitions row "${input.schemaDefinitionId}" not found`) };
 
       const { rows } = await query<PolicyDefinitionRow>(
-        `INSERT INTO policy_definitions (code, name, description, category, constraint_type, applicability_environments, conditions, scope, version, status, authored_by, draft_content, tenant_id, parent_policy_definition_id, schema_definition_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Draft', $10, $11, $12, $13, $14)
+        `INSERT INTO policy_definitions (code, name, description, category, constraint_type, applicability_environments, conditions, scope, version, status, authored_by, author_badge, draft_content, tenant_id, parent_policy_definition_id, schema_definition_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Draft', $10, $11, $12, $13, $14, $15)
          RETURNING *`,
         [
           input.code,
@@ -73,7 +83,8 @@ export const policyDefinitionsDB = {
           JSON.stringify(input.conditions ?? []),
           scope,
           version,
-          input.authoredBy ?? null,
+          input.authoredBy,
+          input.authorBadge,
           JSON.stringify(draftContent),
           input.tenantId ?? PLATFORM_TENANT_ID,
           input.parentPolicyDefinitionId ?? null,

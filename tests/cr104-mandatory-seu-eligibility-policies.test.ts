@@ -38,7 +38,7 @@ import { packsDB } from "../src/dblayer/packsDB.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
-import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensurePolicyDefinitionWithObligation } from "./testFixtures.js";
+import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensurePolicyDefinitionWithObligation, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 async function registerOrganisationName(code: string): Promise<void> {
   await pool.query(
@@ -62,14 +62,14 @@ test("CR-104: a Pack marked installation_classification 'Mandatory' composes int
   // Platform-scoped: no tenantId given, defaults to PLATFORM_TENANT_ID.
   const platformMandatory = { code: `cr104-platform-mandatory-${run}`, name: "CR-104 Platform Mandatory", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Mandatory", contributions: {} };
   await registerOrganisationName(platformMandatory.code);
-  const platformPublished = await publishPack({ seed: platformMandatory as any, actorRole: "super", actorId: "1001", activate: true });
+  const platformPublished = await publishPack({ seed: platformMandatory as any, actorRole: "super", actorId: TESTER_ALL_ID, activate: true });
   assert.ok(platformPublished.ok, `platform-mandatory pack must publish: ${!platformPublished.ok ? JSON.stringify(platformPublished) : ""}`);
   const { data: platformPackRow } = await packsDB.findActiveByCode(platformMandatory.code);
 
   // A Template with NO explicit mandatoryPackCodes at all, Platform tenant.
   const { data: platformTemplate } = await templatesDB.upsert({ code: `cr104-mandatory-tpl-${run}`, name: "CR-104 Mandatory Template", deliverableCatalogue: [] });
   await templatesDB.setRequiredCapabilities(platformTemplate!.id, []);
-  const { data: platformProfile } = await profilesDB.upsert({ code: `cr104-mandatory-profile-${run}`, name: "CR-104 Mandatory Profile", baseTemplateId: platformTemplate!.id, environment: "development" });
+  const { data: platformProfile } = await profilesDB.upsert({ code: `cr104-mandatory-profile-${run}`, name: "CR-104 Mandatory Profile", baseTemplateId: platformTemplate!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
 
   const platformUnraveled = await unravelComposition({ templateIds: [platformTemplate!.id], profileIds: [platformProfile!.id] }, PLATFORM_TENANT_ID);
   assert.ok(
@@ -83,13 +83,13 @@ test("CR-104: a Pack marked installation_classification 'Mandatory' composes int
   const tenantId = await createTestTenant(`cr104-tenant-${run}`);
   const tenantMandatory = { code: `cr104-tenant-mandatory-${run}`, name: "CR-104 Tenant Mandatory", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Mandatory", contributions: {}, tenantId };
   await registerOrganisationName(tenantMandatory.code);
-  const tenantPublished = await publishPack({ seed: tenantMandatory as any, actorRole: "super", actorId: "1001", activate: true });
+  const tenantPublished = await publishPack({ seed: tenantMandatory as any, actorRole: "super", actorId: TESTER_ALL_ID, activate: true });
   assert.ok(tenantPublished.ok, `tenant-mandatory pack must publish: ${!tenantPublished.ok ? JSON.stringify(tenantPublished) : ""}`);
   const { data: tenantPackRow } = await packsDB.findActiveByCode(tenantMandatory.code);
 
   const { data: sameTenantTemplate } = await templatesDB.upsert({ code: `cr104-same-tenant-tpl-${run}`, name: "CR-104 Same Tenant Template", deliverableCatalogue: [], tenantId });
   await templatesDB.setRequiredCapabilities(sameTenantTemplate!.id, []);
-  const { data: sameTenantProfile } = await profilesDB.upsert({ code: `cr104-same-tenant-profile-${run}`, name: "CR-104 Same Tenant Profile", baseTemplateId: sameTenantTemplate!.id, environment: "development" });
+  const { data: sameTenantProfile } = await profilesDB.upsert({ code: `cr104-same-tenant-profile-${run}`, name: "CR-104 Same Tenant Profile", baseTemplateId: sameTenantTemplate!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
   const sameTenantUnraveled = await unravelComposition({ templateIds: [sameTenantTemplate!.id], profileIds: [sameTenantProfile!.id] }, tenantId);
   assert.ok(
     sameTenantUnraveled.composedPacks.some((p) => p.packId === tenantPackRow!.id),
@@ -108,7 +108,7 @@ test("CR-104/CR-106: an SEU-scoped Policy ('SEU|Activated|Operational') blocks t
 
   const seuPolicyPack = { code: `cr104-seu-policy-pack-${run}`, name: "CR-104 SEU Policy Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   await registerOrganisationName(seuPolicyPack.code);
-  const published = await publishPack({ seed: seuPolicyPack as any, actorRole: "super", actorId: "1001", activate: true });
+  const published = await publishPack({ seed: seuPolicyPack as any, actorRole: "super", actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `seu policy pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
   const { data: packRow } = await packsDB.findActiveByCode(seuPolicyPack.code);
 
@@ -118,19 +118,21 @@ test("CR-104/CR-106: an SEU-scoped Policy ('SEU|Activated|Operational') blocks t
     scope: "Transition", governedTransition: "SEU|Activated|Operational",
     condition: { type: "field_in", field: "neverSet", values: ["only-this-satisfies"] },
     originatingPackId: packRow!.id,
+    authorId: packRow!.authored_by,
+    authorBadge: packRow!.author_badge,
   });
   assert.ok(seuPolicy);
   await ensurePolicyDefinitionWithObligation({ code: `cr104-seu-commence-work-${run}`, name: `CR-104 commence-work policy ${run}`, category: "Compliance", title: `CR-104 commence-work blocker ${run}` });
 
   const { data: template } = await templatesDB.upsert({ code: `cr104-seu-policy-tpl-${run}`, name: "CR-104 SEU Policy Template", deliverableCatalogue: [] });
-  await templatesDB.setMandatoryPacks(template!.id, [seuPolicyPack.code]);
+  await templatesDB.setMandatoryPacks(template!.id, [seuPolicyPack.code], ROOT_ACTOR_ID, "root");
   await templatesDB.setRequiredCapabilities(template!.id, []);
 
   await ensureEventSubscriptionsLoaded();
   const { objective: root } = await createObjective({ statement: `cr104-seu-policy-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed" });
   const { objective } = await createObjective({ statement: `cr104-seu-policy-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: 1001 });
-  const { data: profile } = await profilesDB.upsert({ code: `cr104-seu-policy-profile-${run}`, name: "CR-104 SEU Policy Profile", baseTemplateId: template!.id, environment: "development" });
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: "1001" });
+  const { data: profile } = await profilesDB.upsert({ code: `cr104-seu-policy-profile-${run}`, name: "CR-104 SEU Policy Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
+  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : undefined);
   if (!requested.ok) throw new Error("unreachable");
 
@@ -142,7 +144,7 @@ test("CR-104/CR-106: an SEU-scoped Policy ('SEU|Activated|Operational') blocks t
   // event vocabulary signals this (Chapter 8's own event list is closed);
   // driveCommissioningToActive detects it via the real Obligation raised,
   // checked precisely below.
-  const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: "1001", timeoutMs: 30000 });
+  const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: TESTER_ALL_ID, timeoutMs: 30000 });
   assert.equal(result.ok, false, "an unsatisfied SEU-scoped Policy must block the Activated -> Operational hop");
   if (!result.ok) assert.equal(result.stage, "blocked");
 
@@ -168,7 +170,7 @@ test("CR-104: a scope:'Eligibility' Policy governs Capability Fulfilment directl
 
   const eligibilityPack = { code: `cr104-eligibility-pack-${run}`, name: "CR-104 Eligibility Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   await registerOrganisationName(eligibilityPack.code);
-  const published = await publishPack({ seed: eligibilityPack as any, actorRole: "super", actorId: "1001", activate: true });
+  const published = await publishPack({ seed: eligibilityPack as any, actorRole: "super", actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, `eligibility pack must publish: ${!published.ok ? JSON.stringify(published) : ""}`);
   const { data: packRow } = await packsDB.findActiveByCode(eligibilityPack.code);
 
@@ -178,15 +180,17 @@ test("CR-104: a scope:'Eligibility' Policy governs Capability Fulfilment directl
     scope: "Eligibility", governedTransition: null,
     condition: { type: "field_in", field: "cleared", values: [true] },
     originatingPackId: packRow!.id,
+    authorId: packRow!.authored_by,
+    authorBadge: packRow!.author_badge,
   });
   assert.ok(policy);
   assert.equal(policy!.governed_transition, null, "an Eligibility-scoped Policy carries no governed_transition at all");
 
   const capabilityCode = "requirements-analysis";
   const { data: template } = await templatesDB.upsert({ code: `cr104-eligibility-tpl-${run}`, name: "CR-104 Eligibility Template", deliverableCatalogue: [] });
-  await templatesDB.setMandatoryPacks(template!.id, [eligibilityPack.code]);
+  await templatesDB.setMandatoryPacks(template!.id, [eligibilityPack.code], ROOT_ACTOR_ID, "root");
   await templatesDB.setRequiredCapabilities(template!.id, []);
-  const { data: profile } = await profilesDB.upsert({ code: `cr104-eligibility-profile-${run}`, name: "CR-104 Eligibility Profile", baseTemplateId: template!.id, environment: "development" });
+  const { data: profile } = await profilesDB.upsert({ code: `cr104-eligibility-profile-${run}`, name: "CR-104 Eligibility Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
 
   // A plain SEU row, deliberately not commissioned through the full async
   // pipeline — resolveEligibilityPolicies works off template_id/profile_id

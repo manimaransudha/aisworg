@@ -1,5 +1,6 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
+import { userDB } from "./userDB.js";
 import type { DbResult, ParticipantRow, ParticipantType } from "./seuTypes.js";
 
 export const participantsDB = {
@@ -10,13 +11,20 @@ export const participantsDB = {
   // Participant becomes eligible for a Capability (fulfilCapability, Ch.12)
   // at Available, per Ch.13 §10 — not pre-assigned to anything; the real
   // Assigned transition belongs to dispatchEngine (step 3).
+  // author_id/author_badge are NOT NULL (participants_schema_recovery.sql)
+  // but nothing engaging a Participant into a SEU today is itself an
+  // authored, actor-driven transition — this resolves the SUPERUSER_EMAIL
+  // superuser (userDB.getSuperuserId(), the same real, governed "root"
+  // resolution every seed script already uses) as a stopgap author, until a
+  // real acting actor is threaded through every caller of this function.
   async create(input: { seuId: string; type: ParticipantType; displayName: string; participantId?: string | null }): Promise<DbResult<ParticipantRow>> {
     try {
+      const { actorId, actorBadge } = await userDB.getSuperuserId();
       const { rows } = await query<ParticipantRow>(
-        `INSERT INTO participants (seu_id, type, display_name, participant_id)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO participants (seu_id, type, display_name, participant_id, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING *`,
-        [input.seuId, input.type, input.displayName, input.participantId ?? null]
+        [input.seuId, input.type, input.displayName, input.participantId ?? null, actorId, actorBadge]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -53,6 +61,24 @@ export const participantsDB = {
       return { data: rows };
     } catch (err) {
       logger.error("[participantsDB] findByParticipantMasterId error", err as Error);
+      return { error: err as Error };
+    }
+  },
+
+  // The one participants row that represents a given participants_master
+  // identity's engagement in a given SEU — needed wherever a NOT NULL
+  // author_id FK on a seu_id-scoped table (attention_items) must resolve
+  // the acting user down to a real per-SEU Participant, not just their
+  // platform-wide participants_master id.
+  async findBySeuIdAndParticipantMasterId(seuId: string, participantMasterId: string): Promise<DbResult<ParticipantRow | null>> {
+    try {
+      const { rows } = await query<ParticipantRow>(
+        "SELECT * FROM participants WHERE seu_id = $1 AND participant_id = $2 ORDER BY created_at DESC LIMIT 1",
+        [seuId, participantMasterId]
+      );
+      return { data: rows[0] ?? null };
+    } catch (err) {
+      logger.error("[participantsDB] findBySeuIdAndParticipantMasterId error", err as Error);
       return { error: err as Error };
     }
   },

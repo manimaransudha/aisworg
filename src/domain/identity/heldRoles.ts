@@ -21,8 +21,8 @@ function isExpired(effectiveTill: string, now: Date): boolean {
   return !Number.isNaN(till.getTime()) && till.getTime() < now.getTime();
 }
 
-export async function resolveHeldRoles(userId: number | string, opts: { seuId?: string | null } = {}): Promise<HeldRoles> {
-  const { data: master } = await participantsMasterDB.findByUserId(Number(userId));
+export async function resolveHeldRoles(userId: string | string, opts: { seuId?: string | null } = {}): Promise<HeldRoles> {
+  const { data: master } = await participantsMasterDB.findById(userId);
   const now = new Date();
   const activeGrants = (master?.authorised_role ?? []).filter((entry) => !isExpired(entry.effective_till, now));
   const isSuperuser = activeGrants.some((entry) => entry.role === "superuser");

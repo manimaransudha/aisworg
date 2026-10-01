@@ -27,15 +27,18 @@ export const policiesDB = {
     // deliverables as well"), reusing quality_gates' own mechanism: empty =
     // matches every Deliverable name.
     applicabilityDeliverableNames?: string[];
+    authorId: string;
+    authorBadge: string;
   }): Promise<DbResult<PolicyRow>> {
     try {
       const { rows } = await query<PolicyRow>(
-        `INSERT INTO policies (code, name, category, constraint_type, scope, governed_transition, condition, severity, originating_pack_id, applicability_deliverable_names)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `INSERT INTO policies (code, name, category, constraint_type, scope, governed_transition, condition, severity, originating_pack_id, applicability_deliverable_names, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
          ON CONFLICT (originating_pack_id, code) DO UPDATE
            SET name = EXCLUDED.name, category = EXCLUDED.category, constraint_type = EXCLUDED.constraint_type,
                scope = EXCLUDED.scope, governed_transition = EXCLUDED.governed_transition, condition = EXCLUDED.condition,
-               severity = EXCLUDED.severity, applicability_deliverable_names = EXCLUDED.applicability_deliverable_names
+               severity = EXCLUDED.severity, applicability_deliverable_names = EXCLUDED.applicability_deliverable_names,
+               author_id = EXCLUDED.author_id, author_badge = EXCLUDED.author_badge
          RETURNING *`,
         [
           input.code,
@@ -48,6 +51,8 @@ export const policiesDB = {
           input.severity ?? "Medium",
           input.originatingPackId,
           input.applicabilityDeliverableNames ?? [],
+          input.authorId,
+          input.authorBadge,
         ]
       );
       return { data: rows[0] };

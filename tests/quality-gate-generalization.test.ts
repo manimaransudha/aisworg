@@ -29,7 +29,8 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { createAttentionItem, transitionAttentionItem } from "../src/routes/seu/core/attentionItems.js";
-import { createObligation, transitionObligation } from "../src/routes/seu/core/obligations.js";
+import { transitionObligation } from "../src/routes/seu/core/obligations.js";
+import { createObligationAsRoot as createObligation } from "./testFixtures.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
@@ -81,6 +82,8 @@ test("qualityGateEngine.evaluate resolves Obligations attached to a non-Delivera
     toState,
     criteria: { type: "no_unresolved_obligations" },
     originatingPackId: await anyRealPackId(),
+    authorId: "1",
+    authorBadge: "root",
   });
   assert.ok(!gateError && gate, gateError?.message);
 
@@ -123,8 +126,8 @@ test("transitionAttentionItem is genuinely wired to qualityGateEngine — a real
   // Authority Rule/Policy for AttentionItem transitions (safe to reuse —
   // upsert on an existing code is idempotent and changes nothing).
   const packId = await anyRealPackId();
-  const { data: authorityRule } = await authorityRulesDB.upsert({ code: "authority-transition-attentionitem", governedTransition: "attentionitem.transition", authorisedRole: "general", originatingPackId: packId });
-  const { data: policy } = await policiesDB.upsert({ code: "policy-attentionitem-transition-baseline", name: "Attention Item transition baseline check", governedTransition: "attentionitem.transition", originatingPackId: packId });
+  const { data: authorityRule } = await authorityRulesDB.upsert({ code: "authority-transition-attentionitem", governedTransition: "attentionitem.transition", authorisedRole: "general", originatingPackId: packId, authorId: "1", authorBadge: "root" });
+  const { data: policy } = await policiesDB.upsert({ code: "policy-attentionitem-transition-baseline", name: "Attention Item transition baseline check", governedTransition: "attentionitem.transition", originatingPackId: packId, authorId: "1", authorBadge: "root" });
   assert.ok(authorityRule && policy);
 
   const fromState = `qg-wire-from-${randomUUID()}`;
@@ -138,6 +141,8 @@ test("transitionAttentionItem is genuinely wired to qualityGateEngine — a real
     toState,
     criteria: { type: "no_unresolved_obligations" },
     originatingPackId: packId,
+    authorId: "1",
+    authorBadge: "root",
   });
   assert.equal(gateError, undefined);
 

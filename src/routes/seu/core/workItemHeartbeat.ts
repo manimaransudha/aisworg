@@ -21,7 +21,7 @@ import { commandsDB } from "../../../dblayer/commandsDB.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
 import { attentionItemsDB } from "../../../dblayer/attentionItemsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { raiseAttentionItem } from "./attentionItems.js";
+import { raiseAttentionItem, resolveSystemActor } from "./attentionItems.js";
 
 export interface StallSweepResult {
   scanned: number;
@@ -59,6 +59,7 @@ export async function sweepStalledWorkItems(input?: { now?: Date; seuId?: string
       description: `Outstanding ~${overdueBy}s past its committed target completion time with no result reported. The ${command.from_state} -> ${command.to_state} transition is waiting on a Participant.`,
       relatedObjectType: "Deliverable",
       relatedObjectId: command.entity_id,
+      ...(await resolveSystemActor(command.seu_id)),
     });
     await eventBus.publish({
       eventType: "WorkItemStalled",

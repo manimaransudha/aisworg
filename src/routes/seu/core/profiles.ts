@@ -3,29 +3,36 @@ import { deriveOverridableParameterCandidates, extractExposedParameters } from "
 import { profilesDB } from "../../../dblayer/profilesDB.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
-import { PLATFORM_TENANT_ID } from "../../../dblayer/constants.js";
 import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { transitionDefinitionsDB } from "../../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
+import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
+import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import type { ProfileRow } from "../../../dblayer/seuTypes.js";
+import { tenantsDB } from "../../../dblayer/tenantsDB.js";
+import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
 
-export async function createProfile(input: {
-  templateId: string;
-  environment?: string;
-}): Promise<ProfileRow> {
-  const { data: template, error: templateErr } = await templatesDB.findById(input.templateId);
-  if (templateErr) throw templateErr;
-  if (!template) throw new Error(`template not found: ${input.templateId}`);
+let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
+if (result.error || !result.data) throw new Error("Error retrieving Platform details");
+const PLATFORM_TENANT_ID = result.data.id;
 
-  const { data: profile, error } = await profilesDB.create({
-    baseTemplateId: template.id,
-    baseTemplateCode: template.code,
-    environment: input.environment,
-  });
-  if (error || !profile) throw error ?? new Error("failed to create profile");
-  return profile;
-}
+// export async function createProfile(input: {
+//   templateId: string;
+//   environment?: string;
+// }): Promise<ProfileRow> {
+//   const { data: template, error: templateErr } = await templatesDB.findById(input.templateId);
+//   if (templateErr) throw templateErr;
+//   if (!template) throw new Error(`template not found: ${input.templateId}`);
+
+//   const { data: profile, error } = await profilesDB.create({
+//     baseTemplateId: template.id,
+//     baseTemplateCode: template.code,
+//     environment: input.environment,
+//   });
+//   if (error || !profile) throw error ?? new Error("failed to create profile");
+//   return profile;
+// }
 
 // profilesDB.create's own throwaway-code shape ("profile-<timestamp>-<random>")
 // — distinguishes a real, human/SDK-authored Profile (any other code) from
@@ -62,13 +69,20 @@ export async function listRealProfilesForTemplate(templateId: string): Promise<P
 // quick one-shot path still has no natural seam for a live picker (it
 // matches a Template at submit time, not before), so it still falls all the
 // way through to this default.
-export async function findOrCreateDefaultProfile(templateId: string): Promise<ProfileRow> {
-  const real = await listRealProfilesForTemplate(templateId);
-  if (real.length > 0) {
-    return real.find((p) => p.environment === "development") ?? real[0]!;
-  }
-  return createProfile({ templateId, environment: "development" });
-}
+// DECOMMISSIONED (owner: "this path should be disallowed and all the
+// fallback decommissioned. Creating a profile should not [be] combined with
+// this [commissioning]") — commissioning must always be given a real,
+// explicitly-chosen Profile; silently synthesizing a throwaway default
+// Profile as part of a commissioning flow is no longer allowed. Every caller
+// now requires a real profileId instead of falling back to this. Left here,
+// commented out, rather than deleted.
+// export async function findOrCreateDefaultProfile(templateId: string): Promise<ProfileRow> {
+//   const real = await listRealProfilesForTemplate(templateId);
+//   if (real.length > 0) {
+//     return real.find((p) => p.environment === "development") ?? real[0]!;
+//   }
+//   return createProfile({ templateId, environment: "development" });
+// }
 
 // SDK UI Layer Plan — Profile's structural + referential check, same
 // reasoning as validatePackSeed/validateTemplateSeed. Ch.7 grounding: the
@@ -613,7 +627,7 @@ export type PublishProfileResult = { ok: true; profileId: string; alreadyExists?
 // Published -> Active via the SAME advanceProfileOneStep the authoring UI
 // itself uses. Requires a real actor now, mirroring publishPack/
 // publishTemplate's own actorRole/actorId.
-export async function publishProfile(input: { seed: ProfileSeedInput; actorRole: string; actorId?: string }): Promise<PublishProfileResult> {
+export async function publishProfile(input: { seed: ProfileSeedInput; actorRole: string; actorId: string }): Promise<PublishProfileResult> {
   const { seed, actorRole, actorId } = input;
   const validation = await validateProfileSeed(seed);
   if (!validation.ok) return { ok: false, errors: validation.errors };
@@ -626,21 +640,32 @@ export async function publishProfile(input: { seed: ProfileSeedInput; actorRole:
   // Idempotent reseed — mirrors publishTemplate's own findByCodeAndVersion
   // check exactly.
   const { data: existing } = await profilesDB.findByCodeAndVersion(seed.code, seed.profileVersion, tenantId);
-  if (existing) {
-    const materialiseResult = await materialiseProfileDraft(existing.id, seed);
-    if (!materialiseResult.ok) return materialiseResult;
-    return { ok: true, profileId: existing.id, alreadyExists: true };
-  }
-
   // CR-114 follow-on — profilesDB.createDraft's schemaDefinitionId is now
   // mandatory; a bootstrap/seed-facing publish always pins to whatever's
   // latest.
   const { data: profileSchema } = await schemaDefinitionsDB.findLatest("Profile");
   if (!profileSchema) return { ok: false, errors: [`no schema_definitions grammar for Profile`] };
+  // profiles.authored_by/author_badge are participants_master-scoped and NOT
+  // NULL — a bootstrap/seed-facing publish needs a real actor the same way
+  // the interactive SDK authoring path does (sdkAuthoring.ts), never a
+  // default/null. Mirrors publishTemplate exactly.
+  if (!actorId) return { ok: false, errors: ["publishProfile requires a real actorId to author the Draft"] };
+  const auth = await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "profile_define" });
+  if (!auth.allowed) return { ok: false, errors: [`actor "${actorId}" does not hold profile_define`] };
+  const { data: profileMaster } = await participantsMasterDB.findById(actorId);
+  if (!profileMaster) return { ok: false, errors: [`No superuser provisioned.`] };
+  const authorBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? "profile_define");
+  if (existing) {
+    const materialiseResult = await materialiseProfileDraft(existing.id, seed, profileMaster.id, authorBadge);
+    if (!materialiseResult.ok) return materialiseResult;
+    return { ok: true, profileId: existing.id, alreadyExists: true };
+  }
   const { data: draft, error } = await profilesDB.createDraft({
     code: seed.code,
     name: seed.name,
     baseTemplateId: template.id,
+    authoredBy: profileMaster.id,
+    authorBadge,
     environment: seed.environment,
     profileVersion: seed.profileVersion,
     tenantId,
@@ -656,7 +681,7 @@ export async function publishProfile(input: { seed: ProfileSeedInput; actorRole:
   });
   if (error || !draft) return { ok: false, errors: [(error ?? new Error("failed to create profile draft")).message] };
 
-  const materialiseResult = await materialiseProfileDraft(draft.id, seed);
+  const materialiseResult = await materialiseProfileDraft(draft.id, seed, profileMaster.id, authorBadge);
   if (!materialiseResult.ok) return materialiseResult;
 
   // Ch.7 §15 (owner, 2026-08-19: "Fix 19.9 similar to what we did for pack
@@ -710,7 +735,7 @@ export async function transitionProfile(input: { profileId: string; targetState:
   // today) would have its triggerEngine.hasBeenSubmitted check actually work
   // — the same latent gap Template's own transitionTemplate had before its
   // fix (Events and Lifecycles.md Ch.6 Implementation row 3).
-  const gate = await transitionEngine.evaluate({ entityType: "Profile", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId, entityId: profile.id, context: { profile } });
+  const gate = await transitionEngine.evaluate({ entityType: "Profile", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId ?? "", entityId: profile.id, context: { profile } });
   if (!gate.allowed) {
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Profile ${fromState} -> ${input.targetState}` };
@@ -719,7 +744,7 @@ export async function transitionProfile(input: { profileId: string; targetState:
   }
 
   if (input.targetState === "Active" && TERMINAL_REACTIVATABLE_STATES.has(fromState)) {
-    return reactivateAsNewVersion(profile, input.actorRole, input.actorId);
+    return reactivateAsNewVersion(profile, input.actorRole, input.actorId, gate.authorityBadge);
   }
 
   const { data: updated, error } = await profilesDB.updateStatus(profile.id, input.targetState);
@@ -758,7 +783,7 @@ async function nextAvailablePatchVersion(code: string, fromVersion: string, tena
 // actor — mirrors reactivateAsNewVersion in core/templates.ts/core/packs.ts
 // exactly. `description`/`featureFlagCodes`/`compositionOptions` live only in
 // draft_content, not real columns, so they're carried through explicitly.
-async function reactivateAsNewVersion(profile: ProfileRow, actorRole: string, actorId: string | undefined): Promise<TransitionProfileResult> {
+async function reactivateAsNewVersion(profile: ProfileRow, actorRole: string, actorId: string | undefined, authorBadge: string | null): Promise<TransitionProfileResult> {
   const nextVersion = await nextAvailablePatchVersion(profile.code, profile.profile_version, profile.tenant_id);
   const { data: template } = await templatesDB.findById(profile.base_template_id);
   if (!template) return { ok: false, reason: "policy_blocked", detail: `base Template ${profile.base_template_id} no longer exists` };
@@ -828,12 +853,22 @@ async function reactivateAsNewVersion(profile: ProfileRow, actorRole: string, ac
   // templates.ts's reactivateAsNewVersion.
   const { data: reactivationSchema } = profile.schema_definition_id ? { data: { id: profile.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Profile");
   if (!reactivationSchema) return { ok: false, reason: "policy_blocked", detail: `no schema_definitions grammar for Profile` };
+  // profiles.authored_by/author_badge are participants_master-scoped and NOT
+  // NULL — the new Version's Draft is authored by the real actor performing
+  // this reactivation, under the real badge transitionEngine.evaluate (above)
+  // just authorised this hop under, never carried forward from the terminal
+  // row's own original author. Mirrors templates.ts's own reactivateAsNewVersion.
+  if (!actorId) return { ok: false, reason: "policy_blocked", detail: "reactivation requires a real actorId to author the new Version's Draft" };
+  if (!authorBadge) return { ok: false, reason: "policy_blocked", detail: "no authority badge resolved for this Profile reactivation" };
+  const { data: reactivateMaster } = await participantsMasterDB.findById(actorId);
+  if (!reactivateMaster) return { ok: false, reason: "policy_blocked", detail: `No superuser provisioned.` };
   const { data: newDraft, error } = await profilesDB.createDraft({
     code: seed.code,
     name: seed.name,
     baseTemplateId: template.id,
     environment: seed.environment,
-    authoredBy: profile.authored_by,
+    authoredBy: reactivateMaster.id,
+    authorBadge,
     draftContent: { ...seed },
     profileVersion: nextVersion,
     tenantId: profile.tenant_id,
@@ -842,7 +877,7 @@ async function reactivateAsNewVersion(profile: ProfileRow, actorRole: string, ac
   });
   if (error || !newDraft) return { ok: false, reason: "policy_blocked", detail: (error ?? new Error("failed to create new Profile version")).message };
 
-  const materialiseResult = await materialiseProfileDraft(newDraft.id, seed);
+  const materialiseResult = await materialiseProfileDraft(newDraft.id, seed, reactivateMaster.id, authorBadge);
   if (!materialiseResult.ok) return { ok: false, reason: "policy_blocked", detail: materialiseResult.errors.join("; ") };
 
   let current = newDraft;
@@ -868,7 +903,7 @@ async function reactivateAsNewVersion(profile: ProfileRow, actorRole: string, ac
 // exactly. (Pack's own copyPackAsNewDraft was removed under CR-081, once its
 // job became reachable through Pack's "New" form's own branch picker
 // instead — Profile/Template haven't been given that same treatment.)
-export async function copyProfileAsNewDraft(profileId: string, actorId: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
+export async function copyProfileAsNewDraft(profileId: string, actorId: string, authorBadge: string): Promise<{ ok: true; draftId: string } | { ok: false; errors: string[] }> {
   const { data: source } = await profilesDB.findById(profileId);
   if (!source) return { ok: false, errors: ["Profile not found"] };
   const nextVersion = await nextAvailablePatchVersion(source.code, source.profile_version, source.tenant_id);
@@ -931,12 +966,15 @@ export async function copyProfileAsNewDraft(profileId: string, actorId: string):
   // templates.ts's copyTemplateAsNewDraft.
   const { data: copySchema } = source.schema_definition_id ? { data: { id: source.schema_definition_id } } : await schemaDefinitionsDB.findLatest("Profile");
   if (!copySchema) return { ok: false, errors: [`no schema_definitions grammar for Profile`] };
+  const { data: copyMaster } = await participantsMasterDB.findById(actorId);
+  if (!copyMaster) return { ok: false, errors: [`No superuser provisioned.`] };
   const { data: newDraft, error } = await profilesDB.createDraft({
     code: source.code,
     name: source.name,
     baseTemplateId: template.id,
     environment: source.environment,
-    authoredBy: Number(actorId),
+    authoredBy: copyMaster.id,
+    authorBadge,
     draftContent,
     profileVersion: nextVersion,
     tenantId: source.tenant_id,
@@ -989,15 +1027,15 @@ export async function advanceProfileOneStep(profile: ProfileRow, actorRole: stri
 // catalogue). Runs once, gating the FIRST governed hop
 // out of Draft only (core/sdkAuthoring.ts's publishAuthoringDraft calls both
 // this and advanceProfileOneStep above).
-export async function materialiseProfileDraft(profileId: string, seed: ProfileSeedInput): Promise<{ ok: true } | { ok: false; errors: string[] }> {
-  await profilesDB.setPackSelection(profileId, "optional", seed.optionalPackCodes ?? []);
-  await profilesDB.setPackSelection(profileId, "technology", seed.technologyPackCodes ?? []);
-  await profilesDB.setPackSelection(profileId, "domain", seed.domainPackCodes ?? []);
-  await profilesDB.setPackSelection(profileId, "compliance", seed.compliancePackCodes ?? []);
-  await profilesDB.setPackSelection(profileId, "integration", seed.integrationPackCodes ?? []);
+export async function materialiseProfileDraft(profileId: string, seed: ProfileSeedInput, authorId: string, authorBadge: string): Promise<{ ok: true } | { ok: false; errors: string[] }> {
+  await profilesDB.setPackSelection(profileId, "optional", seed.optionalPackCodes ?? [], authorId, authorBadge);
+  await profilesDB.setPackSelection(profileId, "technology", seed.technologyPackCodes ?? [], authorId, authorBadge);
+  await profilesDB.setPackSelection(profileId, "domain", seed.domainPackCodes ?? [], authorId, authorBadge);
+  await profilesDB.setPackSelection(profileId, "compliance", seed.compliancePackCodes ?? [], authorId, authorBadge);
+  await profilesDB.setPackSelection(profileId, "integration", seed.integrationPackCodes ?? [], authorId, authorBadge);
   // CR-091 — the other two of Pack's six real category:pack values.
-  await profilesDB.setPackSelection(profileId, "engineering", seed.engineeringPackCodes ?? []);
-  await profilesDB.setPackSelection(profileId, "organisation", seed.organisationPackCodes ?? []);
+  await profilesDB.setPackSelection(profileId, "engineering", seed.engineeringPackCodes ?? [], authorId, authorBadge);
+  await profilesDB.setPackSelection(profileId, "organisation", seed.organisationPackCodes ?? [], authorId, authorBadge);
   // Bug fix (owner: "There has to be real prod grade data") — this used to
   // stop at the Pack-selection join tables; draft_content itself (every
   // other ProfileSeedInput field — description, the 8 Configuration
