@@ -1,0 +1,83 @@
+[
+  {
+    "identifier": "deliverable-cycle-time",
+    "name": "Deliverable Cycle Time",
+    "description": "Ch.35 §7 Flow Telemetry — time from a Deliverable's creation to its most recent recorded transition, platform-wide.",
+    "category": "Flow",
+    "unit_of_measure": "seconds",
+    "aggregation_strategy": "Average",
+    "calculation_method": "deliverable_cycle_time"
+  },
+  {
+    "identifier": "quality-gate-latency",
+    "name": "Quality Gate Latency",
+    "description": "Ch.35 §7 Governance Telemetry — friction per gate: time from first Blocked evaluation to the eventual Pass, platform-wide.",
+    "category": "Governance",
+    "unit_of_measure": "seconds",
+    "aggregation_strategy": "Average",
+    "calculation_method": "quality_gate_latency"
+  },
+  {
+    "identifier": "command-generation-rate",
+    "name": "Command Generation Volume",
+    "description": "Ch.35 §7 Runtime Telemetry — total Commands generated, platform-wide. A count today, not yet a real time-bucketed rate (see calculation method's own comment).",
+    "category": "Runtime",
+    "unit_of_measure": "commands",
+    "aggregation_strategy": "Count",
+    "calculation_method": "command_generation_count"
+  },
+  {
+    "identifier": "dispatch-latency",
+    "name": "Dispatch Latency",
+    "description": "Ch.35 §7 Runtime Telemetry — time from a Command being generated to its Work Item being dispatched to a Participant.",
+    "category": "Runtime",
+    "unit_of_measure": "seconds",
+    "aggregation_strategy": "Average",
+    "calculation_method": "dispatch_latency"
+  },
+  {
+    "identifier": "work-item-duration",
+    "name": "Work Item Execution Duration",
+    "description": "Ch.35 §7 Runtime Telemetry — time from a Work Item starting execution to completing. Near-zero today (no autonomous Participant runtime yet, execution is simulated synchronously) — see calculation method's own comment.",
+    "category": "Runtime",
+    "unit_of_measure": "seconds",
+    "aggregation_strategy": "Average",
+    "calculation_method": "work_item_duration"
+  },
+  {
+    "identifier": "knowledge-growth",
+    "name": "Knowledge Growth",
+    "description": "Ch.35 §7 Knowledge Telemetry — Knowledge Items created, broken down by Acquisition Scope (SEU/Capability/Enterprise/Platform).",
+    "category": "Knowledge",
+    "unit_of_measure": "items",
+    "aggregation_strategy": "Distribution",
+    "calculation_method": "knowledge_growth"
+  },
+  {
+    "identifier": "evidence-generation",
+    "name": "Evidence Generation",
+    "description": "Ch.35 §7 Knowledge Telemetry — Evidence records created.",
+    "category": "Knowledge",
+    "unit_of_measure": "items",
+    "aggregation_strategy": "Count",
+    "calculation_method": "evidence_generation"
+  },
+  {
+    "identifier": "rework-rate",
+    "name": "Rework Rate",
+    "description": "Ch.35 §7 Quality Telemetry — of entities that eventually passed a Quality Gate, what share needed at least one Blocked attempt first, and how many on average.",
+    "category": "Quality",
+    "unit_of_measure": "percent",
+    "aggregation_strategy": "Rate",
+    "calculation_method": "rework_rate"
+  },
+  {
+    "identifier": "deliverable-acceptance-rate",
+    "name": "Deliverable Acceptance Rate",
+    "description": "Ch.35 §7 Quality Telemetry — share of Deliverables that have reached Baselined, against the full lifecycle_state distribution.",
+    "category": "Quality",
+    "unit_of_measure": "percent",
+    "aggregation_strategy": "Rate",
+    "calculation_method": "deliverable_acceptance_rate"
+  }
+]

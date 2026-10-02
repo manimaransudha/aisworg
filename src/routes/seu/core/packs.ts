@@ -772,6 +772,8 @@ export async function createPackDraft(seed: PackSeedInput, authorId: string, aut
     originatingObjectId: pack.id,
     seuId: null, // platform catalog entity, not SEU-scoped
     correlationId: eventBus.newCorrelationId(),
+    actorId: authorId,
+    authorityBadge: authorBadge,
     payload: { code: pack.code, packVersion: pack.pack_version },
   });
 
@@ -1193,8 +1195,8 @@ export async function transitionPack(input: { packId: string; targetState: strin
     seuId: null, // platform catalog entity, not SEU-scoped
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: pack.code, packVersion: pack.pack_version },
-    actorId: input.actorId ?? null,
-    authorityBadge: gate.authorityBadge,
+    actorId: input.actorId,
+    authorityBadge: gate.authorityBadge ?? "root",
   });
 
   return { ok: true, pack: updated, appliedTransition: { fromState, toState: input.targetState } };

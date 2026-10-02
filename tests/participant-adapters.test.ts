@@ -26,6 +26,7 @@ import { externalOrchestratorAdapter } from "../src/adapters/externalOrchestrato
 import { eventBus } from "../src/domain/engine/eventBus.js";
 import type { ParticipantAdapter } from "../src/adapters/participantAdapter.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 // A local server standing in for a tenant's external orchestrator, capturing
 // every assignment the platform delivers.
@@ -87,7 +88,7 @@ async function commissionAndFulfil(prefix: string) {
     {
       statement: `${prefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorRole: "super", actorId: "1001", requestedBy: 1001,
+      actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
     },
     async (seuId) => {
       const detail = await getSeuDetailView(seuId);
@@ -97,7 +98,7 @@ async function commissionAndFulfil(prefix: string) {
       await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
     }
   );
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const seuId = result.seu.id;
   const detail = await getSeuDetailView(seuId);
@@ -126,10 +127,10 @@ test("both adapters implement the one contract; the registry resolves by mode; a
 
 test("external-orchestrator: dispatching delivers the assignment to the tenant endpoint over the adapter", async () => {
   const { seuId, deliverableId, capabilityId } = await commissionAndFulfil("adapter-external");
-  await executionTargetsDB.upsert({ tenantId: defaultTenantId, capabilityId, mode: "external-orchestrator", authorId: "1", authorBadge: "root", adapterEndpoint: captureUrl, adapterAuthRef: "secret-token" });
+  await executionTargetsDB.upsert({ tenantId: defaultTenantId, capabilityId, mode: "external-orchestrator", authorId: ROOT_ACTOR_ID, authorBadge: "root", adapterEndpoint: captureUrl, adapterAuthRef: "secret-token" });
 
   const before = captured.length;
-  const dispatched = await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
+  const dispatched = await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   if (!dispatched.ok) assert.equal(dispatched.reason, "already_in_flight", JSON.stringify(dispatched));
 
   // Dispatch itself is async now (WorkItemGenerated -> dispatchEngine); wait
@@ -155,7 +156,7 @@ test("human-on-UI (default, no execution target): dispatching makes no external 
   await executionTargetsDB.deleteByTenantAndCapability(defaultTenantId, capabilityId);
 
   const before = captured.length;
-  const dispatched = await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
+  const dispatched = await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   if (!dispatched.ok) assert.equal(dispatched.reason, "already_in_flight", JSON.stringify(dispatched));
 
   const { workItem } = await waitForDispatchedWorkItem(deliverableId, "Defined", "In Progress");
@@ -169,12 +170,12 @@ test("human-on-UI (default, no execution target): dispatching makes no external 
 test("the platform-side flow is identical either way: the Deliverable is dispatched-and-outstanding regardless of adapter", async () => {
   // Same Capability, both modes, same observable platform result (outstanding).
   const external = await commissionAndFulfil("adapter-invariance-ext");
-  await executionTargetsDB.upsert({ tenantId: defaultTenantId, capabilityId: external.capabilityId, mode: "external-orchestrator", authorId: "1", authorBadge: "root", adapterEndpoint: captureUrl });
-  const d1 = await transitionDeliverable({ deliverableId: external.deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
+  await executionTargetsDB.upsert({ tenantId: defaultTenantId, capabilityId: external.capabilityId, mode: "external-orchestrator", authorId: ROOT_ACTOR_ID, authorBadge: "root", adapterEndpoint: captureUrl });
+  const d1 = await transitionDeliverable({ deliverableId: external.deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   if (!d1.ok) assert.equal(d1.reason, "already_in_flight", JSON.stringify(d1));
 
   const human = await commissionAndFulfil("adapter-invariance-hum");
-  const d2 = await transitionDeliverable({ deliverableId: human.deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
+  const d2 = await transitionDeliverable({ deliverableId: human.deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   if (!d2.ok) assert.equal(d2.reason, "already_in_flight", JSON.stringify(d2));
 
   // Both dispatched, both requesting the same transition — the platform

@@ -122,6 +122,8 @@ async function fulfilOne(
     originatingObjectId: participant.id,
     seuId: seu.id,
     correlationId: eventBus.newCorrelationId(),
+    actorId: authorId,
+    authorityBadge: authorBadge,
     payload: { participantType: resolved.type, participantMasterId: resolved.participantMasterId },
   });
 
@@ -132,6 +134,8 @@ async function fulfilOne(
     originatingObjectId: seu.id,
     seuId: seu.id,
     correlationId: eventBus.newCorrelationId(),
+    actorId: authorId,
+    authorityBadge: authorBadge,
     payload: { capabilityId: seuCapability.capability_id, participantId: participant.id },
   });
 

@@ -24,28 +24,29 @@ import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { unravelComposition, detectCompositionConflicts } from "../src/domain/engine/profileCompositionUnravel.js";
 import { validateProfileSeed, type ProfileSeedInput } from "../src/routes/seu/core/profiles.js";
 import { addConcept, type OntologyActor } from "../src/routes/seu/core/ontology.js";
-import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
+const PLATFORM_TENANT_ID = await getPlatformTenantId();
 import type { PackContributions } from "../src/dblayer/seuTypes.js";
 import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
-const ACTOR: OntologyActor = { isRoot: true, tenantId: null, actorId: TESTER_ALL_ID };
+const ACTOR: OntologyActor = { isRoot: true, tenantId: null, actorId: TESTER_ALL_ID, actorBadge: "root" };
 
 async function createPack(contributions: PackContributions = {}): Promise<string> {
   const code = `test-cr101-pack-${randomUUID()}`;
   // CR-114 follow-on — packsDB.create's schemaDefinitionId is now mandatory.
   const { data: packSchema } = await schemaDefinitionsDB.findLatest("Pack");
   assert.ok(packSchema, "no schema_definitions grammar for Pack");
-  const { data: pack, error } = await packsDB.create({ code, name: `CR-101 fixture Pack ${code}`, category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", contributions, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", schemaDefinitionId: packSchema!.id });
-  assert.ok(!error && pack, error?.message);
+  const { data: pack, error } = await packsDB.create({ code, name: `CR-101 fixture Pack ${code}`, category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", contributions, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", schemaDefinitionId: packSchema!.id, tenantId: PLATFORM_TENANT_ID });
+  assert.ok(!error && pack, error?.message ?? "assertion failed");
   const { error: activateError } = await packsDB.updateStatus(pack!.id, "Active");
-  assert.ok(!activateError, activateError?.message);
+  assert.ok(!activateError, activateError?.message ?? "assertion failed");
   return pack!.code;
 }
 
 async function createTemplate(mandatoryPackCodes: string[]): Promise<{ id: string; code: string }> {
   const templateCode = `test-cr101-template-${randomUUID()}`;
   const { data: template, error } = await templatesDB.upsert({ code: templateCode, name: "CR-101 fixture Template", deliverableCatalogue: [] });
-  assert.ok(!error && template, error?.message);
+  assert.ok(!error && template, error?.message ?? "assertion failed");
   await templatesDB.setMandatoryPacks(template!.id, mandatoryPackCodes, ROOT_ACTOR_ID, "root");
   return { id: template!.id, code: template!.code };
 }
@@ -53,9 +54,9 @@ async function createTemplate(mandatoryPackCodes: string[]): Promise<{ id: strin
 async function createProfile(template: { id: string; code: string }, draftContent: Record<string, unknown>): Promise<string> {
   const profileCode = `test-cr101-profile-${randomUUID()}`;
   const { data: profile, error } = await profilesDB.upsert({ code: profileCode, name: "CR-101 fixture Profile", baseTemplateId: template.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
-  assert.ok(!error && profile, error?.message);
+  assert.ok(!error && profile, error?.message ?? "assertion failed");
   const { error: draftContentError } = await profilesDB.setDraftContent(profile!.id, { baseTemplateCode: template.code, ...draftContent });
-  assert.ok(!draftContentError, draftContentError?.message);
+  assert.ok(!draftContentError, draftContentError?.message ?? "assertion failed");
   return profile!.id;
 }
 
@@ -138,7 +139,7 @@ test("validateProfileSeed: domain must resolve to a real domain concept", async 
 
   const goodSeed = baseTemplateAndProfileSeed(templateCode, { domain: "customer-service" });
   const goodResult = await validateProfileSeed(goodSeed);
-  assert.equal(goodResult.ok, true, !goodResult.ok ? JSON.stringify(goodResult.errors) : undefined);
+  assert.equal(goodResult.ok, true, !goodResult.ok ? JSON.stringify(goodResult.errors) : "assertion failed");
 });
 
 test("validateProfileSeed: primaryProgrammingLanguage is rejected when it has no matching \"technology\" competency concept", async () => {
@@ -169,5 +170,5 @@ test("validateProfileSeed: a real primaryProgrammingLanguage value with a matchi
 
   const seed = baseTemplateAndProfileSeed(templateCode, { primaryProgrammingLanguage: "python" });
   const result = await validateProfileSeed(seed);
-  assert.equal(result.ok, true, !result.ok ? JSON.stringify(result.errors) : undefined);
+  assert.equal(result.ok, true, !result.ok ? JSON.stringify(result.errors) : "assertion failed");
 });

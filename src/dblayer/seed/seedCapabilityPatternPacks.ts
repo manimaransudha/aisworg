@@ -235,10 +235,24 @@ export async function seedCapabilityPatternPacks(actor: SeedActor): Promise<void
   // transitionPack/eventBus calls, and publishPack/createPackDraft are
   // rerun-safe — so there's no shared mutable state or ordering constraint
   // between them, only network round-trip time to overlap.
-  
+  // That said, a real cross-Pack `required` dependency DOES exist today
+  // (technology-nodejs -> development), so one publish can still lose a
+  // dependency-resolution race against another in this same batch — a
+  // caller may legitimately want to retry the whole call. Promise.allSettled
+  // (not Promise.all) is required for that to be safe: Promise.all rejects
+  // on the FIRST failure while every other still-in-flight publishPack call
+  // keeps running, unawaited, in the background — a caller that retries
+  // immediately then starts a second overlapping batch, racing its own
+  // orphaned first-attempt calls for the same Pack (observed: "no Transition
+  // Definition for Pack Active -> Active", two concurrent advancePackLifecycle
+  // calls both trying to activate the same already-Active row). allSettled
+  // guarantees every publish has actually finished, one way or another,
+  // before this function returns or throws — nothing left in flight for a
+  // retry to collide with.
+
   // get platform tenant id
-  const PLATFORM_TENANT_ID = await getPlatformTenantId();  
-  const results = await Promise.all(
+  const PLATFORM_TENANT_ID = await getPlatformTenantId();
+  const settled = await Promise.allSettled(
     ALL_PACK_FILES.map(async (file) => {
       const seed = loadJson<PackSeedInput>(file);
       seed.tenantId = PLATFORM_TENANT_ID;
@@ -254,6 +268,12 @@ export async function seedCapabilityPatternPacks(actor: SeedActor): Promise<void
     })
   );
 
+  const failures = settled.filter((s): s is PromiseRejectedResult => s.status === "rejected");
+  if (failures.length > 0) {
+    throw new Error(failures.map((f) => (f.reason instanceof Error ? f.reason.message : String(f.reason))).join("; "));
+  }
+
+  const results = (settled as PromiseFulfilledResult<boolean>[]).map((s) => s.value);
   const alreadyCount = results.filter(Boolean).length;
   const publishedCount = results.length - alreadyCount;
   logger.info(`[seed:capability-pattern-packs] ${publishedCount} published, ${alreadyCount} already present — ${ALL_PACK_FILES.length} Packs total.`);

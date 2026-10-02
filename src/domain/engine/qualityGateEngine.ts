@@ -312,6 +312,8 @@ export const qualityGateEngine = {
       originatingObjectId: gate.id,
       seuId: input.seuId,
       correlationId: eventBus.newCorrelationId(),
+      actorId: input.authorId,
+      authorityBadge: input.authorBadge,
       payload: { entityType: input.entityType, entityId: input.entityId },
     });
     return { outcome: "Passed", gate };
@@ -330,6 +332,8 @@ export const qualityGateEngine = {
       originatingObjectId: gate.id,
       seuId: input.seuId,
       correlationId: eventBus.newCorrelationId(),
+      actorId: input.authorId,
+      authorityBadge: input.authorBadge,
       payload: { entityType: input.entityType, entityId: input.entityId, reason },
     });
     return { outcome: "Blocked", gate, reason };
@@ -348,6 +352,8 @@ export const qualityGateEngine = {
       originatingObjectId: gate.id,
       seuId: input.seuId,
       correlationId: eventBus.newCorrelationId(),
+      actorId: input.authorId,
+      authorityBadge: input.authorBadge,
       payload: { entityType: input.entityType, entityId: input.entityId, reason, waiverId },
     });
     return { outcome: "Waived", gate, reason };

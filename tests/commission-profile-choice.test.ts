@@ -170,19 +170,19 @@ test("Objective-first commissioning offers a real Profile choice when more than 
     actorRole: "power",
     actorId: TESTER_ALL_ID,
   });
-  assert.equal(plainPublished.ok, true, !plainPublished.ok ? plainPublished.errors.join("; ") : undefined);
+  assert.equal(plainPublished.ok, true, !plainPublished.ok ? plainPublished.errors.join("; ") : "assertion failed");
   const nodejsPublished = await publishProfile({
     seed: { code: nodejsCode, name: "Nodejs Profile", baseTemplateCode: templateCode, environment: "development", optionalPackCodes: ["technology-nodejs"], profileVersion: "1.0.0", ...mandatoryConfigParams },
     actorRole: "power",
     actorId: TESTER_ALL_ID,
   });
-  assert.equal(nodejsPublished.ok, true, !nodejsPublished.ok ? nodejsPublished.errors.join("; ") : undefined);
+  assert.equal(nodejsPublished.ok, true, !nodejsPublished.ok ? nodejsPublished.errors.join("; ") : "assertion failed");
   if (!nodejsPublished.ok || !plainPublished.ok) return;
 
   // CR-009: Engineering Objectives need a Strategic parent (only Strategic may be a root).
   // CR-075 — createObjective now requires the parent to be Proposed when adding a child under it.
-  const { objective: pcRoot } = await createObjective({ statement: `verify-profile-choice-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed",});
-  const { objective } = await createObjective({ statement: `verify-profile-choice-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design"], tier: "Engineering", parentObjectiveId: pcRoot.id, requestedBy: 1001,});
+  const { objective: pcRoot } = await createObjective({ statement: `verify-profile-choice-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed",});
+  const { objective } = await createObjective({ statement: `verify-profile-choice-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design"], tier: "Engineering", parentObjectiveId: pcRoot.id, requestedBy: TESTER_ALL_ID,});
   assert.equal(objective.status, "Active");
 
   // 1. getObjectiveDetail surfaces both real Profiles as real candidates,
@@ -201,11 +201,11 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   }
 
   // 2. Explicitly choosing the Template + nodejs Profile actually composes it.
-  const requestedChoice = await commissionFromExistingObjective({ objectiveId: objective.id, selections: [{ templateId: template!.id, profileId: nodejsPublished.profileId }], actorRole: "super", actorId: TESTER_ALL_ID });
-  assert.equal(requestedChoice.ok, true, !requestedChoice.ok ? JSON.stringify(requestedChoice) : undefined);
+  const requestedChoice = await commissionFromExistingObjective({ objectiveId: objective.id, selections: [{ templateId: template!.id, profileId: nodejsPublished.profileId }], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  assert.equal(requestedChoice.ok, true, !requestedChoice.ok ? JSON.stringify(requestedChoice) : "assertion failed");
   if (!requestedChoice.ok) return;
   const chosen = await driveCommissioningToActive({ seuId: requestedChoice.seu.id, actorRole: "super", actorId: TESTER_ALL_ID });
-  assert.equal(chosen.ok, true, !chosen.ok ? `commissioning failed: ${chosen.reason}` : undefined);
+  assert.equal(chosen.ok, true, !chosen.ok ? `commissioning failed: ${chosen.reason}` : "assertion failed");
   if (!chosen.ok) return;
   // composedPacks moved off SeuDetailView onto its own EBM page/read model
   // (design/mvp-build-plan/SEU Composition.md — "create a new one. EBM
@@ -218,7 +218,7 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   // throw, still produces a real SEU. templateId is still required — it's
   // the human's own choice now, never auto-derived — but is the one thing
   // this path never asked the human to pick before either.
-  const { objective: objective2 } = await createObjective({ statement: `verify-profile-choice-fallback-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design"], tier: "Engineering", parentObjectiveId: pcRoot.id, requestedBy: 1001,});
-  const autoPicked = await commissionFromExistingObjective({ objectiveId: objective2.id, selections: [{ templateId: template!.id }], actorRole: "super", actorId: TESTER_ALL_ID });
-  assert.equal(autoPicked.ok, true, !autoPicked.ok ? JSON.stringify(autoPicked) : undefined);
+  const { objective: objective2 } = await createObjective({ statement: `verify-profile-choice-fallback-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design"], tier: "Engineering", parentObjectiveId: pcRoot.id, requestedBy: TESTER_ALL_ID,});
+  const autoPicked = await commissionFromExistingObjective({ objectiveId: objective2.id, selections: [{ templateId: template!.id }], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  assert.equal(autoPicked.ok, true, !autoPicked.ok ? JSON.stringify(autoPicked) : "assertion failed");
 });

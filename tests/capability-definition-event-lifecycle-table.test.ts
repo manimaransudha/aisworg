@@ -19,9 +19,11 @@ import { randomUUID } from "node:crypto";
 
 import { capabilityDefinitionsDB } from "../src/dblayer/capabilityDefinitionsDB.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
+import type { SchemaDefinitionRow } from "../src/dblayer/seuTypes.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { transitionCapabilityDefinition } from "../src/routes/seu/core/capabilityDefinitions.js";
+import { TESTER_ALL_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 
 // capabilityDefinitionsDB.createDraft is a raw DB-layer insert (no
 // validateCapabilityDefinitionSeed call — the hand-coded uniqueness/parent
@@ -35,10 +37,18 @@ import { transitionCapabilityDefinition } from "../src/routes/seu/core/capabilit
 // tenant is the real uniqueness key, and version is randomised here).
 // CR-114 follow-on — capabilityDefinitionsDB.createDraft's schemaDefinitionId
 // is now mandatory; resolved once and reused by every direct call in this file.
+// Deliberately NOT findLatest("Capability"): a real Capability Definition
+// row pins the exact schema_definition_id version it was authored against
+// (never "whatever is newest"), and findLatest is exactly the lookup that a
+// stray schema-registry test authoring throwaway Capability versions
+// elsewhere (schema-definition-event-lifecycle-table.test.ts) can silently
+// point at the wrong, Ontology-blind schema. The real baseline grammar for
+// Capability is version 1 (x-ontology on code/roles) — pin to that directly.
 async function requireCapabilitySchemaId(): Promise<string> {
-  const { data: capabilitySchema } = await schemaDefinitionsDB.findLatest("Capability");
-  if (!capabilitySchema) throw new Error("no schema_definitions grammar for Capability");
-  return capabilitySchema.id;
+  const { data: versions } = await schemaDefinitionsDB.findAllVersions("Capability");
+  const baseline = (versions ?? []).reduce<SchemaDefinitionRow | undefined>((lowest, v) => (!lowest || v.version < lowest.version ? v : lowest), undefined);
+  if (!baseline) throw new Error("no schema_definitions grammar for Capability");
+  return baseline.id;
 }
 
 async function freshCapabilityDefinitionDraft(): Promise<{ id: string }> {
@@ -47,6 +57,8 @@ async function freshCapabilityDefinitionDraft(): Promise<{ id: string }> {
     defaultLabel: "Test Capability Definition",
     version: `0.0.${Math.floor(Math.random() * 1_000_000)}`,
     schemaDefinitionId: await requireCapabilitySchemaId(),
+  authoredBy: ROOT_ACTOR_ID,
+  authorBadge: ROOT_ACTOR_BADGE,
   });
   if (error || !draft) throw error ?? new Error("failed to create Capability Definition draft");
   return { id: draft.id };
@@ -89,8 +101,8 @@ test("DRIVEN: row 1 (New) is a pure Revision — no event published on creation"
 test("DRIVEN: row 3 (Publish) publishes CapabilityDefinitionPublished, matching transition_definitions.event_type", async () => {
   const draft = await freshCapabilityDefinitionDraft();
 
-  const result = await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Published", actorRole: "power", actorId: "1001" });
-  assert.equal(result.ok, true, result.ok ? undefined : `${result.reason}: ${result.detail}`);
+  const result = await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Published", actorRole: "power", actorId: TESTER_ALL_ID });
+  assert.equal(result.ok, true, result.ok ? "" : `${result.reason}: ${result.detail}`);
 
   const { data: events } = await eventsDB.findByOriginatingObject("CapabilityDefinition", draft.id);
   const published = events?.find((e) => e.event_type === "CapabilityDefinitionPublished");
@@ -103,12 +115,12 @@ test("DRIVEN: row 3 (Publish) publishes CapabilityDefinitionPublished, matching 
 test("DRIVEN: rows 4-7 (Activate/Deprecate/Retire/Archive) each publish their matching event", async () => {
   const draft = await freshCapabilityDefinitionDraft();
 
-  await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Published", actorRole: "power", actorId: "1001" });
-  await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Active", actorRole: "power", actorId: "1001" });
-  await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Deprecated", actorRole: "power", actorId: "1001" });
-  await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Retired", actorRole: "power", actorId: "1001" });
-  const archived = await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Archived", actorRole: "power", actorId: "1001" });
-  assert.equal(archived.ok, true, archived.ok ? undefined : `${archived.reason}: ${archived.detail}`);
+  await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Published", actorRole: "power", actorId: TESTER_ALL_ID });
+  await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Active", actorRole: "power", actorId: TESTER_ALL_ID });
+  await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Deprecated", actorRole: "power", actorId: TESTER_ALL_ID });
+  await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Retired", actorRole: "power", actorId: TESTER_ALL_ID });
+  const archived = await transitionCapabilityDefinition({ capabilityDefinitionId: draft.id, targetState: "Archived", actorRole: "power", actorId: TESTER_ALL_ID });
+  assert.equal(archived.ok, true, archived.ok ? "" : `${archived.reason}: ${archived.detail}`);
 
   const { data: events } = await eventsDB.findByOriginatingObject("CapabilityDefinition", draft.id);
   const eventTypes = (events ?? []).map((e) => e.event_type);
@@ -124,6 +136,8 @@ test("REGRESSION: roles[] round-trips as real {name, worktypes[]} rows and is va
     version: `0.0.${Math.floor(Math.random() * 1_000_000)}`,
     roles: [{ name: "requirement-analysis", worktypes: ["requirement-examination", "requirement-interpretation"] }],
     schemaDefinitionId: await requireCapabilitySchemaId(),
+  authoredBy: ROOT_ACTOR_ID,
+  authorBadge: ROOT_ACTOR_BADGE,
   });
   assert.equal(error, undefined);
   assert.deepEqual(draft?.roles, [{ name: "requirement-analysis", worktypes: ["requirement-examination", "requirement-interpretation"] }]);
@@ -134,6 +148,8 @@ test("REGRESSION: roles[] round-trips as real {name, worktypes[]} rows and is va
     version: `0.0.${Math.floor(Math.random() * 1_000_000)}`,
     roles: [{ name: "not-a-real-role-name", worktypes: [] }],
     schemaDefinitionId: await requireCapabilitySchemaId(),
+  authoredBy: ROOT_ACTOR_ID,
+  authorBadge: ROOT_ACTOR_BADGE,
   });
   assert.ok(badRoleError, "expected an unregistered role-name to be rejected at write time");
 
@@ -143,6 +159,8 @@ test("REGRESSION: roles[] round-trips as real {name, worktypes[]} rows and is va
     version: `0.0.${Math.floor(Math.random() * 1_000_000)}`,
     roles: [{ name: "requirement-analysis", worktypes: ["not-a-real-worktype-name"] }],
     schemaDefinitionId: await requireCapabilitySchemaId(),
+  authoredBy: ROOT_ACTOR_ID,
+  authorBadge: ROOT_ACTOR_BADGE,
   });
   assert.ok(badWorktypeError, "expected an unregistered worktype-name to be rejected at write time");
 });
@@ -153,6 +171,8 @@ test("REGRESSION: an unregistered code is rejected at write time (code is x-onto
     defaultLabel: "Test Capability Definition Bad Code",
     version: `0.0.${Math.floor(Math.random() * 1_000_000)}`,
     schemaDefinitionId: await requireCapabilitySchemaId(),
+  authoredBy: ROOT_ACTOR_ID,
+  authorBadge: ROOT_ACTOR_BADGE,
   });
   assert.ok(error, "expected an unregistered capability-name code to be rejected at write time");
 });

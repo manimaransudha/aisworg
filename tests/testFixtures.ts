@@ -4,9 +4,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
-import { dependencyDefinitionsDB } from "../src/dblayer/dependencyDefinitionsDB.js";
-import { materialiseDependencyGraph } from "../src/domain/engine/materialiseDependencyGraph.js";
-import { deriveDedupedCapabilitiesFromPackCodes } from "../src/routes/seu/core/templates.js";
+import { publishTemplate, PACK_SELECTION_SLOTS } from "../src/routes/seu/core/templates.js";
 import { transitionDeliverable, type TransitionDeliverableResult } from "../src/routes/seu/core/deliverables.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
@@ -125,7 +123,30 @@ export const TESTER_APPROVER_ID = await getTesterId("tester-approver@test.local"
 // authorBadge "root"), same mechanism every src/dblayer/seed/*.ts script
 // already uses. The *AsRoot fixture helpers below author as this actor, not
 // as TESTER_ALL_ID (a badge-holding tester, not root).
-export const { actorId: ROOT_ACTOR_ID, actorBadge: ROOT_ACTOR_BADGE } = await userDB.getSuperuserId();
+export const { userId: ROOT_USER_ID, actorId: ROOT_ACTOR_ID, actorBadge: ROOT_ACTOR_BADGE } = await userDB.getSuperuserId();
+
+// web-flow.e2e.test.ts's own cross-tenant Objective fixtures — genuinely
+// scoped, non-root identities (seedIdentityBaseline.ts), one per real tenant,
+// each holding every real objective_* noun_verb badge so those tests
+// exercise the actual badge + tenant-reach gates instead of bypassing them
+// via root. userId is the raw users.id (for the x-test-user-id dev-login
+// shim / newSession); participantId is the participants_master id (for
+// direct actorId/requestedBy core-function calls).
+async function getTesterIdentity(email: string): Promise<{ userId: string; participantId: string }> {
+  const user = await userDB.findByEmail(email);
+  if (!user) throw new Error(`${email} not provisioned — is db:clean-slate seeded?`);
+  const participantId = await getTesterId(email);
+  return { userId: user.id, participantId };
+}
+export const TESTER_OBJECTIVE_ATHENS = await getTesterIdentity("tester-objective-athens@test.local");
+export const TESTER_OBJECTIVE_BABYLON = await getTesterIdentity("tester-objective-babylon@test.local");
+// Holds objective_achieve only, deliberately NOT objective_propose — proves
+// a real create/edit denial, not just a hidden button.
+export const TESTER_OBJECTIVE_ACHIEVE_ONLY = await getTesterIdentity("tester-objective-achieve-only@test.local");
+// tests/acceptance.e2e.test.ts's own full-journey actor — non-root,
+// tenant-scoped, holds every real noun_verb badge (seedIdentityBaseline.ts's
+// allNounVerbBadges()).
+export const TESTER_ACCEPTANCE_JOURNEY = await getTesterIdentity("tester-acceptance-journey@test.local");
 
 // Model A made transitionDeliverable async (Participant Integration Plan): a
 // governed transition is *dispatched*, and the Deliverable only moves when a
@@ -192,7 +213,7 @@ export async function transitionDeliverableSync(input: {
   deliverableId: string;
   targetState: string;
   actorRole?: string;
-  actorId?: string;
+  actorId: string;
   actingBadgeType?: string;
   requestedBy?: string | null;
 }): Promise<{ ok: true; deliverable: DeliverableRow; appliedTransition: { fromState: string; toState: string } } | Extract<TransitionDeliverableResult, { ok: false }>> {
@@ -213,7 +234,7 @@ export async function transitionDeliverableSync(input: {
   // hop is free again and a fresh request should succeed for real.
   let command: CommandRow | null = null;
   for (let attempt = 0; attempt < 5; attempt++) {
-    const requested = await transitionDeliverable({ ...input, actorId: input.actorId ?? TESTER_ALL_ID });
+    const requested = await transitionDeliverable({ ...input });
     if (!requested.ok && requested.reason !== "already_in_flight") return requested;
     const waitingOnSomeoneElse = !requested.ok; // reason === "already_in_flight"
 
@@ -330,7 +351,7 @@ export function ensureEventSubscriptionsLoaded(): Promise<void> {
 export async function driveCommissioningToActive(input: {
   seuId: string;
   actorRole: string;
-  actorId?: string;
+  actorId: string;
   // CR-104 — per-call override for the three internal waitUntilAsync polls
   // below, for callers that drive several full commissioning cycles in one
   // file (heavier than the "one SEU per test" norm this fixture was sized
@@ -412,6 +433,12 @@ export async function driveCommissioningToActive(input: {
   if (compositionConflicts.length > 0) {
     return { ok: false, stage: "compose_ebm", reason: compositionConflicts.map((c) => c.propertyName).join(" | "), seuId: input.seuId };
   }
+  // compositionCompleted.ts's resolveAuthorParticipantId requires the
+  // commissioning actor to already hold a SEU-scoped participants engagement
+  // row — ensure it exists right before publishing, for whichever actor this
+  // call is commissioning as (not just root).
+  await ensureActorParticipant(input.seuId, input.actorId);
+
   await eventBus.publish({
     eventType: "CompositionCompleted",
     originatingObjectType: "SEU",
@@ -419,7 +446,8 @@ export async function driveCommissioningToActive(input: {
     seuId: input.seuId,
     correlationId: eventBus.newCorrelationId(),
     payload: { seuId: input.seuId, authorBadge: "root" },
-    actorId: input.actorId ?? "1",
+    actorId: input.actorId,
+    authorityBadge: "root",
   });
 
   // Wait for the REAL, already-dispatched compositionCompletedHandler to
@@ -454,12 +482,12 @@ export async function driveCommissioningToActive(input: {
   // on the EBM (owner: "Validate and Activate are 2 separate events. I can
   // validate an EBM and not yet activate it"), same shape as the SEU detail
   // page's own real "Apply" form (detail.ejs).
-  const validateResult = await transitionEbm({ ebmId: composedSeu.active_ebm_id, targetState: "Validated", actorRole: input.actorRole, actorId: input.actorId ?? TESTER_ALL_ID });
+  const validateResult = await transitionEbm({ ebmId: composedSeu.active_ebm_id, targetState: "Validated", actorRole: input.actorRole, actorId: input.actorId });
   if (!validateResult.ok) {
     return { ok: false, stage: "validate_engineering_model", reason: validateResult.reason === "not_found" ? "EBM not found" : validateResult.detail, seuId: input.seuId };
   }
 
-  const activateResult = await transitionEbm({ ebmId: composedSeu.active_ebm_id, targetState: "Active", actorRole: input.actorRole, actorId: input.actorId ?? TESTER_ALL_ID });
+  const activateResult = await transitionEbm({ ebmId: composedSeu.active_ebm_id, targetState: "Active", actorRole: input.actorRole, actorId: input.actorId });
   if (!activateResult.ok) {
     return { ok: false, stage: "activate", reason: activateResult.reason === "not_found" ? "EBM not found" : activateResult.detail, seuId: input.seuId };
   }
@@ -602,13 +630,17 @@ export async function ensureEligibleParticipant(seuId: string, capabilityCodes: 
 // authorised_badges); this ensures the per-SEU participants row a test's
 // root actor needs, then hands back the "1"/"root" pair every test call
 // site can use directly instead of re-deriving this per test.
-async function ensureRootActorParticipant(seuId: string): Promise<void> {
-  const { data: master, error: masterErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
-  if (masterErr || !master) throw masterErr ?? new Error("ensureRootActorParticipant: no participants_master row for the superuser — is db:clean-slate seeded?");
+async function ensureActorParticipant(seuId: string, actorId: string): Promise<void> {
+  const { data: master, error: masterErr } = await participantsMasterDB.findById(actorId);
+  if (masterErr || !master) throw masterErr ?? new Error(`ensureActorParticipant: no participants_master row for actor ${actorId} — is db:clean-slate seeded?`);
   const { data: existing } = await participantsDB.findBySeuIdAndParticipantMasterId(seuId, master.id);
   if (existing) return;
   const { error } = await participantsDB.create({ seuId, type: master.type, displayName: master.display_name, participantId: master.id });
   if (error) throw error;
+}
+
+async function ensureRootActorParticipant(seuId: string): Promise<void> {
+  return ensureActorParticipant(seuId, ROOT_ACTOR_ID);
 }
 
 export async function fulfilCapabilityAsRoot(input: {
@@ -805,118 +837,98 @@ let cached: Promise<{ template: TemplateRow; profile: ProfileRow }> | null = nul
 export function ensureWebAppTemplateFixture(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
   // Memoized per test process — repeat calls within the same file (or via
   // Promise identity across files that happen to share a process) don't
-  // re-run the upserts, but a second process (a separate `node --test` file
-  // run) safely re-upserts the same rows.
+  // re-run the publish, but a second process (a separate `node --test` file
+  // run) safely finds and reuses the same already-published rows.
   if (!cached) cached = seed();
   return cached;
 }
 
-function sameSet(a: string[], b: string[]): boolean {
-  if (a.length !== b.length) return false;
-  const sortedA = [...a].sort();
-  const sortedB = [...b].sort();
-  return sortedA.every((v, i) => v === sortedB[i]);
+// Polls findByCodeAndVersion until the row reaches Active or `timeoutMs`
+// elapses — the losing side of the templates_code_version_tenant_key race
+// (seed(), below) must wait out the winner's own Draft -> Validated ->
+// Published -> Active walk (3 sequential DB writes in a concurrent
+// process), not just wait for the row to exist.
+async function waitForTemplateActive(code: string, templateVersion: string, tenantId: string, timeoutMs = 10_000): Promise<TemplateRow | null> {
+  const deadline = Date.now() + timeoutMs;
+  let last: TemplateRow | null = null;
+  while (Date.now() < deadline) {
+    const { data } = await templatesDB.findByCodeAndVersion(code, templateVersion, tenantId);
+    last = data ?? null;
+    if (last?.status === "Active") return last;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  return last;
 }
 
-// Real race found running the full suite: many test files (16+) call this
-// fixture, each in its own `node --test` process, all against the same
-// shared dev database. templatesDB.setRequiredCapabilities/setMandatoryPacks
-// and profilesDB.setOptionalPacks each DELETE their junction rows then
-// loop-INSERT fresh ones — not atomic — so two files' concurrent calls could
-// interleave, and a *third* file's findCandidateTemplates could catch
-// enterprise-web-application with its required_capabilities junction rows
-// transiently empty (DELETE already ran, INSERTs hadn't yet), making it
-// briefly fail to satisfy any request. Fixed by checking first: only write
-// when the junction tables don't already hold the fixture's exact target
-// data. After the very first successful seed anywhere against a given
-// database, every other file's call becomes a pure read, no DELETE+INSERT
-// race window left to hit.
+// Template.code is Ontology-governed (template-categories, schema-declared
+// x-ontology-composable, migration 054) — "test-enterprise-web-application"
+// is a real, permanent concept (ontologyConcepts.json), same treatment as
+// cr104-demo-minimal: marked "(test fixture)", not a real business category.
+// Published through the real, validated publishTemplate/publishProfile entry
+// points (templates.ts/profiles.ts), exactly like seedSdlcStandardTemplates.ts
+// seeds every real Standard Template — no raw upsert, no bypass of the
+// Ontology/schema validation every other Template goes through.
 async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
   const templateSeed = loadJson<TemplateSeed>("web-application.template.json");
   const profileSeed = loadJson<ProfileSeed>("default-development.profile.json");
+  const templateVersion = "1.0.0";
+  if (!templateSeed.purpose) throw new Error(`seed(): web-application.template.json is missing "purpose" (required by publishTemplate)`);
 
-  const { data: template, error: templateErr } = await templatesDB.upsert({
-    code: templateSeed.code,
-    name: templateSeed.name,
-    deliverableCatalogue: templateSeed.deliverableCatalogue,
-  });
-  if (templateErr || !template) throw templateErr ?? new Error(`template upsert failed: ${templateSeed.code}`);
-
-  // design/design whiteboards.md/schema_implementation.md — templatesDB.upsert
-  // above never writes draft_content, so `purpose` (schema-required since
-  // migration 061) never lands on this fixture's row; inheritedTemplateContent
-  // reads it straight off draft_content, so CR-026 inheritance off this
-  // Template fails write-time validation without it. setDraftContent is the
-  // real, validated write path — same fix as publishTemplate's own.
-  if (!(template.draft_content as Record<string, unknown> | null)?.purpose && templateSeed.purpose) {
-    const { error: purposeErr } = await templatesDB.setDraftContent(template.id, { purpose: templateSeed.purpose });
-    if (purposeErr) throw purposeErr;
+  const packSelections: Partial<Record<"compliancePackCodes" | "domainPackCodes" | "engineeringPackCodes" | "integrationPackCodes" | "organisationPackCodes" | "technologyPackCodes", string[]>> = {};
+  for (const code of templateSeed.mandatoryPackCodes) {
+    const { data: pack } = await packsDB.findByCode(code);
+    if (!pack) throw new Error(`seed(): template ${templateSeed.code} requires unknown pack ${code} — is db:clean-slate seeded?`);
+    const slot = PACK_SELECTION_SLOTS.find((s) => s.packCategory === pack.category);
+    if (!slot) throw new Error(`seed(): template ${templateSeed.code}'s mandatory pack "${code}" has category "${pack.category}", which has no matching Template pack-selection slot`);
+    const field = slot.field as keyof typeof packSelections;
+    (packSelections[field] ??= []).push(code);
   }
 
-  const { data: rootMasterForPacks, error: rootMasterForPacksErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
-  if (rootMasterForPacksErr || !rootMasterForPacks) throw rootMasterForPacksErr ?? new Error("seed(): no participants_master row for the superuser — is db:clean-slate seeded?");
-
-  const { data: existingMandatory } = await templatesDB.getMandatoryPackCodes(template.id);
-  if (!sameSet(existingMandatory ?? [], templateSeed.mandatoryPackCodes)) {
-    await templatesDB.setMandatoryPacks(template.id, templateSeed.mandatoryPackCodes, rootMasterForPacks.id, ROOT_ACTOR_BADGE);
-  }
-
-  // CR-038 — requiredCapabilityCodes is derived from the real mandatory-Pack
-  // selection now, same as the live authoring form and the SDLC seed script
-  // both do, not read from the seed's own (now removed) hand-typed field.
-  // 2026-08-25 — mandatoryPackCodes repointed from the dead
-  // platform-core-engineering to 3 real, always-seeded OpenUP packs
-  // (requirements-analysis/architecture-solution-design/development) —
-  // briefly detoured onto their test-only twins the same day, then back (see
-  // this file's own header: the twins duplicated these exact 3 capability
-  // codes platform-wide, breaking capabilitiesDB.findByCodes wherever
-  // requiredCapabilityCodes is used, well beyond this fixture). Resolves the
-  // same 3 capability codes (and 28 other test files) already hardcoded —
-  // requirements-analysis/architecture/development — rather than updating
-  // every test file individually (owner's own call: fix the seed data, not
-  // the tests, since Capability.code is free text with no Ontology
-  // constraint blocking the rename). Reproduces the exact same 3 capability
-  // codes core-engineering used to, just sourced from real Packs now.
-  // Bug fix (owner: "fix the tests. Do not change the scenario") —
-  // capability-name is a genuinely shared Ontology term multiple Packs can
-  // each independently contribute (e.g. "requirements-analysis" from this
-  // fixture's own Pack AND, separately, from integration-jira.pack.json —
-  // real, deliberate, not a data bug). The previous fix here
-  // (deriveCapabilityCodesFromPackCodes for codes, then a second, UNSCOPED
-  // capabilitiesDB.findByCodes(codes) pass to get rows) reintroduced exactly
-  // the ambiguity it meant to close — that second lookup sees every Pack
-  // sharing the code, not just this fixture's own mandatoryPackCodes, so
-  // which Pack's row (and which Pack's own Services) ends up as this
-  // Template's "required capability" depended on query return order.
-  // deriveDedupedCapabilitiesFromPackCodes (core/templates.ts's own
-  // resolution, same one materialisePackSelectionsAndCapabilities uses) goes
-  // straight from Pack codes to rows, scoped correctly the first time.
-  const capabilities = await deriveDedupedCapabilitiesFromPackCodes(templateSeed.mandatoryPackCodes);
-  const requiredCapabilityIds = capabilities.map((c) => c.id);
-
-  const { data: existingRequired } = await templatesDB.getRequiredCapabilities(template.id);
-  if (!sameSet((existingRequired ?? []).map((c) => c.id), requiredCapabilityIds)) {
-    await templatesDB.setRequiredCapabilities(template.id, requiredCapabilityIds, rootMasterForPacks.id, ROOT_ACTOR_BADGE);
-  }
-
-  // CR-039/CR-041 — same guard as above: the seed's dependencyGraph never
-  // changes across a run, so only materialise once (a non-empty result is
-  // that "already holds the fixture's exact target data" state), avoiding
-  // the same concurrent DELETE+INSERT race this file's own header warns
-  // about (belt-and-braces alongside migration 075's real unique constraint).
-  const { data: existingDependencyDefinitions } = await dependencyDefinitionsDB.findByOwner("Template", template.id);
-  if (!existingDependencyDefinitions || existingDependencyDefinitions.length === 0) {
-    const { data: rootMaster, error: rootMasterErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
-    if (rootMasterErr || !rootMaster) throw rootMasterErr ?? new Error("seed(): no participants_master row for the superuser — is db:clean-slate seeded?");
-    await materialiseDependencyGraph({
-      owningEntityType: "Template",
-      owningEntityId: template.id,
-      deliverableCatalogue: templateSeed.deliverableCatalogue,
-      dependencyGraph: templateSeed.dependencyGraph ?? [],
-      tenantId: PLATFORM_TENANT_ID,
-      authorId: rootMaster.id,
-      authorBadge: ROOT_ACTOR_BADGE,
+  let template = (await templatesDB.findByCodeAndVersion(templateSeed.code, templateVersion, PLATFORM_TENANT_ID)).data ?? null;
+  if (!template) {
+    const templateResult = await publishTemplate({
+      seed: {
+        code: templateSeed.code,
+        name: templateSeed.name,
+        templateVersion,
+        deliverableCatalogue: templateSeed.deliverableCatalogue,
+        dependencyGraph: templateSeed.dependencyGraph,
+        purpose: templateSeed.purpose,
+        tenantId: PLATFORM_TENANT_ID,
+        ...packSelections,
+      },
+      actorRole: ROOT_ACTOR_BADGE,
+      actorId: ROOT_ACTOR_ID,
     });
+    // publishTemplate's own idempotency (findByCodeAndVersion above, then
+    // create) is find-then-create, not atomic — two `node --test` processes
+    // racing seed() for the very first time can both miss the find and
+    // collide on templates_code_version_tenant_key, same race already
+    // handled below for publishProfile. Re-find instead of re-publishing:
+    // the winner's row exists by now.
+    if (!templateResult.ok && templateResult.errors.some((e) => e.includes("templates_code_version_tenant_key") || e.includes("already exists at version"))) {
+      // The winner's row exists by now, but its own publishTemplate call is
+      // still walking Draft -> Validated -> Published -> Active in its own
+      // process (advanceTemplateOneStep x3, templates.ts) — grabbing it the
+      // instant it's findable can catch it mid-walk, still non-Active, which
+      // the commissioning picker's own status='Active' filter then silently
+      // excludes (picker test failures with no DB error at all). Poll for
+      // Active instead of accepting the first non-null find.
+      const existing = await waitForTemplateActive(templateSeed.code, templateVersion, PLATFORM_TENANT_ID);
+      if (existing?.status === "Active") {
+        template = existing;
+      } else if (existing) {
+        throw new Error(`seed(): template "${templateSeed.code}" exists but never reached Active (stuck at "${existing.status}") — the winning process's publishTemplate call may have failed partway through its Draft -> Active walk`);
+      } else {
+        throw new Error(`seed(): failed to publish template "${templateSeed.code}": ${templateResult.errors.join("; ")}`);
+      }
+    } else if (!templateResult.ok) {
+      throw new Error(`seed(): failed to publish template "${templateSeed.code}": ${templateResult.errors.join("; ")}`);
+    } else {
+      const { data: published, error: publishedErr } = await templatesDB.findById(templateResult.templateId);
+      if (publishedErr || !published) throw publishedErr ?? new Error(`template not found after publish: ${templateSeed.code}`);
+      template = published;
+    }
   }
 
   // Real authoring path (publishProfile), not a raw profilesDB.upsert — the

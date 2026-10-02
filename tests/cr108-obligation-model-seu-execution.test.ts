@@ -52,14 +52,16 @@ import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import {
   uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync,
   ensureWebAppTemplateFixture, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations,
-  waitForDispatchedWorkItem, ensurePolicyDefinitionWithObligation, ROOT_ACTOR_ID, TESTER_ALL_ID,
+  waitForDispatchedWorkItem, ensurePolicyDefinitionWithObligation, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID,
 } from "./testFixtures.js";
 import type { SeuRow } from "../src/dblayer/seuTypes.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
+const PLATFORM_TENANT_ID = await getPlatformTenantId();
 
 async function registerOrganisationName(code: string): Promise<void> {
   await pool.query(
-    "INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id) VALUES ('organisation-name', $1, $2, '11111111-1111-1111-1111-111111111111') ON CONFLICT DO NOTHING",
-    [code, code]
+    "INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id, author_id, author_badge) VALUES ('organisation-name', $1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
+    [code, code, PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE]
   );
 }
 
@@ -103,8 +105,8 @@ async function commissionSeuBlockedByPackObligation(run: string) {
   await templatesDB.setRequiredCapabilities(template!.id, []);
 
   await ensureEventSubscriptionsLoaded();
-  const { objective: root } = await createObjective({ statement: `cr108-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed" });
-  const { objective } = await createObjective({ statement: `cr108-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: 1001 });
+  const { objective: root } = await createObjective({ statement: `cr108-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
+  const { objective } = await createObjective({ statement: `cr108-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
   const profilePublish = await publishProfile({
     seed: {
       code: `cr108-profile-${run}`,
@@ -121,11 +123,11 @@ async function commissionSeuBlockedByPackObligation(run: string) {
     actorRole: "super",
     actorId: TESTER_ALL_ID,
   });
-  assert.equal(profilePublish.ok, true, !profilePublish.ok ? JSON.stringify(profilePublish.errors) : undefined);
+  assert.equal(profilePublish.ok, true, !profilePublish.ok ? JSON.stringify(profilePublish.errors) : "assertion failed");
   if (!profilePublish.ok) throw new Error("unreachable");
   const { data: profile } = await profilesDB.findById(profilePublish.profileId);
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID });
-  assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : undefined);
+  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
 
   const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: TESTER_ALL_ID, timeoutMs: 30000 });
@@ -152,7 +154,7 @@ test("CR-108 item 1: a Pack's own obligationDefinitions[].applicabilityDeliverab
   // same real transitionObligation path a human/API caller uses.
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
     const step = await transitionObligation({ obligationId: blockingObligation.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
-    assert.equal(step.ok, true, !step.ok ? `Obligation ${targetState} step failed: ${JSON.stringify(step)}` : undefined);
+    assert.equal(step.ok, true, !step.ok ? `Obligation ${targetState} step failed: ${JSON.stringify(step)}` : "assertion failed");
   }
 
   // ObligationTransitioned (published by that last "Verified" hop) wakes
@@ -166,7 +168,12 @@ test("CR-108 item 1: a Pack's own obligationDefinitions[].applicabilityDeliverab
     seuAfter = reloaded ?? null;
     return reloaded?.lifecycle_state === "Operational";
   });
-  assert.equal(seuAfter?.lifecycle_state, "Operational", "resolving the Pack-raised Obligation must let the Execution Engine's own retry reach Operational");
+  // TS narrows a `let` reassigned inside an async closure (the
+  // waitUntilAsync callback above) to `never` at every read site after the
+  // closure returns — a known compiler limitation, not an actual runtime
+  // possibility. A local cast sidesteps it without weakening the null check.
+  const resolvedSeuAfter = seuAfter as SeuRow | null;
+  assert.equal(resolvedSeuAfter?.lifecycle_state, "Operational", "resolving the Pack-raised Obligation must let the Execution Engine's own retry reach Operational");
 });
 
 test("CR-108 item 2: resolving the raised AttentionItem (not the Obligation) also re-triggers the Execution Engine's own commence-work retry", async () => {
@@ -207,8 +214,8 @@ test("CR-108 item 2: resolving the raised AttentionItem (not the Obligation) als
   await templatesDB.setRequiredCapabilities(template!.id, []);
 
   await ensureEventSubscriptionsLoaded();
-  const { objective: root } = await createObjective({ statement: `cr108-attn-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed" });
-  const { objective } = await createObjective({ statement: `cr108-attn-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: 1001 });
+  const { objective: root } = await createObjective({ statement: `cr108-attn-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
+  const { objective } = await createObjective({ statement: `cr108-attn-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
   const profilePublish = await publishProfile({
     seed: {
       code: `cr108-attn-profile-${run}`, name: "CR-108 Attention Profile", baseTemplateCode: template!.code,
@@ -218,11 +225,11 @@ test("CR-108 item 2: resolving the raised AttentionItem (not the Obligation) als
     },
     actorRole: "super", actorId: TESTER_ALL_ID,
   });
-  assert.equal(profilePublish.ok, true, !profilePublish.ok ? JSON.stringify(profilePublish.errors) : undefined);
+  assert.equal(profilePublish.ok, true, !profilePublish.ok ? JSON.stringify(profilePublish.errors) : "assertion failed");
   if (!profilePublish.ok) throw new Error("unreachable");
   const { data: profile } = await profilesDB.findById(profilePublish.profileId);
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID });
-  assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : undefined);
+  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
 
   const driven = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: TESTER_ALL_ID, timeoutMs: 30000 });
@@ -263,7 +270,7 @@ test("CR-108 item 2: resolving the raised AttentionItem (not the Obligation) als
   // AttentionItemTransitioned, not a coincidental Obligation-side resolution.
   for (const targetState of ["Delivered", "Acknowledged", "In Progress", "Resolved"]) {
     const step = await transitionAttentionItem({ attentionItemId: attentionItem!.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
-    assert.equal(step.ok, true, !step.ok ? `Attention Item ${targetState} step failed: ${JSON.stringify(step)}` : undefined);
+    assert.equal(step.ok, true, !step.ok ? `Attention Item ${targetState} step failed: ${JSON.stringify(step)}` : "assertion failed");
   }
 
   let seuAfter: SeuRow | null = null;
@@ -272,7 +279,12 @@ test("CR-108 item 2: resolving the raised AttentionItem (not the Obligation) als
     seuAfter = reloaded ?? null;
     return reloaded?.lifecycle_state === "Operational";
   });
-  assert.equal(seuAfter?.lifecycle_state, "Operational", "resolving the raised Attention Item must let executionEngineKickoff's new AttentionItemTransitioned subscriber retry commence-work");
+  // TS narrows a `let` reassigned inside an async closure (the
+  // waitUntilAsync callback above) to `never` at every read site after the
+  // closure returns — a known compiler limitation, not an actual runtime
+  // possibility. A local cast sidesteps it without weakening the null check.
+  const resolvedSeuAfter2 = seuAfter as SeuRow | null;
+  assert.equal(resolvedSeuAfter2?.lifecycle_state, "Operational", "resolving the raised Attention Item must let executionEngineKickoff's new AttentionItemTransitioned subscriber retry commence-work");
 });
 
 // --- Item 3: the manual SEU-detail "Create Obligation" web form/route is
@@ -282,19 +294,19 @@ test("CR-108 item 2: resolving the raised AttentionItem (not the Obligation) als
 // Participant may only raise an Obligation against a Deliverable genuinely
 // dispatched to their own engagement, re-derived server-side, never trusted
 // off the form.
-async function createTestUser(label: string): Promise<number> {
+async function createTestUser(label: string): Promise<string> {
   // migration 033 — users.type/tenant_id are NOT NULL (CR-004, every user
   // belongs to a Platform or a Tenant); 'Platform' + PLATFORM_TENANT_ID is
   // always seeded, so this needs no dependency on which tenant the SEU
-  // itself was commissioned under.
-  const { rows } = await pool.query<{ id: number }>(
-    "INSERT INTO users (email, name, type, tenant_id) VALUES ($1, $2, 'Platform', '11111111-1111-1111-1111-111111111111') RETURNING id",
-    [`cr108-${label}-${randomUUID()}@example.test`, label]
+  // itself was commissioned under. users.id is UUID (users_schema_recovery.sql).
+  const { rows } = await pool.query<{ id: string }>(
+    "INSERT INTO users (email, name, type, tenant_id) VALUES ($1, $2, 'Platform', $3) RETURNING id",
+    [`cr108-${label}-${randomUUID()}@example.test`, label, PLATFORM_TENANT_ID]
   );
   return rows[0]!.id;
 }
 
-async function attachUserToParticipantMaster(participantMasterId: string, userId: number): Promise<void> {
+async function attachUserToParticipantMaster(participantMasterId: string, userId: string): Promise<void> {
   await pool.query("UPDATE participants_master SET user_id = $1 WHERE id = $2", [userId, participantMasterId]);
 }
 
@@ -304,7 +316,7 @@ test("CR-108 item 3: a Participant can raise an Obligation against their own dis
   const userId = await createTestUser(run);
 
   const result = await commissionFromFormSync(
-    { statement: `cr108-participant-${run}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: 1001 },
+    { statement: `cr108-participant-${run}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID },
     async (seuId) => {
       const detail = await getSeuDetailView(seuId);
       const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
@@ -314,7 +326,7 @@ test("CR-108 item 3: a Participant can raise an Obligation against their own dis
       await fulfilCapability({ seuId, capabilityId: capability!.capabilityId, participantMasterId });
     }
   );
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const seuId = result.seu.id;
 
@@ -335,7 +347,7 @@ test("CR-108 item 3: a Participant can raise an Obligation against their own dis
     description: "Raised via the Participant-facing quickview form.",
     severity: "Medium", completionCriteria: "The named condition is addressed.",
   });
-  assert.equal(raised.ok, true, !raised.ok ? JSON.stringify(raised) : undefined);
+  assert.equal(raised.ok, true, !raised.ok ? JSON.stringify(raised) : "assertion failed");
   if (!raised.ok) throw new Error("unreachable");
   assert.equal(raised.obligation.related_object_type, "Deliverable");
   assert.equal(raised.obligation.related_object_id, requirementsSpec!.id);
@@ -396,8 +408,8 @@ test("CR-108 follow-on: Work Item Execution Context includes every Deliverable O
   await templatesDB.setRequiredCapabilities(template!.id, (requiredCapabilities ?? []).map((c) => c.id), rootMaster.id, "root");
 
   await ensureEventSubscriptionsLoaded();
-  const { objective: root } = await createObjective({ statement: `cr108-ec-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed" });
-  const { objective } = await createObjective({ statement: `cr108-ec-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: 1001 });
+  const { objective: root } = await createObjective({ statement: `cr108-ec-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
+  const { objective } = await createObjective({ statement: `cr108-ec-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
   const profilePublish = await publishProfile({
     seed: {
       code: `cr108-ec-profile-${run}`, name: "CR-108 Execution Context Profile", baseTemplateCode: template!.code,
@@ -407,11 +419,11 @@ test("CR-108 follow-on: Work Item Execution Context includes every Deliverable O
     },
     actorRole: "super", actorId: TESTER_ALL_ID,
   });
-  assert.equal(profilePublish.ok, true, !profilePublish.ok ? JSON.stringify(profilePublish.errors) : undefined);
+  assert.equal(profilePublish.ok, true, !profilePublish.ok ? JSON.stringify(profilePublish.errors) : "assertion failed");
   if (!profilePublish.ok) throw new Error("unreachable");
   const { data: profile } = await profilesDB.findById(profilePublish.profileId);
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID });
-  assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : undefined);
+  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
   const seuId = requested.seu.id;
 
@@ -447,7 +459,7 @@ test("CR-108 follow-on: Work Item Execution Context includes every Deliverable O
       await fulfilCapability({ seuId, capabilityId: capability!.capabilityId, participantMasterId });
     },
   });
-  assert.equal(driven.ok, true, !driven.ok ? JSON.stringify(driven) : undefined);
+  assert.equal(driven.ok, true, !driven.ok ? JSON.stringify(driven) : "assertion failed");
   await resolveDispatchRejectionObligations(seuId);
 
   const detail = await getSeuDetailView(seuId);

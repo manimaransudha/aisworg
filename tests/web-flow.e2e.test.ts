@@ -41,11 +41,13 @@ import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
-import { ensureWebAppTemplateFixture, uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, waitUntilAsync, resolveDispatchRejectionObligations, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, waitUntilAsync, resolveDispatchRejectionObligations, ROOT_USER_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, TESTER_OBJECTIVE_ATHENS, TESTER_OBJECTIVE_BABYLON, TESTER_OBJECTIVE_ACHIEVE_ONLY } from "./testFixtures.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import type { CommandRow, WorkItemRow } from "../src/dblayer/seuTypes.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
+const PLATFORM_TENANT_ID = await getPlatformTenantId();
 
-type Session = ReturnType<typeof fetchCookie>;
+type Session = (input: string, init?: RequestInit) => Promise<Response>;
 
 let server: ReturnType<typeof app.listen>;
 let baseUrl: string;
@@ -63,7 +65,7 @@ before(async () => {
 });
 
 after(async () => {
-  await new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())));
+  await new Promise<void>((resolve, reject) => server.close((err: Error | undefined) => (err ? reject(err) : resolve())));
 });
 
 // Each test gets its own cookie jar (own session, own dev-mode auto-login
@@ -79,10 +81,11 @@ after(async () => {
 // session to read an `x-test-user-id` header) logs the session in as that
 // real row for real — real tenant_id, real badge_grants, via the same
 // buildSessionUser/ensureBadgeBootstrap/getPlatformBadges path a genuine
-// Google-OAuth login uses. Omit it for flows this file exercises that have
-// nothing to do with tenant/badge demarcation (Deliverable/SEU/Pack
-// lifecycle mechanics) — those still run as root, unchanged.
-function newSession(testUserId?: number): Session {
+// Google-OAuth login uses. Every call site now passes a real user id — the
+// app.ts test shim's own no-header path is intentionally a no-op (an
+// unauthenticated request should stay unauthenticated, not silently default
+// to root), so omitting the id here leaves the session logged out, not root.
+function newSession(testUserId?: string): Session {
   if (testUserId === undefined) return fetchCookie(fetch, new CookieJar());
   const jarFetch = fetchCookie(fetch, new CookieJar());
   return (async (input: any, init?: any) =>
@@ -91,7 +94,7 @@ function newSession(testUserId?: number): Session {
 
 // A hidden form field is the primary source (matches what a real form submit
 // actually sends), but every form this file has relied on so far happens to
-// be badge-gated — a badge-less viewer (CR-076's own ATHENS_NO_PROPOSE tests)
+// be badge-gated — a badge-less viewer (CR-076's own TESTER_OBJECTIVE_ACHIEVE_ONLY tests)
 // can land on a real page with none of them rendered at all. partials/head.ejs's
 // own <meta name="csrf-token"> is unconditional on every page regardless of
 // badges, so it's the fallback, not the primary (keeps every other, already-
@@ -179,14 +182,14 @@ async function commissionSeu(request: Session, statementPrefix: string): Promise
     statement: `${statementPrefix}-root-${randomUUID()}`,
     requiredCapabilityCodes: [],
     tier: "Strategic",
-    requestedBy: TEST_USER_ALL_BADGES,
+    requestedBy: TESTER_OBJECTIVE_ATHENS.participantId,
   });
   const { objective } = await createObjective({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     tier: "Engineering",
     parentObjectiveId: root.id,
-    requestedBy: TEST_USER_ALL_BADGES,
+    requestedBy: TESTER_OBJECTIVE_ATHENS.participantId,
   });
 
   const picker = await getPage(request, `/seu/seus/new?objectiveId=${objective.id}`);
@@ -221,8 +224,8 @@ async function commissionSeu(request: Session, statementPrefix: string): Promise
   // the default 15s can run out before finalizeCommissioning's own async
   // chain reaches Operational, even though it always does eventually. Longer
   // override, per timeoutMs's own doc comment.
-  const driven = await driveCommissioningToActive({ seuId, actorRole: "super", actorId: String(TEST_USER_ALL_BADGES), timeoutMs: 45000 });
-  assert.equal(driven.ok, true, !driven.ok ? `commissioning failed: ${driven.reason}` : undefined);
+  const driven = await driveCommissioningToActive({ seuId, actorRole: "super", actorId: TESTER_OBJECTIVE_ATHENS.participantId, timeoutMs: 45000 });
+  assert.equal(driven.ok, true, !driven.ok ? `commissioning failed: ${driven.reason}` : "assertion failed");
 
   // deliverableKickoffHandler's own automatic rescan (off SEUOperational,
   // and again off every later DeliverableTransitioned/resolved
@@ -381,7 +384,7 @@ function findKnowledgeItemId(html: string): string {
 }
 
 test("Flow 1 — commission an SEU end to end: redirects to its detail page, reaches Operational, SEUOperational event present", async () => {
-  const request = newSession();
+  const request = newSession(ROOT_USER_ID);
   const { seuId } = await commissionSeu(request, "webflow-commission");
 
   const detail = await getPage(request, `/seu/seus/${seuId}`);
@@ -391,7 +394,7 @@ test("Flow 1 — commission an SEU end to end: redirects to its detail page, rea
 });
 
 test("Flow 2 — Capability Fulfilment: fulfilling a Capability flips its status to Fulfilled", async () => {
-  const request = newSession();
+  const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionSeu(request, "webflow-fulfil");
   const detail = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(detail.html, "requirements-analysis");
@@ -407,7 +410,7 @@ test("Flow 2 — Capability Fulfilment: fulfilling a Capability flips its status
 });
 
 test("Flow 3 — Deliverable transition, valid: a Participant-fulfilled Deliverable moves to the next declared state", async () => {
-  const request = newSession();
+  const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionSeu(request, "webflow-valid-transition");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
@@ -450,7 +453,7 @@ test("Flow 3 — Deliverable transition, valid: a Participant-fulfilled Delivera
 });
 
 test("Flow 4 — Deliverable transition, invalid: rejected with an explicit error, not silently accepted and not a 500", async () => {
-  const request = newSession();
+  const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionSeu(request, "webflow-invalid-transition");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
@@ -476,7 +479,7 @@ test("Flow 4 — Deliverable transition, invalid: rejected with an explicit erro
 });
 
 test("Flow 5 — Deliverable transition, dependency gating (regression: must never go green by accident)", async () => {
-  const request = newSession();
+  const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionSeu(request, "webflow-dependency-gating");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const reqCapabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
@@ -533,7 +536,7 @@ test("Flow 5 — Deliverable transition, dependency gating (regression: must nev
 // deferral, so there is no more "no Participant currently fulfils..." error
 // flash on the first attempt — that reason no longer exists.
 test("Phase 3 — a dispatched web transition leaves a real Command and Work Item, and dispatch genuinely rejects without a fulfilled Capability", async () => {
-  const request = newSession();
+  const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionSeu(request, "webflow-phase3");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
@@ -612,7 +615,7 @@ test("Phase 3 — a dispatched web transition leaves a real Command and Work Ite
 // direct-function tests/governance-depth.test.ts), so any block seen here can
 // only be the Quality Gate/Obligation, not the Dependency Engine.
 test("Phase 4 — a Quality Gate blocks a Deliverable transition while an Obligation is unresolved, and allows it once Verified", async () => {
-  const request = newSession();
+  const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionSeu(request, "webflow-phase4");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
@@ -683,7 +686,7 @@ test("Phase 4 — a Quality Gate blocks a Deliverable transition while an Obliga
 // is blocked without it and allowed with it." The new "Approved" -> "Baselined"
 // Deliverable transition (Phase 5) is gated exactly this way.
 test("Phase 5 — a Deliverable transition requiring accepted Evidence is blocked without it and allowed with it", async () => {
-  const request = newSession();
+  const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionSeu(request, "webflow-phase5");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
@@ -735,7 +738,7 @@ test("Phase 5 — a Deliverable transition requiring accepted Evidence is blocke
 // test that promoting a Knowledge Item's scope produces a visible
 // Organisational Learning Obligation."
 test("Phase 6 — promoting a Published Knowledge Item's scope raises a visible Organisational Learning Obligation and appears on the Engineering Capital screen", async () => {
-  const request = newSession();
+  const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionSeu(request, "webflow-phase6");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const deliverableId = findDeliverableId(before1.html, "Requirements Analysis Model");
@@ -780,7 +783,7 @@ test("Phase 6 — promoting a Published Knowledge Item's scope raises a visible 
 // Post-MVP Build Sequence.md's own Phase 7 "Done when" line, per this
 // brief's closing instruction to use that line "as the starting spec."
 test("Phase 7 — Flow and Governance Telemetry are real, and a sustained pattern of Quality Gate blocking raises exactly one Organisational Learning Obligation", async () => {
-  const request = newSession();
+  const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionSeu(request, "webflow-phase7");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
@@ -840,8 +843,8 @@ function findExternalInteractionId(html: string): string {
 
 async function registerOrganisationName(code: string): Promise<void> {
   await pool.query(
-    "INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id) VALUES ('organisation-name', $1, $2, '11111111-1111-1111-1111-111111111111') ON CONFLICT DO NOTHING",
-    [code, code]
+    "INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id, author_id, author_badge) VALUES ('organisation-name', $1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
+    [code, code, PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE]
   );
 }
 
@@ -927,16 +930,16 @@ async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: st
   const { data: profile } = await profilesDB.findById(profilePublish.profileId);
 
   await ensureEventSubscriptionsLoaded();
-  const { objective: root } = await createObjective({ statement: `${statementPrefix}-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TEST_USER_ALL_BADGES });
-  const { objective } = await createObjective({ statement: `${statementPrefix}-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TEST_USER_ALL_BADGES });
+  const { objective: root } = await createObjective({ statement: `${statementPrefix}-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_OBJECTIVE_ATHENS.participantId });
+  const { objective } = await createObjective({ statement: `${statementPrefix}-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_OBJECTIVE_ATHENS.participantId });
 
-  const commissioned = await commissionSeuCore({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: String(TEST_USER_ALL_BADGES), requestedBy: TEST_USER_ALL_BADGES });
-  assert.equal(commissioned.ok, true, !commissioned.ok ? `Validate Request failed: ${JSON.stringify(commissioned)}` : undefined);
+  const commissioned = await commissionSeuCore({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_OBJECTIVE_ATHENS.participantId, requestedBy: TESTER_OBJECTIVE_ATHENS.participantId });
+  assert.equal(commissioned.ok, true, !commissioned.ok ? `Validate Request failed: ${JSON.stringify(commissioned)}` : "assertion failed");
   if (!commissioned.ok) throw new Error("unreachable");
   const seuId = commissioned.seu.id;
 
-  const driven = await driveCommissioningToActive({ seuId, actorRole: "super", actorId: String(TEST_USER_ALL_BADGES), timeoutMs: 45000 });
-  assert.equal(driven.ok, true, !driven.ok ? `commissioning failed: ${driven.reason}` : undefined);
+  const driven = await driveCommissioningToActive({ seuId, actorRole: "super", actorId: TESTER_OBJECTIVE_ATHENS.participantId, timeoutMs: 45000 });
+  assert.equal(driven.ok, true, !driven.ok ? `commissioning failed: ${driven.reason}` : "assertion failed");
 
   // Web session established here, for this test's own subsequent form
   // POSTs — same reason commissionSeu's own picker GET establishes one.
@@ -959,7 +962,7 @@ async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: st
 // automatically surfaces a second, Exception-category Attention Item —
 // the Ch.36 §13 -> Ch.34 cross-chapter integration point.
 test("Phase 8 — a blocked Quality Gate and a failed External Interaction both surface real Attention Items on the platform-wide inbox", async () => {
-  const request = newSession();
+  const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionIsolatedPhase8Seu(request, "webflow-phase8");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
@@ -1078,7 +1081,7 @@ test("Phase 8 — a blocked Quality Gate and a failed External Interaction both 
 // then exercises the two routes that *do* exist over real HTTP: the
 // Registry listing and the lifecycle-transition form.
 test("Phase 9 — a Pack published through the SDK is visible on the platform-wide Registry, and its lifecycle transitions over real HTTP", async () => {
-  const request = newSession();
+  const request = newSession(ROOT_USER_ID);
   // CR-079 bug fix — `code` used to be a freshly-registered, random-UUID-
   // suffixed capability-name concept per run. Owner: "the ontology was
   // updated with what test fixture needs. This should be removed. The
@@ -1100,7 +1103,7 @@ test("Phase 9 — a Pack published through the SDK is visible on the platform-wi
     contributions: {},
   };
   const published = await publishPack({ seed, actorRole: "power", actorId: TESTER_ALL_ID, activate: true });
-  assert.equal(published.ok, true, !published.ok ? JSON.stringify(published.errors) : undefined);
+  assert.equal(published.ok, true, !published.ok ? JSON.stringify(published.errors) : "assertion failed");
   assert.equal(published.pack!.status, "Active");
 
   // The Registry list is paginated (List UI Requirements) — scope the page to
@@ -1148,7 +1151,7 @@ test("Phase 9 — a Pack published through the SDK is visible on the platform-wi
 // card's own assigned-Participant section) followed by an ordinary Fulfil
 // again — exactly what a person clicking through the real page does today.
 test("Participant Lifecycle Governance, Build order step 5 — replacing a fulfilled Capability's Participant over real HTTP", async () => {
-  const request = newSession();
+  const request = newSession(ROOT_USER_ID);
   const { seuId, csrf } = await commissionSeu(request, "webflow-participant-replace");
   const before1 = await getPage(request, `/seu/seus/${seuId}`);
   const capabilityId = findUnfulfilledCapabilityId(before1.html, "requirements-analysis");
@@ -1204,16 +1207,14 @@ function findObjectiveIdByStatement(html: string, statement: string): string {
 // is observable through objective-lifecycle.test.ts's direct core-function
 // calls, so it needs its own coverage at this layer, same as every other
 // flow in this file.
-// TEST_USER_ALL_BADGES (1001) — real seeded row, tenant
-// 17db886a-3c7a-4b17-8863-5783dc40e1ea, holds every objective_* badge
-// (objective-lifecycle.test.ts's own cross-tenant fixture set) — a real,
+// TESTER_OBJECTIVE_ATHENS (testFixtures.ts, seedIdentityBaseline.ts) — real
+// seeded row, Athens tenant, holds every real objective_* badge — a real,
 // scoped identity, not root, so this flow actually exercises the
 // objective_propose gate and the tenant-reach checks rather than bypassing
 // them.
-const TEST_USER_ALL_BADGES = 1001;
 
 test("Objectives — Create and the Edit page's Save both redirect to the list, which offers both View and Edit on each row", async () => {
-  const request = newSession(TEST_USER_ALL_BADGES);
+  const request = newSession(TESTER_OBJECTIVE_ATHENS.userId);
 
   const newForm = await getPage(request, "/seu/objectives/new");
   assert.equal(newForm.status, 200);
@@ -1267,7 +1268,7 @@ test("Objectives — Create and the Edit page's Save both redirect to the list, 
 // directly, same as objective-lifecycle.test.ts already covers at the core
 // level — this just confirms the web-layer wiring end to end.
 test("Objectives — the list hides Edit once locked; Comments still works; a direct Save attempt is still refused for real", async () => {
-  const request = newSession(TEST_USER_ALL_BADGES);
+  const request = newSession(TESTER_OBJECTIVE_ATHENS.userId);
 
   const newForm = await getPage(request, "/seu/objectives/new");
   const newCsrf = extractCsrf(newForm.html);
@@ -1321,15 +1322,14 @@ test("Objectives — the list hides Edit once locked; Comments still works; a di
   assert.doesNotMatch(afterSaveAttempt.html, /should-not-apply/, "the blocked Save must not have applied");
 });
 
-// ATHENS_NO_PROPOSE (2001) — real seeded row, tenant
-// adfbc3d0-d00e-440b-a115-6b7988ca2865, holds objective_achieve only, NOT
-// objective_propose. Deliberately used here instead of root/1001 so this
-// test proves the real denial (owner: "Only Objective_propose badges are...
-// allowed to add them"), not just the button being hidden.
-const ATHENS_NO_PROPOSE = 2001;
+// TESTER_OBJECTIVE_ACHIEVE_ONLY (testFixtures.ts) — real seeded row, Athens
+// tenant, holds objective_achieve only, NOT objective_propose. Deliberately
+// used here instead of root/TESTER_OBJECTIVE_ATHENS so this test proves the
+// real denial (owner: "Only Objective_propose badges are... allowed to add
+// them"), not just the button being hidden.
 
 test("Objectives — GET /new, a direct POST create, and GET /:id/edit all real-refuse a viewer without objective_propose", async () => {
-  const request = newSession(ATHENS_NO_PROPOSE);
+  const request = newSession(TESTER_OBJECTIVE_ACHIEVE_ONLY.userId);
 
   // The list itself is still viewable — this gate is about adding/editing,
   // not viewing — and it must not offer the buttons this viewer can't use.
@@ -1376,7 +1376,7 @@ test("Objectives — GET /new, a direct POST create, and GET /:id/edit all real-
     requiredCapabilityCodes: [],
     tier: "Strategic",
     status: "Proposed",
-    requestedBy: ATHENS_NO_PROPOSE,
+    requestedBy: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId,
   });
   // No Referer on this GET either — same default-fallback location as above.
   const editRedirect = await getRedirect(request, `/seu/objectives/${ownTenantObjective.id}/edit`);
@@ -1386,14 +1386,11 @@ test("Objectives — GET /new, a direct POST create, and GET /:id/edit all real-
   assert.match(editAttempt.html, /You are not authorised for this action/);
 });
 
-// BABYLON_TENANT_OBJECTIVE fixture (below) belongs to obj-achieve@babylon.com's
-// tenant (28ced917-2d8a-446b-9bf2-531ab157e1fc) — genuinely distinct from
-// TEST_USER_ALL_BADGES's own tenant (17db886a-3c7a-4b17-8863-5783dc40e1ea),
-// same cross-tenant fixture set objective-lifecycle.test.ts's own
-// reParentObjective/listReParentCandidates coverage uses. TEST_USER_ALL_BADGES
-// holds every objective_* badge, isolating this test to the tenant-reach gate
-// alone (a badge-less viewer would be blocked earlier, for the wrong reason).
-const BABYLON_ACTOR = 2011;
+// TESTER_OBJECTIVE_BABYLON (testFixtures.ts) — real seeded row, Babylon
+// tenant, genuinely distinct from TESTER_OBJECTIVE_ATHENS's own Athens
+// tenant. Both hold every real objective_* badge, isolating this test to the
+// tenant-reach gate alone (a badge-less viewer would be blocked earlier, for
+// the wrong reason).
 
 test("Objectives — the web layer's own tenant-reach gate blocks a real badge holder from another tenant's Objective, not just root-bypassed access", async () => {
   const { objective: babylonObjective } = await createObjective({
@@ -1401,17 +1398,17 @@ test("Objectives — the web layer's own tenant-reach gate blocks a real badge h
     requiredCapabilityCodes: [],
     tier: "Strategic",
     status: "Proposed",
-    requestedBy: BABYLON_ACTOR,
+    requestedBy: TESTER_OBJECTIVE_BABYLON.participantId,
   });
 
   // Positive control — the owning tenant can see it fine.
-  const ownTenantView = await getPage(newSession(BABYLON_ACTOR), `/seu/objectives/${babylonObjective.id}`);
+  const ownTenantView = await getPage(newSession(TESTER_OBJECTIVE_BABYLON.userId), `/seu/objectives/${babylonObjective.id}`);
   assert.equal(ownTenantView.status, 200);
   assert.match(ownTenantView.html, new RegExp(babylonObjective.statement));
 
   // router.param("id") — a real, badge-holding, different-tenant viewer gets
   // "Objective not found," never the content, never a distinguishable 403.
-  const outsider = newSession(TEST_USER_ALL_BADGES);
+  const outsider = newSession(TESTER_OBJECTIVE_ATHENS.userId);
   const detailRedirect = await getRedirect(outsider, `/seu/objectives/${babylonObjective.id}`);
   assert.equal(detailRedirect.status, 302);
   assert.equal(detailRedirect.location, "/aisworg/seu/objectives");
@@ -1447,17 +1444,17 @@ test("Objectives — the web layer's own tenant-reach gate blocks a real badge h
 // access again") — before this, POST /update, /move, /submit, and /delete had
 // NO server-side badge check at all; only the list hiding the Edit/Delete
 // link stood between a badge-less viewer and a direct POST. Proves each one
-// now genuinely refuses, for real, in ATHENS_NO_PROPOSE's own tenant (so
+// now genuinely refuses, for real, in TESTER_OBJECTIVE_ACHIEVE_ONLY's own tenant (so
 // tenant-reach can't be the reason it's blocked — isolates the badge gate).
 test("Objectives — update/move/submit/delete all real-refuse a viewer without objective_propose (previously had no route-level check at all)", async () => {
-  const request = newSession(ATHENS_NO_PROPOSE);
+  const request = newSession(TESTER_OBJECTIVE_ACHIEVE_ONLY.userId);
   const originalStatement = `webflow-no-propose-mutate-${randomUUID()}`;
   const { objective } = await createObjective({
     statement: originalStatement,
     requiredCapabilityCodes: [],
     tier: "Strategic",
     status: "Proposed",
-    requestedBy: ATHENS_NO_PROPOSE,
+    requestedBy: TESTER_OBJECTIVE_ACHIEVE_ONLY.participantId,
   });
 
   const list = await getPage(request, "/seu/objectives");

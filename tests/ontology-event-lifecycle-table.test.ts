@@ -38,14 +38,16 @@ import pool from "../src/utils/db.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { ontologyDB } from "../src/dblayer/ontologyDB.js";
-import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
+const PLATFORM_TENANT_ID = await getPlatformTenantId();
 import { addConcept, approveConcept, updateConceptMeta, composeConcept, deprecateConcept, retireConcept, archiveConcept, type OntologyActor } from "../src/routes/seu/core/ontology.js";
+import { TESTER_ALL_ID } from "./testFixtures.js";
 
-// TESTER_ALL_ID (1001, seedIdentityBaseline.ts) — "holds every active
+// TESTER_ALL_ID (seedIdentityBaseline.ts) — "holds every active
 // noun_verb (any authorised transition)" — the same standing test-fixture
 // actor every other lifecycle-table test file already uses for its governed
 // transitions (ontology_deprecate/ontology_retire/ontology_archive here).
-const ACTOR: OntologyActor = { isRoot: true, tenantId: null, actorId: "1001" };
+const ACTOR: OntologyActor = { isRoot: true, tenantId: null, actorId: TESTER_ALL_ID, actorBadge: "root" };
 const CONCEPT_TYPE_PREFIX = "test-ontology-lifecycle";
 
 function freshConceptType(): string {

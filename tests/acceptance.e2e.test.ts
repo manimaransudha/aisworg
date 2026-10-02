@@ -16,13 +16,21 @@ import fetchCookie from "fetch-cookie";
 import pool from "../src/utils/db.js";
 import app from "../src/app.js";
 import { appConfig } from "../src/config/appconfig.js";
-import { ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, waitForDispatchedWorkItem } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, waitForDispatchedWorkItem, TESTER_ACCEPTANCE_JOURNEY } from "./testFixtures.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 
 let server: ReturnType<typeof app.listen>;
 let baseUrl: string;
 let webBaseUrl: string;
-let request: ReturnType<typeof fetchCookie>;
+// Node's own fetch/Response ambient types (no "DOM" lib configured) declare
+// json()/text() as Promise<unknown> — every real caller here destructures
+// real, known response shapes straight off it, so narrow to Promise<any> at
+// the one boundary instead of casting at each call site.
+interface FetchResponse extends Response {
+  json(): Promise<any>;
+  text(): Promise<string>;
+}
+let request: (input: string, init?: RequestInit) => Promise<FetchResponse>;
 
 // Capability Fulfilment has no JSON API surface for a real participants_master
 // Participant — only src/routes/seu/api/seus.ts's own ad-hoc {type,displayName}
@@ -46,11 +54,11 @@ function extractCsrf(html: string): string {
 // same as web-flow.e2e.test.ts did before that fix. root bypasses every
 // badge/tenant check by design (CR-076's own requireBadge/requireTenantScope
 // included), so a suite that only ever runs as root can't actually exercise
-// those gates. TESTER_ALL_ID (1001, seedIdentityBaseline.ts) is a real,
-// non-root, tenant-scoped seeded user who holds every objective_*/deliverable_*/
-// seu_*/... badge (every noun_verb this journey needs), so this journey now
-// runs as a real, authorised identity instead of an implicit bypass.
-const TESTER_ALL_ID = 1001;
+// those gates. TESTER_ACCEPTANCE_JOURNEY (testFixtures.ts,
+// seedIdentityBaseline.ts) is a real, non-root, tenant-scoped seeded user who
+// holds every real noun_verb badge (every verb this journey needs), so this
+// journey now runs as a real, authorised identity instead of an implicit
+// bypass.
 
 before(async () => {
   // Must run before this file's own commission POST — see
@@ -66,11 +74,11 @@ before(async () => {
   webBaseUrl = `http://127.0.0.1:${address.port}/aisworg/seu`;
   const jarFetch = fetchCookie(fetch, new CookieJar());
   request = (async (input: any, init?: any) =>
-    jarFetch(input, { ...init, headers: { ...(init?.headers ?? {}), "x-test-user-id": String(TESTER_ALL_ID) } })) as unknown as typeof jarFetch;
+    jarFetch(input, { ...init, headers: { ...(init?.headers ?? {}), "x-test-user-id": TESTER_ACCEPTANCE_JOURNEY.userId } })) as unknown as typeof jarFetch;
 });
 
 after(async () => {
-  await new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())));
+  await new Promise<void>((resolve, reject) => server.close((err: Error | undefined) => (err ? reject(err) : resolve())));
 });
 
 test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a Capability, progress a Deliverable", async () => {
@@ -142,8 +150,8 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
   // here, same as every other test exercising the outcome of commissioning
   // rather than these new async/manual mechanics.
   assert.equal(commissioning.lifecycleState, "Pending");
-  const driven = await driveCommissioningToActive({ seuId, actorRole: "general", actorId: String(TESTER_ALL_ID) });
-  assert.equal(driven.ok, true, !driven.ok ? `commissioning failed: ${driven.reason}` : undefined);
+  const driven = await driveCommissioningToActive({ seuId, actorRole: "general", actorId: TESTER_ACCEPTANCE_JOURNEY.participantId });
+  assert.equal(driven.ok, true, !driven.ok ? `commissioning failed: ${driven.reason}` : "assertion failed");
   assert.equal(driven.ok && driven.seu.lifecycle_state, "Operational");
   const { data: ebm } = driven.ok && driven.seu.active_ebm_id ? await ebmsDB.findById(driven.seu.active_ebm_id) : { data: null };
   assert.ok(ebm?.composed_packs.some((p) => p.packCode === "development"), "expected the fixture Template's own mandatory Pack to have been composed");

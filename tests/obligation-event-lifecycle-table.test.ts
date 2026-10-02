@@ -21,6 +21,7 @@ import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { transitionObligation, reviseObligation } from "../src/routes/seu/core/obligations.js";
 import { createObligationAsRoot as createObligation } from "./testFixtures.js";
 import { commissionFromFormSync, ensureEventSubscriptionsLoaded, resolveDispatchRejectionObligations } from "./testFixtures.js";
+import { TESTER_ALL_ID } from "./testFixtures.js";
 
 before(async () => {
   await ensureEventSubscriptionsLoaded();
@@ -79,8 +80,8 @@ async function freshObligation(title: string) {
 
 async function driveTo(obligationId: string, states: string[]) {
   for (const targetState of states) {
-    const result = await transitionObligation({ obligationId, targetState, actorRole: "super", actorId: "1001" });
-    assert.equal(result.ok, true, !result.ok ? `-> ${targetState} failed: ${JSON.stringify(result)}` : undefined);
+    const result = await transitionObligation({ obligationId, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
+    assert.equal(result.ok, true, !result.ok ? `-> ${targetState} failed: ${JSON.stringify(result)}` : "assertion failed");
   }
 }
 
@@ -94,10 +95,10 @@ test("DRIVEN setup: a real SEU to hang Obligations off", async () => {
     statement: `obligation-lifecycle-table-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super",
-    actorId: "1001",
-    requestedBy: 1001,
+    actorId: TESTER_ALL_ID,
+    requestedBy: TESTER_ALL_ID,
   });
-  assert.equal(result.ok, true, result.ok ? undefined : `${result.stage}: ${result.reason}`);
+  assert.equal(result.ok, true, result.ok ? "" : `${result.stage}: ${result.reason}`);
   if (!result.ok) return;
   seuId = result.seu.id;
   await resolveDispatchRejectionObligations(seuId);
@@ -120,7 +121,7 @@ test("DRIVEN: every main-chain hop publishes its own named event AND the generic
   const genericForClose = (events ?? []).find((e) => e.event_type === "ObligationTransitioned" && (e.payload as { toState?: string }).toState === "Closed")!;
   assert.equal(closed.correlation_id, genericForClose.correlation_id);
   assert.deepEqual(closed.payload, genericForClose.payload);
-  assert.equal(closed.actor_id, "1001");
+  assert.equal(closed.actor_id, TESTER_ALL_ID);
 });
 
 test("DRIVEN: Closed -> Reopened -> In Progress works and publishes ObligationReopened; a Reopened Obligation is not Verified/Closed/Archived", async () => {
@@ -150,7 +151,7 @@ test("DRIVEN: Escalate is reachable from every pre-Closed state and publishes Ob
 
   const closed = await freshObligation("no escalate from closed");
   await driveTo(closed.id, ["Analysed", "Assigned", "In Progress", "Resolved", "Verified", "Closed"]);
-  const result = await transitionObligation({ obligationId: closed.id, targetState: "Escalated", actorRole: "super", actorId: "1001" });
+  const result = await transitionObligation({ obligationId: closed.id, targetState: "Escalated", actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(result.ok, false);
   if (!result.ok) assert.equal(result.reason, "no_transition_definition");
 });
@@ -158,7 +159,7 @@ test("DRIVEN: Escalate is reachable from every pre-Closed state and publishes Ob
 test("DRIVEN: closure cannot skip verification", async () => {
   const obligation = await freshObligation("no skip");
   await driveTo(obligation.id, ["Analysed", "Assigned", "In Progress", "Resolved"]);
-  const result = await transitionObligation({ obligationId: obligation.id, targetState: "Closed", actorRole: "super", actorId: "1001" });
+  const result = await transitionObligation({ obligationId: obligation.id, targetState: "Closed", actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(result.ok, false);
 });
 
@@ -169,23 +170,23 @@ test("DRIVEN: reviseObligation appends only changed fields to revision_history, 
   const eventsBefore = await eventTypesFor(obligation.id);
 
   const oldDescription = before!.description;
-  const revised = await reviseObligation({ obligationId: obligation.id, actorId: "1001", description: "new description", severity: before!.severity });
+  const revised = await reviseObligation({ obligationId: obligation.id, actorId: TESTER_ALL_ID, description: "new description", severity: before!.severity });
   assert.equal(revised!.description, "new description");
   assert.equal(revised!.status, before!.status);
   assert.equal(revised!.version, before!.version, "a Revision must not bump the version-significant counter");
   assert.equal(revised!.revision_history.length, 1);
   const entry = revised!.revision_history[0] as { actor_id: string; changes: Record<string, { from: unknown; to: unknown }> };
-  assert.equal(entry.actor_id, "1001");
+  assert.equal(entry.actor_id, TESTER_ALL_ID);
   assert.deepEqual(Object.keys(entry.changes), ["description"], "severity was unchanged — must not appear");
   assert.deepEqual(entry.changes.description, { from: oldDescription, to: "new description" });
 
   // Second revision appends, never overwrites the first.
-  const again = await reviseObligation({ obligationId: obligation.id, actorId: "1001", description: "third description" });
+  const again = await reviseObligation({ obligationId: obligation.id, actorId: TESTER_ALL_ID, description: "third description" });
   assert.equal(again!.revision_history.length, 2);
   assert.deepEqual((again!.revision_history[1] as { changes: Record<string, unknown> }).changes.description, { from: "new description", to: "third description" });
 
   // No-op revision writes nothing.
-  const noop = await reviseObligation({ obligationId: obligation.id, actorId: "1001", description: "third description" });
+  const noop = await reviseObligation({ obligationId: obligation.id, actorId: TESTER_ALL_ID, description: "third description" });
   assert.equal(noop!.revision_history.length, 2);
 
   assert.deepEqual(await eventTypesFor(obligation.id), eventsBefore, "a Revision publishes no event of any kind");

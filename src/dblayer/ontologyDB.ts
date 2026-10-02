@@ -1,6 +1,7 @@
 import { query, bulkInsert } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
 import { PLATFORM_TENANT_NAME } from "./constants.js";
+import { userDB } from "./userDB.js";
 import type { DbResult, OntologyConceptRow, OntologyConceptCommentRow, TenantConceptAliasRow } from "./seuTypes.js";
 import { tenantsDB } from "./tenantsDB.js"
 
@@ -347,14 +348,19 @@ export const ontologyDB = {
     }
   },
 
+  // author_id/author_badge are NOT NULL (tenant_concept_aliases_schema_
+  // recovery.sql) but core/ontology.ts's own setAlias has no actor param to
+  // thread through yet. Same stopgap as participantsDB.create: resolves the
+  // SUPERUSER_EMAIL superuser as author.
   async upsertAlias(input: { tenantId: string; conceptType: string; canonicalCode: string; displayLabel: string }): Promise<DbResult<TenantConceptAliasRow>> {
     try {
+      const { actorId, actorBadge } = await userDB.getSuperuserId();
       const { rows } = await query<TenantConceptAliasRow>(
-        `INSERT INTO tenant_concept_aliases (tenant_id, concept_type, canonical_code, display_label)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO tenant_concept_aliases (tenant_id, concept_type, canonical_code, display_label, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6)
          ON CONFLICT (tenant_id, concept_type, canonical_code) DO UPDATE SET display_label = EXCLUDED.display_label, updated_at = NOW()
          RETURNING *`,
-        [input.tenantId, input.conceptType, input.canonicalCode, input.displayLabel]
+        [input.tenantId, input.conceptType, input.canonicalCode, input.displayLabel, actorId, actorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

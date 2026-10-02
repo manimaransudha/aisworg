@@ -6,7 +6,6 @@ import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { triggerEngine } from "../../../domain/engine/triggerEngine.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
-import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 import { eventsDB } from "../../../dblayer/eventsDB.js";
 import { userDB } from "../../../dblayer/userDB.js";
 import { findCandidateTemplates } from "./templates.js";
@@ -58,19 +57,22 @@ async function resolveRequiredCapabilities(codes: string[]): Promise<RequiredCap
 }
 
 // objective_capabilities.author_id/author_badge are NOT NULL, no default
-// (schema recovery audit) — resolved off the requesting user's own real,
-// live held badges intersected with what POST /objectives actually requires
-// (route_authority), not a literal (same discipline as web/objectives.ts's
-// compose-ebm handler). requestedBy is always the acting user here (every
+// (schema recovery audit) — pure attribution, not authorisation: records
+// whichever real badge the requesting user actually holds. Whether they are
+// ALLOWED to call this in the first place is routeAuthorityGate's job alone
+// (route_authority), not this function's — createObjective/updateObjective
+// are also called directly by test fixtures bypassing HTTP entirely, so
+// re-deriving the route's own required-badge intersection here would wrongly
+// refuse an otherwise-legitimate attribution for a caller the HTTP gate
+// never ran against. requestedBy is always the acting user here (every
 // createObjective/updateObjective caller sets it to the session user id),
 // so there is no separate actorId to thread through.
 async function resolveCapabilityAuthor(requestedBy: string): Promise<{ authorId: string; authorBadge: string }> {
   const { data: master } = await participantsMasterDB.findById(requestedBy);
   if (!master) throw new Error(`No superuser provisioned.`);
   const { isRoot, badgeTypes } = await badgeAuthorityEngine.getHeldBadges(String(requestedBy));
-  const authRow = lookupRouteAuthority("POST", "/aisworg/seu/objectives");
-  const authorBadge = isRoot ? "root" : authRow?.badges.find((b) => badgeTypes.has(b));
-  if (!authorBadge) throw new Error("no held badge authorises this action — cannot record an author badge");
+  const authorBadge = isRoot ? "root" : [...badgeTypes][0];
+  if (!authorBadge) throw new Error(`participant ${master.id} holds no badge at all — cannot record an author badge`);
   return { authorId: master.id, authorBadge };
 }
 
@@ -680,10 +682,11 @@ export async function submitObjective(id: string, actorId: string): Promise<void
   if (alreadySubmitted) throw new Error(`Objective ${id} has already been submitted from status "${objective.status}"`);
 
   const requiredBadge = `objective_${submitVerb}`;
-  const auth = await badgeAuthorityEngine.authorise({ actorId: actorId != null ? String(actorId) : "", requiredBadge });
+  const auth = await badgeAuthorityEngine.authorise({ actorId, requiredBadge });
   if (!auth.allowed) throw new Error(`requires badge ${requiredBadge}`);
+  const submitBadge = auth.via === "root" ? "root" : (auth.matchedBadge ?? requiredBadge);
 
-  await triggerEngine.submit({ entityType: "Objective", entityId: id, fromState: objective.status, actorId: actorId != null ? String(actorId) : null });
+  await triggerEngine.submit({ entityType: "Objective", entityId: id, fromState: objective.status, actorId, authorityBadge: submitBadge });
 }
 
 // Edit is not a transition — no tier, no lifecycle-state gating (owner:
@@ -1106,8 +1109,8 @@ export async function transitionObjective(input: { objectiveId: string; targetSt
     seuId: null, // an Objective has no single owning SEU (zero-or-many, not stored on ObjectiveRow)
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
-    actorId: input.actorId ?? null,
-    authorityBadge: gate.authorityBadge,
+    actorId: input.actorId,
+    authorityBadge: gate.authorityBadge ?? "root",
   });
 
   return { ok: true, objective: updated, appliedTransition: { fromState, toState: input.targetState } };

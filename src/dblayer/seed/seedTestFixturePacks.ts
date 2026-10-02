@@ -66,6 +66,7 @@ import path from "node:path";
 import pool from "../../utils/db.js";
 import { logger } from "../../utils/logger.js";
 import { publishPack, type PackSeedInput } from "../../routes/seu/core/packs.js";
+import { userDB } from "../userDB.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "data", "test-fixtures");
@@ -172,14 +173,16 @@ const INDEPENDENT_TEST_FIXTURE_PACK_FILES = [
 const DEPENDENT_TEST_FIXTURE_PACK_FILES = ["test-domain-ebook-library.pack.json", "test-technology-nodejs.pack.json"];
 const TEST_FIXTURE_PACK_FILES = [...INDEPENDENT_TEST_FIXTURE_PACK_FILES, ...DEPENDENT_TEST_FIXTURE_PACK_FILES];
 
-async function publishBatch(files: string[]): Promise<PromiseSettledResult<boolean | undefined>[]> {
+async function publishBatch(files: string[], actorId: string): Promise<PromiseSettledResult<boolean | undefined>[]> {
   return Promise.allSettled(
     files.map(async (file) => {
       const seed = loadJson<PackSeedInput>(file);
-      // Same convention every other seed script uses (root holder "1" bypasses
-      // noun×verb authority — CR-006) — publishPack/createPackDraft are
-      // rerun-safe (VM-002), so this is safe on every test process start.
-      const result = await publishPack({ seed, actorRole: "super", actorId: "1", activate: true });
+      // Runs as the real SUPERUSER_EMAIL-provisioned participants_master row
+      // (holds `root`, which bypasses noun×verb authority — CR-006), resolved
+      // once by the caller via userDB.getSuperuserId() — publishPack/
+      // createPackDraft are rerun-safe (VM-002), so this is safe on every
+      // test process start.
+      const result = await publishPack({ seed, actorRole: "super", actorId, activate: true });
       if (!result.ok) {
         throw new Error(`failed to publish "${seed.code}": ${(result.errors ?? []).join("; ")}`);
       }
@@ -189,7 +192,8 @@ async function publishBatch(files: string[]): Promise<PromiseSettledResult<boole
 }
 
 export async function seedAllTestFixturePacks(): Promise<void> {
-  const independentResults = await publishBatch(INDEPENDENT_TEST_FIXTURE_PACK_FILES);
+  const { actorId } = await userDB.getSuperuserId();
+  const independentResults = await publishBatch(INDEPENDENT_TEST_FIXTURE_PACK_FILES, actorId);
   const independentFailures = independentResults.filter((r): r is PromiseRejectedResult => r.status === "rejected").map((r) => (r.reason as Error).message);
   if (independentFailures.length > 0) {
     throw new Error(`[seed:test-fixture-packs] ${independentFailures.length} of ${TEST_FIXTURE_PACK_FILES.length} Packs failed: ${independentFailures.join(" | ")}`);
@@ -198,7 +202,7 @@ export async function seedAllTestFixturePacks(): Promise<void> {
   // Only started once every independent Pack (including test-openup-test,
   // which provides test-testing-qa) has fully committed — these 2 depend on
   // it being Active already, not just published earlier in this call.
-  const dependentResults = await publishBatch(DEPENDENT_TEST_FIXTURE_PACK_FILES);
+  const dependentResults = await publishBatch(DEPENDENT_TEST_FIXTURE_PACK_FILES, actorId);
   const dependentFailures = dependentResults.filter((r): r is PromiseRejectedResult => r.status === "rejected").map((r) => (r.reason as Error).message);
   if (dependentFailures.length > 0) {
     throw new Error(`[seed:test-fixture-packs] ${dependentFailures.length} of ${TEST_FIXTURE_PACK_FILES.length} Packs failed: ${dependentFailures.join(" | ")}`);

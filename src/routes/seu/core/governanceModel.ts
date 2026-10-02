@@ -9,6 +9,7 @@ import { ebmsDB } from "../../../dblayer/ebmsDB.js";
 import { packsDB } from "../../../dblayer/packsDB.js";
 import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
+import { resolveSystemActor } from "./attentionItems.js";
 
 export interface EffectiveGovernanceModel {
   seuId: string;
@@ -66,12 +67,15 @@ export async function getEffectiveGovernanceModel(seuId: string): Promise<Effect
     }
   }
 
+  const governanceSystemActor = await resolveSystemActor(seuId);
   await eventBus.publish({
     eventType: "GovernanceModelInspected",
     originatingObjectType: "SEU",
     originatingObjectId: seuId,
     seuId,
     correlationId: eventBus.newCorrelationId(),
+    actorId: governanceSystemActor.actorId,
+    authorityBadge: governanceSystemActor.authorBadge,
     payload: { ebmVersion: ebm.version, authorityRules: authorityRules.length, policies: policies.length, qualityGates: qualityGates.length },
   });
 

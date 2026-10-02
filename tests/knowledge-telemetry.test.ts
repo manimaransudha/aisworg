@@ -13,13 +13,14 @@ import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { createKnowledgeItem } from "../src/routes/seu/core/knowledge.js";
 import { getKnowledgeMetrics } from "../src/routes/seu/core/telemetry.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, createEvidenceAsRoot as createEvidence } from "./testFixtures.js";
+import { TESTER_ALL_ID } from "./testFixtures.js";
 
 async function commissionTestSeuWithDeliverable(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromFormSync({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: "1001", requestedBy: 1001,
+    actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
   });
   if (!result.ok) throw new Error(`commissioning failed: ${result.reason}`);
   const seuId = result.seu.id;

@@ -126,6 +126,8 @@ export async function createObligation(input: {
     originatingObjectId: obligation.id,
     seuId: obligation.seu_id,
     correlationId: eventBus.newCorrelationId(),
+    actorId: input.actorId,
+    authorityBadge: input.authorBadge,
     payload: { relatedObjectType: input.relatedObjectType, relatedObjectId: input.relatedObjectId, category: input.category, severity: obligation.severity },
   });
 

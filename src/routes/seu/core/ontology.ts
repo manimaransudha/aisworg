@@ -35,7 +35,7 @@ const PLATFORM_TENANT_ID = result.data.id;
 // (resolveLabels, setAlias, the read-only helpers) keeps compiling unchanged.
 export interface OntologyActor extends OntologyViewer {
   actorId: string;
-  actorBadge: String;
+  actorBadge: string;
 }
 
 // Migration 285 — author_id/author_badge are NOT NULL on ontology_concepts,
@@ -709,7 +709,7 @@ async function transitionConcept(
     correlationId: eventBus.newCorrelationId(),
     payload: { conceptType, code, fromState, toState, version: concept.version },
     actorId: authorId,
-    authorityBadge: gate.authorityBadge,
+    authorityBadge: gate.authorityBadge ?? "root",
   });
 
   return updated;
@@ -940,7 +940,7 @@ export async function composeConcept(
     correlationId: eventBus.newCorrelationId(),
     payload: { conceptType, code, version: result.version, strategy: input.strategy, composedFrom },
     actorId: actor.actorId,
-    authorityBadge: null,
+    authorityBadge: actor.actorBadge,
   });
 
   return result;

@@ -14,6 +14,7 @@ import { fulfilCapabilityAsRoot as fulfilCapability } from "./testFixtures.js";
 import { transitionDeliverableSync as transitionDeliverable } from "./testFixtures.js";
 import { getRuntimeMetrics } from "../src/routes/seu/core/telemetry.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, ensureEligibleParticipant } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
@@ -21,7 +22,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
     {
       statement: `${statementPrefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorRole: "super", actorId: "1001", requestedBy: 1001,
+      actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
     },
     async (seuId) => {
       const detail = await getSeuDetailView(seuId);
@@ -30,7 +31,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
       await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
     }
   );
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const seuId = result.seu.id;
 
@@ -46,9 +47,9 @@ test("Runtime Telemetry: a real dispatched transition produces a non-negative di
   const a = await commissionAndFulfilRequirementsSpec("runtime-telemetry-a");
   const b = await commissionAndFulfilRequirementsSpec("runtime-telemetry-b");
 
-  const toInProgressA = await transitionDeliverable({ deliverableId: a.deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
+  const toInProgressA = await transitionDeliverable({ deliverableId: a.deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(toInProgressA.ok, true);
-  const toInProgressB = await transitionDeliverable({ deliverableId: b.deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
+  const toInProgressB = await transitionDeliverable({ deliverableId: b.deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(toInProgressB.ok, true);
 
   const after = await getRuntimeMetrics();

@@ -21,7 +21,8 @@ import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { unravelComposition, detectCompositionConflicts } from "../src/domain/engine/profileCompositionUnravel.js";
-import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
+const PLATFORM_TENANT_ID = await getPlatformTenantId();
 import type { PackContributions } from "../src/dblayer/seuTypes.js";
 import { ROOT_ACTOR_ID } from "./testFixtures.js";
 
@@ -55,22 +56,23 @@ async function createPack(input: { contributions?: PackContributions; dependenci
     authoredBy: ROOT_ACTOR_ID,
     authorBadge: "root",
     schemaDefinitionId: await requirePackSchemaId(),
+    tenantId: PLATFORM_TENANT_ID,
   });
-  assert.ok(!error && pack, error?.message);
+  assert.ok(!error && pack, error?.message ?? "assertion failed");
   const { error: activateError } = await packsDB.updateStatus(pack!.id, "Active");
-  assert.ok(!activateError, activateError?.message);
+  assert.ok(!activateError, activateError?.message ?? "assertion failed");
   return pack!.code;
 }
 
 async function createTemplateAndProfile(mandatoryPackCodes: string[]): Promise<{ templateId: string; profileId: string }> {
   const templateCode = `test-unravel-template-${randomUUID()}`;
   const { data: template, error: templateError } = await templatesDB.upsert({ code: templateCode, name: "Fixture Template", deliverableCatalogue: [] });
-  assert.ok(!templateError && template, templateError?.message);
+  assert.ok(!templateError && template, templateError?.message ?? "assertion failed");
   await templatesDB.setMandatoryPacks(template!.id, mandatoryPackCodes, ROOT_ACTOR_ID, "root");
 
   const profileCode = `test-unravel-profile-${randomUUID()}`;
   const { data: profile, error: profileError } = await profilesDB.upsert({ code: profileCode, name: "Fixture Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
-  assert.ok(!profileError && profile, profileError?.message);
+  assert.ok(!profileError && profile, profileError?.message ?? "assertion failed");
 
   return { templateId: template!.id, profileId: profile!.id };
 }
@@ -156,9 +158,9 @@ test("Policies are informational, never a conflict — different constraintTypes
   const packARow = (await packsDB.findByCode(packA)).data!;
   const packBRow = (await packsDB.findByCode(packB)).data!;
   const { error: err1 } = await policiesDB.upsert({ code: "adr-required", name: "ADR Required (fixture adoption A)", governedTransition, originatingPackId: packARow.id, authorId: packARow.authored_by, authorBadge: packARow.author_badge });
-  assert.ok(!err1, err1?.message);
+  assert.ok(!err1, err1?.message ?? "assertion failed");
   const { error: err2 } = await policiesDB.upsert({ code: "coding-standards", name: "Coding Standards (fixture adoption B)", governedTransition, originatingPackId: packBRow.id, authorId: packBRow.authored_by, authorBadge: packBRow.author_badge });
-  assert.ok(!err2, err2?.message);
+  assert.ok(!err2, err2?.message ?? "assertion failed");
   const { templateId, profileId } = await createTemplateAndProfile([packA, packB]);
 
   const unraveled = await unravelComposition({ templateIds: [templateId], profileIds: [profileId] }, PLATFORM_TENANT_ID);
@@ -172,7 +174,7 @@ test("Policies are informational, never a conflict — different constraintTypes
 
 test("Pack Dependency: a required dependency on a Pack code NOT in the composed set is reported; satisfied when it is", async () => {
   const targetCode = `test-unravel-target-${randomUUID()}`;
-  const { data: targetPack } = await packsDB.create({ code: targetCode, name: "Fixture target Pack", category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", contributions: {}, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", schemaDefinitionId: await requirePackSchemaId() });
+  const { data: targetPack } = await packsDB.create({ code: targetCode, name: "Fixture target Pack", category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", contributions: {}, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", schemaDefinitionId: await requirePackSchemaId(), tenantId: PLATFORM_TENANT_ID });
   assert.ok(targetPack);
   await packsDB.updateStatus(targetPack!.id, "Active");
 
@@ -193,7 +195,7 @@ test("Pack Dependency: a required dependency on a Pack code NOT in the composed 
 
 test("Pack Dependency: an incompatible dependency on a Pack that IS in the composed set is reported", async () => {
   const targetCode = `test-unravel-incompatible-target-${randomUUID()}`;
-  const { data: incompatibleTarget } = await packsDB.create({ code: targetCode, name: "Fixture incompatible target", category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", contributions: {}, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", schemaDefinitionId: await requirePackSchemaId() });
+  const { data: incompatibleTarget } = await packsDB.create({ code: targetCode, name: "Fixture incompatible target", category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional", contributions: {}, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", schemaDefinitionId: await requirePackSchemaId(), tenantId: PLATFORM_TENANT_ID });
   await packsDB.updateStatus(incompatibleTarget!.id, "Active");
   const dependent = await createPack({ dependencies: [{ packCode: targetCode, version: "1.0.0", type: "incompatible" }] });
   const { templateId, profileId } = await createTemplateAndProfile([dependent, targetCode]);

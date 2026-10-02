@@ -10,9 +10,10 @@
 // mechanism (createSchemaVersion is additive-only), so the Version Feature
 // Plan's version_event wiring does not apply here.
 import "dotenv/config";
-import { test } from "node:test";
+import { test, after } from "node:test";
 import assert from "node:assert/strict";
 
+import { query } from "../src/utils/db.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { routeAuthorityDB } from "../src/dblayer/routeAuthorityDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
@@ -21,7 +22,22 @@ import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { createSchemaVersion, publishSchemaVersion, rejectSchemaVersion } from "../src/routes/seu/core/schemaRegistry.js";
 import { TESTER_ALL_ID, ROOT_ACTOR_ID } from "./testFixtures.js";
 
-// TESTER_ALL_ID ("1001") holds every noun_verb grant seeded for tests, so it
+// This file reuses the real "Capability" entity_kind as its fixture (see
+// freshCreatedSchema below), which otherwise permanently pollutes
+// schema_definitions.findLatest("Capability") for every other test and the
+// real app with throwaway {code: string}-only schemas. No application
+// delete path exists for schema_definitions (append-only at the app layer),
+// so this is a raw test-only cleanup query, never a DB-layer method —
+// every id this file creates is tracked here and deleted after the file's
+// own tests finish, restoring findLatest("Capability") to the real row.
+const createdSchemaIds: string[] = [];
+
+after(async () => {
+  if (createdSchemaIds.length === 0) return;
+  await query("DELETE FROM schema_definitions WHERE id = ANY($1::uuid[])", [createdSchemaIds]);
+});
+
+// TESTER_ALL_ID holds every noun_verb grant seeded for tests, so it
 // is authorised for schemadefinition_publish/schemadefinition_reject without
 // needing root. A plain id with no grants proves the denial path.
 const NO_BADGE_ACTOR_ID = "999999";
@@ -58,7 +74,14 @@ async function freshCreatedSchema(): Promise<{ id: string; entityKind: string }>
     authorBadge: "root",
   });
   if (error || !created) throw error ?? new Error("failed to create bare schema_definitions row");
+  createdSchemaIds.push(created.id);
   return { id: created.id, entityKind };
+}
+
+async function trackedCreateSchemaVersion(input: Parameters<typeof createSchemaVersion>[0]): ReturnType<typeof createSchemaVersion> {
+  const result = await createSchemaVersion(input);
+  if (result.ok) createdSchemaIds.push(result.schema.id);
+  return result;
 }
 
 test("DEFINITION: every SchemaDefinition transition_definitions row matches Ch.39 §15's trigger/verb/event_type", async () => {
@@ -85,8 +108,8 @@ test("DEFINITION: route_authority (CR-110) gates both publish/reject routes root
 });
 
 test("DRIVEN: createSchemaVersion auto-advances a new row Created -> Validated -> Tested -> Packaged, one event per hop", async () => {
-  const result = await createSchemaVersion({ entityKind: "Capability", schemaJson: JSON.stringify({ type: "object", properties: { code: { type: "string" } } }) });
-  assert.equal(result.ok, true, !result.ok ? result.errors.join("; ") : undefined);
+  const result = await trackedCreateSchemaVersion({ entityKind: "Capability", schemaJson: JSON.stringify({ type: "object", properties: { code: { type: "string" } } }), actorId: ROOT_ACTOR_ID });
+  assert.equal(result.ok, true, !result.ok ? result.errors.join("; ") : "assertion failed");
   if (!result.ok) return;
 
   assert.equal(result.schema.lifecycle_state, "Packaged");
@@ -101,12 +124,12 @@ test("DRIVEN: createSchemaVersion auto-advances a new row Created -> Validated -
 
 test("DRIVEN: publishSchemaVersion moves a Packaged row to Published, records the badge, and publishes the event", async () => {
   const created = await freshCreatedSchema();
-  const packaged = await createSchemaVersion({ entityKind: created.entityKind, schemaJson: JSON.stringify({ type: "object", properties: {} }) });
+  const packaged = await trackedCreateSchemaVersion({ entityKind: created.entityKind, schemaJson: JSON.stringify({ type: "object", properties: {} }), actorId: ROOT_ACTOR_ID });
   assert.equal(packaged.ok, true);
   if (!packaged.ok) return;
 
   const published = await publishSchemaVersion(packaged.schema.id, TESTER_ALL_ID);
-  assert.equal(published.ok, true, published.ok ? undefined : published.error);
+  assert.equal(published.ok, true, published.ok ? "" : published.error);
   if (!published.ok) return;
 
   assert.equal(published.schema.lifecycle_state, "Published");
@@ -119,12 +142,12 @@ test("DRIVEN: publishSchemaVersion moves a Packaged row to Published, records th
 
 test("DRIVEN: rejectSchemaVersion moves a Packaged row to PublicationRejected and records the reject badge", async () => {
   const created = await freshCreatedSchema();
-  const packaged = await createSchemaVersion({ entityKind: created.entityKind, schemaJson: JSON.stringify({ type: "object", properties: {} }) });
+  const packaged = await trackedCreateSchemaVersion({ entityKind: created.entityKind, schemaJson: JSON.stringify({ type: "object", properties: {} }), actorId: ROOT_ACTOR_ID });
   assert.equal(packaged.ok, true);
   if (!packaged.ok) return;
 
   const rejected = await rejectSchemaVersion(packaged.schema.id, TESTER_ALL_ID);
-  assert.equal(rejected.ok, true, rejected.ok ? undefined : rejected.error);
+  assert.equal(rejected.ok, true, rejected.ok ? "" : rejected.error);
   if (!rejected.ok) return;
 
   assert.equal(rejected.schema.lifecycle_state, "PublicationRejected");
@@ -133,7 +156,7 @@ test("DRIVEN: rejectSchemaVersion moves a Packaged row to PublicationRejected an
 
 test("GUARD: publish/reject only fires from Packaged — a row already at Published cannot be re-decided", async () => {
   const created = await freshCreatedSchema();
-  const packaged = await createSchemaVersion({ entityKind: created.entityKind, schemaJson: JSON.stringify({ type: "object", properties: {} }) });
+  const packaged = await trackedCreateSchemaVersion({ entityKind: created.entityKind, schemaJson: JSON.stringify({ type: "object", properties: {} }), actorId: ROOT_ACTOR_ID });
   assert.equal(packaged.ok, true);
   if (!packaged.ok) return;
 
@@ -151,7 +174,7 @@ test("GUARD: publish/reject only fires from Packaged — a row already at Publis
 
 test("AUTHORITY: an actor without schemadefinition_publish/_reject is denied, and the row stays Packaged", async () => {
   const created = await freshCreatedSchema();
-  const packaged = await createSchemaVersion({ entityKind: created.entityKind, schemaJson: JSON.stringify({ type: "object", properties: {} }) });
+  const packaged = await trackedCreateSchemaVersion({ entityKind: created.entityKind, schemaJson: JSON.stringify({ type: "object", properties: {} }), actorId: ROOT_ACTOR_ID });
   assert.equal(packaged.ok, true);
   if (!packaged.ok) return;
 

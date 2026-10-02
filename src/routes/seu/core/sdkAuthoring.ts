@@ -1214,6 +1214,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       correlationId: eventBus.newCorrelationId(),
       payload: { code: pack.code, packVersion: pack.pack_version },
       actorId: input.actorId,
+      authorityBadge: input.authorBadge,
     });
     const { data: packSchema } = await schemaDefinitionsDB.findById(input.schemaDefinitionId);
     if (packSchema) {

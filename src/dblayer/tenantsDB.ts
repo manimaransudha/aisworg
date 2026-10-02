@@ -77,7 +77,7 @@ export const tenantsDB = {
   },
 
   async findDefault(): Promise<DbResult<TenantRow | null>> {
-    return this.findByCode("default");
+    return this.findByCode("demo");
   },
 
   async findAll(): Promise<DbResult<TenantRow[]>> {

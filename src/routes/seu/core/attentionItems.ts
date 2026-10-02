@@ -60,6 +60,8 @@ export async function createAttentionItem(input: {
     originatingObjectId: attentionItem.id,
     seuId: input.seuId,
     correlationId: eventBus.newCorrelationId(),
+    actorId: input.actorId,
+    authorityBadge: input.authorBadge,
     payload: { category: input.category, relatedObjectType: input.relatedObjectType, relatedObjectId: input.relatedObjectId },
   });
 

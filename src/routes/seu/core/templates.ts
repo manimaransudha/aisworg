@@ -918,6 +918,8 @@ export async function publishTemplate(input: { seed: TemplateSeedInput; actorRol
     originatingObjectId: draft.id,
     seuId: null, // platform catalog entity, not SEU-scoped
     correlationId: eventBus.newCorrelationId(),
+    actorId: templateMaster.id,
+    authorityBadge: authorBadge,
     payload: { code: draft.code, templateVersion: draft.template_version },
   });
 
@@ -985,8 +987,8 @@ export async function transitionTemplate(input: { templateId: string; targetStat
     seuId: null, // platform catalog entity, not SEU-scoped
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: template.code },
-    actorId: input.actorId ?? null,
-    authorityBadge: gate.authorityBadge,
+    actorId: input.actorId,
+    authorityBadge: gate.authorityBadge ?? "root",
   });
   return { ok: true, template: updated };
 }

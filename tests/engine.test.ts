@@ -20,7 +20,7 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { objectivesDB } from "../src/dblayer/objectivesDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
-import { uniqueTestPackVersion, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { uniqueTestPackVersion, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 
 // Post-MVP Phase 9's own "Done when" line asked for a second,
 // independently-versioned Pack composed alongside the first — this exercises
@@ -86,6 +86,7 @@ test("transitionEngine.evaluate denies an under-privileged actor", async () => {
     fromState: "Pending",
     toState: "Commissioned",
     actorRole: "unregistered-role",
+    actorId: randomUUID(),
     context: {},
   });
   assert.equal(outcome.allowed, false);
@@ -110,7 +111,7 @@ test("transitionEngine.evaluate handles the Objective entity type (Post-MVP Phas
   // real enforcement, not just a UI filter. A synthetic id is enough — the
   // events table has no FK to a real objectives row.
   const submittedObjectiveId = randomUUID();
-  await triggerEngine.submit({ entityType: "Objective", entityId: submittedObjectiveId, fromState: "Proposed", actorId: TESTER_ALL_ID });
+  await triggerEngine.submit({ entityType: "Objective", entityId: submittedObjectiveId, fromState: "Proposed", actorId: TESTER_ALL_ID, authorityBadge: "objective_submit" });
 
   const allowed = await transitionEngine.evaluate({
     entityType: "Objective",
@@ -140,6 +141,7 @@ test("transitionEngine.evaluate handles the Objective entity type (Post-MVP Phas
     fromState: "Proposed",
     toState: "Active",
     actorRole: "unregistered-role",
+    actorId: randomUUID(),
     context: {},
   });
   assert.equal(denied.allowed, false);
@@ -164,6 +166,8 @@ test("eventBus.publish persists the event with the correct seu_id and an empty c
     originatingObjectId: objectId,
     seuId: null,
     correlationId,
+    actorId: ROOT_ACTOR_ID,
+    authorityBadge: ROOT_ACTOR_BADGE,
     payload: { ok: true },
   });
 
@@ -186,6 +190,8 @@ test("dispatch invokes each handler and records its own consumption_state entry,
     originatingObjectId: randomUUID(),
     seuId: null,
     correlationId: eventBus.newCorrelationId(),
+    actorId: ROOT_ACTOR_ID,
+    authorityBadge: ROOT_ACTOR_BADGE,
     payload: {},
   });
 
@@ -234,6 +240,8 @@ test("eventBus.publish returns well before a slow registered handler resolves", 
       originatingObjectId: randomUUID(),
       seuId: null,
       correlationId: eventBus.newCorrelationId(),
+      actorId: rootActorId,
+      authorityBadge: "root",
       payload: {},
     });
     const publishDuration = Date.now() - start;

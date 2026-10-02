@@ -44,6 +44,8 @@ export async function createExternalInteraction(input: {
     originatingObjectId: interaction.id,
     seuId: input.seuId,
     correlationId: eventBus.newCorrelationId(),
+    actorId: input.actorId,
+    authorityBadge: input.authorBadge,
     payload: { targetSystem: input.targetSystem, direction: input.direction },
   });
 
@@ -86,12 +88,13 @@ export async function transitionExternalInteraction(input: { interactionId: stri
 
   const fromState = interaction.status;
 
+  if (!input.actorId) throw new Error("actorId is required to transition an ExternalInteraction");
   const gate = await transitionEngine.evaluate({
     entityType: "ExternalInteraction",
     fromState,
     toState: input.targetState,
     actorRole: input.actorRole,
-    actorId: input.actorId ?? "",
+    actorId: input.actorId,
     entityId: interaction.id,
     context: { interaction },
   });
@@ -103,7 +106,6 @@ export async function transitionExternalInteraction(input: { interactionId: stri
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }
 
-  if (!input.actorId) throw new Error("actorId is required to transition an ExternalInteraction");
   if (!gate.authorityBadge) throw new Error(`no authority badge resolved for ExternalInteraction ${fromState} -> ${input.targetState} — Transition Definition declares no verb`);
   const { authorId } = await resolveAuthor(interaction.seu_id, input.actorId);
   const qualityGateResult = await qualityGateEngine.evaluate({

@@ -36,6 +36,7 @@ import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { commissionFromFormSync, ensureEventSubscriptionsLoaded } from "./testFixtures.js";
+import { TESTER_ALL_ID } from "./testFixtures.js";
 
 before(async () => {
   // Must run before this file's own first commissionFromFormSync call — see
@@ -107,10 +108,10 @@ test("DRIVEN: a real commissioning run publishes every real SEU/EBM event, match
     statement: `seu-ebm-lifecycle-table-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
     actorRole: "super",
-    actorId: "1001",
-    requestedBy: 1001,
+    actorId: TESTER_ALL_ID,
+    requestedBy: TESTER_ALL_ID,
   });
-  assert.equal(result.ok, true, result.ok ? undefined : `${result.stage}: ${result.reason}`);
+  assert.equal(result.ok, true, result.ok ? "" : `${result.stage}: ${result.reason}`);
   if (!result.ok) return;
 
   const { data: seuEvents } = await eventsDB.findByOriginatingObject("SEU", result.seu.id);

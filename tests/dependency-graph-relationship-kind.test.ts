@@ -26,11 +26,14 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
+import { userDB } from "../src/dblayer/userDB.js";
+import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { deliverableDefinitionsDB } from "../src/dblayer/deliverableDefinitionsDB.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import type { SchemaDefinitionEntityKind } from "../src/dblayer/seuTypes.js";
-import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
+const PLATFORM_TENANT_ID = await getPlatformTenantId();
 import { createAuthoringDraft, saveAuthoringDraft, publishAuthoringDraft } from "../src/routes/seu/core/sdkAuthoring.js";
 import { ensureTestFixturePacks } from "./testFixtures.js";
 
@@ -60,8 +63,11 @@ after(async () => {
   }
 });
 
-const ROOT_ACTOR_ID = "1";
-const DEMO_TENANT_ID = "22222222-2222-2222-2222-222222222222";
+const { actorId: ROOT_ACTOR_ID } = await userDB.getSuperuserId();
+const { data: demoTenant, error: demoTenantErr } = await tenantsDB.findByCode("demo");
+if (demoTenantErr) throw demoTenantErr;
+if (!demoTenant) throw new Error("demo tenant not provisioned");
+const DEMO_TENANT_ID = demoTenant.id;
 const REAL_TEMPLATE_CODE = "mobile-application"; // real, seeded template-categories concept
 
 // Real deliverable-name Ontology codes (migration 048) standing in for this
@@ -100,15 +106,16 @@ async function publishDeliverableDefinition(code: string, tenantId: string, pare
   const created = await createAuthoringDraft({
     kind: "Deliverable", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"),
     actorId: ROOT_ACTOR_ID,
+    authorBadge: "root",
     tenantId,
     parentDeliverableDefinitionId,
     content: { code, description: "Phase 2 test fixture", definitionVersion: "1.0.0" },
   });
-  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
+  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) throw new Error("unreachable");
   createdDeliverableDefinitionIds.push(created.draftId);
   const published = await advanceToActive("Deliverable", created.draftId, ROOT_ACTOR_ID, "general");
-  assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : undefined);
+  assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : "assertion failed");
   return created.draftId;
 }
 
@@ -130,11 +137,11 @@ async function publishParentTemplate(dependencyGraph: Array<Record<string, unkno
     { code: DATA_ARCH_CODE, category: "Architecture" },
   ];
   const created = await createAuthoringDraft({ kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, content: templateContent(REAL_TEMPLATE_CODE, version, catalogue, dependencyGraph) });
-  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
+  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) throw new Error("unreachable");
   createdTemplateIds.push(created.draftId);
   const published = await advanceToActive("Template", created.draftId, ROOT_ACTOR_ID, "general");
-  assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : undefined);
+  assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : "assertion failed");
   return { id: created.draftId, version };
 }
 
@@ -154,11 +161,11 @@ test("CR-049 Phase 2: a plain 'dependency' edge is unrestricted on Template Inhe
     parentTemplateId: parent.id,
     content: templateContent(REAL_TEMPLATE_CODE, uniqueVersion(), [{ code: ARCH_CODE, category: "Architecture" }], []),
   });
-  assert.equal(childCreated.ok, true, !childCreated.ok ? childCreated.errors.join("; ") : undefined);
+  assert.equal(childCreated.ok, true, !childCreated.ok ? childCreated.errors.join("; ") : "assertion failed");
   if (!childCreated.ok) return;
   createdTemplateIds.push(childCreated.draftId);
   const childPublished = await advanceToActive("Template", childCreated.draftId, ROOT_ACTOR_ID, "general");
-  assert.equal(childPublished.ok, true, !childPublished.ok ? childPublished.errors.join("; ") : undefined);
+  assert.equal(childPublished.ok, true, !childPublished.ok ? childPublished.errors.join("; ") : "assertion failed");
 });
 
 test("CR-049 Phase 2: a Decomposition edge is locked — dropping it on a derived Template blocks publish", async () => {
@@ -171,7 +178,7 @@ test("CR-049 Phase 2: a Decomposition edge is locked — dropping it on a derive
     parentTemplateId: parent.id,
     content: templateContent(REAL_TEMPLATE_CODE, uniqueVersion(), [{ code: ARCH_CODE, category: "Architecture" }, { code: DATA_ARCH_CODE, category: "Architecture" }], []),
   });
-  assert.equal(childCreated.ok, true, !childCreated.ok ? childCreated.errors.join("; ") : undefined);
+  assert.equal(childCreated.ok, true, !childCreated.ok ? childCreated.errors.join("; ") : "assertion failed");
   if (!childCreated.ok) return;
   createdTemplateIds.push(childCreated.draftId);
 
@@ -204,11 +211,11 @@ test("CR-049 Phase 2: a Decomposition edge may be renamed to the tenant's own De
       { toCode: dataArchCode, fromType: "Deliverable", fromCode: archCode, requiredState: "Approved", relationshipKind: "decomposition" },
     ]),
   });
-  assert.equal(parentCreated.ok, true, !parentCreated.ok ? parentCreated.errors.join("; ") : undefined);
+  assert.equal(parentCreated.ok, true, !parentCreated.ok ? parentCreated.errors.join("; ") : "assertion failed");
   if (!parentCreated.ok) return;
   createdTemplateIds.push(parentCreated.draftId);
   const parentPublished = await advanceToActive("Template", parentCreated.draftId, ROOT_ACTOR_ID, "general");
-  assert.equal(parentPublished.ok, true, !parentPublished.ok ? parentPublished.errors.join("; ") : undefined);
+  assert.equal(parentPublished.ok, true, !parentPublished.ok ? parentPublished.errors.join("; ") : "assertion failed");
 
   const tenantArchCode = `phase2-tenant-architecture-${randomUUID()}`;
   const tenantDataArchCode = `phase2-tenant-data-architecture-${randomUUID()}`;
@@ -224,7 +231,7 @@ test("CR-049 Phase 2: a Decomposition edge may be renamed to the tenant's own De
       { toCode: tenantDataArchCode, fromType: "Deliverable", fromCode: tenantArchCode, requiredState: "Approved", relationshipKind: "decomposition" },
     ]),
   });
-  assert.equal(childCreated.ok, true, !childCreated.ok ? childCreated.errors.join("; ") : undefined);
+  assert.equal(childCreated.ok, true, !childCreated.ok ? childCreated.errors.join("; ") : "assertion failed");
   if (!childCreated.ok) return;
   createdTemplateIds.push(childCreated.draftId);
 
@@ -249,7 +256,7 @@ test("CR-049 Phase 2: renaming a locked edge to an UNRELATED Deliverable Definit
       { toCode: DATA_ARCH_CODE, fromType: "Deliverable", fromCode: unrelatedCode, requiredState: "Approved", relationshipKind: "decomposition" },
     ]),
   });
-  assert.equal(childCreated.ok, true, !childCreated.ok ? childCreated.errors.join("; ") : undefined);
+  assert.equal(childCreated.ok, true, !childCreated.ok ? childCreated.errors.join("; ") : "assertion failed");
   if (!childCreated.ok) return;
   createdTemplateIds.push(childCreated.draftId);
 
@@ -271,9 +278,9 @@ test("CR-049 Phase 2: a Derivation edge is freely editable on Template Inheritan
     parentTemplateId: parent.id,
     content: templateContent(REAL_TEMPLATE_CODE, uniqueVersion(), [{ code: ARCH_CODE, category: "Architecture" }], []),
   });
-  assert.equal(childCreated.ok, true, !childCreated.ok ? childCreated.errors.join("; ") : undefined);
+  assert.equal(childCreated.ok, true, !childCreated.ok ? childCreated.errors.join("; ") : "assertion failed");
   if (!childCreated.ok) return;
   createdTemplateIds.push(childCreated.draftId);
   const childPublished = await advanceToActive("Template", childCreated.draftId, ROOT_ACTOR_ID, "general");
-  assert.equal(childPublished.ok, true, !childPublished.ok ? childPublished.errors.join("; ") : undefined);
+  assert.equal(childPublished.ok, true, !childPublished.ok ? childPublished.errors.join("; ") : "assertion failed");
 });

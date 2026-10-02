@@ -113,7 +113,7 @@ export async function reviewSchemaVersion(input: { entityKind: string; schemaJso
 // finalizeCommissioning already chains SEU's own ungoverned Pending->
 // Configured->Commissioned steps: one transitionEngine.evaluate + DB update
 // + eventBus.publish per hop, causationId threaded through.
-async function autoAdvanceToPackaged(schema: SchemaDefinitionRow): Promise<SchemaDefinitionRow> {
+async function autoAdvanceToPackaged(schema: SchemaDefinitionRow, actorId: string): Promise<SchemaDefinitionRow> {
   const hops: Array<["Created", "Validated"] | ["Validated", "Tested"] | ["Tested", "Packaged"]> = [
     ["Created", "Validated"],
     ["Validated", "Tested"],
@@ -121,7 +121,7 @@ async function autoAdvanceToPackaged(schema: SchemaDefinitionRow): Promise<Schem
   ];
   let current = schema;
   for (const [from, to] of hops) {
-    const gate = await transitionEngine.evaluate({ entityType: "SchemaDefinition", fromState: from, toState: to, actorRole: "", actorId: "", entityId: current.id });
+    const gate = await transitionEngine.evaluate({ entityType: "SchemaDefinition", fromState: from, toState: to, actorRole: "", actorId, entityId: current.id });
     if (!gate.allowed) throw new Error(`cannot advance ${current.entity_kind} schema v${current.version} from ${from} to ${to}`);
     const { data: updated, error } = await schemaDefinitionsDB.advanceLifecycle(current.id, to, gate.authorityBadge);
     if (error || !updated) throw error ?? new Error(`failed to advance schema ${current.id} to ${to}`);
@@ -133,8 +133,8 @@ async function autoAdvanceToPackaged(schema: SchemaDefinitionRow): Promise<Schem
       seuId: null,
       correlationId: eventBus.newCorrelationId(),
       payload: { entityKind: current.entity_kind, version: current.version, fromState: from, toState: to },
-      actorId: null,
-      authorityBadge: gate.authorityBadge,
+      actorId,
+      authorityBadge: gate.authorityBadge ?? "root",
     });
   }
   return current;
@@ -165,7 +165,7 @@ export async function createSchemaVersion(input: { entityKind: string; schemaJso
   const { data: created, error } = await schemaDefinitionsDB.create({ entityKind: kind, version: nextVersion, schema: parsed as Record<string, unknown>, compatibleVersions, incompatibleVersions, authorId, authorBadge: "root" });
   if (error || !created) return { ok: false, errors: [(error ?? new Error("failed to create schema version")).message] };
 
-  const schema = await autoAdvanceToPackaged(created);
+  const schema = await autoAdvanceToPackaged(created, input.actorId);
   return { ok: true, schema };
 }
 
@@ -198,7 +198,7 @@ async function transitionPackagedSchema(id: string, toState: "Published" | "Publ
     correlationId: eventBus.newCorrelationId(),
     payload: { entityKind: updated.entity_kind, version: updated.version, fromState: "Packaged", toState },
     actorId,
-    authorityBadge: gate.authorityBadge,
+    authorityBadge: gate.authorityBadge ?? "root",
   });
 
   return { ok: true, schema: updated };

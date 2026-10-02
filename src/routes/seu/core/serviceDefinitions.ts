@@ -200,8 +200,8 @@ export async function transitionServiceDefinition(input: { serviceDefinitionId: 
     seuId: null, // platform catalog entity, not SEU-scoped
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: updated.code },
-    actorId: input.actorId ?? null,
-    authorityBadge: gate.authorityBadge,
+    actorId: input.actorId,
+    authorityBadge: gate.authorityBadge ?? "root",
   });
   return { ok: true, serviceDefinition: updated };
 }

@@ -222,6 +222,8 @@ async function raiseSustainedPatternObligation(input: {
     originatingObjectId: input.originatingObjectId,
     seuId: input.seuId,
     correlationId: eventBus.newCorrelationId(),
+    actorId: systemActor.actorId,
+    authorityBadge: systemActor.authorBadge,
     payload: { ...input.eventPayload, obligationId: obligation.id },
   });
 

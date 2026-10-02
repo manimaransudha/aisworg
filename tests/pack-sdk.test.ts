@@ -14,7 +14,9 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
-import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
+import { tenantsDB } from "../src/dblayer/tenantsDB.js";
+const PLATFORM_TENANT_ID = await getPlatformTenantId();
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
@@ -22,12 +24,15 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { compositionEngine } from "../src/domain/engine/compositionEngine.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { validatePackSeed, publishPack, transitionPack, createPackDraft, listPacksWithNextStates, packCodeVersionSummaries, type PackSeedInput } from "../src/routes/seu/core/packs.js";
-import { ensureTestFixturePacks, uniqueTestPackVersion, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { ensureTestFixturePacks, uniqueTestPackVersion, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 
 // CR-026 — a real, seeded tenant (seedIdentityBaseline.ts's ATHENS_TENANT_ID's
 // sibling "Demo" tenant), used only to prove Pack's tenant-scoped versioning
 // against a genuine second tenant, not a made-up UUID.
-const DEMO_TENANT_ID = "22222222-2222-2222-2222-222222222222";
+const { data: demoTenant, error: demoTenantErr } = await tenantsDB.findByCode("demo");
+if (demoTenantErr) throw demoTenantErr;
+if (!demoTenant) throw new Error("demo tenant not provisioned");
+const DEMO_TENANT_ID = demoTenant.id;
 
 // CR-079 bug fix — `code` used to be a freshly-registered, random-UUID-
 // suffixed capability-name concept per call (registerTestOntologyCode).
@@ -49,7 +54,7 @@ async function freshPackSeed(overrides: Partial<PackSeedInput> = {}): Promise<Pa
       // Ontology-enforced too (capability-name); a real, shared term
       // ("software-construction") rather than a throwaway one — capability identity is
       // Pack-scoped, so reusing it across many unrelated test Packs is safe.
-      capabilities: [{ code: "software-construction", name: "Test Capability" }],
+      capabilities: [{ code: "software-construction" }],
     },
     ...overrides,
   };
@@ -72,7 +77,7 @@ test("validatePackSeed rejects a non-semver packVersion, duplicate contribution 
       // duplicate-code check runs regardless of Ontology validity, and using
       // a real value keeps this test isolated to what it's actually testing
       // (duplicate detection), not incidentally also failing Ontology lookup.
-      capabilities: [{ code: "software-construction", name: "A" }, { code: "software-construction", name: "B" }],
+      capabilities: [{ code: "software-construction" }, { code: "software-construction" }],
       services: [{ code: "requirements-analysis-service" }, { code: "requirements-analysis-service" }],
     },
   });
@@ -92,13 +97,13 @@ test("validatePackSeed accepts a well-formed Pack and resolves a real dependency
     dependencies: [{ packCode: "test-testing-qa", version: "1.0.0", type: "required" }],
   });
   const result = await validatePackSeed(seed);
-  assert.equal(result.ok, true, !result.ok ? JSON.stringify(result.errors) : undefined);
+  assert.equal(result.ok, true, !result.ok ? JSON.stringify(result.errors) : "assertion failed");
 });
 
 test("publishPack without activate: true walks the Pack to Published but not Active", async () => {
   const seed = await freshPackSeed();
   const result = await publishPack({ seed, actorRole: "general", actorId: TESTER_ALL_ID });
-  assert.equal(result.ok, true, !result.ok ? JSON.stringify(result.errors) : undefined);
+  assert.equal(result.ok, true, !result.ok ? JSON.stringify(result.errors) : "assertion failed");
   assert.equal(result.pack!.status, "Published");
   assert.equal(result.alreadyPublished, false);
 
@@ -118,7 +123,7 @@ test("publishPack without activate: true walks the Pack to Published but not Act
 test("publishPack with activate: true and a 'power' actor reaches Active", async () => {
   const seed = await freshPackSeed();
   const result = await publishPack({ seed, actorRole: "power", actorId: TESTER_ALL_ID, activate: true });
-  assert.equal(result.ok, true, !result.ok ? JSON.stringify(result.errors) : undefined);
+  assert.equal(result.ok, true, !result.ok ? JSON.stringify(result.errors) : "assertion failed");
   assert.equal(result.pack!.status, "Active");
 });
 
@@ -147,7 +152,7 @@ test("publishing a new version of an existing Pack code creates a new immutable 
   const versionB = uniqueTestPackVersion();
   const seedV2 = await freshPackSeed({ code, packVersion: versionB });
   const v2 = await publishPack({ seed: seedV2, actorRole: "power", actorId: TESTER_ALL_ID, activate: true });
-  assert.equal(v2.ok, true, !v2.ok ? JSON.stringify(v2.errors) : undefined);
+  assert.equal(v2.ok, true, !v2.ok ? JSON.stringify(v2.errors) : "assertion failed");
   assert.notEqual(v2.pack!.id, v1.pack!.id, "a new version must be a new row, not a mutation of the old one");
   assert.equal(v2.pack!.status, "Active");
   assert.equal(v2.supersededPack?.id, v1.pack!.id);
@@ -171,7 +176,7 @@ test("transitionPack rejects an undefined transition (Draft -> Active, skipping 
   // CR-114 follow-on — packsDB.create's schemaDefinitionId is now mandatory.
   const { data: packSchema } = await schemaDefinitionsDB.findLatest("Pack");
   assert.ok(packSchema, "no schema_definitions grammar for Pack");
-  const { data: rawDraftPack } = await packsDB.create({ ...(await freshPackSeed()), authoredBy: ROOT_ACTOR_ID, authorBadge: "root", schemaDefinitionId: packSchema!.id });
+  const { data: rawDraftPack } = await packsDB.create({ ...(await freshPackSeed()), authoredBy: ROOT_ACTOR_ID, authorBadge: "root", schemaDefinitionId: packSchema!.id, tenantId: PLATFORM_TENANT_ID });
   assert.ok(rawDraftPack);
   const result = await transitionPack({ packId: rawDraftPack!.id, targetState: "Active", actorRole: "power", actorId: TESTER_ALL_ID });
   assert.equal(result.ok, false);
@@ -220,8 +225,8 @@ test("compositionEngine.compose resolves the same code referenced by both a Temp
   const code = "test-conflict";
   const versionA = uniqueTestPackVersion();
   const versionB = uniqueTestPackVersion();
-  const v1Draft = await createPackDraft(await freshPackSeed({ code, packVersion: versionA }));
-  const v2Draft = await createPackDraft(await freshPackSeed({ code, packVersion: versionB }));
+  const v1Draft = await createPackDraft(await freshPackSeed({ code, packVersion: versionA }), ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  const v2Draft = await createPackDraft(await freshPackSeed({ code, packVersion: versionB }), ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   assert.equal(v1Draft.ok, true);
   assert.equal(v2Draft.ok, true);
   if (!v1Draft.ok || !v2Draft.ok) throw new Error("unreachable");
@@ -229,7 +234,7 @@ test("compositionEngine.compose resolves the same code referenced by both a Temp
   for (const draft of [v1Draft.pack, v2Draft.pack]) {
     for (const targetState of ["Validated", "Published", "Active"]) {
       const step = await transitionPack({ packId: draft.id, targetState, actorRole: "power", actorId: TESTER_ALL_ID });
-      assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : undefined);
+      assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : "assertion failed");
     }
   }
   const { data: v1Reloaded } = await packsDB.findById(v1Draft.pack.id);
@@ -319,7 +324,7 @@ test("a Template automatically composes a newer Active Version of its mandatory 
   const code = "test-live-code";
   const versionA = uniqueTestPackVersion();
   const v1 = await publishPack({ seed: await freshPackSeed({ code, packVersion: versionA }), actorRole: "power", actorId: TESTER_ALL_ID, activate: true });
-  assert.equal(v1.ok, true, !v1.ok ? JSON.stringify(v1) : undefined);
+  assert.equal(v1.ok, true, !v1.ok ? JSON.stringify(v1) : "assertion failed");
   if (!v1.ok) throw new Error("unreachable");
 
   const { data: template } = await templatesDB.upsert({ code: `test-live-code-template-${randomUUID()}`, name: "Live Code Test Template" });
@@ -338,7 +343,7 @@ test("a Template automatically composes a newer Active Version of its mandatory 
   // (an Active Pack getting archived and a new Version taking over).
   const versionB = uniqueTestPackVersion();
   const v2 = await publishPack({ seed: await freshPackSeed({ code, packVersion: versionB }), actorRole: "power", actorId: TESTER_ALL_ID, activate: true });
-  assert.equal(v2.ok, true, !v2.ok ? JSON.stringify(v2) : undefined);
+  assert.equal(v2.ok, true, !v2.ok ? JSON.stringify(v2) : "assertion failed");
   if (!v2.ok) throw new Error("unreachable");
   const { data: v1Reloaded } = await packsDB.findById(v1.pack!.id);
   assert.equal(v1Reloaded?.status, "Retired", "publishing+activating v2 must supersede v1, the scenario this test needs");
@@ -385,7 +390,7 @@ test("transitionPack from a terminal state (Retired or Archived) back to Active 
 // mandatory feedback every time, and it must be genuinely new text, not a
 // repeat of the most recent comment already on record.
 test("Pack reject (Validated -> Draft) requires a genuinely new comment every time", async () => {
-  const draft = await createPackDraft(await freshPackSeed({ code: "test-pack-reject" }));
+  const draft = await createPackDraft(await freshPackSeed({ code: "test-pack-reject" }), ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   assert.equal(draft.ok, true);
   if (!draft.ok) throw new Error("unreachable");
   const validated = await transitionPack({ packId: draft.pack.id, targetState: "Validated", actorRole: "power", actorId: TESTER_ALL_ID });
@@ -397,7 +402,7 @@ test("Pack reject (Validated -> Draft) requires a genuinely new comment every ti
   assert.equal(noComment.reason, "comment_required");
 
   const rejected = await transitionPack({ packId: draft.pack.id, targetState: "Draft", actorRole: "power", actorId: TESTER_ALL_ID, comment: "Needs a clearer description." });
-  assert.equal(rejected.ok, true, !rejected.ok ? JSON.stringify(rejected) : undefined);
+  assert.equal(rejected.ok, true, !rejected.ok ? JSON.stringify(rejected) : "assertion failed");
   if (!rejected.ok) throw new Error("unreachable");
   assert.equal(rejected.pack.status, "Draft");
 
@@ -424,7 +429,7 @@ test("CR-026: two tenants publishing the exact same (code, packVersion) no longe
   const code = "test-tenant-scoped";
   const version = uniqueTestPackVersion();
   const platformResult = await publishPack({ seed: await freshPackSeed({ code, packVersion: version, tenantId: PLATFORM_TENANT_ID }), actorRole: "power", actorId: TESTER_ALL_ID, activate: true });
-  assert.equal(platformResult.ok, true, !platformResult.ok ? JSON.stringify(platformResult.errors) : undefined);
+  assert.equal(platformResult.ok, true, !platformResult.ok ? JSON.stringify(platformResult.errors) : "assertion failed");
 
   const tenantResult = await publishPack({ seed: await freshPackSeed({ code, packVersion: version, tenantId: DEMO_TENANT_ID }), actorRole: "power", actorId: TESTER_ALL_ID, activate: true });
   assert.equal(tenantResult.ok, true, !tenantResult.ok ? JSON.stringify(tenantResult.errors) : "a tenant's own Pack at the same (code, packVersion) as Platform's must not collide");
@@ -446,7 +451,7 @@ test("Pack Active -> Retired requires 'power' — a 'general' actor is denied", 
   const published = await publishPack({ seed: await freshPackSeed(), actorRole: "power", actorId: TESTER_ALL_ID, activate: true });
   assert.equal(published.ok, true);
 
-  const result = await transitionPack({ packId: published.pack!.id, targetState: "Retired", actorRole: "general" });
+  const result = await transitionPack({ packId: published.pack!.id, targetState: "Retired", actorRole: "general", actorId: randomUUID() });
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
   assert.equal(result.reason, "authority_denied");
@@ -481,14 +486,14 @@ test("Pack Active -> Retired requires 'power' — a 'general' actor is denied", 
 test("packCodeVersionSummaries: version is a sequence per code, not per branch — Draft/Validated excluded from the list, nextVersion bumped from the true highest across every status", async () => {
   const code = "test-pack-sequence";
   const v1 = await publishPack({ seed: await freshPackSeed({ code, packVersion: "9.0.0", tenantId: PLATFORM_TENANT_ID }), actorRole: "power", actorId: TESTER_ALL_ID, activate: true });
-  assert.equal(v1.ok, true, !v1.ok ? JSON.stringify(v1.errors) : undefined);
+  assert.equal(v1.ok, true, !v1.ok ? JSON.stringify(v1.errors) : "assertion failed");
   const v2 = await publishPack({ seed: await freshPackSeed({ code, packVersion: "9.0.1", tenantId: PLATFORM_TENANT_ID }), actorRole: "power", actorId: TESTER_ALL_ID, activate: true });
-  assert.equal(v2.ok, true, !v2.ok ? JSON.stringify(v2.errors) : undefined);
+  assert.equal(v2.ok, true, !v2.ok ? JSON.stringify(v2.errors) : "assertion failed");
   // A Draft sitting at a HIGHER version than anything Published/Active —
   // must still count toward "the highest" for nextVersion, but must never
   // appear in the visible branch list (it's still "draft").
-  const draftHigh = await createPackDraft(await freshPackSeed({ code, packVersion: "9.5.0", tenantId: PLATFORM_TENANT_ID }));
-  assert.equal(draftHigh.ok, true, !draftHigh.ok ? JSON.stringify(draftHigh.errors) : undefined);
+  const draftHigh = await createPackDraft(await freshPackSeed({ code, packVersion: "9.5.0", tenantId: PLATFORM_TENANT_ID }), ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  assert.equal(draftHigh.ok, true, !draftHigh.ok ? JSON.stringify(draftHigh.errors) : "assertion failed");
 
   const summaries = await packCodeVersionSummaries(PLATFORM_TENANT_ID);
   const summary = summaries[code];

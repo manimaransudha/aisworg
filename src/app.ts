@@ -8,7 +8,7 @@ const session = require("express-session");
 const path = require("path");
 const cookieParser = require("cookie-parser");
 
-
+import type { Request, Response, NextFunction } from "express";
 
 import { logger } from "./utils/logger.js";
 import { requestLogger } from "./middleware/requestLogger.js";
@@ -58,7 +58,7 @@ app.set("view engine", "ejs");
 //     });
 // }
 if (process.env.NODE_ENV !== 'production') {
-    app.use((req, res, next) => {
+    app.use((req: Request, res: Response, next: NextFunction) => {
         // console.log('Incoming path:', req.path, req.url);
         logger.debug(`Incoming path: ${req.path} ${req.url}`);
         next();
@@ -102,7 +102,7 @@ app.use(session({
 // real HTTP requests via fetch-cookie, no scriptable login flow available —
 // this platform only supports Google OAuth) can authenticate unattended.
 if (process.env.NODE_ENV === 'test') {
-    app.use((req, res, next) => {
+    app.use((req: Request, res: Response, next: NextFunction) => {
         const path = req.path;
         const isPublic =
             path === '/favicon.ico' ||
@@ -127,7 +127,7 @@ if (process.env.NODE_ENV === 'test') {
         const testUserId = req.headers['x-test-user-id'];
         if (testUserId) {
             (async () => {
-                const user = await userDB.findById(Number(testUserId));
+                const user = await userDB.findById(testUserId as string);
                 if (!user) return next(new Error(`x-test-user-id ${testUserId}: no such user`));
                 req.session.user = await buildSessionUser(user);
                 await ensureBadgeBootstrap(user);
@@ -159,11 +159,11 @@ app.use(passport.initialize());
 
 // CSRF — double-submit cookie pattern (csrf-csrf v4)
 const { generateCsrfToken, doubleCsrfProtection } = doubleCsrf({
-    getSecret: () => process.env.SESSION_SECRET,
-    getSessionIdentifier: (req) => req.sessionID ?? req.ip,
+    getSecret: () => process.env.SESSION_SECRET || (() => { throw new Error('SESSION_SECRET env var is not set'); })(),
+    getSessionIdentifier: (req: Request) => req.sessionID ?? req.ip ?? '',
     cookieName: 'x-csrf-token',
     cookieOptions: { sameSite: 'lax', secure: isProd, httpOnly: true },
-    getCsrfTokenFromRequest: (req) =>
+    getCsrfTokenFromRequest: (req: Request) =>
         req.body?._csrf || req.headers['x-csrf-token'],
 });
 
@@ -171,7 +171,7 @@ const { generateCsrfToken, doubleCsrfProtection } = doubleCsrf({
 // the GET→POST pair — required for CSRF token validation on unauthenticated pages
 // like /login where saveUninitialized:false would otherwise give each request a
 // fresh (non-persisted) sessionID, causing HMAC mismatches.
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
     if (!req.session._t) req.session._t = 1;
     next();
 });
@@ -184,7 +184,7 @@ app.use((req, res, next) => {
 // /aisworg/api/seu/* is exempted for the same reason — it's a session-authenticated
 // JSON API meant to be called by any client (curl, test scripts, future non-browser
 // integrations), not a browser form that can carry a CSRF token (MVP Build Plan §2.3).
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith('/aisworg/demo/') || req.path.startsWith('/aisworg/api/seu/')) return next();
     return doubleCsrfProtection(req, res, next);
 });
@@ -194,9 +194,9 @@ app.use((req, res, next) => {
 // app.use(async (req, res, next) => {
 //     res.locals.session = req.session;
 //     res.locals.activeUser = req.session?.user || null;
-//     res.locals.csrfToken = generateCsrfToken(req, res);     
+//     res.locals.csrfToken = generateCsrfToken(req, res);
 // });
-app.use(async (req, res, next) => {
+app.use(async (req: Request, res: Response, next: NextFunction) => {
     res.locals.session = req.session;
     res.locals.activeUser = req.session?.user || null;
     res.locals.csrfToken = generateCsrfToken(req, res);
@@ -247,7 +247,7 @@ app.use(async (req, res, next) => {
             ]);
         }
     } catch (err) {
-        logger.warn('[navbar] route authority visibility fetch failed', err);
+        logger.warn('[navbar] route authority visibility fetch failed', err as Error);
     }
 
     // Ontology's navbar dropdown lists concept-type GROUPS as sub-options
@@ -272,7 +272,7 @@ app.use(async (req, res, next) => {
             res.locals.ontologyConceptTypeGroups = nav.groupMembers;
         }
     } catch (err) {
-        logger.warn('[navbar] ontology concept types fetch failed', err);
+        logger.warn('[navbar] ontology concept types fetch failed', err as Error);
     }
 
     // CR-001 — dev-only "Act As" switcher (design/Change Requests.md). Only
@@ -289,7 +289,7 @@ app.use(async (req, res, next) => {
             res.locals.devActAs = { current, tenants, badgeTypes, nounVerbBadgeCodes };
         }
     } catch (err) {
-        logger.warn('[dev/actAs] navbar context assembly failed', err);
+        logger.warn('[dev/actAs] navbar context assembly failed', err as Error);
     }
     next();
 });
@@ -318,24 +318,32 @@ app.use("/aisworg/seu", seuWebRouter);
 // ── Super-only routes ─────────────────────────────────────────────────────────
 // app.use("/aisworg/super", requireRole('super'), superRouter);
 
-app.get("/aisworg/login", (req, res) => res.redirect('/aisworg/auth/login'));
-app.get("/aisworg/logout", (req, res) => res.redirect('/aisworg/auth/logout'));
+app.get("/aisworg/login", (req: Request, res: Response) => res.redirect('/aisworg/auth/login'));
+app.get("/aisworg/logout", (req: Request, res: Response) => res.redirect('/aisworg/auth/logout'));
 
-app.get("/", (req, res) => res.redirect("/aisworg"));
+app.get("/", (req: Request, res: Response) => res.redirect("/aisworg"));
 
 app.use(errorHandler);
 
 // Only auto-listen when this file is the process entry point (`pnpm start` /
-// `pnpm dev`, both run `tsx src/app.js` directly). When imported as a module —
+// `pnpm dev`, both run `tsx src/app.ts` directly). When imported as a module —
 // e.g. the M5 acceptance test importing `app` to boot it on an ephemeral port —
 // listening is the importer's responsibility, so tests don't collide with a
 // dev server already bound to PORT.
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-    app.listen(PORT, async () => {
+    const server = app.listen(PORT, async () => {
         await appConfig.init();
         logger.info(`AI SEU running on ${PORT}`);
         logger.info(`Environment: ${process.env.NODE_ENV || "development"}`);
         logger.info(`Log Level: ${process.env.LOG_LEVEL || "info"}`);
+    });
+
+    server.on("error", (err: NodeJS.ErrnoException) => {
+        if (err.code === "EADDRINUSE") {
+            logger.error(`Port ${PORT} already in use — another instance is running. Exiting.`);
+            process.exit(1);
+        }
+        throw err;
     });
 
     process.on("SIGTERM", () => { logger.info("SIGTERM"); process.exit(0); });

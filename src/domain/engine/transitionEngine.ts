@@ -140,6 +140,8 @@ export const transitionEngine = {
             originatingObjectId: policy.id,
             seuId: input.seuId ?? null,
             correlationId: eventBus.newCorrelationId(),
+            actorId: input.actorId,
+            authorityBadge: authorityBadge ?? "system",
             payload,
           });
           continue;
@@ -150,6 +152,8 @@ export const transitionEngine = {
           originatingObjectId: policy.id,
           seuId: input.seuId ?? null,
           correlationId: eventBus.newCorrelationId(),
+          actorId: input.actorId,
+          authorityBadge: authorityBadge ?? "system",
           payload: { ...payload, constraintType: policy.constraint_type },
         });
         if (policy.constraint_type === "Policy") {
@@ -170,6 +174,8 @@ export const transitionEngine = {
           originatingObjectId: policy.id,
           seuId: input.seuId ?? null,
           correlationId: eventBus.newCorrelationId(),
+          actorId: input.actorId,
+          authorityBadge: authorityBadge ?? "system",
           payload,
         });
       }

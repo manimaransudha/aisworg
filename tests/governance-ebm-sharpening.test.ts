@@ -22,7 +22,7 @@ import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { qualityGateEvaluationsDB } from "../src/dblayer/qualityGateEvaluationsDB.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
-import { ensureWebAppTemplateFixture, uniqueTestPackVersion, commissionFromFormSync, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, uniqueTestPackVersion, commissionFromFormSync, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import type { EventRow, SeuRow } from "../src/dblayer/seuTypes.js";
 
@@ -34,8 +34,8 @@ before(async () => {
 
 test("FR-3.3: a commissioned SEU's Engineering Behavior Model is versioned (version 1 for the first)", async () => {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromFormSync({ statement: `ebm-version-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: 1001 });
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
+  const result = await commissionFromFormSync({ statement: `ebm-version-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const { data: seu } = await seusDB.findById(result.seu.id);
   const { data: ebm } = await ebmsDB.findById(seu!.active_ebm_id!);
@@ -58,17 +58,17 @@ test("FR-21.1: an SEU exposes one effective Governance Model derived from its EB
   // assumptions about exactly which Packs get composed.
   const { template: fixtureTemplate } = await ensureWebAppTemplateFixture();
   const { data: profile } = await profilesDB.upsert({ code: `gov-model-profile-${randomUUID()}`, name: "Gov Model Profile", baseTemplateId: fixtureTemplate.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
-  const { objective: govRoot } = await createObjective({ statement: `gov-model-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed" });
-  const { objective } = await createObjective({ statement: `gov-model-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], tier: "Engineering", parentObjectiveId: govRoot.id, requestedBy: 1001, status: "Proposed" });
-  await submitObjective(objective.id, 1001);
+  const { objective: govRoot } = await createObjective({ statement: `gov-model-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
+  const { objective } = await createObjective({ statement: `gov-model-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], tier: "Engineering", parentObjectiveId: govRoot.id, requestedBy: TESTER_ALL_ID, status: "Proposed" });
+  await submitObjective(objective.id, TESTER_ALL_ID);
   const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: TESTER_ALL_ID });
   assert.equal(activated.ok, true);
 
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [fixtureTemplate.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: 1001 });
-  assert.equal(requested.ok, true, !requested.ok ? `commissioning failed: ${requested.reason}` : undefined);
+  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [fixtureTemplate.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  assert.equal(requested.ok, true, !requested.ok ? `commissioning failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
   const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: TESTER_ALL_ID });
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
 
   const model = await getEffectiveGovernanceModel(result.seu.id);
@@ -104,8 +104,8 @@ test("FR-3.6/3.7: a composition conflict hard-blocks commissioning; the SEU neve
   const { data: profile } = await profilesDB.upsert({ code: `conflict-prof-${run}`, name: "Conflict Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
   // CR-009: Engineering Objectives need a Strategic parent (only Strategic may be a root).
   // CR-075 — createObjective now requires the parent to be Proposed when adding a child under it.
-  const { objective: conflictRoot } = await createObjective({ statement: `conflict-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed",});
-  const { objective } = await createObjective({ statement: `conflict-obj-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: conflictRoot.id, requestedBy: 1001,});
+  const { objective: conflictRoot } = await createObjective({ statement: `conflict-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed",});
+  const { objective } = await createObjective({ statement: `conflict-obj-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: conflictRoot.id, requestedBy: TESTER_ALL_ID,});
 
   // design/mvp-build-plan/SEU Composition.md — commissionSeu's own shallow
   // "Validate Request" gate no longer detects Pack-level conflicts (that's
@@ -117,8 +117,8 @@ test("FR-3.6/3.7: a composition conflict hard-blocks commissioning; the SEU neve
   // Rules per governedTransition first, so this is still a real, genuine
   // cross-Pack role-SET disagreement (general vs super), not a false
   // positive from Pack A's/B's own internal multiplicity.
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID });
-  assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : undefined);
+  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
 
   const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: TESTER_ALL_ID });
@@ -171,11 +171,11 @@ test("Retry after a failed commission: a Failed SEU does not permanently block i
   await templatesDB.setRequiredCapabilities(cleanTemplate!.id, []);
   const { data: cleanProfile } = await profilesDB.upsert({ code: `retry-clean-prof-${run}`, name: "Retry Clean Profile", baseTemplateId: cleanTemplate!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
 
-  const { objective: retryRoot } = await createObjective({ statement: `retry-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed" });
-  const { objective } = await createObjective({ statement: `retry-obj-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: retryRoot.id, requestedBy: 1001 });
+  const { objective: retryRoot } = await createObjective({ statement: `retry-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
+  const { objective } = await createObjective({ statement: `retry-obj-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: retryRoot.id, requestedBy: TESTER_ALL_ID });
 
-  const firstAttempt = await commissionSeu({ objectiveId: objective.id, templateIds: [conflictTemplate!.id], profileIds: [conflictProfile!.id], actorRole: "super", actorId: TESTER_ALL_ID });
-  assert.equal(firstAttempt.ok, true, !firstAttempt.ok ? `SEU creation itself failed: ${firstAttempt.reason}` : undefined);
+  const firstAttempt = await commissionSeu({ objectiveId: objective.id, templateIds: [conflictTemplate!.id], profileIds: [conflictProfile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  assert.equal(firstAttempt.ok, true, !firstAttempt.ok ? `SEU creation itself failed: ${firstAttempt.reason}` : "assertion failed");
   if (!firstAttempt.ok) throw new Error("unreachable");
 
   // Validate Request runs asynchronously (validateRequestHandler, off
@@ -204,13 +204,13 @@ test("Retry after a failed commission: a Failed SEU does not permanently block i
   // The Objective must not be permanently stuck on this one Failed attempt —
   // migration 179's partial unique index (active states only) plus
   // seusDB.findByObjectiveId's own matching filter.
-  const secondAttempt = await commissionSeu({ objectiveId: objective.id, templateIds: [cleanTemplate!.id], profileIds: [cleanProfile!.id], actorRole: "super", actorId: TESTER_ALL_ID });
-  assert.equal(secondAttempt.ok, true, !secondAttempt.ok ? `retry blocked: ${secondAttempt.reason}` : undefined);
+  const secondAttempt = await commissionSeu({ objectiveId: objective.id, templateIds: [cleanTemplate!.id], profileIds: [cleanProfile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  assert.equal(secondAttempt.ok, true, !secondAttempt.ok ? `retry blocked: ${secondAttempt.reason}` : "assertion failed");
   if (!secondAttempt.ok) throw new Error("unreachable");
   assert.notEqual(secondAttempt.seu.id, firstAttempt.seu.id, "retry creates its own new SEU row — the Failed one is never reused or deleted");
 
   const secondResult = await driveCommissioningToActive({ seuId: secondAttempt.seu.id, actorRole: "super", actorId: TESTER_ALL_ID });
-  assert.equal(secondResult.ok, true, !secondResult.ok ? `retry's own Compose EBM failed: ${secondResult.reason}` : undefined);
+  assert.equal(secondResult.ok, true, !secondResult.ok ? `retry's own Compose EBM failed: ${secondResult.reason}` : "assertion failed");
   if (secondResult.ok) assert.equal(secondResult.seu.lifecycle_state, "Operational");
 
   // The first, failed SEU row is still there, untouched — audit/traceability
@@ -242,8 +242,8 @@ test("Validate Request: a Template mandating a since-Retired Pack fails commissi
   await templatesDB.setMandatoryPacks(template!.id, [stalePack.code], ROOT_ACTOR_ID, "root");
   await templatesDB.setRequiredCapabilities(template!.id, []);
   const { data: profile } = await profilesDB.upsert({ code: `stale-pack-prof-${run}`, name: "Stale Pack Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
-  const { objective: staleRoot } = await createObjective({ statement: `stale-pack-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed" });
-  const { objective } = await createObjective({ statement: `stale-pack-obj-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: staleRoot.id, requestedBy: 1001 });
+  const { objective: staleRoot } = await createObjective({ statement: `stale-pack-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
+  const { objective } = await createObjective({ statement: `stale-pack-obj-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: staleRoot.id, requestedBy: TESTER_ALL_ID });
 
   // design/mvp-build-plan/SEU Composition.md, 2026-09-07 — commissionSeu
   // itself only creates the SEU and publishes CommissionRequested now;
@@ -251,8 +251,8 @@ test("Validate Request: a Template mandating a since-Retired Pack fails commissi
   // asynchronously in validateRequestHandler, off that event. Poll for its
   // real, async CommissionFailed outcome instead of checking commissionSeu's
   // own synchronous return value.
-  const result = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID });
-  assert.equal(result.ok, true, !result.ok ? `SEU creation itself failed: ${result.reason}` : undefined);
+  const result = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  assert.equal(result.ok, true, !result.ok ? `SEU creation itself failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
 
   let failedEvent: EventRow | undefined;
@@ -282,8 +282,8 @@ test("§4.3 / Open Q#3: a Quality Gate can gate a Pack transition with a null SE
   // Pack/Published/Active (qg-pack-a44355c1) — a run-scoped category keeps
   // this test's own fresh gate from colliding with it, same reason `code`
   // is already run-scoped.
-  const { data: gate } = await qualityGatesDB.upsert({ code: `qg-pack-${run}`, name: "Pack publish gate", category: `test-${run}`, entityType: "Pack", fromState: "Published", toState: "Active", criteria: { type: "no_unresolved_obligations" }, originatingPackId: corePack.id, authorId: corePack.authored_by, authorBadge: corePack.author_badge });
-  const evalResult = await qualityGateEngine.evaluate({ entityType: "Pack", entityId: corePack.id, seuId: null, fromState: "Published", toState: "Active" });
+  const { data: gate } = await qualityGatesDB.upsert({ name: "Pack publish gate", category: `test-${run}`, entityType: "Pack", fromState: "Published", toState: "Active", criteria: { type: "no_unresolved_obligations" }, originatingPackId: corePack.id, authorId: corePack.authored_by, authorBadge: corePack.author_badge });
+  const evalResult = await qualityGateEngine.evaluate({ entityType: "Pack", entityId: corePack.id, seuId: null, fromState: "Published", toState: "Active", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
   assert.equal(evalResult.outcome, "Passed", "a Pack transition can be gated and evaluated with a null SEU");
 
   // The CHECK enforces the scope invariant (the DB layer surfaces the violation
@@ -293,9 +293,9 @@ test("§4.3 / Open Q#3: a Quality Gate can gate a Pack transition with a null SE
   // "the" gate that passed isn't well-defined from the result alone); the
   // upsert's own return value is the real source for the gate's id here.
   const gateId = gate!.id;
-  const badDeliverable = await qualityGateEvaluationsDB.create({ qualityGateId: gateId, seuId: null, entityType: "Deliverable", entityId: corePack.id, outcome: "Passed" });
+  const badDeliverable = await qualityGateEvaluationsDB.create({ qualityGateId: gateId, seuId: null, entityType: "Deliverable", entityId: corePack.id, outcome: "Passed", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
   assert.ok(badDeliverable.error, "a Deliverable evaluation with a null SEU is rejected by the CHECK");
   // ...and a platform-level entity may not carry a SEU.
-  const badPack = await qualityGateEvaluationsDB.create({ qualityGateId: gateId, seuId: corePack.id, entityType: "Pack", entityId: corePack.id, outcome: "Passed" });
+  const badPack = await qualityGateEvaluationsDB.create({ qualityGateId: gateId, seuId: corePack.id, entityType: "Pack", entityId: corePack.id, outcome: "Passed", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
   assert.ok(badPack.error, "a Pack evaluation carrying a SEU is rejected by the CHECK");
 });

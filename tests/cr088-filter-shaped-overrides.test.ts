@@ -30,7 +30,8 @@ import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { deriveExposableParameterCandidates, deriveOverridableParameterCandidates, publishTemplate, extractExposedParameters } from "../src/routes/seu/core/templates.js";
 import { validateProfileSeed, publishProfile, extractExposedParameterOverrides, type ProfileSeedInput } from "../src/routes/seu/core/profiles.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
-import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
+const PLATFORM_TENANT_ID = await getPlatformTenantId();
 import { uniqueTestPackVersion, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 
 // A real, already-seeded, Active canonical Policy — confirmed directly
@@ -53,8 +54,9 @@ async function buildFixturePack(): Promise<{ packId: string; packCode: string; c
     authoredBy: ROOT_ACTOR_ID,
     authorBadge: ROOT_ACTOR_BADGE,
     schemaDefinitionId: packSchema!.id,
+    tenantId: PLATFORM_TENANT_ID,
   });
-  assert.ok(!packError && pack, packError?.message);
+  assert.ok(!packError && pack, packError?.message ?? "pack creation failed");
 
   const { data: policy, error: policyError } = await policiesDB.upsert({
     code: REAL_POLICY_CODE,
@@ -64,7 +66,7 @@ async function buildFixturePack(): Promise<{ packId: string; packCode: string; c
     authorId: pack!.authored_by,
     authorBadge: "root",
   });
-  assert.ok(!policyError && policy, policyError?.message);
+  assert.ok(!policyError && policy, policyError?.message ?? "assertion failed");
 
   const { data: checklist, error: checklistError } = await checklistsDB.upsert({
     name: `CR-088 fixture checklist ${randomUUID()}`,
@@ -73,7 +75,7 @@ async function buildFixturePack(): Promise<{ packId: string; packCode: string; c
     authorId: pack!.authored_by,
     authorBadge: "root",
   });
-  assert.ok(!checklistError && checklist, checklistError?.message);
+  assert.ok(!checklistError && checklist, checklistError?.message ?? "assertion failed");
 
   return { packId: pack!.id, packCode, checklistId: checklist!.id };
 }
@@ -117,7 +119,7 @@ const CR088_TEMPLATE_CODE = "test-cr088-overridable-template";
 async function buildFixtureTemplate(input: { packCode: string; checklistId: string; flagOverridable: boolean }): Promise<string> {
   const templateCode = CR088_TEMPLATE_CODE;
   const { data: template, error } = await templatesDB.upsert({ code: templateCode, name: "CR-088 fixture Template", templateVersion: uniqueTestPackVersion(), deliverableCatalogue: [] });
-  assert.ok(!error && template, error?.message);
+  assert.ok(!error && template, error?.message ?? "assertion failed");
   await templatesDB.setMandatoryPacks(template!.id, [input.packCode], ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   const { error: draftContentError } = await templatesDB.setDraftContent(template!.id, {
     purpose: "CR-088 test fixture Template. Exercises filter-shaped exposable parameter overridability.",
@@ -126,7 +128,7 @@ async function buildFixtureTemplate(input: { packCode: string; checklistId: stri
       { sourceType: "checklist", sourceCode: input.checklistId, parameterName: "type", overridable: input.flagOverridable },
     ],
   });
-  assert.ok(!draftContentError, draftContentError?.message);
+  assert.ok(!draftContentError, draftContentError?.message ?? "assertion failed");
   return templateCode;
 }
 
@@ -178,10 +180,10 @@ test("Profile override: a real value from the candidate's own valueOptions is ac
   };
 
   const validation = await validateProfileSeed(seed);
-  assert.equal(validation.ok, true, !validation.ok ? `unexpected validation errors: ${validation.errors.join("; ")}` : undefined);
+  assert.equal(validation.ok, true, !validation.ok ? `unexpected validation errors: ${validation.errors.join("; ")}` : "assertion failed");
 
   const result = await publishProfile({ seed, actorRole: "power", actorId: TESTER_ALL_ID });
-  assert.equal(result.ok, true, !result.ok ? result.errors.join("; ") : undefined);
+  assert.equal(result.ok, true, !result.ok ? result.errors.join("; ") : "assertion failed");
   if (!result.ok) return;
 
   const { data: saved } = await profilesDB.findById(result.profileId);
@@ -238,7 +240,7 @@ test("publishTemplate: materialises a non-sparse exposedParameters set from the 
     actorRole: "power",
     actorId: TESTER_ALL_ID,
   });
-  assert.equal(result.ok, true, !result.ok ? JSON.stringify(result.errors) : undefined);
+  assert.equal(result.ok, true, !result.ok ? JSON.stringify(result.errors) : "assertion failed");
   if (!result.ok) return;
 
   const { data: template } = await templatesDB.findById(result.templateId);

@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import pool from "../src/utils/db.js";
 import { createSchemaVersion, reviewSchemaVersion, getSchemaDefinition, listSchemaDefinitions } from "../src/routes/seu/core/schemaRegistry.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
+import { ROOT_ACTOR_ID } from "./testFixtures.js";
 
 // The grammar-authored kinds (Pack/Template/Profile) are all load-bearing — each
 // has a live authoring surface whose generated form reads
@@ -28,8 +29,9 @@ test("Schema Registry: a new version is additive — the previous version stays 
     const created = await createSchemaVersion({
       entityKind: TEST_KIND,
       schemaJson: JSON.stringify({ type: "object", required: ["code"], properties: { code: { type: "string" } } }),
+      actorId: ROOT_ACTOR_ID,
     });
-    assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
+    assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
     if (!created.ok) return;
     assert.equal(created.schema.version, before!.version + 1);
 
@@ -53,7 +55,7 @@ test("Schema Registry: a new version is additive — the previous version stays 
     // Restore "latest" to before's real content, regardless of pass/fail —
     // never leave the shared dev database's live authoring surface pointed
     // at this test's own throwaway schema.
-    await createSchemaVersion({ entityKind: TEST_KIND, schemaJson: JSON.stringify(before!.schema) });
+    await createSchemaVersion({ entityKind: TEST_KIND, schemaJson: JSON.stringify(before!.schema), actorId: ROOT_ACTOR_ID });
   }
 });
 
@@ -80,11 +82,11 @@ test("Schema Registry: reviewSchemaVersion reports compatibility against every e
 });
 
 test("Schema Registry: rejects invalid JSON and an unknown entity kind, without writing a row", async () => {
-  const badJson = await createSchemaVersion({ entityKind: TEST_KIND, schemaJson: "{ not valid json" });
+  const badJson = await createSchemaVersion({ entityKind: TEST_KIND, schemaJson: "{ not valid json", actorId: ROOT_ACTOR_ID });
   assert.equal(badJson.ok, false);
   assert.match((!badJson.ok && badJson.errors.join(";")) || "", /invalid JSON/);
 
-  const badKind = await createSchemaVersion({ entityKind: "NotARealKind", schemaJson: "{}" });
+  const badKind = await createSchemaVersion({ entityKind: "NotARealKind", schemaJson: "{}", actorId: ROOT_ACTOR_ID });
   assert.equal(badKind.ok, false);
   assert.match((!badKind.ok && badKind.errors.join(";")) || "", /entity kind must be one of/);
 });

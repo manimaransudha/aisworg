@@ -45,6 +45,10 @@
 
 - schema-changing CRs must list which test fixtures need updating and fix them in the same build pass, not after the suite breaks.
 
+- "No superuser provisioned." test failures are a recurring, not one-off, gap: tests/testFixtures.ts has no shared helper that provisions a superuser (real participants_master row + badge) once. Each test file stands up its own tenant/actor fixture independently and keeps omitting the participants_master insert for the actor it uses. When this surfaces again, the fix belongs in a shared fixture helper, not a per-test patch — ask before adding one, since it touches many test files.
+
+- actorId/authorityBadge/author_id are typed `string`/`string | null` with no branding — `tsc` cannot catch a wrong-but-string value (e.g. `"1"` where a UUID row id is required, or a silently-missing badge). NOT NULL and UUID-format violations only surface at the DB. Do not expect typecheck to catch these; they need runtime/DB-level verification (tests, fixtures) or a branded-type change (a design decision requiring explicit approval), not a types-only fix.
+
 - A running register of change requests raised against the platform is in design/Change Requests.md and serves as the index (newest first).  Each CR is its own file in [change-requests/](change-requests/); this page is the request as raised, the agreed scope, the design decisions, and (once built) a Built banner. Do not edit these files directly unless asked for by the user. 
 
 ## Application specifics 
@@ -65,7 +69,9 @@
 
 - Composition strategy already has an implementation and has to be reused.
 
-- Event publishing / subscribing is already implemented and has to be reused. There should  strictly be NO code statements after an event is puclished. 
+- Event publishing / subscribing is already implemented and has to be reused. There should  strictly be NO code statements after an event is puclished.
+
+- Every `eventBus.publish` call must carry a real `actorId` and badge — never `?? null`/`?? ""`/any silent fallback. A missing actor is a bug to surface (throw or require it upstream), not something to paper over with a default at the publish call. 
 
 - Event subscriber rule: `transition_definitions` is scoped `UNIQUE(entity_type, from_state, to_state)` — one row is one hop inside exactly one entity's own state machine, and it has no way to declare an effect on a different entity. Add a real subscriber (HANDLER_REGISTRY entry + event_subscriptions row) ONLY when the effect that must follow an event lands on a different entity_type (or outside transition_definitions entirely, e.g. delivery to a Participant) than the one whose transition produced it. Definition-only, single-entity, linear-lifecycle entities (Objective, Pack, Template, Profile, Service Definition, Ontology) never need a subscriber — their own transition row is the whole effect, start to finish. Do not add a subscriber for a transition that only ever advances its own entity's own state, and do not treat "multi-hop" or "async" alone as a reason for one — the deciding question is strictly whether the consequence crosses an entity_type/chapter boundary.
 

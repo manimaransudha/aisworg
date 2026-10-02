@@ -32,6 +32,12 @@ export const templatesDB = {
   // immediately-usable Active row with no lifecycle walk, and that stays
   // true. publishTemplate (core/templates.ts) no longer calls this at all —
   // it creates a real Draft (createDraft) and walks it forward for real.
+  // authored_by/author_badge are NOT NULL (templates_schema_recovery.sql)
+  // but this raw direct-fixture path (see this function's own header
+  // comment) has no real actor flowing through it — same stopgap as
+  // participantsDB.create: resolves the SUPERUSER_EMAIL superuser
+  // (userDB.getSuperuserId()) as author until a real actor is threaded
+  // through every caller.
   async upsert(input: {
     code: string;
     name: string;
@@ -41,13 +47,14 @@ export const templatesDB = {
     status?: TemplateRow["status"];
   }): Promise<DbResult<TemplateRow>> {
     try {
+      const { actorId, actorBadge } = await userDB.getSuperuserId();
       const { rows } = await query<TemplateRow>(
-        `INSERT INTO templates (code, name, template_version, deliverable_catalogue, tenant_id, status)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO templates (code, name, template_version, deliverable_catalogue, tenant_id, status, authored_by, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          ON CONFLICT (code, template_version, tenant_id) DO UPDATE
            SET name = EXCLUDED.name, deliverable_catalogue = EXCLUDED.deliverable_catalogue
          RETURNING *`,
-        [input.code, input.name, input.templateVersion ?? "1.0.0", JSON.stringify(input.deliverableCatalogue ?? []), input.tenantId ?? PLATFORM_TENANT_ID, input.status ?? "Active"]
+        [input.code, input.name, input.templateVersion ?? "1.0.0", JSON.stringify(input.deliverableCatalogue ?? []), input.tenantId ?? PLATFORM_TENANT_ID, input.status ?? "Active", actorId, actorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

@@ -26,13 +26,15 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { publishProfile } from "../src/routes/seu/core/profiles.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
-import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync, ensurePolicyDefinitionWithObligation, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync, ensurePolicyDefinitionWithObligation, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 import type { SeuRow } from "../src/dblayer/seuTypes.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
+const PLATFORM_TENANT_ID = await getPlatformTenantId();
 
 async function registerOrganisationName(code: string): Promise<void> {
   await pool.query(
-    "INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id) VALUES ('organisation-name', $1, $2, '11111111-1111-1111-1111-111111111111') ON CONFLICT DO NOTHING",
-    [code, code]
+    "INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id, author_id, author_badge) VALUES ('organisation-name', $1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
+    [code, code, PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE]
   );
 }
 
@@ -74,8 +76,8 @@ async function commissionBlockedSeu(run: string) {
   await templatesDB.setRequiredCapabilities(template!.id, []);
 
   await ensureEventSubscriptionsLoaded();
-  const { objective: root } = await createObjective({ statement: `cr107-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed" });
-  const { objective } = await createObjective({ statement: `cr107-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: 1001 });
+  const { objective: root } = await createObjective({ statement: `cr107-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
+  const { objective } = await createObjective({ statement: `cr107-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
   const profilePublish = await publishProfile({
     seed: {
       code: `cr107-profile-${run}`,
@@ -92,11 +94,11 @@ async function commissionBlockedSeu(run: string) {
     actorRole: "super",
     actorId: TESTER_ALL_ID,
   });
-  assert.equal(profilePublish.ok, true, !profilePublish.ok ? JSON.stringify(profilePublish.errors) : undefined);
+  assert.equal(profilePublish.ok, true, !profilePublish.ok ? JSON.stringify(profilePublish.errors) : "assertion failed");
   if (!profilePublish.ok) throw new Error("unreachable");
   const { data: profile } = await profilesDB.findById(profilePublish.profileId);
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID });
-  assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : undefined);
+  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
 
   const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: TESTER_ALL_ID, timeoutMs: 30000 });
@@ -188,7 +190,7 @@ test("CR-107: once the blocking commence-work Obligation resolves, the Execution
   // needed.
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
     const step = await transitionObligation({ obligationId: blockingObligation.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
-    assert.equal(step.ok, true, !step.ok ? `Obligation ${targetState} step failed: ${JSON.stringify(step)}` : undefined);
+    assert.equal(step.ok, true, !step.ok ? `Obligation ${targetState} step failed: ${JSON.stringify(step)}` : "assertion failed");
   }
 
   // ObligationTransitioned (published by that last "Verified" hop) wakes
@@ -201,7 +203,12 @@ test("CR-107: once the blocking commence-work Obligation resolves, the Execution
     seuAfter = reloaded ?? null;
     return reloaded?.lifecycle_state === "Operational";
   });
-  assert.equal(seuAfter?.lifecycle_state, "Operational", "resolving the blocking Obligation must let the Execution Engine's own retry reach Operational");
+  // TS narrows a `let` reassigned inside an async closure (the
+  // waitUntilAsync callback above) to `never` at every read site after the
+  // closure returns — a known compiler limitation, not an actual runtime
+  // possibility. A local cast sidesteps it without weakening the null check.
+  const resolvedSeuAfter = seuAfter as SeuRow | null;
+  assert.equal(resolvedSeuAfter?.lifecycle_state, "Operational", "resolving the blocking Obligation must let the Execution Engine's own retry reach Operational");
 
   // And the Deliverable-level block (item 6/CR-107's own fix) must have
   // cleared too — the same fifth check that refused it above now finds no

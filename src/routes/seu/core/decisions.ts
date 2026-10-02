@@ -11,7 +11,7 @@ import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { assertCanonicalCategory } from "./ontology.js";
-import { resolveAuthor } from "./attentionItems.js";
+import { resolveAuthor, resolveSystemActor } from "./attentionItems.js";
 import type { DecisionAlternative, DecisionRelatedObjectGroup, DecisionRow } from "../../../dblayer/seuTypes.js";
 
 // participant_id on decisions.* points at the per-SEU engagement
@@ -79,6 +79,7 @@ export async function createDecision(input: {
   });
   if (error || !decision) throw error ?? new Error("failed to create decision");
 
+  const decisionSystemActor = input.userId == null ? await resolveSystemActor(input.seuId) : null;
   await eventBus.publish({
     eventType: "DecisionIdentified",
     originatingObjectType: "Decision",
@@ -86,7 +87,8 @@ export async function createDecision(input: {
     seuId: decision.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { originatingType: input.originatingType ?? null, originatingId: input.originatingId ?? null, relatedObjects: input.relatedObjects, category: input.category },
-    actorId: input.userId != null ? String(input.userId) : null,
+    actorId: input.userId != null ? String(input.userId) : decisionSystemActor!.actorId,
+    authorityBadge: decisionSystemActor?.authorBadge ?? "system",
   });
 
   return decision;
@@ -124,6 +126,7 @@ export async function transitionDecision(input: { decisionId: string; targetStat
 
   const fromState = decision.status;
 
+  if (!input.actorId) throw new Error("actorId is required to transition a Decision");
   // entityId now passed — was missing, the same latent submit_verb gap
   // every other entity's Version Feature Plan pass found and fixed (no
   // Decision row declares submit_verb today, but the gate would silently
@@ -133,7 +136,7 @@ export async function transitionDecision(input: { decisionId: string; targetStat
     fromState,
     toState: input.targetState,
     actorRole: input.actorRole,
-    actorId: input.actorId ?? "",
+    actorId: input.actorId,
     entityId: decision.id,
     context: { decision },
   });
@@ -148,7 +151,6 @@ export async function transitionDecision(input: { decisionId: string; targetStat
   // Post-completion fix (Open Design Questions.md #3): Quality Gates used to
   // apply to Deliverable transitions only — same check obligations.ts's own
   // transitionObligation runs, generalised to every SEU-scoped entity type.
-  if (!input.actorId) throw new Error("actorId is required to transition a Decision");
   if (!gate.authorityBadge) throw new Error(`no authority badge resolved for Decision ${fromState} -> ${input.targetState} — Transition Definition declares no verb`);
   const { authorId } = await resolveAuthor(decision.seu_id, input.actorId);
   const qualityGateResult = await qualityGateEngine.evaluate({
@@ -179,7 +181,7 @@ export async function transitionDecision(input: { decisionId: string; targetStat
     seuId: decision.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
-    actorId: input.actorId ?? null,
+    actorId: input.actorId,
     authorityBadge: gate.authorityBadge,
   });
 

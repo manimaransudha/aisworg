@@ -17,6 +17,7 @@ import { sweepStalledWorkItems } from "../src/routes/seu/core/workItemHeartbeat.
 import { servicesDB } from "../src/dblayer/servicesDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 const SLA_SECONDS = 60;
 
@@ -25,9 +26,9 @@ async function commissionDispatchAndDeclareSla(prefix: string, opts?: { slaSecon
   const result = await commissionFromFormSync({
     statement: `${prefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: "1001", requestedBy: 1001,
+    actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
   });
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const seuId = result.seu.id;
 
@@ -54,7 +55,7 @@ async function commissionDispatchAndDeclareSla(prefix: string, opts?: { slaSecon
     contractDescription: svc.contract_description,
     serviceLevel: [
       ...svc.service_level.filter((item) => !/turnaround/i.test(item.label)),
-      { label: "Turnaround Time", target: String(opts?.slaSeconds ?? SLA_SECONDS) },
+      { code: "turnaround-time", label: "Turnaround Time", target_level: "maximum", target: opts?.slaSeconds ?? SLA_SECONDS, units: "seconds" },
     ],
     originatingPackId: svc.originating_pack_id!,
     authorId: svc.author_id,
@@ -65,8 +66,8 @@ async function commissionDispatchAndDeclareSla(prefix: string, opts?: { slaSecon
 
   // Dispatch and DO NOT complete — the Work Item is now genuinely outstanding.
   // The target is the SLA-derived default unless the caller overrides it.
-  const dispatched = await transitionDeliverable({ deliverableId: deliverable.id, targetState: "In Progress", actorRole: "super", actorId: "1", targetCompletionAt: opts?.targetCompletionAt ?? null });
-  assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : undefined);
+  const dispatched = await transitionDeliverable({ deliverableId: deliverable.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID, targetCompletionAt: opts?.targetCompletionAt ?? null });
+  assert.equal(dispatched.ok, true, !dispatched.ok ? JSON.stringify(dispatched) : "assertion failed");
   if (!dispatched.ok) throw new Error("unreachable");
 
   const { workItem } = await waitForDispatchedWorkItem(deliverable.id, "Defined", "In Progress");
@@ -129,6 +130,6 @@ test("a Participant that responds before the target is processed normally (the d
   // Well within the 60s SLA target: completing now must succeed and apply the transition.
   const { completeWorkItem } = await import("../src/routes/seu/core/workItems.js");
   const done = await completeWorkItem({ workItemId, outcome: "done", reference: "vcs://stall/req@early" });
-  assert.equal(done.ok, true, !done.ok ? JSON.stringify(done) : undefined);
+  assert.equal(done.ok, true, !done.ok ? JSON.stringify(done) : "assertion failed");
   if (done.ok && done.outcome === "done") assert.equal(done.deliverable.id, deliverableId);
 });

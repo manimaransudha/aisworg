@@ -85,12 +85,15 @@ export const executionEngine = {
       // DeliverableReady, published at the exact point a gated transition is
       // actually refused.
       const reason = `${readiness.rows.length} governing dependency row(s) not yet satisfied (${readiness.rows.map((r) => `${r.from_entity_type}${r.from_name ? ` "${r.from_name}"` : ""} -> ${r.from_state}`).join(", ")})`;
+      const blockedSystemActor = await resolveSystemActor(deliverable.seu_id);
       await eventBus.publish({
         eventType: "DeliverableBlocked",
         originatingObjectType: "Deliverable",
         originatingObjectId: deliverable.id,
         seuId: deliverable.seu_id,
         correlationId: eventBus.newCorrelationId(),
+        actorId: blockedSystemActor.actorId,
+        authorityBadge: blockedSystemActor.authorBadge,
         payload: { entityType: "Deliverable", entityId: deliverable.id, reason },
       });
       return { ok: false, reason: "dependency_not_satisfied", rows: readiness.rows };
@@ -240,6 +243,7 @@ export const executionEngine = {
     // (after dependency readiness, before Authority): reads this SEU's EBM-
     // materialised applicable_policy_ids, not the dead required_policy_ids/
     // findAllActive paths.
+    const policySystemActor = input.actorId ? null : await resolveSystemActor(deliverable.seu_id);
     const policyResult = await policyEngine.evaluate({
       entityType: "Deliverable",
       seuId: deliverable.seu_id,
@@ -247,6 +251,8 @@ export const executionEngine = {
       fromState,
       toState: targetState,
       context: { deliverable },
+      authorId: input.actorId ?? policySystemActor!.actorId,
+      authorBadge: actingBadgeType ?? policySystemActor?.authorBadge ?? "system",
     });
     if (policyResult.outcome === "Blocked") {
       // CR-106 Option C — same treatment as the Quality Gate block above:
@@ -412,6 +418,17 @@ export const executionEngine = {
       eligibleParticipantPoolId = pool.id;
     }
 
+    // Real triggering actor when one exists (a human-initiated transition);
+    // the real, resolved system actor otherwise (an automatic engine-driven
+    // Command, e.g. executionEngineKickoff) — never a null/empty placeholder.
+    // Resolved before the insert so the persisted requested_by/acting_badge_type
+    // carry the same fallback as the in-memory actor used for CommandGenerated's
+    // payload below, instead of the row itself staying permanently null for
+    // system-driven Commands (the gap resolveWorkItemAuthor was tripping over).
+    const commandSystemActor = input.actorId ? null : await resolveSystemActor(input.seuId);
+    const commandActorId = input.actorId ?? commandSystemActor!.actorId;
+    const commandAuthorityBadge = input.actingBadgeType ?? commandSystemActor!.authorBadge;
+
     const { data: command, error } = await commandsDB.create({
       seuId: input.seuId,
       entityType: input.entityType,
@@ -419,8 +436,8 @@ export const executionEngine = {
       commandType: `${input.entityType}.Transition`,
       fromState: input.fromState,
       toState: input.toState,
-      requestedBy: input.requestedBy,
-      actingBadgeType: input.actingBadgeType ?? null,
+      requestedBy: input.requestedBy ?? commandActorId,
+      actingBadgeType: input.actingBadgeType ?? commandAuthorityBadge,
       correlationId: input.correlationId,
       governanceOutcomeId,
       eligibleParticipantPoolId,
@@ -440,6 +457,8 @@ export const executionEngine = {
       originatingObjectId: command.id,
       seuId: input.seuId,
       correlationId: input.correlationId,
+      actorId: commandActorId,
+      authorityBadge: commandAuthorityBadge,
       payload: {
         entityType: input.entityType,
         entityId: input.entityId,

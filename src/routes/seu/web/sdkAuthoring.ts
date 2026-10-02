@@ -462,7 +462,9 @@ router.post("/authority/mapping/edit-trigger", async (req: Request, res: Respons
 
 router.post("/authority/transition-definitions/add", async (req: Request, res: Response) => {
   const { entityType, fromState, toState, verb } = req.body ?? {};
-  wrote(req, res, TD_INDEX, await addTransitionDefinition({ entityType: String(entityType ?? ""), fromState: String(fromState ?? ""), toState: String(toState ?? ""), verb: String(verb ?? "") }), `Transition ${entityType} ${fromState} → ${toState} added.`);
+  const author = await resolveAuthorityVocabAuthor(req);
+  if ("error" in author) return flashError(req, res, TD_INDEX, author.error);
+  wrote(req, res, TD_INDEX, await addTransitionDefinition({ entityType: String(entityType ?? ""), fromState: String(fromState ?? ""), toState: String(toState ?? ""), verb: String(verb ?? ""), authorId: author.authorId, authorBadge: author.authorBadge }), `Transition ${entityType} ${fromState} → ${toState} added.`);
 });
 router.post("/authority/transition-definitions/retire", async (req: Request, res: Response) => {
   const { id } = req.body ?? {};

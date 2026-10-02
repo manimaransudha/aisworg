@@ -21,9 +21,10 @@
 // to participants_master.authorised_badges (migration 257), the same
 // standing-grant shape authorised_role already uses. seu_ids is carried on
 // every entry but never checked here ("badge does not need seuid" — always
-// platform-wide). actorId is a users.id (every real caller — requireBadge,
-// transitionEngine, executionEngine, commissioning — passes one); resolved
-// to that user's own participants_master row via user_id.
+// platform-wide). actorId is a participants_master.id itself (every real
+// caller — requireBadge, transitionEngine, executionEngine, commissioning —
+// passes one directly); users.id is 1:1 with it but never exposed/passed
+// around, so this looks it up via findById, not findByUserId.
 import { participantsMasterDB } from "../../dblayer/participantsMasterDB.js";
 
 // The one Layer 1 badge this design guarantees exists (§8.2) — the

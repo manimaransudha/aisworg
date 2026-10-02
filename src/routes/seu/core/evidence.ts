@@ -83,6 +83,8 @@ export async function createEvidence(input: {
     originatingObjectId: evidence.id,
     seuId: input.seuId,
     correlationId: eventBus.newCorrelationId(),
+    actorId: input.actorId,
+    authorityBadge: input.authorBadge,
     payload: { relatedObjectType: input.relatedObjectType, relatedObjectId: input.relatedObjectId, category: input.category },
   });
 
@@ -98,6 +100,8 @@ export async function createEvidence(input: {
       originatingObjectId: evidence.id,
       seuId: input.seuId,
       correlationId: eventBus.newCorrelationId(),
+      actorId: input.actorId,
+      authorityBadge: input.authorBadge,
       payload: { supersedesEvidenceId: input.supersedesEvidenceId, versionEvent: "VersionSuperseded" },
     });
   }
@@ -150,6 +154,8 @@ export async function linkEvidenceToObject(evidenceId: string, relatedObjectType
     originatingObjectId: evidence.id,
     seuId,
     correlationId: eventBus.newCorrelationId(),
+    actorId,
+    authorityBadge: authorBadge,
     payload: { relatedObjectType, relatedObjectId },
   });
 

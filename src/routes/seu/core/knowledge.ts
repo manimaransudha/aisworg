@@ -11,6 +11,7 @@ import { qualityGateEngine } from "../../../domain/engine/qualityGateEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { createObligation } from "./obligations.js";
 import { assertCanonicalCategory } from "./ontology.js";
+import { resolveSystemActor } from "./attentionItems.js";
 import { resolveAuthor } from "./attentionItems.js";
 import type { AcquisitionScope, EngineeringCapitalRow, KnowledgeItemRow, KnowledgeRelationshipReferences, KnowledgeSelfReferences, KnowledgeValidationNoteRow, ObligationRow } from "../../../dblayer/seuTypes.js";
 
@@ -75,12 +76,15 @@ export async function createKnowledgeItem(input: {
   });
   if (error || !knowledgeItem) throw error ?? new Error("failed to create knowledge item");
 
+  const knowledgeSystemActor = await resolveSystemActor(input.seuId);
   await eventBus.publish({
     eventType: "KnowledgeObserved",
     originatingObjectType: "Knowledge",
     originatingObjectId: knowledgeItem.id,
     seuId: knowledgeItem.seu_id,
     correlationId: eventBus.newCorrelationId(),
+    actorId: input.userId ?? knowledgeSystemActor.actorId,
+    authorityBadge: knowledgeSystemActor.authorBadge,
     payload: { deliverableId: input.deliverableId, category: input.category, acquisitionScope: knowledgeItem.acquisition_scope },
   });
 
@@ -123,12 +127,13 @@ export async function transitionKnowledgeItem(input: { knowledgeItemId: string; 
 
   const fromState = knowledgeItem.status;
 
+  if (!input.actorId) throw new Error("actorId is required to transition a Knowledge Item");
   const gate = await transitionEngine.evaluate({
     entityType: "Knowledge",
     fromState,
     toState: input.targetState,
     actorRole: input.actorRole,
-    actorId: input.actorId ?? "",
+    actorId: input.actorId,
     entityId: knowledgeItem.id,
     seuId: knowledgeItem.seu_id,
     context: { knowledgeItem },
@@ -141,7 +146,6 @@ export async function transitionKnowledgeItem(input: { knowledgeItemId: string; 
     return { ok: false, reason: "policy_blocked", detail: `blocked by policy ${gate.policyCode}` };
   }
 
-  if (!input.actorId) throw new Error("actorId is required to transition a Knowledge Item");
   if (!gate.authorityBadge) throw new Error(`no authority badge resolved for Knowledge ${fromState} -> ${input.targetState} — Transition Definition declares no verb`);
   const { authorId: qualityGateAuthorId } = await resolveAuthor(knowledgeItem.seu_id, input.actorId);
   const qualityGateResult = await qualityGateEngine.evaluate({
@@ -173,8 +177,8 @@ export async function transitionKnowledgeItem(input: { knowledgeItemId: string; 
     seuId: knowledgeItem.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
-    actorId: input.actorId ?? null,
-    authorityBadge: gate.authorityBadge,
+    actorId: input.actorId,
+    authorityBadge: gate.authorityBadge ?? "root",
   });
 
   return { ok: true, knowledgeItem: updated, appliedTransition: { fromState, toState: input.targetState } };
@@ -208,12 +212,13 @@ export async function promoteKnowledgeItemScope(input: { knowledgeItemId: string
   }
 
   const fromScope = knowledgeItem.acquisition_scope;
+  if (!input.actorId) throw new Error("promoteKnowledgeItemScope requires a real actorId");
   const gate = await transitionEngine.evaluate({
     entityType: "KnowledgeScope",
     fromState: fromScope,
     toState: input.targetScope,
     actorRole: input.actorRole,
-    actorId: input.actorId ?? "",
+    actorId: input.actorId,
     entityId: knowledgeItem.id,
     seuId: knowledgeItem.seu_id,
     context: { knowledgeItem },
@@ -244,8 +249,8 @@ export async function promoteKnowledgeItemScope(input: { knowledgeItemId: string
     seuId: knowledgeItem.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromScope, toScope: input.targetScope },
-    actorId: input.actorId ?? null,
-    authorityBadge: gate.authorityBadge,
+    actorId: input.actorId,
+    authorityBadge: gate.authorityBadge ?? "root",
   });
 
   // Ch.23 §7 Organisational Learning: Knowledge promoted past its
@@ -254,7 +259,6 @@ export async function promoteKnowledgeItemScope(input: { knowledgeItemId: string
   // Knowledge Item (Ch.16 §13) — that codification work is the Obligation
   // this raises. Attached to the Knowledge Item's own originating
   // Deliverable, the only FK Obligation supports (Phase 4 scope).
-  if (!input.actorId) throw new Error("promoteKnowledgeItemScope: no acting user to author the resulting Obligation");
   if (!gate.authorityBadge) throw new Error("promoteKnowledgeItemScope: no resolved authority badge to author the resulting Obligation");
   const obligation = await createObligation({
     relatedObjectType: "Deliverable",

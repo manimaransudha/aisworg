@@ -48,9 +48,9 @@ async function commissionTestSeu(statementPrefix: string): Promise<string> {
   const result = await commissionFromFormSync({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: 1001,
+    actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
   });
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   return result.seu.id;
 }
@@ -58,7 +58,7 @@ async function commissionTestSeu(statementPrefix: string): Promise<string> {
 test("Policy waiver: transitionEngine.evaluate records the deviation, and checkSustainedPolicyWaivers raises (and deduplicates) an Obligation once the SEU crosses the threshold", async () => {
   const seuId = await commissionTestSeu("policy-waiver-generalization");
   const packId = await anyRealPackId();
-  const attentionItem = await createAttentionItem({ seuId, category: "Action Required", title: "Policy waiver generalization test item" });
+  const attentionItem = await createAttentionItem({ seuId, category: "Action Required", title: "Policy waiver generalization test item", actorId: TESTER_ALL_ID, authorBadge: "root" });
   const { data: rootMaster, error: rootMasterErr } = await participantsMasterDB.findById(ROOT_ACTOR_ID);
   if (rootMasterErr || !rootMaster) throw rootMasterErr ?? new Error("no participants_master row for user_id 1 — is db:clean-slate seeded?");
 
@@ -77,7 +77,7 @@ test("Policy waiver: transitionEngine.evaluate records the deviation, and checkS
     authorId: rootMaster.id,
     authorBadge: "root",
   });
-  assert.ok(!policyError && policy, policyError?.message);
+  assert.ok(!policyError && policy, policyError?.message ?? "assertion failed");
 
   const { error: definitionError } = await transitionDefinitionsDB.upsert({
     entityType: "AttentionItem",

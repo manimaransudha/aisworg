@@ -5,21 +5,31 @@ The platform is overwhelmingly **declarative**. Packs declare behaviour, policie
 --------------
 
 
-SEU does not perform software engineering. It provides services that make software engineering possible. It is much closer to an **operating system kernel**.
+Software Engineering Unit provides services that make software engineering possible by bringing AI and human participants into the same governing process that typical software engineering processes expect. 
 
+SEU Studio is **the software platform** that hosts all of this.
 
-1. Engineering concepts/layer:
+There are four layers within the SEU Studio
+
+- Engineering concepts layer
+- Platform concepts layer
+- Infrastructure layer
+- Cross-cutting concerns. 
+
+## 1. Engineering concepts layer:
+
+The Engineering concepts layer defines the primitives that are required to carry out software engineering. The primitives are broadly classified as: 
 
 - the engineering model
 - the execution model
 - the knowledge model
 - the governance model
 
-SEU platform  **the software platform** that hosts all of this.
 
+### Engineering model
 
-## Persistent Engineering Objects
-
+The Engineering model defines persistent engineering objects that are listed below. These objects are required to define the engineering behavior of a software engineering lifecycle. 
+ 
 - Software Engineering Units
 - Deliverables
 - Decisions
@@ -32,7 +42,9 @@ SEU platform  **the software platform** that hosts all of this.
 - Objectives
 - Engineering Behavior Models
 
-## Governance primitives
+## Governance model
+
+The Governance model defines persistent governance primitives that are listed below. These objects are required to define the governance associated with a software engineering lifecycle. 
 
 - Authority
 - Policies
@@ -42,7 +54,9 @@ SEU platform  **the software platform** that hosts all of this.
 - Quality Gates
 - Compliance
 
-## Runtime Services
+### Execution model
+
+## Runtime Services *Is this the execution model?*
 
 **"How the SEU is operated"**—covering runtime services such as state management, eventing, execution planning, observability, notifications, integrations and operational management.
 
@@ -52,7 +66,7 @@ SEU platform  **the software platform** that hosts all of this.
 - Commands
 - Work Items
 
-2. Platform layer/concepts
+2. Platform layer concepts
 
 The SEU platform should be viewed as comprising two distinct parts:
 

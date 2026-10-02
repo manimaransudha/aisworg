@@ -21,6 +21,7 @@ import { createObligationAsRoot as createObligation } from "./testFixtures.js";
 import { createAttentionItem, listAttentionItemsBySeu, transitionAttentionItem } from "../src/routes/seu/core/attentionItems.js";
 import { createExternalInteraction, listExternalInteractionsBySeu, transitionExternalInteraction } from "../src/routes/seu/core/externalInteractions.js";
 import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
@@ -29,7 +30,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
     {
       statement: `${statementPrefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorRole: "super", actorId: "1001", requestedBy: 1001,
+      actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
     },
     // Fulfil before the Execution Engine's own automatic commence-work
     // attempt (executionEngineKickoff, off SEUActivated) reaches Dispatch —
@@ -44,7 +45,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
       await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantMasterId });
     }
   );
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const seuId = result.seu.id;
 
@@ -73,10 +74,10 @@ test("a Quality Gate block raises exactly one 'Action Required' Attention Item, 
   // at that hop, automatic or manual, whichever gets there first, finds the
   // same Obligation already in place.
   const obligation = await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase8 attention-dedup blocker (left unresolved)" });
-  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
+  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
 
   for (let i = 0; i < 3; i++) {
-    const attempt = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
+    const attempt = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
     assert.equal(attempt.ok, false);
   }
 
@@ -94,11 +95,11 @@ test("a sustained pattern of Quality Gate blocking raises a High-priority 'Escal
   // Same ordering fix as the AM-002 dedup test above — Obligation before
   // "In Progress", not after (see that test's own comment for why).
   await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase8 escalation blocker (left unresolved)" });
-  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
+  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
 
   // Threshold is 3 (SUSTAINED_BLOCK_THRESHOLD) — cross it.
   for (let i = 0; i < 4; i++) {
-    const attempt = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
+    const attempt = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
     assert.equal(attempt.ok, false);
   }
 
@@ -113,12 +114,12 @@ test("a sustained pattern of Quality Gate blocking raises a High-priority 'Escal
 test("an Attention Item can be created directly and walked through its Ch.34 §9 lifecycle", async () => {
   const { seuId } = await commissionAndFulfilRequirementsSpec("phase8-attention-lifecycle");
 
-  const attentionItem = await createAttentionItem({ seuId, category: "Action Required", title: "Phase8 direct-create test item" });
+  const attentionItem = await createAttentionItem({ seuId, category: "Action Required", title: "Phase8 direct-create test item", actorId: ROOT_ACTOR_ID, authorBadge: "root" });
   assert.equal(attentionItem.status, "Created");
 
   for (const targetState of ["Delivered", "Acknowledged", "In Progress", "Resolved", "Closed"]) {
-    const step = await transitionAttentionItem({ attentionItemId: attentionItem.id, targetState, actorRole: "super", actorId: "1001" });
-    assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : undefined);
+    const step = await transitionAttentionItem({ attentionItemId: attentionItem.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
+    assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : "assertion failed");
   }
 });
 
@@ -132,6 +133,8 @@ test("an External Interaction can be recorded against a Deliverable and walked t
     direction: "Outbound",
     targetSystem: "Customer Email",
     purpose: "Phase8 test interaction",
+    actorId: ROOT_ACTOR_ID,
+    authorBadge: "root",
   });
   assert.equal(interaction.status, "Created");
   assert.equal(interaction.deliverable_id, deliverableId);
@@ -140,8 +143,8 @@ test("an External Interaction can be recorded against a Deliverable and walked t
   assert.ok(bySeu.some((i) => i.id === interaction.id));
 
   for (const targetState of ["Validated", "Dispatched", "Acknowledged", "Completed", "Archived"]) {
-    const step = await transitionExternalInteraction({ interactionId: interaction.id, targetState, actorRole: "super", actorId: "1001" });
-    assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : undefined);
+    const step = await transitionExternalInteraction({ interactionId: interaction.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
+    assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : "assertion failed");
   }
 });
 
@@ -153,16 +156,18 @@ test("transitioning an External Interaction to Failed automatically raises an Ex
     interactionType: "API Call",
     direction: "Outbound",
     targetSystem: "External Ticketing System",
+    actorId: ROOT_ACTOR_ID,
+    authorBadge: "root",
   });
 
-  const toValidated = await transitionExternalInteraction({ interactionId: interaction.id, targetState: "Validated", actorRole: "super", actorId: "1001" });
-  assert.equal(toValidated.ok, true, !toValidated.ok ? JSON.stringify(toValidated) : undefined);
+  const toValidated = await transitionExternalInteraction({ interactionId: interaction.id, targetState: "Validated", actorRole: "super", actorId: TESTER_ALL_ID });
+  assert.equal(toValidated.ok, true, !toValidated.ok ? JSON.stringify(toValidated) : "assertion failed");
 
-  const toDispatched = await transitionExternalInteraction({ interactionId: interaction.id, targetState: "Dispatched", actorRole: "super", actorId: "1001" });
-  assert.equal(toDispatched.ok, true, !toDispatched.ok ? JSON.stringify(toDispatched) : undefined);
+  const toDispatched = await transitionExternalInteraction({ interactionId: interaction.id, targetState: "Dispatched", actorRole: "super", actorId: TESTER_ALL_ID });
+  assert.equal(toDispatched.ok, true, !toDispatched.ok ? JSON.stringify(toDispatched) : "assertion failed");
 
-  const toFailed = await transitionExternalInteraction({ interactionId: interaction.id, targetState: "Failed", actorRole: "super", actorId: "1001" });
-  assert.equal(toFailed.ok, true, !toFailed.ok ? JSON.stringify(toFailed) : undefined);
+  const toFailed = await transitionExternalInteraction({ interactionId: interaction.id, targetState: "Failed", actorRole: "super", actorId: TESTER_ALL_ID });
+  assert.equal(toFailed.ok, true, !toFailed.ok ? JSON.stringify(toFailed) : "assertion failed");
 
   const items = await listAttentionItemsBySeu(seuId);
   const exceptions = items.filter((a) => a.category === "Exception" && a.related_object_type === "ExternalInteraction" && a.related_object_id === interaction.id);
@@ -176,7 +181,7 @@ test("rejects an External Interaction created against a Deliverable that does no
   const { seuId: otherSeuId } = await commissionAndFulfilRequirementsSpec("phase8-interaction-wrong-seu-b");
 
   await assert.rejects(
-    () => createExternalInteraction({ seuId: otherSeuId, deliverableId, interactionType: "Status Update", direction: "Outbound", targetSystem: "Test", actorId: "1", authorBadge: "root" }),
+    () => createExternalInteraction({ seuId: otherSeuId, deliverableId, interactionType: "Status Update", direction: "Outbound", targetSystem: "Test", actorId: ROOT_ACTOR_ID, authorBadge: "root" }),
     /does not belong to SEU/
   );
 });

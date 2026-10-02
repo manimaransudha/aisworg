@@ -239,6 +239,8 @@ export const workItemGenerator = {
       seuId: input.seuId,
       correlationId: input.correlationId,
       causationId: input.causationEventId,
+      actorId: authorId,
+      authorityBadge: authorBadge,
       payload: { commandId: input.command.id, targetCompletionAt: input.targetCompletionAt ?? null },
     });
 

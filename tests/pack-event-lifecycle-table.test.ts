@@ -23,6 +23,7 @@ import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { createPackDraft, transitionPack, type PackSeedInput } from "../src/routes/seu/core/packs.js";
 import { uniqueTestPackVersion } from "./testFixtures.js";
+import { TESTER_ALL_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 
 async function freshPackSeed(overrides: Partial<PackSeedInput> = {}): Promise<PackSeedInput> {
   return {
@@ -32,7 +33,7 @@ async function freshPackSeed(overrides: Partial<PackSeedInput> = {}): Promise<Pa
     packVersion: uniqueTestPackVersion(),
     installationClassification: "Optional",
     contributions: {
-      capabilities: [{ code: "software-construction", name: "Test Capability" }],
+      capabilities: [{ code: "software-construction" }],
     },
     ...overrides,
   };
@@ -68,7 +69,7 @@ test("DEFINITION: every Pack transition_definitions row matches Events and Lifec
 });
 
 test("DRIVEN: row 1 (New) publishes PackRegistered, a pure Revision (no version_event)", async () => {
-  const draft = await createPackDraft(await freshPackSeed());
+  const draft = await createPackDraft(await freshPackSeed(), ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
 
@@ -78,7 +79,7 @@ test("DRIVEN: row 1 (New) publishes PackRegistered, a pure Revision (no version_
 });
 
 test("DRIVEN: row 2 (Edit) is a pure Revision — no event published", async () => {
-  const draft = await createPackDraft(await freshPackSeed());
+  const draft = await createPackDraft(await freshPackSeed(), ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
 
@@ -96,11 +97,11 @@ test("DRIVEN: row 2 (Edit) is a pure Revision — no event published", async () 
 });
 
 test("DRIVEN: row 3 (Validate) publishes PackValidated, matching transition_definitions.event_type", async () => {
-  const draft = await createPackDraft(await freshPackSeed());
+  const draft = await createPackDraft(await freshPackSeed(), ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
 
-  const result = await transitionPack({ packId: draft.pack.id, targetState: "Validated", actorRole: "power", actorId: "1001" });
+  const result = await transitionPack({ packId: draft.pack.id, targetState: "Validated", actorRole: "power", actorId: TESTER_ALL_ID });
   assert.equal(result.ok, true);
 
   const { data: events } = await eventsDB.findByOriginatingObject("Pack", draft.pack.id);
@@ -112,13 +113,13 @@ test("DRIVEN: row 3 (Validate) publishes PackValidated, matching transition_defi
 });
 
 test("DRIVEN: row 4 (Reject) publishes PackRejected, matching transition_definitions.event_type", async () => {
-  const draft = await createPackDraft(await freshPackSeed());
+  const draft = await createPackDraft(await freshPackSeed(), ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
 
-  await transitionPack({ packId: draft.pack.id, targetState: "Validated", actorRole: "power", actorId: "1001" });
+  await transitionPack({ packId: draft.pack.id, targetState: "Validated", actorRole: "power", actorId: TESTER_ALL_ID });
   const rejected = await transitionPack({
-    packId: draft.pack.id, targetState: "Draft", actorRole: "power", actorId: "1001",
+    packId: draft.pack.id, targetState: "Draft", actorRole: "power", actorId: TESTER_ALL_ID,
     comment: `event-table test rejection ${randomUUID()}`,
   });
   assert.equal(rejected.ok, true);
@@ -132,15 +133,15 @@ test("DRIVEN: row 4 (Reject) publishes PackRejected, matching transition_definit
 });
 
 test("DRIVEN: rows 5-8 (Publish/Activate/Retire/Archive) each publish their matching event", async () => {
-  const draft = await createPackDraft(await freshPackSeed());
+  const draft = await createPackDraft(await freshPackSeed(), ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
 
-  await transitionPack({ packId: draft.pack.id, targetState: "Validated", actorRole: "power", actorId: "1001" });
-  await transitionPack({ packId: draft.pack.id, targetState: "Published", actorRole: "power", actorId: "1001" });
-  await transitionPack({ packId: draft.pack.id, targetState: "Active", actorRole: "power", actorId: "1001" });
-  await transitionPack({ packId: draft.pack.id, targetState: "Retired", actorRole: "power", actorId: "1001" });
-  const archived = await transitionPack({ packId: draft.pack.id, targetState: "Archived", actorRole: "power", actorId: "1001" });
+  await transitionPack({ packId: draft.pack.id, targetState: "Validated", actorRole: "power", actorId: TESTER_ALL_ID });
+  await transitionPack({ packId: draft.pack.id, targetState: "Published", actorRole: "power", actorId: TESTER_ALL_ID });
+  await transitionPack({ packId: draft.pack.id, targetState: "Active", actorRole: "power", actorId: TESTER_ALL_ID });
+  await transitionPack({ packId: draft.pack.id, targetState: "Retired", actorRole: "power", actorId: TESTER_ALL_ID });
+  const archived = await transitionPack({ packId: draft.pack.id, targetState: "Archived", actorRole: "power", actorId: TESTER_ALL_ID });
   assert.equal(archived.ok, true);
 
   const { data: events } = await eventsDB.findByOriginatingObject("Pack", draft.pack.id);

@@ -126,6 +126,7 @@ export const compositionCompletedHandler: EventHandler = async (event: EventRow)
       correlationId: event.correlation_id,
       causationId: event.id,
       actorId: event.actor_id,
+      authorityBadge: authorBadge,
       payload: { stage: "compose_ebm", reason: (ebmErr ?? new Error("failed to create EBM")).message },
     });
     return;
@@ -140,6 +141,7 @@ export const compositionCompletedHandler: EventHandler = async (event: EventRow)
     correlationId: event.correlation_id,
     causationId: event.id,
     actorId: event.actor_id,
+    authorityBadge: authorBadge,
     // CR-104 — carried on the payload too (not just persisted on the EBM
     // row), so a listener reacting to EBMCreated has this SEU's own
     // commence-work-style policy set without a second lookup.

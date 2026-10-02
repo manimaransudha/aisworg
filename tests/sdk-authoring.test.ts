@@ -18,6 +18,7 @@ import { randomUUID } from "node:crypto";
 
 import pool from "../src/utils/db.js";
 import { userDB } from "../src/dblayer/userDB.js";
+import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
@@ -25,7 +26,8 @@ import { deliverableDefinitionsDB } from "../src/dblayer/deliverableDefinitionsD
 import { ontologyDB } from "../src/dblayer/ontologyDB.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import type { SchemaDefinitionEntityKind } from "../src/dblayer/seuTypes.js";
-import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
+const PLATFORM_TENANT_ID = await getPlatformTenantId();
 import {
   createAuthoringDraft, saveAuthoringDraft, publishAuthoringDraft,
   listInheritableTemplates, inheritedTemplateContent,
@@ -34,7 +36,7 @@ import {
 } from "../src/routes/seu/core/sdkAuthoring.js";
 import { listInheritableDeliverableDefinitions } from "../src/routes/seu/core/deliverableDefinitions.js";
 import { packCodeVersionSummaries } from "../src/routes/seu/core/packs.js";
-import { ensureWebAppTemplateFixture } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, ROOT_ACTOR_ID } from "./testFixtures.js";
 
 // Bug fix (owner, 2026-08-17): "the pollution is coming from your tests. They
 // do not clear the test data after the tests are complete." Real — every test
@@ -134,8 +136,6 @@ after(async () => {
   }
 });
 
-const ROOT_ACTOR_ID = "1";
-
 // CR-026 — real, seeded tenants (seedIdentityBaseline.ts's "Demo" and
 // "Athens" tenants), used only to prove Template Inheritance/ownership
 // against genuine, distinct tenants, not made-up UUIDs. Two distinct tenants
@@ -143,12 +143,19 @@ const ROOT_ACTOR_ID = "1";
 // (parent's code, "1.0.0", tenant) — two Drafts inheriting the SAME parent
 // under the SAME tenant would collide on that first free version, the same
 // way two Drafts of anything else would (assertTemplateCodeVersionFree).
-const DEMO_TENANT_ID = "22222222-2222-2222-2222-222222222222";
-const ATHENS_TENANT_ID = "adfbc3d0-d00e-440b-a115-6b7988ca2865";
+const { data: demoTenant, error: demoTenantErr } = await tenantsDB.findByCode("demo");
+if (demoTenantErr) throw demoTenantErr;
+if (!demoTenant) throw new Error("demo tenant not provisioned");
+const DEMO_TENANT_ID = demoTenant.id;
+
+const { data: athensTenant, error: athensTenantErr } = await tenantsDB.findByCode("athens");
+if (athensTenantErr) throw athensTenantErr;
+if (!athensTenant) throw new Error("athens tenant not provisioned");
+const ATHENS_TENANT_ID = athensTenant.id;
 
 async function createTestUser(label: string): Promise<string> {
   const email = `sdk-authoring-${label}-${randomUUID()}@example.com`;
-  const user = await userDB.create({ email, name: label, avatar_url: null, role: "general", auth_provider: "local", provider_id: null, is_active: true, type: "Platform", tenant_id: "11111111-1111-1111-1111-111111111111" });
+  const user = await userDB.create({ email, name: label, avatar_url: null, auth_provider: "local", provider_id: null, is_active: true, type: "Platform", tenant_id: PLATFORM_TENANT_ID });
   createdUserIds.push(String(user.id));
   return String(user.id);
 }
@@ -218,21 +225,21 @@ test("Pack authoring (entity-direct): root creates a Draft, authors, and publish
   const code = REAL_PACK_CODE;
   const packVersion = uniqueVersion();
 
-  const created = await createAuthoringDraft({ kind: "Pack", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: ROOT_ACTOR_ID, content: validPackContent(code, packVersion) });
-  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
+  const created = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: ROOT_ACTOR_ID, content: validPackContent(code, packVersion) });
+  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
 
   // The Draft is a real Pack row, in Draft, authored_by the real actor — no
   // bootstrap SEU / Deliverable anywhere.
   const { data: draftPack } = await packsDB.findById(created.draftId);
   assert.equal(draftPack!.status, "Draft");
-  assert.equal(draftPack!.authored_by, Number(ROOT_ACTOR_ID));
+  assert.equal(draftPack!.authored_by, ROOT_ACTOR_ID);
 
   const saved = await saveAuthoringDraft({ kind: "Pack", id: created.draftId, content: validPackContent(code, packVersion) });
-  assert.equal(saved.ok, true, !saved.ok ? saved.errors.join("; ") : undefined);
+  assert.equal(saved.ok, true, !saved.ok ? saved.errors.join("; ") : "assertion failed");
 
   const published = await advanceToActive("Pack", created.draftId, ROOT_ACTOR_ID, "general");
-  assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : undefined);
+  assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : "assertion failed");
 
   const { data: activePack } = await packsDB.findByCodeAndVersion(code, packVersion);
   assert.ok(activePack, "expected the authored Pack to be published and Active");
@@ -257,17 +264,17 @@ test("Pack authoring authority is noun × verb: a non-root holder of the Pack li
   for (const v of ["validate", "publish", "activate", "deprecate"]) await grant(publisherId, `pack_${v}`);
 
   const okVersion = uniqueVersion();
-  const okDraft = await createAuthoringDraft({ kind: "Pack", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: publisherId, content: validPackContent(REAL_PACK_CODE, okVersion) });
-  assert.equal(okDraft.ok, true, !okDraft.ok ? okDraft.errors.join("; ") : undefined);
+  const okDraft = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: publisherId, content: validPackContent(REAL_PACK_CODE, okVersion) });
+  assert.equal(okDraft.ok, true, !okDraft.ok ? okDraft.errors.join("; ") : "assertion failed");
   if (!okDraft.ok) return;
   const okPublish = await advanceToActive("Pack", okDraft.draftId, publisherId, "general");
-  assert.equal(okPublish.ok, true, !okPublish.ok ? okPublish.errors.join("; ") : undefined);
+  assert.equal(okPublish.ok, true, !okPublish.ok ? okPublish.errors.join("; ") : "assertion failed");
   const { data: activeOk } = await packsDB.findByCodeAndVersion(REAL_PACK_CODE, okVersion);
   assert.ok(activeOk, "publisher with the Pack lifecycle badges should produce an Active Pack");
 
   // A holder with NO Pack authority is denied at the governed transition.
   const outsiderId = await createTestUser("pack-outsider");
-  const denyDraft = await createAuthoringDraft({ kind: "Pack", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: outsiderId, content: validPackContent(REAL_PACK_CODE, uniqueVersion()) });
+  const denyDraft = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: outsiderId, content: validPackContent(REAL_PACK_CODE, uniqueVersion()) });
   assert.equal(denyDraft.ok, true);
   if (!denyDraft.ok) return;
   const denyPublish = await publishAuthoringDraft({ kind: "Pack", id: denyDraft.draftId, actorId: outsiderId, actorRole: "general" });
@@ -286,8 +293,8 @@ test("Pack authoring, separation of duties: FOUR different single-verb actors ea
   await grant(activator, "pack_activate");
 
   const packVersion = uniqueVersion();
-  const created = await createAuthoringDraft({ kind: "Pack", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: author, content: validPackContent(REAL_PACK_CODE, packVersion) });
-  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
+  const created = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: author, content: validPackContent(REAL_PACK_CODE, packVersion) });
+  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
   const { data: draftPack } = await packsDB.findById(created.draftId);
   assert.equal(draftPack!.authored_by, Number(author), "authored_by is the real defining actor");
@@ -297,7 +304,7 @@ test("Pack authoring, separation of duties: FOUR different single-verb actors ea
   assert.equal(authorTriesToAdvance.ok, false, "the author alone (no validate badge) cannot advance Draft -> Validated");
 
   const step1 = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: reviewer, actorRole: "general" });
-  assert.equal(step1.ok, true, !step1.ok ? step1.errors.join("; ") : undefined);
+  assert.equal(step1.ok, true, !step1.ok ? step1.errors.join("; ") : "assertion failed");
   if (step1.ok) assert.equal(step1.status, "Validated");
 
   // The reviewer (validate-only) cannot also publish — that's a different badge.
@@ -305,11 +312,11 @@ test("Pack authoring, separation of duties: FOUR different single-verb actors ea
   assert.equal(reviewerTriesToPublish.ok, false, "the reviewer alone (no publish badge) cannot advance Validated -> Published");
 
   const step2 = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: publisher, actorRole: "general" });
-  assert.equal(step2.ok, true, !step2.ok ? step2.errors.join("; ") : undefined);
+  assert.equal(step2.ok, true, !step2.ok ? step2.errors.join("; ") : "assertion failed");
   if (step2.ok) assert.equal(step2.status, "Published");
 
   const step3 = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: activator, actorRole: "general" });
-  assert.equal(step3.ok, true, !step3.ok ? step3.errors.join("; ") : undefined);
+  assert.equal(step3.ok, true, !step3.ok ? step3.errors.join("; ") : "assertion failed");
   if (step3.ok) assert.equal(step3.status, "Active");
 
   const { data: activePack } = await packsDB.findByCodeAndVersion(REAL_PACK_CODE, packVersion);
@@ -331,7 +338,7 @@ test("Pack authoring, separation of duties: FOUR different single-verb actors ea
 
 test("Pack authoring: Publish is blocked by referential validation (unresolvable dependency), leaving the Draft a Draft", async () => {
   const packVersion = uniqueVersion();
-  const created = await createAuthoringDraft({ kind: "Pack", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: ROOT_ACTOR_ID, content: validPackContent(REAL_PACK_CODE, packVersion) });
+  const created = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: ROOT_ACTOR_ID, content: validPackContent(REAL_PACK_CODE, packVersion) });
   assert.equal(created.ok, true);
   if (!created.ok) return;
 
@@ -368,11 +375,11 @@ test("CR-081: creating a new Pack from an EXISTING code inherits its content (in
   // only re-asserted code/name/packVersion, like this test used to, could
   // never have noticed contributions being dropped.
   const sourceContent = { ...validPackContent(REAL_PACK_CODE, sourceVersion), contributionCapabilities: [{ code: "engineering-work-review", name: "Code Review", description: "Ensures code changes are reviewed." }] };
-  const sourceCreated = await createAuthoringDraft({ kind: "Pack", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: ROOT_ACTOR_ID, content: sourceContent });
-  assert.equal(sourceCreated.ok, true, !sourceCreated.ok ? sourceCreated.errors.join("; ") : undefined);
+  const sourceCreated = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: ROOT_ACTOR_ID, content: sourceContent });
+  assert.equal(sourceCreated.ok, true, !sourceCreated.ok ? sourceCreated.errors.join("; ") : "assertion failed");
   if (!sourceCreated.ok) return;
   const publishedSource = await advanceToActive("Pack", sourceCreated.draftId, ROOT_ACTOR_ID, "general");
-  assert.equal(publishedSource.ok, true, !publishedSource.ok ? publishedSource.errors.join("; ") : undefined);
+  assert.equal(publishedSource.ok, true, !publishedSource.ok ? publishedSource.errors.join("; ") : "assertion failed");
 
   // The computed next version is whatever the code's own sequence says right
   // now — asserted against the same function the branch-picker itself calls,
@@ -383,7 +390,7 @@ test("CR-081: creating a new Pack from an EXISTING code inherits its content (in
   assert.ok(expectedNextVersion, "the just-Activated source must already appear in its own code's version summary");
 
   const inherited = await inheritedPackVersionContent(sourceCreated.draftId, PLATFORM_TENANT_ID);
-  assert.equal(inherited.ok, true, !inherited.ok ? inherited.error : undefined);
+  assert.equal(inherited.ok, true, !inherited.ok ? inherited.error : "assertion failed");
   if (!inherited.ok) return;
   assert.equal(inherited.content.code, REAL_PACK_CODE, "the pre-filled content's code matches the source's");
   assert.equal(inherited.content.name, "SDK Test Pack", "content (not just code/version) carries over from the source");
@@ -397,8 +404,8 @@ test("CR-081: creating a new Pack from an EXISTING code inherits its content (in
   assert.equal(inheritedCapabilities?.length, 1, "Capabilities tab content must survive branching, flattened to contributionCapabilities");
   assert.equal(inheritedCapabilities?.[0]?.code, "engineering-work-review");
 
-  const created = await createAuthoringDraft({ kind: "Pack", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: ROOT_ACTOR_ID, content: inherited.content });
-  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
+  const created = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: ROOT_ACTOR_ID, content: inherited.content });
+  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
   assert.notEqual(created.draftId, sourceCreated.draftId, "a genuinely new row, not the source Pack itself");
 
@@ -433,8 +440,8 @@ test("CR-081: creating a new Pack by TYPING A NEW CODE (never published before) 
   // every other test in this file growing packs.code_pack_version_tenant_key
   // rows it never deletes.
   const newCode = `test-pack-typed-new-${randomUUID()}`;
-  const created = await createAuthoringDraft({ kind: "Pack", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: ROOT_ACTOR_ID, content: validPackContent(newCode, "1.0.0") });
-  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
+  const created = await createAuthoringDraft({ kind: "Pack", authorBadge: "pack_define", schemaDefinitionId: await schemaDefinitionIdFor("Pack"), actorId: ROOT_ACTOR_ID, content: validPackContent(newCode, "1.0.0") });
+  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
 
   const { data: draft } = await packsDB.findById(created.draftId);
@@ -471,7 +478,7 @@ function validTemplateContent(code: string, templateVersion: string): Record<str
 test("Template authoring (entity-direct): the same pipeline as Pack produces a real Active Template row", async () => {
   const templateVersion = uniqueVersion();
   const created = await createAuthoringDraft({ kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, content: validTemplateContent(REAL_TEMPLATE_CODE, templateVersion) });
-  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
+  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
   createdTemplateIds.push(created.draftId);
 
@@ -483,7 +490,7 @@ test("Template authoring (entity-direct): the same pipeline as Pack produces a r
   // Pack; root holds every verb, so advanceToActive drives it straight
   // through, same as the Pack test above.
   const published = await advanceToActive("Template", created.draftId, ROOT_ACTOR_ID, "general");
-  assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : undefined);
+  assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : "assertion failed");
 
   const { data: template } = await templatesDB.findByCodeAndVersion(REAL_TEMPLATE_CODE, templateVersion);
   assert.ok(template, "expected the authored Template to be registered");
@@ -500,15 +507,15 @@ test("Profile authoring (entity-direct): produces a real Active Profile row refe
   // Platform tenant (root authors here).
   const content: Record<string, unknown> = { code, name: "SDK Test Profile", baseTemplateCode: "test-enterprise-web-application", environment: "development", developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github", optionalPackCodes: [] };
 
-  const created = await createAuthoringDraft({ kind: "Profile", schemaDefinitionId: await schemaDefinitionIdFor("Profile"), actorId: ROOT_ACTOR_ID, content });
-  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
+  const created = await createAuthoringDraft({ kind: "Profile", authorBadge: "profile_define", schemaDefinitionId: await schemaDefinitionIdFor("Profile"), actorId: ROOT_ACTOR_ID, content });
+  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
 
   await saveAuthoringDraft({ kind: "Profile", id: created.draftId, content });
 
   // Bug fix (owner, 2026-08-18): same six-hop lifecycle change as Template above.
   const published = await advanceToActive("Profile", created.draftId, ROOT_ACTOR_ID, "general");
-  assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : undefined);
+  assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : "assertion failed");
 
   const { data: profile } = await profilesDB.findByCode(code);
   assert.ok(profile, "expected the authored Profile to be registered");
@@ -544,7 +551,7 @@ test("CR-026: a tenant author inheriting an Active Platform Template gets a Draf
   assert.ok(inheritable.some((t) => t.id === parent.id), "the Active Platform Template must be offered to a tenant viewer's Inherit dropdown");
 
   const inherited = await inheritedTemplateContent(parent.id, DEMO_TENANT_ID);
-  assert.equal(inherited.ok, true, !inherited.ok ? inherited.error : undefined);
+  assert.equal(inherited.ok, true, !inherited.ok ? inherited.error : "assertion failed");
   if (!inherited.ok) return;
   assert.equal(inherited.content.code, parent.code, "the pre-filled content's code matches the parent's");
 
@@ -557,7 +564,7 @@ test("CR-026: a tenant author inheriting an Active Platform Template gets a Draf
     parentTemplateId: parent.id,
     content: { ...inherited.content, name: "Tenant's inherited Web Application", code: "attempted-override" },
   });
-  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
+  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
   createdTemplateIds.push(created.draftId);
 
@@ -596,7 +603,7 @@ test("CR-026: publishing a Derived Template is rejected if it drops one of its p
   const sanitisedContent = inheritedContent;
 
   const created = await createAuthoringDraft({ kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, tenantId: ATHENS_TENANT_ID, parentTemplateId: parent.id, content: sanitisedContent });
-  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
+  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
   createdTemplateIds.push(created.draftId);
 
@@ -620,7 +627,7 @@ test("CR-026: publishing a Derived Template is rejected if it drops one of its p
   assert.equal(restored.ok, true);
 
   const acceptedPublish = await advanceToActive("Template", created.draftId, ROOT_ACTOR_ID, "general");
-  assert.equal(acceptedPublish.ok, true, !acceptedPublish.ok ? acceptedPublish.errors.join("; ") : undefined);
+  assert.equal(acceptedPublish.ok, true, !acceptedPublish.ok ? acceptedPublish.errors.join("; ") : "assertion failed");
   const { data: active } = await templatesDB.findById(created.draftId);
   assert.equal(active?.status, "Active");
 });
@@ -635,18 +642,18 @@ test("Profile Inheritance: a tenant author inheriting an Active Platform Profile
   await ensureWebAppTemplateFixture();
   const code = `sdk-test-profile-parent-${randomUUID()}`;
   const created = await createAuthoringDraft({
-    kind: "Profile", schemaDefinitionId: await schemaDefinitionIdFor("Profile"),
+    kind: "Profile", schemaDefinitionId: await schemaDefinitionIdFor("Profile"), authorBadge: "profile_define",
     actorId: ROOT_ACTOR_ID,
     tenantId: PLATFORM_TENANT_ID,
     // CR-091 Part 2/3 — category retired; the three Platform-mandatory
     // Configuration Parameters are required here (Platform tenant).
     content: { code, name: "SDK Test Parent Profile", baseTemplateCode: "test-enterprise-web-application", environment: "development", developmentMethodology: "scrum", primaryProgrammingLanguage: "typescript", sourceControlProvider: "github", optionalPackCodes: [] },
   });
-  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
+  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
   createdProfileIds.push(created.draftId);
   const parentPublish = await advanceToActive("Profile", created.draftId, ROOT_ACTOR_ID, "general");
-  assert.equal(parentPublish.ok, true, !parentPublish.ok ? parentPublish.errors.join("; ") : undefined);
+  assert.equal(parentPublish.ok, true, !parentPublish.ok ? parentPublish.errors.join("; ") : "assertion failed");
   const { data: parent } = await profilesDB.findById(created.draftId);
   assert.equal(parent?.status, "Active");
 
@@ -654,20 +661,20 @@ test("Profile Inheritance: a tenant author inheriting an Active Platform Profile
   assert.ok(inheritable.some((p) => p.id === parent!.id), "the Active Platform Profile must be offered to a tenant viewer's Inherit dropdown");
 
   const inherited = await inheritedProfileContent(parent!.id, DEMO_TENANT_ID);
-  assert.equal(inherited.ok, true, !inherited.ok ? inherited.error : undefined);
+  assert.equal(inherited.ok, true, !inherited.ok ? inherited.error : "assertion failed");
   if (!inherited.ok) return;
   assert.equal(inherited.content.code, parent!.code, "the pre-filled content's code matches the parent's");
 
   // A tampered/stale submission tries to pick a different code — the server
   // must ignore it and lock to the parent's own, not just the UI.
   const inheritedDraft = await createAuthoringDraft({
-    kind: "Profile", schemaDefinitionId: await schemaDefinitionIdFor("Profile"),
+    kind: "Profile", schemaDefinitionId: await schemaDefinitionIdFor("Profile"), authorBadge: "profile_define",
     actorId: ROOT_ACTOR_ID,
     tenantId: DEMO_TENANT_ID,
     parentProfileId: parent!.id,
     content: { ...inherited.content, name: "Tenant's inherited Profile", code: "attempted-override" },
   });
-  assert.equal(inheritedDraft.ok, true, !inheritedDraft.ok ? inheritedDraft.errors.join("; ") : undefined);
+  assert.equal(inheritedDraft.ok, true, !inheritedDraft.ok ? inheritedDraft.errors.join("; ") : "assertion failed");
   if (!inheritedDraft.ok) return;
   createdProfileIds.push(inheritedDraft.draftId);
 
@@ -696,13 +703,13 @@ test("Deliverable Definition authoring (entity-direct): produces a real Active r
   createdOntologyConceptCodes.push(code);
 
   const created = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(code, definitionVersion) });
-  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : undefined);
+  assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
   createdDeliverableDefinitionIds.push(created.draftId);
 
   const { data: draftRow } = await deliverableDefinitionsDB.findById(created.draftId);
   assert.equal(draftRow!.status, "Draft");
-  assert.equal(draftRow!.authored_by, Number(ROOT_ACTOR_ID));
+  assert.equal(draftRow!.authored_by, ROOT_ACTOR_ID);
 
   // Not yet Active — must stay invisible to the exact picker CR-038's
   // Template deliverableCatalogue field reads (findConceptsByType with
@@ -711,10 +718,10 @@ test("Deliverable Definition authoring (entity-direct): produces a real Active r
   assert.ok(!(notYetVisible ?? []).some((c) => c.code === code), "a Draft Deliverable Definition must not be selectable in the Ontology picker yet");
 
   const saved = await saveAuthoringDraft({ kind: "Deliverable", id: created.draftId, content: validDeliverableDefinitionContent(code, definitionVersion) });
-  assert.equal(saved.ok, true, !saved.ok ? saved.errors.join("; ") : undefined);
+  assert.equal(saved.ok, true, !saved.ok ? saved.errors.join("; ") : "assertion failed");
 
   const published = await advanceToActive("Deliverable", created.draftId, ROOT_ACTOR_ID, "general");
-  assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : undefined);
+  assert.equal(published.ok, true, !published.ok ? published.errors.join("; ") : "assertion failed");
 
   const { data: activeRow } = await deliverableDefinitionsDB.findByCodeAndVersion(code, definitionVersion, PLATFORM_TENANT_ID);
   assert.ok(activeRow, "expected the authored Deliverable Definition to be Active");
@@ -741,7 +748,7 @@ test("Deliverable Definition authoring: validation rejects an empty code, a non-
   const dupeVersion = uniqueVersion();
   createdOntologyConceptCodes.push(dupeCode);
   const first = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(dupeCode, dupeVersion) });
-  assert.equal(first.ok, true, !first.ok ? first.errors.join("; ") : undefined);
+  assert.equal(first.ok, true, !first.ok ? first.errors.join("; ") : "assertion failed");
   if (!first.ok) return;
   createdDeliverableDefinitionIds.push(first.draftId);
 
@@ -760,11 +767,11 @@ test("CR-049: inheriting from an Active Platform Deliverable Definition offers a
   const parentVersion = uniqueVersion();
   createdOntologyConceptCodes.push(parentCode);
   const parentCreated = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(parentCode, parentVersion) });
-  assert.equal(parentCreated.ok, true, !parentCreated.ok ? parentCreated.errors.join("; ") : undefined);
+  assert.equal(parentCreated.ok, true, !parentCreated.ok ? parentCreated.errors.join("; ") : "assertion failed");
   if (!parentCreated.ok) return;
   createdDeliverableDefinitionIds.push(parentCreated.draftId);
   const parentPublished = await advanceToActive("Deliverable", parentCreated.draftId, ROOT_ACTOR_ID, "general");
-  assert.equal(parentPublished.ok, true, !parentPublished.ok ? parentPublished.errors.join("; ") : undefined);
+  assert.equal(parentPublished.ok, true, !parentPublished.ok ? parentPublished.errors.join("; ") : "assertion failed");
   const { data: parent } = await deliverableDefinitionsDB.findByCodeAndVersion(parentCode, parentVersion, PLATFORM_TENANT_ID);
 
   const inheritable = await listInheritableDeliverableDefinitions();
@@ -779,7 +786,7 @@ test("CR-049: inheriting from an Active Platform Deliverable Definition offers a
     parentDeliverableDefinitionId: parent!.id,
     content: { code: childCode, description: "A tenant specialisation", definitionVersion: "1.0.0" },
   });
-  assert.equal(child.ok, true, !child.ok ? child.errors.join("; ") : undefined);
+  assert.equal(child.ok, true, !child.ok ? child.errors.join("; ") : "assertion failed");
   if (!child.ok) return;
   createdDeliverableDefinitionIds.push(child.draftId);
 
@@ -804,18 +811,18 @@ test("Deliverable Definition: a second Version of the same code superseding the 
   createdOntologyConceptCodes.push(code);
 
   const v1 = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: validDeliverableDefinitionContent(code, "1.0.0") });
-  assert.equal(v1.ok, true, !v1.ok ? v1.errors.join("; ") : undefined);
+  assert.equal(v1.ok, true, !v1.ok ? v1.errors.join("; ") : "assertion failed");
   if (!v1.ok) return;
   createdDeliverableDefinitionIds.push(v1.draftId);
   const v1Published = await advanceToActive("Deliverable", v1.draftId, ROOT_ACTOR_ID, "general");
-  assert.equal(v1Published.ok, true, !v1Published.ok ? v1Published.errors.join("; ") : undefined);
+  assert.equal(v1Published.ok, true, !v1Published.ok ? v1Published.errors.join("; ") : "assertion failed");
 
   const v2 = await createAuthoringDraft({ kind: "Deliverable", authorBadge: "deliverable_define", schemaDefinitionId: await schemaDefinitionIdFor("Deliverable"), actorId: ROOT_ACTOR_ID, content: { code, description: "Updated description for v2", definitionVersion: "1.0.1" } });
-  assert.equal(v2.ok, true, !v2.ok ? v2.errors.join("; ") : undefined);
+  assert.equal(v2.ok, true, !v2.ok ? v2.errors.join("; ") : "assertion failed");
   if (!v2.ok) return;
   createdDeliverableDefinitionIds.push(v2.draftId);
   const v2Published = await advanceToActive("Deliverable", v2.draftId, ROOT_ACTOR_ID, "general");
-  assert.equal(v2Published.ok, true, !v2Published.ok ? v2Published.errors.join("; ") : undefined);
+  assert.equal(v2Published.ok, true, !v2Published.ok ? v2Published.errors.join("; ") : "assertion failed");
 
   const { data: v1After } = await deliverableDefinitionsDB.findById(v1.draftId);
   assert.equal(v1After!.status, "Deprecated", "v1 must be superseded once v2 reaches Active");

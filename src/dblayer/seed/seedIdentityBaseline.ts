@@ -13,15 +13,26 @@ const require = createRequire(import.meta.url);
 const bcrypt = require("bcryptjs");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// CR-006 — fixture test users that HOLD noun_verb badge grants, so regression
-// can act as a non-root, badge-holding actor (root still bypasses via holder
-// "1"). Added to this baseline so a single `db:clean-slate`
-// lands a known set of granted testers. Ids sit in a reserved high range.
-// const TESTER_ALL_ID = integerToUUID(1001); // holds every active noun_verb (any authorised transition)
-// const TESTER_CREATOR_ID = integerToUUID(1002); // holds only *_create (can create, cannot approve)
-// const TESTER_APPROVER_ID = integerToUUID(1003); // holds only *_approve (separation-of-duties)
- 
 const TENANTS = [PLATFORM_TENANT_NAME, DEMO_TENANT_NAME, ATHENS_TENANT_NAME, BABYLON_TENANT_NAME, CAMBODIA_TENANT_NAME];
+
+// tests/acceptance.e2e.test.ts's own non-root, tenant-scoped journey actor —
+// "a real, authorised identity instead of an implicit [root] bypass," holding
+// every noun_verb badge the full commissioning journey might touch (not just
+// objective_*, unlike TESTER_OBJECTIVE_ATHENS below). Derived from the same
+// authorityVocabulary.json seedAuthorityVocabulary.ts itself reads, not
+// hand-listed, so this fixture never drifts out of sync with the real
+// noun_verb set as transitions are added.
+function allNounVerbBadges(): Array<{ badge: string; effective_till: string; seu_ids: string[] }> {
+  const raw = readFileSync(path.join(__dirname, "data", "authorityVocabulary.json"), "utf8");
+  const vocab = JSON.parse(raw) as {
+    transitions: Array<{ entityType: string; verb: string }>;
+    authoringMappings?: Array<{ noun: string; verbs: string[] }>;
+  };
+  const pairs = new Set<string>();
+  for (const t of vocab.transitions) pairs.add(`${t.entityType.toLowerCase()}_${t.verb}`);
+  for (const m of vocab.authoringMappings ?? []) for (const v of m.verbs) pairs.add(`${m.noun.toLowerCase()}_${v}`);
+  return [...pairs].sort().map((badge) => ({ badge, effective_till: "9999-12-31", seu_ids: [] }));
+}
 
 interface SeedUser {
   email: string;
@@ -46,9 +57,46 @@ const USERS: SeedUser[] = [
   {email: "superadmin@athens.com", name: "Super Admin Athens", avatar_url: null, display_name: "Athens admin", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Platform", tenant_name: ATHENS_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}] },
   {email: "superadmin@babylon.com", name: "Super Admin Babylon", avatar_url: null, display_name: "Babylon admin", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: BABYLON_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}] },
   {email: "superadmin@cambodia.com", name: "Super Admin Cambodia", avatar_url: null, display_name: "Cambodia admin", auth_provider: "local", provider_id: null, is_active: false, is_protected: false, type: "Tenant", tenant_name: CAMBODIA_TENANT_NAME ,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}] },
-  {email: "tester-all@test.local", name: "Test — All Badges", avatar_url: null, display_name: "Platform Test All", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Platform", tenant_name: PLATFORM_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}] },
-  {email: "tester-creator@test.local", name: "Test — Creator", avatar_url: null, display_name: "Platform Test Creator", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Platform", tenant_name: PLATFORM_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}] },
-  {email: "tester-approver@test.local", name: "Test — Approver", avatar_url: null, display_name: "Platform Test Approver", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Platform", tenant_name: PLATFORM_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}] },
+  {email: "tester-all@test.local", name: "Test — All Badges", avatar_url: null, display_name: "Platform Test All", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Platform", tenant_name: DEMO_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}] },
+  {email: "tester-creator@test.local", name: "Test — Creator", avatar_url: null, display_name: "Platform Test Creator", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Platform", tenant_name: DEMO_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}] },
+  {email: "tester-approver@test.local", name: "Test — Approver", avatar_url: null, display_name: "Platform Test Approver", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Platform", tenant_name: DEMO_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"superuser","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [{"badge":"root","effective_till":"9999-12-31","seu_ids":[]}] },
+  // tests/web-flow.e2e.test.ts's own cross-tenant Objective fixtures
+  // (TESTER_OBJECTIVE_ATHENS/TESTER_OBJECTIVE_BABYLON, testFixtures.ts) —
+  // genuinely scoped, non-root identities (every real objective_* noun_verb
+  // badge: propose/activate/reject/achieve/supersede/retire/archive, plus
+  // objective_all, NOT root) in two different real tenants, so those tests
+  // exercise the actual badge + tenant-reach gates instead of bypassing them.
+  {email: "tester-objective-athens@test.local", name: "Test — Objective Badges (Athens)", avatar_url: null, display_name: "Athens Test Objective Badges", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: ATHENS_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"general","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [
+    {"badge":"objective_propose","effective_till":"9999-12-31","seu_ids":[]},
+    {"badge":"objective_activate","effective_till":"9999-12-31","seu_ids":[]},
+    {"badge":"objective_reject","effective_till":"9999-12-31","seu_ids":[]},
+    {"badge":"objective_achieve","effective_till":"9999-12-31","seu_ids":[]},
+    {"badge":"objective_supersede","effective_till":"9999-12-31","seu_ids":[]},
+    {"badge":"objective_retire","effective_till":"9999-12-31","seu_ids":[]},
+    {"badge":"objective_archive","effective_till":"9999-12-31","seu_ids":[]},
+    {"badge":"objective_all","effective_till":"9999-12-31","seu_ids":[]}
+  ] },
+  {email: "tester-objective-babylon@test.local", name: "Test — Objective Badges (Babylon)", avatar_url: null, display_name: "Babylon Test Objective Badges", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: BABYLON_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"general","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [
+    {"badge":"objective_propose","effective_till":"9999-12-31","seu_ids":[]},
+    {"badge":"objective_activate","effective_till":"9999-12-31","seu_ids":[]},
+    {"badge":"objective_reject","effective_till":"9999-12-31","seu_ids":[]},
+    {"badge":"objective_achieve","effective_till":"9999-12-31","seu_ids":[]},
+    {"badge":"objective_supersede","effective_till":"9999-12-31","seu_ids":[]},
+    {"badge":"objective_retire","effective_till":"9999-12-31","seu_ids":[]},
+    {"badge":"objective_archive","effective_till":"9999-12-31","seu_ids":[]},
+    {"badge":"objective_all","effective_till":"9999-12-31","seu_ids":[]}
+  ] },
+  // tests/web-flow.e2e.test.ts's own ATHENS_NO_PROPOSE fixture — holds
+  // objective_achieve only, deliberately NOT objective_propose, to prove the
+  // real create/edit denial for a badge-less-for-that-verb viewer.
+  {email: "tester-objective-achieve-only@test.local", name: "Test — Objective Achieve Only (Athens)", avatar_url: null, display_name: "Athens Test Objective Achieve Only", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: ATHENS_TENANT_NAME,participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"general","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: [
+    {"badge":"objective_achieve","effective_till":"9999-12-31","seu_ids":[]}
+  ] },
+  // tests/acceptance.e2e.test.ts's own full-journey actor — non-root,
+  // tenant-scoped, holds every real noun_verb badge (allNounVerbBadges()
+  // above), so the M5 acceptance journey runs as a real authorised identity
+  // instead of root's implicit bypass.
+  {email: "tester-acceptance-journey@test.local", name: "Test — Acceptance Journey (Athens)", avatar_url: null, display_name: "Athens Test Acceptance Journey", auth_provider: "local", provider_id: null, is_active: true, is_protected: false, type: "Tenant", tenant_name: ATHENS_TENANT_NAME, participant_type: "Human", capabilities: [], competency: [], behaviour_context: [], authorised_role: [{"role":"general","effective_till":"9999-12-31","seu_ids":[]}], authorised_badges: allNounVerbBadges() },
 ];
 
 export async function seedIdentityBaseline(): Promise<void> {

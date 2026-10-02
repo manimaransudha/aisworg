@@ -41,7 +41,19 @@
           init.headers = Object.assign({ 'X-CSRF-Token': token }, init.headers || {});
         }
       }
-      return _fetch.call(this, input, init);
+      return _fetch.call(this, input, init).then(function (response) {
+        // A bad/expired CSRF token makes errorHandler.js redirect to the login
+        // page. fetch() follows that redirect transparently and hands the
+        // caller the login page's HTML as if it were the API response — the
+        // caller's response.json() then throws a raw parse exception instead
+        // of the user ever seeing a login redirect. Catch that here and turn
+        // it into a real page navigation.
+        if (response.redirected && /\/auth\/login(?:$|[/?])/.test(response.url)) {
+          window.location.href = response.url;
+          return new Promise(function () {});
+        }
+        return response;
+      });
     };
   })();
 </script>

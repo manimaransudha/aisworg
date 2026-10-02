@@ -53,6 +53,8 @@ export async function grantQualityGateWaiver(input: {
     originatingObjectId: input.qualityGateId,
     seuId: input.seuId,
     correlationId: eventBus.newCorrelationId(),
+    actorId: input.actorId,
+    authorityBadge: QUALITY_GATE_WAIVE_BADGE,
     payload: { entityType: input.entityType, entityId: input.entityId, rationale: input.rationale },
   });
 

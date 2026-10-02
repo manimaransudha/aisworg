@@ -19,6 +19,7 @@ import { createObligationAsRoot as createObligation } from "./testFixtures.js";
 import { getFlowMetrics, getGovernanceMetrics } from "../src/routes/seu/core/telemetry.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 // Ch.30 Event Bus redesign — publish() still persists every event
 // synchronously (only dispatch/consumption is fire-and-forget), so querying
@@ -41,11 +42,11 @@ async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (
     {
       statement: `${statementPrefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorRole: "super", actorId: "1001", requestedBy: 1001,
+      actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
     },
     beforeCommenceWork
   );
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   return result.seu.id;
 }
@@ -66,7 +67,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
 
 test("Flow Telemetry: Deliverable cycle time is a real, non-negative number derived from real transitions", async () => {
   const { deliverableId } = await commissionAndFulfilRequirementsSpec("phase7-flow");
-  const toInProgress = await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
+  const toInProgress = await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(toInProgress.ok, true);
 
   const flow = await getFlowMetrics();
@@ -78,11 +79,11 @@ test("Flow Telemetry: Deliverable cycle time is a real, non-negative number deri
 
 test("Governance Telemetry: Quality Gate latency is zero on a first-try pass and positive after being blocked first", async () => {
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("phase7-governance-latency");
-  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
+  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
 
   // No Obligation attached — passes the "no_unresolved_obligations" gate on the first try.
-  const firstTry = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
-  assert.equal(firstTry.ok, true, !firstTry.ok ? JSON.stringify(firstTry) : undefined);
+  const firstTry = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  assert.equal(firstTry.ok, true, !firstTry.ok ? JSON.stringify(firstTry) : "assertion failed");
 
   const governance = await getGovernanceMetrics();
   const entry = governance.qualityGateLatencies.find((g) => g.entity_id === deliverableId);
@@ -102,16 +103,16 @@ test("Governance Telemetry: Quality Gate latency is zero on a first-try pass and
   // first_blocked_at unset even though this test's own explicit attempt is
   // genuinely blocked afterward.
   const obligation = await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: deliverableId2, category: "Engineering", title: "Phase7 latency test obligation" });
-  await transitionDeliverable({ deliverableId: deliverableId2, targetState: "In Progress", actorRole: "super", actorId: "1" });
-  const blocked = await transitionDeliverable({ deliverableId: deliverableId2, targetState: "Approved", actorRole: "super", actorId: "1" });
+  await transitionDeliverable({ deliverableId: deliverableId2, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const blocked = await transitionDeliverable({ deliverableId: deliverableId2, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(blocked.ok, false);
 
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: "1001" });
+    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
     assert.equal(step.ok, true);
   }
-  const secondTry = await transitionDeliverable({ deliverableId: deliverableId2, targetState: "Approved", actorRole: "super", actorId: "1" });
-  assert.equal(secondTry.ok, true, !secondTry.ok ? JSON.stringify(secondTry) : undefined);
+  const secondTry = await transitionDeliverable({ deliverableId: deliverableId2, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  assert.equal(secondTry.ok, true, !secondTry.ok ? JSON.stringify(secondTry) : "assertion failed");
 
   const governanceAfter = await getGovernanceMetrics();
   const blockedEntry = governanceAfter.qualityGateLatencies.find((g) => g.entity_id === deliverableId2);
@@ -124,14 +125,14 @@ test("Governance Telemetry: Quality Gate latency is zero on a first-try pass and
 
 test("a sustained pattern of Quality Gate blocking raises exactly one Organisational Learning Obligation, not one per attempt (FR-35.8)", async () => {
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("phase7-sustained-pattern");
-  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
+  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
 
   const obligation = await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase7 sustained-pattern blocker (left unresolved)" });
 
   // Attempt the same blocked transition repeatedly — the Obligation above is
   // deliberately never resolved, so every attempt blocks again.
   for (let i = 0; i < 4; i++) {
-    const attempt = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
+    const attempt = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
     assert.equal(attempt.ok, false);
   }
 
@@ -146,17 +147,17 @@ test("a sustained pattern of Quality Gate blocking raises exactly one Organisati
 
 test("qualityGateEngine publishes QualityGateBlocked and QualityGatePassed on the event bus (Ch.26 §15)", async () => {
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("phase7-quality-gate-events");
-  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
+  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
 
   const obligation = await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase7 event test obligation" });
-  const blocked = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
+  const blocked = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(blocked.ok, false);
   assert.ok((await qualityGateEventTypesForEntity(deliverableId)).includes("QualityGateBlocked"));
 
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: "1001" });
+    await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
   }
-  const passed = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
+  const passed = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(passed.ok, true);
   assert.ok((await qualityGateEventTypesForEntity(deliverableId)).includes("QualityGatePassed"));
 });

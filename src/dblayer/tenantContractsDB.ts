@@ -1,5 +1,6 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
+import { userDB } from "./userDB.js";
 import type { DbResult, TenantContractRow } from "./seuTypes.js";
 
 // Participant Integration — Plan step 6 (§2.1). The tenant's edge declarations
@@ -14,16 +15,22 @@ export const tenantContractsDB = {
     attestationConfig?: Record<string, unknown>;
   }): Promise<DbResult<TenantContractRow>> {
     try {
+      // author_id/author_badge are NOT NULL (tenant_contracts_schema_
+      // recovery.sql) but no real actor flows through this path today — same
+      // stopgap as participantsDB.create: resolves the SUPERUSER_EMAIL
+      // superuser as author. ON CONFLICT leaves author_id/author_badge
+      // untouched on an existing row.
+      const { actorId, actorBadge } = await userDB.getSuperuserId();
       const { rows } = await query<TenantContractRow>(
-        `INSERT INTO tenant_contracts (tenant_id, vcs_binding, callback_auth, attestation_config)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO tenant_contracts (tenant_id, vcs_binding, callback_auth, attestation_config, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6)
          ON CONFLICT (tenant_id) DO UPDATE
            SET vcs_binding = EXCLUDED.vcs_binding,
                callback_auth = EXCLUDED.callback_auth,
                attestation_config = EXCLUDED.attestation_config,
                updated_at = NOW()
          RETURNING *`,
-        [input.tenantId, JSON.stringify(input.vcsBinding ?? {}), JSON.stringify(input.callbackAuth ?? {}), JSON.stringify(input.attestationConfig ?? {})]
+        [input.tenantId, JSON.stringify(input.vcsBinding ?? {}), JSON.stringify(input.callbackAuth ?? {}), JSON.stringify(input.attestationConfig ?? {}), actorId, actorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

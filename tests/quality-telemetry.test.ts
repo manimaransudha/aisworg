@@ -16,6 +16,7 @@ import { createObligationAsRoot as createObligation } from "./testFixtures.js";
 import { transitionEvidence } from "../src/routes/seu/core/evidence.js";
 import { getQualityMetrics } from "../src/routes/seu/core/telemetry.js";
 import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot as createEvidence } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
@@ -24,7 +25,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
     {
       statement: `${statementPrefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorRole: "super", actorId: "1001", requestedBy: 1001,
+      actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
     },
     async (seuId) => {
       const detail = await getSeuDetailView(seuId);
@@ -33,7 +34,7 @@ async function commissionAndFulfilRequirementsSpec(statementPrefix: string) {
       await fulfilCapability({ seuId, capabilityId: reqAnalysisCapability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
     }
   );
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const seuId = result.seu.id;
 
@@ -60,27 +61,27 @@ test("Quality Telemetry: rework rate distinguishes a first-try pass from a genui
   // passes, instead of leaving a stray block on the record.
   async function attachAcceptedEvidence(seuId: string, deliverableId: string): Promise<void> {
     const evidence = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Validation Evidence", title: "Quality telemetry rework test evidence" });
-    await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorRole: "general", actorId: "1001" });
-    await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorRole: "general", actorId: "1001" });
+    await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorRole: "general", actorId: TESTER_ALL_ID });
+    await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorRole: "general", actorId: TESTER_ALL_ID });
   }
 
   const clean = await commissionAndFulfilRequirementsSpec("quality-telemetry-clean");
   await attachAcceptedEvidence(clean.seuId, clean.deliverableId);
-  await transitionDeliverable({ deliverableId: clean.deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
-  const cleanPass = await transitionDeliverable({ deliverableId: clean.deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
+  await transitionDeliverable({ deliverableId: clean.deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const cleanPass = await transitionDeliverable({ deliverableId: clean.deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(cleanPass.ok, true);
 
   const reworked = await commissionAndFulfilRequirementsSpec("quality-telemetry-reworked");
   await attachAcceptedEvidence(reworked.seuId, reworked.deliverableId);
-  await transitionDeliverable({ deliverableId: reworked.deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
+  await transitionDeliverable({ deliverableId: reworked.deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   const obligation = await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: reworked.deliverableId, category: "Engineering", title: "Quality telemetry rework test obligation" });
-  const blocked = await transitionDeliverable({ deliverableId: reworked.deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
+  const blocked = await transitionDeliverable({ deliverableId: reworked.deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(blocked.ok, false);
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: "1001" });
+    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
     assert.equal(step.ok, true);
   }
-  const reworkedPass = await transitionDeliverable({ deliverableId: reworked.deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
+  const reworkedPass = await transitionDeliverable({ deliverableId: reworked.deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(reworkedPass.ok, true);
 
   const after = await getQualityMetrics();
@@ -96,8 +97,8 @@ test("Quality Telemetry: rework rate distinguishes a first-try pass from a genui
 
 test("Quality Telemetry: Deliverable acceptance rate reflects the real lifecycle_state distribution, scoped correctly per SEU", async () => {
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("quality-telemetry-acceptance");
-  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: "1" });
-  const approved = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
+  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  const approved = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(approved.ok, true);
 
   // Approved -> Baselined is gated by "Requires Accepted Evidence or
@@ -106,11 +107,11 @@ test("Quality Telemetry: Deliverable acceptance rate reflects the real lifecycle
   // category "Validation Evidence" (the gate's own category:evidence-backed
   // category doubles as its code).
   const evidence = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Validation Evidence", title: "Quality telemetry acceptance test evidence" });
-  await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorRole: "general", actorId: "1001" });
-  await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorRole: "general", actorId: "1001" });
+  await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorRole: "general", actorId: TESTER_ALL_ID });
+  await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorRole: "general", actorId: TESTER_ALL_ID });
 
-  const baselined = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: "1" });
-  assert.equal(baselined.ok, true, !baselined.ok ? JSON.stringify(baselined) : undefined);
+  const baselined = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  assert.equal(baselined.ok, true, !baselined.ok ? JSON.stringify(baselined) : "assertion failed");
 
   // The Template's Deliverable Catalogue seeds more than just Requirements
   // Analysis Model (Architecture Decision Record, Source Code, ...) — only the one

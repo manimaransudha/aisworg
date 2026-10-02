@@ -17,6 +17,7 @@ import pool from "../src/utils/db.js";
 import { metricRegistryEngine } from "../src/domain/engine/metricRegistryEngine.js";
 import { metricDefinitionsDB } from "../src/dblayer/metricDefinitionsDB.js";
 import { query } from "../src/utils/db.js";
+import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 
 test("metricRegistryEngine.compute resolves a real metric_definitions row to its calculation_method and publishes MetricCalculated", async () => {
   const result = await metricRegistryEngine.compute("deliverable-cycle-time");
@@ -39,12 +40,11 @@ test("metricRegistryEngine.compute fails closed for an unknown identifier", asyn
 
 test("metricRegistryEngine.compute fails closed for a metric_definitions row naming an unrecognised calculation_method", async () => {
   const identifier = `metric-registry-test-${randomUUID()}`;
-  const { error } = await query(
-    `INSERT INTO metric_definitions (identifier, name, category, unit_of_measure, aggregation_strategy, calculation_method)
-     VALUES ($1, 'Metric Registry test row', 'Flow', 'seconds', 'Average', 'no-such-calculation-method')`,
-    [identifier]
+  await query(
+    `INSERT INTO metric_definitions (identifier, name, category, unit_of_measure, aggregation_strategy, calculation_method, author_id, author_badge)
+     VALUES ($1, 'Metric Registry test row', 'Flow', 'seconds', 'Average', 'no-such-calculation-method', $2, $3)`,
+    [identifier, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE]
   );
-  assert.equal(error, undefined);
 
   const result = await metricRegistryEngine.compute(identifier);
   assert.equal(result.outcome, "UnrecognisedMethod");

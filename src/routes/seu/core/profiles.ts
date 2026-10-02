@@ -694,6 +694,8 @@ export async function publishProfile(input: { seed: ProfileSeedInput; actorRole:
     originatingObjectId: draft.id,
     seuId: null, // platform catalog entity, not SEU-scoped
     correlationId: eventBus.newCorrelationId(),
+    actorId: profileMaster.id,
+    authorityBadge: authorBadge,
     payload: { code: draft.code, profileVersion: draft.profile_version },
   });
 
@@ -731,11 +733,12 @@ export async function transitionProfile(input: { profileId: string; targetState:
   const { data: profile } = await profilesDB.findById(input.profileId);
   if (!profile) return { ok: false, reason: "not_found" };
   const fromState = profile.status;
+  if (!input.actorId) throw new Error("actorId is required to transition a Profile");
   // entityId passed so a Profile row ever declaring submit_verb (none do
   // today) would have its triggerEngine.hasBeenSubmitted check actually work
   // — the same latent gap Template's own transitionTemplate had before its
   // fix (Events and Lifecycles.md Ch.6 Implementation row 3).
-  const gate = await transitionEngine.evaluate({ entityType: "Profile", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId ?? "", entityId: profile.id, context: { profile } });
+  const gate = await transitionEngine.evaluate({ entityType: "Profile", fromState, toState: input.targetState, actorRole: input.actorRole, actorId: input.actorId, entityId: profile.id, context: { profile } });
   if (!gate.allowed) {
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Profile ${fromState} -> ${input.targetState}` };
@@ -756,8 +759,8 @@ export async function transitionProfile(input: { profileId: string; targetState:
     seuId: null, // platform catalog entity, not SEU-scoped
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: profile.code },
-    actorId: input.actorId ?? null,
-    authorityBadge: gate.authorityBadge,
+    actorId: input.actorId,
+    authorityBadge: gate.authorityBadge ?? "root",
   });
   return { ok: true, profile: updated };
 }

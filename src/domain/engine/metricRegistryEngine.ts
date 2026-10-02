@@ -15,6 +15,7 @@ import { runtimeTelemetryDB } from "../../dblayer/runtimeTelemetryDB.js";
 import { knowledgeItemsDB } from "../../dblayer/knowledgeItemsDB.js";
 import { evidenceDB } from "../../dblayer/evidenceDB.js";
 import { eventBus } from "./eventBus.js";
+import { userDB } from "../../dblayer/userDB.js";
 import type { AcquisitionScope, DeliverableCycleTimeRow, DispatchLatencyRow, MetricDefinitionRow, QualityGateLatencyRow, ReworkRow, WorkItemDurationRow } from "../../dblayer/seuTypes.js";
 
 export interface FlowMetricsValue {
@@ -208,12 +209,18 @@ export const metricRegistryEngine = {
 
     // Ch.35 §15's first published event — fires for every computation,
     // including the two metrics that already existed before this pass.
+    // Metric computation is platform-level, not necessarily SEU-scoped
+    // (scope.seuId is optional) — attributed to the real superuser actor,
+    // same resolution every seed script and test fixture's ROOT_ACTOR_ID uses.
+    const { actorId: metricActorId, actorBadge: metricActorBadge } = await userDB.getSuperuserId();
     await eventBus.publish({
       eventType: "MetricCalculated",
       originatingObjectType: "MetricDefinition",
       originatingObjectId: definition.id,
       seuId: scope.seuId ?? null,
       correlationId: eventBus.newCorrelationId(),
+      actorId: metricActorId,
+      authorityBadge: metricActorBadge,
       payload: { identifier: definition.identifier, category: definition.category },
     });
 

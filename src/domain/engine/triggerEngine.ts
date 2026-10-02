@@ -30,14 +30,15 @@ export const triggerEngine = {
   // it. Publishing with zero subscribers (Objective's own case, for now) is
   // already a normal, supported path in eventBus — no registry entry
   // required to publish, only to be consumed.
-  async submit(input: { entityType: string; entityId: string; fromState: string; actorId?: string | null; seuId?: string | null }): Promise<void> {
+  async submit(input: { entityType: string; entityId: string; fromState: string; actorId: string; authorityBadge: string; seuId?: string | null }): Promise<void> {
     await eventBus.publish({
       eventType: `${input.entityType}${input.fromState}`,
       originatingObjectType: input.entityType,
       originatingObjectId: input.entityId,
       seuId: input.seuId ?? null,
       correlationId: eventBus.newCorrelationId(),
-      actorId: input.actorId ?? null,
+      actorId: input.actorId,
+      authorityBadge: input.authorityBadge,
     });
   },
 };

@@ -33,8 +33,10 @@ import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { decisionsDB } from "../src/dblayer/decisionsDB.js";
 import { governanceEvaluationOutcomesDB } from "../src/dblayer/governanceEvaluationOutcomesDB.js";
 import { capabilityFulfilmentPoolsDB } from "../src/dblayer/capabilityFulfilmentPoolsDB.js";
-import { driveCommissioningToActive, uniqueTestPackVersion, ensureEventSubscriptionsLoaded, waitForDispatchedWorkItem, waitUntilAsync, ensureEligibleParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot, createObligationAsRoot, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { driveCommissioningToActive, uniqueTestPackVersion, ensureEventSubscriptionsLoaded, waitForDispatchedWorkItem, waitUntilAsync, ensureEligibleParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot, createObligationAsRoot, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 import type { CommandRow } from "../src/dblayer/seuTypes.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
+const PLATFORM_TENANT_ID = await getPlatformTenantId();
 
 
 // deliverableKickoffHandler (SEUOperational / DeliverableTransitioned /
@@ -56,8 +58,8 @@ function assertTransitionRequested(result: { ok: boolean; reason?: string }): vo
 
 async function registerOrganisationName(code: string): Promise<void> {
   await pool.query(
-    "INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id) VALUES ('organisation-name', $1, $2, '11111111-1111-1111-1111-111111111111') ON CONFLICT DO NOTHING",
-    [code, code]
+    "INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id, author_id, author_badge) VALUES ('organisation-name', $1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
+    [code, code, PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE]
   );
 }
 
@@ -111,26 +113,26 @@ async function commissionCr104MinimalSeu(statementPrefix: string, beforeCommence
   // commissionSeu rejects a Strategic Objective directly ("a programme
   // umbrella... decompose it into Operational/Engineering objectives") — a
   // Strategic root + Engineering child, same as commissionIsolatedSeu below.
-  const { objective: root } = await createObjective({ statement: `${statementPrefix}-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed" });
+  const { objective: root } = await createObjective({ statement: `${statementPrefix}-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
   const { objective } = await createObjective({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "software-construction", "software-release"],
     tier: "Engineering",
     parentObjectiveId: root.id,
-    requestedBy: 1001,
+    requestedBy: TESTER_ALL_ID,
   });
 
   const commissioned = await commissionSeu({
     objectiveId: objective.id,
     templateIds: [template!.id],
     profileIds: [profile!.id],
-    actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: 1001,
+    actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
   });
-  assert.equal(commissioned.ok, true, !commissioned.ok ? JSON.stringify(commissioned) : undefined);
+  assert.equal(commissioned.ok, true, !commissioned.ok ? JSON.stringify(commissioned) : "assertion failed");
   if (!commissioned.ok) throw new Error("unreachable");
 
   const driven = await driveCommissioningToActive({ seuId: commissioned.seu.id, actorRole: "super", actorId: TESTER_ALL_ID, beforeCommenceWork });
-  assert.equal(driven.ok, true, !driven.ok ? JSON.stringify(driven) : undefined);
+  assert.equal(driven.ok, true, !driven.ok ? JSON.stringify(driven) : "assertion failed");
   return commissioned.seu.id;
 }
 
@@ -144,13 +146,13 @@ async function driveDeliverableToApproved(deliverableId: string, tag: string): P
   assertTransitionRequested(toInProgress);
   const { workItem: productionWorkItem } = await waitForDispatchedWorkItem(deliverableId, "Defined", "In Progress");
   const produced = await completeWorkItem({ workItemId: productionWorkItem.id, outcome: "done", reference: `vcs://${tag}/produced@1` });
-  assert.equal(produced.ok, true, !produced.ok ? JSON.stringify(produced) : undefined);
+  assert.equal(produced.ok, true, !produced.ok ? JSON.stringify(produced) : "assertion failed");
 
   const toApproved = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assertTransitionRequested(toApproved);
   const { workItem: acceptanceWorkItem } = await waitForDispatchedWorkItem(deliverableId, "In Progress", "Approved");
   const accepted = await completeWorkItem({ workItemId: acceptanceWorkItem.id, outcome: "done", reference: `vcs://${tag}/accepted@1` });
-  assert.equal(accepted.ok, true, !accepted.ok ? JSON.stringify(accepted) : undefined);
+  assert.equal(accepted.ok, true, !accepted.ok ? JSON.stringify(accepted) : "assertion failed");
 
   return { productionWorkItemId: productionWorkItem.id, acceptanceWorkItemId: acceptanceWorkItem.id };
 }
@@ -192,8 +194,8 @@ async function commissionIsolatedSeu(run: string, beforeCommission?: (packId: st
   await templatesDB.setRequiredCapabilities(template!.id, (requiredCapabilities ?? []).map((c) => c.id), rootMasterForCapabilities.id, "root");
 
   await ensureEventSubscriptionsLoaded();
-  const { objective: root } = await createObjective({ statement: `cr109-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed" });
-  const { objective } = await createObjective({ statement: `cr109-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: 1001 });
+  const { objective: root } = await createObjective({ statement: `cr109-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
+  const { objective } = await createObjective({ statement: `cr109-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
   const profilePublish = await publishProfile({
     seed: {
       code: `cr109-profile-${run}`,
@@ -210,12 +212,12 @@ async function commissionIsolatedSeu(run: string, beforeCommission?: (packId: st
     actorRole: "super",
     actorId: TESTER_ALL_ID,
   });
-  assert.equal(profilePublish.ok, true, !profilePublish.ok ? JSON.stringify(profilePublish.errors) : undefined);
+  assert.equal(profilePublish.ok, true, !profilePublish.ok ? JSON.stringify(profilePublish.errors) : "assertion failed");
   if (!profilePublish.ok) throw new Error("unreachable");
   const { data: profile } = await profilesDB.findById(profilePublish.profileId);
 
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID });
-  assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : undefined);
+  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
 
   // No beforeCommenceWork fulfilment here, deliberately: the failing test
@@ -229,7 +231,7 @@ async function commissionIsolatedSeu(run: string, beforeCommission?: (packId: st
   // and rejects instead — swept below so it doesn't linger as a second,
   // unrelated open Obligation once the test creates its real one.
   const driven = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: TESTER_ALL_ID });
-  assert.equal(driven.ok, true, !driven.ok ? JSON.stringify(driven) : undefined);
+  assert.equal(driven.ok, true, !driven.ok ? JSON.stringify(driven) : "assertion failed");
   await resolveDispatchRejectionObligations(requested.seu.id);
 
   const { data: deliverables } = await deliverablesDB.findBySeuId(requested.seu.id);
@@ -331,9 +333,14 @@ test("Ch.12 §9 / CR-109 §6.2: no producing Capability declared means no pool a
     command = (commands ?? []).find((c) => c.entity_id === requirementsSpec!.id) ?? null;
     return command?.status === "Failed";
   });
-  assert.equal(command?.status, "Failed", "an empty eligible-Participant pool must reject, not silently dispatch or defer forever");
-  assert.ok(command?.eligible_participant_pool_id, "a Capability WAS declared, so a pool snapshot must still exist");
-  const { data: pool } = await capabilityFulfilmentPoolsDB.findById(command!.eligible_participant_pool_id!);
+  // TS narrows a `let` reassigned inside an async closure (the
+  // waitUntilAsync callback above) to `never` at every read site after the
+  // closure returns — a known compiler limitation, not an actual runtime
+  // possibility. A local cast sidesteps it without weakening the null check.
+  const resolvedCommand = command as CommandRow | null;
+  assert.equal(resolvedCommand?.status, "Failed", "an empty eligible-Participant pool must reject, not silently dispatch or defer forever");
+  assert.ok(resolvedCommand?.eligible_participant_pool_id, "a Capability WAS declared, so a pool snapshot must still exist");
+  const { data: pool } = await capabilityFulfilmentPoolsDB.findById(resolvedCommand!.eligible_participant_pool_id!);
   assert.deepEqual(pool!.participant_ids, []);
 });
 

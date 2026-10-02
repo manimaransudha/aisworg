@@ -41,12 +41,13 @@ export async function transitionParticipant(input: { participantId: string; targ
 
   const fromState = participant.state;
 
+  if (!input.actorId) throw new Error("actorId is required to transition a Participant");
   const gate = await transitionEngine.evaluate({
     entityType: "Participant",
     fromState,
     toState: input.targetState,
     actorRole: input.actorRole,
-    actorId: input.actorId ?? "",
+    actorId: input.actorId,
     seuId: participant.seu_id,
     entityId: participant.id,
     context: { participant },
@@ -71,8 +72,8 @@ export async function transitionParticipant(input: { participantId: string; targ
       seuId: participant.seu_id,
       correlationId: eventBus.newCorrelationId(),
       payload: { fromState, toState: input.targetState },
-      actorId: input.actorId ?? null,
-      authorityBadge: gate.authorityBadge,
+      actorId: input.actorId,
+      authorityBadge: gate.authorityBadge ?? "root",
     });
   }
 
@@ -111,6 +112,7 @@ export async function replaceParticipant(input: {
 }): Promise<ReplaceParticipantResult> {
   const { data: oldParticipant } = await participantsDB.findById(input.oldParticipantId);
   if (!oldParticipant) return { ok: false, reason: "not_found", detail: `Participant not found: ${input.oldParticipantId}` };
+  if (!input.actorId) throw new Error("actorId is required to replace a Participant");
 
   const { data: fulfilment } = await capabilityFulfilmentsDB.findActiveByParticipantId(oldParticipant.id);
   if (!fulfilment) return { ok: false, reason: "no_active_fulfilment", detail: `Participant ${oldParticipant.id} has no active Capability Fulfilment to hand off` };
@@ -138,6 +140,8 @@ export async function replaceParticipant(input: {
     originatingObjectId: newParticipant.id,
     seuId: oldParticipant.seu_id,
     correlationId: eventBus.newCorrelationId(),
+    actorId: input.actorId,
+    authorityBadge: input.authorBadge,
     payload: { participantType: input.newParticipantType },
   });
 
@@ -147,7 +151,7 @@ export async function replaceParticipant(input: {
   // would conflate two different Participants' tenure into a single row's
   // established_at/revoked_at history).
   await capabilityFulfilmentsDB.revoke(fulfilment.id);
-  const { authorId } = await resolveAuthor(oldParticipant.seu_id, input.actorId ?? "");
+  const { authorId } = await resolveAuthor(oldParticipant.seu_id, input.actorId);
   const { data: newFulfilment, error: fulfilmentErr } = await capabilityFulfilmentsDB.create({
     seuCapabilityId: fulfilment.seu_capability_id,
     participantId: newParticipant.id,
@@ -163,6 +167,8 @@ export async function replaceParticipant(input: {
     originatingObjectId: newParticipant.id,
     seuId: oldParticipant.seu_id,
     correlationId: eventBus.newCorrelationId(),
+    actorId: input.actorId,
+    authorityBadge: input.authorBadge,
     payload: { oldParticipantId: oldParticipant.id, newParticipantId: newParticipant.id, seuCapabilityId: fulfilment.seu_capability_id },
   });
 

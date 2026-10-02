@@ -139,7 +139,7 @@ test("DEFINITION: every Profile transition_definitions row matches Events and Li
 // so a fresh publish fires all four events in order, not just the first one.
 test("DRIVEN: row 1 (New) creates a real Draft and walks it to Active, firing ProfileCreated then the real governed events", async () => {
   const created = await publishProfile({ seed: await freshProfileSeed(), actorRole: "power", actorId: TESTER_ALL_ID });
-  assert.equal(created.ok, true, created.ok ? undefined : created.errors.join("; "));
+  assert.equal(created.ok, true, created.ok ? "" : created.errors.join("; "));
   if (!created.ok) return;
 
   const { data: events } = await eventsDB.findByOriginatingObject("Profile", created.profileId);
@@ -154,7 +154,7 @@ test("DRIVEN: row 3 (Validate) publishes ProfileValidated, matching transition_d
   const draft = await freshProfileDraft();
 
   const result = await transitionProfile({ profileId: draft.id, targetState: "Validated", actorRole: "power", actorId: TESTER_ALL_ID });
-  assert.equal(result.ok, true, result.ok ? undefined : `${result.reason}: ${result.detail}`);
+  assert.equal(result.ok, true, result.ok ? "" : `${result.reason}: ${result.detail}`);
 
   const { data: events } = await eventsDB.findByOriginatingObject("Profile", draft.id);
   const validated = events?.find((e) => e.event_type === "ProfileValidated");
@@ -173,7 +173,7 @@ test("DRIVEN: rows 4-8 (Publish/Activate/Deprecate/Retire/Archive) each publish 
   await transitionProfile({ profileId: draft.id, targetState: "Deprecated", actorRole: "power", actorId: TESTER_ALL_ID });
   await transitionProfile({ profileId: draft.id, targetState: "Retired", actorRole: "power", actorId: TESTER_ALL_ID });
   const archived = await transitionProfile({ profileId: draft.id, targetState: "Archived", actorRole: "power", actorId: TESTER_ALL_ID });
-  assert.equal(archived.ok, true, archived.ok ? undefined : `${archived.reason}: ${archived.detail}`);
+  assert.equal(archived.ok, true, archived.ok ? "" : `${archived.reason}: ${archived.detail}`);
 
   const { data: events } = await eventsDB.findByOriginatingObject("Profile", draft.id);
   const eventTypes = (events ?? []).map((e) => e.event_type);

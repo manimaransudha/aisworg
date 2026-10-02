@@ -21,8 +21,8 @@ import { ensureWebAppTemplateFixture, commissionFromFormSync, ROOT_ACTOR_ID, TES
 
 async function commissionSeu(prefix: string) {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromFormSync({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: 1001 });
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
+  const result = await commissionFromFormSync({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const detail = await getSeuDetailView(result.seu.id);
   const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
@@ -49,8 +49,8 @@ test("compliance is evaluated per-SEU from engineering state: a required obligat
   const run = randomUUID().slice(0, 8);
   const fwCode = `sec-fw-${run}`;
   const reqCode = `sec-obl-${run}`;
-  await complianceDB.upsertFramework({ code: fwCode, name: "Security Framework", originatingPackId: corePack.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
-  await complianceDB.upsertRequirement({ code: reqCode, frameworkCode: fwCode, name: "All Security obligations resolved", criteria: { type: "no_unresolved_obligations", category: "Security" }, severity: "High", originatingPackId: corePack.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
+  await complianceDB.upsertFramework({ code: fwCode, name: "Security Framework", originatingPackId: corePack!.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
+  await complianceDB.upsertRequirement({ code: reqCode, frameworkCode: fwCode, name: "All Security obligations resolved", criteria: { type: "no_unresolved_obligations", category: "Security" }, severity: "High", originatingPackId: corePack!.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
 
   const { seuId, deliverableId } = await commissionSeu("compliance-eval");
 
@@ -88,15 +88,15 @@ test("a Waiver moves an unsatisfied requirement to Compliant with Exceptions", a
   const run = randomUUID().slice(0, 8);
   const fwCode = `waiver-fw-${run}`;
   const reqCode = `waiver-req-${run}`;
-  await complianceDB.upsertFramework({ code: fwCode, name: "Waiver Framework", originatingPackId: corePack.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
-  await complianceDB.upsertRequirement({ code: reqCode, frameworkCode: fwCode, name: "Requires an accepted architecture review", criteria: { type: "requires_accepted_review", category: "Architecture" }, originatingPackId: corePack.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
+  await complianceDB.upsertFramework({ code: fwCode, name: "Waiver Framework", originatingPackId: corePack!.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
+  await complianceDB.upsertRequirement({ code: reqCode, frameworkCode: fwCode, name: "Requires an accepted architecture review", criteria: { type: "requires_accepted_review", category: "Architecture" }, originatingPackId: corePack!.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
 
   const { seuId } = await commissionSeu("compliance-waiver");
   // No such review exists -> Non-Compliant (this framework's single requirement unsatisfied).
   const evalReqs = (await evaluateCompliance(seuId)).results.filter((r) => r.frameworkCode === fwCode);
   assert.equal(evalReqs[0].state, "unsatisfied");
 
-  await grantWaiver({ seuId, requirementCode: reqCode, rationale: "Architecture review deferred to next milestone; risk accepted." });
+  await grantWaiver({ seuId, requirementCode: reqCode, rationale: "Architecture review deferred to next milestone; risk accepted.", grantedBy: ROOT_ACTOR_ID, authorBadge: "root" });
   const after = await evaluateCompliance(seuId);
   const waived = after.results.find((r) => r.requirementCode === reqCode);
   assert.equal(waived?.state, "waived");
@@ -110,9 +110,9 @@ test("minimal conflict detection (FR-27.7): two applicable requirements declarin
   const fwCode = `conflict-fw-${run}`;
   const a = `req-a-${run}`;
   const b = `req-b-${run}`;
-  await complianceDB.upsertFramework({ code: fwCode, name: "Conflict Framework", originatingPackId: corePack.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
-  await complianceDB.upsertRequirement({ code: a, frameworkCode: fwCode, name: "Requirement A", criteria: { type: "requires_accepted_evidence" }, conflictsWith: [b], originatingPackId: corePack.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
-  await complianceDB.upsertRequirement({ code: b, frameworkCode: fwCode, name: "Requirement B", criteria: { type: "requires_approved_decision" }, originatingPackId: corePack.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
+  await complianceDB.upsertFramework({ code: fwCode, name: "Conflict Framework", originatingPackId: corePack!.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
+  await complianceDB.upsertRequirement({ code: a, frameworkCode: fwCode, name: "Requirement A", criteria: { type: "requires_accepted_evidence" }, conflictsWith: [b], originatingPackId: corePack!.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
+  await complianceDB.upsertRequirement({ code: b, frameworkCode: fwCode, name: "Requirement B", criteria: { type: "requires_approved_decision" }, originatingPackId: corePack!.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
 
   const { seuId } = await commissionSeu("compliance-conflict");
   const result = await evaluateCompliance(seuId);
@@ -123,8 +123,8 @@ test("the compliance report is a projection of engineering state (Ch.27 §12)", 
   const { data: corePack } = await packsDB.findByCode("development");
   const run = randomUUID().slice(0, 8);
   const fwCode = `report-fw-${run}`;
-  await complianceDB.upsertFramework({ code: fwCode, name: "Report Framework", originatingPackId: corePack.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
-  await complianceDB.upsertRequirement({ code: `report-req-${run}`, frameworkCode: fwCode, name: "No unresolved obligations", criteria: { type: "no_unresolved_obligations" }, originatingPackId: corePack.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
+  await complianceDB.upsertFramework({ code: fwCode, name: "Report Framework", originatingPackId: corePack!.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
+  await complianceDB.upsertRequirement({ code: `report-req-${run}`, frameworkCode: fwCode, name: "No unresolved obligations", criteria: { type: "no_unresolved_obligations" }, originatingPackId: corePack!.id, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
 
   const { seuId } = await commissionSeu("compliance-report");
   const report = await generateComplianceReport(seuId);

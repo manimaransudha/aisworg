@@ -26,15 +26,16 @@ import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { listServices } from "../src/routes/seu/core/services.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
+import { TESTER_ALL_ID } from "./testFixtures.js";
 
 async function commissionTestSeu(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
   const result = await commissionFromFormSync({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: "1001", requestedBy: 1001,
+    actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
   });
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   return result.seu.id;
 }

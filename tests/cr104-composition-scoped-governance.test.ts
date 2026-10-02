@@ -29,7 +29,9 @@ import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { policyEngine } from "../src/domain/engine/policyEngine.js";
 import { resolveOwningScope } from "../src/domain/engine/seuCompositionScope.js";
-import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
+const PLATFORM_TENANT_ID = await getPlatformTenantId();
 
 // A category "Organisation" Pack's own `code` must be a canonical
 // organisation-name Ontology concept (validatePackSeed, packs.ts) — same
@@ -39,8 +41,8 @@ import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscript
 // organisation-name concept lives under.
 async function registerOrganisationName(code: string): Promise<void> {
   await pool.query(
-    "INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id) VALUES ('organisation-name', $1, $2, '11111111-1111-1111-1111-111111111111') ON CONFLICT DO NOTHING",
-    [code, code]
+    "INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id, author_id, author_badge) VALUES ('organisation-name', $1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
+    [code, code, PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE]
   );
 }
 
@@ -52,8 +54,8 @@ async function registerOrganisationName(code: string): Promise<void> {
 // seeded elsewhere.
 async function registerDeliverableName(code: string): Promise<void> {
   await pool.query(
-    "INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id) VALUES ('deliverable-name', $1, $2, '11111111-1111-1111-1111-111111111111') ON CONFLICT DO NOTHING",
-    [code, code]
+    "INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id, author_id, author_badge) VALUES ('deliverable-name', $1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
+    [code, code, PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE]
   );
 }
 
@@ -73,11 +75,11 @@ async function commissionAgainstTemplate(templateId: string, statementPrefix: st
   // Every other file's own commissionSeu-calling helper does this same call
   // first; this one just never had it.
   await ensureEventSubscriptionsLoaded();
-  const { objective: root } = await createObjective({ statement: `${statementPrefix}-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed" });
-  const { objective } = await createObjective({ statement: `${statementPrefix}-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: 1001 });
+  const { objective: root } = await createObjective({ statement: `${statementPrefix}-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
+  const { objective } = await createObjective({ statement: `${statementPrefix}-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
   const { data: profile } = await profilesDB.upsert({ code: `${statementPrefix}-profile-${randomUUID()}`, name: statementPrefix, baseTemplateId: templateId, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [templateId], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID });
-  assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : undefined);
+  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [templateId], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
   // CR-104 — this file drives several full commissioning cycles (2-4 SEUs
   // per test, across 3 tests), the heaviest load any single file in this
@@ -86,7 +88,7 @@ async function commissionAgainstTemplate(templateId: string, statementPrefix: st
   // under real concurrent suite load without masking genuine slowness in
   // every other, lighter caller of this same fixture.
   const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: TESTER_ALL_ID, timeoutMs: 30000 });
-  assert.equal(result.ok, true, !result.ok ? `Compose EBM failed: ${result.reason}` : undefined);
+  assert.equal(result.ok, true, !result.ok ? `Compose EBM failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   return result.seu;
 }
@@ -175,16 +177,16 @@ test("CR-104: a Quality Gate/Policy contributed by a Pack applies only to SEUs w
   // must evaluate to Passed, never Blocked (there's nothing to block on) —
   // the meaningful distinction here is Passed (found + evaluated) vs
   // NotApplicable (correctly excluded), not Blocked vs Passed.
-  const gateResultWith = await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: randomUUID(), seuId: seuWith.id, fromState: "Defined", toState: "In Progress" });
-  const gateResultWithout = await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: randomUUID(), seuId: seuWithout.id, fromState: "Defined", toState: "In Progress" });
+  const gateResultWith = await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: randomUUID(), seuId: seuWith.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+  const gateResultWithout = await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: randomUUID(), seuId: seuWithout.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
   assert.equal(gateResultWith.outcome, "Passed", "the composing SEU's Deliverable transition is genuinely gated (found, evaluated, satisfied)");
   assert.equal(gateResultWithout.outcome, "NotApplicable", "the non-composing SEU's Deliverable transition is untouched by a Pack it never selected");
 
   // Same regression, for Policy — policyEngine.evaluate is a brand new path
   // with no prior test coverage at all, so this also exercises it directly,
   // not just its scoping.
-  const policyResultWith = await policyEngine.evaluate({ entityType: "Deliverable", seuId: seuWith.id, fromState: "Defined", toState: "In Progress" });
-  const policyResultWithout = await policyEngine.evaluate({ entityType: "Deliverable", seuId: seuWithout.id, fromState: "Defined", toState: "In Progress" });
+  const policyResultWith = await policyEngine.evaluate({ entityType: "Deliverable", seuId: seuWith.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+  const policyResultWithout = await policyEngine.evaluate({ entityType: "Deliverable", seuId: seuWithout.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
   assert.equal(policyResultWith.outcome, "Passed", "the composing SEU's own Policy is found and evaluated (always_true condition)");
   assert.equal(policyResultWithout.outcome, "NotApplicable", "the non-composing SEU sees no Policy from a Pack it never selected");
 });
@@ -227,10 +229,10 @@ test("CR-104: policyEngine.evaluate blocks on an unsatisfied 'Policy' constraint
   await templatesDB.setRequiredCapabilities(blockingTemplate!.id, []);
   const blockingSeu = await commissionAgainstTemplate(blockingTemplate!.id, `cr104-blocking-${run}`);
 
-  const standardResult = await policyEngine.evaluate({ entityType: "Deliverable", seuId: standardSeu.id, fromState: "Defined", toState: "In Progress" });
+  const standardResult = await policyEngine.evaluate({ entityType: "Deliverable", seuId: standardSeu.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
   assert.equal(standardResult.outcome, "Passed", "an unsatisfied Standard-only policy deviates non-blockingly, never Blocked");
 
-  const blockingResult = await policyEngine.evaluate({ entityType: "Deliverable", seuId: blockingSeu.id, fromState: "Defined", toState: "In Progress" });
+  const blockingResult = await policyEngine.evaluate({ entityType: "Deliverable", seuId: blockingSeu.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
   assert.equal(blockingResult.outcome, "Blocked");
   if (blockingResult.outcome === "Blocked") assert.equal(blockingResult.policyCode, blockingPolicy!.code);
 });
@@ -271,8 +273,8 @@ test("CR-104: a Quality Gate's applicabilityDeliverableNames targets only the na
   const other = detail?.deliverables.find((d) => d.name === otherName);
   assert.ok(targeted && other, "both catalogue entries materialised into real Deliverable rows");
 
-  const targetedResult = await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: targeted!.id, seuId: seu.id, fromState: "Defined", toState: "In Progress" });
-  const otherResult = await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: other!.id, seuId: seu.id, fromState: "Defined", toState: "In Progress" });
+  const targetedResult = await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: targeted!.id, seuId: seu.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+  const otherResult = await qualityGateEngine.evaluate({ entityType: "Deliverable", entityId: other!.id, seuId: seu.id, fromState: "Defined", toState: "In Progress", authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
   assert.equal(targetedResult.outcome, "Passed", "the named Deliverable is genuinely gated");
   assert.equal(otherResult.outcome, "NotApplicable", "a different Deliverable on the SAME transition, SAME SEU, is untouched — the gate targets only the named one");
 });

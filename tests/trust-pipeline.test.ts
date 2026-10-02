@@ -20,6 +20,7 @@ import { evidenceDB } from "../src/dblayer/evidenceDB.js";
 import { addKnowledgeValidationNote, createKnowledgeItem, listKnowledgeValidationNotes, transitionKnowledgeItem, updateKnowledgeReferences } from "../src/routes/seu/core/knowledge.js";
 import { createDecision, transitionDecision } from "../src/routes/seu/core/decisions.js";
 import { ensureWebAppTemplateFixture, ensureCoreEngineeringQualityGates, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations, createEvidenceAsRoot as createEvidence } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 
 async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>) {
   await ensureWebAppTemplateFixture();
@@ -28,11 +29,11 @@ async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (
     {
       statement: `${statementPrefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorRole: "super", actorId: "1001", requestedBy: 1001,
+      actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
     },
     beforeCommenceWork
   );
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   return result.seu.id;
 }
@@ -57,10 +58,10 @@ async function commissionAndApproveRequirementsSpec(statementPrefix: string) {
   // empty_eligible_pool Obligation, not part of this test's own scenario.
   await resolveDispatchRejectionObligations(seuId);
 
-  const toInProgress = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: "1" });
-  assert.equal(toInProgress.ok, true, !toInProgress.ok ? JSON.stringify(toInProgress) : undefined);
-  const toApproved = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "Approved", actorRole: "super", actorId: "1" });
-  assert.equal(toApproved.ok, true, !toApproved.ok ? JSON.stringify(toApproved) : undefined);
+  const toInProgress = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  assert.equal(toInProgress.ok, true, !toInProgress.ok ? JSON.stringify(toInProgress) : "assertion failed");
+  const toApproved = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  assert.equal(toApproved.ok, true, !toApproved.ok ? JSON.stringify(toApproved) : "assertion failed");
 
   return { seuId, deliverableId: requirementsSpec.id };
 }
@@ -68,7 +69,7 @@ async function commissionAndApproveRequirementsSpec(statementPrefix: string) {
 test("Quality Gate blocks 'Approved' -> 'Baselined' until Evidence is Accepted, then allows it", async () => {
   const { seuId, deliverableId } = await commissionAndApproveRequirementsSpec("phase5-evidence-gate");
 
-  const blocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: "1" });
+  const blocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(blocked.ok, false);
   if (!blocked.ok) {
     assert.equal(blocked.reason, "quality_gate_blocked");
@@ -86,16 +87,16 @@ test("Quality Gate blocks 'Approved' -> 'Baselined' until Evidence is Accepted, 
   assert.equal(evidence.status, "Collected");
 
   // Not yet Accepted — still blocked.
-  const stillBlocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: "1" });
+  const stillBlocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(stillBlocked.ok, false);
 
-  const toValidated = await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorRole: "super", actorId: "1001" });
+  const toValidated = await transitionEvidence({ evidenceId: evidence.id, targetState: "Validated", actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(toValidated.ok, true);
-  const toAccepted = await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorRole: "super", actorId: "1001" });
+  const toAccepted = await transitionEvidence({ evidenceId: evidence.id, targetState: "Accepted", actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(toAccepted.ok, true);
 
-  const unblocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: "1" });
-  assert.equal(unblocked.ok, true, !unblocked.ok ? JSON.stringify(unblocked) : undefined);
+  const unblocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  assert.equal(unblocked.ok, true, !unblocked.ok ? JSON.stringify(unblocked) : "assertion failed");
   if (unblocked.ok) assert.equal(unblocked.deliverable.lifecycle_state, "Baselined");
 });
 
@@ -106,29 +107,29 @@ test("Quality Gate also accepts an Approved Decision as satisfying the same prec
   assert.equal(decision.status, "Identified");
 
   for (const targetState of ["Analysed", "Proposed", "Reviewed", "Approved"]) {
-    const step = await transitionDecision({ decisionId: decision.id, targetState, actorRole: "super", actorId: "1001" });
-    assert.equal(step.ok, true, !step.ok ? `Decision transition to ${targetState} failed: ${JSON.stringify(step)}` : undefined);
+    const step = await transitionDecision({ decisionId: decision.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
+    assert.equal(step.ok, true, !step.ok ? `Decision transition to ${targetState} failed: ${JSON.stringify(step)}` : "assertion failed");
   }
 
-  const unblocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: "1" });
-  assert.equal(unblocked.ok, true, !unblocked.ok ? JSON.stringify(unblocked) : undefined);
+  const unblocked = await transitionDeliverable({ deliverableId, targetState: "Baselined", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  assert.equal(unblocked.ok, true, !unblocked.ok ? JSON.stringify(unblocked) : "assertion failed");
 });
 
 test("Evidence, Knowledge and Decision each run their own governed lifecycle and reject an undefined transition", async () => {
   const { seuId, deliverableId } = await commissionAndApproveRequirementsSpec("phase5-lifecycles");
 
   const evidence = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: "Phase5 lifecycle test evidence" });
-  const evidenceInvalid = await transitionEvidence({ evidenceId: evidence.id, targetState: "Referenced", actorRole: "super", actorId: "1001" });
+  const evidenceInvalid = await transitionEvidence({ evidenceId: evidence.id, targetState: "Referenced", actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(evidenceInvalid.ok, false);
   if (!evidenceInvalid.ok) assert.equal(evidenceInvalid.reason, "no_transition_definition");
 
   const knowledgeItem = await createKnowledgeItem({ seuId, deliverableId, category: "Technical Knowledge", title: "Phase5 lifecycle test knowledge" });
-  const knowledgeInvalid = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: "Published", actorRole: "super", actorId: "1001" });
+  const knowledgeInvalid = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: "Published", actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(knowledgeInvalid.ok, false);
   if (!knowledgeInvalid.ok) assert.equal(knowledgeInvalid.reason, "no_transition_definition");
 
   const decision = await createDecision({ seuId, relatedObjects: [{ related_object_type: "Deliverable", related_object_ids: [deliverableId] }], category: "Design Decisions", title: "Phase5 lifecycle test decision" });
-  const decisionInvalid = await transitionDecision({ decisionId: decision.id, targetState: "Approved", actorRole: "super", actorId: "1001" });
+  const decisionInvalid = await transitionDecision({ decisionId: decision.id, targetState: "Approved", actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(decisionInvalid.ok, false);
   if (!decisionInvalid.ok) assert.equal(decisionInvalid.reason, "no_transition_definition");
 });
@@ -143,19 +144,19 @@ test("Evidence can be Rejected from either Collected or Validated, and Rejected 
   const { seuId, deliverableId } = await commissionAndApproveRequirementsSpec("phase5-evidence-reject");
 
   const fromCollected = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: "Reject from Collected" });
-  const rejectedFromCollected = await transitionEvidence({ evidenceId: fromCollected.id, targetState: "Rejected", actorRole: "super", actorId: "1001" });
-  assert.equal(rejectedFromCollected.ok, true, !rejectedFromCollected.ok ? JSON.stringify(rejectedFromCollected) : undefined);
+  const rejectedFromCollected = await transitionEvidence({ evidenceId: fromCollected.id, targetState: "Rejected", actorRole: "super", actorId: TESTER_ALL_ID });
+  assert.equal(rejectedFromCollected.ok, true, !rejectedFromCollected.ok ? JSON.stringify(rejectedFromCollected) : "assertion failed");
   if (rejectedFromCollected.ok) assert.equal(rejectedFromCollected.evidence.status, "Rejected");
 
   const fromValidated = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: "Reject from Validated" });
-  const toValidated = await transitionEvidence({ evidenceId: fromValidated.id, targetState: "Validated", actorRole: "super", actorId: "1001" });
-  assert.equal(toValidated.ok, true, !toValidated.ok ? JSON.stringify(toValidated) : undefined);
-  const rejectedFromValidated = await transitionEvidence({ evidenceId: fromValidated.id, targetState: "Rejected", actorRole: "super", actorId: "1001" });
-  assert.equal(rejectedFromValidated.ok, true, !rejectedFromValidated.ok ? JSON.stringify(rejectedFromValidated) : undefined);
+  const toValidated = await transitionEvidence({ evidenceId: fromValidated.id, targetState: "Validated", actorRole: "super", actorId: TESTER_ALL_ID });
+  assert.equal(toValidated.ok, true, !toValidated.ok ? JSON.stringify(toValidated) : "assertion failed");
+  const rejectedFromValidated = await transitionEvidence({ evidenceId: fromValidated.id, targetState: "Rejected", actorRole: "super", actorId: TESTER_ALL_ID });
+  assert.equal(rejectedFromValidated.ok, true, !rejectedFromValidated.ok ? JSON.stringify(rejectedFromValidated) : "assertion failed");
 
   // Terminal: no governed hop exists out of Rejected (preserved for audit,
   // per the chapter's own words — not archived, not reactivated).
-  const noFurtherHop = await transitionEvidence({ evidenceId: fromCollected.id, targetState: "Archived", actorRole: "super", actorId: "1001" });
+  const noFurtherHop = await transitionEvidence({ evidenceId: fromCollected.id, targetState: "Archived", actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(noFurtherHop.ok, false);
   if (!noFurtherHop.ok) assert.equal(noFurtherHop.reason, "no_transition_definition");
 });
@@ -200,7 +201,7 @@ test("Knowledge Item captures §8/§10/§14 structure: structured references, ve
     decisionReferences: { supports: [decision.id] },
     knowledgeReferences: { "derives from": [otherKnowledge.id] },
     confidenceLevel: "Medium",
-    userId: 1001,
+    userId: TESTER_ALL_ID,
   });
 
   // §8/§10: each reference field lands exactly as given, in its own §10-shaped object.
@@ -225,8 +226,8 @@ test("Knowledge Item captures §8/§10/§14 structure: structured references, ve
 
   // author_id/authority_badge update on every governed transition thereafter
   // — the row always reflects the most recent actor, full history stays in `events`.
-  const toProposed = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: "Proposed", actorRole: "super", actorId: "1001", userId: 1001 });
-  assert.equal(toProposed.ok, true, !toProposed.ok ? JSON.stringify(toProposed) : undefined);
+  const toProposed = await transitionKnowledgeItem({ knowledgeItemId: knowledgeItem.id, targetState: "Proposed", actorRole: "super", actorId: TESTER_ALL_ID, userId: TESTER_ALL_ID });
+  assert.equal(toProposed.ok, true, !toProposed.ok ? JSON.stringify(toProposed) : "assertion failed");
   if (toProposed.ok) assert.equal(toProposed.knowledgeItem.authority_badge, "knowledge_propose");
 
   // §11 Validation / §14 "validation history" — aggregates, never overwrites
@@ -260,8 +261,8 @@ test("Evidence can be linked to more than one object, findByRelatedObject finds 
   assert.ok(relationshipsBefore.some((r) => r.related_object_type === "SEU" && r.related_object_id === seuA));
 
   // Link to a SECOND Deliverable belonging to a DIFFERENT SEU entirely.
-  const linked = await linkEvidenceToObject(evidence.id, "Deliverable", deliverableB, "1", "root");
-  assert.equal(linked.ok, true, !linked.ok ? linked.detail : undefined);
+  const linked = await linkEvidenceToObject(evidence.id, "Deliverable", deliverableB, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  assert.equal(linked.ok, true, !linked.ok ? (linked.detail ?? "assertion failed") : "assertion failed");
 
   const relationshipsAfter = await listEvidenceRelationships(evidence.id);
   assert.equal(relationshipsAfter.length, 3, "one Evidence Item now supports two artefacts, plus its own SEU membership row");
@@ -273,18 +274,18 @@ test("Evidence can be linked to more than one object, findByRelatedObject finds 
   assert.ok((foundViaB ?? []).some((e) => e.id === evidence.id), "cross-SEU: found via a Deliverable belonging to a different SEU than the Evidence's own origin");
 
   // Re-linking the same relationship is a no-op, not an error.
-  const relinked = await linkEvidenceToObject(evidence.id, "Deliverable", deliverableB, "1", "root");
+  const relinked = await linkEvidenceToObject(evidence.id, "Deliverable", deliverableB, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   assert.equal(relinked.ok, true);
   const relationshipsAfterRelink = await listEvidenceRelationships(evidence.id);
   assert.equal(relationshipsAfterRelink.length, 3, "re-linking the same object is idempotent");
 
   // Linking a non-existent Deliverable is rejected.
-  const invalid = await linkEvidenceToObject(evidence.id, "Deliverable", randomUUID(), "1", "root");
+  const invalid = await linkEvidenceToObject(evidence.id, "Deliverable", randomUUID(), ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   assert.equal(invalid.ok, false);
   if (!invalid.ok) assert.equal(invalid.reason, "invalid");
 
   // Linking against a non-existent Evidence row is rejected.
-  const notFound = await linkEvidenceToObject(randomUUID(), "Deliverable", deliverableA, "1", "root");
+  const notFound = await linkEvidenceToObject(randomUUID(), "Deliverable", deliverableA, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   assert.equal(notFound.ok, false);
   if (!notFound.ok) assert.equal(notFound.reason, "not_found");
 });
@@ -318,11 +319,11 @@ test("Evidence preserves its full provenance as evidence_relationships rows — 
     category: "Validation Evidence", title: "Provenance-tagged evidence",
   });
 
-  const linkedParticipant = await linkEvidenceToObject(evidence.id, "Participant", participant.id, "1", "root");
+  const linkedParticipant = await linkEvidenceToObject(evidence.id, "Participant", participant.id, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   assert.equal(linkedParticipant.ok, true);
-  const linkedCapability = await linkEvidenceToObject(evidence.id, "Capability", reqAnalysisCapability.capabilityId, "1", "root");
+  const linkedCapability = await linkEvidenceToObject(evidence.id, "Capability", reqAnalysisCapability.capabilityId, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   assert.equal(linkedCapability.ok, true);
-  const linkedDecision = await linkEvidenceToObject(evidence.id, "Decision", decision.id, "1", "root");
+  const linkedDecision = await linkEvidenceToObject(evidence.id, "Decision", decision.id, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   assert.equal(linkedDecision.ok, true);
 
   const relationships = await listEvidenceRelationships(evidence.id);
@@ -358,8 +359,8 @@ test("Superseding an Evidence Item does not cascade — the predecessor's own re
   const { seuId: seu2, deliverableId: seu2Deliverable } = await commissionAndApproveRequirementsSpec("phase5-evidence-supersede-b");
 
   const v1 = await createEvidence({ seuId: seu1, relatedObjectType: "Deliverable", relatedObjectId: seu1Deliverable, category: "Validation Evidence", title: "V1: shared test results" });
-  const linked = await linkEvidenceToObject(v1.id, "Deliverable", seu2Deliverable, "1", "root");
-  assert.equal(linked.ok, true, !linked.ok ? linked.detail : undefined);
+  const linked = await linkEvidenceToObject(v1.id, "Deliverable", seu2Deliverable, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  assert.equal(linked.ok, true, !linked.ok ? (linked.detail ?? "assertion failed") : "assertion failed");
 
   // V1 must be discoverable as a supersede-predecessor from SEU2's own page,
   // even though it originated in SEU1 — the whole point of the scenario.
@@ -413,8 +414,8 @@ test("Evidence transitions publish the correct named event for each landed state
     ["Referenced", "EvidenceReferenced"],
     ["Archived", "EvidenceArchived"],
   ] as const) {
-    const result = await transitionEvidence({ evidenceId: evidence.id, targetState, actorRole: "super", actorId: "1001" });
-    assert.equal(result.ok, true, !result.ok ? JSON.stringify(result) : undefined);
+    const result = await transitionEvidence({ evidenceId: evidence.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
+    assert.equal(result.ok, true, !result.ok ? JSON.stringify(result) : "assertion failed");
   }
 
   const { data: events } = await eventsDB.findByOriginatingObject("Evidence", evidence.id);
@@ -428,8 +429,8 @@ test("Evidence transitions publish the correct named event for each landed state
 
   // Rejected is a separate branch (Collected -> Rejected), tested independently.
   const rejectable = await createEvidence({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Analytical Evidence", title: "Named-event test evidence (rejected)" });
-  const rejected = await transitionEvidence({ evidenceId: rejectable.id, targetState: "Rejected", actorRole: "super", actorId: "1001" });
-  assert.equal(rejected.ok, true, !rejected.ok ? JSON.stringify(rejected) : undefined);
+  const rejected = await transitionEvidence({ evidenceId: rejectable.id, targetState: "Rejected", actorRole: "super", actorId: TESTER_ALL_ID });
+  assert.equal(rejected.ok, true, !rejected.ok ? JSON.stringify(rejected) : "assertion failed");
   const { data: rejectedEvents } = await eventsDB.findByOriginatingObject("Evidence", rejectable.id);
   assert.ok((rejectedEvents ?? []).some((e) => e.event_type === "EvidenceRejected"));
 });

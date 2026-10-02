@@ -23,6 +23,7 @@ import { knowledgeItemsDB } from "../../dblayer/knowledgeItemsDB.js";
 import { transitionDefinitionsDB } from "../../dblayer/transitionDefinitionsDB.js";
 import { eventBus } from "./eventBus.js";
 import { resolveOwningScope as resolveOwningScopeByEbm } from "./seuCompositionScope.js";
+import { resolveSystemActor } from "../../routes/seu/core/attentionItems.js";
 import type { DependencyDefinitionEntityType, DependencyDefinitionRow, TransitionEntityType } from "../../dblayer/seuTypes.js";
 
 // CR-104 — the EBM (composed_packs/template_id/profile_id) is what actually
@@ -200,6 +201,7 @@ export const dependencyDefinitionEngine = {
       targets.set(`${row.to_entity_type} ${row.to_name} ${row.to_state}`, { toEntityType: row.to_entity_type, toName: row.to_name, toState: row.to_state });
     }
 
+    const systemActor = await resolveSystemActor(input.seuId);
     for (const target of targets.values()) {
       const { ready } = await this.isTargetReady(input.seuId, target.toEntityType, target.toName, target.toState);
       if (!ready) continue;
@@ -210,6 +212,8 @@ export const dependencyDefinitionEngine = {
         originatingObjectType: target.toEntityType as TransitionEntityType,
         originatingObjectId: to.instanceId,
         seuId: input.seuId,
+        actorId: systemActor.actorId,
+        authorityBadge: systemActor.authorBadge,
         correlationId: input.correlationId ?? eventBus.newCorrelationId(),
         causationId: input.correlationId ?? null,
         payload: { toEntityType: target.toEntityType, toName: target.toName, toState: target.toState },

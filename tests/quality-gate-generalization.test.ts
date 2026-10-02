@@ -39,6 +39,7 @@ import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
+import { TESTER_ALL_ID, ROOT_ACTOR_ID } from "./testFixtures.js";
 
 // originating_pack_id is a plain traceability FK — any real Pack id satisfies
 // it; which one doesn't matter for what this file is testing.
@@ -53,9 +54,9 @@ async function commissionTestSeu(statementPrefix: string): Promise<string> {
   const result = await commissionFromFormSync({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: "1001", requestedBy: 1001,
+    actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
   });
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   return result.seu.id;
 }
@@ -75,23 +76,22 @@ test("qualityGateEngine.evaluate resolves Obligations attached to a non-Delivera
   const fromState = `qg-test-from-${randomUUID()}`;
   const toState = `qg-test-to-${randomUUID()}`;
   const { data: gate, error: gateError } = await qualityGatesDB.upsert({
-    code: `qg-test-${randomUUID()}`,
     name: "QG generalization test gate",
     entityType: "AttentionItem",
     fromState,
     toState,
     criteria: { type: "no_unresolved_obligations" },
     originatingPackId: await anyRealPackId(),
-    authorId: "1",
+    authorId: ROOT_ACTOR_ID,
     authorBadge: "root",
   });
-  assert.ok(!gateError && gate, gateError?.message);
+  assert.ok(!gateError && gate, gateError?.message ?? "assertion failed");
 
   const seuId = await commissionTestSeu("qg-generalization-direct");
-  const attentionItem = await createAttentionItem({ seuId, category: "Action Required", title: "QG generalization test item" });
+  const attentionItem = await createAttentionItem({ seuId, category: "Action Required", title: "QG generalization test item", actorId: TESTER_ALL_ID, authorBadge: "root" });
 
   // No Obligations attached yet — must pass.
-  const beforeObligation = await qualityGateEngine.evaluate({ entityType: "AttentionItem", entityId: attentionItem.id, seuId, fromState, toState });
+  const beforeObligation = await qualityGateEngine.evaluate({ entityType: "AttentionItem", entityId: attentionItem.id, seuId, fromState, toState, authorId: TESTER_ALL_ID, authorBadge: "root" });
   assert.equal(beforeObligation.outcome, "Passed");
 
   // Attach a real, unresolved Obligation directly to the AttentionItem (not a
@@ -103,16 +103,16 @@ test("qualityGateEngine.evaluate resolves Obligations attached to a non-Delivera
     title: "QG generalization test obligation (left unresolved)",
   });
 
-  const blocked = await qualityGateEngine.evaluate({ entityType: "AttentionItem", entityId: attentionItem.id, seuId, fromState, toState });
+  const blocked = await qualityGateEngine.evaluate({ entityType: "AttentionItem", entityId: attentionItem.id, seuId, fromState, toState, authorId: TESTER_ALL_ID, authorBadge: "root" });
   assert.equal(blocked.outcome, "Blocked");
   if (blocked.outcome === "Blocked") assert.match(blocked.reason, /unresolved Obligation/);
 
   // Resolve it — the gate must now pass.
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: "1001" });
-    assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : undefined);
+    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
+    assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : "assertion failed");
   }
-  const afterResolution = await qualityGateEngine.evaluate({ entityType: "AttentionItem", entityId: attentionItem.id, seuId, fromState, toState });
+  const afterResolution = await qualityGateEngine.evaluate({ entityType: "AttentionItem", entityId: attentionItem.id, seuId, fromState, toState, authorId: TESTER_ALL_ID, authorBadge: "root" });
   assert.equal(afterResolution.outcome, "Passed");
 });
 
@@ -126,28 +126,27 @@ test("transitionAttentionItem is genuinely wired to qualityGateEngine — a real
   // Authority Rule/Policy for AttentionItem transitions (safe to reuse —
   // upsert on an existing code is idempotent and changes nothing).
   const packId = await anyRealPackId();
-  const { data: authorityRule } = await authorityRulesDB.upsert({ code: "authority-transition-attentionitem", governedTransition: "attentionitem.transition", authorisedRole: "general", originatingPackId: packId, authorId: "1", authorBadge: "root" });
-  const { data: policy } = await policiesDB.upsert({ code: "policy-attentionitem-transition-baseline", name: "Attention Item transition baseline check", governedTransition: "attentionitem.transition", originatingPackId: packId, authorId: "1", authorBadge: "root" });
+  const { data: authorityRule } = await authorityRulesDB.upsert({ code: "authority-transition-attentionitem", governedTransition: "attentionitem.transition", authorisedRole: "general", originatingPackId: packId, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
+  const { data: policy } = await policiesDB.upsert({ code: "policy-attentionitem-transition-baseline", name: "Attention Item transition baseline check", governedTransition: "attentionitem.transition", originatingPackId: packId, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
   assert.ok(authorityRule && policy);
 
   const fromState = `qg-wire-from-${randomUUID()}`;
   const toState = `qg-wire-to-${randomUUID()}`;
   await transitionDefinitionsDB.upsert({ entityType: "AttentionItem", fromState, toState, requiredAuthorityRuleId: authorityRule!.id, requiredPolicyIds: [policy!.id] });
   const { error: gateError } = await qualityGatesDB.upsert({
-    code: `qg-wire-test-${randomUUID()}`,
     name: "QG wiring test gate",
     entityType: "AttentionItem",
     fromState,
     toState,
     criteria: { type: "no_unresolved_obligations" },
     originatingPackId: packId,
-    authorId: "1",
+    authorId: ROOT_ACTOR_ID,
     authorBadge: "root",
   });
   assert.equal(gateError, undefined);
 
   const seuId = await commissionTestSeu("qg-generalization-wiring");
-  const attentionItem = await createAttentionItem({ seuId, category: "Action Required", title: "QG wiring test item" });
+  const attentionItem = await createAttentionItem({ seuId, category: "Action Required", title: "QG wiring test item", actorId: TESTER_ALL_ID, authorBadge: "root" });
 
   // Force the AttentionItem into the fabricated fromState directly (test
   // setup only — no governed path is meant to reach a state this test
@@ -161,18 +160,18 @@ test("transitionAttentionItem is genuinely wired to qualityGateEngine — a real
     title: "QG wiring test obligation (left unresolved)",
   });
 
-  const blockedResult = await transitionAttentionItem({ attentionItemId: attentionItem.id, targetState: toState, actorRole: "super", actorId: "1001" });
+  const blockedResult = await transitionAttentionItem({ attentionItemId: attentionItem.id, targetState: toState, actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(blockedResult.ok, false);
   if (blockedResult.ok) throw new Error("unreachable");
   assert.equal(blockedResult.reason, "quality_gate_blocked");
   assert.match(blockedResult.detail, /unresolved Obligation/);
 
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: "1001" });
-    assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : undefined);
+    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
+    assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : "assertion failed");
   }
 
-  const passedResult = await transitionAttentionItem({ attentionItemId: attentionItem.id, targetState: toState, actorRole: "super", actorId: "1001" });
-  assert.equal(passedResult.ok, true, !passedResult.ok ? JSON.stringify(passedResult) : undefined);
+  const passedResult = await transitionAttentionItem({ attentionItemId: attentionItem.id, targetState: toState, actorRole: "super", actorId: TESTER_ALL_ID });
+  assert.equal(passedResult.ok, true, !passedResult.ok ? JSON.stringify(passedResult) : "assertion failed");
   if (passedResult.ok) assert.equal(passedResult.attentionItem.status, toState);
 });

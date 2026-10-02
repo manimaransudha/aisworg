@@ -41,9 +41,11 @@ export interface PublishInput {
   causationId?: string | null;
   payload?: Record<string, unknown>;
   // Accountability record — the real acting user and the resolved `noun_verb`
-  // badge a governed transition ran under. Omitted for ungoverned/system events.
-  actorId?: string | null;
-  authorityBadge?: string | null;
+  // badge a governed transition ran under. Required on every publish — a
+  // system-originated event uses a resolved system actor (resolveSystemActor)
+  // and badge "system", never an omitted/null actor.
+  actorId: string;
+  authorityBadge: string;
 }
 
 // Ch.30 §9 — the Consume stage, standalone and independently awaitable (not

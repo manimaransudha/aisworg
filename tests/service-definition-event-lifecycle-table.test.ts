@@ -31,6 +31,7 @@ import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { transitionServiceDefinition } from "../src/routes/seu/core/serviceDefinitions.js";
+import { TESTER_ALL_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 
 // serviceDefinitionsDB.createDraft is a raw DB-layer insert (no
 // validateServiceDefinitionSeed call — the hand-coded uniqueness/parent
@@ -54,6 +55,8 @@ async function freshServiceDefinitionDraft(): Promise<{ id: string }> {
     name: "Test Service Definition",
     capabilityCode: "requirements-analysis",
     schemaDefinitionId: await requireServiceSchemaId(),
+  authoredBy: ROOT_ACTOR_ID,
+  authorBadge: ROOT_ACTOR_BADGE,
   });
   if (error || !draft) throw error ?? new Error("failed to create Service Definition draft");
   return { id: draft.id };
@@ -119,6 +122,8 @@ test("REGRESSION: Service Definition inputs/outputs round-trip as real string ar
     inputs: ["requirements-specification", "domain-model"],
     outputs: ["source-code"],
     schemaDefinitionId: await requireServiceSchemaId(),
+  authoredBy: ROOT_ACTOR_ID,
+  authorBadge: ROOT_ACTOR_BADGE,
   });
   assert.equal(error, undefined);
   assert.deepEqual(draft?.inputs, ["requirements-specification", "domain-model"]);
@@ -131,6 +136,8 @@ test("REGRESSION: Service Definition inputs/outputs round-trip as real string ar
     name: "Test Service Definition IO Bare",
     capabilityCode: "requirements-analysis",
     schemaDefinitionId: await requireServiceSchemaId(),
+  authoredBy: ROOT_ACTOR_ID,
+  authorBadge: ROOT_ACTOR_BADGE,
   });
   assert.equal(bareError, undefined);
   assert.deepEqual(bare?.inputs, []);
@@ -140,8 +147,8 @@ test("REGRESSION: Service Definition inputs/outputs round-trip as real string ar
 test("DRIVEN: row 3 (Publish) publishes ServiceDefinitionPublished, matching transition_definitions.event_type", async () => {
   const draft = await freshServiceDefinitionDraft();
 
-  const result = await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Published", actorRole: "power", actorId: "1001" });
-  assert.equal(result.ok, true, result.ok ? undefined : `${result.reason}: ${result.detail}`);
+  const result = await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Published", actorRole: "power", actorId: TESTER_ALL_ID });
+  assert.equal(result.ok, true, result.ok ? "" : `${result.reason}: ${result.detail}`);
 
   const { data: events } = await eventsDB.findByOriginatingObject("ServiceDefinition", draft.id);
   const published = events?.find((e) => e.event_type === "ServiceDefinitionPublished");
@@ -154,12 +161,12 @@ test("DRIVEN: row 3 (Publish) publishes ServiceDefinitionPublished, matching tra
 test("DRIVEN: rows 4-7 (Activate/Deprecate/Retire/Archive) each publish their matching event", async () => {
   const draft = await freshServiceDefinitionDraft();
 
-  await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Published", actorRole: "power", actorId: "1001" });
-  await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Active", actorRole: "power", actorId: "1001" });
-  await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Deprecated", actorRole: "power", actorId: "1001" });
-  await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Retired", actorRole: "power", actorId: "1001" });
-  const archived = await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Archived", actorRole: "power", actorId: "1001" });
-  assert.equal(archived.ok, true, archived.ok ? undefined : `${archived.reason}: ${archived.detail}`);
+  await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Published", actorRole: "power", actorId: TESTER_ALL_ID });
+  await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Active", actorRole: "power", actorId: TESTER_ALL_ID });
+  await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Deprecated", actorRole: "power", actorId: TESTER_ALL_ID });
+  await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Retired", actorRole: "power", actorId: TESTER_ALL_ID });
+  const archived = await transitionServiceDefinition({ serviceDefinitionId: draft.id, targetState: "Archived", actorRole: "power", actorId: TESTER_ALL_ID });
+  assert.equal(archived.ok, true, archived.ok ? "" : `${archived.reason}: ${archived.detail}`);
 
   const { data: events } = await eventsDB.findByOriginatingObject("ServiceDefinition", draft.id);
   const eventTypes = (events ?? []).map((e) => e.event_type);

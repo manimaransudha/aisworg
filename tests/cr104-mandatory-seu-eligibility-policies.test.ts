@@ -37,22 +37,28 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
-import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
-import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensurePolicyDefinitionWithObligation, ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
+import { tenantsDB } from "../src/dblayer/tenantsDB.js";
+const PLATFORM_TENANT_ID = await getPlatformTenantId();
+import { uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensurePolicyDefinitionWithObligation, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 
 async function registerOrganisationName(code: string): Promise<void> {
   await pool.query(
-    "INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id) VALUES ('organisation-name', $1, $2, '11111111-1111-1111-1111-111111111111') ON CONFLICT DO NOTHING",
-    [code, code]
+    "INSERT INTO ontology_concepts (concept_type, code, default_label, tenant_id, author_id, author_badge) VALUES ('organisation-name', $1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
+    [code, code, PLATFORM_TENANT_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE]
   );
 }
 
 async function createTestTenant(label: string): Promise<string> {
-  const { rows } = await pool.query<{ id: string }>(
-    "INSERT INTO tenants (code, name) VALUES ($1, $2) RETURNING id",
-    [`${label}-${randomUUID().slice(0, 8)}`, label]
-  );
-  return rows[0].id;
+  const { data: tenant, error } = await tenantsDB.create({
+    code: `${label}-${randomUUID().slice(0, 8)}`,
+    name: label,
+    authorId: ROOT_ACTOR_ID,
+    authorBadge: ROOT_ACTOR_BADGE,
+    is_system: false,
+  });
+  if (error || !tenant) throw error ?? new Error(`createTestTenant: failed to create tenant "${label}"`);
+  return tenant.id;
 }
 
 
@@ -129,11 +135,11 @@ test("CR-104/CR-106: an SEU-scoped Policy ('SEU|Activated|Operational') blocks t
   await templatesDB.setRequiredCapabilities(template!.id, []);
 
   await ensureEventSubscriptionsLoaded();
-  const { objective: root } = await createObjective({ statement: `cr104-seu-policy-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed" });
-  const { objective } = await createObjective({ statement: `cr104-seu-policy-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: 1001 });
+  const { objective: root } = await createObjective({ statement: `cr104-seu-policy-root-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
+  const { objective } = await createObjective({ statement: `cr104-seu-policy-${run}`, requiredCapabilityCodes: [], tier: "Engineering", parentObjectiveId: root.id, requestedBy: TESTER_ALL_ID });
   const { data: profile } = await profilesDB.upsert({ code: `cr104-seu-policy-profile-${run}`, name: "CR-104 SEU Policy Profile", baseTemplateId: template!.id, authoredBy: ROOT_ACTOR_ID, authorBadge: "root", environment: "development" });
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID });
-  assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : undefined);
+  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [template!.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  assert.equal(requested.ok, true, !requested.ok ? `Validate Request failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
 
   // driveCommissioningToActive drives Compose EBM itself (a manual
@@ -196,8 +202,8 @@ test("CR-104: a scope:'Eligibility' Policy governs Capability Fulfilment directl
   // pipeline — resolveEligibilityPolicies works off template_id/profile_id
   // directly, with no active_ebm_id at all, proving the "never through the
   // EBM" design point concretely, not just by omission.
-  const { objective } = await createObjective({ statement: `cr104-eligibility-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed" });
-  const { data: seu } = await seusDB.create({ objectiveId: objective.id, templateId: template!.id, profileId: profile!.id, tenantId: PLATFORM_TENANT_ID });
+  const { objective } = await createObjective({ statement: `cr104-eligibility-${run}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
+  const { data: seu } = await seusDB.create({ objectiveId: objective.id, templateId: template!.id, profileId: profile!.id, tenantId: PLATFORM_TENANT_ID, requestedBy: TESTER_ALL_ID });
   assert.ok(seu);
   assert.equal(seu!.active_ebm_id, null, "sanity check: this SEU genuinely has no EBM yet");
 
@@ -205,20 +211,20 @@ test("CR-104: a scope:'Eligibility' Policy governs Capability Fulfilment directl
   assert.ok(resolvedPolicies.some((p) => p.id === policy!.id), "the Eligibility policy resolves live off Template/Profile composition with no EBM at all");
 
   const cleared = await participantsMasterDB.create({
-    tenantId: seu!.tenant_id, type: "Human", displayName: `CR-104 cleared ${run}`,
+    tenantId: seu!.tenant_id!, type: "Human", displayName: `CR-104 cleared ${run}`, userId: null,
     capabilities: [capabilityCode], behaviourContext: [{ policy: backgroundCheckCode, payload: { cleared: true } }],
   });
   const uncleared = await participantsMasterDB.create({
-    tenantId: seu!.tenant_id, type: "Human", displayName: `CR-104 uncleared ${run}`,
+    tenantId: seu!.tenant_id!, type: "Human", displayName: `CR-104 uncleared ${run}`, userId: null,
     capabilities: [capabilityCode], behaviourContext: [{ policy: backgroundCheckCode, payload: { cleared: false } }],
   });
   const noRecord = await participantsMasterDB.create({
-    tenantId: seu!.tenant_id, type: "Human", displayName: `CR-104 no-record ${run}`,
+    tenantId: seu!.tenant_id!, type: "Human", displayName: `CR-104 no-record ${run}`, userId: null,
     capabilities: [capabilityCode], behaviourContext: [],
   });
 
   const eligible = await findEligibleParticipants({
-    tenantId: seu!.tenant_id, capabilityCode, requiredPolicyIds: resolvedPolicies.map((p) => p.id),
+    tenantId: seu!.tenant_id!, capabilityCode, requiredPolicyIds: resolvedPolicies.map((p) => p.id),
   });
   const eligibleIds = new Set(eligible.map((p) => p.id));
   assert.ok(eligibleIds.has(cleared.data!.id), "a Participant whose behaviour_context satisfies the required Policy is eligible");

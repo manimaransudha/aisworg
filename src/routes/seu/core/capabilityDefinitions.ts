@@ -151,7 +151,7 @@ export async function transitionCapabilityDefinition(input: { capabilityDefiniti
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState, code: updated.code },
     actorId: input.actorId,
-    authorityBadge: gate.authorityBadge,
+    authorityBadge: gate.authorityBadge ?? "root",
   });
   return { ok: true, capabilityDefinition: updated };
 }

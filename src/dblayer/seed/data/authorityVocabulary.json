@@ -100,6 +100,16 @@
   ],
   "verbs": [
     {
+      "code": "escalate",
+      "label": "Escalate",
+      "description": "Escalation (not yet wired)."
+    },
+    {
+      "code": "reopen",
+      "label": "Reopen",
+      "description": "Reopen (not yet wired)."
+    },
+    {
       "code": "define",
       "label": "Define",
       "description": "Birth of the entity into its initial state (create-as-transition; not yet wired)."
@@ -495,6 +505,54 @@
       "fromState": "Resolved",
       "toState": "Verified",
       "verb": "verify"
+    },
+    {
+      "entityType": "Obligation",
+      "fromState": "Closed",
+      "toState": "Reopened",
+      "verb": "reopen"
+    },
+    {
+      "entityType": "Obligation",
+      "fromState": "Reopened",
+      "toState": "In Progress",
+      "verb": "start"
+    },
+    {
+      "entityType": "Obligation",
+      "fromState": "Identified",
+      "toState": "Escalated",
+      "verb": "escalate"
+    },
+    {
+      "entityType": "Obligation",
+      "fromState": "Analysed",
+      "toState": "Escalated",
+      "verb": "escalate"
+    },
+    {
+      "entityType": "Obligation",
+      "fromState": "Assigned",
+      "toState": "Escalated",
+      "verb": "escalate"
+    },
+    {
+      "entityType": "Obligation",
+      "fromState": "In Progress",
+      "toState": "Escalated",
+      "verb": "escalate"
+    },
+    {
+      "entityType": "Obligation",
+      "fromState": "Resolved",
+      "toState": "Escalated",
+      "verb": "escalate"
+    },
+    {
+      "entityType": "Obligation",
+      "fromState": "Verified",
+      "toState": "Escalated",
+      "verb": "escalate"
     },
     {
       "entityType": "Obligation",
@@ -1159,6 +1217,12 @@
   ],
   "_authoringMappingsComment": "CR-014 \u2014 noun\u2192verb mappings that are NOT lifecycle transitions: the authoring authority for each SDK-authorable entity. `{noun}_define` = author (create/edit a draft), `{noun}_publish` = publisher (approve + materialise). Seeded into authority_noun_verbs alongside the transition-derived pairs. These gate the SDK authoring surfaces (replacing the retired sdk_creator/sdk_approver Platform badges).",
   "authoringMappings": [
+    {
+      "noun": "Objective",
+      "verbs": [
+        "propose"
+      ]
+    },
     {
       "noun": "Pack",
       "verbs": [

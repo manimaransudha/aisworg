@@ -41,6 +41,11 @@ export const policyEngine = {
     fromState: string;
     toState: string;
     context?: Record<string, unknown>;
+    // Real, already-resolved actor + badge of whoever/whatever is running
+    // this evaluation — no fallback; every caller must resolve these before
+    // calling in (events.actor_id/authority_badge are required on every publish).
+    authorId: string;
+    authorBadge: string;
   }): Promise<PolicyEvaluationResult> {
     if (!input.seuId) return { outcome: "NotApplicable", satisfiedPolicyIds: [], deviatedPolicyIds: [] };
     const { data: seu } = await seusDB.findById(input.seuId);
@@ -90,6 +95,8 @@ export const policyEngine = {
           originatingObjectId: policy.id,
           seuId: input.seuId,
           correlationId: eventBus.newCorrelationId(),
+          actorId: input.authorId,
+          authorityBadge: input.authorBadge,
           payload,
         });
         continue;
@@ -100,6 +107,8 @@ export const policyEngine = {
         originatingObjectId: policy.id,
         seuId: input.seuId,
         correlationId: eventBus.newCorrelationId(),
+        actorId: input.authorId,
+        authorityBadge: input.authorBadge,
         payload: { ...payload, constraintType: policy.constraint_type },
       });
       if (policy.constraint_type === "Policy") {
@@ -114,6 +123,8 @@ export const policyEngine = {
         originatingObjectId: policy.id,
         seuId: input.seuId,
         correlationId: eventBus.newCorrelationId(),
+        actorId: input.authorId,
+        authorityBadge: input.authorBadge,
         payload,
       });
     }

@@ -17,7 +17,8 @@ import { createParticipantMaster } from "../src/routes/seu/core/participantsMast
 import { findEligibleParticipants } from "../src/routes/seu/core/participantEligibility.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { listRegisteredOnboardingTypes, resolveOnboardingAdapter } from "../src/adapters/participantOnboardingRegistry.js";
-import { PLATFORM_TENANT_ID } from "../src/dblayer/constants.js";
+import { getPlatformTenantId } from "../src/dblayer/constants.js";
+const PLATFORM_TENANT_ID = await getPlatformTenantId();
 
 // Real, already-seeded canonical Ontology values (checked directly against
 // the migrations, not guessed): participant-types (194), capability-name
@@ -32,7 +33,7 @@ function tenantId(): string {
 }
 
 test("createParticipantMaster: a fully-valid Human resource is created and round-trips through findById", async () => {
-  const participant = await createParticipantMaster({
+  const participant = await createParticipantMaster({ userId: null,
     tenantId: tenantId(),
     type: "Human",
     displayName: `CR-098 fixture Human ${randomUUID()}`,
@@ -52,7 +53,7 @@ test("createParticipantMaster: a fully-valid Human resource is created and round
 
 test("createParticipantMaster: rejects a Participant Type not backed by the participant-types Ontology", async () => {
   await assert.rejects(
-    createParticipantMaster({
+    createParticipantMaster({ userId: null,
       tenantId: tenantId(),
       type: "NotARealType" as unknown as "Human",
       displayName: "CR-098 invalid-type fixture",
@@ -62,7 +63,7 @@ test("createParticipantMaster: rejects a Participant Type not backed by the part
 
 test("createParticipantMaster: rejects an unknown capability-name code", async () => {
   await assert.rejects(
-    createParticipantMaster({
+    createParticipantMaster({ userId: null,
       tenantId: tenantId(),
       type: "Human",
       displayName: "CR-098 invalid-capability fixture",
@@ -73,7 +74,7 @@ test("createParticipantMaster: rejects an unknown capability-name code", async (
 
 test("createParticipantMaster: rejects a competency dimension that is not a real category:pack code", async () => {
   await assert.rejects(
-    createParticipantMaster({
+    createParticipantMaster({ userId: null,
       tenantId: tenantId(),
       type: "Human",
       displayName: "CR-098 invalid-dimension fixture",
@@ -84,7 +85,7 @@ test("createParticipantMaster: rejects a competency dimension that is not a real
 
 test("createParticipantMaster: rejects a competency value not seeded under its dimension's own lower-cased concept type", async () => {
   await assert.rejects(
-    createParticipantMaster({
+    createParticipantMaster({ userId: null,
       tenantId: tenantId(),
       type: "Human",
       displayName: "CR-098 invalid-competency-value fixture",
@@ -95,7 +96,7 @@ test("createParticipantMaster: rejects a competency value not seeded under its d
 
 test("createParticipantMaster: rejects an unknown behaviourContext policy", async () => {
   await assert.rejects(
-    createParticipantMaster({
+    createParticipantMaster({ userId: null,
       tenantId: tenantId(),
       type: "Human",
       displayName: "CR-098 invalid-policy fixture",
@@ -106,8 +107,8 @@ test("createParticipantMaster: rejects an unknown behaviourContext policy", asyn
 
 test("findEligibleParticipants: only active, this-tenant participants whose capabilities include the requested code are returned", async () => {
   const uniqueCapability = REAL_CAPABILITY_CODE; // shared, Pack-scoped-free term — real and stable
-  const matching = await createParticipantMaster({ tenantId: tenantId(), type: "Human", displayName: `CR-098 eligible ${randomUUID()}`, capabilities: [uniqueCapability] });
-  const nonMatching = await createParticipantMaster({ tenantId: tenantId(), type: "Human", displayName: `CR-098 ineligible ${randomUUID()}`, capabilities: [] });
+  const matching = await createParticipantMaster({ userId: null, tenantId: tenantId(), type: "Human", displayName: `CR-098 eligible ${randomUUID()}`, capabilities: [uniqueCapability] });
+  const nonMatching = await createParticipantMaster({ userId: null, tenantId: tenantId(), type: "Human", displayName: `CR-098 ineligible ${randomUUID()}`, capabilities: [] });
 
   const eligible = await findEligibleParticipants({ tenantId: tenantId(), capabilityCode: uniqueCapability });
   const ids = eligible.map((p) => p.id);
@@ -118,21 +119,21 @@ test("findEligibleParticipants: only active, this-tenant participants whose capa
 test("findEligibleParticipants: competency filter is ANY-within-a-dimension, ALL-across-required-dimensions", async () => {
   const capabilityCode = REAL_CAPABILITY_CODE;
 
-  const matchesBoth = await createParticipantMaster({
+  const matchesBoth = await createParticipantMaster({ userId: null,
     tenantId: tenantId(),
     type: "Human",
     displayName: `CR-098 matches-both ${randomUUID()}`,
     capabilities: [capabilityCode],
     competency: { Technology: [{ code: "nodejs", proficiency: "Expert" }], Domain: [{ code: "customer-service", proficiency: "Expert" }] },
   });
-  const matchesOnlyTechnology = await createParticipantMaster({
+  const matchesOnlyTechnology = await createParticipantMaster({ userId: null,
     tenantId: tenantId(),
     type: "Human",
     displayName: `CR-098 matches-only-technology ${randomUUID()}`,
     capabilities: [capabilityCode],
     competency: { Technology: [{ code: "react", proficiency: "Expert" }] },
   });
-  const matchesNeither = await createParticipantMaster({
+  const matchesNeither = await createParticipantMaster({ userId: null,
     tenantId: tenantId(),
     type: "Human",
     displayName: `CR-098 matches-neither ${randomUUID()}`,
@@ -154,7 +155,7 @@ test("findEligibleParticipants: competency filter is ANY-within-a-dimension, ALL
 
 test("findEligibleParticipants: excludeParticipantMasterIds removes a Participant just released from this Capability", async () => {
   const capabilityCode = REAL_CAPABILITY_CODE;
-  const released = await createParticipantMaster({ tenantId: tenantId(), type: "Human", displayName: `CR-098 released ${randomUUID()}`, capabilities: [capabilityCode] });
+  const released = await createParticipantMaster({ userId: null, tenantId: tenantId(), type: "Human", displayName: `CR-098 released ${randomUUID()}`, capabilities: [capabilityCode] });
 
   const eligible = await findEligibleParticipants({ tenantId: tenantId(), capabilityCode, excludeParticipantMasterIds: [released.id] });
   assert.ok(!eligible.some((p) => p.id === released.id), "expected the excluded Participant id to be filtered out even though it otherwise matches");

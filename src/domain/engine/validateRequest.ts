@@ -71,7 +71,7 @@ export const validateRequestHandler: EventHandler = async (event: EventRow) => {
   // one of Validate Request's checks, same standing as every liveness check
   // below; recorded here so the Validate page can show it alongside them.
   const authorityCheck: LivenessCheck = gate.allowed
-    ? { item: "Authority (badge seu_commission)", status: "live", detail: `authorised via ${gate.authorityBadge ?? "root"}` }
+    ? { item: "Authority (badge seu_commission)", status: "live", detail: `authorised via ${gate.authorityBadge ?? "system"}` }
     : {
         item: "Authority (badge seu_commission)",
         status: "dead",
@@ -87,6 +87,7 @@ export const validateRequestHandler: EventHandler = async (event: EventRow) => {
       correlationId: event.correlation_id,
       causationId: event.id,
       actorId: event.actor_id,
+      authorityBadge: event.authority_badge,
       payload: { stage: "validate_request", checks: [authorityCheck], ...gate },
     });
     return;
@@ -105,6 +106,7 @@ export const validateRequestHandler: EventHandler = async (event: EventRow) => {
       correlationId: event.correlation_id,
       causationId: event.id,
       actorId: event.actor_id,
+      authorityBadge: event.authority_badge,
       payload: { stage: "validate_request", reason: "stale_reference", references: deadReferences, checks },
     });
     return;
@@ -118,7 +120,7 @@ export const validateRequestHandler: EventHandler = async (event: EventRow) => {
     correlationId: event.correlation_id,
     causationId: event.id,
     actorId: event.actor_id,
-    authorityBadge: gate.authorityBadge,
+    authorityBadge: gate.authorityBadge ?? "system",
     payload: {
       objectiveId: seu.objective_id,
       templateIds: [seu.template_id],

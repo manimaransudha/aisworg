@@ -1486,6 +1486,24 @@
   },
   {
     "concept_type": "template-categories",
+    "code": "test-cr088-publish-template",
+    "default_label": "Test CR-088 Publish Template (test fixture)",
+    "description": "Not a real business category — a disposable, per-run (unique templateVersion) Template code used only by tests/cr088-filter-shaped-overrides.test.ts to exercise publishTemplate's own exposedParameters materialisation. Do not use for real commissioning.",
+    "is_mandatory": null,
+    "text_type": "markdown",
+    "ui_grouping": null
+  },
+  {
+    "concept_type": "template-categories",
+    "code": "test-enterprise-web-application",
+    "default_label": "Test Enterprise Web Application (test fixture)",
+    "description": "Not a real business category — the shared test-suite fixture Template (tests/testFixtures.ts ensureWebAppTemplateFixture), a minimal Requirements/Architecture/Development composition used across the test suite. Do not use for real commissioning.",
+    "is_mandatory": null,
+    "text_type": "markdown",
+    "ui_grouping": null
+  },
+  {
+    "concept_type": "template-categories",
     "code": "enterprise-web-application",
     "default_label": "Enterprise Web Application",
     "description": "Template for building a web application with enterprise-wide impact. Use this when the application serves multiple departments or business units, needs centralised authentication and role-based access control, and must integrate with existing enterprise systems such as an ERP, CRM, or identity provider.",

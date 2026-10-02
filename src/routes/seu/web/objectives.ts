@@ -753,6 +753,7 @@ router.post("/objectives/:id/validate-commission", async (req: Request, res: Res
       correlationId: eventBus.newCorrelationId(),
       payload: { seuId: newSeu.id },
       actorId: String(req.session.user.id),
+      authorityBadge: "seu_commission",
     });
     // Hard stop — validateRequestHandler, not this request, computes and
     // persists the result; nothing here has it yet to show. Owner: "Queue to
@@ -866,6 +867,7 @@ router.post("/objectives/:id/compose-ebm", async (req: Request, res: Response) =
         correlationId: eventBus.newCorrelationId(),
         payload: { seuId: existingSeu.id, authorBadge },
         actorId,
+        authorityBadge: authorBadge,
       });
     }
     if (strategyError) {

@@ -39,7 +39,7 @@ async function rootDeliverableAuthor(seuId: string): Promise<string> {
 // objective_root_sequences.author_id/author_badge are NOT NULL — this suite
 // calls objectivesDB.create directly (not through the route/createObjective,
 // which resolves this itself), so it resolves its own root actor for the
-// same requestedBy: 1001 user_id these tests already use.
+// same requestedBy: TESTER_ALL_ID these tests already use.
 async function rootObjectiveAuthor(): Promise<string> {
   const { data: root } = await participantsMasterDB.findById(TESTER_ALL_ID);
   if (!root) throw new Error("No participants_master row for tester-all -- is db:clean-slate seeded?");
@@ -52,9 +52,9 @@ test("dependencyDefinitionEngine: a target with no incoming rows is ready trivia
   assert.ok(template);
 
   const objAuthorId = await rootObjectiveAuthor();
-  const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic", requestedBy: 1001, authorId: objAuthorId, authorBadge: "root" });
+  const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic", requestedBy: TESTER_ALL_ID, authorId: objAuthorId, authorBadge: "root" });
   const { data: profile } = await profilesDB.findByCode("test-profile-default-development");
-  const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id });
+  const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id, requestedBy: TESTER_ALL_ID });
   assert.ok(seu);
 
   // "Requirements Analysis Model" is the catalogue's own root — nothing
@@ -83,9 +83,9 @@ test("dependencyDefinitionEngine: a Deliverable-type row gates its target, and r
   assert.ok(template);
 
   const objAuthorId = await rootObjectiveAuthor();
-  const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic", requestedBy: 1001, authorId: objAuthorId, authorBadge: "root" });
+  const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic", requestedBy: TESTER_ALL_ID, authorId: objAuthorId, authorBadge: "root" });
   const { data: profile } = await profilesDB.findByCode("test-profile-default-development");
-  const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id });
+  const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id, requestedBy: TESTER_ALL_ID });
   assert.ok(seu);
 
   const authorId = await rootDeliverableAuthor(seu!.id);
@@ -114,9 +114,9 @@ test("dependencyDefinitionEngine.evaluateAndPublishFromTransition publishes Deli
   assert.ok(template);
 
   const objAuthorId = await rootObjectiveAuthor();
-  const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic", requestedBy: 1001, authorId: objAuthorId, authorBadge: "root" });
+  const { data: objective } = await objectivesDB.create({ statement: `dep-def-engine-test-${randomUUID()}`, tier: "Strategic", requestedBy: TESTER_ALL_ID, authorId: objAuthorId, authorBadge: "root" });
   const { data: profile } = await profilesDB.findByCode("test-profile-default-development");
-  const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id });
+  const { data: seu } = await seusDB.create({ objectiveId: objective!.id, templateId: template!.id, profileId: profile!.id, requestedBy: TESTER_ALL_ID });
   assert.ok(seu);
 
   const authorId = await rootDeliverableAuthor(seu!.id);

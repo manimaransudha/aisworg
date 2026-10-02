@@ -82,21 +82,22 @@ export async function completeWorkItem(input: {
     await commandsDB.updateStatus(command.id, "Failed");
     if (workItem.participant_id) await participantsDB.updateStatus(workItem.participant_id, "Idle");
 
-    await eventBus.publish({
-      eventType: "WorkItemFailed",
-      originatingObjectType: "WorkItem",
-      originatingObjectId: workItem.id,
-      seuId: command.seu_id,
-      correlationId,
-      payload: { outcome: input.outcome, deliverableId: command.entity_id },
-    });
-
     // Ch.34 / Ch.36 Failed -> Attention path: an out-of-process Participant
     // reporting failure or blockage is exactly the "cannot automatically
     // continue" case that needs human attention.
     const { data: deliverable } = await deliverablesDB.findById(command.entity_id);
     if (command.requested_by == null) throw new Error(`Command ${command.id} has no requested_by — cannot author the Attention Item raised off its failure`);
     if (!command.acting_badge_type) throw new Error(`Command ${command.id} has no acting_badge_type — cannot author the Attention Item raised off its failure`);
+    await eventBus.publish({
+      eventType: "WorkItemFailed",
+      originatingObjectType: "WorkItem",
+      originatingObjectId: workItem.id,
+      seuId: command.seu_id,
+      correlationId,
+      actorId: String(command.requested_by),
+      authorityBadge: command.acting_badge_type,
+      payload: { outcome: input.outcome, deliverableId: command.entity_id },
+    });
     await raiseAttentionItem({
       seuId: command.seu_id,
       category: "Exception",
@@ -196,8 +197,8 @@ export async function completeWorkItem(input: {
     seuId: command.seu_id,
     correlationId,
     payload: { fromState: command.from_state, toState: command.to_state, commandId: command.id, workItemId: workItem.id, participantId: workItem.participant_id, reference: input.reference ?? null },
-    actorId: command.requested_by != null ? String(command.requested_by) : null,
-    authorityBadge: deliverableTd?.verb ? `deliverable_${deliverableTd.verb}` : null,
+    actorId: String(command.requested_by),
+    authorityBadge: command.acting_badge_type,
   });
 
   await workItemsDB.updateStatus(workItem.id, "Completed");
@@ -205,10 +206,10 @@ export async function completeWorkItem(input: {
   // event published just above, in this same flow.
   await eventBus.publish({
     eventType: "WorkItemCompleted", originatingObjectType: "WorkItem", originatingObjectId: workItem.id, seuId: command.seu_id,
-    correlationId, causationId: deliverableTransitionedEvent.id, payload: {},
+    correlationId, causationId: deliverableTransitionedEvent.id, actorId: String(command.requested_by), authorityBadge: command.acting_badge_type, payload: {},
   });
   await workItemsDB.updateStatus(workItem.id, "Disposed");
-  await eventBus.publish({ eventType: "WorkItemDisposed", originatingObjectType: "WorkItem", originatingObjectId: workItem.id, seuId: command.seu_id, correlationId, payload: {} });
+  await eventBus.publish({ eventType: "WorkItemDisposed", originatingObjectType: "WorkItem", originatingObjectId: workItem.id, seuId: command.seu_id, correlationId, actorId: String(command.requested_by), authorityBadge: command.acting_badge_type, payload: {} });
   await commandsDB.updateStatus(command.id, "Completed");
 
   // Idle, not Available (Ch.13 §9): still held by an open Capability
@@ -221,6 +222,8 @@ export async function completeWorkItem(input: {
       originatingObjectId: workItem.participant_id,
       seuId: command.seu_id,
       correlationId,
+      actorId: String(command.requested_by),
+      authorityBadge: command.acting_badge_type,
       payload: { workItemId: workItem.id },
     });
   }

@@ -1,5 +1,6 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
+import { userDB } from "./userDB.js";
 import type { DbResult, TransitionDefinitionRow, TransitionEntityType } from "./seuTypes.js";
 
 // CR-007: a readable view of a live transition_definitions row — the authority
@@ -72,9 +73,18 @@ export const transitionDefinitionsDB = {
     submitVersionEvent?: string | null;
   }): Promise<DbResult<TransitionDefinitionRow>> {
     try {
+      // author_id/author_badge are NOT NULL (transition_definitions_schema_
+      // recovery.sql) but this SDK-authoring upsert has no real actor
+      // flowing through it today — same stopgap as participantsDB.create/
+      // templatesDB.upsert: resolves the SUPERUSER_EMAIL superuser
+      // (userDB.getSuperuserId()) as author until a real actor is threaded
+      // through every caller. ON CONFLICT leaves author_id/author_badge
+      // untouched on an existing row (re-upserting the same triple doesn't
+      // reattribute it to whichever caller happened to re-run it).
+      const { actorId, actorBadge } = await userDB.getSuperuserId();
       const { rows } = await query<TransitionDefinitionRow>(
-        `INSERT INTO transition_definitions (entity_type, from_state, to_state, required_authority_rule_id, required_policy_ids, required_quality_gate_ids, creates_obligation, category, event_type, version_event, submit_version_event)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        `INSERT INTO transition_definitions (entity_type, from_state, to_state, required_authority_rule_id, required_policy_ids, required_quality_gate_ids, creates_obligation, category, event_type, version_event, submit_version_event, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
          ON CONFLICT (entity_type, from_state, to_state) DO UPDATE
            SET required_authority_rule_id = EXCLUDED.required_authority_rule_id,
                required_policy_ids = EXCLUDED.required_policy_ids,
@@ -97,6 +107,8 @@ export const transitionDefinitionsDB = {
           input.eventType ?? null,
           input.versionEvent ?? null,
           input.submitVersionEvent ?? null,
+          actorId,
+          actorBadge,
         ]
       );
       return { data: rows[0] };
@@ -201,15 +213,17 @@ export const transitionDefinitionsDB = {
     trigger?: "manual" | "governed";
     requiredAuthorityRuleId?: string | null;
     requiredPolicyIds?: string[];
+    authorId: string;
+    authorBadge: string;
   }): Promise<DbResult<{ id: string }>> {
     try {
       const { rows } = await query<{ id: string }>(
-        `INSERT INTO transition_definitions (entity_type, from_state, to_state, verb, trigger, required_authority_rule_id, required_policy_ids, is_active)
-         VALUES ($1, $2, $3, $4, $5, $6, $7::uuid[], TRUE)
+        `INSERT INTO transition_definitions (entity_type, from_state, to_state, verb, trigger, required_authority_rule_id, required_policy_ids, is_active, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7::uuid[], TRUE, $8, $9)
          ON CONFLICT (entity_type, from_state, to_state) DO UPDATE
            SET verb = EXCLUDED.verb, is_active = TRUE, retired_at = NULL
          RETURNING id`,
-        [input.entityType, input.fromState, input.toState, input.verb, input.trigger ?? "manual", input.requiredAuthorityRuleId ?? null, input.requiredPolicyIds ?? []]
+        [input.entityType, input.fromState, input.toState, input.verb, input.trigger ?? "manual", input.requiredAuthorityRuleId ?? null, input.requiredPolicyIds ?? [], input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

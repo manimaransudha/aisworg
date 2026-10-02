@@ -24,6 +24,7 @@ import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>) {
   await ensureWebAppTemplateFixture();
@@ -31,11 +32,11 @@ async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (
     {
       statement: `${statementPrefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorRole: "super", actorId: "1001", requestedBy: 1001,
+      actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
     },
     beforeCommenceWork
   );
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   return result.seu.id;
 }
@@ -56,8 +57,8 @@ async function fulfilRequirementsAnalysis(seuId: string): Promise<void> {
 // administrative steps.
 async function verifyObligation(obligationId: string) {
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    const result = await transitionObligation({ obligationId, targetState, actorRole: "super", actorId: "1001" });
-    assert.equal(result.ok, true, !result.ok ? `obligation transition to ${targetState} failed: ${JSON.stringify(result)}` : undefined);
+    const result = await transitionObligation({ obligationId, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
+    assert.equal(result.ok, true, !result.ok ? `obligation transition to ${targetState} failed: ${JSON.stringify(result)}` : "assertion failed");
   }
 }
 
@@ -80,8 +81,8 @@ test("Quality Gate blocks a Deliverable transition while an Obligation is unreso
   assert.equal(readiness.ready, true);
   assert.equal(readiness.rows.length, 0);
 
-  const toInProgress = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: "1" });
-  assert.equal(toInProgress.ok, true, !toInProgress.ok ? JSON.stringify(toInProgress) : undefined);
+  const toInProgress = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  assert.equal(toInProgress.ok, true, !toInProgress.ok ? JSON.stringify(toInProgress) : "assertion failed");
 
   const obligation = await createObligation({
     relatedObjectType: "Deliverable",
@@ -97,7 +98,7 @@ test("Quality Gate blocks a Deliverable transition while an Obligation is unreso
   const readinessBeforeBlock = await dependencyDefinitionEngine.isTargetReady(seuId, "Deliverable", "Requirements Analysis Model", "Approved");
   assert.equal(readinessBeforeBlock.ready, true);
 
-  const blocked = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "Approved", actorRole: "super", actorId: "1" });
+  const blocked = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(blocked.ok, false);
   if (!blocked.ok) {
     assert.equal(blocked.reason, "quality_gate_blocked");
@@ -109,8 +110,8 @@ test("Quality Gate blocks a Deliverable transition while an Obligation is unreso
 
   await verifyObligation(obligation.id);
 
-  const unblocked = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "Approved", actorRole: "super", actorId: "1" });
-  assert.equal(unblocked.ok, true, !unblocked.ok ? JSON.stringify(unblocked) : undefined);
+  const unblocked = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  assert.equal(unblocked.ok, true, !unblocked.ok ? JSON.stringify(unblocked) : "assertion failed");
   if (unblocked.ok) assert.equal(unblocked.deliverable.lifecycle_state, "Approved");
 });
 
@@ -123,14 +124,14 @@ test("Obligation lifecycle runs through the generic transitionEngine (Ch.23 §9)
   const obligation = await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: requirementsSpec.id, category: "Compliance", title: "Phase4 test: lifecycle walk", severity: "Medium" });
 
   // Skipping straight from Identified to Assigned has no Transition Definition.
-  const invalid = await transitionObligation({ obligationId: obligation.id, targetState: "Assigned", actorRole: "super", actorId: "1001" });
+  const invalid = await transitionObligation({ obligationId: obligation.id, targetState: "Assigned", actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(invalid.ok, false);
   if (!invalid.ok) assert.equal(invalid.reason, "no_transition_definition");
 
   await verifyObligation(obligation.id);
-  const toClosed = await transitionObligation({ obligationId: obligation.id, targetState: "Closed", actorRole: "super", actorId: "1001" });
+  const toClosed = await transitionObligation({ obligationId: obligation.id, targetState: "Closed", actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(toClosed.ok, true);
-  const toArchived = await transitionObligation({ obligationId: obligation.id, targetState: "Archived", actorRole: "super", actorId: "1001" });
+  const toArchived = await transitionObligation({ obligationId: obligation.id, targetState: "Archived", actorRole: "super", actorId: TESTER_ALL_ID });
   assert.equal(toArchived.ok, true);
   if (toArchived.ok) assert.equal(toArchived.obligation.status, "Archived");
 });
@@ -174,10 +175,10 @@ test("Constraint Type (Ch.24): a Standard-type Policy violation doesn't block a 
   await transitionDefinitionsDB.upsert({ entityType: "Deliverable", fromState: `StdFrom-${unique}`, toState: `StdTo-${unique}`, requiredPolicyIds: [standardPolicy.id] });
   await transitionDefinitionsDB.upsert({ entityType: "Deliverable", fromState: `PolFrom-${unique}`, toState: `PolTo-${unique}`, requiredPolicyIds: [blockingPolicy.id] });
 
-  const standardOutcome = await transitionEngine.evaluate({ entityType: "Deliverable", fromState: `StdFrom-${unique}`, toState: `StdTo-${unique}`, actorRole: "general", context: {} });
+  const standardOutcome = await transitionEngine.evaluate({ entityType: "Deliverable", fromState: `StdFrom-${unique}`, toState: `StdTo-${unique}`, actorRole: "general", actorId: TESTER_ALL_ID, context: {} });
   assert.equal(standardOutcome.allowed, true, "a Standard deviation must proceed, not block");
 
-  const policyOutcome = await transitionEngine.evaluate({ entityType: "Deliverable", fromState: `PolFrom-${unique}`, toState: `PolTo-${unique}`, actorRole: "general", context: {} });
+  const policyOutcome = await transitionEngine.evaluate({ entityType: "Deliverable", fromState: `PolFrom-${unique}`, toState: `PolTo-${unique}`, actorRole: "general", actorId: TESTER_ALL_ID, context: {} });
   assert.equal(policyOutcome.allowed, false, "a Policy (mandatory) violation must block");
   if (!policyOutcome.allowed) assert.equal(policyOutcome.reason, "policy_blocked");
 });

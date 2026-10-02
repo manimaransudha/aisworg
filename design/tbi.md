@@ -1,9 +1,10 @@
-# To be implemented
-
 **This file should not be loaded into the context** 
 
 This is my notes. Not to be used for any implementation source of truth. Anything that needs an implementation will be specifically a CR.
 Claude agents should not update this.
+
+
+# To be implemented
 
 ## Cross-cutting
 

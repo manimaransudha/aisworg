@@ -21,6 +21,7 @@ import { attestationsDB } from "../src/dblayer/attestationsDB.js";
 import { deliverableReferencesDB } from "../src/dblayer/deliverableReferencesDB.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 async function commissionAndFulfil(statementPrefix: string) {
   await ensureWebAppTemplateFixture();
@@ -28,7 +29,7 @@ async function commissionAndFulfil(statementPrefix: string) {
     {
       statement: `${statementPrefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorRole: "super", actorId: "1001", requestedBy: 1001,
+      actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
     },
     async (seuId) => {
       const detail = await getSeuDetailView(seuId);
@@ -38,7 +39,7 @@ async function commissionAndFulfil(statementPrefix: string) {
       await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantMasterId });
     }
   );
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const seuId = result.seu.id;
   const detail = await getSeuDetailView(seuId);
@@ -57,7 +58,7 @@ async function dispatchAndComplete(deliverableId: string, targetState: string, r
   const { data: deliverable } = await deliverablesDB.findById(deliverableId);
   const fromState = deliverable!.lifecycle_state;
   console.log(`[dispatchAndComplete] START ${deliverableId} ${fromState} -> ${targetState}`);
-  const dispatched = await transitionDeliverable({ deliverableId, targetState, actorRole: "super", actorId: "1" });
+  const dispatched = await transitionDeliverable({ deliverableId, targetState, actorRole: "super", actorId: ROOT_ACTOR_ID });
   console.log(`[dispatchAndComplete] transitionDeliverable returned`, dispatched);
   // deliverableKickoffHandler (off SEUOperational) may already have this
   // exact hop in flight from its own automatic rescan, now that fulfilment
@@ -69,7 +70,7 @@ async function dispatchAndComplete(deliverableId: string, targetState: string, r
   console.log(`[dispatchAndComplete] got command ${command.id} status=${command.status}, workItem ${workItem.id} status=${workItem.status}`);
   const completed = await completeWorkItem({ workItemId: workItem.id, outcome: "done", reference });
   console.log(`[dispatchAndComplete] completeWorkItem returned ok=${completed.ok}`);
-  assert.equal(completed.ok, true, !completed.ok ? JSON.stringify(completed) : undefined);
+  assert.equal(completed.ok, true, !completed.ok ? JSON.stringify(completed) : "assertion failed");
   return workItem.id;
 }
 
@@ -109,7 +110,7 @@ test("empty-centre: an approval cannot be dispatched unless a real reference was
   // Produce with NO reference — the "empty centre" the platform must not certify.
   await dispatchAndComplete(deliverableId, "In Progress", null);
 
-  const blocked = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
+  const blocked = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(blocked.ok, false, "approving an empty Deliverable must be blocked");
   if (!blocked.ok) assert.equal(blocked.reason, "empty_centre");
 
@@ -124,6 +125,6 @@ test("empty-centre clears once a real reference is produced: the same Deliverabl
   // A real production reference this time — the presence check is satisfied.
   await dispatchAndComplete(deliverableId, "In Progress", "vcs://attest/req-spec@real");
 
-  const approved = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: "1" });
-  assert.equal(approved.ok, true, !approved.ok ? JSON.stringify(approved) : undefined);
+  const approved = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  assert.equal(approved.ok, true, !approved.ok ? JSON.stringify(approved) : "assertion failed");
 });

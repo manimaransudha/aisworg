@@ -29,6 +29,7 @@ import { deriveDedupedCapabilitiesFromPackCodes } from "../src/routes/seu/core/t
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, driveCommissioningToActive, waitForDispatchedWorkItem, ensureEligibleParticipant } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 const captured: Array<{ url: string; body: any; auth: string | undefined }> = [];
 let captureServer: http.Server;
@@ -93,22 +94,22 @@ async function commissionAndDispatch(prefix: string, tenantId: string) {
       redispatchAttentionThreshold: 2,
     },
     actorRole: "super",
-    actorId: "1001",
+    actorId: TESTER_ALL_ID,
   });
-  assert.equal(profilePublish.ok, true, !profilePublish.ok ? JSON.stringify(profilePublish.errors) : undefined);
+  assert.equal(profilePublish.ok, true, !profilePublish.ok ? JSON.stringify(profilePublish.errors) : "assertion failed");
   if (!profilePublish.ok) throw new Error("unreachable");
   const { data: profile } = await profilesDB.findById(profilePublish.profileId);
-  const { objective: tcRoot } = await createObjective({ statement: `tenant-contract-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: 1001, status: "Proposed" });
-  const { objective } = await createObjective({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], tier: "Engineering", parentObjectiveId: tcRoot.id, requestedBy: 1001, status: "Proposed" });
-  await submitObjective(objective.id, 1001);
-  const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: "1001" });
+  const { objective: tcRoot } = await createObjective({ statement: `tenant-contract-root-${randomUUID()}`, requiredCapabilityCodes: [], tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed" });
+  const { objective } = await createObjective({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], tier: "Engineering", parentObjectiveId: tcRoot.id, requestedBy: TESTER_ALL_ID, status: "Proposed" });
+  await submitObjective(objective.id, TESTER_ALL_ID);
+  const activated = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: TESTER_ALL_ID });
   assert.equal(activated.ok, true);
 
-  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [fixtureTemplate.id], profileIds: [profile!.id], actorRole: "super", actorId: "1001", requestedBy: 1001, tenantId });
-  assert.equal(requested.ok, true, !requested.ok ? `commissioning failed: ${requested.reason}` : undefined);
+  const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [fixtureTemplate.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId });
+  assert.equal(requested.ok, true, !requested.ok ? `commissioning failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
-  const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: "1001" });
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
+  const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: TESTER_ALL_ID });
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const seuId = result.seu.id;
 
@@ -130,7 +131,7 @@ async function commissionAndDispatch(prefix: string, tenantId: string) {
   // transition. So this hop can legitimately already have a Command in
   // flight from that automatic rescan (already_in_flight) before this call
   // lands — a real Command either way, just differing in who got there first.
-  const dispatched = await transitionDeliverable({ deliverableId: deliverable.id, targetState: "In Progress", actorRole: "super", actorId: "1" });
+  const dispatched = await transitionDeliverable({ deliverableId: deliverable.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   if (!dispatched.ok) assert.equal(dispatched.reason, "already_in_flight", JSON.stringify(dispatched));
   const { workItem } = await waitForDispatchedWorkItem(deliverable.id, "Defined", "In Progress");
   return workItem.id;
@@ -149,7 +150,7 @@ test("two tenants sharing no edge choice run on the same core; each Work Item ro
   assert.ok(reqAnalysisCapId);
 
   // Tenant A: GitHub, HMAC callback auth, query-only attestation, orchestrator /a.
-  const { data: tenantA } = await tenantsDB.create({ code: `acme-${randomUUID().slice(0, 8)}`, name: "Acme Corp", authorId: "1", authorBadge: "root" });
+  const { data: tenantA } = await tenantsDB.create({ code: `acme-${randomUUID().slice(0, 8)}`, name: "Acme Corp", authorId: ROOT_ACTOR_ID, authorBadge: "root", is_system: false });
   assert.ok(tenantA);
   await tenantContractsDB.upsert({
     tenantId: tenantA!.id,
@@ -157,10 +158,10 @@ test("two tenants sharing no edge choice run on the same core; each Work Item ro
     callbackAuth: { scheme: "hmac" },
     attestationConfig: { mode: "query-only" },
   });
-  await executionTargetsDB.upsert({ tenantId: tenantA!.id, capabilityId: reqAnalysisCapId, mode: "external-orchestrator", authorId: "1", authorBadge: "root", adapterEndpoint: `${captureBase}/a`, adapterAuthRef: "token-a" });
+  await executionTargetsDB.upsert({ tenantId: tenantA!.id, capabilityId: reqAnalysisCapId, mode: "external-orchestrator", authorId: ROOT_ACTOR_ID, authorBadge: "root", adapterEndpoint: `${captureBase}/a`, adapterAuthRef: "token-a" });
 
   // Tenant B: GitLab, JWT callback auth, signed attestation, orchestrator /b.
-  const { data: tenantB } = await tenantsDB.create({ code: `globex-${randomUUID().slice(0, 8)}`, name: "Globex", authorId: "1", authorBadge: "root" });
+  const { data: tenantB } = await tenantsDB.create({ code: `globex-${randomUUID().slice(0, 8)}`, name: "Globex", authorId: ROOT_ACTOR_ID, authorBadge: "root", is_system: false });
   assert.ok(tenantB);
   await tenantContractsDB.upsert({
     tenantId: tenantB!.id,
@@ -168,7 +169,7 @@ test("two tenants sharing no edge choice run on the same core; each Work Item ro
     callbackAuth: { scheme: "jwt" },
     attestationConfig: { mode: "signed", format: "sigstore" },
   });
-  await executionTargetsDB.upsert({ tenantId: tenantB!.id, capabilityId: reqAnalysisCapId, mode: "external-orchestrator", authorId: "1", authorBadge: "root", adapterEndpoint: `${captureBase}/b`, adapterAuthRef: "token-b" });
+  await executionTargetsDB.upsert({ tenantId: tenantB!.id, capabilityId: reqAnalysisCapId, mode: "external-orchestrator", authorId: ROOT_ACTOR_ID, authorBadge: "root", adapterEndpoint: `${captureBase}/b`, adapterAuthRef: "token-b" });
 
   // Same code path for both — only the tenant differs.
   const widA = await commissionAndDispatch("tenant-a", tenantA!.id);
@@ -206,7 +207,7 @@ test("a SEU commissioned without a named tenant belongs to the seeded default te
   const result = await commissionFromFormSync({
     statement: `tenant-default-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: "1001", requestedBy: 1001,
+    actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
   });
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("unreachable");

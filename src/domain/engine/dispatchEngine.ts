@@ -50,12 +50,12 @@ async function rejectDispatch(input: { workItem: WorkItemRow; command: CommandRo
   // retry after the Obligation resolves mints an entirely new Work Item,
   // never reuses this one.
   await workItemsDB.updateStatus(input.workItem.id, "Disposed");
+  const systemActor = await resolveSystemActor(input.seuId);
   if (input.command) {
     // Terminal, not in-flight (commandsDB.findInFlight): a human resolving
     // the Obligation below must be able to re-attempt this exact hop, which
     // a Command stuck at Generated/Dispatched/Deferred forever would block.
     await commandsDB.updateStatus(input.command.id, "Failed");
-    const systemActor = await resolveSystemActor(input.seuId);
     await createObligation({
       relatedObjectType: input.command.entity_type,
       relatedObjectId: input.command.entity_id,
@@ -82,6 +82,8 @@ async function rejectDispatch(input: { workItem: WorkItemRow; command: CommandRo
     originatingObjectId: input.workItem.id,
     seuId: input.seuId,
     correlationId: input.correlationId,
+    actorId: systemActor.actorId,
+    authorityBadge: systemActor.authorBadge,
     payload: { reason },
   });
 }
@@ -111,6 +113,7 @@ export const dispatchEngine = {
     strategies?: Array<{ strategy: string; order: number }>;
   }): Promise<void> {
     const command = (await commandsDB.findById(input.workItem.command_id)).data ?? null;
+    const systemActor = await resolveSystemActor(input.seuId);
 
     // Case 1a: no Capability declared for this Deliverable at all.
     if (!input.producingCapabilityId) {
@@ -138,6 +141,8 @@ export const dispatchEngine = {
         originatingObjectId: input.workItem.id,
         seuId: input.seuId,
         correlationId: input.correlationId,
+        actorId: systemActor.actorId,
+      authorityBadge: systemActor.authorBadge,
         payload: { reason: "no_available_participant" },
       });
       return;
@@ -184,7 +189,9 @@ export const dispatchEngine = {
       originatingObjectId: participantId,
       seuId: input.seuId,
       correlationId: input.correlationId,
-      payload: { workItemId: input.workItem.id },
+      actorId: systemActor.actorId,
+      authorityBadge: systemActor.authorBadge,
+        payload: { workItemId: input.workItem.id },
     });
 
     // Outstanding: dispatched and waiting for the participant's result callback.
@@ -195,7 +202,9 @@ export const dispatchEngine = {
       originatingObjectId: input.workItem.id,
       seuId: input.seuId,
       correlationId: input.correlationId,
-      payload: { participantId, strategy },
+      actorId: systemActor.actorId,
+      authorityBadge: systemActor.authorBadge,
+        payload: { participantId, strategy },
     });
     await eventBus.publish({
       eventType: "WorkItemDispatched",
@@ -203,7 +212,9 @@ export const dispatchEngine = {
       originatingObjectId: input.workItem.id,
       seuId: input.seuId,
       correlationId: input.correlationId,
-      payload: { participantId },
+      actorId: systemActor.actorId,
+      authorityBadge: systemActor.authorBadge,
+        payload: { participantId },
     });
     if (input.isRedispatch) {
       await eventBus.publish({
@@ -212,6 +223,8 @@ export const dispatchEngine = {
         originatingObjectId: input.workItem.id,
         seuId: input.seuId,
         correlationId: input.correlationId,
+        actorId: systemActor.actorId,
+      authorityBadge: systemActor.authorBadge,
         payload: { participantId },
       });
     }

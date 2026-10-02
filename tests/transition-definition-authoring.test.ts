@@ -32,6 +32,7 @@ import { packsDB } from "../src/dblayer/packsDB.js";
 import { addTransitionDefinition } from "../src/routes/seu/core/transitionDefinitions.js";
 import { addVerb, addMapping, listAuthorityMapping } from "../src/routes/seu/core/authorityVocabulary.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
+import { TESTER_ALL_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 
 async function anyRealPackId(): Promise<string> {
   const { data: pack } = await packsDB.findByCode("development");
@@ -44,9 +45,9 @@ async function commissionTestSeu(statementPrefix: string): Promise<string> {
   const result = await commissionFromFormSync({
     statement: `${statementPrefix}-${randomUUID()}`,
     requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-    actorRole: "super", actorId: "1001", requestedBy: 1001,
+    actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
   });
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   return result.seu.id;
 }
@@ -66,22 +67,21 @@ async function commissionTestSeu(statementPrefix: string): Promise<string> {
 // entity's public function, since all of them already had their own).
 test("transitionEngine.evaluate itself enforces an authored Transition Definition's required_quality_gate_ids, for a real entity instance", async () => {
   const seuId = await commissionTestSeu("td-engine-generalization");
-  const attentionItem = await createAttentionItem({ seuId, category: "Action Required", title: "Transition Definition engine-generalization test item" });
+  const attentionItem = await createAttentionItem({ seuId, category: "Action Required", title: "Transition Definition engine-generalization test item", actorId: TESTER_ALL_ID, authorBadge: "root" });
 
   const fromState = `td-engine-from-${randomUUID()}`;
   const toState = `td-engine-to-${randomUUID()}`;
   const { data: gate, error: gateError } = await qualityGatesDB.upsert({
-    code: `td-engine-gate-${randomUUID()}`,
     name: "Transition Definition engine-generalization test gate",
     entityType: "AttentionItem",
     fromState,
     toState,
     criteria: { type: "no_unresolved_obligations" },
     originatingPackId: await anyRealPackId(),
-    authorId: "1",
+    authorId: ROOT_ACTOR_ID,
     authorBadge: "root",
   });
-  assert.ok(!gateError && gate, gateError?.message);
+  assert.ok(!gateError && gate, gateError?.message ?? "assertion failed");
 
   const { error: definitionError } = await transitionDefinitionsDB.upsert({
     entityType: "AttentionItem",
@@ -91,7 +91,7 @@ test("transitionEngine.evaluate itself enforces an authored Transition Definitio
   });
   assert.equal(definitionError, undefined);
 
-  const evaluateArgs = { entityType: "AttentionItem" as const, fromState, toState, actorRole: "general", entityId: attentionItem.id, seuId };
+  const evaluateArgs = { entityType: "AttentionItem" as const, fromState, toState, actorRole: "general", actorId: TESTER_ALL_ID, entityId: attentionItem.id, seuId };
 
   const beforeObligation = await transitionEngine.evaluate(evaluateArgs);
   assert.equal(beforeObligation.allowed, true);
@@ -110,8 +110,8 @@ test("transitionEngine.evaluate itself enforces an authored Transition Definitio
   assert.match(blocked.detail, /unresolved Obligation/);
 
   for (const targetState of ["Analysed", "Assigned", "In Progress", "Resolved", "Verified"]) {
-    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: "1001" });
-    assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : undefined);
+    const step = await transitionObligation({ obligationId: obligation.id, targetState, actorRole: "super", actorId: TESTER_ALL_ID });
+    assert.equal(step.ok, true, !step.ok ? JSON.stringify(step) : "assertion failed");
   }
 
   const afterResolution = await transitionEngine.evaluate(evaluateArgs);
@@ -134,14 +134,14 @@ test("Mapping's Allow trigger seeds a new Transition Definition, but re-Allowing
   const fromState = `td-mapping-from-${randomUUID()}`;
   const toState = `td-mapping-to-${randomUUID()}`;
 
-  const verbAdded = await addVerb(verbCode, "Test trigger verb", null, "1", "root");
-  assert.equal(verbAdded.ok, true, !verbAdded.ok ? verbAdded.error : undefined);
+  const verbAdded = await addVerb(verbCode, "Test trigger verb", null, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  assert.equal(verbAdded.ok, true, !verbAdded.ok ? verbAdded.error : "assertion failed");
 
-  const allowed = await addMapping(nounCode, verbCode, "governed", "1", "root");
-  assert.equal(allowed.ok, true, !allowed.ok ? allowed.error : undefined);
+  const allowed = await addMapping(nounCode, verbCode, "governed", ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  assert.equal(allowed.ok, true, !allowed.ok ? allowed.error : "assertion failed");
 
-  const created = await addTransitionDefinition({ entityType: nounCode, fromState, toState, verb: verbCode });
-  assert.equal(created.ok, true, !created.ok ? created.error : undefined);
+  const created = await addTransitionDefinition({ entityType: nounCode, fromState, toState, verb: verbCode, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+  assert.equal(created.ok, true, !created.ok ? created.error : "assertion failed");
 
   const { data: rowAfterCreate } = await transitionDefinitionsDB.find(nounCode, fromState, toState);
   assert.equal(rowAfterCreate?.trigger, "governed", "a new transition under this pair starts at the mapping's chosen trigger");
@@ -153,8 +153,8 @@ test("Mapping's Allow trigger seeds a new Transition Definition, but re-Allowing
   // Re-submitting Allow for the SAME pair with a DIFFERENT trigger — this is
   // exactly what the first pass got wrong: it must move the mapping's own
   // default, but must never touch the transition that already exists.
-  const reAllowed = await addMapping(nounCode, verbCode, "manual", "1", "root");
-  assert.equal(reAllowed.ok, true, !reAllowed.ok ? reAllowed.error : undefined);
+  const reAllowed = await addMapping(nounCode, verbCode, "manual", ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
+  assert.equal(reAllowed.ok, true, !reAllowed.ok ? reAllowed.error : "assertion failed");
 
   const { data: rowAfterReAllow } = await transitionDefinitionsDB.find(nounCode, fromState, toState);
   assert.equal(rowAfterReAllow?.trigger, "governed", "an already-wired transition's trigger must survive re-submitting Allow");
@@ -166,8 +166,8 @@ test("Mapping's Allow trigger seeds a new Transition Definition, but re-Allowing
   // A SECOND new transition under the same pair now starts at the updated default.
   const secondFromState = `td-mapping-from2-${randomUUID()}`;
   const secondToState = `td-mapping-to2-${randomUUID()}`;
-  const createdSecond = await addTransitionDefinition({ entityType: nounCode, fromState: secondFromState, toState: secondToState, verb: verbCode });
-  assert.equal(createdSecond.ok, true, !createdSecond.ok ? createdSecond.error : undefined);
+  const createdSecond = await addTransitionDefinition({ entityType: nounCode, fromState: secondFromState, toState: secondToState, verb: verbCode, authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE });
+  assert.equal(createdSecond.ok, true, !createdSecond.ok ? createdSecond.error : "assertion failed");
   const { data: secondRow } = await transitionDefinitionsDB.find(nounCode, secondFromState, secondToState);
   assert.equal(secondRow?.trigger, "manual", "a transition added after the re-Allow starts at the NEW default");
 });

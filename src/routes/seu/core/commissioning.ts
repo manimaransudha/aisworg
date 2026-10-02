@@ -318,7 +318,8 @@ export async function commissionSeu(input: {
       originatingObjectId: seu.id,
       seuId: seu.id,
       correlationId,
-      actorId: input.actorId ?? null,
+      actorId: input.actorId,
+      authorityBadge: "seu_commission",
       payload: { seuId: seu.id },
     });
     causationId = requestedEvent.id;
@@ -393,7 +394,7 @@ export async function finalizeCommissioning(input: {
     await seusDB.updateLifecycleState(seu.id, to);
     previousStepEvent = await eventBus.publish({
       eventType: step.eventType ?? `SEU${to}`, originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id, correlationId,
-      causationId: previousStepEvent.id, actorId: input.actorId ?? null, authorityBadge: step.authorityBadge,
+      causationId: previousStepEvent.id, actorId: input.actorId, authorityBadge: step.authorityBadge ?? "system",
     });
   }
 
@@ -518,7 +519,7 @@ export async function finalizeCommissioning(input: {
   }
   await eventBus.publish({
     eventType: finalStep.eventType ?? "SEUActivated", originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id, correlationId,
-    causationId: previousStepEvent.id, actorId: input.actorId ?? null, authorityBadge: finalStep.authorityBadge,
+    causationId: previousStepEvent.id, actorId: input.actorId, authorityBadge: finalStep.authorityBadge ?? "system",
   });
   return { ok: true, seu: activatedSeu, report };
 }
@@ -560,7 +561,7 @@ export async function attemptSeuCommenceWork(input: { seuId: string; correlation
   }
   if (definition.verb) {
     const requiredBadge = `seu_${definition.verb}`;
-    const auth = await badgeAuthorityEngine.authorise({ actorId: input.actorId ?? "", requiredBadge });
+    const auth = await badgeAuthorityEngine.authorise({ actorId: input.actorId, requiredBadge });
     if (!auth.allowed) {
       logger.info(`[executionEngine] attemptSeuCommenceWork: SEU ${seu.id} not authorised under ${requiredBadge} — leaving Activated`);
       return;
@@ -573,7 +574,7 @@ export async function attemptSeuCommenceWork(input: { seuId: string; correlation
   // (compositionCompleted.ts) — never applicable_policy_ids, which is
   // entity-scoped governance for owned Deliverables/AttentionItems/etc, not
   // the SEU's own transition.
-  const commenceWorkPolicy = await policyEngine.evaluate({ entityType: "SEU", seuId: seu.id, fromState: "Activated", toState: "Operational", context: {} });
+  const commenceWorkPolicy = await policyEngine.evaluate({ entityType: "SEU", seuId: seu.id, fromState: "Activated", toState: "Operational", context: {}, authorId: input.actorId, authorBadge: definition.verb ? `seu_${definition.verb}` : "system" });
   if (commenceWorkPolicy.outcome === "Blocked") {
     // CR-106 Option C — a Policy not yet satisfied is a legitimate, expected
     // gate (a customer sign-off pending, say), not a genuinely broken
@@ -608,7 +609,8 @@ export async function attemptSeuCommenceWork(input: { seuId: string; correlation
   await seusDB.updateLifecycleState(seu.id, "Operational");
   await eventBus.publish({
     eventType: definition.event_type ?? "SEUOperational", originatingObjectType: "SEU", originatingObjectId: seu.id, seuId: seu.id,
-    correlationId: input.correlationId, causationId: input.causationId, actorId: input.actorId ?? null,
+    correlationId: input.correlationId, causationId: input.causationId, actorId: input.actorId,
+    authorityBadge: definition.verb ? `seu_${definition.verb}` : "system",
   });
 }
 
@@ -667,6 +669,11 @@ export async function transitionEbm(input: { ebmId: string; targetState: string;
     if (deadReferences.length > 0) {
       const { data: retired, error: retireErr } = await ebmsDB.updateStatus(ebm.id, "Retired");
       if (retireErr || !retired) throw retireErr ?? new Error("failed to set EBM to Retired");
+      // Owner: "the user has to be notified" — raiseAttentionItem (Ch.34),
+      // the same deduplication-aware mechanism other core modules already
+      // exist to call, just never had a live caller until now.
+      if (!input.actorId) throw new Error(`EBM ${ebm.id} retirement has no acting user to record as this Attention Item's author`);
+      if (!gate.authorityBadge) throw new Error(`EBM ${ebm.id} retirement has no resolved authority badge to record as this Attention Item's author badge`);
       const retiredCorrelationId = eventBus.newCorrelationId();
       const retiredEvent = await eventBus.publish({
         eventType: "EBMRetired",
@@ -675,13 +682,9 @@ export async function transitionEbm(input: { ebmId: string; targetState: string;
         seuId: ebm.seu_id,
         correlationId: retiredCorrelationId,
         payload: { references: deadReferences },
-        actorId: input.actorId ?? null,
+        actorId: input.actorId,
+        authorityBadge: gate.authorityBadge,
       });
-      // Owner: "the user has to be notified" — raiseAttentionItem (Ch.34),
-      // the same deduplication-aware mechanism other core modules already
-      // exist to call, just never had a live caller until now.
-      if (!input.actorId) throw new Error(`EBM ${ebm.id} retirement has no acting user to record as this Attention Item's author`);
-      if (!gate.authorityBadge) throw new Error(`EBM ${ebm.id} retirement has no resolved authority badge to record as this Attention Item's author badge`);
       await raiseAttentionItem({
         seuId: ebm.seu_id,
         category: "EBM Retired",
@@ -715,8 +718,8 @@ export async function transitionEbm(input: { ebmId: string; targetState: string;
     seuId: ebm.seu_id,
     correlationId,
     payload: { fromState, toState: input.targetState },
-    actorId: input.actorId ?? null,
-    authorityBadge: gate.authorityBadge,
+    actorId: input.actorId,
+    authorityBadge: gate.authorityBadge ?? "root",
   });
 
   // Activate is the one transition with a real consequence beyond the EBM's

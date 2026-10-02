@@ -18,18 +18,19 @@ import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { explainDeliverable, impactOfDeliverable } from "../src/routes/seu/core/traceability.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, ensureEligibleParticipant, resolveDispatchRejectionObligations } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
 
 async function dispatchAndComplete(deliverableId: string, targetState: string, reference: string | null) {
   const { data: deliverable } = await deliverablesDB.findById(deliverableId);
   const fromState = deliverable!.lifecycle_state;
-  const dispatched = await transitionDeliverable({ deliverableId, targetState, actorRole: "super", actorId: "1" });
+  const dispatched = await transitionDeliverable({ deliverableId, targetState, actorRole: "super", actorId: ROOT_ACTOR_ID });
   // deliverableKickoffHandler (off SEUOperational) may already have this
   // exact hop in flight from its own automatic rescan, now that fulfilment
   // happens before commence-work.
   if (!dispatched.ok) assert.equal(dispatched.reason, "already_in_flight", JSON.stringify(dispatched));
   const { workItem } = await waitForDispatchedWorkItem(deliverableId, fromState, targetState);
   const completed = await completeWorkItem({ workItemId: workItem.id, outcome: "done", reference });
-  assert.equal(completed.ok, true, !completed.ok ? JSON.stringify(completed) : undefined);
+  assert.equal(completed.ok, true, !completed.ok ? JSON.stringify(completed) : "assertion failed");
 }
 
 async function commissionWebApp(prefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>) {
@@ -38,11 +39,11 @@ async function commissionWebApp(prefix: string, beforeCommenceWork?: (seuId: str
     {
       statement: `${prefix}-${randomUUID()}`,
       requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"],
-      actorRole: "super", actorId: "1001", requestedBy: 1001,
+      actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID,
     },
     beforeCommenceWork
   );
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   return result.seu.id;
 }

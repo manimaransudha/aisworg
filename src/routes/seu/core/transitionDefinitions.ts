@@ -96,6 +96,8 @@ export async function addTransitionDefinition(input: {
   fromState: string;
   toState: string;
   verb: string;
+  authorId: string;
+  authorBadge: string;
 }): Promise<WriteResult> {
   const entityType = input.entityType?.trim();
   const fromState = input.fromState?.trim();
@@ -116,7 +118,7 @@ export async function addTransitionDefinition(input: {
   // dropdown to choose trigger and pass it in the allow function") — set
   // once, on the Mapping tab, when the noun+verb pair was allowed.
   const { data: defaultTrigger } = await authorityVocabularyDB.findDefaultTrigger(entityType, verb);
-  const { error } = await transitionDefinitionsDB.insertDefinition({ entityType, fromState, toState, verb, trigger: defaultTrigger });
+  const { error } = await transitionDefinitionsDB.insertDefinition({ entityType, fromState, toState, verb, trigger: defaultTrigger, authorId: input.authorId, authorBadge: input.authorBadge });
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 

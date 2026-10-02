@@ -59,6 +59,8 @@ export async function createFinding(input: {
     originatingObjectId: finding.id,
     seuId: review.seu_id,
     correlationId: eventBus.newCorrelationId(),
+    actorId: input.actorId,
+    authorityBadge: input.authorBadge,
     payload: { reviewId: review.id, severity: input.severity, relatedObjectType: review.related_object_type, relatedObjectId: review.related_object_id },
   });
 
@@ -97,8 +99,9 @@ export async function transitionFinding(input: { findingId: string; targetState:
   if (!finding) return { ok: false, reason: "not_found" };
 
   const fromState = finding.status;
+  if (!input.actorId) throw new Error("actorId is required to transition a Finding");
   const gate = await transitionEngine.evaluate({ entityType: "Finding", fromState, toState: input.targetState, actorRole: input.actorRole,
-    actorId: input.actorId ?? "", entityId: finding.id, context: { finding } });
+    actorId: input.actorId, entityId: finding.id, context: { finding } });
   if (!gate.allowed) {
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Finding ${fromState} -> ${input.targetState}` };
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
@@ -117,8 +120,8 @@ export async function transitionFinding(input: { findingId: string; targetState:
     seuId: finding.seu_id,
     correlationId: eventBus.newCorrelationId(),
     payload: { fromState, toState: input.targetState },
-    actorId: input.actorId ?? null,
-    authorityBadge: gate.authorityBadge,
+    actorId: input.actorId,
+    authorityBadge: gate.authorityBadge ?? "root",
   });
 
   return { ok: true, finding: updated, appliedTransition: { fromState, toState: input.targetState } };

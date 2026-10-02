@@ -34,6 +34,7 @@ async function failCommissioning(seuId: string, event: EventRow, reason: string)
     correlationId: event.correlation_id,
     causationId: event.id,
     actorId: event.actor_id,
+    authorityBadge: event.authority_badge,
     payload: { stage: "finalize_commissioning", reason },
   });
 }

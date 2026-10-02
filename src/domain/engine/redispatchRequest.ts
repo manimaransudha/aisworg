@@ -15,6 +15,8 @@ export const redispatchRequestHandler: EventHandler = async (event: EventRow) =>
     seuId: event.seu_id,
     correlationId: event.correlation_id,
     causationId: event.id,
+    actorId: event.actor_id,
+    authorityBadge: event.authority_badge,
     payload: {},
   });
 };

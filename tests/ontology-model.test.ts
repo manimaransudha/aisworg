@@ -13,11 +13,12 @@ import { setAlias, clearAlias, resolveLabels, resolveLabel } from "../src/routes
 import { evidenceDB } from "../src/dblayer/evidenceDB.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, createEvidenceAsRoot as createEvidence } from "./testFixtures.js";
+import { TESTER_ALL_ID, ROOT_ACTOR_ID } from "./testFixtures.js";
 
 async function commissionSeu(prefix: string) {
   await ensureWebAppTemplateFixture();
-  const result = await commissionFromFormSync({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorRole: "super", actorId: "1001", requestedBy: 1001 });
-  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : undefined);
+  const result = await commissionFromFormSync({ statement: `${prefix}-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
+  assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const detail = await getSeuDetailView(result.seu.id);
   const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
@@ -40,8 +41,8 @@ test("write-path enforcement: an off-canonical category is rejected; a canonical
 
 test("tenant rename: two tenants see different labels for the SAME canonical code, but storage stays canonical (cross-tenant joinable)", async () => {
   const run = randomUUID().slice(0, 8);
-  const { data: atlas } = await tenantsDB.create({ code: `atlas-onto-${run}`, name: "Atlas", authorId: "1", authorBadge: "root" });
-  const { data: babylon } = await tenantsDB.create({ code: `babylon-onto-${run}`, name: "Babylon", authorId: "1", authorBadge: "root" });
+  const { data: atlas } = await tenantsDB.create({ code: `atlas-onto-${run}`, name: "Atlas", authorId: ROOT_ACTOR_ID, authorBadge: "root", is_system: false });
+  const { data: babylon } = await tenantsDB.create({ code: `babylon-onto-${run}`, name: "Babylon", authorId: ROOT_ACTOR_ID, authorBadge: "root", is_system: false });
   assert.ok(atlas && babylon);
 
   // Same canonical concept, two tenant labels.
@@ -66,7 +67,7 @@ test("tenant rename: two tenants see different labels for the SAME canonical cod
 
 test("clearing an alias reverts to the platform default", async () => {
   const run = randomUUID().slice(0, 8);
-  const { data: tenant } = await tenantsDB.create({ code: `clear-onto-${run}`, name: "Clear", authorId: "1", authorBadge: "root" });
+  const { data: tenant } = await tenantsDB.create({ code: `clear-onto-${run}`, name: "Clear", authorId: ROOT_ACTOR_ID, authorBadge: "root", is_system: false });
   assert.ok(tenant);
   await setAlias({ tenantId: tenant.id, conceptType: "category:obligation", canonicalCode: "Security", displayLabel: "SEC-CTRL" });
   assert.equal(await resolveLabel(tenant.id, "category:obligation", "Security"), "SEC-CTRL");
@@ -76,7 +77,7 @@ test("clearing an alias reverts to the platform default", async () => {
 
 test("aliasing an unknown concept is refused (tenants rename, never mint)", async () => {
   const run = randomUUID().slice(0, 8);
-  const { data: tenant } = await tenantsDB.create({ code: `mint-onto-${run}`, name: "Mint", authorId: "1", authorBadge: "root" });
+  const { data: tenant } = await tenantsDB.create({ code: `mint-onto-${run}`, name: "Mint", authorId: ROOT_ACTOR_ID, authorBadge: "root", is_system: false });
   assert.ok(tenant);
   await assert.rejects(
     () => setAlias({ tenantId: tenant.id, conceptType: "category:evidence", canonicalCode: "Not A Real Concept", displayLabel: "X" }),

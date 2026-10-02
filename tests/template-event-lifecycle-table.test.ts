@@ -124,7 +124,7 @@ test("DEFINITION: every Template transition_definitions row matches Events and L
 // not just the first one.
 test("DRIVEN: row 1 (New) creates a real Draft and walks it to Active, firing TemplateCreated then the real governed events", async () => {
   const created = await publishTemplate({ seed: await freshTemplateSeed(), actorRole: "power", actorId: TESTER_ALL_ID });
-  assert.equal(created.ok, true, created.ok ? undefined : created.errors.join("; "));
+  assert.equal(created.ok, true, created.ok ? "" : created.errors.join("; "));
   if (!created.ok) return;
 
   const { data: events } = await eventsDB.findByOriginatingObject("Template", created.templateId);
@@ -139,7 +139,7 @@ test("DRIVEN: row 3 (Validate) publishes TemplateValidated, matching transition_
   const draft = await freshTemplateDraft();
 
   const result = await transitionTemplate({ templateId: draft.id, targetState: "Validated", actorRole: "power", actorId: TESTER_ALL_ID });
-  assert.equal(result.ok, true, result.ok ? undefined : `${result.reason}: ${result.detail}`);
+  assert.equal(result.ok, true, result.ok ? "" : `${result.reason}: ${result.detail}`);
 
   const { data: events } = await eventsDB.findByOriginatingObject("Template", draft.id);
   const validated = events?.find((e) => e.event_type === "TemplateValidated");
@@ -158,7 +158,7 @@ test("DRIVEN: rows 4-8 (Publish/Activate/Deprecate/Retire/Archive) each publish 
   await transitionTemplate({ templateId: draft.id, targetState: "Deprecated", actorRole: "power", actorId: TESTER_ALL_ID });
   await transitionTemplate({ templateId: draft.id, targetState: "Retired", actorRole: "power", actorId: TESTER_ALL_ID });
   const archived = await transitionTemplate({ templateId: draft.id, targetState: "Archived", actorRole: "power", actorId: TESTER_ALL_ID });
-  assert.equal(archived.ok, true, archived.ok ? undefined : `${archived.reason}: ${archived.detail}`);
+  assert.equal(archived.ok, true, archived.ok ? "" : `${archived.reason}: ${archived.detail}`);
 
   const { data: events } = await eventsDB.findByOriginatingObject("Template", draft.id);
   const eventTypes = (events ?? []).map((e) => e.event_type);

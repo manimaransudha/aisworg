@@ -27,6 +27,7 @@ import { createObjective, submitObjective, transitionObjective, updateObjective 
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { ensureEventSubscriptionsLoaded } from "./testFixtures.js";
+import { TESTER_ALL_ID } from "./testFixtures.js";
 
 before(async () => {
   await ensureEventSubscriptionsLoaded();
@@ -36,7 +37,7 @@ async function strategicRoot(): Promise<string> {
   const { objective } = await createObjective({
     statement: `event-table-root-${randomUUID()}`,
     requiredCapabilityCodes: [],
-    tier: "Strategic", requestedBy: 1001, status: "Proposed",
+    tier: "Strategic", requestedBy: TESTER_ALL_ID, status: "Proposed",
   });
   return objective.id;
 }
@@ -89,12 +90,12 @@ test("DRIVEN: row 1 (New) and row 2 (Edit) are pure Revisions — no event publi
     statement: `event-table-revision-${randomUUID()}`,
     requiredCapabilityCodes: [],
     tier: "Engineering",
-    parentObjectiveId: await strategicRoot(), requestedBy: 1001, status: "Proposed",
+    parentObjectiveId: await strategicRoot(), requestedBy: TESTER_ALL_ID, status: "Proposed",
   });
   const { data: afterCreate } = await eventsDB.findByOriginatingObject("Objective", objective.id);
   assert.deepEqual(afterCreate, [], "row 1 (New) must publish no event");
 
-  await updateObjective(objective.id, { statement: "event-table-revision-edited" });
+  await updateObjective(objective.id, { statement: "event-table-revision-edited", requestedBy: TESTER_ALL_ID });
   const { data: afterEdit } = await eventsDB.findByOriginatingObject("Objective", objective.id);
   assert.deepEqual(afterEdit, [], "row 2 (Edit) must publish no event");
 });
@@ -104,9 +105,9 @@ test("DRIVEN: row 3 (submit) publishes ObjectiveProposed — the VersionCreated 
     statement: `event-table-submit-${randomUUID()}`,
     requiredCapabilityCodes: [],
     tier: "Engineering",
-    parentObjectiveId: await strategicRoot(), requestedBy: 1001, status: "Proposed",
+    parentObjectiveId: await strategicRoot(), requestedBy: TESTER_ALL_ID, status: "Proposed",
   });
-  await submitObjective(objective.id, 1001);
+  await submitObjective(objective.id, TESTER_ALL_ID);
   const { data: events } = await eventsDB.findByOriginatingObject("Objective", objective.id);
   assert.equal(events?.length, 1);
   assert.equal(events?.[0]?.event_type, "ObjectiveProposed");
@@ -117,10 +118,10 @@ test("DRIVEN: row 6 (Activate) publishes ObjectiveActivated, matching transition
     statement: `event-table-activate-${randomUUID()}`,
     requiredCapabilityCodes: [],
     tier: "Engineering",
-    parentObjectiveId: await strategicRoot(), requestedBy: 1001, status: "Proposed",
+    parentObjectiveId: await strategicRoot(), requestedBy: TESTER_ALL_ID, status: "Proposed",
   });
-  await submitObjective(objective.id, 1001);
-  const result = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: "1001" });
+  await submitObjective(objective.id, TESTER_ALL_ID);
+  const result = await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: TESTER_ALL_ID });
   assert.equal(result.ok, true);
 
   const { data: events } = await eventsDB.findByOriginatingObject("Objective", objective.id);
@@ -136,12 +137,12 @@ test("DRIVEN: row 4 (Reject) publishes ObjectiveRejected, matching transition_de
     statement: `event-table-reject-${randomUUID()}`,
     requiredCapabilityCodes: [],
     tier: "Engineering",
-    parentObjectiveId: await strategicRoot(), requestedBy: 1001, status: "Proposed",
+    parentObjectiveId: await strategicRoot(), requestedBy: TESTER_ALL_ID, status: "Proposed",
   });
-  await submitObjective(objective.id, 1001);
-  await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: "1001" });
+  await submitObjective(objective.id, TESTER_ALL_ID);
+  await transitionObjective({ objectiveId: objective.id, targetState: "Active", actorRole: "general", actorId: TESTER_ALL_ID });
   const result = await transitionObjective({
-    objectiveId: objective.id, targetState: "Reject", actorRole: "general", actorId: "1001",
+    objectiveId: objective.id, targetState: "Reject", actorRole: "general", actorId: TESTER_ALL_ID,
     comment: "event-table test rejection — needs rework",
   });
   assert.equal(result.ok, true);

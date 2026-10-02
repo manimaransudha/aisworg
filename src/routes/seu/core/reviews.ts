@@ -69,6 +69,8 @@ export async function createReview(input: {
     originatingObjectId: review.id,
     seuId: review.seu_id,
     correlationId: eventBus.newCorrelationId(),
+    actorId: input.actorId,
+    authorityBadge: input.authorBadge,
     payload: { relatedObjectType: input.relatedObjectType, relatedObjectId: input.relatedObjectId, category: input.category },
   });
 
@@ -117,8 +119,9 @@ export async function transitionReview(input: {
 
   const fromState = review.status;
 
+  if (!input.actorId) throw new Error("actorId is required to transition a Review");
   const gate = await transitionEngine.evaluate({ entityType: "Review", fromState, toState: input.targetState, actorRole: input.actorRole,
-    actorId: input.actorId ?? "", entityId: review.id, context: { review } });
+    actorId: input.actorId, entityId: review.id, context: { review } });
   if (!gate.allowed) {
     if (gate.reason === "no_transition_definition") return { ok: false, reason: "no_transition_definition", detail: `no Transition Definition for Review ${fromState} -> ${input.targetState}` };
     if (gate.reason === "authority_denied") return { ok: false, reason: "authority_denied", detail: `requires badge ${gate.authorityRuleCode} (${gate.badgeDenialReason})` };
@@ -129,7 +132,6 @@ export async function transitionReview(input: {
 
   // Governance still evaluates a gate on the Review's own lifecycle for
   // uniformity (there are none seeded on Review today, so this passes).
-  if (!input.actorId) throw new Error("actorId is required to transition a Review");
   if (!gate.authorityBadge) throw new Error(`no authority badge resolved for Review ${fromState} -> ${input.targetState} — Transition Definition declares no verb`);
   const authorId = await resolveAuthorId(review.seu_id, input.actorId);
   const qualityGateResult = await qualityGateEngine.evaluate({ entityType: "Review", entityId: review.id, seuId: review.seu_id, fromState, toState: input.targetState, authorId, authorBadge: gate.authorityBadge });
@@ -146,16 +148,16 @@ export async function transitionReview(input: {
     if (error || !data) throw error ?? new Error("failed to complete review");
     updated = data;
 
-    await eventBus.publish({ eventType: "ReviewCompleted", originatingObjectType: "Review", originatingObjectId: review.id, seuId: review.seu_id, correlationId: eventBus.newCorrelationId(), payload: { outcome: input.outcome }, actorId: input.actorId ?? null, authorityBadge: gate.authorityBadge });
+    await eventBus.publish({ eventType: "ReviewCompleted", originatingObjectType: "Review", originatingObjectId: review.id, seuId: review.seu_id, correlationId: eventBus.newCorrelationId(), payload: { outcome: input.outcome }, actorId: input.actorId, authorityBadge: gate.authorityBadge });
     const outcomeEvent = PASSING_OUTCOMES.has(input.outcome) ? "ReviewPassed" : input.outcome === "Deferred" ? "ReviewDeferred" : "ReviewFailed";
-    await eventBus.publish({ eventType: outcomeEvent, originatingObjectType: "Review", originatingObjectId: review.id, seuId: review.seu_id, correlationId: eventBus.newCorrelationId(), payload: { outcome: input.outcome }, actorId: input.actorId ?? null, authorityBadge: gate.authorityBadge });
+    await eventBus.publish({ eventType: outcomeEvent, originatingObjectType: "Review", originatingObjectId: review.id, seuId: review.seu_id, correlationId: eventBus.newCorrelationId(), payload: { outcome: input.outcome }, actorId: input.actorId, authorityBadge: gate.authorityBadge });
   } else {
     const { data, error } = await reviewsDB.updateStatus(review.id, input.targetState);
     if (error || !data) throw error ?? new Error("failed to update review status");
     updated = data;
 
     const eventType = input.targetState === "In Progress" ? "ReviewStarted" : "ReviewTransitioned";
-    await eventBus.publish({ eventType, originatingObjectType: "Review", originatingObjectId: review.id, seuId: review.seu_id, correlationId: eventBus.newCorrelationId(), payload: { fromState, toState: input.targetState }, actorId: input.actorId ?? null, authorityBadge: gate.authorityBadge });
+    await eventBus.publish({ eventType, originatingObjectType: "Review", originatingObjectId: review.id, seuId: review.seu_id, correlationId: eventBus.newCorrelationId(), payload: { fromState, toState: input.targetState }, actorId: input.actorId, authorityBadge: gate.authorityBadge });
   }
 
   return { ok: true, review: updated, appliedTransition: { fromState, toState: input.targetState } };

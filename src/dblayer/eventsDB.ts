@@ -29,8 +29,11 @@ export const eventsDB = {
     causationId?: string | null;
     payload?: Record<string, unknown>;
     // Accountability record — real acting user + resolved noun_verb badge.
-    actorId?: string | null;
-    authorityBadge?: string | null;
+    // Required on every publish (eventBus.publish's own PublishInput already
+    // enforces this at the call site); the DB column itself stays nullable
+    // (no schema change) — this is an application-level contract, not a CHECK.
+    actorId: string;
+    authorityBadge: string;
     // Ch.30 Event Bus redesign — initial per-handler state, from the same
     // subscription lookup that determines who to notify. {} when nobody
     // subscribes to this event_type.
@@ -49,8 +52,8 @@ export const eventsDB = {
           input.correlationId,
           input.causationId ?? null,
           JSON.stringify(input.payload ?? {}),
-          input.actorId ?? null,
-          input.authorityBadge ?? null,
+          input.actorId,
+          input.authorityBadge,
           JSON.stringify(input.consumptionState ?? {}),
         ]
       );

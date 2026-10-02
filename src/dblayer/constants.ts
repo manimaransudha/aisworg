@@ -40,13 +40,8 @@ export async function getPlatformTenantId(): Promise<string> {
 export async function getTesterId(email: string): Promise<string> {
     const result = await userDB.findByEmail(email);
 
-    if (result.error) {
-        throw new Error(
-            `Error retrieving details for ${email}`
-        );
-    }
     console.log(JSON.stringify(result))
-    if (!result.id) {
+    if (!result) {
         logger.error(
             `[seed:fetch-tester] ${email} not provisioned`
         );

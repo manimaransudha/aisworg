@@ -83,7 +83,7 @@ test("DRIVEN: every hop publishes its matching event, in order", async () => {
 
   for (const row of POLICY_DEFINITION_TABLE) {
     const result = await transitionPolicyDefinition({ policyDefinitionId: draft.id, targetState: row.toState as PolicyDefinitionRow["status"], actorRole: "power", actorId: TESTER_ALL_ID });
-    assert.equal(result.ok, true, result.ok ? undefined : `row ${row.row} (${row.description}): ${result.reason}: ${result.detail}`);
+    assert.equal(result.ok, true, result.ok ? "" : `row ${row.row} (${row.description}): ${result.reason}: ${result.detail}`);
   }
 
   const { data: events } = await eventsDB.findByOriginatingObject("PolicyDefinition", draft.id);

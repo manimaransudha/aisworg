@@ -1,5 +1,6 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
+import { userDB } from "./userDB.js";
 import type { BadgeScopeKind, BadgeTypeRow, DbResult } from "./seuTypes.js";
 
 export type BadgeTypeValidationResult = { ok: true } | { ok: false; errors: string[] };
@@ -57,11 +58,16 @@ export const badgeTypesDB = {
       return { error: new Error("badge type validation failed"), validationErrors: validation.errors };
     }
     try {
+      // author_id/author_badge are NOT NULL (badge_types_schema_recovery.sql)
+      // but no real actor flows through this path today — same stopgap as
+      // participantsDB.create/templatesDB.upsert: resolves the
+      // SUPERUSER_EMAIL superuser as author.
+      const { actorId, actorBadge } = await userDB.getSuperuserId();
       const { rows } = await query<BadgeTypeRow>(
-        `INSERT INTO badge_types (tenant_id, code, name, scope_kind, derived_from, tiered)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO badge_types (tenant_id, code, name, scope_kind, derived_from, tiered, author_id, author_badge)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [input.tenantId, input.code, input.name, input.scopeKind, derivedFrom, input.tiered ?? false]
+        [input.tenantId, input.code, input.name, input.scopeKind, derivedFrom, input.tiered ?? false, actorId, actorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

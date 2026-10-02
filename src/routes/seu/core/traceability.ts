@@ -33,6 +33,7 @@ import { knowledgeItemsDB } from "../../../dblayer/knowledgeItemsDB.js";
 import { reviewsDB } from "../../../dblayer/reviewsDB.js";
 import { findingsDB } from "../../../dblayer/findingsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
+import { resolveSystemActor } from "./attentionItems.js";
 
 export interface ProvenanceEntry {
   fromState: string;
@@ -172,12 +173,15 @@ export async function explainDeliverable(deliverableId: string): Promise<Deliver
     }
   }
 
+  const explainSystemActor = await resolveSystemActor(deliverable.seu_id);
   await eventBus.publish({
     eventType: "TraceabilityQueryExecuted",
     originatingObjectType: "Deliverable",
     originatingObjectId: deliverableId,
     seuId: deliverable.seu_id,
     correlationId: eventBus.newCorrelationId(),
+    actorId: explainSystemActor.actorId,
+    authorityBadge: explainSystemActor.authorBadge,
     payload: { query: "explainDeliverable" },
   });
 
@@ -236,12 +240,15 @@ export async function impactOfDeliverable(deliverableId: string): Promise<Delive
     }
   }
 
+  const impactSystemActor = await resolveSystemActor(deliverable.seu_id);
   await eventBus.publish({
     eventType: "TraceabilityQueryExecuted",
     originatingObjectType: "Deliverable",
     originatingObjectId: deliverableId,
     seuId: deliverable.seu_id,
     correlationId: eventBus.newCorrelationId(),
+    actorId: impactSystemActor.actorId,
+    authorityBadge: impactSystemActor.authorBadge,
     payload: { query: "impactOfDeliverable" },
   });
 
