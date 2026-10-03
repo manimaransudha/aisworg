@@ -18,6 +18,9 @@ import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { obligationsDB } from "../src/dblayer/obligationsDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
+import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
+import type { TransitionEntityType } from "../src/dblayer/seuTypes.js";
+import { lookupRouteAuthority } from "../src/domain/identity/routeAuthorityCache.js";
 import { participantsDB } from "../src/dblayer/participantsDB.js";
 import { fulfilCapability } from "../src/routes/seu/core/capabilities.js";
 import { createEvidence } from "../src/routes/seu/core/evidence.js";
@@ -36,7 +39,7 @@ import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
 import type { CommandRow, DeliverableRow, EventRow, ObligationRow, ProfileRow, SeuRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../src/dblayer/seuTypes.js";
 // get platform tenant id
-const PLATFORM_TENANT_ID = await getPlatformTenantId();
+export const PLATFORM_TENANT_ID = await getPlatformTenantId();
   
 // Test-only Pack twins (migration 119 / seedTestFixturePacks.ts) — every real
 // seed Pack mirrored under a `test-` prefixed code. NOT used by
@@ -140,6 +143,43 @@ async function getTesterIdentity(email: string): Promise<{ userId: string; parti
 }
 export const TESTER_OBJECTIVE_ATHENS = await getTesterIdentity("tester-objective-athens@test.local");
 export const TESTER_OBJECTIVE_BABYLON = await getTesterIdentity("tester-objective-babylon@test.local");
+
+// Grants a badge directly onto a holder's own participants_master.authorised_badges
+// row, at test-run time — not a seed-data change (seedIdentityBaseline.ts's
+// fixtures stay scoped to what they're documented to hold; a test that drives
+// a step outside that scope grants itself the one badge it needs, right
+// before it needs it, same mechanism sdk-authoring.test.ts's own grant()
+// helper already established). Idempotent — a holder who already has the
+// badge is left untouched.
+export async function grantBadge(participantId: string, badge: string): Promise<void> {
+  const { data: master } = await participantsMasterDB.findById(participantId);
+  if (!master) throw new Error(`grantBadge: no participants_master row ${participantId}`);
+  if (master.authorised_badges.some((b) => b.badge === badge)) return;
+  const { error } = await participantsMasterDB.setAuthorisedBadges(participantId, [...master.authorised_badges, { badge, effective_till: "9999-12-31", seu_ids: [] }]);
+  if (error) throw error;
+}
+
+// Grants whatever badge(s) route_authority itself actually declares for this
+// method+path (CR-110 — the one real source of a web route's required
+// badge), instead of a literal badge string guessed at the call site. `path`
+// is the full path routeAuthorityGate matches against (including /aisworg
+// and the real param values, e.g. /aisworg/seu/objectives/<id>/commission).
+export async function grantRouteBadges(participantId: string, method: string, path: string): Promise<void> {
+  const found = lookupRouteAuthority(method, path);
+  if (!found) throw new Error(`grantRouteBadges: no route_authority row for ${method} ${path}`);
+  for (const badge of found.badges) await grantBadge(participantId, badge);
+}
+
+// Grants the badge a real transition_definitions row's own `verb` resolves
+// to (transitionEngine's `${entityType.toLowerCase()}_${verb}` convention),
+// instead of a literal badge string guessed at the call site. No-op for an
+// ungoverned row (verb null) — there is no badge to grant.
+export async function grantTransitionBadge(participantId: string, entityType: TransitionEntityType, fromState: string, toState: string): Promise<void> {
+  const { data: definition } = await transitionDefinitionsDB.find(entityType, fromState, toState);
+  if (!definition) throw new Error(`grantTransitionBadge: no transition_definitions row for ${entityType} ${fromState} -> ${toState}`);
+  if (!definition.verb) return;
+  await grantBadge(participantId, `${entityType.toLowerCase()}_${definition.verb}`);
+}
 // Holds objective_achieve only, deliberately NOT objective_propose — proves
 // a real create/edit denial, not just a hidden button.
 export const TESTER_OBJECTIVE_ACHIEVE_ONLY = await getTesterIdentity("tester-objective-achieve-only@test.local");
@@ -482,11 +522,19 @@ export async function driveCommissioningToActive(input: {
   // on the EBM (owner: "Validate and Activate are 2 separate events. I can
   // validate an EBM and not yet activate it"), same shape as the SEU detail
   // page's own real "Apply" form (detail.ejs).
+  // This helper is the one place driving every governed hop below (Validate,
+  // Activate, and the SEU's own Activated -> Operational hop executionEngine
+  // Kickoff attempts once Active is reached) — it grants whatever badge each
+  // real transition_definitions row's own `verb` requires itself, rather than
+  // leaving every caller to guess and pre-grant badge names at the call site.
+  await grantTransitionBadge(input.actorId, "EBM", "Composed", "Validated");
   const validateResult = await transitionEbm({ ebmId: composedSeu.active_ebm_id, targetState: "Validated", actorRole: input.actorRole, actorId: input.actorId });
   if (!validateResult.ok) {
     return { ok: false, stage: "validate_engineering_model", reason: validateResult.reason === "not_found" ? "EBM not found" : validateResult.detail, seuId: input.seuId };
   }
 
+  await grantTransitionBadge(input.actorId, "EBM", "Validated", "Active");
+  await grantTransitionBadge(input.actorId, "SEU", "Activated", "Operational");
   const activateResult = await transitionEbm({ ebmId: composedSeu.active_ebm_id, targetState: "Active", actorRole: input.actorRole, actorId: input.actorId });
   if (!activateResult.ok) {
     return { ok: false, stage: "activate", reason: activateResult.reason === "not_found" ? "EBM not found" : activateResult.detail, seuId: input.seuId };
@@ -630,7 +678,7 @@ export async function ensureEligibleParticipant(seuId: string, capabilityCodes: 
 // authorised_badges); this ensures the per-SEU participants row a test's
 // root actor needs, then hands back the "1"/"root" pair every test call
 // site can use directly instead of re-deriving this per test.
-async function ensureActorParticipant(seuId: string, actorId: string): Promise<void> {
+export async function ensureActorParticipant(seuId: string, actorId: string): Promise<void> {
   const { data: master, error: masterErr } = await participantsMasterDB.findById(actorId);
   if (masterErr || !master) throw masterErr ?? new Error(`ensureActorParticipant: no participants_master row for actor ${actorId} — is db:clean-slate seeded?`);
   const { data: existing } = await participantsDB.findBySeuIdAndParticipantMasterId(seuId, master.id);
@@ -641,6 +689,22 @@ async function ensureActorParticipant(seuId: string, actorId: string): Promise<v
 
 async function ensureRootActorParticipant(seuId: string): Promise<void> {
   return ensureActorParticipant(seuId, ROOT_ACTOR_ID);
+}
+
+// resolveSystemActor (routes/seu/core/attentionItems.ts), used by Create
+// Engineering Assets inside finalizeCommissioning, resolves its acting
+// participant from the SEU's own requested_by column — whoever's HTTP
+// session actually posted the commission, which is not necessarily any
+// actorId a caller later drives further transitions as (a web-flow test may
+// commission over a root-authenticated session while handing a separate,
+// badge-holding actor's id to core-function calls downstream). Reads
+// requested_by off the real row and ensures a participants row for THAT
+// actor, instead of a caller guessing which identity it was.
+export async function ensureSeuRequesterParticipant(seuId: string): Promise<void> {
+  const { data: seu, error } = await seusDB.findById(seuId);
+  if (error || !seu) throw error ?? new Error(`ensureSeuRequesterParticipant: SEU not found: ${seuId}`);
+  if (!seu.requested_by) throw new Error(`ensureSeuRequesterParticipant: SEU ${seuId} has no requested_by`);
+  await ensureActorParticipant(seuId, seu.requested_by);
 }
 
 export async function fulfilCapabilityAsRoot(input: {

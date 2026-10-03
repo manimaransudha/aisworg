@@ -18,12 +18,8 @@ import { assertCanonicalCategory } from "./ontology.js";
 import { raiseAttentionItem, resolveAuthor, resolveSystemActor } from "./attentionItems.js";
 import type { AttentionItemRow, ObligationDefinition, ObligationRow, PolicyApplicabilityDeliverable, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId } from "../../../dblayer/constants.js";
+ 
 // related_object_type/id are polymorphic (Open Design Questions.md #3) — an
 // Obligation can now attach to any governed entity, not just a Deliverable.
 // seuId is not a caller-given input at all — it's derived from
@@ -183,6 +179,7 @@ export async function raiseObligationForBlockedTransition(input: {
   if (!policy) throw new Error(`policy "${input.policyCode}" not found while raising a blocked-transition Obligation`);
 
   const { plainCode, conditionIndex } = parseMaterializedPolicyCode(policy.code);
+  const PLATFORM_TENANT_ID = await getPlatformTenantId();
   const { data: definition } = await policyDefinitionsDB.findActiveByCodeVisibleTo(plainCode, PLATFORM_TENANT_ID);
   const condition = definition?.conditions?.[conditionIndex];
   const declaredObligations = condition?.relatedObligations ?? [];

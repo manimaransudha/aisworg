@@ -13,12 +13,12 @@ import { packsDB } from "../src/dblayer/packsDB.js";
 import { createPackDraft, publishPack, validatePackSeed, type PackSeedInput } from "../src/routes/seu/core/packs.js";
 import { composeAuthoringDraft } from "../src/routes/seu/core/sdkAuthoring.js";
 import { uniqueTestPackVersion } from "./testFixtures.js";
-import { TESTER_ALL_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
+import { TESTER_ALL_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 test("validatePackSeed rejects a Composition Strategy with too few sources", async () => {
   const seed: PackSeedInput = {
     code: "test-comp-arity", name: "Test", category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional",
-    contributions: {}, compositionStrategy: "merge", compositionSources: [{ packCode: "some-code" }],
+    contributions: {}, compositionStrategy: "merge", compositionSources: [{ packCode: "some-code" }], tenantId: PLATFORM_TENANT_ID,
   };
   const result = await validatePackSeed(seed);
   assert.equal(result.ok, false);
@@ -29,7 +29,7 @@ test("validatePackSeed rejects a Composition Strategy with too few sources", asy
 test("validatePackSeed rejects Merge sources that don't share the same code", async () => {
   const seed: PackSeedInput = {
     code: "test-comp-samecode", name: "Test", category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional",
-    contributions: {}, compositionStrategy: "merge", compositionSources: [{ packCode: "code-a" }, { packCode: "code-b" }],
+    contributions: {}, compositionStrategy: "merge", compositionSources: [{ packCode: "code-a" }, { packCode: "code-b" }], tenantId: PLATFORM_TENANT_ID,
   };
   const result = await validatePackSeed(seed);
   assert.equal(result.ok, false);
@@ -40,7 +40,7 @@ test("validatePackSeed rejects Merge sources that don't share the same code", as
 test("validatePackSeed rejects Conflict Detection as a directly-chosen Composition Strategy", async () => {
   const seed: PackSeedInput = {
     code: "test-comp-cd", name: "Test", category: "Engineering", packVersion: "1.0.0", installationClassification: "Optional",
-    contributions: {}, compositionStrategy: "conflict-detection",
+    contributions: {}, compositionStrategy: "conflict-detection", tenantId: PLATFORM_TENANT_ID,
   };
   const result = await validatePackSeed(seed);
   assert.equal(result.ok, false);
@@ -60,6 +60,7 @@ test("composeAuthoringDraft — specialization pre-fills a new Draft from an Act
       // identity is Pack-scoped, so reusing "software-construction" across many
       // unrelated test Packs is safe — no collision).
       contributions: { capabilities: [{ code: "software-construction" }] },
+      tenantId: PLATFORM_TENANT_ID,
     },
     actorRole: "power", actorId: TESTER_ALL_ID, activate: true,
   });
@@ -74,7 +75,7 @@ test("composeAuthoringDraft — specialization pre-fills a new Draft from an Act
   const childVersion = uniqueTestPackVersion();
   const draft = await createPackDraft({
     code: childCode, name: "Child Draft (before compose)", category: "Engineering", packVersion: childVersion, installationClassification: "Optional",
-    contributions: {}, compositionStrategy: "specialization", compositionSources: [{ packCode: parentCode }],
+    contributions: {}, compositionStrategy: "specialization", compositionSources: [{ packCode: parentCode }], tenantId: PLATFORM_TENANT_ID,
   }, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
@@ -102,11 +103,11 @@ test("composeAuthoringDraft — union combines two distinct Active Packs' fields
     // CR-079 step (c) — real registered capability-name values ("software-construction",
     // "software-validation"), not throwaway per-Pack ones; kept distinct across A/B so
     // union's "both survive" assertion below still proves something real.
-    seed: { code: codeA, name: "Union Source A", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "software-construction" }] } },
+    seed: { code: codeA, name: "Union Source A", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "software-construction" }] }, tenantId: PLATFORM_TENANT_ID },
     actorRole: "power", actorId: TESTER_ALL_ID, activate: true,
   });
   const b = await publishPack({
-    seed: { code: codeB, name: "Union Source B", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "software-validation" }] } },
+    seed: { code: codeB, name: "Union Source B", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "software-validation" }] }, tenantId: PLATFORM_TENANT_ID },
     actorRole: "power", actorId: TESTER_ALL_ID, activate: true,
   });
   assert.equal(a.ok, true);
@@ -115,7 +116,7 @@ test("composeAuthoringDraft — union combines two distinct Active Packs' fields
   const childCode = "test-compose-union-child";
   const draft = await createPackDraft({
     code: childCode, name: "Union Draft", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
-    contributions: {}, compositionStrategy: "union", compositionSources: [{ packCode: codeA }, { packCode: codeB }],
+    contributions: {}, compositionStrategy: "union", compositionSources: [{ packCode: codeA }, { packCode: codeB }], tenantId: PLATFORM_TENANT_ID,
   }, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
@@ -154,7 +155,7 @@ test("composeAuthoringDraft — union combines two distinct Active Packs' fields
 test("composeAuthoringDraft — merge with a code entered twice self-merges cleanly (real wiring, no conflicts, since a Pack agrees with itself)", async () => {
   const sharedCode = "test-compose-merge-shared";
   const published = await publishPack({
-    seed: { code: sharedCode, name: "Merge Source", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "software-construction" }] } },
+    seed: { code: sharedCode, name: "Merge Source", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "software-construction" }] }, tenantId: PLATFORM_TENANT_ID },
     actorRole: "power", actorId: TESTER_ALL_ID, activate: true,
   });
   assert.equal(published.ok, true);
@@ -162,7 +163,7 @@ test("composeAuthoringDraft — merge with a code entered twice self-merges clea
   const childCode = "test-compose-merge-child";
   const draft = await createPackDraft({
     code: childCode, name: "Merge Draft", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
-    contributions: {}, compositionStrategy: "merge", compositionSources: [{ packCode: sharedCode }, { packCode: sharedCode }],
+    contributions: {}, compositionStrategy: "merge", compositionSources: [{ packCode: sharedCode }, { packCode: sharedCode }], tenantId: PLATFORM_TENANT_ID,
   }, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
@@ -185,11 +186,11 @@ test("composeAuthoringDraft — intersection keeps only unanimous fields, drops 
     // CR-079 step (c) — real registered capability-name values, kept
     // distinct so the two sides' arrays genuinely disagree (what this test
     // is actually about).
-    seed: { code: codeA, name: "Common Name", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "software-construction" }] } },
+    seed: { code: codeA, name: "Common Name", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "software-construction" }] }, tenantId: PLATFORM_TENANT_ID },
     actorRole: "power", actorId: TESTER_ALL_ID, activate: true,
   });
   const b = await publishPack({
-    seed: { code: codeB, name: "Common Name", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "software-validation" }] } },
+    seed: { code: codeB, name: "Common Name", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: { capabilities: [{ code: "software-validation" }] }, tenantId: PLATFORM_TENANT_ID },
     actorRole: "power", actorId: TESTER_ALL_ID, activate: true,
   });
   assert.equal(a.ok, true);
@@ -198,7 +199,7 @@ test("composeAuthoringDraft — intersection keeps only unanimous fields, drops 
   const childCode = "test-compose-intersect-child";
   const draft = await createPackDraft({
     code: childCode, name: "Intersection Draft", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
-    contributions: {}, compositionStrategy: "intersection", compositionSources: [{ packCode: codeA }, { packCode: codeB }],
+    contributions: {}, compositionStrategy: "intersection", compositionSources: [{ packCode: codeA }, { packCode: codeB }], tenantId: PLATFORM_TENANT_ID,
   }, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
@@ -223,13 +224,13 @@ test("composeAuthoringDraft — supplement adds only what the base lacks, reject
   const baseCode = "test-compose-supplement-base";
   const extraCode = "test-compose-supplement-extra";
   const base = await publishPack({
-    seed: { code: baseCode, name: "Base Pack", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} },
+    seed: { code: baseCode, name: "Base Pack", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {}, tenantId: PLATFORM_TENANT_ID },
     actorRole: "power", actorId: TESTER_ALL_ID, activate: true,
   });
   const extra = await publishPack({
     // `name` collides with the base's own — must be rejected, never applied.
     // `owner` (metadata) is new — the base never set one — must be added.
-    seed: { code: extraCode, name: "Attempted Override Name", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {}, owner: "team-x" },
+    seed: { code: extraCode, name: "Attempted Override Name", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {}, owner: "team-x", tenantId: PLATFORM_TENANT_ID },
     actorRole: "power", actorId: TESTER_ALL_ID, activate: true,
   });
   assert.equal(base.ok, true);
@@ -238,7 +239,7 @@ test("composeAuthoringDraft — supplement adds only what the base lacks, reject
   const childCode = "test-compose-supplement-child";
   const draft = await createPackDraft({
     code: childCode, name: "Supplement Draft", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
-    contributions: {}, compositionStrategy: "supplement", compositionSources: [{ packCode: baseCode }, { packCode: extraCode }],
+    contributions: {}, compositionStrategy: "supplement", compositionSources: [{ packCode: baseCode }, { packCode: extraCode }], tenantId: PLATFORM_TENANT_ID,
   }, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
@@ -258,7 +259,7 @@ test("composeAuthoringDraft — supplement adds only what the base lacks, reject
 test("composeAuthoringDraft — override points the author at the existing version-bump flow instead of computing anything", async () => {
   const code = "test-compose-override";
   const published = await publishPack({
-    seed: { code, name: "Override Pack", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} },
+    seed: { code, name: "Override Pack", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {}, tenantId: PLATFORM_TENANT_ID },
     actorRole: "power", actorId: TESTER_ALL_ID, activate: true,
   });
   assert.equal(published.ok, true);
@@ -270,7 +271,7 @@ test("composeAuthoringDraft — override points the author at the existing versi
   const draftCode = "test-compose-override-draft";
   const draft = await createPackDraft({
     code: draftCode, name: "Override Draft", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional",
-    contributions: {}, compositionStrategy: "override",
+    contributions: {}, compositionStrategy: "override", tenantId: PLATFORM_TENANT_ID,
   }, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE);
   assert.equal(draft.ok, true);
   if (!draft.ok) return;
@@ -289,7 +290,7 @@ test("composeAuthoringDraft — override points the author at the existing versi
 test("composeAuthoringDraft — rejects composing a Pack that hasn't reached (or has left) Draft", async () => {
   const parentCode = "test-compose-notdraft-parent";
   const published = await publishPack({
-    seed: { code: parentCode, name: "Parent", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} },
+    seed: { code: parentCode, name: "Parent", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {}, tenantId: PLATFORM_TENANT_ID },
     actorRole: "power", actorId: TESTER_ALL_ID, activate: true,
   });
   assert.equal(published.ok, true);

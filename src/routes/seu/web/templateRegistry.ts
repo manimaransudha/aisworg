@@ -17,12 +17,8 @@ import { listTemplatesWithNextStates, copyTemplateAsNewDraft } from "../core/tem
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+ 
 const TEMPLATE_STATES = ["Draft", "Validated", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
 /** GET /aisworg/seu/templates — every published Version of every Template. */
@@ -46,6 +42,7 @@ router.get("/templates", attachVM("seu/templates/index"), async (req: Request, r
     });
     list.category = activeCategory || undefined;
     list.status = activeStatus || undefined;
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     req.vm.req.list = list;
     req.vm.opt.listBasePath = "/aisworg/seu/templates";
     req.vm.opt.categories = categories;

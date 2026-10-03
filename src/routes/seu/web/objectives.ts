@@ -40,14 +40,10 @@ import { listConceptsForType } from "../core/ontology.js";
 import type { ObjectiveStatus, ObjectiveTier, EbmCompositionReport, EbmComposedPack } from "../../../dblayer/seuTypes.js";
 import type { UnraveledComposition, CompositionConflict } from "../../../domain/engine/profileCompositionUnravel.js";
 import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
-import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
+import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
 import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+ 
 // Which child tiers a node of a given tier may contextually add (the buttons the
 // tree offers). Strategic is only ever created from the empty/root affordance.
 const CHILD_TIERS: Record<ObjectiveTier, ObjectiveTier[]> = {
@@ -686,7 +682,7 @@ router.post("/objectives/:id/validate-commission", async (req: Request, res: Res
   }
 
   try {
-    const viewerTenantId = req.session?.user?.tenant_id ?? PLATFORM_TENANT_ID;
+    const viewerTenantId = req.session?.user?.tenant_id ?? (await getPlatformTenantId());
 
     // design/mvp-build-plan/SEU Composition.md, 2026-09-07 — "Queue to
     // Validate" is the real manual trigger for CommissionRequested (owner:
@@ -786,7 +782,7 @@ router.post("/objectives/:id/compose-ebm", async (req: Request, res: Response) =
   if (selections.length === 0) return flashError(req, res, backTo, "Nothing to re-validate.");
 
   try {
-    const viewerTenantId = req.session?.user?.tenant_id ?? PLATFORM_TENANT_ID;
+    const viewerTenantId = req.session?.user?.tenant_id ?? (await getPlatformTenantId());
     const { data: existingSeu } = await seusDB.findByObjectiveId(objectiveId);
     if (!existingSeu) return flashError(req, res, backTo, "No SEU found for this Objective.");
 
@@ -855,9 +851,9 @@ router.post("/objectives/:id/compose-ebm", async (req: Request, res: Response) =
     if (compositionConflicts.length === 0) {
       const actorId = String(req.session.user.id);
       if (!actorId) return flashError(req, res, backTo, "no acting user to record as this EBM's author — log in first");
-      const authRow = lookupRouteAuthority(req.method, req.path);
+      const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
       const held = await resolveHeldBadges(req);
-      const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+      const authorBadge = resolveAuthorBadge(authRow, held);
       if (!authorBadge) return flashError(req, res, backTo, "no held badge authorises this action — cannot record an author badge");
       await eventBus.publish({
         eventType: "CompositionCompleted",

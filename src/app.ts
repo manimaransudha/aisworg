@@ -131,7 +131,7 @@ if (process.env.NODE_ENV === 'test') {
                 if (!user) return next(new Error(`x-test-user-id ${testUserId}: no such user`));
                 req.session.user = await buildSessionUser(user);
                 await ensureBadgeBootstrap(user);
-                req.session.user.platformBadges = await getPlatformBadges(String(user.id));
+                req.session.user.platformBadges = await getPlatformBadges(String(req.session.user.id));
                 next();
             })().catch(next);
             return;

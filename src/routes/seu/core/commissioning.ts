@@ -34,12 +34,8 @@ import { /* findOrCreateDefaultProfile, */ extractProfileDetails, getProfilePack
 import type { ProfileDetail } from "./profiles.js";
 import { resolveLabels } from "./ontology.js";
 import type { CommissioningReport, SeuLifecycleState, SeuRow, TemplateRow, ProfileRow, ObjectiveRow, CapabilityRow, TemplateDeliverableSeed, EbmCompositionReport, EbmComposedPack, EbmRow } from "../../../dblayer/seuTypes.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId } from "../../../dblayer/constants.js";
+ 
 // commissionSeu itself can no longer produce a full CommissioningReport
 // synchronously (design/mvp-build-plan/SEU Composition.md, "Structural
 // consequence" — a real, human-in-the-loop manual gate means the pipeline
@@ -287,7 +283,7 @@ export async function commissionSeu(input: {
     const { data: defaultTenant } = await tenantsDB.findDefault();
     tenantId = defaultTenant?.id ?? null;
   }
-  const viewerTenantId = tenantId ?? PLATFORM_TENANT_ID;
+  const viewerTenantId = tenantId ?? (await getPlatformTenantId());
 
   let seu: SeuRow;
   let correlationId: string;
@@ -443,7 +439,7 @@ export async function finalizeCommissioning(input: {
   // ServiceDefinitionRow.outputs is mistyped `string | null` (pre-existing —
   // the column itself is a real Postgres TEXT[], migration 159); cast to the
   // actual runtime shape rather than widen that shared type here.
-  const { data: serviceDefinitions } = await serviceDefinitionsDB.findAllVisibleTo(tenantId ?? PLATFORM_TENANT_ID);
+  const { data: serviceDefinitions } = await serviceDefinitionsDB.findAllVisibleTo(tenantId ?? (await getPlatformTenantId()));
   const producingCapabilityByDeliverableCode = new Map<string, { id: string }>();
   for (const capability of requiredCapabilities ?? []) {
     const def = (serviceDefinitions ?? []).find((d) => d.capability_code === capability.code && d.status === "Active");

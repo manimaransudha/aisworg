@@ -6,7 +6,7 @@ const router = express.Router();
 import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { createExternalInteraction, listExternalInteractionsBySeu, transitionExternalInteraction } from "../core/externalInteractions.js";
-import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
+import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
 import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 import type { InteractionDirection } from "../../../dblayer/seuTypes.js";
 
@@ -24,9 +24,9 @@ router.post("/external-interactions", async (req: Request, res: Response) => {
     }
     const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
     if (!actorId) return res.status(401).json({ error: "no acting user to record as this External Interaction's author — log in first" });
-    const authRow = lookupRouteAuthority(req.method, req.path);
+    const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
     const held = await resolveHeldBadges(req);
-    const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+    const authorBadge = resolveAuthorBadge(authRow, held);
     if (!authorBadge) return res.status(403).json({ error: "no held badge authorises this action — cannot record an author badge" });
     const interaction = await createExternalInteraction({ seuId, deliverableId, interactionType, direction: direction as InteractionDirection, targetSystem, purpose, actorId, authorBadge });
     res.status(201).json({ interaction });

@@ -11,12 +11,8 @@ import { requireTenant } from "../../../middleware/requireTenant.js";
 import { requireTenantScope } from "../../../middleware/requireTenantScope.js";
 import type { PackStatus } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId } from "../../../dblayer/constants.js";
+ 
 // CR-076 follow-up (Pack) — same two gap shapes already found and fixed on
 // api/objectives.ts: an unfiltered list route, and a single multi-target
 // transition route with no route-level badge check at all.
@@ -53,7 +49,7 @@ router.param(
   requireTenantScope.forParam("id", packsDB.findById, (p) => p.tenant_id, {
     mode: "api",
     notFoundMessage: "Pack not found",
-    platformTenantId: PLATFORM_TENANT_ID,
+    platformTenantId: (await getPlatformTenantId()),
   })
 );
 

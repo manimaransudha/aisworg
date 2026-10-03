@@ -7,7 +7,7 @@ import type { Request, Response, NextFunction } from "express";
 import { attachVM } from "../../../middleware/attachVM.js";
 import { renderView } from "../../../utils/viewModel.js";
 import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
-import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
+import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
 import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { logger } from "../../../utils/logger.js";
@@ -174,9 +174,9 @@ router.post("/identity/tenants", async (req: Request, res: Response) => {
   // The required badge(s) for this route are route_authority's own data
   // (CR-110), not a literal here -- authorBadge is whichever of those this
   // session's actual held badges satisfies.
-  const authRow = lookupRouteAuthority(req.method, req.path);
+  const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
   const held = await resolveHeldBadges(req);
-  const authorBadge = authRow?.badges.find((b) => held.has(b));
+  const authorBadge = resolveAuthorBadge(authRow, held);
   if (!authorBadge) return flashError(req, res, tenantsBackTo, "No author badge resolved for this Tenant creation.");
   try {
     const result = await createTenant({ code: code.trim(), name: name.trim(), authorId: actorId, authorBadge, is_system: false });

@@ -20,7 +20,7 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { objectivesDB } from "../src/dblayer/objectivesDB.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { publishPack } from "../src/routes/seu/core/packs.js";
-import { uniqueTestPackVersion, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
+import { uniqueTestPackVersion, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 // Post-MVP Phase 9's own "Done when" line asked for a second,
 // independently-versioned Pack composed alongside the first — this exercises
@@ -38,12 +38,12 @@ test("compositionEngine.compose resolves a Template's mandatory Pack plus a Prof
   const optionalCode = "test-compose-optional";
 
   const mandatory = await publishPack({
-    seed: { code: mandatoryCode, name: "Test Mandatory Pack", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} },
+    seed: { code: mandatoryCode, name: "Test Mandatory Pack", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {}, tenantId: PLATFORM_TENANT_ID },
     actorRole: "power", actorId: TESTER_ALL_ID,
     activate: true,
   });
   const optional = await publishPack({
-    seed: { code: optionalCode, name: "Test Optional Pack", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} },
+    seed: { code: optionalCode, name: "Test Optional Pack", category: "Engineering", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {}, tenantId: PLATFORM_TENANT_ID },
     actorRole: "power", actorId: TESTER_ALL_ID,
     activate: true,
   });

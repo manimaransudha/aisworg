@@ -56,6 +56,7 @@ async function freshPackSeed(overrides: Partial<PackSeedInput> = {}): Promise<Pa
       // Pack-scoped, so reusing it across many unrelated test Packs is safe.
       capabilities: [{ code: "software-construction" }],
     },
+    tenantId: PLATFORM_TENANT_ID,
     ...overrides,
   };
 }

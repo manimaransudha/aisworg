@@ -6,13 +6,8 @@ import { eventBus } from "../../../domain/engine/eventBus.js";
 import { assertCanonicalCategory, syncConceptFromEntity, retireConceptForEntity } from "./ontology.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import type { ServiceDefinitionRow, ServiceLevelExpectation } from "../../../dblayer/seuTypes.js";
-import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+ 
 // CR-086 follow-on — Service Definition authoring (Book 3 Ch.11), mirroring
 // core/deliverableDefinitions.ts in shape. Two differences from that
 // entity's own treatment:
@@ -67,7 +62,7 @@ export async function validateServiceDefinitionSeed(seed: ServiceDefinitionSeedI
   if (!seed.capabilityCode?.trim()) errors.push("capabilityCode is required");
   if (!SEMVER_RE.test(seed.version ?? "")) errors.push(`version must be semver (x.y.z), got: "${seed.version}"`);
 
-  const tenantId = seed.tenantId ?? PLATFORM_TENANT_ID;
+  const tenantId = seed.tenantId ?? (await getPlatformTenantId());
   if (seed.code?.trim() && SEMVER_RE.test(seed.version ?? "")) {
     const collision = await assertServiceDefinitionCodeVersionFree(seed.code, seed.version, tenantId, excludeId);
     if (collision) errors.push(collision);
@@ -115,6 +110,7 @@ export async function validateServiceDefinitionSeed(seed: ServiceDefinitionSeedI
 
   if (seed.parentServiceDefinitionId) {
     const { data: parent } = await serviceDefinitionsDB.findById(seed.parentServiceDefinitionId);
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     if (!parent) {
       errors.push(`parentServiceDefinitionId "${seed.parentServiceDefinitionId}" not found`);
     } else if (parent.status !== "Active") {

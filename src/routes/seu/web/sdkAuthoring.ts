@@ -50,7 +50,7 @@ import { transitionTemplate, PACK_SELECTION_SLOTS, deriveCapabilityCodesFromPack
 import { transitionProfile, CONFIGURATION_PARAMETER_FIELDS, type ExposedParameterOverride } from "../core/profiles.js";
 import { ontologyDB } from "../../../dblayer/ontologyDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
-import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
+import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
 import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 import { transitionDeliverableDefinition, listInheritableDeliverableDefinitions, inheritedDeliverableDefinitionContent } from "../core/deliverableDefinitions.js";
 import { transitionServiceDefinition, listInheritableServiceDefinitions, inheritedServiceDefinitionContent } from "../core/serviceDefinitions.js";
@@ -64,13 +64,8 @@ import {
 } from "../core/authorityVocabulary.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import type { SchemaDefinitionEntityKind, ServiceLevelExpectation, TemplateDependencyGraphEntry } from "../../../dblayer/seuTypes.js";
-import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId } from "../../../dblayer/constants.js";
+ 
 const KIND_BY_SLUG: Record<string, SchemaDefinitionEntityKind> = {
   "pack-authoring": "Pack",
   "template-authoring": "Template",
@@ -223,6 +218,7 @@ function requireDraftTenantScope() {
     const slug = String(req.params.slug);
     const kind = resolveKind(slug);
     if (!kind) return next();
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     const opts = { mode: "web" as const, notFoundRedirect: backToIndex(slug), notFoundMessage: "Not found.", platformTenantId: PLATFORM_TENANT_ID };
     const gate =
       kind === "Pack" ? requireTenantScope.forParam("draftId", packsDB.findById, (p) => p.tenant_id, opts) :
@@ -415,9 +411,9 @@ async function resolveAuthorityVocabAuthor(req: Request): Promise<{ authorId: st
   
   const { data: master } = await participantsMasterDB.findById(userId);
   if (!master) return { error: `No superuser provisioned.` };
-  const authRow = lookupRouteAuthority(req.method, req.path);
+  const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
   const held = await resolveHeldBadges(req);
-  const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+  const authorBadge = resolveAuthorBadge(authRow, held);
   if (!authorBadge) return { error: "No held badge authorises this action -- cannot record an author badge." };
   return { authorId: master.id, authorBadge };
 }
@@ -718,7 +714,7 @@ interface PackCodesCapabilityCoverage {
 }
 async function loadPackCodesCapabilityCoverage(content: Record<string, unknown>, viewerTenantId: string | null): Promise<PackCodesCapabilityCoverage> {
   const deliverableCodes = extractDeliverableCatalogueCodes(content);
-  const { data: serviceDefinitions } = await serviceDefinitionsDB.findAllVisibleTo(viewerTenantId ?? PLATFORM_TENANT_ID);
+  const { data: serviceDefinitions } = await serviceDefinitionsDB.findAllVisibleTo(viewerTenantId ?? (await getPlatformTenantId()));
   const requiredSet = new Set<string>();
   for (const def of serviceDefinitions ?? []) {
     if (def.status !== "Active") continue;
@@ -759,7 +755,7 @@ export interface ExposableParameterRow extends ExposableParameterCandidate {
 async function loadExposableParameterRows(content: Record<string, unknown>, viewerTenantId: string | null): Promise<ExposableParameterRow[]> {
   const packCodes = [...new Set(PACK_SELECTION_SLOTS.flatMap((slot) => extractPackCodes(content[slot.field as string])))];
   const dependencyGraph = Array.isArray(content.dependencyGraph) ? (content.dependencyGraph as TemplateDependencyGraphEntry[]) : [];
-  const candidates = await deriveExposableParameterCandidates(packCodes, viewerTenantId ?? PLATFORM_TENANT_ID, dependencyGraph);
+  const candidates = await deriveExposableParameterCandidates(packCodes, viewerTenantId ?? (await getPlatformTenantId()), dependencyGraph);
   const existing = Array.isArray(content.exposedParameters) ? (content.exposedParameters as ExposedParameter[]) : [];
   const existingByKey = new Map(existing.map((e) => [`${e.sourceType}::${e.sourceCode}::${e.parameterName}`, e]));
   return candidates.map((c) => {
@@ -783,7 +779,7 @@ interface ProfileParameterOverrideRow extends ExposableParameterCandidate {
 async function loadProfileParameterOverrideRows(content: Record<string, unknown>, viewerTenantId: string | null): Promise<ProfileParameterOverrideRow[]> {
   const baseTemplateCode = typeof content.baseTemplateCode === "string" ? content.baseTemplateCode.trim() : "";
   if (!baseTemplateCode) return [];
-  const candidates = await deriveOverridableParameterCandidates(baseTemplateCode, viewerTenantId ?? PLATFORM_TENANT_ID);
+  const candidates = await deriveOverridableParameterCandidates(baseTemplateCode, viewerTenantId ?? (await getPlatformTenantId()));
   const existing = Array.isArray(content.exposedParameterOverrides) ? (content.exposedParameterOverrides as ExposedParameterOverride[]) : [];
   const existingByKey = new Map(existing.map((e) => [`${e.sourceType}::${e.sourceCode}::${e.parameterName}`, e]));
   return candidates.map((c) => {
@@ -1132,7 +1128,7 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   // the branch-picker's own links navigate to THIS page with ?fromPackId=,
   // which only /sdk/:slug/new handles; rendering it on an existing Draft's
   // edit page would just be a dead link.
-  req.vm.opt.packCodeVersions = kind === "Pack" && !draft ? await packCodeVersionSummaries(req.session?.user?.tenant_id ?? PLATFORM_TENANT_ID) : {};
+  req.vm.opt.packCodeVersions = kind === "Pack" && !draft ? await packCodeVersionSummaries(req.session?.user?.tenant_id ?? (await getPlatformTenantId())) : {};
   req.vm.req.title = draft ? `${kind} Definition — ${draft.status}` : `New ${kind}`;
   req.vm.req.kindLabel = kind;
   req.vm.req.slug = slug;
@@ -1232,6 +1228,7 @@ async function renderAuthoringForm(req: Request, res: Response, kind: SchemaDefi
   // new Template Draft, only to a real tenant author (never Platform, never
   // root — "no change" for Platform's own flow). Ch.7 §9 Profile Inheritance
   // (owner, 2026-08-19): same treatment, for Profile.
+  const PLATFORM_TENANT_ID = await getPlatformTenantId();
   req.vm.opt.inheritableTemplates = kind === "Template" && !draft && viewer.tenantId && viewer.tenantId !== PLATFORM_TENANT_ID
     ? await listInheritableTemplates(viewer.tenantId)
     : [];
@@ -1328,7 +1325,7 @@ router.get("/sdk/:slug/new", requireDefineBadge(), attachVM("seu/sdk/authoring/e
       // inheritedPackVersionContent's strict tenant match ("PLATFORM_TENANT_ID"
       // !== "") fail every single time for exactly that (common, dev-testing)
       // case, silently bouncing to the index instead of pre-filling.
-      const viewerTenantId = req.session?.user?.tenant_id ?? PLATFORM_TENANT_ID;
+      const viewerTenantId = req.session?.user?.tenant_id ?? (await getPlatformTenantId());
       const inherited = await inheritedPackVersionContent(fromPackId, viewerTenantId);
       if (!inherited.ok) return flashError(req, res, backToIndex(slug), inherited.error);
       return await renderAuthoringForm(req, res, kind, slug, null, { content: inherited.content });

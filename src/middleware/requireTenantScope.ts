@@ -29,6 +29,7 @@
 // matches" — objectivesDB.findAll's own rule, reused here). root bypasses.
 import type { Request, Response, NextFunction } from "express";
 import { flashError } from "../utils/flash.js";
+import { logger } from "../utils/logger.js";
 import type { DbResult } from "../dblayer/seuTypes.js";
 
 function isRoot(req: Request): boolean {
@@ -88,7 +89,16 @@ export const requireTenantScope = {
     return async (req: Request, res: Response, next: NextFunction, value: string): Promise<void> => {
       const result = await lookup(value);
       const row = result.data ?? null;
-      if (!row || !inReach(req, getTenantId(row), opts.platformTenantId)) {
+      if (!row) {
+        logger.warn(`[requireTenantScope.forParam] denied ${req.method} ${req.path} — no row for ${paramName}=${value}`);
+        denyNotFound(req, res, opts);
+        return;
+      }
+      if (!inReach(req, getTenantId(row), opts.platformTenantId)) {
+        logger.warn(
+          `[requireTenantScope.forParam] denied ${req.method} ${req.path} — tenant mismatch for ${paramName}=${value} ` +
+            `(row tenant=${getTenantId(row) ?? "null"}, viewer tenant=${req.session?.user?.tenant_id ?? "null"}, viewer isRoot=${isRoot(req)})`
+        );
         denyNotFound(req, res, opts);
         return;
       }

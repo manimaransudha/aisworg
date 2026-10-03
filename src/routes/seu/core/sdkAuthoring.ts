@@ -62,12 +62,8 @@ import { listCurrentTransitionDefinitions } from "./transitionDefinitions.js";
 import type { CapabilityRole, EvidenceDefinition, PackContributions, PackRow, PolicyCondition, ProfileRow, SchemaDefinitionEntityKind, ServiceLevelExpectation, TemplateRow, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { randomUUID } from "node:crypto";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId } from "../../../dblayer/constants.js";
+ 
 // ---------------------------------------------------------------------------
 // Content reassembly (unchanged from the previous flattened-form handling).
 // ---------------------------------------------------------------------------
@@ -938,6 +934,7 @@ export async function listInheritableTemplates(viewerTenantId: string): Promise<
 // column... this will suffice") locks a Derived Template to its parent's code,
 // disambiguated by the NEW Draft's own tenant_id, not a new code.
 export async function inheritedTemplateContent(parentTemplateId: string, viewerTenantId: string): Promise<{ ok: true; content: Record<string, unknown> } | { ok: false; error: string }> {
+  const PLATFORM_TENANT_ID = await getPlatformTenantId();
   const { data: parent } = await templatesDB.findById(parentTemplateId);
   if (!parent) return { ok: false, error: "parent Template not found" };
   if (parent.status !== "Active") return { ok: false, error: "a Template can only be inherited from an Active Version" };
@@ -985,6 +982,7 @@ export async function inheritedPackVersionContent(fromPackId: string, viewerTena
   // has nothing of their own under that code (see that function's own
   // comment); this check has to accept the same Platform-owned source it
   // now legitimately links to, not just this exact tenant's own rows.
+  const PLATFORM_TENANT_ID = await getPlatformTenantId();
   if (source.tenant_id !== viewerTenantId && source.tenant_id !== PLATFORM_TENANT_ID) return { ok: false, error: "source Pack is not this tenant's own" };
   if (!BRANCHABLE_PACK_STATUSES.has(source.status)) return { ok: false, error: `a Pack can only be branched from Published, Active, Retired, or Archived (this one is ${source.status})` };
   const summaries = await packCodeVersionSummaries(viewerTenantId);
@@ -1059,6 +1057,7 @@ export async function inheritedProfileContent(parentProfileId: string, viewerTen
   const { data: parent } = await profilesDB.findById(parentProfileId);
   if (!parent) return { ok: false, error: "parent Profile not found" };
   if (parent.status !== "Active") return { ok: false, error: "a Profile can only be inherited from an Active Version" };
+  const PLATFORM_TENANT_ID = await getPlatformTenantId();
   if (parent.tenant_id !== PLATFORM_TENANT_ID && parent.tenant_id !== viewerTenantId) {
     return { ok: false, error: "parent Profile is not visible to this tenant" };
   }
@@ -1124,7 +1123,7 @@ export async function inheritedProfileContent(parentProfileId: string, viewerTen
 // description is honoured too.
 async function withDefaultTemplatePurpose(content: Record<string, unknown>, code: string, tenantId?: string): Promise<Record<string, unknown>> {
   if (typeof content.purpose === "string" && content.purpose.trim()) return content;
-  const { data: concept } = await ontologyDB.findConcept("template-categories", code, { isRoot: false, tenantId: tenantId ?? PLATFORM_TENANT_ID });
+  const { data: concept } = await ontologyDB.findConcept("template-categories", code, { isRoot: false, tenantId: tenantId ?? (await getPlatformTenantId()) });
   if (!concept?.description) return content;
   return { ...content, purpose: concept.description };
 }
@@ -1171,7 +1170,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     // Update note): `code` comes from toPackSeedInput's real value now (the
     // Ontology picker, a seed file, or an imported doc), never a minted UUID.
     const seed = toPackSeedInput(input.content);
-    const collision = await assertPackCodeVersionFree(seed.code, seed.packVersion, input.tenantId ?? PLATFORM_TENANT_ID);
+    const collision = await assertPackCodeVersionFree(seed.code, seed.packVersion, input.tenantId ?? (await getPlatformTenantId()));
     if (collision) return { ok: false, errors: [collision] };
     // authored_by/author_badge are NOT NULL, participants_master-scoped (same
     // convention as Template/Profile above) — resolve the real participant +
@@ -1191,7 +1190,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
       metadata: packMetadataFromSeed(seed),
       authoredBy: packMaster.id,
       authorBadge: input.authorBadge,
-      tenantId: input.tenantId ?? PLATFORM_TENANT_ID,
+      tenantId: input.tenantId ?? (await getPlatformTenantId()),
       schemaDefinitionId: input.schemaDefinitionId,
     });
     if (error || !pack) return { ok: false, errors: [(error ?? new Error("failed to create Pack draft")).message] };
@@ -1232,7 +1231,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     let parentTenantCheckError: string | null = null;
     let code = typeof input.content.code === "string" && input.content.code.trim() ? input.content.code.trim() : randomUUID();
     if (input.parentTemplateId) {
-      const inherited = await inheritedTemplateContent(input.parentTemplateId, input.tenantId ?? PLATFORM_TENANT_ID);
+      const inherited = await inheritedTemplateContent(input.parentTemplateId, input.tenantId ?? (await getPlatformTenantId()));
       if (!inherited.ok) parentTenantCheckError = inherited.error;
       else code = inherited.content.code as string;
     }
@@ -1245,7 +1244,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     // always starts at 1.0.0 (contentForForm, web/sdkAuthoring.ts); a JSON
     // import/CLI path that omits it gets the same default.
     const templateVersion = typeof input.content.templateVersion === "string" && input.content.templateVersion.trim() ? input.content.templateVersion.trim() : "1.0.0";
-    const tenantId = input.tenantId ?? PLATFORM_TENANT_ID;
+    const tenantId = input.tenantId ?? (await getPlatformTenantId());
     const collision = await assertTemplateCodeVersionFree(code, templateVersion, tenantId);
     if (collision) return { ok: false, errors: [collision] };
     const draftContent = await withDefaultTemplatePurpose({ ...input.content, code }, code, tenantId);
@@ -1274,7 +1273,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
     // submitted.
     let parentProfileTenantCheckError: string | null = null;
     let code = typeof input.content.code === "string" && input.content.code.trim() ? input.content.code.trim() : randomUUID();
-    const tenantId = input.tenantId ?? PLATFORM_TENANT_ID;
+    const tenantId = input.tenantId ?? (await getPlatformTenantId());
     if (input.parentProfileId) {
       const inherited = await inheritedProfileContent(input.parentProfileId, tenantId);
       if (!inherited.ok) parentProfileTenantCheckError = inherited.error;
@@ -1327,7 +1326,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
   }
   if (input.kind === "Deliverable") {
     const seed = toDeliverableDefinitionSeedInput(input.content);
-    const tenantId = input.tenantId ?? PLATFORM_TENANT_ID;
+    const tenantId = input.tenantId ?? (await getPlatformTenantId());
     // Ch.15 §12 inheritance — unlike Template, code is NOT locked to the
     // parent's own (see validateDeliverableDefinitionSeed's own comment).
     if (input.parentDeliverableDefinitionId) {
@@ -1361,7 +1360,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
   }
   if (input.kind === "Service") {
     const seed = toServiceDefinitionSeedInput(input.content);
-    const tenantId = input.tenantId ?? PLATFORM_TENANT_ID;
+    const tenantId = input.tenantId ?? (await getPlatformTenantId());
     if (input.parentServiceDefinitionId) {
       const inherited = await inheritedServiceDefinitionContent(input.parentServiceDefinitionId);
       if (!inherited.ok) return { ok: false, errors: [inherited.error] };
@@ -1404,7 +1403,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
   }
   if (input.kind === "Policy") {
     const seed = toPolicyDefinitionSeedInput(input.content);
-    const tenantId = input.tenantId ?? PLATFORM_TENANT_ID;
+    const tenantId = input.tenantId ?? (await getPlatformTenantId());
     if (input.parentPolicyDefinitionId) {
       const inherited = await inheritedPolicyDefinitionContent(input.parentPolicyDefinitionId);
       if (!inherited.ok) return { ok: false, errors: [inherited.error] };
@@ -1446,7 +1445,7 @@ export async function createAuthoringDraft(input: { kind: SchemaDefinitionEntity
   }
   if (input.kind === "Capability") {
     const seed = toCapabilityDefinitionSeedInput(input.content);
-    const tenantId = input.tenantId ?? PLATFORM_TENANT_ID;
+    const tenantId = input.tenantId ?? (await getPlatformTenantId());;
     if (input.parentCapabilityDefinitionId) {
       const inherited = await inheritedCapabilityDefinitionContent(input.parentCapabilityDefinitionId);
       if (!inherited.ok) return { ok: false, errors: [inherited.error] };

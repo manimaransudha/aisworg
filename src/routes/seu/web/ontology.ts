@@ -32,13 +32,8 @@ import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { listConceptTypes, listConceptsForType, addConcept, deprecateConcept, retireConcept, archiveConcept, composeConcept, updateConceptMeta, quickRetireConcept, listAllConceptsForPicker, listDistinctUiGroupings, getConceptTypeNav, tabsForActiveType, approveConcept, rejectConcept, listDraftConceptsForApproval, type OntologyActor } from "../core/ontology.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { renderMarkdown } from "../../../domain/sdk/markdownRender.js";
-import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId  } from "../../../dblayer/constants.js";
+ 
 const backTo = "/aisworg/seu/sdk/ontology";
 
 // Same heldBadges/gate shape as sdkAuthoring.ts's own (not shared/exported
@@ -95,6 +90,7 @@ router.get("/sdk/ontology", attachVM("seu/sdk/ontology/index"), async (req: Requ
       Deprecated: { toState: "Retired", verb: "retire" },
       Retired: { toState: "Archived", verb: "archive" },
     };
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     const rows = concepts.map((c) => ({
       id: c.id,
       code: c.code,
@@ -163,6 +159,7 @@ router.get("/sdk/ontology/metadata", attachVM("seu/sdk/ontology/metadata"), asyn
     // still needs a row to click "Edit" on, or there'd be no way to set its
     // first group/text type except retyping its type+code from scratch in
     // the form above.
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     const listRows = allConcepts.map((c) => ({
       conceptType: c.concept_type,
       code: c.code,
@@ -206,7 +203,7 @@ router.get("/sdk/ontology/metadata", attachVM("seu/sdk/ontology/metadata"), asyn
     // No tenant selector on this page yet (same simplification the
     // Add-concept form already makes) — root curates Platform's canonical
     // rows, everyone else their own tenant's.
-    req.vm.opt.defaultTenantId = actor.isRoot ? PLATFORM_TENANT_ID : actor.tenantId;
+    req.vm.opt.defaultTenantId = actor.tenantId || PLATFORM_TENANT_ID;
     req.vm.opt.flash = getFlash(req);
     return renderView(req, res, "seu/sdk/ontology/metadata", req.vm);
   } catch (err) {
@@ -347,6 +344,7 @@ router.post("/sdk/ontology/quick-retire", async (req: Request, res: Response) =>
 
 /** GET /aisworg/seu/sdk/ontology/approvals — CR-113 item 6. Every Draft concept, across every concept_type, gated on ontology_approve (route_authority). Accept/Reject are the same tab's two outcomes of the same process. */
 router.get("/sdk/ontology/approvals", attachVM("seu/sdk/ontology/approvals"), async (req: Request, res: Response, next: NextFunction) => {
+  const PLATFORM_TENANT_ID = await getPlatformTenantId();
   try {
     const held = await heldBadges(req);
     const actor = actorFrom(req, held);

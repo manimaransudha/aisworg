@@ -11,7 +11,7 @@ import { logger } from "../../../utils/logger.js";
 import { listSeusPaginated, getSeuDetailView, getSeuEbmView } from "../core/seus.js";
 import { parseListParams } from "../../../utils/listQuery.js";
 import { getObjectiveDetail, listCommissionableObjectives } from "../core/objectives.js";
-import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
+import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
 import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 import { fulfilCapabilityWithParticipants, releaseParticipants } from "../core/capabilities.js";
 import { replaceParticipant } from "../core/participants.js";
@@ -167,9 +167,14 @@ router.post("/seus/:id/capabilities/:capabilityId/fulfil", async (req: Request, 
 
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
   if (!actorId) return flashError(req, res, backTo, "No acting user to record as this Capability Fulfilment's author — log in first.");
-  const authRow = lookupRouteAuthority(req.method, req.path);
+  // req.path alone is router-relative (this router is mounted at /aisworg/seu
+  // — Express strips the mount prefix), so it never matched a route_authority
+  // row and silently fell through to "no held badge" for every non-root
+  // actor. req.baseUrl + req.path reconstructs the full path the gate/
+  // grantRouteBadges already key off.
+  const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
   const held = await resolveHeldBadges(req);
-  const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+  const authorBadge = resolveAuthorBadge(authRow, held);
   if (!authorBadge) return flashError(req, res, backTo, "No held badge authorises this action — cannot record an author badge.");
 
   try {
@@ -203,9 +208,9 @@ router.post("/seus/:id/capabilities/:capabilityId/participant/:participantId/rep
     return flashError(req, res, backTo, "Replacement Participant type and display name are required.");
   }
 
-  const authRow = lookupRouteAuthority(req.method, req.path);
+  const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
   const held = await resolveHeldBadges(req);
-  const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+  const authorBadge = resolveAuthorBadge(authRow, held);
   if (!authorBadge) return flashError(req, res, backTo, "No held badge authorises this action — cannot record an author badge.");
 
   try {
@@ -405,9 +410,9 @@ router.post("/seus/:id/attention-items", async (req: Request, res: Response) => 
 
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
   if (!actorId) return flashError(req, res, backTo, "No acting user to record as this Attention Item's author — log in first.");
-  const authRow = lookupRouteAuthority(req.method, req.path);
+  const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
   const held = await resolveHeldBadges(req);
-  const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+  const authorBadge = resolveAuthorBadge(authRow, held);
   if (!authorBadge) return flashError(req, res, backTo, "No held badge authorises this action — cannot record an author badge.");
 
   try {
@@ -469,9 +474,9 @@ router.post("/seus/:id/evidence", async (req: Request, res: Response) => {
 
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
   if (!actorId) return flashError(req, res, backTo, "No acting user to record as this Evidence's author — log in first.");
-  const authRow = lookupRouteAuthority(req.method, req.path);
+  const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
   const held = await resolveHeldBadges(req);
-  const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+  const authorBadge = resolveAuthorBadge(authRow, held);
   if (!authorBadge) return flashError(req, res, backTo, "No held badge authorises this action — cannot record an author badge.");
 
   try {
@@ -551,9 +556,9 @@ router.post("/seus/:id/evidence/:evidenceId/link", async (req: Request, res: Res
 
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
   if (!actorId) return flashError(req, res, backTo, "No acting user to record as this link's author — log in first.");
-  const authRow = lookupRouteAuthority(req.method, req.path);
+  const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
   const held = await resolveHeldBadges(req);
-  const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+  const authorBadge = resolveAuthorBadge(authRow, held);
   if (!authorBadge) return flashError(req, res, backTo, "No held badge authorises this action — cannot record an author badge.");
 
   try {
@@ -739,9 +744,9 @@ router.post("/seus/:id/external-interactions", async (req: Request, res: Respons
 
   const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
   if (!actorId) return flashError(req, res, backTo, "No acting user to record as this External Interaction's author — log in first.");
-  const authRow = lookupRouteAuthority(req.method, req.path);
+  const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
   const held = await resolveHeldBadges(req);
-  const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+  const authorBadge = resolveAuthorBadge(authRow, held);
   if (!authorBadge) return flashError(req, res, backTo, "No held badge authorises this action — cannot record an author badge.");
 
   try {

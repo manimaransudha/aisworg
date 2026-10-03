@@ -41,7 +41,7 @@ import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { capabilitiesDB } from "../src/dblayer/capabilitiesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
-import { ensureWebAppTemplateFixture, uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, waitUntilAsync, resolveDispatchRejectionObligations, ROOT_USER_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, TESTER_OBJECTIVE_ATHENS, TESTER_OBJECTIVE_BABYLON, TESTER_OBJECTIVE_ACHIEVE_ONLY } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, uniqueTestPackVersion, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, waitUntilAsync, resolveDispatchRejectionObligations, ROOT_USER_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID, TESTER_OBJECTIVE_ATHENS, TESTER_OBJECTIVE_BABYLON, TESTER_OBJECTIVE_ACHIEVE_ONLY, grantRouteBadges, ensureSeuRequesterParticipant, ensureActorParticipant } from "./testFixtures.js";
 import { getSeuDetailView } from "../src/routes/seu/core/seus.js";
 import type { CommandRow, WorkItemRow } from "../src/dblayer/seuTypes.js";
 import { getPlatformTenantId } from "../src/dblayer/constants.js";
@@ -192,6 +192,15 @@ async function commissionSeu(request: Session, statementPrefix: string): Promise
     requestedBy: TESTER_OBJECTIVE_ATHENS.participantId,
   });
 
+  // TESTER_OBJECTIVE_ATHENS (seedIdentityBaseline.ts) is documented/scoped to
+  // real objective_* badges only — this helper also drives it through the
+  // SEU commission POST and the EBM Validate/Activate hops, which need
+  // whatever badge route_authority/the real transition rows actually declare
+  // for those — granted here, at test-run time, onto its own
+  // participants_master row rather than widening the seed fixture or
+  // hardcoding a badge name at the call site.
+  await grantRouteBadges(TESTER_OBJECTIVE_ATHENS.participantId, "POST", `/aisworg/seu/objectives/${objective.id}/commission`);
+
   const picker = await getPage(request, `/seu/seus/new?objectiveId=${objective.id}`);
   assert.equal(picker.status, 200);
   const csrf = extractCsrf(picker.html);
@@ -207,6 +216,14 @@ async function commissionSeu(request: Session, statementPrefix: string): Promise
   assert.equal(result.status, 302, "expected a redirect to the new SEU's detail page");
   assert.ok(result.location?.startsWith("/aisworg/seu/seus/"), `expected a redirect to the SEU detail page, got: ${result.location}`);
   const seuId = result.location!.split("/").pop()!;
+
+  // Create Engineering Assets (inside finalizeCommissioning, off
+  // EBMActivated) resolves its acting participant from this SEU's own
+  // requested_by — whoever's session actually POSTed the commission above,
+  // not necessarily TESTER_OBJECTIVE_ATHENS (this helper is called with a
+  // root-authenticated session from several tests). Derived from the real
+  // row, not assumed.
+  await ensureSeuRequesterParticipant(seuId);
 
   // design/mvp-build-plan/SEU Composition.md — the real POST this test just
   // submitted only gets commissionSeu through the shallow "Validate Request"
@@ -869,6 +886,8 @@ async function registerOrganisationName(code: string): Promise<void> {
 // Required Attention Item" assertion is exactly what that oscillation
 // breaks. One Capability, one Deliverable: nothing left to oscillate.
 async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: string): Promise<{ seuId: string; csrf: string }> {
+  // driveCommissioningToActive below grants whatever badge each governed hop
+  // it drives (Validate/Activate/commence-work) actually requires, itself.
   const packSeed = {
     code: `webflow-phase8-isolated-pack-${randomUUID().slice(0, 8)}`,
     name: "WebFlow Phase8 Isolated Pack",
@@ -937,9 +956,19 @@ async function commissionIsolatedPhase8Seu(request: Session, statementPrefix: st
   assert.equal(commissioned.ok, true, !commissioned.ok ? `Validate Request failed: ${JSON.stringify(commissioned)}` : "assertion failed");
   if (!commissioned.ok) throw new Error("unreachable");
   const seuId = commissioned.seu.id;
+  await ensureSeuRequesterParticipant(seuId);
 
   const driven = await driveCommissioningToActive({ seuId, actorRole: "super", actorId: TESTER_OBJECTIVE_ATHENS.participantId, timeoutMs: 45000 });
   assert.equal(driven.ok, true, !driven.ok ? `commissioning failed: ${driven.reason}` : "assertion failed");
+
+  // Unlike commissionSeu, this SEU's requested_by is TESTER_OBJECTIVE_ATHENS
+  // (set explicitly above, not derived from an HTTP session) — but every
+  // subsequent form POST in this fixture runs as `request`'s own actor, which
+  // capability-fulfilment's resolveAuthor (attentionItems.ts) requires to
+  // already hold a participants row in THIS SEU, with no fallback. Ensure it
+  // directly rather than relying on ensureSeuRequesterParticipant to have
+  // covered it.
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
 
   // Web session established here, for this test's own subsequent form
   // POSTs — same reason commissionSeu's own picker GET establishes one.
@@ -1101,6 +1130,7 @@ test("Phase 9 — a Pack published through the SDK is visible on the platform-wi
     packVersion,
     installationClassification: "Optional" as const,
     contributions: {},
+    tenantId: PLATFORM_TENANT_ID,
   };
   const published = await publishPack({ seed, actorRole: "power", actorId: TESTER_ALL_ID, activate: true });
   assert.equal(published.ok, true, !published.ok ? JSON.stringify(published.errors) : "assertion failed");

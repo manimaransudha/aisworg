@@ -83,6 +83,27 @@ test("transitionEngine.evaluate itself enforces an authored Transition Definitio
   });
   assert.ok(!gateError && gate, gateError?.message ?? "assertion failed");
 
+  // transitionEngine.evaluate's required_quality_gate_ids check requires a
+  // resolved authority badge (quality_gate_evaluations.author_badge is NOT
+  // NULL) — an ungoverned row (no verb) can never provide one. insertDefinition
+  // (not upsert, which carries no verb column at all) gives this throwaway
+  // triple a real, fabricated verb so authorityBadge resolves (root — the
+  // actor below — bypasses the badge check itself, but still needs a verb to
+  // bypass FOR).
+  const verb = `td-engine-verb-${randomUUID().slice(0, 8)}`;
+  const { error: insertError } = await transitionDefinitionsDB.insertDefinition({
+    entityType: "AttentionItem",
+    fromState,
+    toState,
+    verb,
+    authorId: ROOT_ACTOR_ID,
+    authorBadge: ROOT_ACTOR_BADGE,
+  });
+  assert.equal(insertError, undefined);
+
+  // insertDefinition's own INSERT has no required_quality_gate_ids column —
+  // its ON CONFLICT DO UPDATE also never touches `verb`, so this second call
+  // layers the gate onto the row just created without disturbing it.
   const { error: definitionError } = await transitionDefinitionsDB.upsert({
     entityType: "AttentionItem",
     fromState,

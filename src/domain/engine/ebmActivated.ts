@@ -58,17 +58,33 @@ export const ebmActivatedHandler: EventHandler = async (event: EventRow) => {
     return;
   }
 
-  const finalizeResult = await finalizeCommissioning({
-    seu,
-    ebm,
-    templates: [template],
-    profiles: [profile],
-    tenantId: seu.tenant_id,
-    actorRole: "system",
-    actorId: event.actor_id ?? undefined,
-    correlationId: event.correlation_id,
-    causationId: event.id,
-  });
+  // finalizeCommissioning reports failure via its own { ok: false, reason }
+  // return (handled below), but a step inside it (resolveAuthor and similar
+  // two-hop participant lookups) throws instead of returning one — left
+  // uncaught, that exception would bypass failCommissioning entirely:
+  // eventBus.dispatch's own outer catch (eventBus.ts) just logs "handler
+  // failed" and moves on, the SEU never reaches Failed, and no
+  // CommissionFailed is ever published — a caller polling for either
+  // (driveCommissioningToActive) then spins until its own timeout instead of
+  // seeing the real failure immediately. Caught here and routed through the
+  // exact same failCommissioning path a returned !ok gets.
+  let finalizeResult: Awaited<ReturnType<typeof finalizeCommissioning>>;
+  try {
+    finalizeResult = await finalizeCommissioning({
+      seu,
+      ebm,
+      templates: [template],
+      profiles: [profile],
+      tenantId: seu.tenant_id,
+      actorRole: "system",
+      actorId: event.actor_id ?? undefined,
+      correlationId: event.correlation_id,
+      causationId: event.id,
+    });
+  } catch (err) {
+    await failCommissioning(seu.id, event, (err as Error).message);
+    return;
+  }
   // CR-107 — finalizeCommissioning no longer attempts Activated -> Operational
   // (the Execution Engine owns that now, off the SEUActivated event it
   // publishes on success), so it can no longer return a Policy block here —

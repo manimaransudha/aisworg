@@ -34,8 +34,6 @@ import { createObligationAsRoot as createObligation } from "./testFixtures.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.js";
-import { authorityRulesDB } from "../src/dblayer/authorityRulesDB.js";
-import { policiesDB } from "../src/dblayer/policiesDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync } from "./testFixtures.js";
@@ -121,18 +119,29 @@ test("transitionAttentionItem is genuinely wired to qualityGateEngine — a real
   // this Quality Gate must exist before the SEU below is commissioned, or
   // its EBM's applicable_quality_gate_ids will never include it.
   //
-  // A one-off Transition Definition + Quality Gate for a randomized
-  // (fromState, toState) pair, reusing the real, already-seeded baseline
-  // Authority Rule/Policy for AttentionItem transitions (safe to reuse —
-  // upsert on an existing code is idempotent and changes nothing).
+  // Reuses the real, already-seeded AttentionItem lifecycle hop
+  // ("In Progress" -> "Resolved", transitionDefinitions.json) instead of a
+  // fabricated (fromState, toState) pair — that row already carries a real
+  // verb ("resolve") and a real required_authority_rule_id, which a
+  // from-scratch fabricated row has no way to acquire (seedAuthorityVocabulary's
+  // verb back-fill only ever matches real, catalogued triples). Nothing about
+  // the existing transition_definitions row itself needs to change — this
+  // test's own contribution is only the new Quality Gate (scoped by
+  // originating_pack_id, the same EBM-composition materialisation path
+  // compositionCompleted.ts already uses, picked up by the later explicit
+  // qualityGateEngine.evaluate call inside transitionAttentionItem). Routing
+  // this through transition_definitions.required_quality_gate_ids instead
+  // would make transitionEngine.evaluate's OWN quality-gate check (a
+  // different, generic mechanism already proven by
+  // transition-definition-authoring.test.ts) block the transition first,
+  // never reaching — so never actually proving — transitionAttentionItem's
+  // own separate, explicit call.
+  const fromState = "In Progress";
+  const toState = "Resolved";
   const packId = await anyRealPackId();
-  const { data: authorityRule } = await authorityRulesDB.upsert({ code: "authority-transition-attentionitem", governedTransition: "attentionitem.transition", authorisedRole: "general", originatingPackId: packId, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
-  const { data: policy } = await policiesDB.upsert({ code: "policy-attentionitem-transition-baseline", name: "Attention Item transition baseline check", governedTransition: "attentionitem.transition", originatingPackId: packId, authorId: ROOT_ACTOR_ID, authorBadge: "root" });
-  assert.ok(authorityRule && policy);
+  const { data: existingDefinition } = await transitionDefinitionsDB.find("AttentionItem", fromState, toState);
+  assert.ok(existingDefinition, "expected the real seeded AttentionItem In Progress -> Resolved transition to already exist");
 
-  const fromState = `qg-wire-from-${randomUUID()}`;
-  const toState = `qg-wire-to-${randomUUID()}`;
-  await transitionDefinitionsDB.upsert({ entityType: "AttentionItem", fromState, toState, requiredAuthorityRuleId: authorityRule!.id, requiredPolicyIds: [policy!.id] });
   const { error: gateError } = await qualityGatesDB.upsert({
     name: "QG wiring test gate",
     entityType: "AttentionItem",
@@ -148,9 +157,10 @@ test("transitionAttentionItem is genuinely wired to qualityGateEngine — a real
   const seuId = await commissionTestSeu("qg-generalization-wiring");
   const attentionItem = await createAttentionItem({ seuId, category: "Action Required", title: "QG wiring test item", actorId: TESTER_ALL_ID, authorBadge: "root" });
 
-  // Force the AttentionItem into the fabricated fromState directly (test
-  // setup only — no governed path is meant to reach a state this test
-  // invented) so a real transitionAttentionItem call can attempt the gated hop.
+  // Force the AttentionItem directly into the real "In Progress" state (test
+  // setup only — skipping the Created -> Delivered -> Acknowledged -> In
+  // Progress walk, which isn't what this test is exercising) so a real
+  // transitionAttentionItem call can attempt the gated hop.
   await attentionItemsDB.updateStatus(attentionItem.id, fromState);
 
   const obligation = await createObligation({

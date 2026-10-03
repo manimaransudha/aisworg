@@ -23,7 +23,7 @@ import { transitionDefinitionsDB } from "../src/dblayer/transitionDefinitionsDB.
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { createPackDraft, transitionPack, type PackSeedInput } from "../src/routes/seu/core/packs.js";
 import { uniqueTestPackVersion } from "./testFixtures.js";
-import { TESTER_ALL_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
+import { TESTER_ALL_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, PLATFORM_TENANT_ID } from "./testFixtures.js";
 
 async function freshPackSeed(overrides: Partial<PackSeedInput> = {}): Promise<PackSeedInput> {
   return {
@@ -35,6 +35,7 @@ async function freshPackSeed(overrides: Partial<PackSeedInput> = {}): Promise<Pa
     contributions: {
       capabilities: [{ code: "software-construction" }],
     },
+    tenantId: PLATFORM_TENANT_ID,
     ...overrides,
   };
 }

@@ -3,14 +3,9 @@ import { logger } from "../utils/logger.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validateTemplateWriteAgainstSchema } from "../routes/seu/core/templateWriteValidator.js";
 import type { CapabilityRow, DbResult, TemplateDeliverableSeed, TemplateRow } from "./seuTypes.js";
-import { tenantsDB } from "./tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "./constants.js";
+import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "./constants.js";
 import { userDB } from "./userDB.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+ 
 // Also owns template_capabilities (required Capabilities) and template_packs
 // (mandatory Packs only — see Build Plan §5 item 6 for the Template/Profile split).
 export const templatesDB = {
@@ -54,7 +49,7 @@ export const templatesDB = {
          ON CONFLICT (code, template_version, tenant_id) DO UPDATE
            SET name = EXCLUDED.name, deliverable_catalogue = EXCLUDED.deliverable_catalogue
          RETURNING *`,
-        [input.code, input.name, input.templateVersion ?? "1.0.0", JSON.stringify(input.deliverableCatalogue ?? []), input.tenantId ?? PLATFORM_TENANT_ID, input.status ?? "Active", actorId, actorBadge]
+        [input.code, input.name, input.templateVersion ?? "1.0.0", JSON.stringify(input.deliverableCatalogue ?? []), input.tenantId ?? (await getPlatformTenantId()), input.status ?? "Active", actorId, actorBadge]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -108,7 +103,7 @@ export const templatesDB = {
         `INSERT INTO templates (code, name, template_version, status, deliverable_catalogue, authored_by, author_badge, draft_content, tenant_id, parent_template_id, schema_definition_id)
          VALUES ($1, $2, $3, 'Draft', '[]', $4, $5, $6, $7, $8, $9)
          RETURNING *`,
-        [input.code, input.name, templateVersion, input.authoredBy, input.authorBadge, JSON.stringify(draftContent), input.tenantId ?? PLATFORM_TENANT_ID, input.parentTemplateId ?? null, schemaRow?.id ?? null]
+        [input.code, input.name, templateVersion, input.authoredBy, input.authorBadge, JSON.stringify(draftContent), input.tenantId ?? (await getPlatformTenantId()), input.parentTemplateId ?? null, schemaRow?.id ?? null]
       );
       return { data: rows[0] };
     } catch (err) {
@@ -356,6 +351,7 @@ export const templatesDB = {
   // is allowed to see — Platform's own plus this viewer's own tenant's. Feeds
   // the Template Inheritance dropdown (Platform published + tenant published).
   async findAllVisibleTo(viewerTenantId: string): Promise<DbResult<TemplateRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
       const { rows } = await query<TemplateRow>(
         "SELECT * FROM templates WHERE tenant_id = $1 OR tenant_id = $2 ORDER BY code, created_at DESC",
@@ -369,6 +365,7 @@ export const templatesDB = {
   },
 
   async findActiveVisibleTo(viewerTenantId: string): Promise<DbResult<TemplateRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
       const { rows } = await query<TemplateRow>(
         "SELECT * FROM templates WHERE status = 'Active' AND (tenant_id = $1 OR tenant_id = $2) ORDER BY code",
@@ -390,6 +387,7 @@ export const templatesDB = {
   // Template has Pack's tenant-ownership model, scoped the same way
   // packsDB.findByStatus is — viewerTenantId null = unscoped (root).
   async findByStatus(status: TemplateRow["status"], viewerTenantId: string | null): Promise<DbResult<TemplateRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
       const { rows } = viewerTenantId == null
         ? await query<TemplateRow>("SELECT * FROM templates WHERE status = $1 ORDER BY created_at DESC", [status])

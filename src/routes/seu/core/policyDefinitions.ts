@@ -8,12 +8,7 @@ import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { listActiveNouns, activeMappingByNoun } from "./authorityVocabulary.js";
 import type { EvidenceDefinition, PolicyDefinitionRow, PolicyCondition, PolicyScope } from "../../../dblayer/seuTypes.js";
-import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
+import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
 
 // CR-089 — Policy Definition authoring (Book 3 Ch.24), mirroring
 // core/serviceDefinitions.ts in shape. Two differences from that entity's
@@ -284,7 +279,7 @@ export async function validatePolicyDefinitionSeed(seed: PolicyDefinitionSeedInp
   if (!seed.category?.trim()) errors.push("category is required");
   if (!SEMVER_RE.test(seed.version ?? "")) errors.push(`version must be semver (x.y.z), got: "${seed.version}"`);
 
-  const tenantId = seed.tenantId ?? PLATFORM_TENANT_ID;
+  const tenantId = seed.tenantId ?? (await getPlatformTenantId());
   if (seed.code?.trim() && SEMVER_RE.test(seed.version ?? "")) {
     const collision = await assertPolicyDefinitionCodeVersionFree(seed.code, seed.version, tenantId, excludeId);
     if (collision) errors.push(collision);
@@ -302,6 +297,7 @@ export async function validatePolicyDefinitionSeed(seed: PolicyDefinitionSeedInp
 
   if (seed.parentPolicyDefinitionId) {
     const { data: parent } = await policyDefinitionsDB.findById(seed.parentPolicyDefinitionId);
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     if (!parent) {
       errors.push(`parentPolicyDefinitionId "${seed.parentPolicyDefinitionId}" not found`);
     } else if (parent.status !== "Active") {

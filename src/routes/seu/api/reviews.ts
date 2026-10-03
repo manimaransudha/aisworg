@@ -8,7 +8,7 @@ import { logger } from "../../../utils/logger.js";
 import { createReview, listReviewsWithNextStates, transitionReview } from "../core/reviews.js";
 import { createFinding, listFindingsByReview, transitionFinding, convertFindingToObligation } from "../core/findings.js";
 import type { ReviewOutcome, TransitionEntityType } from "../../../dblayer/seuTypes.js";
-import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
+import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
 import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 
 // Review Model — Plan (Phase 14, Ch.25 §18: Review APIs). A Review is a governed
@@ -24,9 +24,9 @@ router.post("/reviews", async (req: Request, res: Response) => {
     }
     const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
     if (!actorId) return res.status(401).json({ error: "no acting user to record as this Review's author — log in first" });
-    const authRow = lookupRouteAuthority(req.method, req.path);
+    const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
     const held = await resolveHeldBadges(req);
-    const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+    const authorBadge = resolveAuthorBadge(authRow, held);
     if (!authorBadge) return res.status(403).json({ error: "no held badge authorises this action — cannot record an author badge" });
 
     const review = await createReview({
@@ -89,9 +89,9 @@ router.post("/reviews/:id/findings", async (req: Request, res: Response) => {
     if (typeof title !== "string" || !title.trim()) return res.status(400).json({ error: "title is required" });
     const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
     if (!actorId) return res.status(401).json({ error: "no acting user to record as this Finding's author — log in first" });
-    const authRow = lookupRouteAuthority(req.method, req.path);
+    const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
     const held = await resolveHeldBadges(req);
-    const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+    const authorBadge = resolveAuthorBadge(authRow, held);
     if (!authorBadge) return res.status(403).json({ error: "no held badge authorises this action — cannot record an author badge" });
 
     const finding = await createFinding({

@@ -34,8 +34,8 @@ import { workItemsDB } from "../src/dblayer/workItemsDB.js";
 import { commandsDB } from "../src/dblayer/commandsDB.js";
 import { attentionItemsDB } from "../src/dblayer/attentionItemsDB.js";
 import { deliverablesDB } from "../src/dblayer/deliverablesDB.js";
-import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, waitUntilAsync, ensureEligibleParticipant } from "./testFixtures.js";
-import { ROOT_ACTOR_ID, TESTER_ALL_ID } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, commissionFromFormSync, waitForDispatchedWorkItem, waitUntilAsync, ensureEligibleParticipant, ensureActorParticipant } from "./testFixtures.js";
+import { ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 import type { CommandRow } from "../src/dblayer/seuTypes.js";
 
 async function commissionTestSeu(statementPrefix: string, beforeCommenceWork?: (seuId: string) => Promise<void>) {
@@ -86,6 +86,7 @@ test("transitionDeliverable rejects the transition when nobody fulfils the produ
   const requirementsSpec = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
   assert.ok(requirementsSpec, "expected a seeded Requirements Analysis Model deliverable");
   assert.equal(requirementsSpec.lifecycleState, "Defined");
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
 
   // deliverableKickoffHandler's own automatic rescan (off SEUOperational)
   // may already have generated this exact hop's Command before this explicit
@@ -197,6 +198,7 @@ test("executionEngine rejects dispatch when no Participant fulfils the producing
   const { data: rawDeliverables } = await deliverablesDB.findBySeuId(seuId);
   const architectureDeliverable = (rawDeliverables ?? []).find((d) => d.producing_capability_id === architectureCapability!.capabilityId);
   assert.ok(architectureDeliverable, "expected a real, seeded Deliverable producing architecture-design (a real entity id is required — Dispatch's own reject path raises an Obligation against it)");
+  await ensureActorParticipant(seuId, ROOT_ACTOR_ID);
 
   await executionEngine.execute({
     seuId,
@@ -206,6 +208,8 @@ test("executionEngine rejects dispatch when no Participant fulfils the producing
     toState: "In Progress",
     producingCapabilityId: architectureCapability!.capabilityId,
     requestedBy: null,
+    actorId: ROOT_ACTOR_ID,
+    actingBadgeType: ROOT_ACTOR_BADGE,
     correlationId: eventBus.newCorrelationId(),
   });
 

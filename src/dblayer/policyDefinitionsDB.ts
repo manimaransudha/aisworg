@@ -3,13 +3,8 @@ import { logger } from "../utils/logger.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validatePolicyDefinitionWriteAgainstSchema } from "../routes/seu/core/policyDefinitionWriteValidator.js";
 import type { DbResult, PolicyDefinitionRow, PolicyCondition, PolicyScope } from "./seuTypes.js";
-import { tenantsDB } from "./tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "./constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId } from "./constants.js";
+ 
 // CR-089 — Policy Definition (Book 3 Ch.24), a new standalone table
 // (167_policy_definitions.sql), mirroring serviceDefinitionsDB.ts's own shape
 // column-for-column. No relationship to any other entity (owner: "there is
@@ -86,7 +81,7 @@ export const policyDefinitionsDB = {
           input.authoredBy,
           input.authorBadge,
           JSON.stringify(draftContent),
-          input.tenantId ?? PLATFORM_TENANT_ID,
+          input.tenantId ?? (await getPlatformTenantId()),
           input.parentPolicyDefinitionId ?? null,
           schemaRow?.id ?? null,
         ]
@@ -195,6 +190,7 @@ export const policyDefinitionsDB = {
   },
 
   async findAllVisibleTo(viewerTenantId: string): Promise<DbResult<PolicyDefinitionRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
       const { rows } = await query<PolicyDefinitionRow>(
         "SELECT * FROM policy_definitions WHERE tenant_id = $1 OR tenant_id = $2 ORDER BY code, created_at DESC",
@@ -212,6 +208,7 @@ export const policyDefinitionsDB = {
   // viewer's own tenant's row over Platform's when both exist for the same
   // code.
   async findActiveByCodeVisibleTo(code: string, viewerTenantId: string): Promise<DbResult<PolicyDefinitionRow | null>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
       const { rows } = await query<PolicyDefinitionRow>(
         `SELECT * FROM policy_definitions
@@ -228,6 +225,7 @@ export const policyDefinitionsDB = {
 
   // Feeds the Inherit dropdown — every Active row Platform-owns.
   async findActivePlatformOwned(): Promise<DbResult<PolicyDefinitionRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
       const { rows } = await query<PolicyDefinitionRow>(
         "SELECT * FROM policy_definitions WHERE status = 'Active' AND tenant_id = $1 ORDER BY code",

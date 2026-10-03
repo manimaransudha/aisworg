@@ -8,13 +8,7 @@ import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { validateAgainstSchema, type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { validateOntologyFieldsAgainstSchema } from "./ontology.js";
 import type { ServiceLevelExpectation } from "../../../dblayer/seuTypes.js";
-import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId } from "../../../dblayer/constants.js";
 
 export interface ServiceDefinitionWriteInput {
   id?: string;
@@ -46,7 +40,7 @@ export interface ServiceDefinitionWriteInput {
 // schema properties — draftContent alone doesn't carry them, so they're
 // merged in here to validate what the row will actually be written with.
 export async function validateServiceDefinitionWriteAgainstSchema(input: ServiceDefinitionWriteInput): Promise<string[]> {
-  const tenantId = input.tenantId ?? PLATFORM_TENANT_ID;
+  const tenantId = input.tenantId ?? (await getPlatformTenantId());
 
   const { data: schemaRow } = input.schemaDefinitionId
     ? await schemaDefinitionsDB.findById(input.schemaDefinitionId)

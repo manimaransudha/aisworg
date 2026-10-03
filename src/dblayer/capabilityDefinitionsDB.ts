@@ -3,13 +3,8 @@ import { logger } from "../utils/logger.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validateCapabilityDefinitionWriteAgainstSchema } from "../routes/seu/core/capabilityDefinitionWriteValidator.js";
 import type { DbResult, CapabilityDefinitionRow, CapabilityRole } from "./seuTypes.js";
-import { tenantsDB } from "./tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "./constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId } from "./constants.js";
+ 
 // CR-111 — Capability Registry. Own table (265_capability_role_ontology.sql,
 // restructured 273_capability_definition_registry.sql), mirroring
 // serviceDefinitionsDB.ts's own shape column-for-column. No relationship to
@@ -37,7 +32,7 @@ export const capabilityDefinitionsDB = {
     try {
       const version = input.version ?? "1.0.0";
       const draftContent = input.draftContent ?? {};
-      const tenantId = input.tenantId ?? PLATFORM_TENANT_ID;
+      const tenantId = input.tenantId ?? (await getPlatformTenantId());
 
       const { rows: dupRows } = await query<{ id: string }>(
         "SELECT id FROM capability_definitions WHERE code = $1 AND version = $2 AND tenant_id = $3",
@@ -186,6 +181,7 @@ export const capabilityDefinitionsDB = {
   },
 
   async findAllVisibleTo(viewerTenantId: string): Promise<DbResult<CapabilityDefinitionRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
       const { rows } = await query<CapabilityDefinitionRow>(
         "SELECT * FROM capability_definitions WHERE tenant_id = $1 OR tenant_id = $2 ORDER BY code, created_at DESC",
@@ -200,6 +196,7 @@ export const capabilityDefinitionsDB = {
 
   // Feeds the Inherit dropdown — every Active row Platform-owns.
   async findActivePlatformOwned(): Promise<DbResult<CapabilityDefinitionRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
       const { rows } = await query<CapabilityDefinitionRow>(
         "SELECT * FROM capability_definitions WHERE status = 'Active' AND tenant_id = $1 ORDER BY code",

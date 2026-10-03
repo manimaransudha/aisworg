@@ -1,6 +1,5 @@
 import { query } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import { userDB } from "./userDB.js";
 import type { ComplianceEvaluationRow, ComplianceFrameworkRow, ComplianceRequirementRow, ComplianceStatus, ComplianceWaiverRow, DbResult } from "./seuTypes.js";
 
 // Compliance Model — Plan (Phase 15, Ch.27). Frameworks + requirements are
@@ -128,15 +127,15 @@ export const complianceDB = {
   },
 
   // author_id/author_badge are NOT NULL (compliance_evaluations_schema_
-  // recovery.sql) but evaluateCompliance runs read-only and system-triggered
-  // (§9) — no real acting user. Same stopgap as participantsDB.create:
-  // resolves the SUPERUSER_EMAIL superuser as author.
-  async recordEvaluation(input: { seuId: string; status: ComplianceStatus; rationale: Record<string, unknown>; results: unknown[] }): Promise<DbResult<ComplianceEvaluationRow>> {
+  // recovery.sql) and FK to participants(id) — the SEU-scoped engagement row,
+  // not participants_master. The caller (evaluateCompliance) resolves the
+  // real per-SEU authorId/badge via resolveAuthor before calling this; no
+  // fallback here.
+  async recordEvaluation(input: { seuId: string; status: ComplianceStatus; rationale: Record<string, unknown>; results: unknown[]; authorId: string; authorBadge: string }): Promise<DbResult<ComplianceEvaluationRow>> {
     try {
-      const { actorId, actorBadge } = await userDB.getSuperuserId();
       const { rows } = await query<ComplianceEvaluationRow>(
         "INSERT INTO compliance_evaluations (seu_id, status, rationale, results, author_id, author_badge) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
-        [input.seuId, input.status, JSON.stringify(input.rationale), JSON.stringify(input.results), actorId, actorBadge]
+        [input.seuId, input.status, JSON.stringify(input.rationale), JSON.stringify(input.results), input.authorId, input.authorBadge]
       );
       return { data: rows[0] };
     } catch (err) {

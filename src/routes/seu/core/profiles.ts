@@ -11,11 +11,7 @@ import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import type { ProfileRow } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
+import { getPlatformTenantId } from "../../../dblayer/constants.js";
 
 // export async function createProfile(input: {
 //   templateId: string;
@@ -435,7 +431,7 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
   if (!seed.environment?.trim()) errors.push("environment is required");
   if (!SEMVER_RE.test(seed.profileVersion ?? "")) errors.push(`profileVersion must be semver (x.y.z), got: "${seed.profileVersion}"`);
 
-  const ontologyViewer = { isRoot: false, tenantId: seed.tenantId ?? PLATFORM_TENANT_ID };
+  const ontologyViewer = { isRoot: false, tenantId: seed.tenantId ?? (await getPlatformTenantId()) };
 
   if (!seed.baseTemplateCode?.trim()) {
     errors.push("baseTemplateCode is required");
@@ -635,7 +631,7 @@ export async function publishProfile(input: { seed: ProfileSeedInput; actorRole:
   const { data: template } = await templatesDB.findByCode(seed.baseTemplateCode);
   if (!template) return { ok: false, errors: [`baseTemplateCode "${seed.baseTemplateCode}" not found`] };
 
-  const tenantId = seed.tenantId ?? PLATFORM_TENANT_ID;
+  const tenantId = seed.tenantId ?? (await getPlatformTenantId());
 
   // Idempotent reseed — mirrors publishTemplate's own findByCodeAndVersion
   // check exactly.

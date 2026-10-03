@@ -22,16 +22,33 @@ import { logger } from "../../utils/logger.js";
 import { eventBus } from "./eventBus.js";
 import { transitionEngine } from "./transitionEngine.js";
 import type { EventHandler } from "./eventBus.js";
-import type { EventRow } from "../../dblayer/seuTypes.js";
-import { tenantsDB } from "../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import type { EventRow, SeuRow, ObjectiveRow, TemplateRow, ProfileRow } from "../../dblayer/seuTypes.js";
+import { getPlatformTenantId } from "../../dblayer/constants.js";
+ 
 interface CommissionRequestedPayload {
   seuId: string;
+}
+
+// Same failure-reporting shape every dead-end below already publishes —
+// factored out so the outer catch (a step here throwing instead of
+// returning a checked result, e.g. a lookup failing) can report through the
+// identical path instead of being swallowed by eventBus.dispatch's own
+// generic catch (it just logs "handler failed" and moves on — no
+// CommissionFailed, no Failed state, so a caller polling for either spins
+// until its own timeout instead of seeing the real failure immediately).
+async function failValidation(seu: { id: string }, event: EventRow, reason: string): Promise<void> {
+  await seusDB.updateLifecycleState(seu.id, "Failed");
+  await eventBus.publish({
+    eventType: "CommissionFailed",
+    originatingObjectType: "SEU",
+    originatingObjectId: seu.id,
+    seuId: seu.id,
+    correlationId: event.correlation_id,
+    causationId: event.id,
+    actorId: event.actor_id,
+    authorityBadge: event.authority_badge,
+    payload: { stage: "validate_request", reason },
+  });
 }
 
 export const validateRequestHandler: EventHandler = async (event: EventRow) => {
@@ -48,7 +65,15 @@ export const validateRequestHandler: EventHandler = async (event: EventRow) => {
     logger.error(`[validateRequest] Objective/Template/Profile referenced by SEU ${seuId} not found`);
     return;
   }
-  const viewerTenantId = seu.tenant_id ?? PLATFORM_TENANT_ID;
+  try {
+    await runValidation(seu, objective, template, profile, event);
+  } catch (err) {
+    await failValidation(seu, event, (err as Error).message);
+  }
+};
+
+async function runValidation(seu: SeuRow, objective: ObjectiveRow, template: TemplateRow, profile: ProfileRow, event: EventRow): Promise<void> {
+  const viewerTenantId = seu.tenant_id ?? (await getPlatformTenantId());
 
   // Owner: "what we build has to be centered on the fundamentals that we
   // have built." — restored: this is commissionSeu's own Authority/Policy
@@ -129,4 +154,4 @@ export const validateRequestHandler: EventHandler = async (event: EventRow) => {
       checks,
     },
   });
-};
+}

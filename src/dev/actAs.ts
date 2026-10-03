@@ -19,11 +19,7 @@ import { participantsMasterDB } from "../dblayer/participantsMasterDB.js";
 import { transitionDefinitionsDB } from "../dblayer/transitionDefinitionsDB.js";
 import type { TenantRow, BadgeTypeRow } from "../dblayer/seuTypes.js";
 import { logger } from "../utils/logger.js";
-import { PLATFORM_TENANT_NAME } from "../dblayer/constants.js";
-
-let result = await tenantsDB.ensurePlatformTenant();
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data;
+import { getPlatformTenantId } from "../dblayer/constants.js";
 
 const SUPERUSER_EMAIL = (process.env.SUPERUSER_EMAIL || "").toLowerCase();
 
@@ -151,7 +147,7 @@ export async function setActingNounVerbBadge(
   if (!master) {
     if (!toAdd) return; // nothing held, nothing to remove, nothing to add
     const created = await participantsMasterDB.create({
-      tenantId: input.tenantId ?? PLATFORM_TENANT_ID,
+      tenantId: input.tenantId ?? (await getPlatformTenantId()),
       type: "Human",
       displayName: `Dev Act-As (user ${input.userId})`,
       userId: input.userId,

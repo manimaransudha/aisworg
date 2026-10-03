@@ -3,13 +3,8 @@ import { logger } from "../utils/logger.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validatePackWriteAgainstSchema } from "../routes/seu/core/packWriteValidator.js";
 import type { DbResult, PackCategory, PackClassification, PackCommentRow, PackContributions, PackRow, PackStatus } from "./seuTypes.js";
-import { tenantsDB } from "./tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "./constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId } from "./constants.js";
+ 
 export const packsDB = {
   // Ch.41 VM-002 "Versions are immutable" — a plain INSERT, no ON CONFLICT
   // DO UPDATE. (code, pack_version) is the unique identity (010_pack_lifecycle.sql);
@@ -19,13 +14,12 @@ export const packsDB = {
   // existing exact-version row as a no-op, not an error — see core/packs.ts's
   // publishPack.
   //
-  // Pack ownership (owner: "Packs will have ownership"): tenantId is
-  // optional here (not on the underlying column, which is NOT NULL) —
-  // callers driven by a real logged-in author (createAuthoringDraft) always
-  // pass the author's own tenant; seed scripts/the CLI publishing a Pack with
-  // no human author don't know or need one, so they default to the reserved
-  // Platform tenant (migration 044's own column DEFAULT does the same for
-  // any INSERT that reaches the DB without this field at all).
+  // Pack ownership (owner: "Packs will have ownership"): tenant_id is
+  // NOT NULL on the underlying column, so every caller must resolve and
+  // pass a real tenant id — callers driven by a real logged-in author
+  // (createAuthoringDraft) pass the author's own tenant; seed scripts/the
+  // CLI publishing a Pack with no human author pass the reserved Platform
+  // tenant explicitly.
   async create(input: {
     code: string;
     name: string;
@@ -89,7 +83,7 @@ export const packsDB = {
           JSON.stringify(input.metadata ?? {}),
           input.authoredBy,
           input.authorBadge,
-          input.tenantId ?? PLATFORM_TENANT_ID,
+          input.tenantId,
           schemaRow?.id ?? null,
         ]
       );
@@ -210,6 +204,7 @@ export const packsDB = {
   // my verb" — the fromState of the hop this badge runs, not its toState.
   // viewerTenantId null = unscoped (root — every tenant's queue).
   async findByStatus(status: PackStatus, viewerTenantId: string | null): Promise<DbResult<PackRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
       const { rows } = viewerTenantId == null
         ? await query<PackRow>("SELECT * FROM packs WHERE status = $1 ORDER BY created_at DESC", [status])
@@ -342,6 +337,7 @@ export const packsDB = {
   // bypasses this entirely by calling findAll() instead (the caller's job,
   // same pattern as every other root-bypass check in this codebase).
   async findAllVisibleTo(viewerTenantId: string): Promise<DbResult<PackRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
       const { rows } = await query<PackRow>(
         "SELECT * FROM packs WHERE tenant_id = $1 OR tenant_id = $2 ORDER BY category, code, created_at DESC",
@@ -377,6 +373,7 @@ export const packsDB = {
   // offer Active Packs to begin with (§19.9's "must resolve to a real, Active
   // Pack"), so this is the one query both of those actually want.
   async findActiveVisibleTo(viewerTenantId: string): Promise<DbResult<PackRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
       const { rows } = await query<PackRow>(
         "SELECT * FROM packs WHERE status = 'Active' AND (tenant_id = $1 OR tenant_id = $2) ORDER BY code",
@@ -400,6 +397,7 @@ export const packsDB = {
   // folds this set in alongside whatever a Template's own mandatoryPackCodes
   // explicitly lists — this is additive, not a replacement for it.
   async findActiveMandatoryVisibleTo(viewerTenantId: string): Promise<DbResult<PackRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
       const { rows } = await query<PackRow>(
         "SELECT * FROM packs WHERE status = 'Active' AND installation_classification = 'Mandatory' AND (tenant_id = $1 OR tenant_id = $2) ORDER BY code",

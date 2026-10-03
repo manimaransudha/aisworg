@@ -19,7 +19,7 @@ import { participantsDB } from "../../dblayer/participantsDB.js";
 import { eventBus } from "./eventBus.js";
 import { logger } from "../../utils/logger.js";
 import type { EventHandler } from "./eventBus.js";
-import type { EventRow, EbmCompositionReport, EbmComposedPack } from "../../dblayer/seuTypes.js";
+import type { EventRow, EbmCompositionReport, EbmComposedPack, SeuRow } from "../../dblayer/seuTypes.js";
 
 interface CompositionCompletedPayload {
   seuId: string;
@@ -36,6 +36,28 @@ async function resolveAuthorParticipantId(seuId: string, actorId: string): Promi
   return participant.id;
 }
 
+// Same failure-reporting shape the pre-existing ebmErr branch below already
+// publishes — factored out so every other way this handler can fail (a
+// thrown exception, not just ebmsDB.create's own checked error) reports
+// through the identical path instead of being silently swallowed:
+// resolveAuthorParticipantId's own catch used to just log and return, never
+// marking the SEU Failed or publishing CommissionFailed — a caller polling
+// for either would spin until its own timeout, never finding out why.
+async function failComposition(seuId: string, event: EventRow, authorBadge: string, reason: string): Promise<void> {
+  await seusDB.updateLifecycleState(seuId, "Failed");
+  await eventBus.publish({
+    eventType: "CommissionFailed",
+    originatingObjectType: "SEU",
+    originatingObjectId: seuId,
+    seuId,
+    correlationId: event.correlation_id,
+    causationId: event.id,
+    actorId: event.actor_id,
+    authorityBadge: authorBadge,
+    payload: { stage: "compose_ebm", reason },
+  });
+}
+
 export const compositionCompletedHandler: EventHandler = async (event: EventRow) => {
   const { seuId, authorBadge } = event.payload as unknown as CompositionCompletedPayload;
   const { data: seu } = await seusDB.findById(seuId);
@@ -47,13 +69,16 @@ export const compositionCompletedHandler: EventHandler = async (event: EventRow)
     logger.error(`[compositionCompleted] no actor_id on CompositionCompleted event for SEU ${seuId}`);
     return;
   }
-  let authorId: string;
   try {
-    authorId = await resolveAuthorParticipantId(seuId, event.actor_id);
+    await runComposition(seu, event, authorBadge);
   } catch (err) {
-    logger.error(`[compositionCompleted] could not resolve author participant for SEU ${seuId}`, err as Error);
-    return;
+    await failComposition(seuId, event, authorBadge, (err as Error).message);
   }
+};
+
+async function runComposition(seu: SeuRow, event: EventRow, authorBadge: string): Promise<void> {
+  const seuId = seu.id;
+  const authorId = await resolveAuthorParticipantId(seuId, event.actor_id!);
   const stashed = seu.composition_report as {
     composedPacks?: EbmComposedPack[];
     compositionReport?: EbmCompositionReport;
@@ -147,4 +172,4 @@ export const compositionCompletedHandler: EventHandler = async (event: EventRow)
     // commence-work-style policy set without a second lookup.
     payload: { seuScopedPolicyIds: ebm.seu_scoped_policy_ids },
   });
-};
+}

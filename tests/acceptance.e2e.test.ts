@@ -16,7 +16,7 @@ import fetchCookie from "fetch-cookie";
 import pool from "../src/utils/db.js";
 import app from "../src/app.js";
 import { appConfig } from "../src/config/appconfig.js";
-import { ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, waitForDispatchedWorkItem, TESTER_ACCEPTANCE_JOURNEY } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, driveCommissioningToActive, ensureEventSubscriptionsLoaded, ensureEligibleParticipant, ensureActorParticipant, waitForDispatchedWorkItem, grantRouteBadges, TESTER_ACCEPTANCE_JOURNEY } from "./testFixtures.js";
 import { ebmsDB } from "../src/dblayer/ebmsDB.js";
 
 let server: ReturnType<typeof app.listen>;
@@ -114,21 +114,14 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
   assert.equal(objectiveRes.status, 201, JSON.stringify(objective));
   assert.equal(objective.requiredCapabilities.length, 3);
 
-  // 2 — select/validate a Template against the Objective's required Capabilities (Ch.6 §11)
-  const templatesRes = await request(`${baseUrl}/templates?capabilityCodes=requirements-analysis,architecture-design,software-construction`);
-  assert.equal(templatesRes.status, 200);
-  const { candidates } = await templatesRes.json();
-  const template = candidates.find((c: { satisfies: boolean }) => c.satisfies);
-  assert.ok(template, "expected at least one Template satisfying every required Capability");
-
-  // 3 — apply a Profile (Ch.7)
-  const profileRes = await request(`${baseUrl}/profiles`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ templateId: template.id, environment: "development" }),
-  });
-  const profile = await profileRes.json();
-  assert.equal(profileRes.status, 201, JSON.stringify(profile));
+  // 2/3 — select a Template against the Objective's required Capabilities
+  // (Ch.6 §11) and apply a Profile (Ch.7). There is no JSON API for either
+  // step (core/profiles.ts's own createProfile/findOrCreateDefaultProfile
+  // are retired — see the "API fulfil route commented out" precedent): the
+  // real authoring path is publishTemplate/publishProfile, exercised once by
+  // ensureWebAppTemplateFixture (testFixtures.ts, already run in before()),
+  // same as web-flow.e2e.test.ts's own commissionSeu helper.
+  const { template, profile } = await ensureWebAppTemplateFixture();
 
   // 4 — commission: Composition Engine runs, SEU walks Pending -> ... -> Operational (Ch.8, Ch.37)
   const commissionRes = await request(`${baseUrl}/commission`, {
@@ -171,6 +164,12 @@ test("MVP acceptance: commission an SEU via the API, reach Operational, fulfil a
   // loadAvailableCandidates requires a real master reference to ever select a
   // candidate) — via the web form route, the real documented Fulfilment path.
   const participantMasterId = await ensureEligibleParticipant(seuId, ["requirements-analysis"]);
+  // resolveAuthor (core/attentionItems.ts, reused by fulfilCapabilityWithParticipants)
+  // needs a participants row for this actor's own participants_master id inside
+  // this exact SEU — same requirement ensureRootActorParticipant exists to satisfy
+  // for the root actor; TESTER_ACCEPTANCE_JOURNEY needs the same thing here.
+  await ensureActorParticipant(seuId, TESTER_ACCEPTANCE_JOURNEY.participantId);
+  await grantRouteBadges(TESTER_ACCEPTANCE_JOURNEY.participantId, "POST", `/aisworg/seu/seus/${seuId}/capabilities/${requirementsCapability.capabilityId}/fulfil`);
   const detailPage = await request(`${webBaseUrl}/seus/${seuId}`);
   assert.equal(detailPage.status, 200);
   const csrf = extractCsrf(await detailPage.text());

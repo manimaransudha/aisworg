@@ -1,6 +1,6 @@
 import { query, bulkInsert } from "../utils/db.js";
 import { logger } from "../utils/logger.js";
-import { PLATFORM_TENANT_NAME } from "./constants.js";
+import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "./constants.js";
 import { userDB } from "./userDB.js";
 import type { DbResult, OntologyConceptRow, OntologyConceptCommentRow, TenantConceptAliasRow } from "./seuTypes.js";
 import { tenantsDB } from "./tenantsDB.js"
@@ -19,11 +19,8 @@ export interface OntologyViewer { isRoot: boolean; tenantId: string | null }
 // null => no filter (root sees every tenant's concepts, unscoped).
 async function visibleTenantIds(viewer: OntologyViewer): Promise<string[] | null> {
   if (viewer.isRoot) return null;
-
-  const { data, error } = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-  if (error || !data) throw new Error("Error retrieving Platform details");
-  const platformTenantId = data.id;
-  const ids = new Set([platformTenantId]);
+  const PLATFORM_TENANT_ID = await getPlatformTenantId();
+  const ids = new Set([PLATFORM_TENANT_ID]);
   if (viewer.tenantId) ids.add(viewer.tenantId);
   return [...ids];
 }

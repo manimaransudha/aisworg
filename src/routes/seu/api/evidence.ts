@@ -7,7 +7,7 @@ import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { createEvidence, listEvidenceBySeu, transitionEvidence, linkEvidenceToObject, recordValidationAssessment } from "../core/evidence.js";
 import type { TransitionEntityType } from "../../../dblayer/seuTypes.js";
-import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
+import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
 import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 
 /** POST /evidence — Ch.17: collect an Evidence Item against any governed entity (relatedObjectType/relatedObjectId — polymorphic, Open Design Questions.md #3). */
@@ -19,9 +19,9 @@ router.post("/evidence", async (req: Request, res: Response) => {
     }
     const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
     if (!actorId) return res.status(401).json({ error: "no acting user to record as this Evidence's author — log in first" });
-    const authRow = lookupRouteAuthority(req.method, req.path);
+    const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
     const held = await resolveHeldBadges(req);
-    const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+    const authorBadge = resolveAuthorBadge(authRow, held);
     if (!authorBadge) return res.status(403).json({ error: "no held badge authorises this action — cannot record an author badge" });
 
     const evidence = await createEvidence({
@@ -98,9 +98,9 @@ router.post("/evidence/:id/link", async (req: Request, res: Response) => {
     }
     const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
     if (!actorId) return res.status(401).json({ error: "no acting user to record as this link's author — log in first" });
-    const authRow = lookupRouteAuthority(req.method, req.path);
+    const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
     const held = await resolveHeldBadges(req);
-    const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+    const authorBadge = resolveAuthorBadge(authRow, held);
     if (!authorBadge) return res.status(403).json({ error: "no held badge authorises this action — cannot record an author badge" });
 
     const result = await linkEvidenceToObject(String(req.params.id), relatedObjectType as TransitionEntityType, relatedObjectId, actorId, authorBadge);

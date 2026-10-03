@@ -7,12 +7,8 @@ import { assertCanonicalCategory } from "./ontology.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import type { CapabilityDefinitionRow, CapabilityRole } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+ 
 // CR-111 — Capability Definition authoring, mirroring
 // core/serviceDefinitions.ts in shape (Service Definition's own lean 6-state
 // lifecycle, Defined -> Published -> Active -> Deprecated -> Retired ->
@@ -73,7 +69,7 @@ export async function validateCapabilityDefinitionSeed(seed: CapabilityDefinitio
   if (!seed.defaultLabel?.trim()) errors.push("defaultLabel is required");
   if (!SEMVER_RE.test(seed.version ?? "")) errors.push(`version must be semver (x.y.z), got: "${seed.version}"`);
 
-  const tenantId = seed.tenantId ?? PLATFORM_TENANT_ID;
+  const tenantId = seed.tenantId ?? (await getPlatformTenantId());
   if (seed.code?.trim() && SEMVER_RE.test(seed.version ?? "")) {
     const collision = await assertCapabilityDefinitionCodeVersionFree(seed.code, seed.version, tenantId, excludeId);
     if (collision) errors.push(collision);
@@ -89,6 +85,7 @@ export async function validateCapabilityDefinitionSeed(seed: CapabilityDefinitio
 
   if (seed.parentCapabilityDefinitionId) {
     const { data: parent } = await capabilityDefinitionsDB.findById(seed.parentCapabilityDefinitionId);
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     if (!parent) {
       errors.push(`parentCapabilityDefinitionId "${seed.parentCapabilityDefinitionId}" not found`);
     } else if (parent.status !== "Active") {

@@ -18,12 +18,7 @@ import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import type { CapabilityRow, TemplateDeliverableSeed, TemplateDependencyGraphEntry, TemplateRow } from "../../../dblayer/seuTypes.js";
-import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
+import { getPlatformTenantId } from "../../../dblayer/constants.js";
 
 export interface TemplateCandidate {
   id: string;
@@ -63,7 +58,7 @@ export interface TemplateCandidate {
 // — never "see every tenant's Templates," which findAllActive's own removal
 // makes structurally unreachable from here now.
 export async function findCandidateTemplates(capabilityCodes: string[], viewerTenantId?: string | null): Promise<TemplateCandidate[]> {
-  const { data: templates, error } = await templatesDB.findActiveVisibleTo(viewerTenantId ?? PLATFORM_TENANT_ID);
+  const { data: templates, error } = await templatesDB.findActiveVisibleTo(viewerTenantId ?? (await getPlatformTenantId()));
   if (error) throw error;
 
   const candidates: TemplateCandidate[] = [];
@@ -538,7 +533,7 @@ export async function validateTemplateSeed(seed: TemplateSeedInput, options?: { 
   const errors: string[] = [];
   if (!seed.name?.trim()) errors.push("name is required");
   if (!SEMVER_RE.test(seed.templateVersion ?? "")) errors.push(`templateVersion must be semver (x.y.z), got: "${seed.templateVersion}"`);
-  const templateOntologyViewer = { isRoot: false, tenantId: seed.tenantId ?? PLATFORM_TENANT_ID };
+  const templateOntologyViewer = { isRoot: false, tenantId: seed.tenantId ?? (await getPlatformTenantId()) };
   const { data: templateSchemaRow } = await schemaDefinitionsDB.findLatest("Template");
   if (templateSchemaRow) {
     const templateSchema = templateSchemaRow.schema as JsonSchemaDocument;
@@ -575,7 +570,7 @@ export async function validateTemplateSeed(seed: TemplateSeedInput, options?: { 
   // when the candidate declares a closed enum (constraintType); otherwise any
   // non-blank value is accepted (a Service Level metric's target has no
   // fixed vocabulary).
-  const exposableCandidates = await deriveExposableParameterCandidates(collectAllPackCodes(seed), seed.tenantId ?? PLATFORM_TENANT_ID, seed.dependencyGraph ?? []);
+  const exposableCandidates = await deriveExposableParameterCandidates(collectAllPackCodes(seed), seed.tenantId ?? (await getPlatformTenantId()), seed.dependencyGraph ?? []);
   for (const row of seed.exposedParameters ?? []) {
     const candidate = exposableCandidates.find((c) => c.sourceType === row.sourceType && c.sourceCode === row.sourceCode && c.parameterName === row.parameterName);
     if (!candidate) {
@@ -663,7 +658,7 @@ export async function validateTemplateSeed(seed: TemplateSeedInput, options?: { 
       const parentGraph = await getDependencyGraphContent(parent.id, parent.tenant_id);
       const lockedParentEdges = parentGraph.filter((e) => LOCKED_RELATIONSHIP_KINDS.has(e.relationshipKind ?? "dependency"));
       if (lockedParentEdges.length > 0) {
-        const tenantId = seed.tenantId ?? PLATFORM_TENANT_ID;
+        const tenantId = seed.tenantId ?? (await getPlatformTenantId());
         const candidateChildEdges = (seed.dependencyGraph ?? []).filter((e) => LOCKED_RELATIONSHIP_KINDS.has(e.relationshipKind ?? "dependency"));
         const consumed = new Set<number>();
         for (const parentEdge of lockedParentEdges) {
@@ -817,7 +812,7 @@ async function materialisePackSelectionsAndCapabilities(templateId: string, seed
   // real candidate, value/overridable from whatever the seed already
   // explicitly set for that exact key, else the candidate's own current
   // default (mirrors loadExposableParameterRows's own merge exactly).
-  const candidates = await deriveExposableParameterCandidates(collectAllPackCodes(seed), seed.tenantId ?? PLATFORM_TENANT_ID, seed.dependencyGraph ?? []);
+  const candidates = await deriveExposableParameterCandidates(collectAllPackCodes(seed), seed.tenantId ?? (await getPlatformTenantId()), seed.dependencyGraph ?? []);
   const existingByKey = new Map((seed.exposedParameters ?? []).map((e) => [`${e.sourceType}::${e.sourceCode}::${e.parameterName}`, e]));
   const exposedParameters: ExposedParameter[] = candidates.map((c) => {
     const saved = existingByKey.get(`${c.sourceType}::${c.sourceCode}::${c.parameterName}`);
@@ -855,7 +850,7 @@ export async function publishTemplate(input: { seed: TemplateSeedInput; actorRol
   const validation = await validateTemplateSeed(seed);
   if (!validation.ok) return { ok: false, errors: validation.errors };
 
-  const tenantId = seed.tenantId ?? PLATFORM_TENANT_ID;
+  const tenantId = seed.tenantId ?? (await getPlatformTenantId());
 
   // templates.authored_by/author_badge (and dependency_definitions.author_id/
   // author_badge, materialised alongside) are participants_master-scoped and
@@ -1191,6 +1186,7 @@ export async function materialiseTemplateDraft(templateId: string, seed: Templat
   await templatesDB.setDeliverableCatalogue(templateId, seed.deliverableCatalogue ?? []);
   const result = await materialisePackSelectionsAndCapabilities(templateId, seed, authorId, authorBadge);
   if (!result.ok) return result;
+  const PLATFORM_TENANT_ID = await getPlatformTenantId();
   await materialiseDependencyGraph({
     owningEntityType: "Template",
     owningEntityId: templateId,

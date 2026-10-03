@@ -10,7 +10,7 @@ import { getFlash, flashError, flashSuccess } from "../../../utils/flash.js";
 import { logger } from "../../../utils/logger.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { deliverablesDB } from "../../../dblayer/deliverablesDB.js";
-import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
+import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
 import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 import { listReviewsWithNextStates, createReview, transitionReview } from "../core/reviews.js";
 import { listFindingsByReview, createFinding, transitionFinding, convertFindingToObligation } from "../core/findings.js";
@@ -59,9 +59,9 @@ router.post("/seus/:id/reviews", async (req: Request, res: Response) => {
   try {
     const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
     if (!actorId) return flashError(req, res, backTo, "No acting user to record as this Review's author — log in first.");
-    const authRow = lookupRouteAuthority(req.method, req.path);
+    const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
     const held = await resolveHeldBadges(req);
-    const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+    const authorBadge = resolveAuthorBadge(authRow, held);
     if (!authorBadge) return flashError(req, res, backTo, "No held badge authorises this action — cannot record an author badge.");
 
     await createReview({ seuId, relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category, name, actorId, authorBadge });
@@ -107,9 +107,9 @@ router.post("/seus/:id/reviews/:reviewId/findings", async (req: Request, res: Re
   try {
     const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
     if (!actorId) return flashError(req, res, backTo, "No acting user to record as this Finding's author — log in first.");
-    const authRow = lookupRouteAuthority(req.method, req.path);
+    const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
     const held = await resolveHeldBadges(req);
-    const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+    const authorBadge = resolveAuthorBadge(authRow, held);
     if (!authorBadge) return flashError(req, res, backTo, "No held badge authorises this action — cannot record an author badge.");
 
     await createFinding({

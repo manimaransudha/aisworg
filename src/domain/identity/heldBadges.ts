@@ -20,6 +20,7 @@
 // effect on the very next request instead of surviving until re-login.
 import type { Request } from "express";
 import { badgeAuthorityEngine } from "../engine/badgeAuthorityEngine.js";
+import type { RouteAuthorityMatch } from "./routeAuthorityCache.js";
 
 export interface HeldBadges {
   isRoot: boolean;
@@ -35,4 +36,21 @@ export async function resolveHeldBadges(req: Request): Promise<HeldBadges> {
   if (!actorId) return { isRoot: false, badgeTypes: new Set(), has: () => false };
   const { isRoot, badgeTypes } = await badgeAuthorityEngine.getHeldBadges(actorId);
   return { isRoot, badgeTypes, has: (badgeType: string) => isRoot || badgeTypes.has(badgeType) };
+}
+
+// The one shared "which badge do we stamp as this action's author" rule —
+// every web/api route that records an author badge (capability_fulfilments,
+// attention_items, ...) was re-deriving this inline (held.isRoot ? "root" :
+// authRow?.badges.find(...)), which breaks for any route_authority row with
+// no badges declared: route_authority is still incomplete platform-wide, so
+// an empty badges[] means "nothing gates this yet", not "no one may do
+// this" — there is no real badge to find in that case, so it is recorded as
+// "system" (same literal resolveSystemActor already uses for an
+// unauthorised/ungoverned acting context) rather than denying the action
+// outright. A row that DOES declare badges is unchanged: the actor must
+// hold one of them, or there is no author badge and the caller should deny.
+export function resolveAuthorBadge(authRow: RouteAuthorityMatch | undefined, held: HeldBadges): string | undefined {
+  if (held.isRoot) return "root";
+  if (!authRow || authRow.badges.length === 0) return "system";
+  return authRow.badges.find((b) => held.has(b));
 }

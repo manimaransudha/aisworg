@@ -39,13 +39,8 @@ import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
 import type { PackCategory, PackClassification, PackContributions, PackRow, PolicyCondition, PolicyDefinitionRow, PolicyScope, TransitionEntityType } from "../../../dblayer/seuTypes.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
-import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId } from "../../../dblayer/constants.js";
+ 
 
 
 // CR-058 — governedTransition is authored as a single delimited value
@@ -221,13 +216,13 @@ export interface PackSeedInput {
   // CR-067 — the Pack(s) this Pack's compositionStrategy combines from.
   compositionSources?: Array<{ packCode: string }>;
   // Pack ownership (owner: "Packs will have ownership... platform or the
-  // tenant"). Optional: seed scripts/the CLI publishing with no human author
-  // don't set it and get the Platform tenant (packsDB.create's own default);
-  // the interactive authoring route always sets it from the real author's
-  // own tenant (createAuthoringDraft); copyPackAsNewDraft always sets it to
-  // the PRIOR row's own tenant_id (copying is versioning, never a change of
-  // ownership).
-  tenantId?: string;
+  // tenant"). Mandatory (tenant_id is NOT NULL): every caller must resolve
+  // and pass a real tenant id — seed scripts/the CLI pass the Platform
+  // tenant explicitly; the interactive authoring route always sets it from
+  // the real author's own tenant (createAuthoringDraft); copyPackAsNewDraft
+  // always sets it to the PRIOR row's own tenant_id (copying is versioning,
+  // never a change of ownership).
+  tenantId: string;
   // §8 / §13 metadata (all optional, declaration-only)
   description?: string;
   owner?: string;
@@ -264,6 +259,7 @@ export function packMetadataFromSeed(seed: PackSeedInput): Record<string, string
 // only exist across Platform + a tenant (the "tenant-overrides-a-Domain-Pack"
 // case CR-030's own Override definition names), never within one tenant.
 export async function findActiveCompositionSource(code: string, tenantId: string): Promise<PackRow | null> {
+  const PLATFORM_TENANT_ID = await getPlatformTenantId();
   const { data: ownTenant } = await packsDB.findActiveByCode(code, tenantId);
   if (ownTenant) return ownTenant;
   if (tenantId === PLATFORM_TENANT_ID) return null;
@@ -304,7 +300,7 @@ export async function validatePackSeed(seed: PackSeedInput, options?: { skipComp
   // ownership, packsDB.create's own default when unset is the Platform
   // tenant, so an unauthored/CLI-published Pack sees Platform's vocabulary
   // only, same as before this change).
-  const ontologyViewer = { isRoot: false, tenantId: seed.tenantId ?? PLATFORM_TENANT_ID };
+  const ontologyViewer = { isRoot: false, tenantId: seed.tenantId ?? (await getPlatformTenantId()) };
   const { data: packSchemaRow } = await schemaDefinitionsDB.findLatest("Pack");
   if (packSchemaRow) {
     const packSchema = packSchemaRow.schema as JsonSchemaDocument;
@@ -359,7 +355,7 @@ export async function validatePackSeed(seed: PackSeedInput, options?: { skipComp
         errors.push(`Composition Strategy "${seed.compositionStrategy}" requires every composition source to share the same code — got: ${[...new Set(sourceCodes)].join(", ")}.`);
       }
       for (const code of sourceCodes) {
-        const sourcePack = await findActiveCompositionSource(code, seed.tenantId ?? PLATFORM_TENANT_ID);
+        const sourcePack = await findActiveCompositionSource(code, seed.tenantId ?? (await getPlatformTenantId()));
         if (!sourcePack) errors.push(`composition source Pack "${code}" has no Active Version visible to this tenant.`);
       }
     }
@@ -528,13 +524,13 @@ export async function validatePackSeed(seed: PackSeedInput, options?: { skipComp
   // today", the same always-present-list convention CR-089 established),
   // which always passes regardless of this Pack's Capabilities.
   const packCapabilityCodes = (seed.contributions.capabilities ?? []).map((c) => c.code);
-  const packDeliverableNames = await deliverableNamesFromCapabilityCodes(packCapabilityCodes, ontologyViewer.tenantId ?? PLATFORM_TENANT_ID);
+  const packDeliverableNames = await deliverableNamesFromCapabilityCodes(packCapabilityCodes, ontologyViewer.tenantId ?? (await getPlatformTenantId()));
   for (const policyCode of seed.contributions.policies ?? []) {
     if (!policyCode?.trim()) {
       errors.push("policy is missing a code");
       continue;
     }
-    const { data: definition } = await policyDefinitionsDB.findActiveByCodeVisibleTo(policyCode, ontologyViewer.tenantId ?? PLATFORM_TENANT_ID);
+    const { data: definition } = await policyDefinitionsDB.findActiveByCodeVisibleTo(policyCode, ontologyViewer.tenantId ?? (await getPlatformTenantId()));
     if (!definition) {
       errors.push(`policy "${policyCode}" does not resolve to an Active Policy Definition visible to this tenant`);
       continue;
@@ -681,7 +677,7 @@ export async function validatePackSeed(seed: PackSeedInput, options?: { skipComp
   // actually declares, never invent a new dimension.
   const capabilityCodes = new Set((seed.contributions.capabilities ?? []).map((c) => c.code));
   for (const svc of seed.contributions.services ?? []) {
-    const { data: definition } = await serviceDefinitionsDB.findActiveByCodeVisibleTo(svc.code ?? "", ontologyViewer.tenantId ?? PLATFORM_TENANT_ID);
+    const { data: definition } = await serviceDefinitionsDB.findActiveByCodeVisibleTo(svc.code ?? "", ontologyViewer.tenantId ?? (await getPlatformTenantId()));
     if (!definition) {
       errors.push(`service "${svc.code}" does not resolve to an Active Service Definition visible to this tenant`);
       continue;
@@ -745,7 +741,7 @@ export async function createPackDraft(seed: PackSeedInput, authorId: string, aut
   // CR-026 Part 2: scoped to this seed's own tenant — otherwise re-publishing
   // a Platform pack idempotently could resolve to a DIFFERENT tenant's
   // same-code-and-version row instead of treating it as a fresh publish.
-  const { data: existing } = await packsDB.findByCodeAndVersion(seed.code, seed.packVersion, seed.tenantId ?? PLATFORM_TENANT_ID);
+  const { data: existing } = await packsDB.findByCodeAndVersion(seed.code, seed.packVersion, seed.tenantId ?? (await getPlatformTenantId()));
   if (existing) {
     await materializeContributions(existing, seed);
     return { ok: true, pack: existing, alreadyExists: true };
@@ -756,7 +752,7 @@ export async function createPackDraft(seed: PackSeedInput, authorId: string, aut
   // form, which lets an author pick) always pins to whatever's latest.
   const { data: packSchema } = await schemaDefinitionsDB.findLatest("Pack");
   if (!packSchema) return { ok: false, errors: [`no schema_definitions grammar for Pack`] };
-  const { data: pack, error } = await packsDB.create({ ...seed, metadata: packMetadataFromSeed(seed), schemaDefinitionId: packSchema.id, authoredBy: authorId, authorBadge, tenantId: seed.tenantId ?? PLATFORM_TENANT_ID });
+  const { data: pack, error } = await packsDB.create({ ...seed, metadata: packMetadataFromSeed(seed), schemaDefinitionId: packSchema.id, authoredBy: authorId, authorBadge, tenantId: seed.tenantId ?? (await getPlatformTenantId()) });
   if (error || !pack) return { ok: false, errors: [(error ?? new Error("failed to create pack")).message] };
 
   // Version Feature Plan.md — materializeContributions must finish before the event
@@ -1294,6 +1290,7 @@ export async function packCodeVersionSummaries(tenantId: string): Promise<Record
   // of which version they copy content from; CR-081's own "which version you
   // branch FROM never changes which number the new Draft gets" rule is
   // unaffected by widening WHERE that content can come from.
+  const PLATFORM_TENANT_ID = await getPlatformTenantId();
   const platformByCode = tenantId === PLATFORM_TENANT_ID ? null : groupByCode((await packsDB.findAllForTenant(PLATFORM_TENANT_ID)).data ?? []);
 
   const result: Record<string, PackCodeVersionSummary> = {};

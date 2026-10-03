@@ -102,10 +102,27 @@ async function schemaDefinitionIdFor(kind: SchemaDefinitionEntityKind): Promise<
 }
 
 after(async () => {
+  // Pack rows are deliberately never deleted here (see REAL_PACK_CODE's own
+  // comment below) — they accumulate under a stable code the same way every
+  // other test file's Pack rows do. That means any participant this file
+  // created who ended up as a surviving Pack's authored_by (e.g. the
+  // separation-of-duties test's "author") can't be deleted either — and
+  // neither can that participant's own user row (participants_master.user_id
+  // -> users). Keep exactly those two rows; delete everything else as usual.
+  const { rows: stillReferenced } = createdParticipantMasterIds.length
+    ? await pool.query<{ id: string; user_id: string }>(
+        "SELECT id, user_id FROM participants_master WHERE id = ANY($1::uuid[]) AND id IN (SELECT authored_by FROM packs WHERE authored_by = ANY($1::uuid[]))",
+        [createdParticipantMasterIds]
+      )
+    : { rows: [] };
+  const keepParticipantIds = new Set(stillReferenced.map((r) => r.id));
+  const keepUserIds = new Set(stillReferenced.map((r) => r.user_id));
+  const participantIdsToDelete = createdParticipantMasterIds.filter((id) => !keepParticipantIds.has(id));
+  const userIdsToDelete = createdUserIds.filter((id) => !keepUserIds.has(id));
   // participants_master.user_id FKs into users — must delete before
   // createdUserIds' own cleanup below.
-  if (createdParticipantMasterIds.length) await pool.query("DELETE FROM participants_master WHERE id = ANY($1::uuid[])", [createdParticipantMasterIds]);
-  if (createdUserIds.length) await pool.query("DELETE FROM users WHERE id = ANY($1::bigint[])", [createdUserIds]);
+  if (participantIdsToDelete.length) await pool.query("DELETE FROM participants_master WHERE id = ANY($1::uuid[])", [participantIdsToDelete]);
+  if (userIdsToDelete.length) await pool.query("DELETE FROM users WHERE id = ANY($1::uuid[])", [userIdsToDelete]);
   if (createdOntologyConceptCodes.length) {
     await pool.query("DELETE FROM ontology_concepts WHERE concept_type = 'deliverable-name' AND code = ANY($1::text[])", [createdOntologyConceptCodes]);
   }
@@ -153,38 +170,49 @@ if (athensTenantErr) throw athensTenantErr;
 if (!athensTenant) throw new Error("athens tenant not provisioned");
 const ATHENS_TENANT_ID = athensTenant.id;
 
+// Bug fix (owner, 2026-10-03): "the requiredbadge has to be inserted for
+// actor" — createAuthoringDraft/publishAuthoringDraft resolve actorId
+// against participants_master.id (same convention as ROOT_ACTOR_ID, a
+// participants_master id, never users.id — see testFixtures.ts's
+// getSuperuserId()). This previously returned the bare users.id, so every
+// non-root actor here failed participantsMasterDB.findById() with "No
+// superuser provisioned." Every actor now gets its participants_master row
+// provisioned up front, and callers use THAT id (not users.id) everywhere
+// downstream — the same participant-row convention grant() already used,
+// just applied at actor-creation time instead of deferred to the first
+// grant() call (an actor with zero badges, e.g. "outsider" below, otherwise
+// never got a participant row at all).
 async function createTestUser(label: string): Promise<string> {
   const email = `sdk-authoring-${label}-${randomUUID()}@example.com`;
   const user = await userDB.create({ email, name: label, avatar_url: null, auth_provider: "local", provider_id: null, is_active: true, type: "Platform", tenant_id: PLATFORM_TENANT_ID });
   createdUserIds.push(String(user.id));
-  return String(user.id);
+  const { rows } = await pool.query<{ id: string }>(
+    `INSERT INTO participants_master (tenant_id, type, display_name, capabilities, competency, behaviour_context, authorised_badges, is_active, user_id)
+     VALUES ($1, 'Human', 'SDK Authoring Test Fixture', '[]'::jsonb, '{}'::jsonb, '[]'::jsonb, '[]'::jsonb, TRUE, $2)
+     RETURNING id`,
+    [PLATFORM_TENANT_ID, user.id]
+  );
+  createdParticipantMasterIds.push(rows[0].id);
+  return rows[0].id;
 }
 
 // Owner (2026-09-22): "Fix sdk-authoring.test" — writes/appends to the
 // holder's own participants_master.authorised_badges (migration 257)
-// instead of the now-dropped badge_grants; find-or-create, since a holder
-// can be granted more than one badge across several calls (e.g. the Pack
-// lifecycle loop below).
-async function grant(holderId: string, badgeType: string): Promise<void> {
+// instead of the now-dropped badge_grants. createTestUser() now always
+// provisions the participant row up front, so this only ever updates an
+// existing row (keyed by participants_master.id, the actorId callers
+// already hold) — no find-or-create branch needed any more.
+async function grant(actorId: string, badgeType: string): Promise<void> {
   const entry = { badge: badgeType, effective_till: "9999-12-31", seu_ids: [] as string[] };
-  const { rows: existing } = await pool.query<{ id: string; authorised_badges: Array<{ badge: string; effective_till: string; seu_ids: string[] }> }>(
-    "SELECT id, authorised_badges FROM participants_master WHERE user_id = $1",
-    [Number(holderId)]
+  const { rows: existing } = await pool.query<{ authorised_badges: Array<{ badge: string; effective_till: string; seu_ids: string[] }> }>(
+    "SELECT authorised_badges FROM participants_master WHERE id = $1",
+    [actorId]
   );
-  if (existing.length > 0) {
-    const badges = existing[0].authorised_badges;
-    if (!badges.some((b) => b.badge === badgeType)) {
-      await pool.query("UPDATE participants_master SET authorised_badges = $1::jsonb WHERE id = $2", [JSON.stringify([...badges, entry]), existing[0].id]);
-    }
-    return;
+  if (!existing.length) throw new Error(`grant: no participants_master row ${actorId} — was it created via createTestUser()?`);
+  const badges = existing[0].authorised_badges;
+  if (!badges.some((b) => b.badge === badgeType)) {
+    await pool.query("UPDATE participants_master SET authorised_badges = $1::jsonb WHERE id = $2", [JSON.stringify([...badges, entry]), actorId]);
   }
-  const { rows } = await pool.query<{ id: string }>(
-    `INSERT INTO participants_master (tenant_id, type, display_name, capabilities, competency, behaviour_context, authorised_badges, is_active, user_id)
-     VALUES ($1, 'Human', 'SDK Authoring Test Fixture', '[]'::jsonb, '{}'::jsonb, '[]'::jsonb, $2::jsonb, TRUE, $3)
-     RETURNING id`,
-    [PLATFORM_TENANT_ID, JSON.stringify([entry]), Number(holderId)]
-  );
-  createdParticipantMasterIds.push(rows[0].id);
 }
 
 // Bug fix (separation of duties): publishAuthoringDraft now advances exactly
@@ -297,7 +325,7 @@ test("Pack authoring, separation of duties: FOUR different single-verb actors ea
   assert.equal(created.ok, true, !created.ok ? created.errors.join("; ") : "assertion failed");
   if (!created.ok) return;
   const { data: draftPack } = await packsDB.findById(created.draftId);
-  assert.equal(draftPack!.authored_by, Number(author), "authored_by is the real defining actor");
+  assert.equal(draftPack!.authored_by, author, "authored_by is the real defining actor");
 
   // The author (define-only) cannot advance it — defining isn't reviewing.
   const authorTriesToAdvance = await publishAuthoringDraft({ kind: "Pack", id: created.draftId, actorId: author, actorRole: "general" });
@@ -322,14 +350,15 @@ test("Pack authoring, separation of duties: FOUR different single-verb actors ea
   const { data: activePack } = await packsDB.findByCodeAndVersion(REAL_PACK_CODE, packVersion);
   assert.ok(activePack, "the pack reached Active through four different single-verb actors");
 
-  // Accountability: three distinct real actors on the three governed hops —
+  // Accountability: four distinct real actors on the four governed hops —
   // never root, never each other's id, exactly the badge for that hop.
   const { rows: events } = await pool.query(
     "SELECT event_type, actor_id, authority_badge FROM events WHERE originating_object_type = 'Pack' AND originating_object_id = $1 AND authority_badge IS NOT NULL ORDER BY sequence",
     [activePack!.id]
   );
-  assert.equal(events.length, 3);
+  assert.equal(events.length, 4);
   assert.deepEqual(events.map((e) => [e.actor_id, e.authority_badge]), [
+    [author, "pack_define"],
     [reviewer, "pack_validate"],
     [publisher, "pack_publish"],
     [activator, "pack_activate"],

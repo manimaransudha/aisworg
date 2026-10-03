@@ -8,8 +8,6 @@ import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { validateAgainstSchema, type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { validateOntologyFieldsAgainstSchema } from "./ontology.js";
 import { getPlatformTenantId } from "../../../dblayer/constants.js";
- 
-const PLATFORM_TENANT_ID = await getPlatformTenantId();
 
 export interface ProfileWriteInput {
   id?: string;
@@ -32,7 +30,7 @@ export interface ProfileWriteInput {
 // draftContent alone doesn't carry them, so they're merged in here to
 // validate what the row will actually be written with.
 export async function validateProfileWriteAgainstSchema(input: ProfileWriteInput): Promise<string[]> {
-  const tenantId = input.tenantId ?? PLATFORM_TENANT_ID;
+  const tenantId = input.tenantId ?? (await getPlatformTenantId());
 
   const { data: schemaRow } = input.schemaDefinitionId
     ? await schemaDefinitionsDB.findById(input.schemaDefinitionId)

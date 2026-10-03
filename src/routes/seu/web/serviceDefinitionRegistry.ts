@@ -14,11 +14,9 @@ import { listServiceDefinitionsWithNextStates, copyServiceDefinitionAsNewDraft }
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
 
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
+
 
 const SERVICE_DEFINITION_STATES = ["Defined", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
@@ -41,7 +39,7 @@ router.get("/service-definitions", attachVM("seu/service-definitions/index"), as
     req.vm.opt.listBasePath = "/aisworg/seu/service-definitions";
     req.vm.opt.states = SERVICE_DEFINITION_STATES;
     req.vm.opt.activeStatus = activeStatus;
-    req.vm.opt.platformTenantId = PLATFORM_TENANT_ID;
+    req.vm.opt.platformTenantId = await getPlatformTenantId();
     const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
     const canCopy = actorId ? (await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "service_define" })).allowed : false;
     req.vm.opt.canCopy = canCopy;

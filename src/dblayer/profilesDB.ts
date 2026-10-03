@@ -3,13 +3,8 @@ import { logger } from "../utils/logger.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validateProfileWriteAgainstSchema } from "../routes/seu/core/profileWriteValidator.js";
 import type { DbResult, ProfileRow } from "./seuTypes.js";
-import { tenantsDB } from "./tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "./constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId  } from "./constants.js";
+ 
 
 // Also owns profile_packs — Profile owns everything selectable/optional on top
 // of the Template's mandatory set (Build Plan §5 item 6).
@@ -60,7 +55,7 @@ export const profilesDB = {
           input.authorBadge,
           input.environment ?? "development",
           input.profileVersion ?? "1.0.0",
-          input.tenantId ?? PLATFORM_TENANT_ID,
+          input.tenantId ?? (await getPlatformTenantId()),
           input.status ?? "Active",
         ]
       );
@@ -174,7 +169,7 @@ export const profilesDB = {
           input.authorBadge,
           JSON.stringify(draftContent),
           profileVersion,
-          input.tenantId ?? PLATFORM_TENANT_ID,
+          input.tenantId ?? (await getPlatformTenantId()),
           input.parentProfileId ?? null,
           schemaRow?.id ?? null,
         ]
@@ -309,6 +304,7 @@ export const profilesDB = {
   // viewer's own tenant's. Feeds the Profile Registry and the Inheritance
   // dropdown.
   async findAllVisibleTo(viewerTenantId: string): Promise<DbResult<ProfileRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
       const { rows } = await query<ProfileRow>(
         "SELECT * FROM profiles WHERE tenant_id = $1 OR tenant_id = $2 ORDER BY category, code, created_at DESC",
@@ -322,6 +318,7 @@ export const profilesDB = {
   },
 
   async findActiveVisibleTo(viewerTenantId: string): Promise<DbResult<ProfileRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
       const { rows } = await query<ProfileRow>(
         "SELECT * FROM profiles WHERE status = 'Active' AND (tenant_id = $1 OR tenant_id = $2) ORDER BY code",
@@ -337,6 +334,7 @@ export const profilesDB = {
   // Authoring surface, the "Queue" tabs — see templatesDB.findByStatus for the
   // full rationale. viewerTenantId null = unscoped (root).
   async findByStatus(status: ProfileRow["status"], viewerTenantId: string | null): Promise<DbResult<ProfileRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
       const { rows } = viewerTenantId == null
         ? await query<ProfileRow>("SELECT * FROM profiles WHERE status = $1 ORDER BY created_at DESC", [status])

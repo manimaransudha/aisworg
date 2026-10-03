@@ -18,12 +18,8 @@ import { templatesDB } from "../../../dblayer/templatesDB.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+ 
 const PROFILE_STATES = ["Draft", "Validated", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
 /** GET /aisworg/seu/profiles — every published Version of every Profile. */
@@ -70,7 +66,7 @@ router.get("/profiles", attachVM("seu/profiles/index"), async (req: Request, res
     req.vm.opt.activeTemplateCode = activeTemplateCode;
     req.vm.opt.states = PROFILE_STATES;
     req.vm.opt.activeStatus = activeStatus;
-    req.vm.opt.platformTenantId = PLATFORM_TENANT_ID;
+    req.vm.opt.platformTenantId = await getPlatformTenantId();
     const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
     const canCopy = actorId ? (await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "profile_define" })).allowed : false;
     req.vm.opt.canCopy = canCopy;

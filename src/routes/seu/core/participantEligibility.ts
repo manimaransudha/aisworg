@@ -13,12 +13,7 @@ import { policiesDB } from "../../../dblayer/policiesDB.js";
 import { unravelComposition } from "../../../domain/engine/profileCompositionUnravel.js";
 import { evaluateCondition, type GoverningCondition } from "../../../domain/engine/governingCondition.js";
 import type { ParticipantMasterRow, PolicyRow, SeuRow } from "../../../dblayer/seuTypes.js";
-import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
+import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
 
 export interface EligibilityCriteria {
   tenantId: string;
@@ -76,6 +71,7 @@ function matchesRequiredPolicies(participant: ParticipantMasterRow, policies: Po
 // directly — the same real composition logic (including CR-104's own
 // Mandatory-Pack folding) commissioning itself runs, not a re-derived copy.
 export async function resolveEligibilityPolicies(seu: SeuRow): Promise<PolicyRow[]> {
+  const PLATFORM_TENANT_ID = await getPlatformTenantId();
   const { composedPacks } = await unravelComposition({ templateIds: [seu.template_id], profileIds: [seu.profile_id] }, seu.tenant_id ?? PLATFORM_TENANT_ID);
   const packIds = composedPacks.map((p) => p.packId);
   const { data: policies } = await policiesDB.findByPackIds(packIds);

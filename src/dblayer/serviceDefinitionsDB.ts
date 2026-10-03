@@ -4,12 +4,8 @@ import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validateServiceDefinitionWriteAgainstSchema } from "../routes/seu/core/serviceDefinitionWriteValidator.js";
 import type { DbResult, ServiceDefinitionRow, ServiceLevelExpectation } from "./seuTypes.js";
 import { tenantsDB } from "./tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "./constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "./constants.js";
+ 
 // CR-086 follow-on — Service Definition (Book 3 Ch.11), a first-class
 // authored entity. Own table (153_service_definitions.sql), mirroring
 // deliverableDefinitionsDB.ts's own shape column-for-column.
@@ -42,6 +38,9 @@ export const serviceDefinitionsDB = {
     // use"); every caller must resolve and pass a real schema_definition_id.
     schemaDefinitionId: string;
   }): Promise<DbResult<ServiceDefinitionRow>> {
+    // get platform tenant id
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
+      
     try {
       const version = input.version ?? "1.0.0";
       const draftContent = input.draftContent ?? {};
@@ -204,6 +203,9 @@ export const serviceDefinitionsDB = {
   // row over Platform's when both exist for the same code (same tie-break
   // findAllVisibleTo's own ORDER BY code implies elsewhere).
   async findActiveByCodeVisibleTo(code: string, viewerTenantId: string): Promise<DbResult<ServiceDefinitionRow | null>> {
+    // get platform tenant id
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
+  
     try {
       const { rows } = await query<ServiceDefinitionRow>(
         `SELECT * FROM service_definitions
@@ -229,6 +231,9 @@ export const serviceDefinitionsDB = {
   },
 
   async findAllVisibleTo(viewerTenantId: string): Promise<DbResult<ServiceDefinitionRow[]>> {
+    // get platform tenant id
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
+  
     try {
       const { rows } = await query<ServiceDefinitionRow>(
         "SELECT * FROM service_definitions WHERE tenant_id = $1 OR tenant_id = $2 ORDER BY code, created_at DESC",
@@ -243,6 +248,9 @@ export const serviceDefinitionsDB = {
 
   // Feeds the Inherit dropdown — every Active row Platform-owns.
   async findActivePlatformOwned(): Promise<DbResult<ServiceDefinitionRow[]>> {
+    // get platform tenant id
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
+  
     try {
       const { rows } = await query<ServiceDefinitionRow>(
         "SELECT * FROM service_definitions WHERE status = 'Active' AND tenant_id = $1 ORDER BY code",

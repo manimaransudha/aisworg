@@ -15,13 +15,8 @@ import { logger } from "../../../utils/logger.js";
 import { listDeliverableDefinitionsWithNextStates, copyDeliverableDefinitionAsNewDraft } from "../core/deliverableDefinitions.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
-import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId } from "../../../dblayer/constants.js";
+ 
 const DELIVERABLE_DEFINITION_STATES = ["Draft", "Validated", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
 /** GET /aisworg/seu/deliverable-definitions — every published Version of every Deliverable Definition. */
@@ -38,6 +33,7 @@ router.get("/deliverable-definitions", attachVM("seu/deliverable-definitions/ind
       searchFields: [(r) => r.deliverableDefinition.code],
       sortFields: { code: (r) => r.deliverableDefinition.code, version: (r) => r.deliverableDefinition.version, status: (r) => r.deliverableDefinition.status },
     });
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     list.status = activeStatus || undefined;
     req.vm.req.list = list;
     req.vm.opt.listBasePath = "/aisworg/seu/deliverable-definitions";

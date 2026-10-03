@@ -8,13 +8,8 @@ import { query } from "../../../utils/db.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { validateAgainstSchema, type JsonSchemaDocument } from "../../../domain/sdk/formGenerator.js";
 import { validateOntologyFieldsAgainstSchema } from "./ontology.js";
-import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId } from "../../../dblayer/constants.js";
+ 
 export interface DeliverableDefinitionWriteInput {
   id?: string;
   code: string;
@@ -37,7 +32,7 @@ export interface DeliverableDefinitionWriteInput {
 // own validator and so a future Ontology-governed field on this schema needs
 // no new plumbing.
 export async function validateDeliverableDefinitionWriteAgainstSchema(input: DeliverableDefinitionWriteInput): Promise<string[]> {
-  const tenantId = input.tenantId ?? PLATFORM_TENANT_ID;
+  const tenantId = input.tenantId ?? (await getPlatformTenantId());
 
   const { data: schemaRow } = input.schemaDefinitionId
     ? await schemaDefinitionsDB.findById(input.schemaDefinitionId)

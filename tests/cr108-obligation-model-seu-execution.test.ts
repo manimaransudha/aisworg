@@ -314,6 +314,7 @@ test("CR-108 item 3: a Participant can raise an Obligation against their own dis
   const run = randomUUID().slice(0, 8);
   await ensureWebAppTemplateFixture();
   const userId = await createTestUser(run);
+  let participantMasterId!: string;
 
   const result = await commissionFromFormSync(
     { statement: `cr108-participant-${run}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design", "software-construction"], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID },
@@ -321,7 +322,7 @@ test("CR-108 item 3: a Participant can raise an Obligation against their own dis
       const detail = await getSeuDetailView(seuId);
       const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
       assert.ok(capability);
-      const participantMasterId = await ensureEligibleParticipant(seuId, ["requirements-analysis"]);
+      participantMasterId = await ensureEligibleParticipant(seuId, ["requirements-analysis"]);
       await attachUserToParticipantMaster(participantMasterId, userId);
       await fulfilCapability({ seuId, capabilityId: capability!.capabilityId, participantMasterId });
     }
@@ -342,7 +343,7 @@ test("CR-108 item 3: a Participant can raise an Obligation against their own dis
   await waitForDispatchedWorkItem(requirementsSpec!.id, "Defined", "In Progress");
 
   const raised = await raiseMyObligation({
-    userId, seuId, deliverableId: requirementsSpec!.id,
+    userId: participantMasterId, seuId, deliverableId: requirementsSpec!.id,
     category: "Engineering", title: "CR-108 participant-raised obligation",
     description: "Raised via the Participant-facing quickview form.",
     severity: "Medium", completionCriteria: "The named condition is addressed.",
@@ -356,7 +357,7 @@ test("CR-108 item 3: a Participant can raise an Obligation against their own dis
   // A Deliverable never dispatched to this Participant — not_mine, no
   // Obligation created, regardless of whether the id is even real.
   const rejected = await raiseMyObligation({
-    userId, seuId, deliverableId: randomUUID(),
+    userId: participantMasterId, seuId, deliverableId: randomUUID(),
     category: "Engineering", title: "should never be created",
   });
   assert.equal(rejected.ok, false);

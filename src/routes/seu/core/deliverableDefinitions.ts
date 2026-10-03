@@ -6,12 +6,7 @@ import { eventBus } from "../../../domain/engine/eventBus.js";
 import { schemaDefinitionsDB } from "../../../dblayer/schemaDefinitionsDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import type { DeliverableDefinitionRow } from "../../../dblayer/seuTypes.js";
-import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
+import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
 
 // CR-049 Phase 1 — Deliverable Definition authoring, mirroring core/templates.ts
 // in shape. The one thing this touches that Template's own materialisation
@@ -49,7 +44,7 @@ export async function validateDeliverableDefinitionSeed(seed: DeliverableDefinit
   if (!seed.code?.trim()) errors.push("code is required");
   if (!SEMVER_RE.test(seed.definitionVersion ?? "")) errors.push(`definitionVersion must be semver (x.y.z), got: "${seed.definitionVersion}"`);
 
-  const tenantId = seed.tenantId ?? PLATFORM_TENANT_ID;
+  const tenantId = seed.tenantId ?? (await getPlatformTenantId());
   if (seed.code?.trim() && SEMVER_RE.test(seed.definitionVersion ?? "")) {
     const collision = await assertDeliverableDefinitionCodeVersionFree(seed.code, seed.definitionVersion, tenantId, excludeId);
     if (collision) errors.push(collision);
@@ -59,6 +54,7 @@ export async function validateDeliverableDefinitionSeed(seed: DeliverableDefinit
   // Definition. Unlike Template Inheritance, the child's code is NOT locked
   // to the parent's own (CR-049's own example: "Claims Adjudication Rules
   // Document" derives from "Business Rules" — a genuinely different code).
+  const PLATFORM_TENANT_ID = await getPlatformTenantId();
   if (seed.parentDeliverableDefinitionId) {
     const { data: parent } = await deliverableDefinitionsDB.findById(seed.parentDeliverableDefinitionId);
     if (!parent) {

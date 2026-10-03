@@ -13,13 +13,8 @@ import { logger } from "../../../utils/logger.js";
 import { listCapabilityDefinitionsWithNextStates, copyCapabilityDefinitionAsNewDraft } from "../core/capabilityDefinitions.js";
 import { parseListParams, paginateList } from "../../../utils/listQuery.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
-import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId, PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+ 
 const CAPABILITY_DEFINITION_STATES = ["Defined", "Published", "Active", "Deprecated", "Retired", "Archived"];
 
 /** GET /aisworg/seu/capability-definitions — every published Version of every Capability Definition. */
@@ -41,7 +36,7 @@ router.get("/capability-definitions", attachVM("seu/capability-definitions/index
     req.vm.opt.listBasePath = "/aisworg/seu/capability-definitions";
     req.vm.opt.states = CAPABILITY_DEFINITION_STATES;
     req.vm.opt.activeStatus = activeStatus;
-    req.vm.opt.platformTenantId = PLATFORM_TENANT_ID;
+    req.vm.opt.platformTenantId = (await getPlatformTenantId());
     const actorId = req.session?.user?.id != null ? String(req.session.user.id) : "";
     const canCopy = actorId ? (await badgeAuthorityEngine.authorise({ actorId, requiredBadge: "capability_define" })).allowed : false;
     req.vm.opt.canCopy = canCopy;

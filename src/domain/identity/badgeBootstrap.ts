@@ -14,12 +14,7 @@ import { participantsMasterDB } from "../../dblayer/participantsMasterDB.js";
 import { ontologyDB } from "../../dblayer/ontologyDB.js";
 import { badgeAuthorityEngine } from "../engine/badgeAuthorityEngine.js";
 import { logger } from "../../utils/logger.js";
-import { tenantsDB } from "../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
+import { getPlatformTenantId  } from "../../dblayer/constants.js";
 
 const SUPERUSER_EMAIL = (process.env.SUPERUSER_EMAIL || "").toLowerCase();
 
@@ -71,13 +66,12 @@ export async function ensureBadgeBootstrap(user: { id: string | string; email: s
   try {
     if (user.email?.toLowerCase() !== SUPERUSER_EMAIL || !SUPERUSER_EMAIL) return;
     const userId = user.id;
-    if (!Number.isInteger(userId)) return;
 
-    const { data: existing } = await participantsMasterDB.findById(userId);
+    const { data: existing } = await participantsMasterDB.findByUserId(userId);
     let master = existing;
     if (!master) {
       const created = await participantsMasterDB.create({
-        tenantId: PLATFORM_TENANT_ID,
+        tenantId: await getPlatformTenantId(),
         type: "Human",
         displayName: user.email,
         userId,

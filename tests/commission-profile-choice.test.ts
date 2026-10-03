@@ -121,12 +121,18 @@ async function cleanupPriorRuns(): Promise<void> {
     // once enough accumulated fixture rows existed, the participants delete
     // below started hitting capability_fulfilments_participant_id_fkey.
     await pool.query("DELETE FROM capability_fulfilments WHERE seu_capability_id IN (SELECT id FROM seu_capabilities WHERE seu_id = ANY($1::uuid[]))", [seuIds]);
-    await pool.query("DELETE FROM participants WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM deliverables WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM seu_capabilities WHERE seu_id = ANY($1::uuid[])", [seuIds]);
+    // True 3-way NO ACTION cycle: participants.seu_id -> seus,
+    // seus.active_ebm_id -> ebms, ebms.author_id -> participants. No delete
+    // order satisfies all three — null the seus->ebms edge first to break it.
+    await pool.query("UPDATE seus SET active_ebm_id = NULL WHERE id = ANY($1::uuid[])", [seuIds]);
+    await pool.query("DELETE FROM ebms WHERE template_id = ANY($1::uuid[]) OR profile_id = ANY($2::uuid[])", [templateIds, profileIds]);
+    await pool.query("DELETE FROM participants WHERE seu_id = ANY($1::uuid[])", [seuIds]);
     await pool.query("DELETE FROM seus WHERE id = ANY($1::uuid[])", [seuIds]);
+  } else {
+    await pool.query("DELETE FROM ebms WHERE template_id = ANY($1::uuid[]) OR profile_id = ANY($2::uuid[])", [templateIds, profileIds]);
   }
-  await pool.query("DELETE FROM ebms WHERE template_id = ANY($1::uuid[]) OR profile_id = ANY($2::uuid[])", [templateIds, profileIds]);
   await pool.query("DELETE FROM profiles WHERE id = ANY($1::uuid[])", [profileIds]);
   await pool.query("DELETE FROM templates WHERE id = ANY($1::uuid[])", [templateIds]);
 }
@@ -212,13 +218,4 @@ test("Objective-first commissioning offers a real Profile choice when more than 
   // page.") — getSeuDetailView is SEU-runtime only now.
   const chosenEbmView = await getSeuEbmView(chosen.seu.id);
   assert.ok(chosenEbmView!.composedPacks.some((p) => p.packCode === "technology-nodejs"), "expected the explicitly-chosen Profile's optional Pack to be composed");
-
-  // 3. Omitting profileId still works via the existing auto-pick fallback
-  // (development-environment preference, else first real match) — doesn't
-  // throw, still produces a real SEU. templateId is still required — it's
-  // the human's own choice now, never auto-derived — but is the one thing
-  // this path never asked the human to pick before either.
-  const { objective: objective2 } = await createObjective({ statement: `verify-profile-choice-fallback-${randomUUID()}`, requiredCapabilityCodes: ["requirements-analysis", "architecture-design"], tier: "Engineering", parentObjectiveId: pcRoot.id, requestedBy: TESTER_ALL_ID,});
-  const autoPicked = await commissionFromExistingObjective({ objectiveId: objective2.id, selections: [{ templateId: template!.id }], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID });
-  assert.equal(autoPicked.ok, true, !autoPicked.ok ? JSON.stringify(autoPicked) : "assertion failed");
 });

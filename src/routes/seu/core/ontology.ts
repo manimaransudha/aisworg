@@ -20,11 +20,7 @@ import { compositionEngine } from "../../../domain/engine/compositionEngine.js";
 import type { JsonSchemaDocument, JsonSchemaProperty } from "../../../domain/sdk/formGenerator.js";
 import type { OntologyConceptRow } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
+import { getPlatformTenantId } from "../../../dblayer/constants.js";
 
 
 // actorId, added by migration 190's governed lifecycle — every real
@@ -249,7 +245,7 @@ export async function emitConceptCreated(input: {
   const code = input.code.trim();
   const conceptType = input.conceptType.trim();
   if (!code || !conceptType) return;
-  const tenantId = input.tenantId ?? PLATFORM_TENANT_ID;
+  const tenantId = input.tenantId ?? (await getPlatformTenantId());
   const { data: concept } = await ontologyDB.findConcept(conceptType, code, { isRoot: false, tenantId });
   if (concept) return; // already a real, registered concept — nothing to propose
   const { data: priorEvents } = await eventsDB.findByOriginatingObject(input.originatingObjectType, input.originatingObjectId);
@@ -534,7 +530,7 @@ export async function addConcept(
   if (conceptType === "deliverable-name") {
     throw new Error('Deliverable names are authored at /aisworg/seu/sdk/deliverable-authoring now, not added directly here — use "Inherit" there to derive from an existing Platform Deliverable Definition, or start a new one.');
   }
-  const tenantId = actor.isRoot ? (input.targetTenantId ?? PLATFORM_TENANT_ID) : actor.tenantId;
+  const tenantId = actor.isRoot ? (input.targetTenantId ?? (await getPlatformTenantId())) : actor.tenantId;
   if (!tenantId) throw new Error("no tenant to add this concept to");
 
   // CR-113 item 4 — "if saving something that is already existing, current
@@ -890,7 +886,7 @@ export async function composeConcept(
   const code = input.code.trim();
   assertOntologyCodeFormat("concept type", conceptType);
   assertOntologyCodeFormat("code", code);
-  const tenantId = actor.isRoot ? (input.targetTenantId ?? PLATFORM_TENANT_ID) : actor.tenantId;
+  const tenantId = actor.isRoot ? (input.targetTenantId ?? (await getPlatformTenantId())) : actor.tenantId;
   if (!tenantId) throw new Error("no tenant to compose this concept into");
 
   let result: OntologyConceptRow;

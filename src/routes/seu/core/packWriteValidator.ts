@@ -8,11 +8,9 @@ import { validateAgainstSchema, type JsonSchemaDocument } from "../../../domain/
 import { validateOntologyFieldsAgainstSchema } from "./ontology.js";
 import type { PackCategory, PackClassification, PackContributions } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
+import { getPlatformTenantId } from "../../../dblayer/constants.js";
 
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
+  
 
 export interface PackWriteInput {
   id?: string;
@@ -32,6 +30,8 @@ export interface PackWriteInput {
 // non-blocking). Pins to the row's own schemaDefinitionId when given
 // (an update), else the latest Pack schema (a create).
 export async function validatePackWriteAgainstSchema(input: PackWriteInput): Promise<string[]> {
+  // get platform tenant id
+  const PLATFORM_TENANT_ID = await getPlatformTenantId();
   const tenantId = input.tenantId ?? PLATFORM_TENANT_ID;
 
   const { data: schemaRow } = input.schemaDefinitionId

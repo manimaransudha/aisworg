@@ -9,7 +9,7 @@ import { executionTargetsDB } from "../../../dblayer/executionTargetsDB.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { participantsMasterDB } from "../../../dblayer/participantsMasterDB.js";
 import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
-import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
+import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
 import type { ExecutionMode } from "../../../dblayer/seuTypes.js";
 
 // execution_targets.author_id/author_badge are NOT NULL -- resolve the real
@@ -21,9 +21,9 @@ async function resolveExecutionTargetAuthor(req: Request): Promise<{ authorId: s
   if (!(userId)) return { error: "No logged-in user on this session." };
   const { data: master } = await participantsMasterDB.findById(userId);
   if (!master) return { error: `No superuser provisioned.` };
-  const authRow = lookupRouteAuthority(req.method, req.path);
+  const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
   const held = await resolveHeldBadges(req);
-  const authorBadge = held.isRoot ? "root" : authRow?.badges.find((b) => held.has(b));
+  const authorBadge = resolveAuthorBadge(authRow, held);
   if (!authorBadge) return { error: "No held badge authorises this action -- cannot record an author badge." };
   return { authorId: master.id, authorBadge };
 }

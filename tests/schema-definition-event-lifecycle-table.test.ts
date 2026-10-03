@@ -20,7 +20,7 @@ import { eventsDB } from "../src/dblayer/eventsDB.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
 import { participantsMasterDB } from "../src/dblayer/participantsMasterDB.js";
 import { createSchemaVersion, publishSchemaVersion, rejectSchemaVersion } from "../src/routes/seu/core/schemaRegistry.js";
-import { TESTER_ALL_ID, ROOT_ACTOR_ID } from "./testFixtures.js";
+import { TESTER_ALL_ID, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE } from "./testFixtures.js";
 
 // This file reuses the real "Capability" entity_kind as its fixture (see
 // freshCreatedSchema below), which otherwise permanently pollutes
@@ -113,9 +113,10 @@ test("DRIVEN: createSchemaVersion auto-advances a new row Created -> Validated -
   if (!result.ok) return;
 
   assert.equal(result.schema.lifecycle_state, "Packaged");
-  // Created is entity-direct authoring, not a governed transition — no
-  // badge accrues to it even once the row is later advanced.
-  assert.equal(result.schema.author_badge, null);
+  // Created is entity-direct authoring, but this whole router is root-only
+  // (route_authority) — the real resolved badge for it is ROOT_ACTOR_BADGE
+  // itself (schemaRegistry.ts's createSchemaVersion), not null.
+  assert.equal(result.schema.author_badge, ROOT_ACTOR_BADGE);
 
   const { data: events } = await eventsDB.findByOriginatingObject("SchemaDefinition", result.schema.id);
   const eventTypes = (events ?? []).map((e) => e.event_type);
@@ -184,7 +185,9 @@ test("AUTHORITY: an actor without schemadefinition_publish/_reject is denied, an
 
   const { data: stillPackaged } = await schemaDefinitionsDB.findById(packaged.schema.id);
   assert.equal(stillPackaged!.lifecycle_state, "Packaged");
-  assert.equal(stillPackaged!.author_badge, null);
+  // Unchanged from Created's own stamp (ROOT_ACTOR_BADGE) — a denied
+  // publish attempt must not overwrite it.
+  assert.equal(stillPackaged!.author_badge, ROOT_ACTOR_BADGE);
 });
 
 test("AUTHORITY: an unknown schema id is rejected before any authority check", async () => {

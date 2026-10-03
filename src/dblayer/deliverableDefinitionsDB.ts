@@ -3,13 +3,8 @@ import { logger } from "../utils/logger.js";
 import { schemaDefinitionsDB } from "./schemaDefinitionsDB.js";
 import { validateDeliverableDefinitionWriteAgainstSchema } from "../routes/seu/core/deliverableDefinitionWriteValidator.js";
 import type { DbResult, DeliverableDefinitionRow } from "./seuTypes.js";
-import { tenantsDB } from "./tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "./constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId } from "./constants.js";
+ 
 // CR-049 Phase 1 — Deliverable Definition, a first-class authored entity.
 // Own table (081_deliverable_definitions.sql), mirroring templatesDB.ts's own
 // shape column-for-column — no join-table functions needed here (no Pack
@@ -60,7 +55,7 @@ export const deliverableDefinitionsDB = {
           input.authoredBy,
           input.authorBadge,
           JSON.stringify(draftContent),
-          input.tenantId ?? PLATFORM_TENANT_ID,
+          input.tenantId ?? (await getPlatformTenantId()),
           input.parentDeliverableDefinitionId ?? null,
           schemaRow?.id ?? null,
         ]
@@ -159,6 +154,7 @@ export const deliverableDefinitionsDB = {
   },
 
   async findAllVisibleTo(viewerTenantId: string): Promise<DbResult<DeliverableDefinitionRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
       const { rows } = await query<DeliverableDefinitionRow>(
         "SELECT * FROM deliverable_definitions WHERE tenant_id = $1 OR tenant_id = $2 ORDER BY code, created_at DESC",
@@ -175,6 +171,7 @@ export const deliverableDefinitionsDB = {
   // describes inheriting from Platform's own canonical Definition, not from
   // another tenant's).
   async findActivePlatformOwned(): Promise<DbResult<DeliverableDefinitionRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
       const { rows } = await query<DeliverableDefinitionRow>(
         "SELECT * FROM deliverable_definitions WHERE status = 'Active' AND tenant_id = $1 ORDER BY code",
@@ -188,6 +185,7 @@ export const deliverableDefinitionsDB = {
   },
 
   async findByStatus(status: DeliverableDefinitionRow["status"], viewerTenantId: string | null): Promise<DbResult<DeliverableDefinitionRow[]>> {
+    const PLATFORM_TENANT_ID = await getPlatformTenantId();
     try {
       const { rows } = viewerTenantId == null
         ? await query<DeliverableDefinitionRow>("SELECT * FROM deliverable_definitions WHERE status = $1 ORDER BY created_at DESC", [status])

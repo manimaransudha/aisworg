@@ -9,12 +9,8 @@ import { validateAgainstSchema, type JsonSchemaDocument } from "../../../domain/
 import { validateOntologyFieldsAgainstSchema } from "./ontology.js";
 import type { CapabilityRole } from "../../../dblayer/seuTypes.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
-import { PLATFORM_TENANT_NAME } from "../../../dblayer/constants.js";
-
-let result = await tenantsDB.findByName(PLATFORM_TENANT_NAME);
-if (result.error || !result.data) throw new Error("Error retrieving Platform details");
-const PLATFORM_TENANT_ID = result.data.id;
-
+import { getPlatformTenantId } from "../../../dblayer/constants.js";
+ 
 export interface CapabilityDefinitionWriteInput {
   id?: string;
   code: string;
@@ -35,7 +31,7 @@ export interface CapabilityDefinitionWriteInput {
 // properties — draftContent alone doesn't carry them, so they're merged in
 // here to validate what the row will actually be written with.
 export async function validateCapabilityDefinitionWriteAgainstSchema(input: CapabilityDefinitionWriteInput): Promise<string[]> {
-  const tenantId = input.tenantId ?? PLATFORM_TENANT_ID;
+  const tenantId = input.tenantId ?? (await getPlatformTenantId());
 
   const { data: schemaRow } = input.schemaDefinitionId
     ? await schemaDefinitionsDB.findById(input.schemaDefinitionId)

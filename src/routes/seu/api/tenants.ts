@@ -7,7 +7,7 @@ import type { Request, Response } from "express";
 import { logger } from "../../../utils/logger.js";
 import { tenantsDB } from "../../../dblayer/tenantsDB.js";
 import { tenantContractsDB } from "../../../dblayer/tenantContractsDB.js";
-import { resolveHeldBadges } from "../../../domain/identity/heldBadges.js";
+import { resolveHeldBadges, resolveAuthorBadge } from "../../../domain/identity/heldBadges.js";
 import { lookupRouteAuthority } from "../../../domain/identity/routeAuthorityCache.js";
 
 // Participant Integration — Plan step 6. Deployment-time contract config: a
@@ -35,9 +35,9 @@ router.post("/tenants", async (req: Request, res: Response) => {
     // The required badge(s) for this route are route_authority's own data
     // (CR-110), not a literal here -- authorBadge is whichever of those this
     // session's actual held badges satisfies.
-    const authRow = lookupRouteAuthority(req.method, req.path);
+    const authRow = lookupRouteAuthority(req.method, req.baseUrl + req.path);
     const held = await resolveHeldBadges(req);
-    const authorBadge = authRow?.badges.find((b) => held.has(b));
+    const authorBadge = resolveAuthorBadge(authRow, held);
     if (!authorBadge) return res.status(403).json({ error: "no author badge resolved for this tenant creation" });
     const existing = await tenantsDB.findByCode(code);
     if (existing.data) return res.status(409).json({ error: `tenant code already exists: ${code}` });

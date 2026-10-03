@@ -13,7 +13,7 @@ import { evidenceDB } from "../../../dblayer/evidenceDB.js";
 import { decisionsDB } from "../../../dblayer/decisionsDB.js";
 import { reviewsDB } from "../../../dblayer/reviewsDB.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
-import { resolveSystemActor } from "./attentionItems.js";
+import { resolveAuthor, resolveSystemActor } from "./attentionItems.js";
 import type { ComplianceRequirementRow, ComplianceStatus } from "../../../dblayer/seuTypes.js";
 
 // Same qualifying sets the qualityGateEngine uses — compliance consumes the
@@ -165,7 +165,8 @@ export async function evaluateCompliance(seuId: string, opts?: { persist?: boole
 
   if (opts?.persist !== false) {
     const systemActor = await resolveSystemActor(seuId);
-    await complianceDB.recordEvaluation({ seuId, status, rationale: { counts, frameworks: frameworkCodes, conflicts }, results });
+    const { authorId } = await resolveAuthor(seuId, systemActor.actorId);
+    await complianceDB.recordEvaluation({ seuId, status, rationale: { counts, frameworks: frameworkCodes, conflicts }, results, authorId, authorBadge: systemActor.authorBadge });
     await eventBus.publish({ eventType: "ComplianceEvaluated", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), actorId: systemActor.actorId, authorityBadge: systemActor.authorBadge, payload: { status, counts } });
     if (previous && previous.status !== status) {
       await eventBus.publish({ eventType: "ComplianceStatusChanged", originatingObjectType: "SEU", originatingObjectId: seuId, seuId, correlationId: eventBus.newCorrelationId(), actorId: systemActor.actorId, authorityBadge: systemActor.authorBadge, payload: { from: previous.status, to: status } });
