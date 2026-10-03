@@ -434,7 +434,7 @@ export const packsDB = {
   // updated or deleted at the application layer — same insert-only
   // discipline as objective_comments (CR-073). The Validated -> Draft
   // (Reject) transition requires one of these on every use.
-  async addComment(packId: string, actorId: number | null, commentText: string): Promise<DbResult<PackCommentRow>> {
+  async addComment(packId: string, actorId: string, commentText: string): Promise<DbResult<PackCommentRow>> {
     try {
       const { rows } = await query<PackCommentRow>(
         `INSERT INTO pack_comments (pack_id, actor_id, comment_text)

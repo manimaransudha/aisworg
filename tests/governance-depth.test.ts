@@ -81,9 +81,6 @@ test("Quality Gate blocks a Deliverable transition while an Obligation is unreso
   assert.equal(readiness.ready, true);
   assert.equal(readiness.rows.length, 0);
 
-  const toInProgress = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
-  assert.equal(toInProgress.ok, true, !toInProgress.ok ? JSON.stringify(toInProgress) : "assertion failed");
-
   const obligation = await createObligation({
     relatedObjectType: "Deliverable",
     relatedObjectId: requirementsSpec.id,
@@ -92,6 +89,9 @@ test("Quality Gate blocks a Deliverable transition while an Obligation is unreso
     severity: "High",
   });
   assert.equal(obligation.status, "Identified");
+
+  const toInProgress = await transitionDeliverable({ deliverableId: requirementsSpec.id, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
+  assert.equal(toInProgress.ok, true, !toInProgress.ok ? JSON.stringify(toInProgress) : "assertion failed");
 
   // Dependency Engine still has nothing to say — re-confirm right before the
   // blocked attempt, not just at the start.

@@ -2,9 +2,11 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
+import { query } from "../src/utils/db.js";
+import { ontologyDB } from "../src/dblayer/ontologyDB.js";
 import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { profilesDB } from "../src/dblayer/profilesDB.js";
-import { publishTemplate, PACK_SELECTION_SLOTS } from "../src/routes/seu/core/templates.js";
+import { publishTemplate, PACK_SELECTION_SLOTS, advanceTemplateOneStep, transitionTemplate } from "../src/routes/seu/core/templates.js";
 import { transitionDeliverable, type TransitionDeliverableResult } from "../src/routes/seu/core/deliverables.js";
 import { completeWorkItem } from "../src/routes/seu/core/workItems.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
@@ -127,6 +129,41 @@ export const TESTER_APPROVER_ID = await getTesterId("tester-approver@test.local"
 // already uses. The *AsRoot fixture helpers below author as this actor, not
 // as TESTER_ALL_ID (a badge-holding tester, not root).
 export const { userId: ROOT_USER_ID, actorId: ROOT_ACTOR_ID, actorBadge: ROOT_ACTOR_BADGE } = await userDB.getSuperuserId();
+
+// CR-079's own permanent-concept pattern (conflict-a/conflict-b,
+// test-enterprise-web-application) applied to a one-off test Pack that needs
+// a real publish -> retire lifecycle: it can't reuse a shared test-fixture
+// twin (seedAllTestFixturePacks) without retiring that twin out from under
+// every other test that depends on it staying Active. Lazily,
+// idempotently inserted — same self-healing idiom as ensureTestFixturePacks
+// above — so these codes resolve against a DB that hasn't had a fresh
+// clean-slate/seedOntologyConcepts run, not just after one.
+let staleTestPackConceptsCached: Promise<void> | null = null;
+const STALE_TEST_PACK_CONCEPTS: Array<{ code: string; label: string }> = [
+  { code: "retry-stale-pack-test", label: "Test: Retry Stale Pack" },
+  { code: "stale-pack-test", label: "Test: Stale Pack" },
+];
+
+export function ensureStaleTestPackConcepts(): Promise<void> {
+  if (!staleTestPackConceptsCached) staleTestPackConceptsCached = (async () => {
+    const { rows: existing } = await query<{ code: string }>(
+      "SELECT code FROM ontology_concepts WHERE concept_type = 'organisation-name' AND code = ANY($1)",
+      [STALE_TEST_PACK_CONCEPTS.map((c) => c.code)]
+    );
+    const existingCodes = new Set(existing.map((r) => r.code));
+    const missing = STALE_TEST_PACK_CONCEPTS.filter((c) => !existingCodes.has(c.code));
+    if (missing.length === 0) return;
+    const { error } = await ontologyDB.bulkInsertConceptVersions(
+      missing.map((c) => ({
+        conceptType: "organisation-name", code: c.code, defaultLabel: c.label, description: null,
+        tenantId: PLATFORM_TENANT_ID, isMandatory: null, textType: "markdown" as const, uiGrouping: null,
+        authorId: ROOT_ACTOR_ID, authorBadge: ROOT_ACTOR_BADGE,
+      }))
+    );
+    if (error) throw error;
+  })();
+  return staleTestPackConceptsCached;
+}
 
 // web-flow.e2e.test.ts's own cross-tenant Objective fixtures — genuinely
 // scoped, non-root identities (seedIdentityBaseline.ts), one per real tenant,
@@ -932,6 +969,8 @@ async function waitForTemplateActive(code: string, templateVersion: string, tena
 // points (templates.ts/profiles.ts), exactly like seedSdlcStandardTemplates.ts
 // seeds every real Standard Template — no raw upsert, no bypass of the
 // Ontology/schema validation every other Template goes through.
+const TERMINAL_TEMPLATE_STATES = new Set(["Deprecated", "Retired", "Archived"]);
+
 async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
   const templateSeed = loadJson<TemplateSeed>("web-application.template.json");
   const profileSeed = loadJson<ProfileSeed>("default-development.profile.json");
@@ -992,6 +1031,31 @@ async function seed(): Promise<{ template: TemplateRow; profile: ProfileRow }> {
       const { data: published, error: publishedErr } = await templatesDB.findById(templateResult.templateId);
       if (publishedErr || !published) throw publishedErr ?? new Error(`template not found after publish: ${templateSeed.code}`);
       template = published;
+    }
+  }
+
+  // Re-run of a long-lived, never-clean-slated DB: findByCodeAndVersion above
+  // can hand back an already-existing row that isn't Active any more — a
+  // later full-suite run elsewhere activated a newer patch of this same
+  // (code, tenant) and superseded this 1.0.0 row to Deprecated (same
+  // advanceTemplateOneStep "Published -> Active supersedes the previous
+  // holder" step, templates.ts), or it's still sitting mid-walk at
+  // Draft/Validated/Published from a prior run that never finished. Neither
+  // is "found" in any sense a caller expecting an Active Template can use —
+  // self-heal here instead of handing back a non-Active row silently.
+  if (template.status !== "Active") {
+    if (TERMINAL_TEMPLATE_STATES.has(template.status)) {
+      const reactivated = await transitionTemplate({ templateId: template.id, targetState: "Active", actorRole: ROOT_ACTOR_BADGE, actorId: ROOT_ACTOR_ID });
+      if (!reactivated.ok) throw new Error(`seed(): could not reactivate template "${templateSeed.code}" from "${template.status}": ${reactivated.reason}${reactivated.detail ? ` (${reactivated.detail})` : ""}`);
+      template = reactivated.template;
+    } else {
+      let current = template;
+      while (current.status !== "Active") {
+        const stepped = await advanceTemplateOneStep(current, ROOT_ACTOR_BADGE, ROOT_ACTOR_ID);
+        if (!stepped.ok) throw new Error(`seed(): could not advance template "${templateSeed.code}" past "${current.status}": ${stepped.reason}${stepped.detail ? ` (${stepped.detail})` : ""}`);
+        current = stepped.template;
+      }
+      template = current;
     }
   }
 

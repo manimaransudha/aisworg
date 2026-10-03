@@ -436,7 +436,7 @@ export async function validateProfileSeed(seed: ProfileSeedInput): Promise<Profi
   if (!seed.baseTemplateCode?.trim()) {
     errors.push("baseTemplateCode is required");
   } else {
-    const { data: template } = await templatesDB.findByCode(seed.baseTemplateCode);
+    const { data: template } = await templatesDB.findActiveByCode(seed.baseTemplateCode, ontologyViewer.tenantId);
     if (!template) errors.push(`baseTemplateCode "${seed.baseTemplateCode}" does not resolve to a real Template`);
   }
 
@@ -628,10 +628,10 @@ export async function publishProfile(input: { seed: ProfileSeedInput; actorRole:
   const validation = await validateProfileSeed(seed);
   if (!validation.ok) return { ok: false, errors: validation.errors };
 
-  const { data: template } = await templatesDB.findByCode(seed.baseTemplateCode);
-  if (!template) return { ok: false, errors: [`baseTemplateCode "${seed.baseTemplateCode}" not found`] };
-
   const tenantId = seed.tenantId ?? (await getPlatformTenantId());
+
+  const { data: template } = await templatesDB.findActiveByCode(seed.baseTemplateCode, tenantId);
+  if (!template) return { ok: false, errors: [`baseTemplateCode "${seed.baseTemplateCode}" not found`] };
 
   // Idempotent reseed — mirrors publishTemplate's own findByCodeAndVersion
   // check exactly.
@@ -743,6 +743,7 @@ export async function transitionProfile(input: { profileId: string; targetState:
   }
 
   if (input.targetState === "Active" && TERMINAL_REACTIVATABLE_STATES.has(fromState)) {
+    if (!gate.authorityBadge) return { ok: false, reason: "policy_blocked", detail: "no authority badge resolved for this Profile reactivation" };
     return reactivateAsNewVersion(profile, input.actorRole, input.actorId, gate.authorityBadge);
   }
 
@@ -782,7 +783,7 @@ async function nextAvailablePatchVersion(code: string, fromVersion: string, tena
 // actor — mirrors reactivateAsNewVersion in core/templates.ts/core/packs.ts
 // exactly. `description`/`featureFlagCodes`/`compositionOptions` live only in
 // draft_content, not real columns, so they're carried through explicitly.
-async function reactivateAsNewVersion(profile: ProfileRow, actorRole: string, actorId: string | undefined, authorBadge: string | null): Promise<TransitionProfileResult> {
+async function reactivateAsNewVersion(profile: ProfileRow, actorRole: string, actorId: string, authorBadge: string): Promise<TransitionProfileResult> {
   const nextVersion = await nextAvailablePatchVersion(profile.code, profile.profile_version, profile.tenant_id);
   const { data: template } = await templatesDB.findById(profile.base_template_id);
   if (!template) return { ok: false, reason: "policy_blocked", detail: `base Template ${profile.base_template_id} no longer exists` };
@@ -999,7 +1000,7 @@ const AUTHORING_NEXT_STATE: Partial<Record<ProfileRow["status"], ProfileRow["sta
   Retired: "Archived",
 };
 
-export async function advanceProfileOneStep(profile: ProfileRow, actorRole: string, actorId: string | undefined): Promise<TransitionProfileResult> {
+export async function advanceProfileOneStep(profile: ProfileRow, actorRole: string, actorId: string ): Promise<TransitionProfileResult> {
   const targetState = AUTHORING_NEXT_STATE[profile.status];
   if (!targetState) return { ok: false, reason: "no_further_step", detail: `Profile is already ${profile.status} — no further authoring step` };
 

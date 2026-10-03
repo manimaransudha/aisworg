@@ -22,7 +22,7 @@ import { qualityGatesDB } from "../src/dblayer/qualityGatesDB.js";
 import { qualityGateEvaluationsDB } from "../src/dblayer/qualityGateEvaluationsDB.js";
 import { qualityGateEngine } from "../src/domain/engine/qualityGateEngine.js";
 import { packsDB } from "../src/dblayer/packsDB.js";
-import { ensureWebAppTemplateFixture, uniqueTestPackVersion, commissionFromFormSync, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
+import { ensureWebAppTemplateFixture, ensureStaleTestPackConcepts, uniqueTestPackVersion, commissionFromFormSync, driveCommissioningToActive, ensureEventSubscriptionsLoaded, waitUntilAsync, ROOT_ACTOR_ID, ROOT_ACTOR_BADGE, TESTER_ALL_ID } from "./testFixtures.js";
 import { eventsDB } from "../src/dblayer/eventsDB.js";
 import type { EventRow, SeuRow } from "../src/dblayer/seuTypes.js";
 
@@ -149,6 +149,7 @@ test("Retry after a failed commission: a Failed SEU does not permanently block i
   // A Compose EBM conflict does NOT (see FR-3.6/3.7 above — it leaves the
   // SEU Pending, awaiting human resolution), so it can't exercise this
   // test's own subject: does a real Failed SEU permanently block retry.
+  await ensureStaleTestPackConcepts();
   const stalePack = { code: "retry-stale-pack-test", name: "Retry Stale Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   const published = await publishPack({ seed: stalePack as any, actorRole: "super", actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, "the stale Pack publishes and activates first");
@@ -222,10 +223,12 @@ test("Retry after a failed commission: a Failed SEU does not permanently block i
 
 test("Validate Request: a Template mandating a since-Retired Pack fails commissioning before Compose EBM ever runs (design/mvp-build-plan/SEU Composition.md)", async () => {
   const run = randomUUID().slice(0, 8);
-  // Stable, pre-registered code (cleanSlate.ts's own CATEGORY_SCOPED_PACK_NAME_CONCEPTS,
-  // organisation-name) — CR-079: a Pack's own `code` is checked against its
-  // category's real Ontology vocabulary at publish time, so a random per-run
-  // suffix here would fail validatePackSeed outright, same as it always would.
+  // Stable, static code, registered lazily via ensureStaleTestPackConcepts
+  // (testFixtures.ts) — CR-079: a Pack's own `code` is checked against its
+  // category's real organisation-name Ontology vocabulary at publish time, so
+  // a random per-run suffix here would fail validatePackSeed outright, same
+  // as it always would.
+  await ensureStaleTestPackConcepts();
   const stalePack = { code: "stale-pack-test", name: "Stale Pack", category: "Organisation", packVersion: uniqueTestPackVersion(), installationClassification: "Optional", contributions: {} };
   const published = await publishPack({ seed: stalePack as any, actorRole: "super", actorId: TESTER_ALL_ID, activate: true });
   assert.ok(published.ok, "the stale Pack publishes and activates first");

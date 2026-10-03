@@ -174,7 +174,7 @@ export type PublishRejectResult = { ok: true; schema: SchemaDefinitionRow } | { 
 // The one real, badge-gated, manual decision in this lifecycle — moves a
 // Packaged row to Published (verb `publish`, badge schemadefinition_publish)
 // or PublicationRejected (verb `reject`, badge schemadefinition_reject).
-async function transitionPackagedSchema(id: string, toState: "Published" | "PublicationRejected", actorId: string | null): Promise<PublishRejectResult> {
+async function transitionPackagedSchema(id: string, toState: "Published" | "PublicationRejected", actorId: string): Promise<PublishRejectResult> {
   const { data: schema } = await schemaDefinitionsDB.findById(id);
   if (!schema) return { ok: false, error: "Schema version not found." };
   if (schema.lifecycle_state !== "Packaged") return { ok: false, error: `Only a Packaged schema can be moved to ${toState} (this one is ${schema.lifecycle_state}).` };
@@ -185,6 +185,7 @@ async function transitionPackagedSchema(id: string, toState: "Published" | "Publ
     if (gate.reason === "authority_denied") return { ok: false, error: `requires badge ${gate.authorityRuleCode}` };
     return { ok: false, error: gate.reason };
   }
+  if (!gate.authorityBadge) return { ok: false, error: `no authority badge resolved for SchemaDefinition Packaged -> ${toState}` };
 
   const authorId = await resolveAuthorParticipantId(actorId);
   const { data: updated, error } = await schemaDefinitionsDB.advanceLifecycle(id, toState, gate.authorityBadge, authorId);
@@ -198,16 +199,16 @@ async function transitionPackagedSchema(id: string, toState: "Published" | "Publ
     correlationId: eventBus.newCorrelationId(),
     payload: { entityKind: updated.entity_kind, version: updated.version, fromState: "Packaged", toState },
     actorId,
-    authorityBadge: gate.authorityBadge ?? "root",
+    authorityBadge: gate.authorityBadge,
   });
 
   return { ok: true, schema: updated };
 }
 
-export async function publishSchemaVersion(id: string, actorId: string | null): Promise<PublishRejectResult> {
+export async function publishSchemaVersion(id: string, actorId: string): Promise<PublishRejectResult> {
   return transitionPackagedSchema(id, "Published", actorId);
 }
 
-export async function rejectSchemaVersion(id: string, actorId: string | null): Promise<PublishRejectResult> {
+export async function rejectSchemaVersion(id: string, actorId: string): Promise<PublishRejectResult> {
   return transitionPackagedSchema(id, "PublicationRejected", actorId);
 }

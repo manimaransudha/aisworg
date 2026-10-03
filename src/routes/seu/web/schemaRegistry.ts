@@ -168,7 +168,8 @@ router.post("/sdk/schema-registry/publish", async (req: Request, res: Response) 
  *  Packaged -> Published decision (schemadefinition_publish). */
 router.post("/sdk/schema-registry/:id/publish", async (req: Request, res: Response) => {
   const id = String(req.params.id);
-  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
+  if (req.session?.user?.id == null) return flashError(req, res, `${backTo}/${id}`, "No logged-in user on this session.");
+  const actorId = String(req.session.user.id);
   const result = await publishSchemaVersion(id, actorId);
   if (!result.ok) return flashError(req, res, `${backTo}/${id}`, result.error);
   return flashSuccess(req, res, `${backTo}/${id}`, `${result.schema.entity_kind} schema v${result.schema.version} published.`);
@@ -178,7 +179,8 @@ router.post("/sdk/schema-registry/:id/publish", async (req: Request, res: Respon
  *  PublicationRejected decision (schemadefinition_reject). */
 router.post("/sdk/schema-registry/:id/reject", async (req: Request, res: Response) => {
   const id = String(req.params.id);
-  const actorId = req.session?.user?.id != null ? String(req.session.user.id) : null;
+  if (req.session?.user?.id == null) return flashError(req, res, `${backTo}/${id}`, "No logged-in user on this session.");
+  const actorId = String(req.session.user.id);
   const result = await rejectSchemaVersion(id, actorId);
   if (!result.ok) return flashError(req, res, `${backTo}/${id}`, result.error);
   return flashSuccess(req, res, `${backTo}/${id}`, `${result.schema.entity_kind} schema v${result.schema.version} publication rejected.`);

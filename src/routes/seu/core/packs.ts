@@ -1178,7 +1178,7 @@ export async function transitionPack(input: { packId: string; targetState: strin
   if (error || !updated) throw error ?? new Error("failed to update pack status");
 
   if (trimmedComment) {
-    await packsDB.addComment(pack.id, input.actorId != null ? Number(input.actorId) : null, trimmedComment);
+    await packsDB.addComment(pack.id, input.actorId, trimmedComment);
   }
 
   // Version Feature Plan.md §3 — eventType now comes straight off the

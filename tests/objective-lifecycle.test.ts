@@ -447,15 +447,22 @@ test("commissionSeu requires the Objective to be Active — blocks Proposed, suc
     tier: "Engineering",
     parentObjectiveId: await strategicRoot(),
     status: "Proposed", requestedBy: TESTER_ALL_ID,});
-  await ensureWebAppTemplateFixture();
-  const { data: template } = await templatesDB.findByCode("test-enterprise-web-application");
-  assert.ok(template);
+  const { template } = await ensureWebAppTemplateFixture();
   const published = await publishProfile({
-    seed: { code: `test-profile-${randomUUID()}`, name: "Test Profile", baseTemplateCode: template.code, environment: "development", profileVersion: "1.0.0" },
+    seed: {
+      code: `test-profile-${randomUUID()}`,
+      name: "Test Profile",
+      baseTemplateCode: template.code,
+      environment: "development",
+      profileVersion: "1.0.0",
+      developmentMethodology: "scrum",
+      primaryProgrammingLanguage: "typescript",
+      sourceControlProvider: "github",
+    },
     actorRole: "super",
     actorId: ROOT_ACTOR_ID,
   });
-  assert.equal(published.ok, true);
+  assert.equal(published.ok, true, !published.ok ? `template status "${template.status}": ${JSON.stringify(published.errors)}` : "assertion failed");
   if (!published.ok) throw new Error("unreachable");
   const profile = { id: published.profileId };
 
@@ -529,10 +536,8 @@ test("suggestCapabilityCodes matches on word overlap with a Capability's name/de
 // 3 required Capabilities must select it over any looser-fitting Template
 // that also happens to satisfy, regardless of code ordering.
 test("findCandidateTemplates picks the tightest-fitting satisfying Template, not whichever sorts first alphabetically", async () => {
-  await ensureWebAppTemplateFixture();
-  const { data: webApp } = await templatesDB.findByCode("test-enterprise-web-application");
-  assert.ok(webApp, "expected test-enterprise-web-application to be seeded");
-  const { data: webAppCapabilities } = await templatesDB.getRequiredCapabilities(webApp!.id);
+  const { template: webApp } = await ensureWebAppTemplateFixture();
+  const { data: webAppCapabilities } = await templatesDB.getRequiredCapabilities(webApp.id);
   assert.ok(webAppCapabilities && webAppCapabilities.length > 0);
 
   const candidates = await findCandidateTemplates(webAppCapabilities!.map((c) => c.code));

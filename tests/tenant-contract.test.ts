@@ -25,7 +25,7 @@ import { publishProfile } from "../src/routes/seu/core/profiles.js";
 import { tenantsDB } from "../src/dblayer/tenantsDB.js";
 import { tenantContractsDB } from "../src/dblayer/tenantContractsDB.js";
 import { executionTargetsDB } from "../src/dblayer/executionTargetsDB.js";
-import { deriveDedupedCapabilitiesFromPackCodes } from "../src/routes/seu/core/templates.js";
+import { templatesDB } from "../src/dblayer/templatesDB.js";
 import { seusDB } from "../src/dblayer/seusDB.js";
 import { eventBus } from "../src/domain/engine/eventBus.js";
 import { ensureWebAppTemplateFixture, commissionFromFormSync, driveCommissioningToActive, waitForDispatchedWorkItem, ensureEligibleParticipant } from "./testFixtures.js";
@@ -70,7 +70,7 @@ after(async () => {
   await new Promise<void>((resolve) => captureServer.close(() => resolve()));
 });
 
-async function commissionAndDispatch(prefix: string, tenantId: string) {
+async function commissionAndDispatch(prefix: string, tenantId: string, expectedCapabilityId: string) {
   // CR-087 — pinned to the fixture Template directly (commissionSeu, not
   // commissionFromForm's own auto-matching): test-enterprise-web-application
   // gained a 4th required capability (requirements-validation, CR-087 Step
@@ -108,7 +108,28 @@ async function commissionAndDispatch(prefix: string, tenantId: string) {
   const requested = await commissionSeu({ objectiveId: objective.id, templateIds: [fixtureTemplate.id], profileIds: [profile!.id], actorRole: "super", actorId: TESTER_ALL_ID, requestedBy: TESTER_ALL_ID, tenantId });
   assert.equal(requested.ok, true, !requested.ok ? `commissioning failed: ${requested.reason}` : "assertion failed");
   if (!requested.ok) throw new Error("unreachable");
-  const result = await driveCommissioningToActive({ seuId: requested.seu.id, actorRole: "super", actorId: TESTER_ALL_ID });
+
+  // beforeCommenceWork (driveCommissioningToActive) fulfils the producing
+  // Capability before executionEngineKickoff's own automatic Activated ->
+  // Operational attempt reaches Dispatch, so it dispatches for real instead
+  // of racing an as-yet-unfulfilled Capability into a terminal
+  // empty_eligible_pool rejection (dispatchEngine.ts Case 1b).
+  const result = await driveCommissioningToActive({
+    seuId: requested.seu.id,
+    actorRole: "super",
+    actorId: TESTER_ALL_ID,
+    beforeCommenceWork: async (seuId) => {
+      const detail = await getSeuDetailView(seuId);
+      const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
+      assert.ok(capability);
+      // Diagnostic: this SEU's actual producing Capability must be the same
+      // row the test upserted the execution_targets row against, or
+      // resolveExecutionTarget (executionTargetResolver.ts) silently falls
+      // back to human-on-ui and the capture server never sees a delivery.
+      assert.equal(capability!.capabilityId, expectedCapabilityId, `SEU's requirements-analysis Capability (${capability!.capabilityId}) does not match the Capability the execution target was upserted against (${expectedCapabilityId})`);
+      await fulfilCapability({ seuId, capabilityId: capability!.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
+    },
+  });
   assert.equal(result.ok, true, !result.ok ? `commissioning failed: ${result.reason}` : "assertion failed");
   if (!result.ok) throw new Error("unreachable");
   const seuId = result.seu.id;
@@ -119,9 +140,7 @@ async function commissionAndDispatch(prefix: string, tenantId: string) {
 
   const detail = await getSeuDetailView(seuId);
   const deliverable = detail?.deliverables.find((d) => d.name === "Requirements Analysis Model");
-  const capability = detail?.capabilities.find((c) => c.code === "requirements-analysis");
-  assert.ok(deliverable && capability);
-  await fulfilCapability({ seuId, capabilityId: capability.capabilityId, participantMasterId: await ensureEligibleParticipant(seuId, ["requirements-analysis"]) });
+  assert.ok(deliverable);
 
   // deliverableKickoffHandler (SEUOperational / DeliverableTransitioned /
   // ObligationTransitioned) re-scans every Deliverable in the SEU and
@@ -138,15 +157,18 @@ async function commissionAndDispatch(prefix: string, tenantId: string) {
 }
 
 test("two tenants sharing no edge choice run on the same core; each Work Item routes to its own tenant's edge", async () => {
-  // The one pack-global Capability every SEU here produces against.
-  // Bug fix (owner: "fix the tests. Do not change the scenario") — see
-  // dependency-definition-engine.test.ts's own comment: findByCodes is
-  // unscoped by originating Pack, and integration-jira.pack.json genuinely
-  // also contributes a "requirements-analysis" capability of its own (no
-  // Service attached) — deriveDedupedCapabilitiesFromPackCodes resolves the
-  // one from this fixture's own Pack, deterministically.
-  const caps = await deriveDedupedCapabilitiesFromPackCodes(["requirements-analysis"]);
-  const reqAnalysisCapId = caps[0]?.id;
+  // The one pack-global Capability every SEU here produces against — read
+  // off the fixture Template's own required Capabilities (template_capabilities,
+  // the same join every real commissioning resolves producing_capability_id
+  // from), not re-derived by code. deriveDedupedCapabilitiesFromPackCodes(["requirements-analysis"])
+  // treats that argument as a Pack code, not a Capability code — and
+  // integration-jira.pack.json genuinely also has a Pack sharing that code,
+  // so it was resolving to THAT Pack's own distinct "requirements-analysis"
+  // Capability row instead of this fixture Template's own, causing
+  // resolveExecutionTarget to silently fall back to human-on-ui delivery.
+  const { template: fixtureTemplate } = await ensureWebAppTemplateFixture();
+  const { data: templateCapabilities } = await templatesDB.getRequiredCapabilities(fixtureTemplate.id);
+  const reqAnalysisCapId = templateCapabilities?.find((c) => c.code === "requirements-analysis")?.id;
   assert.ok(reqAnalysisCapId);
 
   // Tenant A: GitHub, HMAC callback auth, query-only attestation, orchestrator /a.
@@ -172,8 +194,8 @@ test("two tenants sharing no edge choice run on the same core; each Work Item ro
   await executionTargetsDB.upsert({ tenantId: tenantB!.id, capabilityId: reqAnalysisCapId, mode: "external-orchestrator", authorId: ROOT_ACTOR_ID, authorBadge: "root", adapterEndpoint: `${captureBase}/b`, adapterAuthRef: "token-b" });
 
   // Same code path for both — only the tenant differs.
-  const widA = await commissionAndDispatch("tenant-a", tenantA!.id);
-  const widB = await commissionAndDispatch("tenant-b", tenantB!.id);
+  const widA = await commissionAndDispatch("tenant-a", tenantA!.id, reqAnalysisCapId!);
+  const widB = await commissionAndDispatch("tenant-b", tenantB!.id, reqAnalysisCapId!);
 
   // Ch.30 Event Bus redesign — dispatch is now fire-and-forget (publish()
   // no longer awaits the assignmentDelivery handler), so delivery to the

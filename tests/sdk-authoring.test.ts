@@ -25,7 +25,7 @@ import { profilesDB } from "../src/dblayer/profilesDB.js";
 import { deliverableDefinitionsDB } from "../src/dblayer/deliverableDefinitionsDB.js";
 import { ontologyDB } from "../src/dblayer/ontologyDB.js";
 import { schemaDefinitionsDB } from "../src/dblayer/schemaDefinitionsDB.js";
-import type { SchemaDefinitionEntityKind } from "../src/dblayer/seuTypes.js";
+import type { SchemaDefinitionEntityKind, TemplateRow } from "../src/dblayer/seuTypes.js";
 import { getPlatformTenantId } from "../src/dblayer/constants.js";
 const PLATFORM_TENANT_ID = await getPlatformTenantId();
 import {
@@ -244,6 +244,37 @@ function uniqueVersion(): string {
   return `0.0.${Date.now()}${Math.floor(Math.random() * 1000)}`;
 }
 const REAL_TEMPLATE_CODE = "mobile-application"; // real, seeded template-categories concept
+
+// CR-026 Template Inheritance tests below need their own, dedicated Active
+// parent — NOT the shared ensureWebAppTemplateFixture() ("test-enterprise-
+// web-application" at the fixed version "1.0.0"), which that fixture also
+// hands to every other test file in this suite. Two CR-026 tests publishing
+// a Draft locked to that parent's code at that parent's own fixed identity
+// axis left free ((code, "1.0.0", tenant)) risk colliding with ANY other
+// caller doing the same against demo/athens — exactly the collision this
+// fixture hit. REAL_TEMPLATE_CODE + uniqueVersion() is this file's own
+// established idiom (see "Template authoring (entity-direct)" above) for a
+// disposable, collision-free Active Template; memoized once per process the
+// same way ensureWebAppTemplateFixture is.
+let cr026ParentCache: Promise<TemplateRow> | null = null;
+async function ensureCr026ParentTemplate(): Promise<TemplateRow> {
+  if (!cr026ParentCache) {
+    cr026ParentCache = (async () => {
+      const templateVersion = uniqueVersion();
+      const content = validTemplateContent(REAL_TEMPLATE_CODE, templateVersion);
+      const created = await createAuthoringDraft({ kind: "Template", authorBadge: "template_define", schemaDefinitionId: await schemaDefinitionIdFor("Template"), actorId: ROOT_ACTOR_ID, content });
+      if (!created.ok) throw new Error(`ensureCr026ParentTemplate: ${created.errors.join("; ")}`);
+      createdTemplateIds.push(created.draftId);
+      await saveAuthoringDraft({ kind: "Template", id: created.draftId, content });
+      const published = await advanceToActive("Template", created.draftId, ROOT_ACTOR_ID, "general");
+      if (!published.ok) throw new Error(`ensureCr026ParentTemplate: failed to activate: ${published.errors.join("; ")}`);
+      const { data: template, error } = await templatesDB.findById(created.draftId);
+      if (error || !template) throw error ?? new Error("ensureCr026ParentTemplate: template not found after publish");
+      return template;
+    })();
+  }
+  return cr026ParentCache;
+}
 
 function validPackContent(code: string, packVersion: string): Record<string, unknown> {
   return { code, name: "SDK Test Pack", category: "Engineering", packVersion, installationClassification: "Optional", dependencies: [] };
@@ -569,12 +600,13 @@ test("Template authoring: referential validation rejects a mandatoryPackCode tha
 // CR-026 — Template Inheritance (Ch.6 §9). Option A, per explicit owner
 // agreement: a Derived Template keeps its parent's own `code`, disambiguated
 // by the child's own `tenant_id` (templates_code_version_tenant_key, migration
-// 062) — not a new identity per generation. `test-enterprise-web-application`
-// (ensureWebAppTemplateFixture) is a real, Active, Platform-owned Template
-// with a real mandatory Pack (`development`), used as the
-// parent throughout.
+// 062) — not a new identity per generation. The parent (ensureCr026ParentTemplate)
+// is a real, Active, Platform-owned Template with a real mandatory Pack,
+// dedicated to these two tests — never the shared ensureWebAppTemplateFixture,
+// whose fixed code+"1.0.0" is also handed to every other test file in this
+// suite and collides at exactly this axis.
 test("CR-026: a tenant author inheriting an Active Platform Template gets a Draft locked to the parent's code, owned by their own tenant, with parent_template_id recorded", async () => {
-  const { template: parent } = await ensureWebAppTemplateFixture();
+  const parent = await ensureCr026ParentTemplate();
 
   const inheritable = await listInheritableTemplates(DEMO_TENANT_ID);
   assert.ok(inheritable.some((t) => t.id === parent.id), "the Active Platform Template must be offered to a tenant viewer's Inherit dropdown");
@@ -609,13 +641,16 @@ test("CR-026: a tenant author inheriting an Active Platform Template gets a Draf
 });
 
 test("CR-026: publishing a Derived Template is rejected if it drops one of its parent's mandatory Packs, and succeeds once the full set is restored", async () => {
-  const { template: parent } = await ensureWebAppTemplateFixture();
+  const parent = await ensureCr026ParentTemplate();
   const { data: parentMandatory } = await templatesDB.getMandatoryPackCodes(parent.id);
   assert.ok((parentMandatory ?? []).length > 0, "the fixture parent must have at least one mandatory Pack for this test to mean anything");
 
   // A different tenant than the previous test's — same parent, same starting
-  // version ("1.0.0"), would otherwise collide with that test's own leftover
-  // Draft under templates_code_version_tenant_key.
+  // version ("1.0.0"); the two tests don't collide with EACH OTHER because
+  // DEMO_TENANT_ID and ATHENS_TENANT_ID differ, but both still shared the
+  // SAME parent+version identity axis with every other file touching
+  // ensureWebAppTemplateFixture, which is what actually collided — see
+  // ensureCr026ParentTemplate above.
   const inherited = await inheritedTemplateContent(parent.id, ATHENS_TENANT_ID);
   assert.equal(inherited.ok, true);
   if (!inherited.ok) return;
@@ -623,11 +658,9 @@ test("CR-026: publishing a Derived Template is rejected if it drops one of its p
   // CR-087 — this test only cares about mandatoryPackCode preservation, never
   // deliverableCatalogue content, but re-publishing now validates every
   // entry's code against the real deliverable-name Ontology
-  // (validateTemplateSeed). No sanitising needed any more: the shared
-  // fixture's own catalogue now carries real, canonical deliverable-name
-  // codes throughout (web-application.template.json was renamed off its old
-  // "Architecture Document" display-text literal), so inherited content
-  // already validates as-is.
+  // (validateTemplateSeed). ensureCr026ParentTemplate's own catalogue
+  // (validTemplateContent) already carries real, canonical deliverable-name
+  // codes, so inherited content validates as-is, no sanitising needed.
   const inheritedContent = inherited.content as Record<string, unknown>;
   const sanitisedContent = inheritedContent;
 
@@ -639,7 +672,7 @@ test("CR-026: publishing a Derived Template is rejected if it drops one of its p
   // templateVersion must round-trip on Save, the same way the real form's
   // readonly field always does (CR-024) — inheritedTemplateContent doesn't
   // carry it (it isn't part of a Template's authored content).
-  // CR-038 — test-development (the fixture's own mandatory Pack, per the
+  // CR-038 — requirements-analysis (the fixture's own mandatory Pack, per the
   // comment above) is category Engineering, so dropping it means blanking
   // engineeringPackCodes specifically now, not a flat list.
   const strippedContent = { ...sanitisedContent, templateVersion: "1.0.0", engineeringPackCodes: [] };

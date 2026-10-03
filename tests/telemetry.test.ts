@@ -125,9 +125,9 @@ test("Governance Telemetry: Quality Gate latency is zero on a first-try pass and
 
 test("a sustained pattern of Quality Gate blocking raises exactly one Organisational Learning Obligation, not one per attempt (FR-35.8)", async () => {
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("phase7-sustained-pattern");
-  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
 
   const obligation = await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase7 sustained-pattern blocker (left unresolved)" });
+  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
 
   // Attempt the same blocked transition repeatedly — the Obligation above is
   // deliberately never resolved, so every attempt blocks again.
@@ -147,9 +147,9 @@ test("a sustained pattern of Quality Gate blocking raises exactly one Organisati
 
 test("qualityGateEngine publishes QualityGateBlocked and QualityGatePassed on the event bus (Ch.26 §15)", async () => {
   const { seuId, deliverableId } = await commissionAndFulfilRequirementsSpec("phase7-quality-gate-events");
-  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
 
   const obligation = await createObligation({ relatedObjectType: "Deliverable", relatedObjectId: deliverableId, category: "Engineering", title: "Phase7 event test obligation" });
+  await transitionDeliverable({ deliverableId, targetState: "In Progress", actorRole: "super", actorId: ROOT_ACTOR_ID });
   const blocked = await transitionDeliverable({ deliverableId, targetState: "Approved", actorRole: "super", actorId: ROOT_ACTOR_ID });
   assert.equal(blocked.ok, false);
   assert.ok((await qualityGateEventTypesForEntity(deliverableId)).includes("QualityGateBlocked"));

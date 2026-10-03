@@ -1693,6 +1693,15 @@
   },
   {
     "concept_type": "composition-strategy",
+    "code": "specialization",
+    "default_label": "Specialization",
+    "description": "Creation is an exact copy of a single parent, code included. Code and/or name may be changed afterward; every other field/property may be changed or left as-is.",
+    "is_mandatory": null,
+    "text_type": "markdown",
+    "ui_grouping": null
+  },
+  {
+    "concept_type": "composition-strategy",
     "code": "override",
     "default_label": "Override",
     "description": "The new contribution replaces the existing one entirely. Nothing survives from the original. This is the tenant-overrides-a-Domain-Pack case: the tenant's content fully takes the platform's place, for them.",
