@@ -1,40 +1,190 @@
 # Chapter 29 — State Management Model: Implementation Traceability
 
-Specification: `design/foundations/03_Book 3 (Refined)/05_Part 5/Chapter 29.md`
-
-The chapter's own §20 already contains a code-verified audit (dated 2026-08-22, with file:line and live-DB evidence). This traceability table restates that evidence against every normative intent, in specification order, using the required schema. Citations below are drawn from and consistent with that audit; file paths independently confirmed to exist: `src/domain/engine/transitionEngine.ts`, `src/dblayer/seed/seedTransitionDefinitions.ts`, `src/routes/seu/core/transitionDefinitions.ts`.
+**Date of report: 4-10-2026**
 
 <!-- multiline -->
-| Intent | Specification Reference | Code Citation | Finding | Intent Met |
-|---|---|---|---|---|
-| State is the authoritative runtime condition of an engineering object and shall always be explicit | §4 Definition | `*DB.ts` per entity (e.g. `deliverablesDB.ts`, `evidenceDB.ts`, `participantsDB.ts`) | Explicit lifecycle-state columns exist and are the sole runtime representation for every governed entity. EBM's `status` is set once at INSERT with no update path (`ebmsDB.ts`), so EBM has no explicit *transitionable* state. | Partially met |
-| SM-001: every persistent engineering object shall possess explicit state | §5 SM-001 | `ebmsDB.ts` (create/findById only) | Holds for every governed entity except EBM, which has a status column but no transition/update method anywhere in `src/`. | Partially met |
-| SM-002: state shall have exactly one authoritative owner | §5 SM-002 | each entity's own `*DB.ts` `updateStatus`/`updateLifecycleState` | Exactly one module writes each entity's state column; no duplicate writers found. | Fully met |
-| SM-003: state transitions shall be deterministic | §5 SM-003 | `transitionEngine.ts` (`evaluate()`) | Resolves exactly one `transition_definitions` row per `(entity_type, from_state, to_state)`, enforced by a DB unique constraint. | Fully met |
-| SM-004: state transitions shall be atomic | §5 SM-004 | `transitionEngine.ts`; per-entity `updateStatus` (`UPDATE ... RETURNING *`); `eventBus.publish()` call site | The state write is atomic, but the write and the subsequent event publish are two separate non-transactional round trips with no surrounding `BEGIN/COMMIT`. A crash between them leaves state changed with no event recorded. Tracked as CR-055. | Partially met |
-| SM-005: state history shall never be lost | §5 SM-005 | n/a — no dedicated history/audit table | History is reconstructable only via `events`, and several required fields (§15) aren't reliably captured there. No dedicated per-entity history table exists. Tracked as CR-054. | Not met |
-| SM-006: state shall be recoverable | §5 SM-006 | n/a — `grep -rniE "\brecover" src` returns zero matches | No recovery mechanism exists anywhere in the codebase. | Not met |
-| FR-29.1: every persistent engineering object shall maintain lifecycle state | §6 FR-29.1 | per-entity `*DB.ts` status columns | Holds for all governed entities except EBM (same gap as SM-001). | Partially met |
-| FR-29.2: state transitions shall preserve historical versions | §6 FR-29.2 | `objectivesDB.ts:214-218`; `templatesDB.ts:110-118`; `templates.ts:444-529` (`reactivateAsNewVersion`) | None of the six core entities (Deliverable, Decision, Knowledge, Evidence, Obligation, Participant) have a version column at all. Objective bumps `version` only via content-edit methods, never via `updateStatus`. Template/Profile/Pack bump version only when reactivating from a terminal state, not on ordinary transitions. EBM has no transition mechanism to preserve anything. | Not met |
-| FR-29.3: the Runtime Kernel shall validate state transitions before committing them | §6 FR-29.3 | `transitionEngine.ts` (`evaluate()`), confirmed at 18 call sites | Checks transition-definition existence, badge authority, policies, and quality gates before any caller's DB write. Deliverable is a two-phase exception: validated at dispatch, but the `lifecycle_state` write happens later, asynchronously, on Work Item completion. | Partially met |
-| FR-29.4: every committed state transition shall publish runtime events | §6 FR-29.4 | `participants.ts:27-34` (`CH13_EVENT_BY_TRANSITION`) | Evidence/Obligation/Decision/Knowledge/Deliverable publish unconditionally. Participant's event map covers only 6 of 10 real governed `(from_state, to_state)` pairs; 4 transitions commit state with zero event published. | Partially met |
-| FR-29.5: state recovery shall preserve engineering consistency | §6 FR-29.5 | n/a — same zero-result grep as SM-006 | No recovery mechanism exists, so nothing exists to evaluate for consistency-preservation. | Not met |
-| FR-29.6: concurrent state modifications shall be controlled | §6 FR-29.6 | `deliverablesDB.ts:112-120`, `evidenceDB.ts:182-190`, `obligationsDB.ts:76-84`, `participantsDB.ts:48-56`, `decisionsDB.ts:76-84`, `knowledgeItemsDB.ts:59-67` | Every transition-write `UPDATE` follows an unconditional `WHERE id = $1` pattern with no prior-state check, no `FOR UPDATE` row lock (zero matches), and no optimistic-concurrency version check. Genuine, exploitable lost-update race: two concurrent callers can both pass validation and both write, second silently overwrites first. | Not met |
-| FR-29.7: state changes shall remain fully traceable | §6 FR-29.7 | `events` table columns (`actor_id`, `authority_badge`, `occurred_at`, `payload`) | Holds via `events` for entities that publish, subject to §15's field gaps. The Participant gap (FR-29.4) means 4 transitions are traceable only via a generic `updated_at` bump — no from/to/actor/authority record. | Partially met |
-| The State Management service manages runtime state for the 9 named object types; future objects participate by default | §7 Managed Objects | `seuTypes.ts` (`TransitionEntityType`); live `SELECT DISTINCT entity_type FROM transition_definitions` | The real governed set is 16 types, not 9. Of the chapter's 9, 7 are real/governed; "Engineering Behavior Models" has no `TransitionEntityType` entry, no rows, and no update path; "Runtime Services" has zero code matches anywhere — documentation-only. 9 additional real governed types exist that the chapter never names (Objective, KnowledgeScope, AttentionItem, ExternalInteraction, Pack, Review, Finding, Template, Profile). | Partially met |
-| Every managed object shall contain the 10 listed state-structure fields | §8 State Structure | sampled across `deliverablesDB.ts`, `evidenceDB.ts`, `participantsDB.ts` | Identifier, Object Type, Lifecycle State, Current Attributes, Relationship References hold. Version, Last Transition, Transition Timestamp (only generic `updated_at`, also bumped by non-transition updates), Current Owner, and State History Reference do not exist on any sampled entity. 5 of 10 fields hold, uniformly across every entity checked. Tracked as CR-054. | Partially met |
-| Every transition shall define source/target state, triggering event, applicable Transition Definition, Governance evaluation, timestamp, and rationale; a transition shall never occur implicitly | §9 State Transitions | `transitionEngine.ts:40-62` (`TransitionOutcome`) | Source/target state, applicable Transition Definition, and governance evaluation all hold. `TransitionOutcome` carries no rationale field, and none of the 18 real call sites add one. "Triggering event" is not a first-class concept — transitions are triggered by a direct route/HTTP call, not by consuming a prior platform Event. | Partially met |
-| A Transition Definition shall specify source/target state, required Authority, required Policies, Quality Gates, Reviews, mandatory Evidence, blocking Obligations, EBM rules, and is contributed through Templates/Profiles | §10 Transition Definitions | live schema of `transition_definitions`; `transitionEngine.ts:8-12`; `seedTransitionDefinitions.ts`; `compositionEngine.ts`; `commissioning.ts`; `packs.ts` | `required_authority_rule_id` exists as a column but is never consulted by `evaluate()`; real enforcement is the verb-derived badge instead. "Required Reviews", "mandatory Evidence", "blocking Obligations" are not literal columns — reachable only indirectly via Quality Gate criteria or the separate `dependency_definitions` graph. Contribution via Packs/Templates does not hold: every writer of this table is `seedTransitionDefinitions.ts` (static JSON reseed) plus a standalone SDK-authoring admin API; the Pack composition pipeline never writes to this table, only reads it. | Partially met |
-| The Runtime Kernel shall ensure state remains internally consistent (valid transitions, relationships, version, dependency, governance consistency); invalid transitions rejected | §11 State Consistency | `transition_definitions` lookups in `transitionEngine.ts`; `dependencyDefinitionEngine` | Valid lifecycle transitions and governance consistency hold. "Valid object relationships" maps to `dependencyDefinitionEngine`, which is more precisely a readiness-gating precondition than literal relationship-consistency enforcement. "Version consistency" is moot — no core entity has a version concept to check. | Partially met |
-| Runtime state shall survive Participant replacement, service/Kernel restart, infrastructure migration, software upgrades; transient state may be reconstructed, authoritative state never lost | §12 State Persistence | Postgres-backed persistence layer (DB layer throughout `src/dblayer`) | Inherited for free from a real Postgres database — survives restart/migration/upgrade architecturally, with no dedicated recovery code required for this specific guarantee. | Fully met |
-| The Runtime Kernel shall support recovery of engineering state after failures, restoring lifecycle states, relationships, pending transitions, active Obligations, active Governance context, runtime configuration, without recommissioning | §13 State Recovery | n/a — zero matches for any recovery-related code in `src/` | Wholly unimplemented. Identical zero-result finding as SM-006/FR-29.5. | Not met |
-| Multiple Participants may operate concurrently; the Kernel shall prevent conflicting state transitions, detecting conflicts, preserving integrity, rejecting/deferring invalid transitions, publishing conflict events | §14 Concurrency | `deliverablesDB.ts:112-120` and peers (unconditional `UPDATE`); `compositionEngine.ts` (unrelated cross-Pack conflict check); `compliance.ts` (`conflicts_with`, unrelated) | No guard exists anywhere in the transition-write path: every checked entity's write is an unconditional `UPDATE ... WHERE id = $2`, no row locking, no version check. No genuine state-transition conflict detection exists; the only "conflict" mechanisms found are unrelated (cross-Pack governance, declared `conflicts_with`, or Postgres `ON CONFLICT` upserts). The most consequential gap in the audit — a real, exploitable lost-update race. | Not met |
-| Every state transition shall preserve previous/new state, transition definition, initiating event, governing authority, applicable policies, timestamp, engineering rationale; history is immutable | §15 State History | `events` columns: `payload`, `causation_id`, `authority_badge`, `occurred_at` | Previous/new state: only inside free-form `payload.fromState/.toState`, a per-caller convention, not structurally enforced. Applicable Transition Definition: no `transition_definition_id` reference at all. Initiating event: real `causation_id` column, but nullable and only sometimes populated. Governing authority: real column, populated at every publishing call site. Applicable policies: never recorded for a passing check. Timestamp: real column, holds. Engineering rationale: does not exist anywhere. 2 of 8 required fields hold without caveat. | Partially met |
-| The subsystem shall publish StateTransitionRequested/Validated/Committed/Rejected, StateRecovered, StateConflictDetected/Resolved | §16 Events | `participants.ts` (`CH13_EVENT_BY_TRANSITION`); per-entity `*Transitioned` events | Zero hits for all 7 named events via direct grep. Real per-entity events exist instead (`EvidenceTransitioned`-family, `ObligationTransitioned`, `DecisionTransitioned`, `KnowledgeUpdated`, `DeliverableTransitioned`, Participant's event map, `ObjectiveTransitioned`, `AttentionItemTransitioned`) doing the equivalent work under different names. | Partially met |
-| The service shall support concurrent execution, preserve deterministic behaviour, support historical reconstruction, support efficient querying, remain independent of persistence technologies | §17 Non-Functional Requirements | `transitionEngine.ts` (determinism, §5 SM-003); `events` table (reconstruction); DB-layer abstraction (`src/dblayer`) | Deterministic behaviour holds (SM-003). Historical reconstruction is possible but only through the same `events.payload` convention gaps noted in §15. "Support concurrent execution" is contradicted by the unguarded race in §14 — the system executes concurrently but does not correctly control it. Efficient querying and persistence-technology independence are architectural properties of the Postgres/DB-layer design, not separately benchmarked or abstracted behind a swappable interface in this codebase. | Partially met |
-| Acceptance criteria: explicit state; governed transitions; invalid transitions rejected; immutable history; survives failures; concurrent transitions preserve consistency | §18 Acceptance Criteria | (same citations as §5, §9–§11, §12, §14) | Explicit state: partial (EBM gap). Governed transitions: holds structurally, with the Authority-column and Pack-contribution caveats of §10. Invalid transitions rejected: holds (§11). History immutable: the sole historical substrate (`events`) is append-only, but it does not capture all seven required §15 fields, so "history" itself is incomplete even where immutable. Survives failures: true for persistence (§12) but not for recovery (§13) or concurrency (§14) — "survives failures" does not hold for the lost-update case, since a crash mid-write is exactly the SM-004 gap. Concurrent transitions preserve consistency: does not hold — this is the §14 race. | Partially met |
-| Implementation shall produce a State Management service, Transition Definition model, state registry, persistence interfaces, recovery service, concurrency management service, state APIs, state events | §19 Deliverables | `transitionEngine.ts` (service); `transition_definitions` table + `transitionDefinitions.ts` admin routes (model); per-entity `*DB.ts` (persistence interfaces); `src/routes/seu/core/transitionDefinitions.ts` and per-entity transition routes (state APIs) | State Management service, Transition Definition model, persistence interfaces, and state APIs exist in recognizable form. No dedicated "state registry" exists (state is implicit per-entity status columns, not a unified registry). No recovery service exists (§13). No concurrency management service exists (§14). State events exist only as real per-entity events, not the chapter's own named vocabulary (§16). | Partially met |
+**Legend:** ✅ Fully met  ⚠️ Partially met  ❌ Not met  ❓ Not verifiable
 
+<table style="width:100%; table-layout:fixed;">
+  <colgroup>
+    <col style="width:4%;">
+    <col style="width:32%;">
+    <col style="width:27%;">
+    <col style="width:37%;">
+  </colgroup>
+  <thead>
+    <tr>
+      <th></th>
+      <th>Intent</th>
+      <th>Code Citation</th>
+      <th>Finding</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">State is the authoritative runtime condition of an engineering object and shall always be explicit<br> Ref: §4 Definition</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>*DB.ts</code> per entity (e.g. <code>deliverablesDB.ts</code>, <code>evidenceDB.ts</code>, <code>participantsDB.ts</code>)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Explicit lifecycle-state columns exist and are the sole runtime representation for every governed entity. EBM's <code>status</code> is set once at INSERT with no update path (<code>ebmsDB.ts</code>), so EBM has no explicit *transitionable* state.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">SM-001: every persistent engineering object shall possess explicit state<br> Ref: §5 SM-001</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>ebmsDB.ts</code> (create/findById only)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Holds for every governed entity except EBM, which has a status column but no transition/update method anywhere in <code>src/</code>.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">SM-002: state shall have exactly one authoritative owner<br> Ref: §5 SM-002</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">each entity's own <code>*DB.ts</code> <code>updateStatus</code>/<code>updateLifecycleState</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Exactly one module writes each entity's state column; no duplicate writers found.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">SM-003: state transitions shall be deterministic<br> Ref: §5 SM-003</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>transitionEngine.ts</code> (<code>evaluate()</code>)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Resolves exactly one <code>transition_definitions</code> row per <code>(entity_type, from_state, to_state)</code>, enforced by a DB unique constraint.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">SM-004: state transitions shall be atomic<br> Ref: §5 SM-004</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>transitionEngine.ts</code>; per-entity <code>updateStatus</code> (<code>UPDATE ... RETURNING *</code>); <code>eventBus.publish()</code> call site</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The state write is atomic, but the write and the subsequent event publish are two separate non-transactional round trips with no surrounding <code>BEGIN/COMMIT</code>. A crash between them leaves state changed with no event recorded. Tracked as CR-055.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">SM-005: state history shall never be lost<br> Ref: §5 SM-005</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">n/a — no dedicated history/audit table</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">History is reconstructable only via <code>events</code>, and several required fields (§15) aren't reliably captured there. No dedicated per-entity history table exists. Tracked as CR-054.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">SM-006: state shall be recoverable<br> Ref: §5 SM-006</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">n/a — <code>grep -rniE "\brecover" src</code> returns zero matches</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No recovery mechanism exists anywhere in the codebase.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-29.1: every persistent engineering object shall maintain lifecycle state<br> Ref: §6 FR-29.1</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">per-entity <code>*DB.ts</code> status columns</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Holds for all governed entities except EBM (same gap as SM-001).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-29.2: state transitions shall preserve historical versions<br> Ref: §6 FR-29.2</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>objectivesDB.ts:214-218</code>; <code>templatesDB.ts:110-118</code>; <code>templates.ts:444-529</code> (<code>reactivateAsNewVersion</code>)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">None of the six core entities (Deliverable, Decision, Knowledge, Evidence, Obligation, Participant) have a version column at all. Objective bumps <code>version</code> only via content-edit methods, never via <code>updateStatus</code>. Template/Profile/Pack bump version only when reactivating from a terminal state, not on ordinary transitions. EBM has no transition mechanism to preserve anything.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-29.3: the Runtime Kernel shall validate state transitions before committing them<br> Ref: §6 FR-29.3</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>transitionEngine.ts</code> (<code>evaluate()</code>), confirmed at 18 call sites</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Checks transition-definition existence, badge authority, policies, and quality gates before any caller's DB write. Deliverable is a two-phase exception: validated at dispatch, but the <code>lifecycle_state</code> write happens later, asynchronously, on Work Item completion.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-29.4: every committed state transition shall publish runtime events<br> Ref: §6 FR-29.4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>participants.ts:27-34</code> (<code>CH13_EVENT_BY_TRANSITION</code>)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Evidence/Obligation/Decision/Knowledge/Deliverable publish unconditionally. Participant's event map covers only 6 of 10 real governed <code>(from_state, to_state)</code> pairs; 4 transitions commit state with zero event published.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-29.5: state recovery shall preserve engineering consistency<br> Ref: §6 FR-29.5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">n/a — same zero-result grep as SM-006</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No recovery mechanism exists, so nothing exists to evaluate for consistency-preservation.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-29.6: concurrent state modifications shall be controlled<br> Ref: §6 FR-29.6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>deliverablesDB.ts:112-120</code>, <code>evidenceDB.ts:182-190</code>, <code>obligationsDB.ts:76-84</code>, <code>participantsDB.ts:48-56</code>, <code>decisionsDB.ts:76-84</code>, <code>knowledgeItemsDB.ts:59-67</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every transition-write <code>UPDATE</code> follows an unconditional <code>WHERE id = $1</code> pattern with no prior-state check, no <code>FOR UPDATE</code> row lock (zero matches), and no optimistic-concurrency version check. Genuine, exploitable lost-update race: two concurrent callers can both pass validation and both write, second silently overwrites first.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-29.7: state changes shall remain fully traceable<br> Ref: §6 FR-29.7</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>events</code> table columns (<code>actor_id</code>, <code>authority_badge</code>, <code>occurred_at</code>, <code>payload</code>)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Holds via <code>events</code> for entities that publish, subject to §15's field gaps. The Participant gap (FR-29.4) means 4 transitions are traceable only via a generic <code>updated_at</code> bump — no from/to/actor/authority record.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The State Management service manages runtime state for the 9 named object types; future objects participate by default<br> Ref: §7 Managed Objects</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>seuTypes.ts</code> (<code>TransitionEntityType</code>); live <code>SELECT DISTINCT entity_type FROM transition_definitions</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The real governed set is 16 types, not 9. Of the chapter's 9, 7 are real/governed; "Engineering Behavior Models" has no <code>TransitionEntityType</code> entry, no rows, and no update path; "Runtime Services" has zero code matches anywhere — documentation-only. 9 additional real governed types exist that the chapter never names (Objective, KnowledgeScope, AttentionItem, ExternalInteraction, Pack, Review, Finding, Template, Profile).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every managed object shall contain the 10 listed state-structure fields<br> Ref: §8 State Structure</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">sampled across <code>deliverablesDB.ts</code>, <code>evidenceDB.ts</code>, <code>participantsDB.ts</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Identifier, Object Type, Lifecycle State, Current Attributes, Relationship References hold. Version, Last Transition, Transition Timestamp (only generic <code>updated_at</code>, also bumped by non-transition updates), Current Owner, and State History Reference do not exist on any sampled entity. 5 of 10 fields hold, uniformly across every entity checked. Tracked as CR-054.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every transition shall define source/target state, triggering event, applicable Transition Definition, Governance evaluation, timestamp, and rationale; a transition shall never occur implicitly<br> Ref: §9 State Transitions</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>transitionEngine.ts:40-62</code> (<code>TransitionOutcome</code>)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Source/target state, applicable Transition Definition, and governance evaluation all hold. <code>TransitionOutcome</code> carries no rationale field, and none of the 18 real call sites add one. "Triggering event" is not a first-class concept — transitions are triggered by a direct route/HTTP call, not by consuming a prior platform Event.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Transition Definition shall specify source/target state, required Authority, required Policies, Quality Gates, Reviews, mandatory Evidence, blocking Obligations, EBM rules, and is contributed through Templates/Profiles<br> Ref: §10 Transition Definitions</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">live schema of <code>transition_definitions</code>; <code>transitionEngine.ts:8-12</code>; <code>seedTransitionDefinitions.ts</code>; <code>compositionEngine.ts</code>; <code>commissioning.ts</code>; <code>packs.ts</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>required_authority_rule_id</code> exists as a column but is never consulted by <code>evaluate()</code>; real enforcement is the verb-derived badge instead. "Required Reviews", "mandatory Evidence", "blocking Obligations" are not literal columns — reachable only indirectly via Quality Gate criteria or the separate <code>dependency_definitions</code> graph. Contribution via Packs/Templates does not hold: every writer of this table is <code>seedTransitionDefinitions.ts</code> (static JSON reseed) plus a standalone SDK-authoring admin API; the Pack composition pipeline never writes to this table, only reads it.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Runtime Kernel shall ensure state remains internally consistent (valid transitions, relationships, version, dependency, governance consistency); invalid transitions rejected<br> Ref: §11 State Consistency</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>transition_definitions</code> lookups in <code>transitionEngine.ts</code>; <code>dependencyDefinitionEngine</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Valid lifecycle transitions and governance consistency hold. "Valid object relationships" maps to <code>dependencyDefinitionEngine</code>, which is more precisely a readiness-gating precondition than literal relationship-consistency enforcement. "Version consistency" is moot — no core entity has a version concept to check.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Runtime state shall survive Participant replacement, service/Kernel restart, infrastructure migration, software upgrades; transient state may be reconstructed, authoritative state never lost<br> Ref: §12 State Persistence</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Postgres-backed persistence layer (DB layer throughout <code>src/dblayer</code>)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Inherited for free from a real Postgres database — survives restart/migration/upgrade architecturally, with no dedicated recovery code required for this specific guarantee.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The Runtime Kernel shall support recovery of engineering state after failures, restoring lifecycle states, relationships, pending transitions, active Obligations, active Governance context, runtime configuration, without recommissioning<br> Ref: §13 State Recovery</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">n/a — zero matches for any recovery-related code in <code>src/</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Wholly unimplemented. Identical zero-result finding as SM-006/FR-29.5.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Multiple Participants may operate concurrently; the Kernel shall prevent conflicting state transitions, detecting conflicts, preserving integrity, rejecting/deferring invalid transitions, publishing conflict events<br> Ref: §14 Concurrency</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>deliverablesDB.ts:112-120</code> and peers (unconditional <code>UPDATE</code>); <code>compositionEngine.ts</code> (unrelated cross-Pack conflict check); <code>compliance.ts</code> (<code>conflicts_with</code>, unrelated)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No guard exists anywhere in the transition-write path: every checked entity's write is an unconditional <code>UPDATE ... WHERE id = $2</code>, no row locking, no version check. No genuine state-transition conflict detection exists; the only "conflict" mechanisms found are unrelated (cross-Pack governance, declared <code>conflicts_with</code>, or Postgres <code>ON CONFLICT</code> upserts). The most consequential gap in the audit — a real, exploitable lost-update race.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every state transition shall preserve previous/new state, transition definition, initiating event, governing authority, applicable policies, timestamp, engineering rationale; history is immutable<br> Ref: §15 State History</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>events</code> columns: <code>payload</code>, <code>causation_id</code>, <code>authority_badge</code>, <code>occurred_at</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Previous/new state: only inside free-form <code>payload.fromState/.toState</code>, a per-caller convention, not structurally enforced. Applicable Transition Definition: no <code>transition_definition_id</code> reference at all. Initiating event: real <code>causation_id</code> column, but nullable and only sometimes populated. Governing authority: real column, populated at every publishing call site. Applicable policies: never recorded for a passing check. Timestamp: real column, holds. Engineering rationale: does not exist anywhere. 2 of 8 required fields hold without caveat.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The subsystem shall publish StateTransitionRequested/Validated/Committed/Rejected, StateRecovered, StateConflictDetected/Resolved<br> Ref: §16 Events</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>participants.ts</code> (<code>CH13_EVENT_BY_TRANSITION</code>); per-entity <code>*Transitioned</code> events</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Zero hits for all 7 named events via direct grep. Real per-entity events exist instead (<code>EvidenceTransitioned</code>-family, <code>ObligationTransitioned</code>, <code>DecisionTransitioned</code>, <code>KnowledgeUpdated</code>, <code>DeliverableTransitioned</code>, Participant's event map, <code>ObjectiveTransitioned</code>, <code>AttentionItemTransitioned</code>) doing the equivalent work under different names.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The service shall support concurrent execution, preserve deterministic behaviour, support historical reconstruction, support efficient querying, remain independent of persistence technologies<br> Ref: §17 Non-Functional Requirements</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>transitionEngine.ts</code> (determinism, §5 SM-003); <code>events</code> table (reconstruction); DB-layer abstraction (<code>src/dblayer</code>)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deterministic behaviour holds (SM-003). Historical reconstruction is possible but only through the same <code>events.payload</code> convention gaps noted in §15. "Support concurrent execution" is contradicted by the unguarded race in §14 — the system executes concurrently but does not correctly control it. Efficient querying and persistence-technology independence are architectural properties of the Postgres/DB-layer design, not separately benchmarked or abstracted behind a swappable interface in this codebase.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance criteria: explicit state; governed transitions; invalid transitions rejected; immutable history; survives failures; concurrent transitions preserve consistency<br> Ref: §18 Acceptance Criteria</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">(same citations as §5, §9–§11, §12, §14)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Explicit state: partial (EBM gap). Governed transitions: holds structurally, with the Authority-column and Pack-contribution caveats of §10. Invalid transitions rejected: holds (§11). History immutable: the sole historical substrate (<code>events</code>) is append-only, but it does not capture all seven required §15 fields, so "history" itself is incomplete even where immutable. Survives failures: true for persistence (§12) but not for recovery (§13) or concurrency (§14) — "survives failures" does not hold for the lost-update case, since a crash mid-write is exactly the SM-004 gap. Concurrent transitions preserve consistency: does not hold — this is the §14 race.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Implementation shall produce a State Management service, Transition Definition model, state registry, persistence interfaces, recovery service, concurrency management service, state APIs, state events<br> Ref: §19 Deliverables</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>transitionEngine.ts</code> (service); <code>transition_definitions</code> table + <code>transitionDefinitions.ts</code> admin routes (model); per-entity <code>*DB.ts</code> (persistence interfaces); <code>src/routes/seu/core/transitionDefinitions.ts</code> and per-entity transition routes (state APIs)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">State Management service, Transition Definition model, persistence interfaces, and state APIs exist in recognizable form. No dedicated "state registry" exists (state is implicit per-entity status columns, not a unified registry). No recovery service exists (§13). No concurrency management service exists (§14). State events exist only as real per-entity events, not the chapter's own named vocabulary (§16).</td>
+    </tr>
+  </tbody>
+</table>
 ## Summary
 
 - Total intents analysed: 25

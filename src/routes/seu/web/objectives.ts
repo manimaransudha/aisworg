@@ -203,6 +203,13 @@ router.get(
     notFoundRedirect: "/aisworg/seu/objectives",
     notFoundMessage: "Parent Objective not found.",
   }),
+  // CR-116 — "create new C to supersede A" entry point (?supersedes=A),
+  // reached only from A's own Supersede modal; same tenant-scope protection
+  // as ?parent so this never leaks another tenant's Objective's existence.
+  requireTenantScope.forField("query", "supersedes", objectivesDB.findById, (o) => o.sponsoring_authority?.tenant ?? null, {
+    notFoundRedirect: "/aisworg/seu/objectives",
+    notFoundMessage: "Objective to supersede not found.",
+  }),
   attachVM("seu/objectives/new"),
   async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -222,6 +229,15 @@ router.get(
       tier = requested;
     }
 
+    // CR-116 — the Objective this new one will supersede, carried through as
+    // a hidden field; the real "is this Objective still supersedable" check
+    // happens again in transitionObjective once the form posts.
+    const supersedesId = typeof req.query.supersedes === "string" && req.query.supersedes.trim() ? req.query.supersedes.trim() : null;
+    const supersedesObjective = supersedesId ? (await objectivesDB.findById(supersedesId)).data ?? null : null;
+    if (supersedesId && !supersedesObjective) {
+      return flashError(req, res, "/aisworg/seu/objectives", "Objective to supersede not found.");
+    }
+
     // CR-086 step 2 — the picker lists capability-name Ontology concepts
     // (code/name/description), not rows from the Pack-instance-scoped
     // `capabilities` table.
@@ -229,6 +245,7 @@ router.get(
     const capabilities = (await listConceptsForType("capability-name", { isRoot, tenantId }, false))
       .map((c) => ({ code: c.code, name: c.default_label, description: c.description }));
     req.vm.req.title = `New ${tier} Objective`;
+    req.vm.req.supersedesObjective = supersedesObjective;
     req.vm.req.capabilities = capabilities;
     req.vm.req.parent = parent;
     req.vm.req.tier = tier;
@@ -263,11 +280,23 @@ router.post(
     notFoundRedirect: "/aisworg/seu/objectives",
     notFoundMessage: "Parent Objective not found.",
   }),
+  // CR-116 — "create new C to supersede A" path's own body field, same
+  // tenant-scope protection as parentObjectiveId.
+  requireTenantScope.forField("body", "supersedes", objectivesDB.findById, (o) => o.sponsoring_authority?.tenant ?? null, {
+    notFoundRedirect: "/aisworg/seu/objectives",
+    notFoundMessage: "Objective to supersede not found.",
+  }),
   async (req: Request, res: Response) => {
-  const { statement, tier, parentObjectiveId, requiredCapabilityCodes } = req.body ?? {};
+  const { statement, tier, parentObjectiveId, requiredCapabilityCodes, supersedes, supersedeComment } = req.body ?? {};
   const codes = Array.isArray(requiredCapabilityCodes) ? requiredCapabilityCodes : requiredCapabilityCodes ? [requiredCapabilityCodes] : [];
   const parentId = parentObjectiveId || null;
-  const backToNew = `/aisworg/seu/objectives/new${parentId ? `?parent=${parentId}&tier=${tier}` : ""}`;
+  const supersedesId = typeof supersedes === "string" && supersedes.trim() ? supersedes.trim() : null;
+  const backToNew = `/aisworg/seu/objectives/new${parentId ? `?parent=${parentId}&tier=${tier}` : ""}${supersedesId ? `${parentId ? "&" : "?"}supersedes=${supersedesId}` : ""}`;
+
+  if (supersedesId && (typeof supersedeComment !== "string" || !supersedeComment.trim())) {
+    stashFormInput(req, { statement: typeof statement === "string" ? statement : "", requiredCapabilityCodes: codes });
+    return flashError(req, res, backToNew, "Supersede requires a comment explaining the supersession.");
+  }
 
   if (typeof statement !== "string" || !statement.trim() || codes.length === 0) {
     stashFormInput(req, { statement: typeof statement === "string" ? statement : "", requiredCapabilityCodes: codes });
@@ -287,6 +316,33 @@ router.post(
       parentObjectiveId: parentId,
       requestedBy: String(req.session.user.id),
     });
+
+    // CR-116 — "create new C to supersede A": fires A's own Active ->
+    // Superseded transition in this same request, right after C is created;
+    // no separate button press (owner: "When C is created, A changes state.
+    // From there on, C follows the path that a new objective would take.").
+    // The actor creating C must hold objective_supersede for this to
+    // succeed — enforced by transitionObjective's own badge gate, same as
+    // the pick-existing-B path.
+    if (supersedesId) {
+      const result = await transitionObjective({
+        objectiveId: supersedesId,
+        targetState: "Superseded",
+        actorRole: req.session?.user?.role ?? "general",
+        actorId: String(req.session.user.id),
+        comment: supersedeComment,
+        supersedingObjectiveId: objective.id,
+      });
+      if (!result.ok) {
+        const detail = "detail" in result ? result.detail : result.reason;
+        // C already exists at this point — it is not rolled back (same "no
+        // parallel/bypass, no hidden rollback mechanism" constraint as every
+        // other core function here); the message says so explicitly so the
+        // actor isn't left wondering where C went.
+        return flashError(req, res, `/aisworg/seu/objectives/${objective.id}`, `Objective created, but superseding the original was blocked: ${detail}`);
+      }
+    }
+
     // CR-075 (owner: "The create strategic objective is not taking me to the
     // list page") — same principle as Edit's Save: the list, not the
     // detail/view page, applied uniformly whether this created a Strategic
@@ -329,6 +385,9 @@ router.get("/objectives/:id", attachVM("seu/objectives/detail"), async (req: Req
     // "activate" here would have let anyone who can only Activate a proposal
     // also Reject an unrelated Active Objective.
     req.vm.req.canRejectObjective = hasObjectiveBadge("reject");
+    // CR-116 — same pattern: Supersede has its own picker form, gated on the
+    // real objective_supersede badge, not the generic dropdown.
+    req.vm.req.canSupersedeObjective = hasObjectiveBadge("supersede");
     req.vm.req.canComment = canComment;
     // CR-072 — whether this viewer holds the badge for the Submit step
     // defined on the current status (if any) — detail.submitVerb/
@@ -521,7 +580,7 @@ function postObjectiveTransition(targetState: ObjectiveStatus) {
   return async (req: Request, res: Response): Promise<void> => {
     const objectiveId = String(req.params.id);
     const backTo = `/aisworg/seu/objectives/${objectiveId}`;
-    const { comment } = req.body ?? {};
+    const { comment, supersedingObjectiveId } = req.body ?? {};
     if (req.session?.user?.id == null) {
     return flashError(req, res, backTo, "You must be logged in to create an Objective.");
   }
@@ -533,6 +592,7 @@ function postObjectiveTransition(targetState: ObjectiveStatus) {
         actorRole: req.session?.user?.role ?? "general",
         actorId: String(req.session.user.id),
         comment: typeof comment === "string" ? comment : undefined,
+        supersedingObjectiveId: typeof supersedingObjectiveId === "string" && supersedingObjectiveId ? supersedingObjectiveId : undefined,
       });
       if (!result.ok) {
         const detail = "detail" in result ? result.detail : result.reason;

@@ -1,76 +1,418 @@
 # Chapter 20 – Traceability Model: Implementation Traceability
 
-Specification: `design/foundations/03_Book 3 (Refined)/03_Part 3/Chapter 20.md`
+**Date of report: 4-10-2026**
 
 <!-- multiline -->
-| Intent | Specification Reference | Code Citation | Finding | Intent Met |
-|---|---|---|---|---|
-| Traceability records relationships between engineering artefacts, surviving the lifecycle of Participants and SEUs | §1 Purpose | src/routes/seu/core/traceability.ts:111-196 | `explainDeliverable` persists relationships via ordinary entity FK columns and `attestations`/`deliverable_references` rows, which outlive the producing Participant/SEU. <br>There is no dedicated relationship-registry table; survivability is an incidental property of normal row persistence, not an engineered guarantee. | Partially met |
-| Traceability enables explaining outcomes, knowledge support, decision influence, and evidence justification | §1 Purpose | src/routes/seu/core/traceability.ts:111-196 | `explainDeliverable` assembles supporting evidence/decisions/knowledge/obligations for one Deliverable. <br>No equivalent exists with Decision, Knowledge, or Evidence as the subject. | Partially met |
-| Traceability is a permanent engineering asset, independent of Participant/SEU lifecycle | §1 Purpose | — | No history/version/snapshot table exists anywhere in the schema (verified via live `\dt` sweep, no matches for history/audit/snapshot tables). <br>Current relationships are only as permanent as the FK row they live on; if the row is updated or deleted, the prior relationship state is lost. | Not met |
-| Chapter defines traceability abstraction, relationships, lifecycle, provenance, impact analysis, explainability | §2 Scope | n/a | Scope statement, not independently verifiable; covered by downstream intents (§4, §8, §9, §10, §11, §12). | Not verifiable |
-| Traceability spans every persistent architectural concept, sitting above the Engineering Behavior Model and feeding Explainability | §3 Architectural Position | src/routes/seu/core/traceability.ts:1-30 | The only real traceability code is scoped to Deliverables; EBM, Knowledge, Evidence, Decisions, Obligations, Participants are reachable only as nested fields inside `explainDeliverable`'s output, not as independent subjects feeding a shared Explainability layer. | Partially met |
-| Traceability is the explicit recording of relationships between engineering artefacts | §4 Definition | src/dblayer/evidenceDB.ts:33-61 | Relationships are recorded, but almost always as a bare FK column on the child entity (`decisions.knowledge_id`, `obligations.related_object_id`, `knowledge_items.evidence_id`) rather than an explicit, independently-identified relationship record. `evidence_relationships` is the one table giving a relationship its own row. | Partially met |
-| Every significant engineering object shall participate in the Traceability Model | §4 Definition | src/dblayer/evidenceDB.ts:33-61 | Every entity table carries some FK/related-object column connecting it to others, so no object is fully disconnected. <br>Nothing enforces that a *new* object type must participate — participation is per-module convention, not a platform-enforced contract. | Partially met |
-| Traceability shall be established automatically wherever practical | §4 Definition | src/dblayer/evidenceDB.ts:33-61 | `evidenceDB.create()` inserts the `evidence` row and its `evidence_relationships` row in the same transaction — relationship creation is automatic for the entities that call it. <br>This is bespoke per-entity code, not a generic reflective or trigger-driven linking engine. | Partially met |
-| Manual traceability shall remain supported where automation is not possible | §4 Definition | — | No manual relationship-authoring UI or API was found (`grep -rn "relationship" src/routes` returns no authoring route). | Not met |
-| TM-001: Traceability is intrinsic, not dependent on manual documentation | §5 TM-001 | src/dblayer/evidenceDB.ts:33-61 | True for FK-based linking, which is code-enforced rather than documentation-dependent. <br>But each entity module hand-codes its own linking; there is no single intrinsic mechanism the chapter implies. | Partially met |
-| TM-002: Relationships are first-class engineering objects | §5 TM-002 | src/dblayer/evidenceDB.ts (evidence_relationships) | Only `evidence_relationships` rows have independent identity (own `id`, own row). <br>Every other relationship in the schema (`decisions.knowledge_id`, `.related_object_id`, `obligations.related_object_id`, `knowledge_items.evidence_id`/`.deliverable_id`) is a plain FK column with no row of its own. | Partially met |
-| TM-003: Traceability shall be preserved throughout the engineering lifecycle | §5 TM-003 | — | FK columns persist as long as the owning row exists. There is no explicit lifecycle-preservation guarantee beyond ordinary row persistence (no cascade-protection, no archival copy on delete). | Partially met |
-| TM-004: Every significant engineering decision shall be explainable | §5 TM-004 | src/routes/seu/core/traceability.ts:111-196 | Real only for Deliverable-approval-shaped outcomes via `explainDeliverable`. Decisions, Evidence, Knowledge, and Obligations have no dedicated explain function of their own. | Partially met |
-| TM-005: Historical traceability shall never be lost | §5 TM-005 | — | No history/version/audit/snapshot table exists anywhere in the schema. `ebms.version` increments in place without retaining the prior row; `evidence.supersedes_evidence_id` is a pointer chain, not a reconstructable history. | Not met |
-| TM-006: Traceability shall remain independent of implementation technologies | §5 TM-006 | — | Architectural framing; not independently code-testable. | Not verifiable |
-| FR-20.1: Every persistent engineering object shall possess traceable identity | §6 FR-20.1 | src/dblayer/evidenceDB.ts, src/dblayer/decisionsDB.ts, src/dblayer/obligationsDB.ts | Every relevant table uses `id uuid DEFAULT gen_random_uuid()`, giving every row a stable, unique identity. | Fully met |
-| FR-20.2: Relationships shall possess unique identifiers | §6 FR-20.2 | src/dblayer/evidenceDB.ts (evidence_relationships.id); src/dblayer/dependencyDefinitionsDB.ts:48 (dependency_definitions.id) | True only for the two tables where a relationship is its own row. The far more common case (`decisions.knowledge_id`, `obligations.related_object_id`, `knowledge_items.evidence_id`, `evidence.originating_decision_id`) is a bare FK column with no relationship-row identity. | Partially met |
-| FR-20.3: Traceability shall support forward navigation | §6 FR-20.3 | src/routes/seu/core/traceability.ts:205-252 | `impactOfDeliverable` walks `dependency_definitions` forward via `findBySourceName`, a transitive downstream traversal. Scoped to Deliverable-to-Deliverable dependency edges only. | Partially met |
-| FR-20.4: Traceability shall support backward navigation | §6 FR-20.4 | src/routes/seu/core/traceability.ts:111-196 | `explainDeliverable` resolves `dependsOn` via `findByTargetName` plus a provenance timeline, a real backward traversal. Scoped to Deliverables as the subject. | Partially met |
-| FR-20.5: The platform shall support impact analysis | §6 FR-20.5 | src/routes/seu/core/traceability.ts:205-252 | `impactOfDeliverable` performs a transitive BFS with a visited-set cycle guard, tested in tests/traceability.test.ts:75-100. Covers exactly one relationship type (Deliverable depends-on Deliverable). | Partially met |
-| FR-20.6: The platform shall preserve historical relationships | §6 FR-20.6 | — | `dependency_definitions` and `evidence_relationships` hold only current state; no prior-version row is retained on update. | Not met |
-| FR-20.7: Relationship provenance shall remain permanently available | §6 FR-20.7 | src/dblayer/evidenceDB.ts (evidence_relationships.created_at); src/routes/seu/core/traceability.ts:111-196 (attestations/deliverable_references) | `evidence_relationships` carries only a `created_at` timestamp, not the chapter's full provenance set. Real, fuller provenance exists one layer up, at the entity/state-transition level (`attestations`, `deliverable_references`) consumed by `explainDeliverable`, not at the relationship/edge level the chapter specifies. | Partially met |
-| The 12 named objects (Deliverables, Knowledge, Evidence, Decisions, Obligations, EBMs, Packs, Templates, Profiles, Ontology Concepts, Participants, Capabilities) participate in traceability | §7 Traceability Objects | src/routes/seu/core/traceability.ts:111-196 | Every object has some real FK connecting it to others. Deliverables alone have a dedicated query surface (`explainDeliverable`/`impactOfDeliverable`); the other 11 are reachable only as read-only nested fields inside that output, never as an independent traceable subject. | Partially met |
-| Future architectural objects shall participate in traceability by default | §7 Traceability Objects | — | No generic/reflective linking mechanism exists that a new object type would inherit automatically (consistent with §4 finding); participation today requires a new entity module to hand-code its own FK columns. | Not met |
-| Relationship types: Produces (Capability→Deliverable) | §8 Relationship Types | src/dblayer/deliverablesDB.ts (deliverables.producing_capability_id) | Real, stored edge. | Fully met |
-| Relationship types: Supports (Evidence→Knowledge, Knowledge→Decision, Decision→Deliverable) | §8 Relationship Types | src/dblayer/knowledgeItemsDB.ts (knowledge_items.evidence_id); src/dblayer/decisionsDB.ts (decisions.knowledge_id, .related_object_type/id) | Knowledge→Decision and Decision→Deliverable are real stored edges. Evidence→Knowledge is real but inverted: the FK is `knowledge_items.evidence_id` (Knowledge references Evidence), not a Evidence-pointing-to-Knowledge edge as named. | Partially met |
-| Relationship types: References (Deliverable→Knowledge, Deliverable→Evidence, Decision→Ontology Concept) | §8 Relationship Types | — | No dedicated search performed found distinct stored edges matching this exact direction beyond what is already covered by the Supports/Depends-Upon FKs; no separate "References" vocabulary or column exists. | Not met |
-| Relationship types: Depends Upon (Deliverable→Deliverable, Obligation→Deliverable, Knowledge→Evidence) | §8 Relationship Types | src/dblayer/dependencyDefinitionsDB.ts:48 | Deliverable→Deliverable is real (`dependency_definitions`). Obligation→Deliverable and Knowledge→Evidence are not confirmed as distinct stored edges beyond the `related_object_id`/`evidence_id` FKs already counted under Supports. | Partially met |
-| Relationship types: Governs (EBM→Deliverable, Pack→Behaviour, Policy→Decision) | §8 Relationship Types | — | No stored edge of any kind found for any of these three pairs. | Not met |
-| Relationship types: Supersedes (version relationships) | §8 Relationship Types | src/dblayer/evidenceDB.ts (evidence.supersedes_evidence_id); src/dblayer/ebmsDB.ts (ebms.status='Superseded') | Exists only as two isolated, unrelated instances, not a general cross-entity Supersedes mechanism. | Partially met |
-| Additional relationship types may be introduced through Packs | §8 Relationship Types | — | Live query `SELECT DISTINCT concept_type FROM ontology_concepts` returns 15 concept types, none named `category:relationship` or equivalent. No `contributed_by_pack`-style mechanism exists for relationship types at all, though the mechanism exists for 8 other concept categories. | Not met |
-| Relationships transition through Created → Validated → Active → Superseded → Archived | §9 Traceability Lifecycle | — | No relationship-shaped table (`evidence_relationships`, `dependency_definitions`) has a `status`/`state` column. The `dependency_edges.readiness_state` table is the closest historical attempt and has 0 live rows (superseded by `dependency_definitions`, which itself has no lifecycle column). | Not met |
-| Relationship history shall remain permanently available | §9 Traceability Lifecycle | — | No relationship history mechanism exists (same gap as FR-20.6/TM-005). | Not met |
-| Every relationship shall preserve provenance (originating SEU/Deliverable/Participant, timestamp, originating Decision, EBM version) | §10 Provenance | src/dblayer/evidenceDB.ts (evidence.originating_deliverable_id/.participant_id/.capability_id/.decision_id) | The 6 required fields are never captured together on a relationship row. Real provenance exists at the entity level (`evidence.originating_*` columns) and at the state-transition level (`attestations`, `deliverable_references`), not at the relationship/edge level the chapter specifies. | Partially met |
-| Traceability shall support complete engineering reconstruction | §10 Provenance | — | No reconstruction mechanism exists (see §13 finding below); provenance fields that exist cannot be assembled into a full past-state view. | Not met |
-| The platform shall explain any significant engineering outcome (approval, technology selection, obligation closure, dependency satisfaction, capability fulfilment) | §11 Explainability | src/routes/seu/core/traceability.ts:111-196 | `explainDeliverable` genuinely walks stored records (producing capability, dependency edges, supporting evidence/decisions/knowledge/obligations, reviews/findings, provenance timeline) and answers "why was this Deliverable approved." The other 4 named example questions (technology selection, obligation closure, dependency satisfaction, capability fulfilment by a Participant) have no dedicated function. | Partially met |
-| Explainability shall be generated from traceability rather than reconstructed from logs | §11 Explainability | src/routes/seu/core/traceability.ts:111-196 | `explainDeliverable` is built from stored records (attestations, references, FK joins), not log replay, matching this intent for the one case it covers. | Fully met |
-| The platform shall support impact analysis across the complete engineering graph | §12 Impact Analysis | src/routes/seu/core/traceability.ts:205-252; tests/traceability.test.ts:75-100 | `impactOfDeliverable` is a real, tested transitive-closure query, but scoped to exactly one relationship type (Deliverable depends-on Deliverable). The other named examples (Decisions invalidated by Evidence change, SEUs reusing Knowledge, Knowledge Items using Evidence) have no implementation. | Partially met |
-| The platform shall support reconstruction of engineering state at any point in time (Deliverable/EBM/Ontology/Knowledge/Decision/Evidence/Obligation state) | §13 Historical Reconstruction | — | No history/version/audit/snapshot table exists anywhere in the schema, confirmed by direct sweep. `ebms.version` increments in place without retaining prior rows. Nothing can answer "what was the engineering state as of date X" for any of the named object types. | Not met |
-| Traceability queries: Explain this Deliverable | §14 Traceability Queries | src/routes/seu/core/traceability.ts:111-196, `GET /deliverables/:id/traceability` | Real, implemented, routed. | Fully met |
-| Traceability queries: Show the decisions supporting this architecture | §14 Traceability Queries | src/routes/seu/core/traceability.ts:111-196 (supportingDecisions field) | Reachable only as a nested field inside `explainDeliverable`'s output, not a standalone query; no "architecture" object exists to query against. | Partially met |
-| Traceability queries: Show evidence supporting this knowledge | §14 Traceability Queries | — | No Knowledge-centric query exists. | Not met |
-| Traceability queries: Show all downstream impacts | §14 Traceability Queries | src/routes/seu/core/traceability.ts:205-252 | Real via `impactOfDeliverable`. | Fully met |
-| Traceability queries: Show engineering lineage | §14 Traceability Queries | — | `grep -rn lineage src/` hits are unrelated Template/Pack parent-lineage comments, not a traceability query. | Not met |
-| Traceability queries: Show Pack contributions | §14 Traceability Queries | — | No implementation found. | Not met |
-| The query mechanism is implementation-defined | §14 Traceability Queries | — | Framing statement, not independently verifiable beyond the queries already assessed above. | Not verifiable |
-| Traceability subsystem shall publish RelationshipCreated/Validated/Updated/Superseded/Archived, TraceabilityQueryExecuted | §15 Events | src/routes/seu/core/traceability.ts:178-185, 245-252 | Live query `SELECT DISTINCT event_type FROM events WHERE event_type ILIKE '%relationship%' OR event_type ILIKE '%traceab%'` returns exactly one type, `TraceabilityQueryExecuted` (published from both `explainDeliverable` and `impactOfDeliverable`). The 5 `Relationship*` events have zero hits, both live and via source grep — no relationship-lifecycle mechanism exists to emit them from (consistent with §9 finding). | Partially met |
-| NFR: support large engineering graphs | §16 NFR | — | No dedicated graph structure exists to stress-test; not evaluable given the headline absence of a graph subsystem. | Not verifiable |
-| NFR: preserve historical relationships | §16 NFR | — | No relationship history anywhere (§9, §10). | Not met |
-| NFR: support deterministic explainability | §16 NFR | src/routes/seu/core/traceability.ts:111-196 | Real and deterministic for Deliverables only (§11). | Partially met |
-| NFR: support efficient impact analysis | §16 NFR | src/routes/seu/core/traceability.ts:205-252 | Real but single-relationship-type only (§12). | Partially met |
-| NFR: remain independent of storage technologies | §16 NFR | — | Architectural framing, not code-testable. | Not verifiable |
-| Acceptance: every persistent object participates in traceability | §17 Acceptance Criteria | src/dblayer/evidenceDB.ts:33-61 | Only via ad hoc FKs, reachable solely through a Deliverable-rooted query (§7, §4). | Partially met |
-| Acceptance: relationships possess independent identity | §17 Acceptance Criteria | — | Mostly false; only `evidence_relationships`/`dependency_definitions` rows qualify (§6 FR-20.2). | Not met |
-| Acceptance: historical reconstruction is possible | §17 Acceptance Criteria | — | Not built (§13). | Not met |
-| Acceptance: explainability is derived from traceability | §17 Acceptance Criteria | src/routes/seu/core/traceability.ts:111-196 | Real for Deliverables only (§11). | Partially met |
-| Acceptance: impact analysis operates across the engineering graph | §17 Acceptance Criteria | src/routes/seu/core/traceability.ts:205-252 | Real, but one relationship type only (§12). | Partially met |
-| Acceptance: relationship provenance is preserved | §17 Acceptance Criteria | — | Entity/transition-level provenance is real; relationship-level provenance is not (§10). | Not met |
-| Deliverable: Traceability domain model | §18 Deliverables | — | Does not exist as a dedicated artifact; the "model" is the union of each entity's own FK columns. | Not met |
-| Deliverable: Relationship registry | §18 Deliverables | — | Does not exist. Closest analog, `ontology_concepts`, does not cover relationship types (§8). | Not met |
-| Deliverable: Provenance service | §18 Deliverables | src/routes/seu/core/traceability.ts:111-196 | Does not exist as a standalone service; provenance is composed inline inside `explainDeliverable` from `attestationsDB`/`deliverableReferencesDB`. | Not met |
-| Deliverable: Impact analysis service | §18 Deliverables | src/routes/seu/core/traceability.ts:205-252 | Exists narrowly as one function, `impactOfDeliverable`, for one entity type. | Partially met |
-| Deliverable: Historical reconstruction service | §18 Deliverables | — | Does not exist. | Not met |
-| Deliverable: Traceability APIs | §18 Deliverables | src/routes/seu/core/traceability.ts:111-252, `GET /deliverables/:id/traceability` | Exists narrowly as one endpoint. | Partially met |
-| Deliverable: Traceability events | §18 Deliverables | src/routes/seu/core/traceability.ts:178-185, 245-252 | Exists narrowly as one event type (`TraceabilityQueryExecuted`); the other 5 named events do not exist. | Partially met |
+**Legend:** ✅ Fully met  ⚠️ Partially met  ❌ Not met  ❓ Not verifiable
 
+<table style="width:100%; table-layout:fixed;">
+  <colgroup>
+    <col style="width:4%;">
+    <col style="width:32%;">
+    <col style="width:27%;">
+    <col style="width:37%;">
+  </colgroup>
+  <thead>
+    <tr>
+      <th></th>
+      <th>Intent</th>
+      <th>Code Citation</th>
+      <th>Finding</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Traceability records relationships between engineering artefacts, surviving the lifecycle of Participants and SEUs<br> Ref: §1 Purpose</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:111-196</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>explainDeliverable</code> persists relationships via ordinary entity FK columns and <code>attestations</code>/<code>deliverable_references</code> rows, which outlive the producing Participant/SEU. <br>There is no dedicated relationship-registry table; survivability is an incidental property of normal row persistence, not an engineered guarantee.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Traceability enables explaining outcomes, knowledge support, decision influence, and evidence justification<br> Ref: §1 Purpose</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:111-196</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>explainDeliverable</code> assembles supporting evidence/decisions/knowledge/obligations for one Deliverable. <br>No equivalent exists with Decision, Knowledge, or Evidence as the subject.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Traceability is a permanent engineering asset, independent of Participant/SEU lifecycle<br> Ref: §1 Purpose</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No history/version/snapshot table exists anywhere in the schema (verified via live <code>\dt</code> sweep, no matches for history/audit/snapshot tables). <br>Current relationships are only as permanent as the FK row they live on; if the row is updated or deleted, the prior relationship state is lost.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❓</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Chapter defines traceability abstraction, relationships, lifecycle, provenance, impact analysis, explainability<br> Ref: §2 Scope</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">n/a</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Scope statement, not independently verifiable; covered by downstream intents (§4, §8, §9, §10, §11, §12).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Traceability spans every persistent architectural concept, sitting above the Engineering Behavior Model and feeding Explainability<br> Ref: §3 Architectural Position</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:1-30</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The only real traceability code is scoped to Deliverables; EBM, Knowledge, Evidence, Decisions, Obligations, Participants are reachable only as nested fields inside <code>explainDeliverable</code>'s output, not as independent subjects feeding a shared Explainability layer.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Traceability is the explicit recording of relationships between engineering artefacts<br> Ref: §4 Definition</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/evidenceDB.ts:33-61</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Relationships are recorded, but almost always as a bare FK column on the child entity (<code>decisions.knowledge_id</code>, <code>obligations.related_object_id</code>, <code>knowledge_items.evidence_id</code>) rather than an explicit, independently-identified relationship record. <code>evidence_relationships</code> is the one table giving a relationship its own row.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every significant engineering object shall participate in the Traceability Model<br> Ref: §4 Definition</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/evidenceDB.ts:33-61</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every entity table carries some FK/related-object column connecting it to others, so no object is fully disconnected. <br>Nothing enforces that a *new* object type must participate — participation is per-module convention, not a platform-enforced contract.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Traceability shall be established automatically wherever practical<br> Ref: §4 Definition</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/evidenceDB.ts:33-61</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>evidenceDB.create()</code> inserts the <code>evidence</code> row and its <code>evidence_relationships</code> row in the same transaction — relationship creation is automatic for the entities that call it. <br>This is bespoke per-entity code, not a generic reflective or trigger-driven linking engine.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Manual traceability shall remain supported where automation is not possible<br> Ref: §4 Definition</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No manual relationship-authoring UI or API was found (<code>grep -rn "relationship" src/routes</code> returns no authoring route).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">TM-001: Traceability is intrinsic, not dependent on manual documentation<br> Ref: §5 TM-001</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/evidenceDB.ts:33-61</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">True for FK-based linking, which is code-enforced rather than documentation-dependent. <br>But each entity module hand-codes its own linking; there is no single intrinsic mechanism the chapter implies.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">TM-002: Relationships are first-class engineering objects<br> Ref: §5 TM-002</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/evidenceDB.ts (evidence_relationships)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Only <code>evidence_relationships</code> rows have independent identity (own <code>id</code>, own row). <br>Every other relationship in the schema (<code>decisions.knowledge_id</code>, <code>.related_object_id</code>, <code>obligations.related_object_id</code>, <code>knowledge_items.evidence_id</code>/<code>.deliverable_id</code>) is a plain FK column with no row of its own.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">TM-003: Traceability shall be preserved throughout the engineering lifecycle<br> Ref: §5 TM-003</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FK columns persist as long as the owning row exists. There is no explicit lifecycle-preservation guarantee beyond ordinary row persistence (no cascade-protection, no archival copy on delete).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">TM-004: Every significant engineering decision shall be explainable<br> Ref: §5 TM-004</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:111-196</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Real only for Deliverable-approval-shaped outcomes via <code>explainDeliverable</code>. Decisions, Evidence, Knowledge, and Obligations have no dedicated explain function of their own.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">TM-005: Historical traceability shall never be lost<br> Ref: §5 TM-005</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No history/version/audit/snapshot table exists anywhere in the schema. <code>ebms.version</code> increments in place without retaining the prior row; <code>evidence.supersedes_evidence_id</code> is a pointer chain, not a reconstructable history.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❓</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">TM-006: Traceability shall remain independent of implementation technologies<br> Ref: §5 TM-006</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Architectural framing; not independently code-testable.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-20.1: Every persistent engineering object shall possess traceable identity<br> Ref: §6 FR-20.1</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/evidenceDB.ts, src/dblayer/decisionsDB.ts, src/dblayer/obligationsDB.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every relevant table uses <code>id uuid DEFAULT gen_random_uuid()</code>, giving every row a stable, unique identity.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-20.2: Relationships shall possess unique identifiers<br> Ref: §6 FR-20.2</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/evidenceDB.ts (evidence_relationships.id); src/dblayer/dependencyDefinitionsDB.ts:48 (dependency_definitions.id)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">True only for the two tables where a relationship is its own row. The far more common case (<code>decisions.knowledge_id</code>, <code>obligations.related_object_id</code>, <code>knowledge_items.evidence_id</code>, <code>evidence.originating_decision_id</code>) is a bare FK column with no relationship-row identity.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-20.3: Traceability shall support forward navigation<br> Ref: §6 FR-20.3</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:205-252</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>impactOfDeliverable</code> walks <code>dependency_definitions</code> forward via <code>findBySourceName</code>, a transitive downstream traversal. Scoped to Deliverable-to-Deliverable dependency edges only.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-20.4: Traceability shall support backward navigation<br> Ref: §6 FR-20.4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:111-196</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>explainDeliverable</code> resolves <code>dependsOn</code> via <code>findByTargetName</code> plus a provenance timeline, a real backward traversal. Scoped to Deliverables as the subject.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-20.5: The platform shall support impact analysis<br> Ref: §6 FR-20.5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:205-252</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>impactOfDeliverable</code> performs a transitive BFS with a visited-set cycle guard, tested in tests/traceability.test.ts:75-100. Covers exactly one relationship type (Deliverable depends-on Deliverable).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-20.6: The platform shall preserve historical relationships<br> Ref: §6 FR-20.6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>dependency_definitions</code> and <code>evidence_relationships</code> hold only current state; no prior-version row is retained on update.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-20.7: Relationship provenance shall remain permanently available<br> Ref: §6 FR-20.7</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/evidenceDB.ts (evidence_relationships.created_at); src/routes/seu/core/traceability.ts:111-196 (attestations/deliverable_references)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>evidence_relationships</code> carries only a <code>created_at</code> timestamp, not the chapter's full provenance set. Real, fuller provenance exists one layer up, at the entity/state-transition level (<code>attestations</code>, <code>deliverable_references</code>) consumed by <code>explainDeliverable</code>, not at the relationship/edge level the chapter specifies.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The 12 named objects (Deliverables, Knowledge, Evidence, Decisions, Obligations, EBMs, Packs, Templates, Profiles, Ontology Concepts, Participants, Capabilities) participate in traceability<br> Ref: §7 Traceability Objects</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:111-196</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every object has some real FK connecting it to others. Deliverables alone have a dedicated query surface (<code>explainDeliverable</code>/<code>impactOfDeliverable</code>); the other 11 are reachable only as read-only nested fields inside that output, never as an independent traceable subject.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Future architectural objects shall participate in traceability by default<br> Ref: §7 Traceability Objects</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No generic/reflective linking mechanism exists that a new object type would inherit automatically (consistent with §4 finding); participation today requires a new entity module to hand-code its own FK columns.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Relationship types: Produces (Capability→Deliverable)<br> Ref: §8 Relationship Types</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/deliverablesDB.ts (deliverables.producing_capability_id)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Real, stored edge.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Relationship types: Supports (Evidence→Knowledge, Knowledge→Decision, Decision→Deliverable)<br> Ref: §8 Relationship Types</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/knowledgeItemsDB.ts (knowledge_items.evidence_id); src/dblayer/decisionsDB.ts (decisions.knowledge_id, .related_object_type/id)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Knowledge→Decision and Decision→Deliverable are real stored edges. Evidence→Knowledge is real but inverted: the FK is <code>knowledge_items.evidence_id</code> (Knowledge references Evidence), not a Evidence-pointing-to-Knowledge edge as named.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Relationship types: References (Deliverable→Knowledge, Deliverable→Evidence, Decision→Ontology Concept)<br> Ref: §8 Relationship Types</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No dedicated search performed found distinct stored edges matching this exact direction beyond what is already covered by the Supports/Depends-Upon FKs; no separate "References" vocabulary or column exists.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Relationship types: Depends Upon (Deliverable→Deliverable, Obligation→Deliverable, Knowledge→Evidence)<br> Ref: §8 Relationship Types</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/dependencyDefinitionsDB.ts:48</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable→Deliverable is real (<code>dependency_definitions</code>). Obligation→Deliverable and Knowledge→Evidence are not confirmed as distinct stored edges beyond the <code>related_object_id</code>/<code>evidence_id</code> FKs already counted under Supports.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Relationship types: Governs (EBM→Deliverable, Pack→Behaviour, Policy→Decision)<br> Ref: §8 Relationship Types</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No stored edge of any kind found for any of these three pairs.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Relationship types: Supersedes (version relationships)<br> Ref: §8 Relationship Types</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/evidenceDB.ts (evidence.supersedes_evidence_id); src/dblayer/ebmsDB.ts (ebms.status='Superseded')</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Exists only as two isolated, unrelated instances, not a general cross-entity Supersedes mechanism.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Additional relationship types may be introduced through Packs<br> Ref: §8 Relationship Types</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Live query <code>SELECT DISTINCT concept_type FROM ontology_concepts</code> returns 15 concept types, none named <code>category:relationship</code> or equivalent. No <code>contributed_by_pack</code>-style mechanism exists for relationship types at all, though the mechanism exists for 8 other concept categories.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Relationships transition through Created → Validated → Active → Superseded → Archived<br> Ref: §9 Traceability Lifecycle</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No relationship-shaped table (<code>evidence_relationships</code>, <code>dependency_definitions</code>) has a <code>status</code>/<code>state</code> column. The <code>dependency_edges.readiness_state</code> table is the closest historical attempt and has 0 live rows (superseded by <code>dependency_definitions</code>, which itself has no lifecycle column).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Relationship history shall remain permanently available<br> Ref: §9 Traceability Lifecycle</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No relationship history mechanism exists (same gap as FR-20.6/TM-005).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every relationship shall preserve provenance (originating SEU/Deliverable/Participant, timestamp, originating Decision, EBM version)<br> Ref: §10 Provenance</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/evidenceDB.ts (evidence.originating_deliverable_id/.participant_id/.capability_id/.decision_id)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The 6 required fields are never captured together on a relationship row. Real provenance exists at the entity level (<code>evidence.originating_*</code> columns) and at the state-transition level (<code>attestations</code>, <code>deliverable_references</code>), not at the relationship/edge level the chapter specifies.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Traceability shall support complete engineering reconstruction<br> Ref: §10 Provenance</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No reconstruction mechanism exists (see §13 finding below); provenance fields that exist cannot be assembled into a full past-state view.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The platform shall explain any significant engineering outcome (approval, technology selection, obligation closure, dependency satisfaction, capability fulfilment)<br> Ref: §11 Explainability</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:111-196</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>explainDeliverable</code> genuinely walks stored records (producing capability, dependency edges, supporting evidence/decisions/knowledge/obligations, reviews/findings, provenance timeline) and answers "why was this Deliverable approved." The other 4 named example questions (technology selection, obligation closure, dependency satisfaction, capability fulfilment by a Participant) have no dedicated function.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Explainability shall be generated from traceability rather than reconstructed from logs<br> Ref: §11 Explainability</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:111-196</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>explainDeliverable</code> is built from stored records (attestations, references, FK joins), not log replay, matching this intent for the one case it covers.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The platform shall support impact analysis across the complete engineering graph<br> Ref: §12 Impact Analysis</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:205-252; tests/traceability.test.ts:75-100</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>impactOfDeliverable</code> is a real, tested transitive-closure query, but scoped to exactly one relationship type (Deliverable depends-on Deliverable). The other named examples (Decisions invalidated by Evidence change, SEUs reusing Knowledge, Knowledge Items using Evidence) have no implementation.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The platform shall support reconstruction of engineering state at any point in time (Deliverable/EBM/Ontology/Knowledge/Decision/Evidence/Obligation state)<br> Ref: §13 Historical Reconstruction</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No history/version/audit/snapshot table exists anywhere in the schema, confirmed by direct sweep. <code>ebms.version</code> increments in place without retaining prior rows. Nothing can answer "what was the engineering state as of date X" for any of the named object types.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Traceability queries: Explain this Deliverable<br> Ref: §14 Traceability Queries</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:111-196, <code>GET /deliverables/:id/traceability</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Real, implemented, routed.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Traceability queries: Show the decisions supporting this architecture<br> Ref: §14 Traceability Queries</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:111-196 (supportingDecisions field)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Reachable only as a nested field inside <code>explainDeliverable</code>'s output, not a standalone query; no "architecture" object exists to query against.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Traceability queries: Show evidence supporting this knowledge<br> Ref: §14 Traceability Queries</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No Knowledge-centric query exists.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Traceability queries: Show all downstream impacts<br> Ref: §14 Traceability Queries</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:205-252</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Real via <code>impactOfDeliverable</code>.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Traceability queries: Show engineering lineage<br> Ref: §14 Traceability Queries</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>grep -rn lineage src/</code> hits are unrelated Template/Pack parent-lineage comments, not a traceability query.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Traceability queries: Show Pack contributions<br> Ref: §14 Traceability Queries</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No implementation found.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❓</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The query mechanism is implementation-defined<br> Ref: §14 Traceability Queries</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Framing statement, not independently verifiable beyond the queries already assessed above.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Traceability subsystem shall publish RelationshipCreated/Validated/Updated/Superseded/Archived, TraceabilityQueryExecuted<br> Ref: §15 Events</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:178-185, 245-252</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Live query <code>SELECT DISTINCT event_type FROM events WHERE event_type ILIKE '%relationship%' OR event_type ILIKE '%traceab%'</code> returns exactly one type, <code>TraceabilityQueryExecuted</code> (published from both <code>explainDeliverable</code> and <code>impactOfDeliverable</code>). The 5 <code>Relationship*</code> events have zero hits, both live and via source grep — no relationship-lifecycle mechanism exists to emit them from (consistent with §9 finding).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❓</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: support large engineering graphs<br> Ref: §16 NFR</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No dedicated graph structure exists to stress-test; not evaluable given the headline absence of a graph subsystem.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: preserve historical relationships<br> Ref: §16 NFR</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No relationship history anywhere (§9, §10).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: support deterministic explainability<br> Ref: §16 NFR</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:111-196</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Real and deterministic for Deliverables only (§11).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: support efficient impact analysis<br> Ref: §16 NFR</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:205-252</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Real but single-relationship-type only (§12).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❓</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: remain independent of storage technologies<br> Ref: §16 NFR</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Architectural framing, not code-testable.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: every persistent object participates in traceability<br> Ref: §17 Acceptance Criteria</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/evidenceDB.ts:33-61</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Only via ad hoc FKs, reachable solely through a Deliverable-rooted query (§7, §4).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: relationships possess independent identity<br> Ref: §17 Acceptance Criteria</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Mostly false; only <code>evidence_relationships</code>/<code>dependency_definitions</code> rows qualify (§6 FR-20.2).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: historical reconstruction is possible<br> Ref: §17 Acceptance Criteria</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Not built (§13).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: explainability is derived from traceability<br> Ref: §17 Acceptance Criteria</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:111-196</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Real for Deliverables only (§11).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: impact analysis operates across the engineering graph<br> Ref: §17 Acceptance Criteria</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:205-252</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Real, but one relationship type only (§12).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: relationship provenance is preserved<br> Ref: §17 Acceptance Criteria</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Entity/transition-level provenance is real; relationship-level provenance is not (§10).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Traceability domain model<br> Ref: §18 Deliverables</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Does not exist as a dedicated artifact; the "model" is the union of each entity's own FK columns.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Relationship registry<br> Ref: §18 Deliverables</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Does not exist. Closest analog, <code>ontology_concepts</code>, does not cover relationship types (§8).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Provenance service<br> Ref: §18 Deliverables</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:111-196</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Does not exist as a standalone service; provenance is composed inline inside <code>explainDeliverable</code> from <code>attestationsDB</code>/<code>deliverableReferencesDB</code>.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Impact analysis service<br> Ref: §18 Deliverables</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:205-252</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Exists narrowly as one function, <code>impactOfDeliverable</code>, for one entity type.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Historical reconstruction service<br> Ref: §18 Deliverables</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Does not exist.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Traceability APIs<br> Ref: §18 Deliverables</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:111-252, <code>GET /deliverables/:id/traceability</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Exists narrowly as one endpoint.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Traceability events<br> Ref: §18 Deliverables</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/traceability.ts:178-185, 245-252</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Exists narrowly as one event type (<code>TraceabilityQueryExecuted</code>); the other 5 named events do not exist.</td>
+    </tr>
+  </tbody>
+</table>
 ## Summary
 
 - Total intents analysed: 54

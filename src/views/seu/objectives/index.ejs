@@ -142,6 +142,13 @@
                 </td>
                 <td class="text-center" style="width: 120px;">
                   <span class="state-badge state-<%= o.status %>"><%= o.status %></span>
+                  <% if (o.status === 'Superseded' && o.supersedingObjectiveId) { %>
+                    <div class="mt-1">
+                      <a href="/aisworg/seu/objectives/<%= o.supersedingObjectiveId %>" class="small text-muted text-decoration-none">
+                        <i class="bi bi-arrow-right-short"></i>superseded by
+                      </a>
+                    </div>
+                  <% } %>
                 </td>
                 <td class="align-middle text-end pe-3" style="width: 360px;">
                   <div class="d-inline-flex align-items-center justify-content-end">

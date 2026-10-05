@@ -43,6 +43,10 @@ export interface ObjectiveRow {
   // root deriving it fresh from its creator's own tenant. Null on a legacy
   // row predating this CR.
   sponsoring_authority: SponsoringAuthority | null;
+  // CR-116 — the Objective that superseded this one; written only by the
+  // Active -> Superseded transition (transitionObjective, via
+  // supersessionEngine), null otherwise.
+  superseding_objective_id: string | null;
   created_at: string;
   updated_at: string;
 }

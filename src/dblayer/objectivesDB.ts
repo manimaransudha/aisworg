@@ -334,11 +334,14 @@ export const objectivesDB = {
     }
   },
 
-  async updateStatus(id: string, status: ObjectiveStatus): Promise<DbResult<ObjectiveRow>> {
+  // CR-116 — supersedingObjectiveId is only ever passed on the
+  // Active -> Superseded transition; every other transition leaves the
+  // column untouched (the column is only ever set once, on supersession).
+  async updateStatus(id: string, status: ObjectiveStatus, supersedingObjectiveId?: string): Promise<DbResult<ObjectiveRow>> {
     try {
       const { rows } = await query<ObjectiveRow>(
-        "UPDATE objectives SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
-        [status, id]
+        "UPDATE objectives SET status = $1, superseding_objective_id = COALESCE($3, superseding_objective_id), updated_at = NOW() WHERE id = $2 RETURNING *",
+        [status, id, supersedingObjectiveId ?? null]
       );
       return { data: rows[0] };
     } catch (err) {

@@ -1,54 +1,281 @@
 # Chapter 22 – Authority Model: Implementation Traceability
 
-Audit date: 2026-10-04. Verified directly against current `src/` (no reliance on the chapter's own embedded §19 audit, which is dated 2026-08-22/09-05 and predates the `participants_master.authorised_badges` migration — citations below are checked against the live files).
+**Date of report: 4-10-2026**
 
 <!-- multiline -->
-| Intent | Specification Reference | Code Citation | Finding | Intent Met |
-|---|---|---|---|---|
-| Authority is permission to perform a governed action, not a Participant attribute | §1 Purpose, §4 Definition | src/domain/engine/badgeAuthorityEngine.ts:1-5<br>src/domain/engine/transitionEngine.ts:8-12 | `authorise({actorId, requiredBadge})` is a relationship between an action's required `noun_verb` badge and an actor's held badges, not a field on the Participant record. | Fully met |
-| Authority is contextual (depends on EBM, Deliverable state, Governance Model, Policies, Obligations, Authority Packs) | §4 Definition, §9 | src/domain/engine/transitionEngine.ts:83-99<br>src/domain/engine/badgeAuthorityEngine.ts:55-73 | `transitionEngine.evaluate()` derives which badge is required from the matched `transition_definitions` row (so context selects *which* badge), but `badgeAuthorityEngine.authorise()` itself takes only `actorId` and `requiredBadge`. Policy and Quality Gate are separate sequential checks after authority, not inputs to the authority decision itself. | Partially met |
-| AM-001 Authority governs engineering state transitions | §5 | src/domain/engine/transitionEngine.ts:83-108 | The badge check runs before any state write in `evaluate()`. | Fully met |
-| AM-002 Authority is contextual | §5 | src/domain/engine/transitionEngine.ts:90-99 | Same gap as the §4/§9 row above: contextual only via badge selection. | Partially met |
-| AM-003 Authority is composable (multiple Packs) | §5 | src/dblayer/authorityRulesDB.ts<br>src/domain/engine/compositionEngine.ts:498-515 | The live enforcement vocabulary (`authority_nouns`/`authority_verbs`/`authority_noun_verbs`, read via badge codes in `authorised_badges`) carries no Pack-linkage column. A real `detectGovernanceConflicts()` exists and reads `pack.contributions?.authorityRules`, but this operates on the separate `authority_rules` table, which `transitionEngine.ts:8-12`'s own header comment documents as retired from the enforcement path. | Not met |
-| AM-004 Authority remains independently traceable | §5 | src/dblayer/migrations/041_events_actor_accountability.sql (events.actor_id, events.authority_badge) | `authorityBadge` is resolved and returned by `transitionEngine.evaluate()` (transitionEngine.ts:95-108) for the caller to record on its own transition event. Captures badge + actor on the event, no originating Pack, Governance Model, or rationale field. | Partially met |
-| AM-005 Authority may be delegated | §5 | — | `grep -rniE "delegat" src --include="*.ts"` returns no occurrence referring to an authority-delegation feature (only unrelated uses of the English word "delegate(s)" in comments about function call delegation). No delegating/receiving-authority relationship, scope, duration, or conditions construct exists. | Not met |
-| AM-006 Authority independent of organisational titles | §5 | src/domain/engine/badgeAuthorityEngine.ts:16-24 | Badges are verb-shaped (`entityType_verb`, e.g. `pack_define`), not role/title-shaped; `authorise()` takes a bare `actorId`, never a role or title. | Fully met |
-| FR-22.1 Every governed engineering action requires explicit authority | §6 | src/domain/engine/transitionEngine.ts:90-108 | `evaluate()` requires the badge whenever `definition.verb` is set; a transition row with `verb === null` skips the check entirely (an explicitly ungoverned step by the row's own definition, not a bypass of a governed one). | Fully met |
-| FR-22.2 Authority evaluated before execution | §6 | src/domain/engine/transitionEngine.ts:90-99 (authority) vs. :125+ (policy, quality gate) | The badge check runs first in `evaluate()`, before the policy loop and before quality-gate checks, and before any caller proceeds to its own state write. | Fully met |
-| FR-22.3 Authority rules contributed through Packs | §6 | src/dblayer/authorityRulesDB.ts<br>src/domain/engine/compositionEngine.ts:498-515 | Same structural disconnect as AM-003: the composition/conflict-detection path exists but targets the retired `authority_rules` table; the live `noun_verb` badge vocabulary that `badgeAuthorityEngine` actually checks has no Pack dimension. | Not met |
-| FR-22.4 Authority assignments remain fully traceable | §6 | src/dblayer/migrations/041_events_actor_accountability.sql | Same as AM-004 — partial field coverage (badge + actor on event), no originating Pack / Governance Model / rationale. | Partially met |
-| FR-22.5 Authority supports delegation | §6 | — | Same as AM-005. | Not met |
-| FR-22.6 Authority supports multiple participating organisations | §6 | src/dblayer/recovery/participants_master_schema_recovery.sql:5,20 | `participants_master` carries `tenant_id NOT NULL` and `authorised_badges` on the same row, so held badges are inherently tenant-scoped per actor. But the badge *vocabulary itself* (`authority_nouns`/`verbs`/`noun_verbs`) and the `transition_definitions` rows that declare required badges carry no `tenant_id` — there is one global required-badge-per-transition, not an organisation-composed one. | Partially met |
-| FR-22.7 Authority conflicts detected during governance evaluation | §6 | src/domain/engine/compositionEngine.ts:442,498-515 | `detectGovernanceConflicts()` is real and is called once, at SEU commissioning (core/commissioning.ts), operating on Pack-contributed `authorityRules` — but it never runs inside `transitionEngine.evaluate()` per transition attempt, and never touches the live `noun_verb` badge tables. | Partially met |
-| Authority Components: Authority/Delegation/Escalation/Approval/Exception/SoD Rules | §7 | src/dblayer/authorityRulesDB.ts | Only "Authority Rules" exists as a named construct (and only in the disconnected `authority_rules` table). Delegation, Escalation, Exception Rules: no matching construct in `src/`. Approval is not distinct — `_approve` is one verb among many in the flat vocabulary. Separation of Duties is not a declared rule table (see §13 row below). | Not met |
-| Authority Sources: Platform/Organisation/Domain/Compliance/Customer Packs composed into one effective model | §8 | src/dblayer/authorityRulesDB.ts<br>(no tenant/Pack column on authority_nouns/verbs/noun_verbs) | One flat, global `noun_verb` vocabulary, seeded once, shared by every tenant/SEU; no per-Pack or per-source contribution feeds the live enforcement tables. | Not met |
-| Authority Evaluation considers requested action, Deliverable state, Participant identity, fulfilled Capabilities, Governance Model, Policies, Obligations, engineering stage | §9 | src/domain/engine/badgeAuthorityEngine.ts:55-73<br>src/domain/engine/transitionEngine.ts:83-128 | `authorise()` consults exactly `actorId` (Participant identity) and `requiredBadge` (action, indirectly, via the resolved transition row). Deliverable state is used only to select the transition row, not passed into the authority check. Capabilities, Governance Model, Obligations, and engineering stage are not read by the authority check; Policies are a separate, sequential check after authority, not folded into the authority decision. | Partially met |
-| Authority Evaluation produces one deterministic outcome | §9 | src/domain/engine/badgeAuthorityEngine.ts:63-73 | Single code path, single lookup against `authorised_badges`/root — deterministic. | Fully met |
-| Authority Outcomes: Authorised / Authorised with Conditions / Not Authorised / Escalation Required / Delegation Required / Waiver Required, each with rationale | §10 | src/domain/engine/badgeAuthorityEngine.ts:63-73 | `authorise()` returns exactly `{allowed:true, via, matchedBadge?}` or `{allowed:false, reason:"missing_badge"}`. Multi-badge support exists (`requiredBadge` may be an array, with `matchedBadge` reported — e.g. Pack's Draft→Validated reachable by `pack_validate` OR `pack_define` OR `pack_reject`), but this is still a binary allowed/denied outcome, not the chapter's multi-tier outcome set. No free-text rationale field; the closest is the required badge code plus the fixed string `"missing_badge"`. | Partially met |
-| Delegation: explicit delegating/receiving authority, scope, duration, conditions, never implicit, traceable | §11 | — | No delegation construct anywhere in `src/` (confirmed by grep for "delegat" restricted to authority-relevant hits — none found). | Not met |
-| Authority Composition: multiple organisations' Packs resolve deterministically into one Effective Authority Model | §12 | src/domain/engine/compositionEngine.ts:33-87,442 | `compose()` is real — merges Template-mandatory + Profile-optional Packs with a deterministic "later composition wins" rule — but it runs once at commissioning, on the retired `authority_rules`/Pack-contribution shape. The live `noun_verb` badge vocabulary actually checked by `badgeAuthorityEngine` has no Pack dimension to compose, so no "Effective Authority Model" artifact is ever produced from it. | Partially met |
-| Separation of Duties: declarative constraints contributed through Packs (e.g. implementer cannot approve own Deliverable) | §13 | — | No `separation_of_duties` table or declared-rule construct found (`grep -rn "mustDifferFromActorOf\|separation_of_duties" src` returns nothing). Any such constraint today is purely emergent from which badges happen to be granted to which actor in `authorised_badges` — nothing in the authority check itself enforces it as a rule. | Not met |
-| Authority Traceability: governing rule, originating Pack, requesting Participant, authorised Participant, affected Deliverable, Governance Model, timestamp, rationale — immutable | §14 | src/dblayer/migrations/041_events_actor_accountability.sql | `events.actor_id` + `events.authority_badge` capture authorised Participant and governing-rule-as-badge-code, plus `events.occurred_at` for timestamp and `events.originating_object_id` for affected Deliverable. No originating Pack, no Governance Model reference, no requester-vs-authoriser distinction (no delegation exists to create one), no rationale field. 4 of 8 required fields present. | Partially met |
-| Events: AuthorityRequested/Granted/Denied/Delegated/Escalated/Expired/Revoked published | §15 | — | `grep -rno 'eventType: "Authority[A-Za-z]*"' src --include="*.ts"` returns zero matches. An authority denial is a synchronous return value from `transitionEngine.evaluate()`, consumed directly by the calling route; never published to the Event Bus. | Not met |
-| NFR: deterministic evaluation | §16 | src/domain/engine/badgeAuthorityEngine.ts:63-73 | One lookup, one outcome. | Fully met |
-| NFR: composition from multiple organisations | §16 | src/dblayer/recovery/participants_master_schema_recovery.sql:5 | `participants_master.tenant_id` scopes which badges an actor holds per tenant, but `transition_definitions` (the table declaring which badge a transition requires) carries no `tenant_id` — there is one global required-badge-per-transition, not a composed multi-organisation requirement. | Partially met |
-| NFR: preserve complete traceability | §16 | src/dblayer/migrations/041_events_actor_accountability.sql | Same gap as §14 row — partial field coverage. | Partially met |
-| NFR: support dynamic delegation | §16 | — | Same as §11. | Not met |
-| NFR: remain independent of Participant implementations | §16 | src/domain/engine/badgeAuthorityEngine.ts:55,63 | `authorise()`/`getHeldBadges()` take a bare `actorId: string` and resolve via `participantsMasterDB.findById`, with no Participant-type-specific branching. | Fully met |
-| AC: every governed action requires explicit authority | §17 | src/domain/engine/transitionEngine.ts:90-99 | Same as FR-22.1. | Fully met |
-| AC: authority evaluated contextually | §17 | src/domain/engine/transitionEngine.ts:83-99 | Same gap as §4/§9/AM-002 rows. | Partially met |
-| AC: authority rules from multiple organisations composed | §17 | src/domain/engine/compositionEngine.ts:498-515 | Same as AM-003/FR-22.3 — composition exists but is structurally disconnected from live enforcement. | Not met |
-| AC: delegation explicit and traceable | §17 | — | Same as §11. | Not met |
-| AC: separation-of-duties enforced | §17 | — | Same as §13 — emergent, not enforced as a declared rule. | Not met |
-| AC: authority decisions explainable and reproducible | §17 | src/domain/engine/badgeAuthorityEngine.ts:63-73 | Reproducible (deterministic). Explainable only to "which badge(s), held or not, via root/badge, matchedBadge" — no broader rationale. | Partially met |
-| Deliverables: Authority domain model | §18 | src/dblayer/recovery/participants_master_schema_recovery.sql:5,20<br>src/dblayer/authorityRulesDB.ts | `authorised_badges` JSONB on `participants_master`, plus the flat `authority_nouns`/`verbs`/`noun_verbs` tables, exist — no delegation/escalation/SoD sub-model. | Partially met |
-| Deliverables: Authority evaluation service | §18 | src/domain/engine/badgeAuthorityEngine.ts<br>src/domain/engine/transitionEngine.ts | Exists, narrower than spec (binary outcome, two-input check). | Partially met |
-| Deliverables: Delegation service | §18 | — | Does not exist. | Not met |
-| Deliverables: Authority registry | §18 | src/dblayer/authorityRulesDB.ts | Exists for the flat vocabulary. | Fully met |
-| Deliverables: Authority APIs | §18 | src/routes/seu/core/identity.ts:389 | `setAuthorisedBadges` path exists, admin-gated. | Fully met |
-| Deliverables: Authority events | §18 | — | Does not exist; confirmed by grep above. | Not met |
-| Deliverables: Authority traceability service | §18 | src/dblayer/migrations/041_events_actor_accountability.sql | No dedicated service; passive partial capture via `events.actor_id`/`authority_badge`. | Partially met |
+**Legend:** ✅ Fully met  ⚠️ Partially met  ❌ Not met  ❓ Not verifiable
 
+<table style="width:100%; table-layout:fixed;">
+  <colgroup>
+    <col style="width:4%;">
+    <col style="width:32%;">
+    <col style="width:27%;">
+    <col style="width:37%;">
+  </colgroup>
+  <thead>
+    <tr>
+      <th></th>
+      <th>Intent</th>
+      <th>Code Citation</th>
+      <th>Finding</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Authority is permission to perform a governed action, not a Participant attribute<br> Ref: §1 Purpose, §4 Definition</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/badgeAuthorityEngine.ts:1-5<br>src/domain/engine/transitionEngine.ts:8-12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>authorise({actorId, requiredBadge})</code> is a relationship between an action's required <code>noun_verb</code> badge and an actor's held badges, not a field on the Participant record.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Authority is contextual (depends on EBM, Deliverable state, Governance Model, Policies, Obligations, Authority Packs)<br> Ref: §4 Definition, §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/transitionEngine.ts:83-99<br>src/domain/engine/badgeAuthorityEngine.ts:55-73</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>transitionEngine.evaluate()</code> derives which badge is required from the matched <code>transition_definitions</code> row (so context selects *which* badge), but <code>badgeAuthorityEngine.authorise()</code> itself takes only <code>actorId</code> and <code>requiredBadge</code>. Policy and Quality Gate are separate sequential checks after authority, not inputs to the authority decision itself.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">AM-001 Authority governs engineering state transitions<br> Ref: §5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/transitionEngine.ts:83-108</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The badge check runs before any state write in <code>evaluate()</code>.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">AM-002 Authority is contextual<br> Ref: §5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/transitionEngine.ts:90-99</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same gap as the §4/§9 row above: contextual only via badge selection.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">AM-003 Authority is composable (multiple Packs)<br> Ref: §5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/authorityRulesDB.ts<br>src/domain/engine/compositionEngine.ts:498-515</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The live enforcement vocabulary (<code>authority_nouns</code>/<code>authority_verbs</code>/<code>authority_noun_verbs</code>, read via badge codes in <code>authorised_badges</code>) carries no Pack-linkage column. A real <code>detectGovernanceConflicts()</code> exists and reads <code>pack.contributions?.authorityRules</code>, but this operates on the separate <code>authority_rules</code> table, which <code>transitionEngine.ts:8-12</code>'s own header comment documents as retired from the enforcement path.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">AM-004 Authority remains independently traceable<br> Ref: §5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/migrations/041_events_actor_accountability.sql (events.actor_id, events.authority_badge)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>authorityBadge</code> is resolved and returned by <code>transitionEngine.evaluate()</code> (transitionEngine.ts:95-108) for the caller to record on its own transition event. Captures badge + actor on the event, no originating Pack, Governance Model, or rationale field.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">AM-005 Authority may be delegated<br> Ref: §5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>grep -rniE "delegat" src --include="*.ts"</code> returns no occurrence referring to an authority-delegation feature (only unrelated uses of the English word "delegate(s)" in comments about function call delegation). No delegating/receiving-authority relationship, scope, duration, or conditions construct exists.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">AM-006 Authority independent of organisational titles<br> Ref: §5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/badgeAuthorityEngine.ts:16-24</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Badges are verb-shaped (<code>entityType_verb</code>, e.g. <code>pack_define</code>), not role/title-shaped; <code>authorise()</code> takes a bare <code>actorId</code>, never a role or title.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-22.1 Every governed engineering action requires explicit authority<br> Ref: §6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/transitionEngine.ts:90-108</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>evaluate()</code> requires the badge whenever <code>definition.verb</code> is set; a transition row with <code>verb === null</code> skips the check entirely (an explicitly ungoverned step by the row's own definition, not a bypass of a governed one).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-22.2 Authority evaluated before execution<br> Ref: §6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/transitionEngine.ts:90-99 (authority) vs. :125+ (policy, quality gate)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">The badge check runs first in <code>evaluate()</code>, before the policy loop and before quality-gate checks, and before any caller proceeds to its own state write.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-22.3 Authority rules contributed through Packs<br> Ref: §6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/authorityRulesDB.ts<br>src/domain/engine/compositionEngine.ts:498-515</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same structural disconnect as AM-003: the composition/conflict-detection path exists but targets the retired <code>authority_rules</code> table; the live <code>noun_verb</code> badge vocabulary that <code>badgeAuthorityEngine</code> actually checks has no Pack dimension.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-22.4 Authority assignments remain fully traceable<br> Ref: §6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/migrations/041_events_actor_accountability.sql</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same as AM-004 — partial field coverage (badge + actor on event), no originating Pack / Governance Model / rationale.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-22.5 Authority supports delegation<br> Ref: §6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same as AM-005.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-22.6 Authority supports multiple participating organisations<br> Ref: §6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/participants_master_schema_recovery.sql:5,20</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>participants_master</code> carries <code>tenant_id NOT NULL</code> and <code>authorised_badges</code> on the same row, so held badges are inherently tenant-scoped per actor. But the badge *vocabulary itself* (<code>authority_nouns</code>/<code>verbs</code>/<code>noun_verbs</code>) and the <code>transition_definitions</code> rows that declare required badges carry no <code>tenant_id</code> — there is one global required-badge-per-transition, not an organisation-composed one.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-22.7 Authority conflicts detected during governance evaluation<br> Ref: §6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:442,498-515</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>detectGovernanceConflicts()</code> is real and is called once, at SEU commissioning (core/commissioning.ts), operating on Pack-contributed <code>authorityRules</code> — but it never runs inside <code>transitionEngine.evaluate()</code> per transition attempt, and never touches the live <code>noun_verb</code> badge tables.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Authority Components: Authority/Delegation/Escalation/Approval/Exception/SoD Rules<br> Ref: §7</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/authorityRulesDB.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Only "Authority Rules" exists as a named construct (and only in the disconnected <code>authority_rules</code> table). Delegation, Escalation, Exception Rules: no matching construct in <code>src/</code>. Approval is not distinct — <code>_approve</code> is one verb among many in the flat vocabulary. Separation of Duties is not a declared rule table (see §13 row below).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Authority Sources: Platform/Organisation/Domain/Compliance/Customer Packs composed into one effective model<br> Ref: §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/authorityRulesDB.ts<br>(no tenant/Pack column on authority_nouns/verbs/noun_verbs)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">One flat, global <code>noun_verb</code> vocabulary, seeded once, shared by every tenant/SEU; no per-Pack or per-source contribution feeds the live enforcement tables.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Authority Evaluation considers requested action, Deliverable state, Participant identity, fulfilled Capabilities, Governance Model, Policies, Obligations, engineering stage<br> Ref: §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/badgeAuthorityEngine.ts:55-73<br>src/domain/engine/transitionEngine.ts:83-128</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>authorise()</code> consults exactly <code>actorId</code> (Participant identity) and <code>requiredBadge</code> (action, indirectly, via the resolved transition row). Deliverable state is used only to select the transition row, not passed into the authority check. Capabilities, Governance Model, Obligations, and engineering stage are not read by the authority check; Policies are a separate, sequential check after authority, not folded into the authority decision.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Authority Evaluation produces one deterministic outcome<br> Ref: §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/badgeAuthorityEngine.ts:63-73</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Single code path, single lookup against <code>authorised_badges</code>/root — deterministic.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Authority Outcomes: Authorised / Authorised with Conditions / Not Authorised / Escalation Required / Delegation Required / Waiver Required, each with rationale<br> Ref: §10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/badgeAuthorityEngine.ts:63-73</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>authorise()</code> returns exactly <code>{allowed:true, via, matchedBadge?}</code> or <code>{allowed:false, reason:"missing_badge"}</code>. Multi-badge support exists (<code>requiredBadge</code> may be an array, with <code>matchedBadge</code> reported — e.g. Pack's Draft→Validated reachable by <code>pack_validate</code> OR <code>pack_define</code> OR <code>pack_reject</code>), but this is still a binary allowed/denied outcome, not the chapter's multi-tier outcome set. No free-text rationale field; the closest is the required badge code plus the fixed string <code>"missing_badge"</code>.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Delegation: explicit delegating/receiving authority, scope, duration, conditions, never implicit, traceable<br> Ref: §11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No delegation construct anywhere in <code>src/</code> (confirmed by grep for "delegat" restricted to authority-relevant hits — none found).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Authority Composition: multiple organisations' Packs resolve deterministically into one Effective Authority Model<br> Ref: §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:33-87,442</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>compose()</code> is real — merges Template-mandatory + Profile-optional Packs with a deterministic "later composition wins" rule — but it runs once at commissioning, on the retired <code>authority_rules</code>/Pack-contribution shape. The live <code>noun_verb</code> badge vocabulary actually checked by <code>badgeAuthorityEngine</code> has no Pack dimension to compose, so no "Effective Authority Model" artifact is ever produced from it.</td>
+    </tr>
+| Separation of Duties: declarative constraints contributed through Packs (e.g. implementer cannot approve own Deliverable) | §13 | — | No `separation_of_duties` table or declared-rule construct found (`grep -rn "mustDifferFromActorOf\|separation_of_duties" src` returns nothing). Any such constraint today is purely emergent from which badges happen to be granted to which actor in `authorised_badges` — nothing in the authority check itself enforces it as a rule. | Not met |
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Authority Traceability: governing rule, originating Pack, requesting Participant, authorised Participant, affected Deliverable, Governance Model, timestamp, rationale — immutable<br> Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/migrations/041_events_actor_accountability.sql</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>events.actor_id</code> + <code>events.authority_badge</code> capture authorised Participant and governing-rule-as-badge-code, plus <code>events.occurred_at</code> for timestamp and <code>events.originating_object_id</code> for affected Deliverable. No originating Pack, no Governance Model reference, no requester-vs-authoriser distinction (no delegation exists to create one), no rationale field. 4 of 8 required fields present.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Events: AuthorityRequested/Granted/Denied/Delegated/Escalated/Expired/Revoked published<br> Ref: §15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>grep -rno 'eventType: "Authority[A-Za-z]*"' src --include="*.ts"</code> returns zero matches. An authority denial is a synchronous return value from <code>transitionEngine.evaluate()</code>, consumed directly by the calling route; never published to the Event Bus.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: deterministic evaluation<br> Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/badgeAuthorityEngine.ts:63-73</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">One lookup, one outcome.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: composition from multiple organisations<br> Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/participants_master_schema_recovery.sql:5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>participants_master.tenant_id</code> scopes which badges an actor holds per tenant, but <code>transition_definitions</code> (the table declaring which badge a transition requires) carries no <code>tenant_id</code> — there is one global required-badge-per-transition, not a composed multi-organisation requirement.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: preserve complete traceability<br> Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/migrations/041_events_actor_accountability.sql</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same gap as §14 row — partial field coverage.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: support dynamic delegation<br> Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same as §11.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: remain independent of Participant implementations<br> Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/badgeAuthorityEngine.ts:55,63</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>authorise()</code>/<code>getHeldBadges()</code> take a bare <code>actorId: string</code> and resolve via <code>participantsMasterDB.findById</code>, with no Participant-type-specific branching.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">AC: every governed action requires explicit authority<br> Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/transitionEngine.ts:90-99</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same as FR-22.1.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">AC: authority evaluated contextually<br> Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/transitionEngine.ts:83-99</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same gap as §4/§9/AM-002 rows.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">AC: authority rules from multiple organisations composed<br> Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/compositionEngine.ts:498-515</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same as AM-003/FR-22.3 — composition exists but is structurally disconnected from live enforcement.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">AC: delegation explicit and traceable<br> Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same as §11.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">AC: separation-of-duties enforced<br> Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same as §13 — emergent, not enforced as a declared rule.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">AC: authority decisions explainable and reproducible<br> Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/badgeAuthorityEngine.ts:63-73</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Reproducible (deterministic). Explainable only to "which badge(s), held or not, via root/badge, matchedBadge" — no broader rationale.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Authority domain model<br> Ref: §18</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/participants_master_schema_recovery.sql:5,20<br>src/dblayer/authorityRulesDB.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>authorised_badges</code> JSONB on <code>participants_master</code>, plus the flat <code>authority_nouns</code>/<code>verbs</code>/<code>noun_verbs</code> tables, exist — no delegation/escalation/SoD sub-model.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Authority evaluation service<br> Ref: §18</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/badgeAuthorityEngine.ts<br>src/domain/engine/transitionEngine.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Exists, narrower than spec (binary outcome, two-input check).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Delegation service<br> Ref: §18</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Does not exist.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Authority registry<br> Ref: §18</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/authorityRulesDB.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Exists for the flat vocabulary.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Authority APIs<br> Ref: §18</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/identity.ts:389</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>setAuthorisedBadges</code> path exists, admin-gated.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Authority events<br> Ref: §18</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Does not exist; confirmed by grep above.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Authority traceability service<br> Ref: §18</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/migrations/041_events_actor_accountability.sql</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No dedicated service; passive partial capture via <code>events.actor_id</code>/<code>authority_badge</code>.</td>
+    </tr>
+  </tbody>
+</table>
 ## Summary
 
 - Total intents analysed: 33

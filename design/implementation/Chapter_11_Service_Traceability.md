@@ -1,55 +1,285 @@
 # Chapter 11 – Service: Implementation Traceability
 
-Audit date: 2026-10-04. This supersedes the chapter's own embedded §18 audit (dated 2026-08-24, pre/at CR-064), which predates a materially significant later build: a governed **Service Definition** entity (`service_definitions` table, `serviceDefinitionsDB.ts`, `src/routes/seu/core/serviceDefinitions.ts`, CR-086 follow-on, migrations 152-188) now exists alongside the Pack-contributed `services` table (`servicesDB.ts`) that §18 described. Service Definition carries the chapter's own 6-state lifecycle verbatim, real Version Feature Plan event_type/version_event wiring, and a richer `ServiceLevelExpectation` shape — closing several gaps §18 reported as unbuilt. Both mechanisms coexist; this report evaluates both against each chapter intent.
+
+**Date of report: 4-10-2026**
+
+This supersedes the chapter's own embedded §18 audit (dated 2026-08-24, pre/at CR-064), which predates a materially significant later build: a governed **Service Definition** entity (`service_definitions` table, `serviceDefinitionsDB.ts`, `src/routes/seu/core/serviceDefinitions.ts`, CR-086 follow-on, migrations 152-188) now exists alongside the Pack-contributed `services` table (`servicesDB.ts`) that §18 described. Service Definition carries the chapter's own 6-state lifecycle verbatim, real Version Feature Plan event_type/version_event wiring, and a richer `ServiceLevelExpectation` shape — closing several gaps §18 reported as unbuilt. Both mechanisms coexist; this report evaluates both against each chapter intent.
 
 Core files: `src/dblayer/servicesDB.ts`, `src/dblayer/serviceDefinitionsDB.ts`, `src/dblayer/seuTypes.ts` (`ServiceRow`, `ServiceDefinitionRow`, `ServiceLevelExpectation`), `src/routes/seu/core/serviceDefinitions.ts`, `src/domain/engine/dependencyDefinitionEngine.ts`, `src/domain/engine/materialiseDependencyGraph.ts`, `src/domain/engine/dispatchEngine.ts`, `src/routes/seu/core/packs.ts`, `src/dblayer/seed/data/transitionDefinitions.json`.
 
 <!-- multiline -->
-| Intent | Specification Reference | Code Citation | Finding | Intent Met |
-|---|---|---|---|---|
-| Service is the declared, contracted output a Capability exposes, without exposing how | §1 Purpose | `src/dblayer/seuTypes.ts:101-110` (`ServiceRow.contract_description`)<br>`src/dblayer/seuTypes.ts:527-549` (`ServiceDefinitionRow`: `purpose`, `inputs`, `outputs`, `success`) | Both `services` and `service_definitions` store only free-text/descriptive fields (description/purpose/inputs/outputs); no implementation/interface column exists on either. | Fully met |
-| Services declared by Capability Packs, not Participants, and do not select who fulfils them | §1 Purpose, SVC-001 | `src/routes/seu/core/packs.ts:587-597` (Pack-contributed `services` write path)<br>`src/routes/seu/core/serviceDefinitions.ts` (catalog authoring path, actor-driven, no Participant coupling) | Only write paths are Pack publish (`servicesDB.upsertFromPack`) and the Service Definition authoring/transition flow; neither is reachable from a Participant action or Participant selection logic. | Fully met |
-| Architectural position: Pack → Capability+Service → Dependency Engine → Fulfilment/Dispatch → Telemetry | §3 | `src/domain/engine/dependencyDefinitionEngine.ts:73-83`<br>`src/domain/engine/materialiseDependencyGraph.ts:70-123`<br>`src/domain/engine/dispatchEngine.ts:12-38` | Service remains stable through Fulfilment/Dispatch (§10, below). The Dependency Engine step of this chain is **retired for Capability-type edges** (owner, 2026-09-04, `materialiseDependencyGraph.ts:40-49`): "there is no Capability-type edge... deliverable dependency is what is real." Telemetry step (§11) is entirely unbuilt (see below). | Partially met |
-| Service declares a Service Level: target turnaround/quality bar/other measurable expectation | §4, SVC-004, FR-11.3 | `src/dblayer/seuTypes.ts:513-519` (`ServiceLevelExpectation`: `code,label,target_level,target,units`)<br>`src/dblayer/servicesDB.ts:17-77` (`service_level` column, real upsert)<br>`src/routes/seu/core/serviceDefinitions.ts` (`service_level` on `ServiceDefinitionRow`) | Both mechanisms carry a real, structured Service Level. `ServiceDefinitionRow`'s shape (`target_level: minimum/maximum/exact`, numeric `target`, `units`) is strictly richer than `ServiceRow`'s own `{label,target}` pairs and matches §8's "measurable expectation" more precisely. | Fully met |
-| Service does not select/assign/evaluate Participants (remains Fulfilment/Dispatch's job) | §4 | `src/dblayer/seuTypes.ts:101-110`, `527-549` | No Participant FK or selection logic on either `services` or `service_definitions`. | Fully met |
-| Service does not compute/store its own observed performance (remains Telemetry's job) | §4, SVC-006 | `src/routes/seu/core/telemetry.ts` (no match for "Service") | Vacuously true: nothing writes performance back, but only because Telemetry has zero Service integration at all (see §11 finding below), not because a real boundary is enforced against an existing measurement path. | Partially met |
-| SVC-002: exposes what, never how | §5 | `src/dblayer/seuTypes.ts:101-110`, `527-549` | `contract_description`/`purpose` are free text; no interface/implementation columns exist to leak. | Fully met |
-| SVC-003: Service is coequal with Evidence/Knowledge/Decision, does not subsume them | §5 | `src/domain/engine/compositionEngine.ts` (no Evidence/Knowledge/Decision table access from Service code) | No Service code path touches Evidence/Knowledge/Decision tables. | Fully met |
-| SVC-005: Service definitions versioned and immutable once published | §5, FR-11.1 | `src/dblayer/servicesDB.ts:5-13,34-50` (`bumpVersion`, deactivate-old-insert-new)<br>`src/routes/seu/core/serviceDefinitions.ts` + `assertServiceDefinitionCodeVersionFree` (semver, `(code,version)` uniqueness) | `services`: content-diffed minor-version bump on real change, prior row deactivated (not overwritten). `service_definitions`: author-declared semver, collision-checked per `(code,version,tenant)`, status-gated (no edit once past `Defined`/`Draft`-equivalent stage via `updateDraftContent` validators). Both are real, immutable-once-published mechanisms. | Fully met |
-| FR-11.1: globally unique identifier and version | §6 | `src/dblayer/servicesDB.ts` (`code` unique per `(originating_pack_id, code)`)<br>`src/dblayer/serviceDefinitionsDB.ts:171-181` (`(code, version[, tenant])`) | `id` is a real UUID PK on both tables; version is real and live on both (above). | Fully met |
-| FR-11.2: every Service declared by exactly one Capability, through exactly one Pack | §6 | `src/routes/seu/core/packs.ts:587-597`<br>`src/dblayer/serviceDefinitionsDB.ts` (`capability_code` NOT NULL) | `providing_capability_id` is `NOT NULL` on `services`; Pack publish resolves `capabilityCode` only against that same Pack's own declared Capabilities (cross-Pack references rejected). `service_definitions.capability_code` is similarly required, validated against the `capability-name` Ontology concept. | Fully met |
-| FR-11.3: every Service declares a Service Level | §6 | (same as SVC-004 above) | — | Fully met |
-| FR-11.4: Dependency Engine references specific Services, not Capabilities in the abstract | §6, §9 | `src/domain/engine/dependencyDefinitionEngine.ts:73-83` (`resolveNamedNode`, `Capability` branch, still Service-code-keyed for resolving *existing* rows)<br>`src/domain/engine/materialiseDependencyGraph.ts:40-49,70-123` (authoring of new Capability-type rows commented out/retired) | §9's own worked example ("depends on the Approved Solution Architecture Service, not the Architecture Capability") has no live authoring path at all: Capability-type dependency materialisation was retired 2026-09-04 ("there is no Capability-type edge... deliverable dependency is what is real. Service describes the what/quality of it"). Only `Deliverable`-to-`Deliverable` dependency edges can be authored today. The old Service-keyed resolution code in `resolveNamedNode` is now dead for authoring purposes — it can only ever match rows nothing creates anymore. | Not met |
-| FR-11.5: every Service publishes lifecycle and delivery events consumable by Engineering Telemetry | §6, §14 | `src/dblayer/seed/data/transitionDefinitions.json` (`entityType:"Service"` rows, `eventType: ServiceDefinitionPublished/Activated/Deprecated/Retired/Archived`)<br>`src/routes/seu/core/serviceDefinitions.ts:187-200` (`eventBus.publish`)<br>`src/routes/seu/core/telemetry.ts` (no Service references) | `service_definitions` now genuinely publishes 5 real lifecycle events on each governed transition (not the chapter's exact 9 names — see §14 finding) with a real `actorId`/`authorityBadge` on every publish. Pack-contributed `services` publishes none. Neither delivery events (`ServiceRequested`/`ServiceDelivered`/`ServiceLevelMet`/`ServiceLevelBreached`) nor any Telemetry consumption of the lifecycle events exist. | Partially met |
-| FR-11.6: Service supports consumption by multiple Capabilities/external interactions concurrently | §6 | `src/dblayer/seuTypes.ts:527-549` (`consumers: string[]`, referential multi-select) | `service_definitions.consumers` is a real, unconstrained multi-value field (no cardinality limit); `services` has no consumer tracking at all (deliberately dropped, owner: derivable by querying `dependency_definitions`). Structurally unconstrained either way, matching "support... concurrently." | Fully met |
-| FR-11.7: Service contracts remain independent of Participant implementation | §6 | `src/dblayer/seuTypes.ts:101-110`, `527-549` | No Participant coupling on either table. | Fully met |
-| Service Structure: Identifier, Name, Providing Capability, Contract Description, Service Level, Consuming Capabilities, Version, Originating Pack | §7 | `src/dblayer/servicesDB.ts:56-69`<br>`src/dblayer/seuTypes.ts:527-549` | All fields real on `services` except "Consuming Capabilities" (deliberately dropped — owner: derivable via `dependency_definitions` query). `service_definitions` instead carries `consumers` directly (richer than the chapter asks), plus `capability_code`/`version`/`service_level`, but has no `originating_pack_id` equivalent — it is tenant-scoped platform-catalog authored, not Pack-contributed, a structurally different originating concept than §7 assumes. | Partially met |
-| Service Level: target turnaround, quality bar, availability, exceptions/waivers; part of the Service's versioned definition | §8 | `src/dblayer/seuTypes.ts:513-519`<br>`src/domain/engine/dispatchEngine.ts:12-30` (`resolveTurnaroundSeconds`) | Real structured field on both mechanisms (above). `dispatchEngine.ts`'s `resolveTurnaroundSeconds` is a real, working consumer that sets a Work Item's default deadline from a `services.service_level` item whose `label` matches `/turnaround/i` — but it only recognises a bare number of seconds in `target`, not a human duration string ("3 days"), so it returns `null` for content shaped like the owner's own worked example until a duration parser is added. No equivalent consumer reads `service_definitions.service_level` yet. | Partially met |
-| Dependency Engine: Capability Dependency shall reference the specific Service a Capability exposes, not the Capability in the abstract | §9 | `src/domain/engine/materialiseDependencyGraph.ts:40-123` | Retired, as in FR-11.4 above — this section's entire mechanism has no live authoring path today; only Deliverable-to-Deliverable edges exist. | Not met |
-| Service does not determine who fulfils it; Fulfilment/Dispatch select the Participant; Service stays the stable reference | §10 | `src/domain/engine/dispatchEngine.ts:12-38` (reads `servicesDB.findByCapabilityId`, read-only)<br>`src/dblayer/servicesDB.ts:80-85` | Dispatch reads Service data (for Service Level) but never writes to it and never performs Participant selection through Service; selection logic lives entirely in `dispatchStrategies.ts`. | Fully met |
-| Service publishes delivery events Telemetry derives metrics from; Telemetry compares observed delivery against declared Service Level | §11 | `src/routes/seu/core/telemetry.ts` (no Service references anywhere) | No delivery events (`ServiceRequested`/`ServiceDelivered`) exist on either mechanism, and Telemetry has zero code path touching Service, `services`, or `service_definitions`. The lifecycle events now published by `service_definitions` (FR-11.5) are not delivery events and are not consumed by Telemetry either. | Not met |
-| Service Composition: multiple Packs may contribute Services for the same Capability; composition shall be deterministic, resolved through the Composition Engine's existing rules | §12 | `src/domain/engine/compositionEngine.ts` (no Service references) | No composition-time handling of any kind for either mechanism. `services` uses a silent `(originating_pack_id, code)`-scoped upsert (no cross-Pack conflict detection, no Override-style warning the way Policy/Quality Gate get); `service_definitions` enforces `(code, version, tenant)` uniqueness at write time but performs no deterministic-resolution logic when two Packs/authors declare conflicting content under the same code. | Not met |
-| Service Lifecycle: Defined → Published → Active → Deprecated → Retired → Archived; deprecation identifies a replacement; historical versions remain available | §13 | `src/dblayer/seuTypes.ts:507` (`ServiceDefinitionStatus`)<br>`src/dblayer/seed/data/transitionDefinitions.json` (`entityType:"Service"` rows)<br>`src/routes/seu/core/serviceDefinitions.ts:159-200` (`transitionServiceDefinition`, `AUTHORING_NEXT_STATE`) | `service_definitions` now implements this exact 6-state chain as a real, governed `transition_definitions`-backed state machine (CR-086 follow-on) — strictly linear, no reactivation, matching the chapter's own diagram verbatim. Historical versions remain queryable (`findByCodeAndVersion`). Deprecation does not structurally require naming a replacement Service — no "replacement" field exists on `ServiceDefinitionRow`, so that specific clause is unenforced. The Pack-contributed `services` table still has only an untransitioned `status` column (`CHECK` constraint, no `transition_definitions` rows, every live row sits at `Active`) — this half of the mechanism remains exactly as the chapter's own §18 audit found it. | Partially met |
-| Events: ServiceDefined, ServicePublished, ServiceActivated, ServiceRequested, ServiceDelivered, ServiceLevelMet, ServiceLevelBreached, ServiceDeprecated, ServiceRetired | §14 | `src/dblayer/seed/data/transitionDefinitions.json`<br>`src/routes/seu/core/serviceDefinitions.ts:187-200` | 5 of 9 named events now have a real (if differently-named) counterpart from `service_definitions`' governed lifecycle: `ServiceDefinitionPublished`, `ServiceDefinitionActivated`, `ServiceDefinitionDeprecated`, `ServiceDefinitionRetired` (plus an un-named-in-spec `ServiceDefinitionArchived`). No event fires on reaching `Defined` (it is the creation state, not a transition target) — `ServiceDefined` has no equivalent. `ServiceRequested`, `ServiceDelivered`, `ServiceLevelMet`, `ServiceLevelBreached` (the delivery/telemetry-facing events) remain entirely unbuilt on both mechanisms. | Partially met |
-| NFR: support composition from multiple Packs | §15 | `src/domain/engine/compositionEngine.ts` | Same as §12 — no composition-time handling. | Not met |
-| NFR: preserve complete traceability from Service to providing Capability and originating Pack | §15 | `src/routes/seu/core/traceability.ts:169-171` | `providing_capability_id`/`originating_pack_id` are real FKs on `services`, resolved and displayed by `traceability.ts`. `service_definitions.capability_code` gives the Capability link but has no Pack-origin concept to trace (platform-catalog authored, not Pack-contributed). | Fully met (for `services`) |
-| NFR: support deterministic resolution of conflicting declarations | §15 | `src/domain/engine/compositionEngine.ts` | Same as §12. | Not met |
-| NFR: remain independent of Participant implementations | §15 | `src/dblayer/seuTypes.ts:101-110`, `527-549` | No Participant coupling on either mechanism. | Fully met |
-| NFR: publish events sufficient for Telemetry without duplicate instrumentation | §15 | `src/routes/seu/core/telemetry.ts` | Zero Telemetry consumption of any Service event, real or otherwise (§11, §14). | Not met |
-| Acceptance: every Service declared by exactly one Capability through a Pack | §16 | (FR-11.2 citations) | — | Fully met |
-| Acceptance: every Service declares a Service Level | §16 | (SVC-004 citations) | — | Fully met |
-| Acceptance: Capability Dependency evaluation references specific Services, not Capabilities in the abstract | §16 | (FR-11.4/§9 citations) | Capability-type dependency authoring is retired entirely, a stronger negative than §18's own earlier "real internally, not author-facing" finding. | Not met |
-| Acceptance: Service definitions remain independent of Participant implementation | §16 | (FR-11.7 citations) | — | Fully met |
-| Acceptance: observed Service performance derived by Telemetry, never stored on Service definition | §16 | `src/routes/seu/core/telemetry.ts` | Vacuously true (§4/§11 finding). | Partially met |
-| Acceptance: multiple Packs can contribute Services for the same Capability deterministically | §16 | `src/domain/engine/compositionEngine.ts` | Not built (§12). | Not met |
-| Deliverable: Service domain model | §17 | `src/dblayer/seuTypes.ts:101-110,507-549` | `ServiceRow` and `ServiceDefinitionRow` both real. | Fully met |
-| Deliverable: Service registry | §17 | `src/dblayer/servicesDB.ts`, `src/dblayer/serviceDefinitionsDB.ts` | Both exist; `servicesDB` is minimal (by-capability/by-id/all only), `serviceDefinitionsDB` adds code+version, active-by-code, visible-to-tenant, platform-owned lookups. | Fully met |
-| Deliverable: Service contract validation service | §17 | `src/routes/seu/core/serviceDefinitionWriteValidator.ts`<br>`src/routes/seu/core/packs.ts` (capabilityCode resolution only) | `service_definitions` has a real structural write validator (`validateServiceDefinitionWriteAgainstSchema`). `services`' Pack-publish path still only resolves the providing Capability, no structural validation beyond that. | Fully met (via `service_definitions`) |
-| Deliverable: Service Level declaration framework | §17 | (SVC-004 citations) | — | Fully met |
-| Deliverable: Service composition service | §17 | `src/domain/engine/compositionEngine.ts` | Not built (§12). | Not met |
-| Deliverable: Service APIs | §17 | `src/routes/seu/web/serviceDefinitionRegistry.ts`, `src/routes/seu/web/sdkAuthoring.ts` | `service_definitions` has a real authoring/registry web surface including lifecycle transitions. No dedicated `src/routes/seu/api/*` JSON API for either mechanism was found (registry route is server-rendered web, not API). | Partially met |
-| Deliverable: Service events | §17 | (§14 citations) | 5 lifecycle events real on `service_definitions`; delivery/telemetry events absent on both. | Partially met |
+**Legend:** ✅ Fully met  ⚠️ Partially met  ❌ Not met  ❓ Not verifiable
 
+<table style="width:100%; table-layout:fixed;">
+  <colgroup>
+    <col style="width:4%;">
+    <col style="width:32%;">
+    <col style="width:27%;">
+    <col style="width:37%;">
+  </colgroup>
+  <thead>
+    <tr>
+      <th></th>
+      <th>Intent</th>
+      <th>Code Citation</th>
+      <th>Finding</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Service is the declared, contracted output a Capability exposes, without exposing how<br> Ref: §1 Purpose</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/seuTypes.ts:101-110</code> (<code>ServiceRow.contract_description</code>)<br><code>src/dblayer/seuTypes.ts:527-549</code> (<code>ServiceDefinitionRow</code>: <code>purpose</code>, <code>inputs</code>, <code>outputs</code>, <code>success</code>)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Both <code>services</code> and <code>service_definitions</code> store only free-text/descriptive fields (description/purpose/inputs/outputs); no implementation/interface column exists on either.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Services declared by Capability Packs, not Participants, and do not select who fulfils them<br> Ref: §1 Purpose, SVC-001</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/packs.ts:587-597</code> (Pack-contributed <code>services</code> write path)<br><code>src/routes/seu/core/serviceDefinitions.ts</code> (catalog authoring path, actor-driven, no Participant coupling)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Only write paths are Pack publish (<code>servicesDB.upsertFromPack</code>) and the Service Definition authoring/transition flow; neither is reachable from a Participant action or Participant selection logic.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Architectural position: Pack → Capability+Service → Dependency Engine → Fulfilment/Dispatch → Telemetry<br> Ref: §3</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/domain/engine/dependencyDefinitionEngine.ts:73-83</code><br><code>src/domain/engine/materialiseDependencyGraph.ts:70-123</code><br><code>src/domain/engine/dispatchEngine.ts:12-38</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Service remains stable through Fulfilment/Dispatch (§10, below). The Dependency Engine step of this chain is **retired for Capability-type edges** (owner, 2026-09-04, <code>materialiseDependencyGraph.ts:40-49</code>): "there is no Capability-type edge... deliverable dependency is what is real." Telemetry step (§11) is entirely unbuilt (see below).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Service declares a Service Level: target turnaround/quality bar/other measurable expectation<br> Ref: §4, SVC-004, FR-11.3</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/seuTypes.ts:513-519</code> (<code>ServiceLevelExpectation</code>: <code>code,label,target_level,target,units</code>)<br><code>src/dblayer/servicesDB.ts:17-77</code> (<code>service_level</code> column, real upsert)<br><code>src/routes/seu/core/serviceDefinitions.ts</code> (<code>service_level</code> on <code>ServiceDefinitionRow</code>)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Both mechanisms carry a real, structured Service Level. <code>ServiceDefinitionRow</code>'s shape (<code>target_level: minimum/maximum/exact</code>, numeric <code>target</code>, <code>units</code>) is strictly richer than <code>ServiceRow</code>'s own <code>{label,target}</code> pairs and matches §8's "measurable expectation" more precisely.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Service does not select/assign/evaluate Participants (remains Fulfilment/Dispatch's job)<br> Ref: §4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/seuTypes.ts:101-110</code>, <code>527-549</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No Participant FK or selection logic on either <code>services</code> or <code>service_definitions</code>.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Service does not compute/store its own observed performance (remains Telemetry's job)<br> Ref: §4, SVC-006</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/telemetry.ts</code> (no match for "Service")</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Vacuously true: nothing writes performance back, but only because Telemetry has zero Service integration at all (see §11 finding below), not because a real boundary is enforced against an existing measurement path.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">SVC-002: exposes what, never how<br> Ref: §5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/seuTypes.ts:101-110</code>, <code>527-549</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>contract_description</code>/<code>purpose</code> are free text; no interface/implementation columns exist to leak.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">SVC-003: Service is coequal with Evidence/Knowledge/Decision, does not subsume them<br> Ref: §5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/domain/engine/compositionEngine.ts</code> (no Evidence/Knowledge/Decision table access from Service code)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No Service code path touches Evidence/Knowledge/Decision tables.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">SVC-005: Service definitions versioned and immutable once published<br> Ref: §5, FR-11.1</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/servicesDB.ts:5-13,34-50</code> (<code>bumpVersion</code>, deactivate-old-insert-new)<br><code>src/routes/seu/core/serviceDefinitions.ts</code> + <code>assertServiceDefinitionCodeVersionFree</code> (semver, <code>(code,version)</code> uniqueness)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>services</code>: content-diffed minor-version bump on real change, prior row deactivated (not overwritten). <code>service_definitions</code>: author-declared semver, collision-checked per <code>(code,version,tenant)</code>, status-gated (no edit once past <code>Defined</code>/<code>Draft</code>-equivalent stage via <code>updateDraftContent</code> validators). Both are real, immutable-once-published mechanisms.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-11.1: globally unique identifier and version<br> Ref: §6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/servicesDB.ts</code> (<code>code</code> unique per <code>(originating_pack_id, code)</code>)<br><code>src/dblayer/serviceDefinitionsDB.ts:171-181</code> (<code>(code, version[, tenant])</code>)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>id</code> is a real UUID PK on both tables; version is real and live on both (above).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-11.2: every Service declared by exactly one Capability, through exactly one Pack<br> Ref: §6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/packs.ts:587-597</code><br><code>src/dblayer/serviceDefinitionsDB.ts</code> (<code>capability_code</code> NOT NULL)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>providing_capability_id</code> is <code>NOT NULL</code> on <code>services</code>; Pack publish resolves <code>capabilityCode</code> only against that same Pack's own declared Capabilities (cross-Pack references rejected). <code>service_definitions.capability_code</code> is similarly required, validated against the <code>capability-name</code> Ontology concept.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-11.3: every Service declares a Service Level<br> Ref: §6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">(same as SVC-004 above)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-11.4: Dependency Engine references specific Services, not Capabilities in the abstract<br> Ref: §6, §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/domain/engine/dependencyDefinitionEngine.ts:73-83</code> (<code>resolveNamedNode</code>, <code>Capability</code> branch, still Service-code-keyed for resolving *existing* rows)<br><code>src/domain/engine/materialiseDependencyGraph.ts:40-49,70-123</code> (authoring of new Capability-type rows commented out/retired)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">§9's own worked example ("depends on the Approved Solution Architecture Service, not the Architecture Capability") has no live authoring path at all: Capability-type dependency materialisation was retired 2026-09-04 ("there is no Capability-type edge... deliverable dependency is what is real. Service describes the what/quality of it"). Only <code>Deliverable</code>-to-<code>Deliverable</code> dependency edges can be authored today. The old Service-keyed resolution code in <code>resolveNamedNode</code> is now dead for authoring purposes — it can only ever match rows nothing creates anymore.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-11.5: every Service publishes lifecycle and delivery events consumable by Engineering Telemetry<br> Ref: §6, §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/seed/data/transitionDefinitions.json</code> (<code>entityType:"Service"</code> rows, <code>eventType: ServiceDefinitionPublished/Activated/Deprecated/Retired/Archived</code>)<br><code>src/routes/seu/core/serviceDefinitions.ts:187-200</code> (<code>eventBus.publish</code>)<br><code>src/routes/seu/core/telemetry.ts</code> (no Service references)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>service_definitions</code> now genuinely publishes 5 real lifecycle events on each governed transition (not the chapter's exact 9 names — see §14 finding) with a real <code>actorId</code>/<code>authorityBadge</code> on every publish. Pack-contributed <code>services</code> publishes none. Neither delivery events (<code>ServiceRequested</code>/<code>ServiceDelivered</code>/<code>ServiceLevelMet</code>/<code>ServiceLevelBreached</code>) nor any Telemetry consumption of the lifecycle events exist.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-11.6: Service supports consumption by multiple Capabilities/external interactions concurrently<br> Ref: §6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/seuTypes.ts:527-549</code> (<code>consumers: string[]</code>, referential multi-select)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>service_definitions.consumers</code> is a real, unconstrained multi-value field (no cardinality limit); <code>services</code> has no consumer tracking at all (deliberately dropped, owner: derivable by querying <code>dependency_definitions</code>). Structurally unconstrained either way, matching "support... concurrently."</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-11.7: Service contracts remain independent of Participant implementation<br> Ref: §6</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/seuTypes.ts:101-110</code>, <code>527-549</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No Participant coupling on either table.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Service Structure: Identifier, Name, Providing Capability, Contract Description, Service Level, Consuming Capabilities, Version, Originating Pack<br> Ref: §7</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/servicesDB.ts:56-69</code><br><code>src/dblayer/seuTypes.ts:527-549</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">All fields real on <code>services</code> except "Consuming Capabilities" (deliberately dropped — owner: derivable via <code>dependency_definitions</code> query). <code>service_definitions</code> instead carries <code>consumers</code> directly (richer than the chapter asks), plus <code>capability_code</code>/<code>version</code>/<code>service_level</code>, but has no <code>originating_pack_id</code> equivalent — it is tenant-scoped platform-catalog authored, not Pack-contributed, a structurally different originating concept than §7 assumes.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Service Level: target turnaround, quality bar, availability, exceptions/waivers; part of the Service's versioned definition<br> Ref: §8</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/seuTypes.ts:513-519</code><br><code>src/domain/engine/dispatchEngine.ts:12-30</code> (<code>resolveTurnaroundSeconds</code>)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Real structured field on both mechanisms (above). <code>dispatchEngine.ts</code>'s <code>resolveTurnaroundSeconds</code> is a real, working consumer that sets a Work Item's default deadline from a <code>services.service_level</code> item whose <code>label</code> matches <code>/turnaround/i</code> — but it only recognises a bare number of seconds in <code>target</code>, not a human duration string ("3 days"), so it returns <code>null</code> for content shaped like the owner's own worked example until a duration parser is added. No equivalent consumer reads <code>service_definitions.service_level</code> yet.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Dependency Engine: Capability Dependency shall reference the specific Service a Capability exposes, not the Capability in the abstract<br> Ref: §9</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/domain/engine/materialiseDependencyGraph.ts:40-123</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Retired, as in FR-11.4 above — this section's entire mechanism has no live authoring path today; only Deliverable-to-Deliverable edges exist.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Service does not determine who fulfils it; Fulfilment/Dispatch select the Participant; Service stays the stable reference<br> Ref: §10</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/domain/engine/dispatchEngine.ts:12-38</code> (reads <code>servicesDB.findByCapabilityId</code>, read-only)<br><code>src/dblayer/servicesDB.ts:80-85</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Dispatch reads Service data (for Service Level) but never writes to it and never performs Participant selection through Service; selection logic lives entirely in <code>dispatchStrategies.ts</code>.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Service publishes delivery events Telemetry derives metrics from; Telemetry compares observed delivery against declared Service Level<br> Ref: §11</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/telemetry.ts</code> (no Service references anywhere)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No delivery events (<code>ServiceRequested</code>/<code>ServiceDelivered</code>) exist on either mechanism, and Telemetry has zero code path touching Service, <code>services</code>, or <code>service_definitions</code>. The lifecycle events now published by <code>service_definitions</code> (FR-11.5) are not delivery events and are not consumed by Telemetry either.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Service Composition: multiple Packs may contribute Services for the same Capability; composition shall be deterministic, resolved through the Composition Engine's existing rules<br> Ref: §12</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/domain/engine/compositionEngine.ts</code> (no Service references)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No composition-time handling of any kind for either mechanism. <code>services</code> uses a silent <code>(originating_pack_id, code)</code>-scoped upsert (no cross-Pack conflict detection, no Override-style warning the way Policy/Quality Gate get); <code>service_definitions</code> enforces <code>(code, version, tenant)</code> uniqueness at write time but performs no deterministic-resolution logic when two Packs/authors declare conflicting content under the same code.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Service Lifecycle: Defined → Published → Active → Deprecated → Retired → Archived; deprecation identifies a replacement; historical versions remain available<br> Ref: §13</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/seuTypes.ts:507</code> (<code>ServiceDefinitionStatus</code>)<br><code>src/dblayer/seed/data/transitionDefinitions.json</code> (<code>entityType:"Service"</code> rows)<br><code>src/routes/seu/core/serviceDefinitions.ts:159-200</code> (<code>transitionServiceDefinition</code>, <code>AUTHORING_NEXT_STATE</code>)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>service_definitions</code> now implements this exact 6-state chain as a real, governed <code>transition_definitions</code>-backed state machine (CR-086 follow-on) — strictly linear, no reactivation, matching the chapter's own diagram verbatim. Historical versions remain queryable (<code>findByCodeAndVersion</code>). Deprecation does not structurally require naming a replacement Service — no "replacement" field exists on <code>ServiceDefinitionRow</code>, so that specific clause is unenforced. The Pack-contributed <code>services</code> table still has only an untransitioned <code>status</code> column (<code>CHECK</code> constraint, no <code>transition_definitions</code> rows, every live row sits at <code>Active</code>) — this half of the mechanism remains exactly as the chapter's own §18 audit found it.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Events: ServiceDefined, ServicePublished, ServiceActivated, ServiceRequested, ServiceDelivered, ServiceLevelMet, ServiceLevelBreached, ServiceDeprecated, ServiceRetired<br> Ref: §14</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/seed/data/transitionDefinitions.json</code><br><code>src/routes/seu/core/serviceDefinitions.ts:187-200</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">5 of 9 named events now have a real (if differently-named) counterpart from <code>service_definitions</code>' governed lifecycle: <code>ServiceDefinitionPublished</code>, <code>ServiceDefinitionActivated</code>, <code>ServiceDefinitionDeprecated</code>, <code>ServiceDefinitionRetired</code> (plus an un-named-in-spec <code>ServiceDefinitionArchived</code>). No event fires on reaching <code>Defined</code> (it is the creation state, not a transition target) — <code>ServiceDefined</code> has no equivalent. <code>ServiceRequested</code>, <code>ServiceDelivered</code>, <code>ServiceLevelMet</code>, <code>ServiceLevelBreached</code> (the delivery/telemetry-facing events) remain entirely unbuilt on both mechanisms.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: support composition from multiple Packs<br> Ref: §15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/domain/engine/compositionEngine.ts</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same as §12 — no composition-time handling.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Fully met (for `services`)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: preserve complete traceability from Service to providing Capability and originating Pack<br> Ref: §15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/traceability.ts:169-171</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>providing_capability_id</code>/<code>originating_pack_id</code> are real FKs on <code>services</code>, resolved and displayed by <code>traceability.ts</code>. <code>service_definitions.capability_code</code> gives the Capability link but has no Pack-origin concept to trace (platform-catalog authored, not Pack-contributed).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: support deterministic resolution of conflicting declarations<br> Ref: §15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/domain/engine/compositionEngine.ts</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same as §12.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: remain independent of Participant implementations<br> Ref: §15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/seuTypes.ts:101-110</code>, <code>527-549</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No Participant coupling on either mechanism.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">NFR: publish events sufficient for Telemetry without duplicate instrumentation<br> Ref: §15</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/telemetry.ts</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Zero Telemetry consumption of any Service event, real or otherwise (§11, §14).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: every Service declared by exactly one Capability through a Pack<br> Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">(FR-11.2 citations)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: every Service declares a Service Level<br> Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">(SVC-004 citations)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Capability Dependency evaluation references specific Services, not Capabilities in the abstract<br> Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">(FR-11.4/§9 citations)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability-type dependency authoring is retired entirely, a stronger negative than §18's own earlier "real internally, not author-facing" finding.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Service definitions remain independent of Participant implementation<br> Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">(FR-11.7 citations)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: observed Service performance derived by Telemetry, never stored on Service definition<br> Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/telemetry.ts</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Vacuously true (§4/§11 finding).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: multiple Packs can contribute Services for the same Capability deterministically<br> Ref: §16</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/domain/engine/compositionEngine.ts</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Not built (§12).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Service domain model<br> Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/seuTypes.ts:101-110,507-549</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>ServiceRow</code> and <code>ServiceDefinitionRow</code> both real.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Service registry<br> Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/servicesDB.ts</code>, <code>src/dblayer/serviceDefinitionsDB.ts</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Both exist; <code>servicesDB</code> is minimal (by-capability/by-id/all only), <code>serviceDefinitionsDB</code> adds code+version, active-by-code, visible-to-tenant, platform-owned lookups.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Fully met (via `service_definitions`)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Service contract validation service<br> Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/core/serviceDefinitionWriteValidator.ts</code><br><code>src/routes/seu/core/packs.ts</code> (capabilityCode resolution only)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>service_definitions</code> has a real structural write validator (<code>validateServiceDefinitionWriteAgainstSchema</code>). <code>services</code>' Pack-publish path still only resolves the providing Capability, no structural validation beyond that.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Service Level declaration framework<br> Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">(SVC-004 citations)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Service composition service<br> Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/domain/engine/compositionEngine.ts</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Not built (§12).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Service APIs<br> Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/routes/seu/web/serviceDefinitionRegistry.ts</code>, <code>src/routes/seu/web/sdkAuthoring.ts</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>service_definitions</code> has a real authoring/registry web surface including lifecycle transitions. No dedicated <code>src/routes/seu/api/*</code> JSON API for either mechanism was found (registry route is server-rendered web, not API).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverable: Service events<br> Ref: §17</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">(§14 citations)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">5 lifecycle events real on <code>service_definitions</code>; delivery/telemetry events absent on both.</td>
+    </tr>
+  </tbody>
+</table>
 ## Summary
 
 - Total intents analysed: 32

@@ -106,6 +106,18 @@
               <button type="submit" class="btn btn-outline-warning btn-sm"><i class="bi bi-archive me-1"></i>Retire Objective &amp; subtree</button>
             </form>
           <% } %>
+
+          <%# CR-116 — Supersede needs a target (an existing Objective, or a
+               new one created on the spot), so it can't be a plain one-click
+               button in the generic dropdown above — same "own form, not the
+               dropdown" treatment Reject already gets. A modal, not an inline
+               form, since it bundles a searchable picker AND a create-new
+               link in one place. %>
+          <% if (detail.supersedable && locals.canSupersedeObjective) { %>
+            <button type="button" class="btn btn-outline-dark btn-sm" data-bs-toggle="modal" data-bs-target="#supersedeModal">
+              <i class="bi bi-arrow-repeat me-1"></i>Supersede
+            </button>
+          <% } %>
         </div>
 
         <%# CR-073 — Reject (Active -> Reject, a real distinct status) needs its
@@ -122,6 +134,52 @@
           </form>
         <% } %>
     </div>
+
+    <%# CR-116 — Supersede modal: pick an existing Active Objective in the
+         same tenant (searchable <select>), or follow the "create new" link
+         into the regular create-objective form with ?supersedes= set — both
+         end with this Objective moving to Superseded, one post away. %>
+    <% if (detail.supersedable && locals.canSupersedeObjective) { %>
+      <div class="modal fade" id="supersedeModal" tabindex="-1" aria-labelledby="supersedeModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <form method="POST" action="/aisworg/seu/objectives/<%= detail.objective.id %>/transition/supersede">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <div class="modal-header">
+                <h5 class="modal-title" id="supersedeModalLabel">Supersede this Objective</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <% if (detail.supersedeCandidates.length === 0) { %>
+                  <p class="text-muted small mb-3">No other Active Objective in this tenant to pick from yet.</p>
+                <% } else { %>
+                  <div class="mb-3">
+                    <label for="supersedingObjectiveId" class="form-label fw-semibold">Superseding Objective</label>
+                    <select id="supersedingObjectiveId" name="supersedingObjectiveId" class="form-select" required>
+                      <option value="" selected disabled>Search / choose an Objective…</option>
+                      <% detail.supersedeCandidates.forEach(function(c) { %>
+                        <option value="<%= c.id %>"><% if (c.displayId) { %>[<%= c.displayId %>] <% } %><%= c.statement %></option>
+                      <% }) %>
+                    </select>
+                  </div>
+                <% } %>
+                <div class="mb-0">
+                  <label for="supersedeComment" class="form-label fw-semibold">Comment <span class="text-danger">*</span></label>
+                  <textarea id="supersedeComment" name="comment" rows="2" class="form-control" placeholder="Why does this Objective get superseded?" required></textarea>
+                </div>
+                <p class="text-muted small mt-3 mb-0">
+                  Don't see the right Objective? <a href="/aisworg/seu/objectives/new?supersedes=<%= detail.objective.id %>">Create a new one to supersede this</a> instead.
+                </p>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-dark btn-sm" <%= detail.supersedeCandidates.length === 0 ? 'disabled' : '' %>><i class="bi bi-arrow-repeat me-1"></i>Supersede</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    <% } %>
 
     <div class="d-flex justify-content-between align-items-start mb-4">
       <div>

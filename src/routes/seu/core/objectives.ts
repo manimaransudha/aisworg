@@ -6,8 +6,8 @@ import { transitionEngine } from "../../../domain/engine/transitionEngine.js";
 import { eventBus } from "../../../domain/engine/eventBus.js";
 import { triggerEngine } from "../../../domain/engine/triggerEngine.js";
 import { badgeAuthorityEngine } from "../../../domain/engine/badgeAuthorityEngine.js";
+import { supersessionEngine } from "../../../domain/engine/supersessionEngine.js";
 import { eventsDB } from "../../../dblayer/eventsDB.js";
-import { userDB } from "../../../dblayer/userDB.js";
 import { findCandidateTemplates } from "./templates.js";
 import { listRealProfilesForTemplate } from "./profiles.js";
 import { listConceptsForType, resolveLabels } from "./ontology.js";
@@ -254,6 +254,11 @@ export interface ObjectiveListItem {
   alreadySubmitted: boolean;
   nextTransitionVerb: string | null;
   nextTransitionToState: string | null;
+  // CR-116 — the Objective that superseded this one (set only once, on the
+  // Active -> Superseded transition); null otherwise. A bare id, not a
+  // resolved label — the list rows link straight to it rather than paying
+  // for a batch lookup just to show its statement.
+  supersedingObjectiveId: string | null;
 }
 
 function toListItem(
@@ -305,6 +310,7 @@ function toListItem(
     alreadySubmitted: opts.alreadySubmitted ?? false,
     nextTransitionVerb: opts.nextTransitionVerb ?? null,
     nextTransitionToState: opts.nextTransitionToState ?? null,
+    supersedingObjectiveId: o.superseding_objective_id,
   };
 }
 
@@ -479,6 +485,10 @@ export interface ObjectiveDetailView {
   // no comment field) and gated on this instead, same "Active" condition
   // retirable already uses.
   rejectable: boolean;
+  // CR-116 — Active -> Superseded requires its own picker (existing Objective
+  // or "create new"), so it's excluded from possibleNextStates the same way
+  // rejectable/Reject is, and gated on this instead.
+  supersedable: boolean;
   // CR-075 — true once a Proposed Objective has been submitted for
   // activation: editing is locked so it can't be changed out from under the
   // objective_activate holder now reviewing it. See isObjectiveEditLocked.
@@ -521,6 +531,13 @@ export interface ObjectiveDetailView {
   // to know: null means no SEU has ever been requested against this
   // Objective; non-null is that SEU's own id, whatever its own status.
   commissionedSeuId: string | null;
+  // CR-116 — candidate Bs for the Supersede picker: other objectives in the
+  // same tenant that are Active, this node excluded. Only populated when
+  // Superseded is actually one of possibleNextStates (the badge/transition
+  // gate already narrowed that), to avoid the extra query on every other
+  // detail-page load. The real validity check (does the chosen id resolve
+  // to a real Objective) happens again in transitionObjective itself.
+  supersedeCandidates: ObjectiveListItem[];
 }
 
 export async function getObjectiveDetail(id: string): Promise<ObjectiveDetailView | null> {
@@ -552,9 +569,13 @@ export async function getObjectiveDetail(id: string): Promise<ObjectiveDetailVie
   // its badge (confirmed live: TESTER_ALL_ID holds objective_achieve).
   // CR-073 — Reject is excluded here too: it has its own mandatory-comment
   // form (below), not the generic dropdown, which has no comment field.
+  // CR-116 — Superseded is excluded the same way: it needs its own picker
+  // (searchable existing Objective, or "create new") the plain one-click
+  // dropdown button has no room for.
   const eligibleTransitions = (possibleTransitions ?? []).filter(
-    (t) => t.trigger === "manual" && t.toState !== "Reject" && (!t.submitVerb || alreadySubmitted)
+    (t) => t.trigger === "manual" && t.toState !== "Reject" && t.toState !== "Superseded" && (!t.submitVerb || alreadySubmitted)
   );
+  const canSupersede = (possibleTransitions ?? []).some((t) => t.trigger === "manual" && t.toState === "Superseded" && (!t.submitVerb || alreadySubmitted));
 
   const childRows = children ?? [];
   const isLeaf = childRows.length === 0;
@@ -569,7 +590,15 @@ export async function getObjectiveDetail(id: string): Promise<ObjectiveDetailVie
   // null/system-created requested_by, same conservative default
   // findCandidateTemplates itself already applies when given none. Also used
   // below to resolve required-Capability display labels (CR-086 step 2).
-  const requester = objective.requested_by != null ? await userDB.findById(objective.requested_by) : null;
+  // Bug fix — objective.requested_by is a participants_master id (session.user.id
+  // is set to resolveParticipantId's result, buildSessionUser/auth.js; and
+  // objectivesDB.create's own tenant derivation already queries
+  // participants_master by it the same way), never a users.id. The prior
+  // userDB.findById(requested_by) queried the wrong table/id-space and
+  // always returned null, so tenantId silently resolved to null for every
+  // Objective — found while building CR-116's own same-tenant candidate
+  // filter, which this same bug broke identically.
+  const { data: requester } = objective.requested_by != null ? await participantsMasterDB.findById(objective.requested_by) : { data: null };
   const tenantId = requester?.tenant_id ?? null;
   const capabilityCodes = (requiredCapabilities ?? []).map((c) => c.code);
   const capabilityLabels = await resolveLabels(tenantId, "capability-name");
@@ -638,6 +667,18 @@ export async function getObjectiveDetail(id: string): Promise<ObjectiveDetailVie
   // since a locked ancestor locks its whole subtree too.
   const editLocked = await isObjectiveEditLocked(id);
 
+  // CR-116 — only fetched when Superseded is actually offered, to avoid the
+  // extra query on every other detail-page load. Same tenant, Active only
+  // (owner: "every objective scoped to tenant that is Active"), this node
+  // excluded.
+  let supersedeCandidates: ObjectiveListItem[] = [];
+  if (canSupersede) {
+    const { data: candidateRows } = await objectivesDB.findByStatuses(["Active"]);
+    supersedeCandidates = (candidateRows ?? [])
+      .filter((o) => o.id !== id && (o.sponsoring_authority?.tenant ?? null) === tenantId)
+      .map((o) => toListItem(o));
+  }
+
   return {
     objective,
     parent: parent ? toListItem(parent) : null,
@@ -650,6 +691,7 @@ export async function getObjectiveDetail(id: string): Promise<ObjectiveDetailVie
     deletable: objective.status === "Proposed" && isLeaf && !editLocked,
     retirable: objective.status === "Active",
     rejectable: objective.status === "Active",
+    supersedable: canSupersede,
     editLocked,
     requiredCapabilities: resolvedRequiredCapabilities,
     comments: comments ?? [],
@@ -660,6 +702,7 @@ export async function getObjectiveDetail(id: string): Promise<ObjectiveDetailVie
     alreadySubmitted,
     commissioningOptions,
     commissionedSeuId,
+    supersedeCandidates,
   };
 }
 
@@ -1041,7 +1084,18 @@ export type TransitionObjectiveResult =
   // record (owner: "needs a new comment text every time... not just presence
   // of value in the field") — catches a stale/resubmitted value, not just an
   // empty one.
-  | { ok: false; reason: "comment_required"; detail: string };
+  | { ok: false; reason: "comment_required"; detail: string }
+  // CR-116 — Supersede (Active -> Superseded) requires naming the real
+  // Objective taking this one's place (supersessionEngine.check); "not_found"
+  // here means the given id doesn't resolve to a real Objective, distinct
+  // from the whole-input "not_found" above (the Objective being transitioned
+  // itself).
+  | { ok: false; reason: "superseding_target_required" | "superseding_target_not_found"; detail: string }
+  // CR-116 (owner: "every objective scoped to tenant") — same real
+  // enforcement reParentObjective already applies to a cross-tenant move,
+  // not just a UI-level candidate-list filter; fails closed on a legacy-null
+  // tenant on either side, same "NULL never matches" rule used throughout.
+  | { ok: false; reason: "superseding_target_wrong_tenant"; detail: string };
 
 // Post-completion fix (Open Design Questions.md #3): every other SEU-scoped
 // entity type now runs its transition through qualityGateEngine.evaluate
@@ -1051,7 +1105,7 @@ export type TransitionObjectiveResult =
 // is NOT NULL, so there is nowhere to record an evaluation against. Logged
 // as a real, structural limitation, not silently skipped.
 
-export async function transitionObjective(input: { objectiveId: string; targetState: ObjectiveStatus; actorRole: string; actorId: string; comment?: string }): Promise<TransitionObjectiveResult> {
+export async function transitionObjective(input: { objectiveId: string; targetState: ObjectiveStatus; actorRole: string; actorId: string; comment?: string; supersedingObjectiveId?: string }): Promise<TransitionObjectiveResult> {
   const { data: objective } = await objectivesDB.findById(input.objectiveId);
   if (!objective) return { ok: false, reason: "not_found" };
 
@@ -1089,7 +1143,31 @@ export async function transitionObjective(input: { objectiveId: string; targetSt
     }
   }
 
-  const { data: updated, error } = await objectivesDB.updateStatus(objective.id, input.targetState);
+  // CR-116 — Supersede must name the real Objective taking this one's
+  // place, with its own mandatory comment (stricter than Reject's "mandatory
+  // and new" rule — Supersede just requires non-empty, every time, since
+  // there is no prior Supersede comment to compare against).
+  let supersedingObjectiveId: string | undefined;
+  if (input.targetState === "Superseded") {
+    const check = await supersessionEngine.check({
+      supersededId: objective.id,
+      supersedingId: input.supersedingObjectiveId,
+      comment: input.comment,
+      actorId: input.actorId,
+      authorityBadge: gate.authorityBadge ?? "root",
+      findCandidate: async (candidateId) => (await objectivesDB.findById(candidateId)).data ?? null,
+    });
+    if (!check.ok) return { ok: false, reason: check.reason, detail: check.detail };
+    const { data: supersedingObjective } = await objectivesDB.findById(check.supersedingId);
+    const supersededTenantId = objective.sponsoring_authority?.tenant ?? null;
+    const supersedingTenantId = supersedingObjective?.sponsoring_authority?.tenant ?? null;
+    if (supersededTenantId === null || supersedingTenantId === null || supersededTenantId !== supersedingTenantId) {
+      return { ok: false, reason: "superseding_target_wrong_tenant", detail: "the superseding Objective belongs to a different tenant" };
+    }
+    supersedingObjectiveId = check.supersedingId;
+  }
+
+  const { data: updated, error } = await objectivesDB.updateStatus(objective.id, input.targetState, supersedingObjectiveId);
   if (error || !updated) throw error ?? new Error("failed to update objective status");
 
   if (trimmedComment) {

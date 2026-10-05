@@ -31,6 +31,16 @@
         <!-- 3. STATUS -->
         <td class="text-center align-middle" style="width: 120px;">
           <span class="state-badge state-<%= node.status %>"><%= node.status %></span>
+          <%# CR-116 — a bare id link, not a resolved label (no batch lookup
+               just for this), same "cheap over per-row query" discipline the
+               tree already follows elsewhere. %>
+          <% if (node.status === 'Superseded' && node.supersedingObjectiveId) { %>
+            <div class="mt-1">
+              <a href="/aisworg/seu/objectives/<%= node.supersedingObjectiveId %>" class="small text-muted text-decoration-none">
+                <i class="bi bi-arrow-right-short"></i>superseded by
+              </a>
+            </div>
+          <% } %>
         </td>
 
         <!-- 4. BUTTONS (Tier Buttons | Manage Buttons separated by a vertical divider line) -->

@@ -1,76 +1,430 @@
 # Chapter 13 – Participant Model: Implementation Traceability
 
-<!-- multiline -->
-| Intent | Specification Reference | Code Citation | Finding | Intent Met |
-|---|---|---|---|---|
-| A Participant is the runtime entity that fulfils Capabilities within a commissioned SEU, under EBM governance | §1 Purpose | src/dblayer/participantsDB.ts:20-34<br>src/routes/seu/core/capabilities.ts:74-143 | `participants` row is created per-SEU engagement via `fulfilOne`, always tied to a `seu_capability_id` through a `capability_fulfilments` row. EBM governance is enforced at transition time via `transitionEngine.evaluate` (participants.ts:45-54), not at creation. | Fully met |
-| Participants may represent AI, human or external autonomous services, treated as equal architectural entities | §1 Purpose<br>§7 Participant Types | src/dblayer/seuTypes.ts:913<br>src/routes/seu/web/participantRegistry.ts:21 | `ParticipantType` is an open, Ontology-backed string (concept type `participant-types`), not a hardcoded union favoring one kind. Registry UI lists AI/Human/Automated/External uniformly, same row shape (`participants_master`) for all. | Fully met |
-| Scope: Participant abstraction, identity, lifecycle, assignment, replacement, collaboration, state are defined by this chapter | §2 Scope | — | Scoping statement, reviewed for coverage below; no standalone finding. | Not verifiable |
-| Participants execute engineering work; they do not define engineering behaviour (architectural position) | §3 Architectural Position | src/domain/engine/dispatchEngine.ts:160-230<br>src/routes/seu/core/participants.ts:38-81 | Participant code only ever assigns/transitions a Participant and records events; no Participant code authors EBM behaviour (`ebmsDB`/behaviour authoring lives entirely outside this module). | Fully met |
-| A Participant is a runtime instance capable of fulfilling one or more Capabilities, possessing identity, lifecycle, runtime state, assigned Capabilities and engineering history | §4 Definition | src/dblayer/recovery/participants_schema_recovery.sql:3-23<br>src/dblayer/seuTypes.ts:916-930 | `participants` row carries `id` (identity), `state` (lifecycle/runtime state), and is linked to assigned Capabilities via `capability_fulfilments.participant_id`. "Engineering history" is reconstructable via `events`/`commands`/`work_items` keyed by participant id, not a field on the row itself. | Fully met |
-| Participants are transient; Knowledge remains permanent | §4 Definition<br>§15 Participant Memory | src/dblayer/participantsDB.ts (no memory/knowledge column)<br>src/dblayer/knowledgeItemsDB.ts | `participants`/`participants_master` carry no knowledge payload; `knowledgeItemsDB` is a wholly separate table keyed to Deliverables, not to a Participant. Replacement (§13) never copies or deletes knowledge. No explicit "transient working memory" construct exists in the schema (see §15 row below) — this half of the intent (permanence of Knowledge) is demonstrated; the Participant-side "transient" half has no explicit memory construct to evaluate against. | Partially met |
-| PM-001: Participants are replaceable | §5 PM-001 | src/routes/seu/core/participants.ts:101-176 | `replaceParticipant` drives the old Participant through governed Released→Archived transitions, creates a new Participant row, and re-points the active `capability_fulfilments` row. | Fully met |
-| PM-002: Participants possess identity | §5 PM-002 | src/dblayer/recovery/participants_schema_recovery.sql:4 | `id UUID PRIMARY KEY`, stable for the row's lifetime; identity is never reassigned across replacement (replacement mints a new id). | Fully met |
-| PM-003: Participants shall not own engineering knowledge | §5 PM-003 | src/dblayer/knowledgeItemsDB.ts<br>src/routes/seu/core/participants.ts:96-100 | `knowledge_items` has no `participant_id` column; design comment in `replaceParticipant` explicitly confirms "none of those reference participant_id at all (PM-003, confirmed in the design doc's own review)." | Fully met |
-| PM-004: Participants execute behaviour, they do not define behaviour | §5 PM-004 | src/domain/engine/dispatchEngine.ts:160-230 | Participant code only consumes EBM-driven dispatch outcomes (assignment, state transition); no Participant-side code authors `transition_definitions`/EBM behaviour rows. | Fully met |
-| PM-005: Participants fulfil Capabilities, they do not own Capabilities | §5 PM-005 | src/dblayer/capabilityFulfilmentsDB.ts<br>src/routes/seu/core/capabilities.ts:91-98 | Capability ownership lives on `seu_capabilities`/`capabilities`; `capability_fulfilments` is a join row recording which Participant currently fulfils which `seu_capability_id`, revocable without altering the Capability itself. | Fully met |
-| PM-006: Participants shall remain independent of AI technologies | §5 PM-006 | src/dblayer/seuTypes.ts:913 | `ParticipantType` is a plain Ontology-backed string; no AI-technology-specific field, dependency, or import exists on `participants`/`participants_master`. | Fully met |
-| FR-13.1: Every Participant shall possess a globally unique identifier | §6 FR-13.1 | src/dblayer/recovery/participants_schema_recovery.sql:4 | `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`. | Fully met |
-| FR-13.2: Every Participant shall belong to exactly one active SEU | §6 FR-13.2 | src/dblayer/recovery/participants_schema_recovery.sql:5 | `seu_id UUID NOT NULL REFERENCES seus(id)`; a Participant row is always scoped to exactly one SEU by schema constraint. No cross-SEU participant row exists — a given identity's presence in multiple SEUs is modeled as multiple distinct `participants` rows (one per SEU) linked to one shared `participants_master` identity. | Fully met |
-| FR-13.3: Participants may fulfil multiple Capabilities | §6 FR-13.3 | src/dblayer/capabilityFulfilmentsDB.ts<br>src/routes/seu/core/capabilities.ts:74-143 | `fulfilOne` is called once per (Participant, Capability) pair; nothing restricts a given `participants_master` identity, or a given lifecycle `participants` row's underlying identity, from being fulfilled against more than one Capability — each call creates its own `participants` engagement row. | Fully met |
-| FR-13.4: Multiple Participants may jointly fulfil one Capability | §6 FR-13.4 | src/routes/seu/core/capabilities.ts:185-204 | `fulfilCapabilityWithParticipants` creates one lifecycle Participant + one `capability_fulfilments` row per selected `participants_master` identity against the same `seu_capability_id`; `fulfilmentStrategy` becomes `"Composite"` when more than one is selected. | Fully met |
-| FR-13.5: Participants shall support replacement | §6 FR-13.5 | src/routes/seu/core/participants.ts:101-176 | Same as PM-001 above. | Fully met |
-| FR-13.6: Replacement shall preserve engineering continuity | §6 FR-13.6<br>§13 Participant Replacement | src/routes/seu/core/participants.ts:148-176 | `capability_fulfilments.revoke` ends the old row and a new row is created for the new Participant rather than mutating history in place, preserving `established_at`/`revoked_at` lineage. Deliverable/Knowledge/Decision/Evidence/Obligation rows carry no `participant_id` reference at all (confirmed PM-003 above), so nothing needs re-pointing for them. | Fully met |
-| FR-13.7: Participant activities shall remain fully traceable | §6 FR-13.7 | src/dblayer/eventsDB.ts<br>src/routes/seu/core/participants.ts:66-78<br>src/domain/engine/dispatchEngine.ts:186-230 | Every lifecycle transition and assignment publishes a corresponding event (`ParticipantActivated`/`ParticipantAssigned`/`ParticipantIdle`/`ParticipantReleased`/`ParticipantArchived`/`ParticipantCreated`/`ParticipantReplaced`/`ParticipantSelected`) carrying `actorId`/`authorityBadge`, queryable by `originating_object_id`. | Fully met |
-| Platform recognises four Participant Types: AI, Human, External, Automated | §7 Participant Types | src/routes/seu/web/participantRegistry.ts:21 | `PARTICIPANT_TYPES = ["AI", "Human", "Automated", "External"]` matches exactly the four types named in the spec. | Fully met |
-| AI Participant implementation technology is outside platform scope | §7 AI Participant | src/dblayer/seuTypes.ts:913 | `ParticipantType` carries no technology-specific metadata; type value is an opaque Ontology code (e.g. "AI"), consistent with "implementation technology is outside the scope." | Fully met |
-| Human Participant models engineering participation only, not HR | §7 Human Participant | src/dblayer/seuTypes.ts:975-978 | `participants_master.user_id` links only to the platform login identity for visibility purposes ("SEUs I'm a Participant on"); no HR-domain fields (payroll, employment status, etc.) exist on the row. | Fully met |
-| External Participant represents outside oversight/authority parties (Auditors, Certifying Authorities) | §7 External Participant | src/routes/seu/web/participantRegistry.ts:21 | "External" is a recognised type value in the registry; no distinct oversight/authority-specific behaviour (e.g. a certification workflow) is implemented beyond being an ordinary Participant Type value. | Partially met |
-| Automated Participant represents internal deterministic tooling/systems (Static Analysis, CI/CD, Scanner, Deployment Service) | §7 Automated Participant | src/routes/seu/web/participantRegistry.ts:21 | "Automated" is a recognised type value; no distinct wiring to an actual CI/CD, static-analysis or scanner integration exists in the repository — the type exists as a classification only. | Partially met |
-| Every Participant shall maintain identity fields: Participant Identifier, Type, Display Name, Assigned Capabilities/Capability Context, Current State, SEU Identifier, Engineering/Authority/Behaviour Context | §8 Participant Identity | src/dblayer/recovery/participants_schema_recovery.sql:3-23<br>src/dblayer/seuTypes.ts:916-930, 937-981 | Identifier (`id`), Type (`type`), Display Name (`display_name`), Current State (`state`), SEU Identifier (`seu_id`) are columns on `participants`. Capability Context is derivable via `capability_fulfilments`. Authority Context is `participants_master.authorised_role`/`authorised_badges`. Behaviour Context is `participants_master.behaviour_context`. Engineering Context (currently progressed Deliverables) has no dedicated field and is derived at read-time (`participantHome.ts:scopeToParticipant`), not stored as an identity attribute. | Partially met |
-| Identity shall remain stable throughout the Participant lifecycle | §8 Participant Identity | src/dblayer/participantsDB.ts:86-97 | `updateStatus` only ever mutates `state`/`updated_at`; `id`, `type`, `display_name`, `seu_id`, `participant_id` are never rewritten by any lifecycle transition. | Fully met |
-| Participant lifecycle: Created → Available → Assigned → Executing → Idle → Released → Archived, with repeat cycling between Assigned/Executing/Idle | §9 Participant Lifecycle | src/dblayer/recovery/participants_schema_recovery.sql:8-9<br>src/dblayer/seed/data/transitionDefinitions.json:811-899<br>src/routes/seu/core/participants.ts:38-81 | `state` CHECK constraint enumerates exactly the seven named states. `transition_definitions` seeds exactly: Created→Available, Available→Assigned, Assigned→Executing, Executing→Idle, Idle→Assigned, Idle→Released, Released→Archived, plus direct-to-Released edges from Available/Assigned/Executing (for replacement, §13). All transitions are gated through `transitionEngine.evaluate`. | Fully met |
-| A Participant becomes eligible for a Capability only through Capability Fulfilment (Ch.12) | §10 Participant Assignment | src/routes/seu/core/participantEligibility.ts:101-116<br>src/routes/seu/core/capabilities.ts:56-72 | `resolveMasterParticipant` re-derives eligibility through `findEligibleParticipants` (the same function backing the Fulfil dropdown) before creating any `participants`/`capability_fulfilments` row — no path creates a lifecycle Participant without going through this eligibility check first. | Fully met |
-| A Participant is assigned to a Deliverable/Work Item only through the Dispatch Engine (Ch.33), selecting among Capability-Fulfilment-established eligible candidates | §10 Participant Assignment | src/domain/engine/dispatchEngine.ts:91-230<br>src/domain/engine/dispatchStrategies.ts | `dispatchEngine.dispatch` reads the `capability_fulfilment_pools` snapshot (never re-resolves eligibility live, per code comment) and calls `selectParticipant`/`loadAvailableCandidates` to choose among that pool before calling `workItemsDB.assign`. | Fully met |
-| Assignment establishes runtime relationships between Participant, Capability, Deliverable, EBM | §10 Participant Assignment | src/domain/engine/dispatchEngine.ts:162-218 | `workItemsDB.assign` links the Work Item (tied to a Command→Deliverable) to the Participant; the dispatch pool and strategy selection are themselves derived from the EBM-driven `capability_fulfilment_pools`/dispatch strategies. | Fully met |
-| Assignment shall not modify the Participant definition | §10 Participant Assignment | src/dblayer/participantsDB.ts:86-97 | Assignment (`dispatchEngine.dispatch:185`) only calls `participantsDB.updateStatus`, mutating `state`, never `type`/`display_name`/`seu_id`/`participant_id`. | Fully met |
-| Participants may collaborate when multiple Capabilities contribute to a Deliverable; the mechanism is implementation-defined | §11 Participant Collaboration | src/routes/seu/core/capabilities.ts:185-204 | `fulfilCapabilityWithParticipants` implements joint fulfilment of a single Capability by multiple Participants (`"Composite"` strategy); cross-Capability collaboration toward one Deliverable is not a separate modeled construct, it emerges from multiple Capabilities each independently being fulfilled and their Work Items both targeting the same Deliverable via Commands. | Fully met |
-| Platform shall preserve collaboration history, engineering decisions, evidence, traceability | §11 Participant Collaboration | src/dblayer/eventsDB.ts<br>src/routes/seu/core/seus.ts (events/decisions/evidence aggregation) | `getSeuDetailView`/`participantHome.ts` aggregate `events`, `decisions`, `evidence` keyed off Deliverable/Command/Participant ids, none of which are deleted on replacement or release. | Fully met |
-| Participants shall maintain runtime state: availability, assigned Deliverables, current Work Items, execution history, pending decisions, outstanding obligations | §12 Participant State | src/dblayer/recovery/participants_schema_recovery.sql:8-9<br>src/routes/seu/core/participantHome.ts:35-96 | `state` column covers availability. Assigned Deliverables/current Work Items/execution history/obligations are all derived at read-time in `scopeToParticipant` (via Commands/WorkItems/Obligations joins), not stored as fields on the Participant row itself. "Pending decisions" scoping is explicitly reinterpreted in code as "decisions actable under this Participant's held badge," not a stored queue (see comment at participantHome.ts:64-70). | Partially met |
-| Runtime state shall not contain permanent engineering knowledge | §12 Participant State | src/dblayer/knowledgeItemsDB.ts | Consistent with PM-003 — no engineering knowledge payload is stored on `participants`/`participants_master`, only derived/queried references. | Fully met |
-| Platform shall permit replacement of any Participant | §13 Participant Replacement | src/routes/seu/core/participants.ts:88-125 | Code comment and transition seed confirm replacement is not limited to Idle: Available, Assigned, Executing and Idle each have a direct edge into Released (transitionDefinitions.json:811-899), and `replaceParticipant` drives whatever state the old Participant is actually in to Released then Archived. | Fully met |
-| Replacement shall preserve Deliverable state, Knowledge, Decisions, Evidence, Traceability, Outstanding Obligations | §13 Participant Replacement | src/routes/seu/core/participants.ts:88-176 | None of `deliverables`, `knowledge_items`, `decisions`, `evidence`/`evidence_relationships`, `obligations` carry a `participant_id` column (confirmed by grep and design comment at line 96-100); only `capability_fulfilments.participant_id` is re-pointed by `replaceParticipant`. | Fully met |
-| Replacement shall not require recommissioning of the SEU | §13 Participant Replacement | src/routes/seu/core/participants.ts:101-176 | `replaceParticipant` never touches `seus`/commissioning state; it only transitions Participant rows and the one affected `capability_fulfilments` row. | Fully met |
-| Engineering Context: the Deliverables currently being progressed | §14 Participant Context | src/routes/seu/core/participantHome.ts:35-53 | `scopeToParticipant` derives `myDeliverableIds` from Commands/WorkItems keyed to the Participant's engagement id; not a stored field, but a correctly-derived live context. | Fully met |
-| Behaviour Context: the EBM governing execution | §14 Participant Context | src/dblayer/seuTypes.ts:959-961<br>src/routes/seu/core/participantEligibility.ts:57-63 | `participants_master.behaviour_context` (array of `{policy, payload}`) is read by `matchesRequiredPolicies` during eligibility, and is distinct from the SEU's own active EBM — the spec's "EBM governing execution" sense of Behaviour Context is implemented as EBM-driven transition gating (`transitionEngine.evaluate`) rather than as a field literally named Behaviour Context tied to the EBM itself. The stored `behaviour_context` field is onboarding/eligibility data, not the EBM reference. | Partially met |
-| Capability Context: the Capabilities currently being fulfilled | §14 Participant Context | src/dblayer/capabilityFulfilmentsDB.ts | `capability_fulfilments` rows with `revoked_at IS NULL` for a given `participant_id` give the live Capability Context; derived, not a stored field on `participants`. | Fully met |
-| Authority Context: the decision rights applicable at the current stage of execution | §14 Participant Context | src/dblayer/seuTypes.ts:962-973<br>src/domain/engine/badgeAuthorityEngine.ts | `participants_master.authorised_role`/`authorised_badges` plus `badgeAuthorityEngine.getHeldBadges` resolve which badges/roles a Participant's underlying identity holds; gating applied via `requireBadge`/`transitionEngine`, consistent with the "current stage" qualifier since badges carry `effective_till`/`seu_ids` scoping. | Fully met |
-| Knowledge Context: the engineering knowledge available to the Participant | §14 Participant Context | — | No construct resolves "knowledge available to a given Participant" (e.g. a filtered view of `knowledge_items` scoped to a Participant's current Deliverables/Capabilities); Knowledge Context as a named, queryable context is absent. | Not met |
-| Obligation Context: outstanding obligations affecting assigned Deliverables | §14 Participant Context | src/routes/seu/core/participantHome.ts:53, 86 | `scopeToParticipant` filters `detail.obligations` down to `myDeliverableIds`, exactly matching "outstanding obligations affecting assigned Deliverables." | Fully met |
-| Participants may maintain transient working memory to support execution; memory is ephemeral | §15 Participant Memory | — | No schema column, in-memory cache, or session-scoped store represents Participant working memory anywhere in `participants`/`participants_master` or the dispatch/execution path. | Not met |
-| Authoritative engineering knowledge shall be stored only in the Knowledge Repository | §15 Participant Memory | src/dblayer/knowledgeItemsDB.ts | `knowledge_items` is the sole knowledge store and is never written to or read from by Participant-side code paths (participantsDB/participantsMasterDB/participants.ts/capabilities.ts). | Fully met |
-| If a Participant is replaced, its transient memory may be discarded without loss of engineering continuity | §15 Participant Memory | src/routes/seu/core/participants.ts:101-176 | Since no transient-memory construct exists at all (see row above), there is nothing for `replaceParticipant` to discard; the discard behaviour is vacuously true rather than demonstrated. | Not verifiable |
-| Platform shall publish: ParticipantCreated, ParticipantAssigned, ParticipantReleased, ParticipantActivated, ParticipantIdle, ParticipantReplaced, ParticipantArchived, ParticipantUnavailable | §16 Events | src/routes/seu/core/participants.ts:29-36, 66-78<br>src/routes/seu/core/capabilities.ts:119-128<br>src/domain/engine/dispatchEngine.ts:79-88, 186-194 | All eight named events are published: `ParticipantCreated` (capabilities.ts:120, participants.ts:138), `ParticipantAssigned` (participants.ts via CH13_EVENT_BY_TRANSITION, and dispatchEngine.ts:187), `ParticipantReleased`/`ParticipantActivated`/`ParticipantIdle`/`ParticipantArchived` (participants.ts CH13_EVENT_BY_TRANSITION map), `ParticipantReplaced` (participants.ts:165), `ParticipantUnavailable` (dispatchEngine.ts eventType parameter at line 156). | Fully met |
-| Participant subsystem shall support concurrent Participants | §17 NFR | src/routes/seu/core/capabilities.ts:185-204 | Multiple `participants` rows per SEU/Capability are first-class (`fulfilCapabilityWithParticipants`, Composite strategy); no singleton constraint exists. | Fully met |
-| Participant subsystem shall support heterogeneous Participant implementations | §17 NFR | src/dblayer/seuTypes.ts:913 | Open, Ontology-backed `type` imposes no implementation-specific shape. | Fully met |
-| Participant subsystem shall support dynamic replacement | §17 NFR | src/routes/seu/core/participants.ts:101-176 | Same evidence as FR-13.5/§13. | Fully met |
-| Participant subsystem shall preserve engineering continuity | §17 NFR | src/routes/seu/core/participants.ts:148-176 | Same evidence as FR-13.6. | Fully met |
-| Participant subsystem shall maintain complete traceability | §17 NFR | src/dblayer/eventsDB.ts | Same evidence as FR-13.7. | Fully met |
-| Acceptance: Participants possess unique identities | §18 Acceptance Criteria | src/dblayer/recovery/participants_schema_recovery.sql:4 | Same evidence as FR-13.1. | Fully met |
-| Acceptance: Participants can fulfil multiple Capabilities | §18 Acceptance Criteria | src/routes/seu/core/capabilities.ts:153-174 | Same evidence as FR-13.3. | Fully met |
-| Acceptance: Multiple Participants can collaborate on a Deliverable | §18 Acceptance Criteria | src/routes/seu/core/capabilities.ts:185-204 | Same evidence as §11. | Fully met |
-| Acceptance: Participants can be replaced without affecting engineering continuity | §18 Acceptance Criteria | src/routes/seu/core/participants.ts:101-176 | Same evidence as §13. | Fully met |
-| Acceptance: Participant history remains traceable | §18 Acceptance Criteria | src/dblayer/eventsDB.ts | Same evidence as FR-13.7. | Fully met |
-| Acceptance: Participant memory remains transient | §18 Acceptance Criteria | — | No memory construct exists to evaluate transience against (see §15 findings). | Not met |
-| Deliverables: Participant domain model | §19 Deliverables | src/dblayer/seuTypes.ts:916-981 | `ParticipantRow`/`ParticipantMasterRow` types, with backing tables. | Fully met |
-| Deliverables: Participant lifecycle service | §19 Deliverables | src/routes/seu/core/participants.ts | `transitionParticipant`/`replaceParticipant`. | Fully met |
-| Deliverables: Participant registry | §19 Deliverables | src/dblayer/participantsMasterDB.ts<br>src/routes/seu/web/participantRegistry.ts | Tenant-scoped `participants_master` registry with list UI. | Fully met |
-| Deliverables: Participant assignment interfaces | §19 Deliverables | src/routes/seu/core/capabilities.ts<br>src/domain/engine/dispatchEngine.ts | Fulfilment (eligibility-gated) and Dispatch (strategy-gated) assignment paths. | Fully met |
-| Deliverables: Participant context model | §19 Deliverables | src/routes/seu/core/participantHome.ts:35-96 | `scopeToParticipant` implements most contexts; Knowledge Context absent (see §14 row). | Partially met |
-| Deliverables: Participant state management | §19 Deliverables | src/dblayer/participantsDB.ts:86-97 | `updateStatus`, gated through `transitionEngine`. | Fully met |
-| Deliverables: Participant APIs | §19 Deliverables | src/routes/seu/core/participants.ts<br>src/routes/seu/core/participantHome.ts<br>src/routes/seu/web/participantRegistry.ts | Core functions plus web routes (registry, home page, replace route at routeAuthority.json:1719). | Fully met |
-| Deliverables: Participant events | §19 Deliverables | src/routes/seu/core/participants.ts:29-36 | CH13_EVENT_BY_TRANSITION map plus dispatchEngine/capabilities.ts publishes. | Fully met |
+**Date of report: 4-10-2026**
 
+<!-- multiline -->
+**Legend:** ✅ Fully met  ⚠️ Partially met  ❌ Not met  ❓ Not verifiable
+
+<table style="width:100%; table-layout:fixed;">
+  <colgroup>
+    <col style="width:4%;">
+    <col style="width:32%;">
+    <col style="width:27%;">
+    <col style="width:37%;">
+  </colgroup>
+  <thead>
+    <tr>
+      <th></th>
+      <th>Intent</th>
+      <th>Code Citation</th>
+      <th>Finding</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Participant is the runtime entity that fulfils Capabilities within a commissioned SEU, under EBM governance<br> Ref: §1 Purpose</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/participantsDB.ts:20-34<br>src/routes/seu/core/capabilities.ts:74-143</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>participants</code> row is created per-SEU engagement via <code>fulfilOne</code>, always tied to a <code>seu_capability_id</code> through a <code>capability_fulfilments</code> row. EBM governance is enforced at transition time via <code>transitionEngine.evaluate</code> (participants.ts:45-54), not at creation.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participants may represent AI, human or external autonomous services, treated as equal architectural entities<br> Ref: §1 Purpose<br>§7 Participant Types</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts:913<br>src/routes/seu/web/participantRegistry.ts:21</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>ParticipantType</code> is an open, Ontology-backed string (concept type <code>participant-types</code>), not a hardcoded union favoring one kind. Registry UI lists AI/Human/Automated/External uniformly, same row shape (<code>participants_master</code>) for all.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❓</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Scope: Participant abstraction, identity, lifecycle, assignment, replacement, collaboration, state are defined by this chapter<br> Ref: §2 Scope</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Scoping statement, reviewed for coverage below; no standalone finding.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participants execute engineering work; they do not define engineering behaviour (architectural position)<br> Ref: §3 Architectural Position</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/dispatchEngine.ts:160-230<br>src/routes/seu/core/participants.ts:38-81</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participant code only ever assigns/transitions a Participant and records events; no Participant code authors EBM behaviour (<code>ebmsDB</code>/behaviour authoring lives entirely outside this module).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Participant is a runtime instance capable of fulfilling one or more Capabilities, possessing identity, lifecycle, runtime state, assigned Capabilities and engineering history<br> Ref: §4 Definition</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/participants_schema_recovery.sql:3-23<br>src/dblayer/seuTypes.ts:916-930</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>participants</code> row carries <code>id</code> (identity), <code>state</code> (lifecycle/runtime state), and is linked to assigned Capabilities via <code>capability_fulfilments.participant_id</code>. "Engineering history" is reconstructable via <code>events</code>/<code>commands</code>/<code>work_items</code> keyed by participant id, not a field on the row itself.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participants are transient; Knowledge remains permanent<br> Ref: §4 Definition<br>§15 Participant Memory</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/participantsDB.ts (no memory/knowledge column)<br>src/dblayer/knowledgeItemsDB.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>participants</code>/<code>participants_master</code> carry no knowledge payload; <code>knowledgeItemsDB</code> is a wholly separate table keyed to Deliverables, not to a Participant. Replacement (§13) never copies or deletes knowledge. No explicit "transient working memory" construct exists in the schema (see §15 row below) — this half of the intent (permanence of Knowledge) is demonstrated; the Participant-side "transient" half has no explicit memory construct to evaluate against.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">PM-001: Participants are replaceable<br> Ref: §5 PM-001</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:101-176</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>replaceParticipant</code> drives the old Participant through governed Released→Archived transitions, creates a new Participant row, and re-points the active <code>capability_fulfilments</code> row.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">PM-002: Participants possess identity<br> Ref: §5 PM-002</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/participants_schema_recovery.sql:4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>id UUID PRIMARY KEY</code>, stable for the row's lifetime; identity is never reassigned across replacement (replacement mints a new id).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">PM-003: Participants shall not own engineering knowledge<br> Ref: §5 PM-003</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/knowledgeItemsDB.ts<br>src/routes/seu/core/participants.ts:96-100</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>knowledge_items</code> has no <code>participant_id</code> column; design comment in <code>replaceParticipant</code> explicitly confirms "none of those reference participant_id at all (PM-003, confirmed in the design doc's own review)."</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">PM-004: Participants execute behaviour, they do not define behaviour<br> Ref: §5 PM-004</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/dispatchEngine.ts:160-230</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participant code only consumes EBM-driven dispatch outcomes (assignment, state transition); no Participant-side code authors <code>transition_definitions</code>/EBM behaviour rows.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">PM-005: Participants fulfil Capabilities, they do not own Capabilities<br> Ref: §5 PM-005</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/capabilityFulfilmentsDB.ts<br>src/routes/seu/core/capabilities.ts:91-98</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability ownership lives on <code>seu_capabilities</code>/<code>capabilities</code>; <code>capability_fulfilments</code> is a join row recording which Participant currently fulfils which <code>seu_capability_id</code>, revocable without altering the Capability itself.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">PM-006: Participants shall remain independent of AI technologies<br> Ref: §5 PM-006</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts:913</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>ParticipantType</code> is a plain Ontology-backed string; no AI-technology-specific field, dependency, or import exists on <code>participants</code>/<code>participants_master</code>.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-13.1: Every Participant shall possess a globally unique identifier<br> Ref: §6 FR-13.1</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/participants_schema_recovery.sql:4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>id UUID PRIMARY KEY DEFAULT gen_random_uuid()</code>.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-13.2: Every Participant shall belong to exactly one active SEU<br> Ref: §6 FR-13.2</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/participants_schema_recovery.sql:5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>seu_id UUID NOT NULL REFERENCES seus(id)</code>; a Participant row is always scoped to exactly one SEU by schema constraint. No cross-SEU participant row exists — a given identity's presence in multiple SEUs is modeled as multiple distinct <code>participants</code> rows (one per SEU) linked to one shared <code>participants_master</code> identity.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-13.3: Participants may fulfil multiple Capabilities<br> Ref: §6 FR-13.3</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/capabilityFulfilmentsDB.ts<br>src/routes/seu/core/capabilities.ts:74-143</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>fulfilOne</code> is called once per (Participant, Capability) pair; nothing restricts a given <code>participants_master</code> identity, or a given lifecycle <code>participants</code> row's underlying identity, from being fulfilled against more than one Capability — each call creates its own <code>participants</code> engagement row.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-13.4: Multiple Participants may jointly fulfil one Capability<br> Ref: §6 FR-13.4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:185-204</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>fulfilCapabilityWithParticipants</code> creates one lifecycle Participant + one <code>capability_fulfilments</code> row per selected <code>participants_master</code> identity against the same <code>seu_capability_id</code>; <code>fulfilmentStrategy</code> becomes <code>"Composite"</code> when more than one is selected.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-13.5: Participants shall support replacement<br> Ref: §6 FR-13.5</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:101-176</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same as PM-001 above.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-13.6: Replacement shall preserve engineering continuity<br> Ref: §6 FR-13.6<br>§13 Participant Replacement</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:148-176</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>capability_fulfilments.revoke</code> ends the old row and a new row is created for the new Participant rather than mutating history in place, preserving <code>established_at</code>/<code>revoked_at</code> lineage. Deliverable/Knowledge/Decision/Evidence/Obligation rows carry no <code>participant_id</code> reference at all (confirmed PM-003 above), so nothing needs re-pointing for them.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">FR-13.7: Participant activities shall remain fully traceable<br> Ref: §6 FR-13.7</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/eventsDB.ts<br>src/routes/seu/core/participants.ts:66-78<br>src/domain/engine/dispatchEngine.ts:186-230</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every lifecycle transition and assignment publishes a corresponding event (<code>ParticipantActivated</code>/<code>ParticipantAssigned</code>/<code>ParticipantIdle</code>/<code>ParticipantReleased</code>/<code>ParticipantArchived</code>/<code>ParticipantCreated</code>/<code>ParticipantReplaced</code>/<code>ParticipantSelected</code>) carrying <code>actorId</code>/<code>authorityBadge</code>, queryable by <code>originating_object_id</code>.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Platform recognises four Participant Types: AI, Human, External, Automated<br> Ref: §7 Participant Types</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/web/participantRegistry.ts:21</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>PARTICIPANT_TYPES = ["AI", "Human", "Automated", "External"]</code> matches exactly the four types named in the spec.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">AI Participant implementation technology is outside platform scope<br> Ref: §7 AI Participant</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts:913</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>ParticipantType</code> carries no technology-specific metadata; type value is an opaque Ontology code (e.g. "AI"), consistent with "implementation technology is outside the scope."</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Human Participant models engineering participation only, not HR<br> Ref: §7 Human Participant</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts:975-978</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>participants_master.user_id</code> links only to the platform login identity for visibility purposes ("SEUs I'm a Participant on"); no HR-domain fields (payroll, employment status, etc.) exist on the row.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">External Participant represents outside oversight/authority parties (Auditors, Certifying Authorities)<br> Ref: §7 External Participant</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/web/participantRegistry.ts:21</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">"External" is a recognised type value in the registry; no distinct oversight/authority-specific behaviour (e.g. a certification workflow) is implemented beyond being an ordinary Participant Type value.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Automated Participant represents internal deterministic tooling/systems (Static Analysis, CI/CD, Scanner, Deployment Service)<br> Ref: §7 Automated Participant</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/web/participantRegistry.ts:21</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">"Automated" is a recognised type value; no distinct wiring to an actual CI/CD, static-analysis or scanner integration exists in the repository — the type exists as a classification only.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Every Participant shall maintain identity fields: Participant Identifier, Type, Display Name, Assigned Capabilities/Capability Context, Current State, SEU Identifier, Engineering/Authority/Behaviour Context<br> Ref: §8 Participant Identity</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/participants_schema_recovery.sql:3-23<br>src/dblayer/seuTypes.ts:916-930, 937-981</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Identifier (<code>id</code>), Type (<code>type</code>), Display Name (<code>display_name</code>), Current State (<code>state</code>), SEU Identifier (<code>seu_id</code>) are columns on <code>participants</code>. Capability Context is derivable via <code>capability_fulfilments</code>. Authority Context is <code>participants_master.authorised_role</code>/<code>authorised_badges</code>. Behaviour Context is <code>participants_master.behaviour_context</code>. Engineering Context (currently progressed Deliverables) has no dedicated field and is derived at read-time (<code>participantHome.ts:scopeToParticipant</code>), not stored as an identity attribute.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Identity shall remain stable throughout the Participant lifecycle<br> Ref: §8 Participant Identity</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/participantsDB.ts:86-97</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>updateStatus</code> only ever mutates <code>state</code>/<code>updated_at</code>; <code>id</code>, <code>type</code>, <code>display_name</code>, <code>seu_id</code>, <code>participant_id</code> are never rewritten by any lifecycle transition.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participant lifecycle: Created → Available → Assigned → Executing → Idle → Released → Archived, with repeat cycling between Assigned/Executing/Idle<br> Ref: §9 Participant Lifecycle</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/participants_schema_recovery.sql:8-9<br>src/dblayer/seed/data/transitionDefinitions.json:811-899<br>src/routes/seu/core/participants.ts:38-81</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>state</code> CHECK constraint enumerates exactly the seven named states. <code>transition_definitions</code> seeds exactly: Created→Available, Available→Assigned, Assigned→Executing, Executing→Idle, Idle→Assigned, Idle→Released, Released→Archived, plus direct-to-Released edges from Available/Assigned/Executing (for replacement, §13). All transitions are gated through <code>transitionEngine.evaluate</code>.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Participant becomes eligible for a Capability only through Capability Fulfilment (Ch.12)<br> Ref: §10 Participant Assignment</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participantEligibility.ts:101-116<br>src/routes/seu/core/capabilities.ts:56-72</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>resolveMasterParticipant</code> re-derives eligibility through <code>findEligibleParticipants</code> (the same function backing the Fulfil dropdown) before creating any <code>participants</code>/<code>capability_fulfilments</code> row — no path creates a lifecycle Participant without going through this eligibility check first.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">A Participant is assigned to a Deliverable/Work Item only through the Dispatch Engine (Ch.33), selecting among Capability-Fulfilment-established eligible candidates<br> Ref: §10 Participant Assignment</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/dispatchEngine.ts:91-230<br>src/domain/engine/dispatchStrategies.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>dispatchEngine.dispatch</code> reads the <code>capability_fulfilment_pools</code> snapshot (never re-resolves eligibility live, per code comment) and calls <code>selectParticipant</code>/<code>loadAvailableCandidates</code> to choose among that pool before calling <code>workItemsDB.assign</code>.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Assignment establishes runtime relationships between Participant, Capability, Deliverable, EBM<br> Ref: §10 Participant Assignment</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/domain/engine/dispatchEngine.ts:162-218</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>workItemsDB.assign</code> links the Work Item (tied to a Command→Deliverable) to the Participant; the dispatch pool and strategy selection are themselves derived from the EBM-driven <code>capability_fulfilment_pools</code>/dispatch strategies.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Assignment shall not modify the Participant definition<br> Ref: §10 Participant Assignment</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/participantsDB.ts:86-97</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Assignment (<code>dispatchEngine.dispatch:185</code>) only calls <code>participantsDB.updateStatus</code>, mutating <code>state</code>, never <code>type</code>/<code>display_name</code>/<code>seu_id</code>/<code>participant_id</code>.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participants may collaborate when multiple Capabilities contribute to a Deliverable; the mechanism is implementation-defined<br> Ref: §11 Participant Collaboration</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:185-204</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>fulfilCapabilityWithParticipants</code> implements joint fulfilment of a single Capability by multiple Participants (<code>"Composite"</code> strategy); cross-Capability collaboration toward one Deliverable is not a separate modeled construct, it emerges from multiple Capabilities each independently being fulfilled and their Work Items both targeting the same Deliverable via Commands.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Platform shall preserve collaboration history, engineering decisions, evidence, traceability<br> Ref: §11 Participant Collaboration</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/eventsDB.ts<br>src/routes/seu/core/seus.ts (events/decisions/evidence aggregation)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>getSeuDetailView</code>/<code>participantHome.ts</code> aggregate <code>events</code>, <code>decisions</code>, <code>evidence</code> keyed off Deliverable/Command/Participant ids, none of which are deleted on replacement or release.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participants shall maintain runtime state: availability, assigned Deliverables, current Work Items, execution history, pending decisions, outstanding obligations<br> Ref: §12 Participant State</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/participants_schema_recovery.sql:8-9<br>src/routes/seu/core/participantHome.ts:35-96</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>state</code> column covers availability. Assigned Deliverables/current Work Items/execution history/obligations are all derived at read-time in <code>scopeToParticipant</code> (via Commands/WorkItems/Obligations joins), not stored as fields on the Participant row itself. "Pending decisions" scoping is explicitly reinterpreted in code as "decisions actable under this Participant's held badge," not a stored queue (see comment at participantHome.ts:64-70).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Runtime state shall not contain permanent engineering knowledge<br> Ref: §12 Participant State</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/knowledgeItemsDB.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Consistent with PM-003 — no engineering knowledge payload is stored on <code>participants</code>/<code>participants_master</code>, only derived/queried references.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Platform shall permit replacement of any Participant<br> Ref: §13 Participant Replacement</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:88-125</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Code comment and transition seed confirm replacement is not limited to Idle: Available, Assigned, Executing and Idle each have a direct edge into Released (transitionDefinitions.json:811-899), and <code>replaceParticipant</code> drives whatever state the old Participant is actually in to Released then Archived.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Replacement shall preserve Deliverable state, Knowledge, Decisions, Evidence, Traceability, Outstanding Obligations<br> Ref: §13 Participant Replacement</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:88-176</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">None of <code>deliverables</code>, <code>knowledge_items</code>, <code>decisions</code>, <code>evidence</code>/<code>evidence_relationships</code>, <code>obligations</code> carry a <code>participant_id</code> column (confirmed by grep and design comment at line 96-100); only <code>capability_fulfilments.participant_id</code> is re-pointed by <code>replaceParticipant</code>.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Replacement shall not require recommissioning of the SEU<br> Ref: §13 Participant Replacement</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:101-176</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>replaceParticipant</code> never touches <code>seus</code>/commissioning state; it only transitions Participant rows and the one affected <code>capability_fulfilments</code> row.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Engineering Context: the Deliverables currently being progressed<br> Ref: §14 Participant Context</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participantHome.ts:35-53</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>scopeToParticipant</code> derives <code>myDeliverableIds</code> from Commands/WorkItems keyed to the Participant's engagement id; not a stored field, but a correctly-derived live context.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Behaviour Context: the EBM governing execution<br> Ref: §14 Participant Context</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts:959-961<br>src/routes/seu/core/participantEligibility.ts:57-63</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>participants_master.behaviour_context</code> (array of <code>{policy, payload}</code>) is read by <code>matchesRequiredPolicies</code> during eligibility, and is distinct from the SEU's own active EBM — the spec's "EBM governing execution" sense of Behaviour Context is implemented as EBM-driven transition gating (<code>transitionEngine.evaluate</code>) rather than as a field literally named Behaviour Context tied to the EBM itself. The stored <code>behaviour_context</code> field is onboarding/eligibility data, not the EBM reference.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Capability Context: the Capabilities currently being fulfilled<br> Ref: §14 Participant Context</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/capabilityFulfilmentsDB.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>capability_fulfilments</code> rows with <code>revoked_at IS NULL</code> for a given <code>participant_id</code> give the live Capability Context; derived, not a stored field on <code>participants</code>.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Authority Context: the decision rights applicable at the current stage of execution<br> Ref: §14 Participant Context</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts:962-973<br>src/domain/engine/badgeAuthorityEngine.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>participants_master.authorised_role</code>/<code>authorised_badges</code> plus <code>badgeAuthorityEngine.getHeldBadges</code> resolve which badges/roles a Participant's underlying identity holds; gating applied via <code>requireBadge</code>/<code>transitionEngine</code>, consistent with the "current stage" qualifier since badges carry <code>effective_till</code>/<code>seu_ids</code> scoping.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Knowledge Context: the engineering knowledge available to the Participant<br> Ref: §14 Participant Context</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No construct resolves "knowledge available to a given Participant" (e.g. a filtered view of <code>knowledge_items</code> scoped to a Participant's current Deliverables/Capabilities); Knowledge Context as a named, queryable context is absent.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Obligation Context: outstanding obligations affecting assigned Deliverables<br> Ref: §14 Participant Context</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participantHome.ts:53, 86</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>scopeToParticipant</code> filters <code>detail.obligations</code> down to <code>myDeliverableIds</code>, exactly matching "outstanding obligations affecting assigned Deliverables."</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participants may maintain transient working memory to support execution; memory is ephemeral<br> Ref: §15 Participant Memory</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No schema column, in-memory cache, or session-scoped store represents Participant working memory anywhere in <code>participants</code>/<code>participants_master</code> or the dispatch/execution path.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Authoritative engineering knowledge shall be stored only in the Knowledge Repository<br> Ref: §15 Participant Memory</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/knowledgeItemsDB.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>knowledge_items</code> is the sole knowledge store and is never written to or read from by Participant-side code paths (participantsDB/participantsMasterDB/participants.ts/capabilities.ts).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❓</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">If a Participant is replaced, its transient memory may be discarded without loss of engineering continuity<br> Ref: §15 Participant Memory</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:101-176</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Since no transient-memory construct exists at all (see row above), there is nothing for <code>replaceParticipant</code> to discard; the discard behaviour is vacuously true rather than demonstrated.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Platform shall publish: ParticipantCreated, ParticipantAssigned, ParticipantReleased, ParticipantActivated, ParticipantIdle, ParticipantReplaced, ParticipantArchived, ParticipantUnavailable<br> Ref: §16 Events</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:29-36, 66-78<br>src/routes/seu/core/capabilities.ts:119-128<br>src/domain/engine/dispatchEngine.ts:79-88, 186-194</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">All eight named events are published: <code>ParticipantCreated</code> (capabilities.ts:120, participants.ts:138), <code>ParticipantAssigned</code> (participants.ts via CH13_EVENT_BY_TRANSITION, and dispatchEngine.ts:187), <code>ParticipantReleased</code>/<code>ParticipantActivated</code>/<code>ParticipantIdle</code>/<code>ParticipantArchived</code> (participants.ts CH13_EVENT_BY_TRANSITION map), <code>ParticipantReplaced</code> (participants.ts:165), <code>ParticipantUnavailable</code> (dispatchEngine.ts eventType parameter at line 156).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participant subsystem shall support concurrent Participants<br> Ref: §17 NFR</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:185-204</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Multiple <code>participants</code> rows per SEU/Capability are first-class (<code>fulfilCapabilityWithParticipants</code>, Composite strategy); no singleton constraint exists.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participant subsystem shall support heterogeneous Participant implementations<br> Ref: §17 NFR</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts:913</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Open, Ontology-backed <code>type</code> imposes no implementation-specific shape.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participant subsystem shall support dynamic replacement<br> Ref: §17 NFR</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:101-176</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same evidence as FR-13.5/§13.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participant subsystem shall preserve engineering continuity<br> Ref: §17 NFR</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:148-176</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same evidence as FR-13.6.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Participant subsystem shall maintain complete traceability<br> Ref: §17 NFR</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/eventsDB.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same evidence as FR-13.7.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Participants possess unique identities<br> Ref: §18 Acceptance Criteria</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/recovery/participants_schema_recovery.sql:4</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same evidence as FR-13.1.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Participants can fulfil multiple Capabilities<br> Ref: §18 Acceptance Criteria</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:153-174</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same evidence as FR-13.3.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Multiple Participants can collaborate on a Deliverable<br> Ref: §18 Acceptance Criteria</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts:185-204</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same evidence as §11.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Participants can be replaced without affecting engineering continuity<br> Ref: §18 Acceptance Criteria</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:101-176</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same evidence as §13.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Participant history remains traceable<br> Ref: §18 Acceptance Criteria</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/eventsDB.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Same evidence as FR-13.7.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Acceptance: Participant memory remains transient<br> Ref: §18 Acceptance Criteria</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">—</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">No memory construct exists to evaluate transience against (see §15 findings).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Participant domain model<br> Ref: §19 Deliverables</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/seuTypes.ts:916-981</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>ParticipantRow</code>/<code>ParticipantMasterRow</code> types, with backing tables.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Participant lifecycle service<br> Ref: §19 Deliverables</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>transitionParticipant</code>/<code>replaceParticipant</code>.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Participant registry<br> Ref: §19 Deliverables</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/participantsMasterDB.ts<br>src/routes/seu/web/participantRegistry.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Tenant-scoped <code>participants_master</code> registry with list UI.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Participant assignment interfaces<br> Ref: §19 Deliverables</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/capabilities.ts<br>src/domain/engine/dispatchEngine.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Fulfilment (eligibility-gated) and Dispatch (strategy-gated) assignment paths.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Participant context model<br> Ref: §19 Deliverables</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participantHome.ts:35-96</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>scopeToParticipant</code> implements most contexts; Knowledge Context absent (see §14 row).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Participant state management<br> Ref: §19 Deliverables</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/dblayer/participantsDB.ts:86-97</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>updateStatus</code>, gated through <code>transitionEngine</code>.</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Participant APIs<br> Ref: §19 Deliverables</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts<br>src/routes/seu/core/participantHome.ts<br>src/routes/seu/web/participantRegistry.ts</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Core functions plus web routes (registry, home page, replace route at routeAuthority.json:1719).</td>
+    </tr>
+    <tr>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables: Participant events<br> Ref: §19 Deliverables</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">src/routes/seu/core/participants.ts:29-36</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">CH13_EVENT_BY_TRANSITION map plus dispatchEngine/capabilities.ts publishes.</td>
+    </tr>
+  </tbody>
+</table>
 ## Summary
 
 - Total intents analysed: 48

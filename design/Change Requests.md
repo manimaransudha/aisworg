@@ -4,6 +4,11 @@ A running register of change requests raised against the platform — feature ad
 
 | CR | Title | Status |
 |----|-------|--------|
+| [CR-117](design/change-requests/CR-117-version-events-table.md) | `version_events` table (Ch.41 §12/§13/§15/§18) — indexes the real published event by its `transition_definitions.version_event` classification, closing Historical Reconstruction (§12), real version traceability (§13), and a queryable Version API (§18), instead of publishing `VersionCreated`/etc. as a second event | 🟡 Raised — design in progress |
+| [CR-116](design/change-requests/CR-116-objective-supersession.md) | Objective supersession — `superseding_objective_id` linkage (Ch.1 §12/§13, OBJ-006), pick-existing-B or create-new-C UI, reusable `supersessionEngine` for future entities | ✅ Built 2026-10-05 |
+| [CR-115](design/change-requests/CR-115-schema-lifecycle-state.md) | Fix Schema definition lifecycle to align to Chapter 39 | 🟡 Raised — design in progress |
+| [CR-114](design/change-requests/CR-114-schema-metadata.md) | Fix Schema registry gaps to align with CR-112 change | ✅ Built and closed 2026-09-28 |
+| [CR-113](design/change-requests/CR-113-ontology-composition-from-packs.md) | OntologyComposition had no consumer — enable it (see also [item 6 notes](design/change-requests/CR-113-item6-notes.md) on the ConceptCreated approval flow) | 🟡 Built pending testing |
 | [CR-112](design/change-requests/CR-112-schema_implementation.md) | Address schema definition and implementation gaps | ✅ Closed 2026-09-25 |
 | [CR-111](design/change-requests/CR-111-capability-registry.md) | Build the capability schema definition and capability registry | ✅ Closed 2026-09-25 |
 | [CR-110](design/change-requests/CR-110-route-authority-table.md) | Route Authority table — badge/role requirements as data instead of literals baked into route files; live-audited via Express's own mounted route tree | ✅ Closed 2026-09-25 |

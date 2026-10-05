@@ -30,6 +30,15 @@
       </p>
     <% } %>
 
+    <% if (locals.supersedesObjective) { %>
+      <div class="alert alert-warning small">
+        <i class="bi bi-arrow-repeat me-1"></i>
+        Creating this Objective will immediately supersede
+        <strong><% if (supersedesObjective.display_id) { %><span class="display-id-pill me-1"><%= supersedesObjective.display_id %></span><% } %><%= supersedesObjective.statement %></strong> —
+        that Objective moves to <strong>Superseded</strong> as soon as this one is created.
+      </div>
+    <% } %>
+
     <% if (capabilities.length === 0) { %>
       <div class="alert alert-warning">No capability-name Ontology concepts are loaded yet — run the ontology migrations (046, 150) first.</div>
     <% } else { %>
@@ -37,6 +46,7 @@
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <input type="hidden" name="tier" value="<%= tier %>">
         <% if (locals.parent) { %><input type="hidden" name="parentObjectiveId" value="<%= parent.id %>"><% } %>
+        <% if (locals.supersedesObjective) { %><input type="hidden" name="supersedes" value="<%= supersedesObjective.id %>"><% } %>
 
         <div class="mb-3" style="position: sticky; top: 0; z-index: 10; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); padding: .85rem 1.25rem;">
           <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -53,6 +63,14 @@
               <textarea id="statement" name="statement" rows="3" class="form-control" required
                         placeholder="e.g. Stand up a claims-processing platform for a retail insurance client"><%= locals.statement || '' %></textarea>
             </div>
+
+            <% if (locals.supersedesObjective) { %>
+              <div class="mb-3">
+                <label for="supersedeComment" class="form-label fw-semibold">Supersession comment <span class="text-danger">*</span></label>
+                <textarea id="supersedeComment" name="supersedeComment" rows="2" class="form-control" required
+                          placeholder="Why does this Objective supersede the original?"></textarea>
+              </div>
+            <% } %>
 
             <div class="mb-0">
               <label class="form-label fw-semibold">Required Capabilities</label>

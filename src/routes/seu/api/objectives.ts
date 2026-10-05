@@ -138,7 +138,7 @@ router.post("/objectives/:id/update", async (req: Request, res: Response) => {
 function postTransition(targetState: ObjectiveStatus) {
   return async (req: Request, res: Response): Promise<void> => {
     try {
-      const { comment } = req.body ?? {};
+      const { comment, supersedingObjectiveId } = req.body ?? {};
       const actorRole = req.session?.user?.role ?? "general";
       if (req.session?.user?.id == null) {
         res.status(401).json({ error: "authentication required" });
@@ -151,6 +151,7 @@ function postTransition(targetState: ObjectiveStatus) {
         actorRole,
         actorId,
         comment: typeof comment === "string" ? comment : undefined,
+        supersedingObjectiveId: typeof supersedingObjectiveId === "string" && supersedingObjectiveId ? supersedingObjectiveId : undefined,
       });
 
       if (!result.ok) {
