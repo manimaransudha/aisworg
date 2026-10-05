@@ -198,7 +198,17 @@ Every Review shall define:
 
 ---
 
-## 9. Review Lifecycle
+9. Review Gate and Checklist
+
+A Review Gate is a Pack-contributed declaration naming the governed transition for which a Review is required. A Review Gate may reference zero or more Checklists by identity, scoped to Checklists contributed by a Pack sharing the Review Gate's own Pack code.
+
+A Checklist is a Pack-contributed, ordered set of verification statements that an assigned Participant executes against a Deliverable or other governed artefact. Executing a Checklist produces an Evidence record; the Checklist itself is never referenced by Governance evaluation directly, only the Evidence it produces. A Checklist possesses no independent version or lifecycle; both are inherited from its originating Pack.
+
+A Review Gate's checklistIds names the Checklists required for that gate: every listed Checklist must complete (AND). Its recommendedChecklistIds names advisory Checklists whose completion is tracked but never blocks the gate. A Checklist referenced by more than one Review Gate or Quality Gate executes once; that single execution satisfies every referencing gate.
+
+---
+
+## 10. Review Lifecycle
 
 Every Review shall transition through the following lifecycle.
 
@@ -230,7 +240,7 @@ Historical Reviews shall remain permanently available.
 
 ---
 
-## 10. Review Criteria
+## 11. Review Criteria
 
 Review criteria shall be declarative.
 
@@ -247,7 +257,7 @@ Criteria are interpreted by the Review service.
 
 ---
 
-## 11. Review Outcomes
+## 12. Review Outcomes
 
 A Review may produce one of the following outcomes:
 
@@ -264,7 +274,7 @@ Governance consumes the Review outcome when evaluating a state transition.
 
 ---
 
-## 12. Findings
+## 13. Findings
 
 Reviews may generate Findings.
 
@@ -281,7 +291,7 @@ Findings are independent engineering objects with complete traceability.
 
 ---
 
-## 13. Review Composition
+## 14. Review Composition
 
 Multiple Review requirements may apply simultaneously.
 
@@ -311,7 +321,7 @@ Composition shall be deterministic.
 
 ---
 
-## 14. Review Traceability
+## 15. Review Traceability
 
 Every Review shall preserve:
 
@@ -328,7 +338,7 @@ Review history shall be immutable.
 
 ---
 
-## 15. Events
+## 16. Events
 
 The Review subsystem shall publish:
 
@@ -343,7 +353,7 @@ The Review subsystem shall publish:
 
 ---
 
-## 16. Non-Functional Requirements
+## 17. Non-Functional Requirements
 
 The Review Model shall:
 
@@ -355,7 +365,7 @@ The Review Model shall:
 
 ---
 
-## 17. Acceptance Criteria
+## 18. Acceptance Criteria
 
 The implementation shall satisfy the following criteria.
 
@@ -373,7 +383,7 @@ The implementation shall satisfy the following criteria.
 
 ---
 
-## 18. Deliverables
+## 19. Deliverables
 
 Implementation of this chapter shall produce:
 
@@ -387,7 +397,7 @@ Implementation of this chapter shall produce:
 
 ---
 
-## 19. Implementation Status & Gaps
+## 20. Implementation Status & Gaps
 
 Code-verified audit (2026-08-22), not from memory — every claim below carries a file:line citation, cross-checked against a live query against the running Postgres instance (`aisworg` DB). Core files: `src/dblayer/reviewsDB.ts`, `src/dblayer/findingsDB.ts`, `src/routes/seu/core/reviews.ts`, `src/routes/seu/core/findings.ts`, `src/routes/seu/api/reviews.ts`, `ReviewRow`/`FindingRow` (`src/dblayer/seuTypes.ts:619-650`).
 
@@ -526,3 +536,23 @@ Unusually complete for this session's audits: `ReviewPlanned`/`ReviewStarted`/`R
 4. **[Code, genuine positive]** Finding is a real, separate, first-class entity with its own lifecycle and table, exactly matching the chapter's explicit architectural intent — one of the strongest single findings across this session's audits (19.9).
 5. **[Events, genuine positive]** All 8 named events exist in code and 7 of 8 are live-exercised — the most complete event-naming match found in any chapter audited this session (19.12).
 6. **[Data model]** 5 of 13 §8 structure fields are entirely absent (Scope, Required Evidence, Required Participants, Recommendations), and Version exists but is never incremented (19.5).
+
+
+# 21. Implementation Specifics (CR-060, 2026-08-23)
+
+The sections above carry their own inline "Built"/"superseded" notes at the point each finding applies; this section consolidates the concrete, code-grounded facts in one place — same role Chapter 5 §19.4 and Chapter 25/26's own §19.x audits play for their entities, adapted to a chapter with no pre-existing §19 audit structure of its own.
+
+**Database.**
+- `checklists` (migration `100_checklist_table.sql`): `id`, `name`, `description`, `originating_pack_id` (FK to `packs`, `NOT NULL` — provenance only, not a reference-scoping constraint, §8), `items` (`JSONB`, default `'[]'`), `created_at`, `updated_at`. No `version`/`is_active`/lifecycle column. Unique index `checklists_pack_name_key` on `(originating_pack_id, name)` — the upsert key that keeps a Checklist's `id` stable across every republish of its own Pack (§16).
+- `quality_gates` and `review_gates` each gain `checklist_ids UUID[]` (migration `101_gate_checklist_ids.sql`) and `recommended_checklist_ids UUID[]` (migration `103_gate_recommended_checklist_ids.sql`), both `NOT NULL DEFAULT '{}'`. No native Postgres array FK exists for either column; referential integrity is enforced at publish time by `validatePackSeed`, not by the database.
+- Checklist Item's live JSON shape, confirmed against real data: `{"statement": "..."}` — nothing else (migration `104_checklist_item_simplified.sql` narrowed the authoring schema to match, after an initial build that also carried `mandatory`/`participant`/`outputContract`/`assurance`/`externalEvidence`/`prompt` was corrected the same day).
+
+**Code.**
+- [`checklistsDB.ts`](../../../../../src/dblayer/checklistsDB.ts): `upsert` (transactional, `ON CONFLICT (originating_pack_id, name) DO UPDATE`), `findById`, `findByIds`, `findByPackCode` (joins `packs`, scoped to Checklists whose owning Pack shares the given `code` — the picker's real source, corrected from an original, over-broad `findAllWithPackInfo`), `deleteByOriginatingPackIds`.
+- `core/packs.ts`: `validatePackSeed` validates each declared Checklist (`name` required, at least one Item, each Item's `statement` required) and each gate's `checklistIds`/`recommendedChecklistIds` entries via `validateChecklistIds` — an entry resolves either as this same Pack's own declared Checklist `name` (not yet persisted, for raw seed JSON) or as an already-real `checklists.id` whose owning Pack's `code` matches this Pack's own `code` (checked via `packsDB.findById`, corrected from an original check that accepted any Pack's Checklist unconditionally). `seedContributions` upserts `checklists` before `reviewGates`/`qualityGates` (mirroring the pre-existing `reviewGateIdByCode` pattern for `requires_accepted_review`), building a `checklistIdByName` map so a same-Pack name reference resolves to the real id at publish time.
+- `cleanSlate.ts` step 2b deletes non-base-Pack `checklists` rows the same way it already handles `capabilities`/`services`/`review_gates` — a plain pack-scoped filter, no code-allowlist, since `platform-core-engineering.pack.json` declares zero Checklists.
+- SDK authoring form: `formGenerator.ts` gained two `ReferentialListItemField` kinds that didn't exist before this CR — `"nested-list"` (an item field that's itself a repeatable sub-list; `buildItemFields`/`buildRow` were extracted and made recursive to support it) and `"referential-multi"` (a referential field that picks several values, via a new `x-multi` schema marker). `_referentialListGroup.ejs`/`public/js/referentialListGroup.js` render and wire both: a `.nested-list-group` widget with its own delegated "+ Add item"/Remove handling, and a `<select multiple>` sourced from `sdkAuthoring.ts`'s `loadChecklistOptions` (scoped to the authoring Pack's own `code`, empty until it's chosen; id + Checklist name + originating Pack name). Both view-mode and edit-mode resolution match a stored `checklistIds` entry by id OR by same-Pack Checklist name — a raw seed file's reference is a name, never rewritten into the Pack's own `contributions` JSON as a resolved id, so an id-only match silently fails to display it (a real bug, caught and fixed against live data, not just in review).
+
+**Real seed data.** All 22 real Pack files (6 EPF/OpenUP capability-pattern Packs, 16 SDLC-phase Packs) declare one Checklist each, holding the same statements their pre-CR-060 flat, undeclared-`code`-keyed rows used to carry — re-simplified twice, first when Items still carried `mandatory`/`participant`/etc., again when those fields were dropped. 13 of the 22 also have their own Review Gate, each now carrying `checklistIds` pointing at that same Pack's own Checklist by name. `db:clean-slate` re-verified running clean end to end after each revision; `checklists` holds exactly 22 rows post-clean-slate, one per real Pack.
+
+**Confirmed live, not just asserted**: republishing the same already-Active Pack a second time (no wipe) leaves its Checklist's `id` byte-for-byte unchanged — the "id stays stable across a republish" design decision (§16) actually holds, not just in the migration comments.

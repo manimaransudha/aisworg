@@ -101,15 +101,6 @@ NODE_ENV=test node --import tsx --test tests/web-flow.e2e.test.ts > output.txt 2
 NODE_ENV=test node --import tsx --test tests/attestation.test.ts > output.txt 2>&1 
 
 
-NODE_ENV=test node --import tsx --test tests/governance-depth.test.ts > output.txt 2>&1
-
-NODE_ENV=test node --import tsx --test tests/governance-ebm-sharpening.test.ts > output.txt 2>&1
-
-NODE_ENV=test node --import tsx --test tests/objective-lifecycle.test.ts > output.txt 2>&1
-
-NODE_ENV=test node --import tsx --test tests/pack-composition.test.ts > output.txt 2>&1
-
-NODE_ENV=test node --import tsx --test tests/quality-telemetry.test.ts > output.txt 2>&1
 
 
 
@@ -117,7 +108,6 @@ NODE_ENV=test node --import tsx --test tests/quality-telemetry.test.ts > output.
 
 
 
-NODE_ENV=test node --import tsx --test tests/traceability.test.ts > output.txt 2>&1
 
 ---------
  

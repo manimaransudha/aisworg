@@ -168,3 +168,144 @@ Examples:
 - Node.js
 - Kubernetes
 - React
+
+
+-----------
+
+Vishnu Kanchipuram Temples list
+- Sri Varadaraja Perumal Temple
+- Ashta Bhuja Perumal Temple
+- Deepa Prakasar Temple
+- Sri Alagiya Singa Perumal Temple
+- Pandava Dootha Perumal Temple
+- Thiru Neeragam
+- Nilathingal Thundathu Perumal (Chandragupta Perumal)
+- Ulagalanda Perumal Temple (Tri Vikrama)
+- Thiru Uragam or Uragatan
+- Thiru Karvanam
+- Thiru Karagatu Perumal
+- Yathoktakari Temple (Sonna Vannam Saida Perumal)
+- Thirukalvanur Kalvar Perumal
+- Sri Pavalavannar Temple
+- Pacchaivannar Temple
+- Sri Vaikunta Perumal Temple
+- Sri Vijayaragahava Perumal Temple
+- Urugumulla Perumal
+- Sri Kuratalvan Temple
+- Sri Adikesava Perumal Temple
+- Lakshmi Narasimha Perumal Temple
+
+Shiva Kanchipuram Temples List
+- Sri Ekambareswarar Temple
+- Kanchi Mayaneswara Temple
+- Vallakkambar
+- Kallakambar
+- Nallakkambar
+- Agasteeswara Temple
+- Asttotarasata Linga
+- Markandeswara Temple
+- Mattala Madhaveswara
+- Ashtottarasata Linga (II) (108 small Lingas in one) is found in the south-west corner of the First prakara of Ekambaranatha Temple
+- Sahasra (1000) Linga found in the north-west corner of the second prakara in Ekambaranatha Temple
+- Valleesvara is located to the east of Smasanesvara Shrine in the third prakara of Ekambaranatha Temple
+- Vishnuvesvara is found on the south side of the third prakara of the Ekambaranatha temple.
+- Vinduveesa temple is situated opposite the entrance (gopura) of the thousand-pillared mandapa in Ekambaranatha Temple.
+- Ramanathesvara is found in a small temple near the junction of Ekambaranatha Temple Sannıdhı street and Salaı street.
+- Jwaraharesvara, a temple of architectural beauty with a vimana of Pranava (Om) shape, is under the Protection and Preservation of Ancient Monuments Act and is situated in the eastern half of the Ekambaranatha Sannidhi Street
+- Tantonreesvara or Upamanyesvarar temple – situated in the eastern half of the Ekambaranatha Sannidhi street
+- Anantapadmanabhesvara found in Lingappier street
+- Seetesvara found on the south bank of Sarvateertham Tank
+- Lakshmanesvara on the bank of Sarvateetham Tank.
+- Mallikarajunesvar found on the south bank of Sarvateertham Tank
+- Teerthavara on the west bank of Sarvateertham Tank
+- Manmuttsevara found on the south bank of Sarvatteertham Tank
+- Hiranyesvar (Linga with 16 stripes) found on the west bank of Sarveteertham Tank
+- Kasi Visvanatha found on the west bank of Sarvateertham Tank (There is a Muktı Mandapa insıde)
+- Davalesvara on the west bank of Sarvateertham Tank
+- Gangadharesvara found on the west bank of Sarvateetham Tank
+- Javanteesvara found ınsıde Agrıcultural Farm near Pancupettai
+- Kankanesvar ın Chinna Kammala street
+- Katakesvara found ın Kammala street
+- Iravattanesvar ın Kammala street
+- Piravattanesvara (also known as Apunarabhavesvara) ıs sıtuated west of Vellaikulam (Tank)
+- Muktesvara(I) found in Kammala Street,
+- Edir Veerattanesvara in Kammala street,
+- Mahalingesvar found in Appa Rao Street,
+- Arunacalesvar on the south bank of Vellaikulam (tank)
+- Veerattanesvara on the east bank of Vellaikulam (tank) – associated with Chakkiya Nayanar
+- Rudrakoteesvara (I) is situated on the road to Konerikuppam off Railway level crossing
+- Bhutanathesvara is near Pukkadi Choultry
+Macchesvarar in East Rajaveethi
+- Mukesvara (II) was founded in East Rajaveethi, and built during the Pallava period.
+- Onesvara
+- Kantesvara
+- Jalandresvara Three separate Lingas, in three shrines inside the temple, known
+in Tevaram hymns as Onakantan Tali, situated north of the Sarvateertham Tank. There is also a shrine of Omkara Vinayaka inside the temple.
+- Anekapechura celebrated in Tevaram as Kacchi Anekatankavatam situated near
+Kailasanatha Temple, west of Putteri street,
+- Pascimesvara inside the temple Tirumerrali as noted in Sambandar’s Tevaram hymns, situated on Tırumerrali Street west of Pilliaıyarpalayam Street, Otteesvara also inside the temple ” Tirumerrali” as noted in Sambandar’s Tevaram hymns,
+sıtuated in Tirumerrali Street west of Pillaiyarpalayam Street,
+- Tirukkaleesvara (also known as Satyavratesvara) shrine inside a temple celebrated as Tirunerikkadu in Sambandar’s Tevaram near Kanchıpuram Railway Station
+- Abhiramesvara on the road from the bus stand to Kamakshi temple.
+- Nagaresvara located behind the bus stand
+- Matangesvara to the north of Hospital Road.
+- Harisapa- Bhayaharesvar ın Nellukaran Street,
+- Kacchapesvara is the temple at the junction of Nellukaran Street and West Rajaveethi -associated with the legend of the suppression of Vishnu’s pride in having borne the Mandara Mountain, used as a churning rod when the celestials and demons churned the ocean for obtaining nectar.
+- Ishtasiddheesvara in a separate shrine facing west, inside the temple of Srı Kacchapesvar
+- Amaresvara is found in a lane off West Rajaveethi, a temple of the Pallava period.
+- Iravatesvara is a small temple of Pallava times, in West Rajaveethi.
+- Mahasastesvar in West Rajaveethi- near Vanniyar Choultry
+Agasteesvar (II) is associated with the pilgrimage of Sage Agastya to the south (inside Upanishad Brahmendra Math), Kailasanathar Temple Road.
+Kailasanatha is enshrined in a large temple built mainly by Rajasimha Pallava and completed by his son. Noted for its sculptures, stuccos, and paintings.
+Kalahasteesvara in Tirumerrali street, Pillaiyarpalayam
+Anadi – Rudresvara in Nadu street, Pillaiyarpalayam.
+Dakshesvara in Kacchiyappan street, Pilliyarpalayam.
+Cholesvara (Vairavesvara) ın Chales’ varan Street, Pıllayarpalayam
+Maha Rudresvar in Madanampalayam Street, Pillayarpalayam
+Visvaksenesvara ın Ekamban street, Pıllayarpalayam.
+Ananda – Rudresvara in Chairman Swamınatha Mudalı Street, Pıllaiyarpalayam.
+Kayarohanesvara on the west bank of Vegavatı River ın Pillayarpalayam.
+Chidambaresvara to the east of Okkapirandian Tank, Pıllayarpalayam
+Rudrakoteesvara (II) in Pıllayarpalayam
+Mandakanessvara to the east of Okkapirandan tank, Pillayarpalayam
+Vanneesvara
+Saunuakesvara (also Kancheesvara) in Danappa naicken Street
+Senapateesvar linga is enshrined in a separate shrine, ınsıde Kumarakottam, ın West Rajaveethi
+Kausikesvara is enshrined in a temple constructed with granite stones, situated to the north-east of Kamakshi temple
+Maha Kalesvara near Kah Temple, west of Srı Kamakshı Temple
+Kannesvara ın Sengazhaneer Odai Street
+Mohineesvara
+Rudrakoteesvar (III) in Sengazhaneer Odai street
+Trikala Jnanesvara inside bus stand compound
+Siddhesvara in Kamarajar street
+Virupakshesvara at the back of Keeraimandapam ın Valatheesvaran koil street
+Valatheesvar near Kavalan gate – in Valatheesvaran Koil street
+Kanikandesvar in Karukkınil Amarandaval Koıl street
+Nagaresvara II in Mettu Street
+Indresvara Linga with 16 stripes- behind Kailasanatha temple.
+Mandalesvar (Mandanesvara) sıtuated in a garden in front of Narayana Ashram, near
+Kachapesvara Mada Veethi – (formally known as Mandana Mıshra Agraharam. This temple does not exist now).
+Jayantesvara Linga with 32 stripes, in the palm grove behind Kailsanatha temple
+Mallikarjunesvara (II) in the garden behind the church in Konerikuppam
+Mallikavanesvara in a flower garden, Konerikuppam
+Pancamukhesvara is situated on a mound by the side of Vellaikulam (Tank)
+Visvesvara in the outer prakara (Precinct) of Kamakshi temple.
+Adipateesvara is situated in a small shrine opposite Deepa-Prakas’a temple in Kanchipuram-1
+Phanadharesvara in Aladı Pıllayar Koıl Street, Kanchıpuram – 1
+Parasareavara inside a small temple at the end of Chetty Street, Gandhi Road, Kanchipuram-1
+Vazhakkarautteesvara inside a small temple at the end of Chetty Street, Gandhı Road, Kanchıpuram
+Mukteesvara III on Gandhı Road, Kanchipuram – 1. associated with the eternal bliss of Tirukkurippu Tona Nayanar.
+Garudesvara, Gandhı Road, Kanchipuram – 1.
+Vyasasantaleesvara in a small street opposite Tirukacchı Nambı Street, Little Kanchipuram
+associated with sage Vyasa having got freed from Nandikesvara’s curse, by worshipping Lord
+Siva at Kanchi; stucco images of Vyasa – one with two hands stretched above the head and the other hands got down.
+Vasishtesvara
+Manikantesvara inside a small temple in Tırukkacchı Nambi Street, Vıshnu Kanchıpuram.
+Vishakantesvara insıde a small temple ın Tırukkacchı Nambi Street, Vishnu Kanchıpuram.
+Punyakoteesvara in a temple southeast of Chetty Street, Vishnu Kanchipuram.
+Phanamaneevara in Ayyangapalayam, Vishnu Kanchipuram.
+Varadarajesvara situated west of Vegavati River on the road to Tenampakkam Village from Vıshnu Kanchıpuram.
+Kasyapesvara on the way to Pachayappas Women’s College, Vishnu Kanchipuram.
+Ateesvara inside the compound of Pachayappa’s Women’s College, Vishnu Kanchipuram.
+Tantonressvara (II) stands under an Asvatha tree in front of Vyasasantaleesvara temple in Vıshnu Kanchıpuram.
+Brahmapureesvara: This linga is enshrined in a small temple, on the road leading from Vıshnu Kanchi to the village of Tenampakkam (south of Vishnu Kanchi). The Vimana of the temple is of the apsidal type (Gajaprashta – in the shape of a lying elephant) of the early Chola period. On the inside surface of the back wall of the sanctum, (behind the Siva-linga), a sculptural panel with the figures of Srı Paramesvara, Parvati, and Ganapati (in between the two) and Sri Adi Sankara paying obeisance to the deities are seen.

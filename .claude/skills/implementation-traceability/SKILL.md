@@ -335,7 +335,21 @@ The primary output must be a traceability table with exactly these columns:
 
 |Intent	| Specification Reference	| Code Citation	| Finding	| Intent Met|
 
-Do not replace these columns with a different schema.
+Do not replace these columns with a different schema. The table has to be multiline. Use <br> to break sentences.
+
+A example output: 
+
+<!-- multiline -->
+| Intent | Specification Reference | Code Citation | Finding | Intent Met |
+|---|---|---|---|---|
+| SDK provides a stable contract between Platform Core and Elements developers | §1 Purpose | src/routes/seu/core/schemaRegistry.ts:61-108 | Each schema version, once created, is immutable; new versions are new rows. <br>Content authored against a version is checked against that exact version indefinitely. | Fully met |
+| Platform evolves through SDK extension rather than Runtime Kernel modification | §1 Purpose | src/domain/sdk/formGenerator.ts:15-283<br> src/routes/seu/core/schemaRegistry.ts | A new field on Pack/Template/Profile/etc. is added via a `schema_definitions` row with no code change, provided it reuses an existing widget type.<br> **A genuinely new widget type requires code changes to formGenerator.ts.** | Partially met |
+| SDK is the sole supported mechanism for creating production Schemas | §3 Architectural Position | src/routes/seu/core/schemaRegistry.ts:17 (kind registry)<br> src/routes/seu/core/sdkAuthoring.ts | All 7 registered kinds (Pack, Template, Profile, Deliverable, Service, Policy, Capability) are created only through this authoring path. <br>TransitionDefinition is authored through a separate `/authority` form, outside this registry. | Partially met |
+| SDK-001: every production Platform Element created via SDK | §5 SDK-001 | src/routes/seu/core/schemaRegistry.ts:17 | True for the 7 registered kinds. <br>TransitionDefinition is a documented exception, authored elsewhere. | Fully met |
+| SDK-002: SDK independent of Runtime Kernel implementation | §5 SDK-002 | src/domain/sdk/formGenerator.ts<br> src/routes/seu/core/sdkAuthoring.ts | Validators and generators operate on plain JSON; they call transitionEngine/compositionEngine as consumers but do not alter kernel behavior. | Fully met |
+| SDK-003: SDK outputs deterministic | §5 SDK-003 | src/routes/seu/core/schemaRegistry.ts:61-108 | Validation and schema-version comparison are pure functions over input plus DB state, deterministic. <br>**No packaging step exists to evaluate determinism against** (see Packaging intents below). | Partially met |
+
+Refer design/implementation/Chapter_39_SDK_Architecture_Traceability.md for a completed work. 
 
 ## Intent
 
@@ -558,7 +572,7 @@ Do **not** modify application source code while performing this analysis.
 
 Do **not** modify the specification file while performing this analysis. 
 
-Write the analysis in the output folder design/implementation. Do not dump the analysis in the conversation. The conversation should not report the agent's workings or summary. Operate in a muted mode. Only report task completion. 
+Write the analysis in the output folder design/implementation. Do not dump the analysis in the conversation. The conversation should not report the agent's workings or summary. Operate in a muted mode. Only report task completion.
 
 Do not modify application source code while performing this analysis unless the user explicitly asks for implementation changes.
 

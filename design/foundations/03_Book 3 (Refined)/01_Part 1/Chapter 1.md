@@ -22,10 +22,10 @@ This chapter defines:
 
 This chapter does not define:
 
-- Template selection or validation logic (Chapter 6)
-- Capability definitions (Chapter 10)
-- Pack composition mechanics (Chapter 4)
-- Commissioning workflow (Chapter 8)
+- Template selection or validation logic  
+- Capability definitions  
+- Pack composition mechanics  
+- Commissioning workflow  
  
 
 ## 3. Architectural Position
@@ -184,6 +184,8 @@ An Operational Objective may decompose into one or more Engineering Objectives.
 Decomposition shall preserve traceability to the parent Objective.
 
 Decomposition does not create new intent. It refines existing intent into a more specific, boundable form.
+
+*[Broader scope: Decomposition permits tier-skipping. Strategic objectives can have Engineering objectives skipping the Operational tier]*
 
 ## 10. Deriving Required Capabilities
 
