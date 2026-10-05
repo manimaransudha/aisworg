@@ -149,6 +149,11 @@ export async function transitionCapabilityDefinition(input: { capabilityDefiniti
     payload: { fromState, toState: input.targetState, code: updated.code },
     actorId: input.actorId,
     authorityBadge: gate.authorityBadge ?? "root",
+    // CR-117
+    versionEvent: gate.versionEvent,
+    fromState,
+    toState: input.targetState,
+    tenantId: updated.tenant_id,
   });
   return { ok: true, capabilityDefinition: updated };
 }

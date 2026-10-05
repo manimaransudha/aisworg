@@ -29,6 +29,7 @@ import { router as reviewsRouter } from "./reviews.js";
 import { router as complianceRouter } from "./compliance.js";
 import { router as devActAsRouter } from "./devActAs.js";
 import { router as eventsRouter } from "./events.js";
+import { router as versionEventsRouter } from "./versionEvents.js";
 import { router as dataMigrationsRouter } from "./dataMigrations.js";
 
 router.use(dashboardRouter);
@@ -57,6 +58,7 @@ router.use(reviewsRouter);
 router.use(complianceRouter);
 router.use(devActAsRouter);
 router.use(eventsRouter);
+router.use(versionEventsRouter);
 router.use(dataMigrationsRouter);
 
 export { router };

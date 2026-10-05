@@ -716,6 +716,13 @@ export async function transitionEbm(input: { ebmId: string; targetState: string;
     payload: { fromState, toState: input.targetState },
     actorId: input.actorId,
     authorityBadge: gate.authorityBadge ?? "root",
+    // CR-117 — gate.versionEvent is null for every EBM hop today (see
+    // comment above: versioning is EBMVersioned's own, separate concern),
+    // wired through anyway so a future version_event on this row is picked
+    // up without another code change.
+    versionEvent: gate.versionEvent,
+    fromState,
+    toState: input.targetState,
   });
 
   // Activate is the one transition with a real consequence beyond the EBM's

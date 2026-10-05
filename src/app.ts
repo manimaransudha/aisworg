@@ -242,6 +242,7 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
                 { method: "GET", path: "/aisworg/seu/sdk/ontology/metadata" },
                 { method: "GET", path: "/aisworg/seu/identity" },
                 { method: "GET", path: "/aisworg/seu/events" },
+                { method: "GET", path: "/aisworg/seu/version-events" },
                 { method: "GET", path: "/aisworg/seu/tenant-admin/users" },
                 { method: "GET", path: "/aisworg/seu/data-migrations" },
             ]);

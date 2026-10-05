@@ -81,6 +81,7 @@ const USAGE_DATA_TABLES = [
   "work_items",
   "commands",
   "events",
+  "version_events",
   "external_interactions",
   "attention_items",
   "decisions",

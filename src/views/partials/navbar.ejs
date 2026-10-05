@@ -384,6 +384,11 @@
                 <i class="bi bi-broadcast me-2"></i>Event Bus
               </a></li>
               <% } %>
+              <% if (_navRouteVisible['GET /aisworg/seu/version-events']) { %>
+              <li><a class="dropdown-item <%= currentPage === 'seu-version-events' ? 'active' : '' %>" href="/aisworg/seu/version-events">
+                <i class="bi bi-clock-history me-2"></i>Version Replay
+              </a></li>
+              <% } %>
               <% if (_navRouteVisible['GET /aisworg/seu/data-migrations']) { %>
               <li><a class="dropdown-item <%= currentPage === 'seu-data-migrations' ? 'active' : '' %>" href="/aisworg/seu/data-migrations">
                 <i class="bi bi-database-gear me-2"></i>Data Migrations

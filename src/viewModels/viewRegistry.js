@@ -47,6 +47,7 @@ import {seu_workqueue_indexVM} from "./seu_workqueue_index.js";
 import {seu_reviews_indexVM} from "./seu_reviews_index.js";
 import {seu_compliance_indexVM} from "./seu_compliance_index.js";
 import {seu_events_indexVM} from "./seu_events_index.js";
+import {seu_versionEvents_indexVM} from "./seu_versionEvents_index.js";
 import {seu_data_migrations_indexVM} from "./seu_data_migrations_index.js";
 
 // export const viewModels = {
@@ -104,5 +105,6 @@ export const viewModels = {
   "seu/workqueue/index": seu_workqueue_indexVM,
   "seu/reviews/index": seu_reviews_indexVM,
   "seu/compliance/index": seu_compliance_indexVM,
-  "seu/events/index": seu_events_indexVM
+  "seu/events/index": seu_events_indexVM,
+  "seu/versionEvents/index": seu_versionEvents_indexVM
 };

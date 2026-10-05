@@ -1189,6 +1189,11 @@ export async function transitionObjective(input: { objectiveId: string; targetSt
     payload: { fromState, toState: input.targetState },
     actorId: input.actorId,
     authorityBadge: gate.authorityBadge ?? "root",
+    // CR-117
+    versionEvent: gate.versionEvent,
+    fromState,
+    toState: input.targetState,
+    tenantId: objective.sponsoring_authority?.tenant ?? null,
   });
 
   return { ok: true, objective: updated, appliedTransition: { fromState, toState: input.targetState } };

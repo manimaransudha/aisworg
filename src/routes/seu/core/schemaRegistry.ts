@@ -135,6 +135,11 @@ async function autoAdvanceToPackaged(schema: SchemaDefinitionRow, actorId: strin
       payload: { entityKind: current.entity_kind, version: current.version, fromState: from, toState: to },
       actorId,
       authorityBadge: gate.authorityBadge ?? "root",
+      // CR-117 — SchemaDefinition is platform-wide, root-only, not tenant-scoped.
+      versionEvent: gate.versionEvent,
+      fromState: from,
+      toState: to,
+      tenantId: null,
     });
   }
   return current;
@@ -200,6 +205,11 @@ async function transitionPackagedSchema(id: string, toState: "Published" | "Publ
     payload: { entityKind: updated.entity_kind, version: updated.version, fromState: "Packaged", toState },
     actorId,
     authorityBadge: gate.authorityBadge,
+    // CR-117
+    versionEvent: gate.versionEvent,
+    fromState: "Packaged",
+    toState,
+    tenantId: null,
   });
 
   return { ok: true, schema: updated };

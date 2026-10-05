@@ -1032,6 +1032,15 @@
   },
   {
     "method": "GET",
+    "path": "/aisworg/seu/version-events",
+    "badges": [],
+    "roles": [
+      "superuser"
+    ],
+    "match_mode": "all"
+  },
+  {
+    "method": "GET",
     "path": "/aisworg/seu/identity",
     "badges": [
       "root"

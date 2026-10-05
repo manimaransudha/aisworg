@@ -1193,6 +1193,11 @@ export async function transitionPack(input: { packId: string; targetState: strin
     payload: { fromState, toState: input.targetState, code: pack.code, packVersion: pack.pack_version },
     actorId: input.actorId,
     authorityBadge: gate.authorityBadge ?? "root",
+    // CR-117
+    versionEvent: gate.versionEvent,
+    fromState,
+    toState: input.targetState,
+    tenantId: pack.tenant_id,
   });
 
   return { ok: true, pack: updated, appliedTransition: { fromState, toState: input.targetState } };

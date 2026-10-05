@@ -2,7 +2,7 @@
 
 **Raised:** 2026-10-05 · **Origin:** Chapter_41_Version_Management_Architecture_Traceability.md intent-level re-check — §18's "Version events" deliverable was found inert: `transition_definitions.version_event` is a classification label (`VersionCreated`/`VersionPublished`/etc.) that is never passed to `eventBus.publish`; the real domain event (`gate.eventType`) is published instead, and `gate.versionEvent` is discarded by every caller. `§12` (Historical Reconstruction) and §18's "Version APIs" were also open gaps with no mechanism.
 
-**Status:** 🟡 Raised — design in progress
+**Status:** 🟢 Built — 2026-10-05
 
 **This is the whiteboard for this CR. Do not post anything on the conversation. No subagents are allowed**
 
@@ -26,12 +26,23 @@ Not a second `eventBus.publish` call — a new table that indexes the real event
 
 ## Settled (2026-10-05, resolving prior open items)
 
-- **Schema file**: `src/dblayer/recovery/version_events_schema_recovery.sql`, columns: `id`, `event_id` (FK `events(id)`), `tenant_id`, `entity_type`, `entity_id`, `from_state`, `to_state`, `version_event`, `occurred_at`, `actor_id`, `authority_badge`.
-- **Tenant scoping**: `tenant_id` is a real column, not derived via join. `PublishInput` gains an optional `tenantId` alongside `versionEvent`/`fromState`/`toState` — the call site already has it (every `transitionX` resolves tenant for its own `requireTenantScope` check) and passes it straight through to `publish()`, which writes it onto the `version_events` row.
+- **Schema file**: `src/dblayer/recovery/version_events_schema_recovery.sql`, columns: `id`, `event_id` (FK `events(id)`), `tenant_id`, `entity_type`, `entity_id`, `from_state`, `to_state`, `version_event`, `occurred_at`, `actor_id` (UUID, FK `participants_master(id)`), `authority_badge`.
+- **Tenant scoping**: `tenant_id` is a real column, not derived via join, and **`NOT NULL`** on the table (owner correction, 2026-10-05) — same for `actor_id` (also `UUID NOT NULL REFERENCES participants_master(id)`, not `TEXT`). `PublishInput` gains an optional `tenantId` alongside `versionEvent`/`fromState`/`toState`; when `versionEvent` is given but `tenantId` is missing, `eventBus.publish()` throws rather than falling back to `null` — no `?? null` anywhere on this write path, and `versionEventsDB.insert`'s own `tenantId`/`actorId` parameter types and `VersionEventRow.tenant_id`/`actor_id` are plain `string`, not `string | null`. A versioned transition for a platform-global entity (Ontology, SchemaDefinition) with no real tenant simply never gets a `version_events` row today, since neither carries a real `version_event` yet — if either ever does, that call site will need a real `tenantId` resolved, not a `null` placeholder.
 - **Write path**: lives entirely in `eventBus.publish()` (src/domain/engine/eventBus.ts) per the design above — not duplicated at each `transitionX` call site. Call sites only add the three new optional fields to their existing `publish(...)` call.
 - **Scope of this CR**: reconstruction reader + Version Replay page/route are built in the same CR as the table + write path, not split off.
 - **Fixtures**: no test fixture updates required for this CR — verification is manual, via the Version Replay page, not asserted in the automated suite.
 
-## Determine at build time 
+## Built (2026-10-05)
 
-- `route_authority` row(s) for the new Version Replay route go in `src/dblayer/seed/data/routeAuthority.json` (CR-110 — every new route needs one in the same build pass; `pnpm db:clean-slate` repopulates it from this file, not a manual/migration insert).
+- `src/dblayer/recovery/version_events_schema_recovery.sql` — new `version_events` table (`event_id` FK `events(id)`, `tenant_id`, `entity_type`, `entity_id`, `from_state`, `to_state`, `version_event`, `occurred_at`, `actor_id` UUID FK `participants_master(id)`, `authority_badge`). **Not yet applied against any live DB by this change** — per CLAUDE.md, schema recovery SQL is run by the user directly, not by Claude.
+- `VersionEventRow` (seuTypes.ts), `src/dblayer/versionEventsDB.ts` (`insert`/`findByEntity`/`findPage`).
+- `eventBus.ts`: `PublishInput` gained optional `versionEvent`/`fromState`/`toState`/`tenantId`. `publish()` itself inserts one `version_events` row (keyed to the just-published event's real id) when `versionEvent` is non-null — no second publish, one codepath owns the write.
+- Every existing `transitionX` call site whose entity actually carries a `version_event` classification now passes it through on its existing `publish(...)` call: `transitionObjective`, `transitionPack`, `transitionTemplate`, `transitionProfile`, `transitionServiceDefinition`, `transitionCapabilityDefinition`, `transitionPolicyDefinition`, the Ontology concept transition (`tenantId: null` — platform-global), both SchemaDefinition hops (`tenantId: null` — platform-wide, root-only), and `transitionEbm` (wired through for when a future `version_event` lands on an EBM row; today it's always null per the existing comment in that function). Evidence/Knowledge/Decision/Obligation left untouched — their `transition_definitions` rows carry no `version_event` (they aren't Ch.41 §7 versioned artefacts); SEU's own lifecycle hops are the pre-existing "partial" gap, unchanged by this CR.
+- **Version Replay page** (§18 "Version APIs" + §12 reconstruction reader): `core/versionEvents.ts` (`getVersionEventsPage`, `getVersionReplay`), `web/versionEvents.ts` (`GET /aisworg/seu/version-events`, filterable by entityType/entityId/versionEvent/tenantId, sortable, paginated — modeled on CR-074's `web/events.ts`), registered in `web/index.ts`. View: `views/seu/versionEvents/index.ejs` + `seu_versionEvents_indexVM` (viewRegistry.js). Navbar entry + `attachVM.js` activePage branch added.
+- `route_authority` row for `GET /aisworg/seu/version-events` (superuser only, same as Event Bus) added to `src/dblayer/seed/data/routeAuthority.json`; nav-visibility entry added to `app.ts`'s route list alongside `/aisworg/seu/events`.
+- `npx tsc --noEmit` run clean across the whole project after these changes.
+
+## Still open
+
+- The schema recovery SQL file is written but not applied — the user needs to run it against the live DB (and `pnpm db:clean-slate` for the new `route_authority` row) before `/aisworg/seu/version-events` or any new transition on a versioned entity will work.
+- No test fixture updates were made (per the earlier "Fixtures: not required" decision — verification is manual via the Version Replay page).

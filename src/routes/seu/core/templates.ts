@@ -984,6 +984,11 @@ export async function transitionTemplate(input: { templateId: string; targetStat
     payload: { fromState, toState: input.targetState, code: template.code },
     actorId: input.actorId,
     authorityBadge: gate.authorityBadge ?? "root",
+    // CR-117
+    versionEvent: gate.versionEvent,
+    fromState,
+    toState: input.targetState,
+    tenantId: template.tenant_id,
   });
   return { ok: true, template: updated };
 }

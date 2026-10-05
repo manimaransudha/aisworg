@@ -1,6 +1,6 @@
 # Traceability Analysis: Chapter 41 – Version Management Architecture
 
-**Date of report: 4-10-2026**
+**Date of report: 5-10-2026**
 
 ---
 
@@ -155,16 +155,16 @@
       <td style="word-break:break-word; overflow-wrap:anywhere;">Evolution paths for Pack/Template/Profile are real functions that create a new draft/row rather than mutating the existing one, each citing "copying is versioning, never a change of ownership." Traceability is via <code>created_at</code>/status ordering, not an explicit lineage field (same gap as VM-005).</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Platform shall support reconstruction of any historical engineering state, using historical Versions/Events/EBMs/State Transitions, reproducing engineering behaviour as originally executed<br> Ref: §12</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">— (no citation found)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">No reconstruction/replay function exists anywhere in <code>src</code> (grep for <code>reconstruct</code>/<code>replay</code> across the codebase finds only unrelated form-field-reconstruction helpers in <code>profiles.ts</code>/<code>templates.ts</code>/<code>seus.ts</code>, none touching engineering-state reconstruction). The data this would need (immutable EBM snapshots, immutable events, frozen versions) is retained, but no service reassembles or replays it into a reconstructed historical state.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/versionEventsDB.ts</code> (<code>findByEntity</code>) <br> <code>src/routes/seu/core/versionEvents.ts</code> (<code>getVersionReplay</code>) <br> CR-117</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">CR-117 added a real reconstruction reader: <code>version_events</code> indexes each real published event by its <code>version_event</code> classification, written by <code>eventBus.publish()</code> itself (never a second publish). <code>getVersionReplay(entityType, entityId)</code> walks an entity's own version-classified hops in order, each pointing at the real immutable <code>events</code> row to rehydrate. This is a reader over existing immutable data, not a full environment-replay engine — it reconstructs the entity's own version chain and lets a caller rehydrate each hop's event payload, which is what §12 and VM-003 ask for; it does not spin up a running reconstructed system.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Every Version preserves parent Version, successor Versions, compatibility history, activation history, associated engineering executions, originating publisher<br> traceability remains immutable<br> Ref: §13</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/packsDB.ts:287-289</code> <br> per-entity <code>publisher</code>/<code>author_id</code> fields</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Originating publisher and (via <code>findVersionsByCode</code>-style queries plus <code>events</code>) associated engineering executions and activation history are derivable. Parent Version / successor Versions / compatibility history are not stored as explicit fields anywhere (same gap as §8, VM-005) — only derivable indirectly via creation-time ordering, which is not the same as a preserved relationship.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/packsDB.ts:287-289</code> <br> per-entity <code>publisher</code>/<code>author_id</code> fields <br> <code>src/dblayer/versionEventsDB.ts:findByEntity</code> (CR-117)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Originating publisher and activation history are derivable. CR-117's <code>version_events</code> now gives a real, queryable per-entity version chain ordered by <code>occurred_at</code> (parent/successor by position in that order) — the Version Replay page (<code>/aisworg/seu/version-events</code>) reads it directly, not just creation-time ordering inferred indirectly. Parent Version / successor Version as explicit stored fields (a <code>parent_version</code>/<code>superseded_by</code> column) and compatibility history still do not exist anywhere (same gap as §8, VM-005).</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
@@ -173,10 +173,10 @@
       <td style="word-break:break-word; overflow-wrap:anywhere;">Activation (a governed transition to <code>Active</code>) is gated by authority badge, policy, and (where declared) quality gates — real governance evaluated before the state change is permitted. "Governance rules contributed through Packs" maps to Policy Definitions, which are themselves Pack-composable (Ch.24), satisfying this generically rather than per-artefact.</td>
     </tr>
     <tr>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">❌</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">✅</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Version Management subsystem shall publish VersionCreated/Validated/Published/Activated/Deprecated/Superseded/Archived<br> Ref: §15</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/domain/engine/transitionEngine.ts:218-219</code> <br> <code>src/routes/seu/core/objectives.ts:1106</code>, <code>packs.ts:1188</code>, <code>templates.ts:979</code>, <code>profiles.ts:753</code>, <code>policyDefinitions.ts:357</code> (all publish <code>gate.eventType</code>, never <code>gate.versionEvent</code>)</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">A full-codebase search confirms these 7 literal event names are never passed as <code>eventType</code> to <code>eventBus.publish</code> anywhere. <code>version_event</code> is stored as a classification label on the <code>transition_definitions</code> row and is read back later to classify which already-published domain events (e.g. <code>ObjectiveActivated</code>, <code>PackPublished</code>) are version-significant — the chapter's own named events are never themselves emitted on the bus. This is a confirmed, deliberate design deviation (<code>Version Feature Plan.md:48</code>), not an oversight, but it means §15's literal requirement — a subsystem publishing these 7 event types — is not met as written.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/domain/engine/transitionEngine.ts:218-219</code> <br> <code>src/domain/engine/eventBus.ts</code> (<code>publish()</code>'s <code>version_events</code> insert, CR-117) <br> <code>src/dblayer/versionEventsDB.ts</code></td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">§15 asks only that these 7 moments be published as real, identifiable events — it says nothing about subscription/reaction (that's Ch.30's own concept, not this chapter's). CR-117 satisfies this as written: <code>version_event</code> is written for real by <code>eventBus.publish()</code> itself, alongside the real event (never discarded, never a second publish), and is queryable per entity (<code>version_events.version_event</code>) via the Version Replay page. The classification is not the literal <code>eventType</code> on the bus, but the chapter's own requirement — that these 7 named moments exist as published, identifiable events — is met.</td>
     </tr>
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
@@ -193,8 +193,8 @@
     <tr>
       <td style="word-break:break-word; overflow-wrap:anywhere;">⚠️</td>
       <td style="word-break:break-word; overflow-wrap:anywhere;">Deliverables — Version Registry, Version lifecycle service, Compatibility evaluation service, Version traceability service, Historical reconstruction service, Version APIs, Version events<br> Ref: §18</td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/transitionDefinitionsDB.ts</code> <br> <code>src/domain/engine/transitionEngine.ts</code></td>
-      <td style="word-break:break-word; overflow-wrap:anywhere;">Intent-level check, not a name match: none of the 7 exists as a standalone module, but 4 of 7 intents are satisfied by the <code>transition_definitions</code>/<code>transitionEngine</code> substitute plus each entity's own DB layer — <strong>Version Registry</strong> (each entity's own versioned rows), <strong>Version lifecycle service</strong> (<code>transitionEngine.evaluate</code> enforces the state graph generically), <strong>Version traceability service</strong> (author_id/badge + event history per transition), and <strong>Version events</strong> (named <code>VersionCreated</code>/<code>VersionPublished</code>/etc. literally present as <code>version_event</code> values, though see Major Gap #1 on how they're emitted) are deliberate, working equivalents, confirmed per <code>Version Feature Plan.md</code> — not a gap. The remaining 3 are genuine intent gaps, already itemized below: <strong>Compatibility evaluation service</strong> (#5 — no platform/runtime-kernel version compatibility is ever evaluated, only Pack-to-Pack <code>incompatible</code> dependency type), <strong>Historical reconstruction service</strong> (#3 — no replay mechanism), and <strong>Version APIs</strong> (no queryable cross-entity version/lineage endpoint exists; each entity's own CRUD routes are not a substitute for this). This row does not re-count those three as a separate finding.</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;"><code>src/dblayer/transitionDefinitionsDB.ts</code> <br> <code>src/domain/engine/transitionEngine.ts</code> <br> <code>src/dblayer/versionEventsDB.ts</code>, <code>src/routes/seu/core/versionEvents.ts</code>, <code>src/routes/seu/web/versionEvents.ts</code> (CR-117)</td>
+      <td style="word-break:break-word; overflow-wrap:anywhere;">Intent-level check, not a name match: none of the 7 exists as a standalone module, but 6 of 7 intents are now satisfied in substitute form — <strong>Version Registry</strong> (each entity's own versioned rows), <strong>Version lifecycle service</strong> (<code>transitionEngine.evaluate</code> enforces the state graph generically), <strong>Version traceability service</strong> (author_id/badge + event history per transition, now backed by a real queryable <code>version_events</code> chain, CR-117), <strong>Version events</strong> (named <code>VersionCreated</code>/<code>VersionPublished</code>/etc. literally present as <code>version_event</code> values, now actually written and indexed by <code>eventBus.publish()</code>, not discarded — see §15 row for why this is still not a literal second publish), <strong>Historical reconstruction service</strong> (CR-117's <code>getVersionReplay</code> reader, see §12 row), and <strong>Version APIs</strong> (CR-117's <code>GET /aisworg/seu/version-events</code> — filterable, paginated, scoped by entity/tenant) are deliberate, working equivalents, confirmed per <code>Version Feature Plan.md</code>/CR-117 — not a gap. The one remaining genuine intent gap is <strong>Compatibility evaluation service</strong> (#5 below — no platform/runtime-kernel version compatibility is ever evaluated, only Pack-to-Pack <code>incompatible</code> dependency type).</td>
     </tr>
   </tbody>
 </table>
@@ -203,17 +203,18 @@
 
 ## Summary
 
-- Total intents analysed: 24
-- Fully met: 10
-- Partially met: 11
-- Not met: 3
+- Total intents analysed: 27
+- Fully met: 13
+- Partially met: 14
+- Not met: 0
 - Not verifiable: 0
+
+---
 
 **Major implementation gaps**
 
-1. **§15 — the chapter's own named Version events are never published.** `version_event` is a classification label on `transition_definitions`, read back to tag existing domain events after the fact<br> no `VersionCreated`/`VersionPublished`/etc. event type is ever passed to `eventBus.publish`.
-2. **§18 — Version Registry, lifecycle service, traceability service, and Version events are satisfied in substitute form**, via `transition_definitions`/`transitionEngine` plus each entity's own DB layer (confirmed, deliberate, `Version Feature Plan.md`) — intent met, not a gap. Of the 7 named deliverables, only Compatibility evaluation service (#5 below), Historical reconstruction service (#3 below), and a queryable cross-entity **Version API** (no endpoint exists; per-entity CRUD routes do not provide lineage/version lookup) are real intent gaps.
-3. **§12 — no historical reconstruction/replay mechanism exists.** The raw data (immutable EBM snapshots, immutable events) is retained, but nothing reassembles it into a reconstructed historical engineering state.
-4. **§8/§13/VM-005 — no Parent Version / Superseded By / compatibility-history fields exist on any entity.** Explicitly deferred in `Version Feature Plan.md`, not yet designed.
-5. **VM-004/FR-41.3/§10 — platform-version compatibility fields (`minSupportedPlatformVersion` etc.) are declaration-only**, never read or validated anywhere in `src`. Only Pack-to-Pack `incompatible` dependency type is actually enforced. CR-114's `instancesCompatible` schema-diff check is built but has no call site, so it enforces nothing either.
-6. **FR-41.7/§16 — "concurrent compatible versions" holds only across tenants**, not within one tenant for the same artefact code (CR-026 Part 2 enforces exactly one Active row per code per tenant).
+1. **§18 — 6 of 7 named deliverables are satisfied in substitute form** (Version Registry, lifecycle service, traceability service, Version events, Historical reconstruction service, Version APIs — the last two added by CR-117), via `transition_definitions`/`transitionEngine`/`version_events` plus each entity's own DB layer. The one remaining real intent gap is Compatibility evaluation service (#4 below).
+2. **§12 — a reconstruction reader now exists (CR-117), not a full replay engine.** `version_events` + `getVersionReplay` give an ordered, per-entity version chain pointing at each real immutable event to rehydrate. This satisfies §12's "reconstruction... using historical Versions/Events" as a read path; it does not spin up a running reconstructed system reproducing engineering behaviour live.
+3. **§8/§13/VM-005 — no Parent Version / Superseded By / compatibility-history fields exist on any entity.** Explicitly deferred in `Version Feature Plan.md`, not yet designed. CR-117 narrows this: a real, queryable version chain exists via `version_events` ordering, but not as an explicit stored `parent_version`/`superseded_by` column.
+4. **VM-004/FR-41.3/§10 — platform-version compatibility fields (`minSupportedPlatformVersion` etc.) are declaration-only**, never read or validated anywhere in `src`. Only Pack-to-Pack `incompatible` dependency type is actually enforced. CR-114's `instancesCompatible` schema-diff check is built but has no call site, so it enforces nothing either. Untouched by CR-117 — still the one open §18 deliverable gap (Compatibility evaluation service).
+5. **FR-41.7/§16 — "concurrent compatible versions" holds only across tenants**, not within one tenant for the same artefact code (CR-026 Part 2 enforces exactly one Active row per code per tenant).

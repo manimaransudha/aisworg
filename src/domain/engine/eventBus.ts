@@ -15,6 +15,7 @@
 // (eventHandlerRegistry.ts) — a database row can't hold executable code.
 import { randomUUID } from "node:crypto";
 import { eventsDB } from "../../dblayer/eventsDB.js";
+import { versionEventsDB } from "../../dblayer/versionEventsDB.js";
 import { logger } from "../../utils/logger.js";
 import { HANDLER_REGISTRY } from "./eventHandlerRegistry.js";
 import type { EventConsumptionEntry, EventRow } from "../../dblayer/seuTypes.js";
@@ -46,6 +47,16 @@ export interface PublishInput {
   // and badge "system", never an omitted/null actor.
   actorId: string;
   authorityBadge: string;
+  // CR-117 (Ch.41 §12/§13/§15/§18) — the resolved Transition Definition's
+  // own version_event classification (transitionEngine.evaluate's
+  // gate.versionEvent), plus the hop's fromState/toState and the acting
+  // tenant. Omitted/null for a pure Revision (Version Feature Plan.md) —
+  // publish() then writes no version_events row at all. Never a second
+  // eventBus.publish call: the real event published above is reused by id.
+  versionEvent?: string | null;
+  fromState?: string | null;
+  toState?: string | null;
+  tenantId?: string | null;
 }
 
 // Ch.30 §9 — the Consume stage, standalone and independently awaitable (not
@@ -101,6 +112,32 @@ export const eventBus = {
     if (error || !event) throw error ?? new Error(`failed to publish event ${input.eventType}`);
 
     console.log(`[eventBus] published '${input.eventType}' (${event.id}) seuId=${input.seuId ?? ""} originatingObjectId=${input.originatingObjectId ?? ""} at t=${Date.now()} — ${handlers.length} handler(s): ${handlers.map((h) => h.name).join(", ") || "none"}`);
+
+    // CR-117 — one codepath owns the version_events write; no per-call-site
+    // insert, no drift if a transition_definitions row's version_event is
+    // edited later (this always reads it fresh off the input, not cached).
+    // tenant_id/actor_id are NOT NULL on version_events — no `?? null`
+    // fallback here: a versioned transition with no real tenant to record is
+    // a bug to surface, not paper over.
+    if (input.versionEvent) {
+      if (!input.tenantId) throw new Error(`eventBus.publish: versionEvent '${input.versionEvent}' given for ${input.originatingObjectType} ${input.originatingObjectId} but no tenantId — version_events.tenant_id is NOT NULL`);
+      const { error: versionEventError } = await versionEventsDB.insert({
+        eventId: event.id,
+        tenantId: input.tenantId,
+        entityType: input.originatingObjectType,
+        entityId: input.originatingObjectId,
+        fromState: input.fromState ?? null,
+        toState: input.toState ?? null,
+        versionEvent: input.versionEvent,
+        occurredAt: event.occurred_at,
+        actorId: event.actor_id,
+        authorityBadge: event.authority_badge,
+      });
+      if (versionEventError) {
+        logger.error(`[eventBus] version_events insert failed for event ${event.id} (${event.event_type})`, versionEventError);
+      }
+    }
+
     if (handlers.length > 0) {
       dispatch(event, handlers).catch((err) => {
         logger.error(`[eventBus] dispatch failed for event ${event.id} (${event.event_type})`, err as Error);

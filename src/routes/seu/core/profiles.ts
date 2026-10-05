@@ -758,6 +758,11 @@ export async function transitionProfile(input: { profileId: string; targetState:
     payload: { fromState, toState: input.targetState, code: profile.code },
     actorId: input.actorId,
     authorityBadge: gate.authorityBadge ?? "root",
+    // CR-117
+    versionEvent: gate.versionEvent,
+    fromState,
+    toState: input.targetState,
+    tenantId: profile.tenant_id,
   });
   return { ok: true, profile: updated };
 }

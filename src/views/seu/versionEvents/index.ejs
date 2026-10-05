@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('../../partials/head') %>
+  <style>
+    .version-event-badge { font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 6px; background: #ecfdf5; color: #065f46; }
+    .mono { font-family: var(--bs-font-monospace, monospace); font-size: 0.78rem; }
+  </style>
+</head>
+<body>
+  <header><%- include('../../partials/navbar') %></header>
+
+  <main class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h2 class="h3 mb-1 text-dark fw-bold">Version Replay</h2>
+        <p class="text-muted small mb-0">Ch.41 §12/§13/§18 — the real <code>version_events</code> table: each row indexes a real published event by its Transition Definition's <code>version_event</code> classification (CR-117). The per-entity chain below, ordered by occurrence, is the historical reconstruction/traceability read.</p>
+      </div>
+    </div>
+
+    <form method="GET" action="/aisworg/seu/version-events" class="card border-0 shadow-sm p-3 mb-4 d-flex flex-row flex-wrap gap-2 align-items-end">
+      <div>
+        <label class="form-label small mb-1">Entity type</label>
+        <input type="text" name="entityType" class="form-control form-control-sm" style="width: 12rem;" value="<%= filters.entityType %>" placeholder="e.g. Pack">
+      </div>
+      <div>
+        <label class="form-label small mb-1">Entity id</label>
+        <input type="text" name="entityId" class="form-control form-control-sm mono" style="width: 18rem;" value="<%= filters.entityId %>" placeholder="uuid">
+      </div>
+      <div>
+        <label class="form-label small mb-1">Version event</label>
+        <input type="text" name="versionEvent" class="form-control form-control-sm" style="width: 12rem;" value="<%= filters.versionEvent %>" placeholder="e.g. VersionActivated">
+      </div>
+      <div>
+        <label class="form-label small mb-1">Tenant id</label>
+        <input type="text" name="tenantId" class="form-control form-control-sm mono" style="width: 18rem;" value="<%= filters.tenantId %>" placeholder="uuid">
+      </div>
+      <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+      <% if (filters.entityType || filters.entityId || filters.versionEvent || filters.tenantId) { %>
+        <a href="/aisworg/seu/version-events" class="btn btn-sm btn-link text-muted">Clear</a>
+      <% } %>
+    </form>
+
+    <div class="d-flex justify-content-between align-items-center mb-2 small text-muted">
+      <span><%= list.total === 0 ? 0 : ((list.page - 1) * list.pageSize) + 1 %>&ndash;<%= Math.min(list.page * list.pageSize, list.total) %> of <%= list.total %></span>
+      <%
+        function _qs(overrides) {
+          const qs = new URLSearchParams();
+          const entityType = overrides.entityType !== undefined ? overrides.entityType : filters.entityType;
+          const entityId = overrides.entityId !== undefined ? overrides.entityId : filters.entityId;
+          const versionEvent = overrides.versionEvent !== undefined ? overrides.versionEvent : filters.versionEvent;
+          const tenantId = overrides.tenantId !== undefined ? overrides.tenantId : filters.tenantId;
+          const sort = overrides.sort !== undefined ? overrides.sort : list.sort;
+          const dir = overrides.dir !== undefined ? overrides.dir : list.dir;
+          const page = overrides.page !== undefined ? overrides.page : list.page;
+          if (entityType) qs.set('entityType', entityType);
+          if (entityId) qs.set('entityId', entityId);
+          if (versionEvent) qs.set('versionEvent', versionEvent);
+          if (tenantId) qs.set('tenantId', tenantId);
+          if (sort) qs.set('sort', sort);
+          if (dir) qs.set('dir', dir);
+          if (page && Number(page) > 1) qs.set('page', String(page));
+          return '/aisworg/seu/version-events?' + qs.toString();
+        }
+        function _pageHref(p) { return _qs({ page: p }); }
+        function _sortLink(label, key) {
+          const active = list.sort === key;
+          const nextDir = active && list.dir === 'asc' ? 'desc' : 'asc';
+          const arrow = active ? (list.dir === 'asc' ? ' ▲' : ' ▼') : '';
+          return '<a href="' + _qs({ sort: key, dir: nextDir, page: 1 }) + '" class="text-decoration-none text-reset">' + label + arrow + '</a>';
+        }
+      %>
+      <div class="btn-group btn-group-sm" role="group">
+        <a class="btn btn-outline-secondary <%= list.page <= 1 ? 'disabled' : '' %>" href="<%= list.page > 1 ? _pageHref(list.page - 1) : '#' %>"><i class="bi bi-chevron-left"></i></a>
+        <span class="btn btn-outline-secondary disabled">Page <%= list.page %> / <%= list.totalPages %></span>
+        <a class="btn btn-outline-secondary <%= list.page >= list.totalPages ? 'disabled' : '' %>" href="<%= list.page < list.totalPages ? _pageHref(list.page + 1) : '#' %>"><i class="bi bi-chevron-right"></i></a>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th><%- _sortLink('Version event', 'versionEvent') %></th>
+              <th><%- _sortLink('Entity', 'entityType') %></th>
+              <th>From &rarr; To</th>
+              <th>Event id</th>
+              <th><%- _sortLink('Occurred', 'occurredAt') %></th>
+              <th>Actor</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (list.items.length === 0) { %>
+              <tr><td colspan="6" class="text-center text-muted py-4">No version events match these filters.</td></tr>
+            <% } %>
+            <% list.items.forEach(function(v) { %>
+              <tr>
+                <td><span class="version-event-badge"><%= v.version_event %></span></td>
+                <td class="mono small">
+                  <%= v.entity_type %><br>
+                  <span class="text-muted"><%= v.entity_id %></span>
+                </td>
+                <td class="small"><%= v.from_state || '—' %> &rarr; <%= v.to_state || '—' %></td>
+                <td class="mono small text-muted"><a href="/aisworg/seu/events?entityType=<%= v.entity_type %>" class="mono small"><%= v.event_id %></a></td>
+                <td class="small text-muted"><%= new Date(v.occurred_at).toLocaleString() %></td>
+                <td class="small"><%= v.actor_id || '—' %><% if (v.authority_badge) { %><br><span class="text-muted"><%= v.authority_badge %></span><% } %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <%- include('../../partials/footer') %>
+</body>
+</html>

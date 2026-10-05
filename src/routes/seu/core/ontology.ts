@@ -706,6 +706,11 @@ async function transitionConcept(
     payload: { conceptType, code, fromState, toState, version: concept.version },
     actorId: authorId,
     authorityBadge: gate.authorityBadge ?? "root",
+    // CR-117 — Ontology concepts are platform-global, not tenant-scoped.
+    versionEvent: gate.versionEvent,
+    fromState,
+    toState,
+    tenantId: null,
   });
 
   return updated;

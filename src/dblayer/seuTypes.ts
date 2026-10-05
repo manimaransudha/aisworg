@@ -1656,6 +1656,25 @@ export interface EventRow {
   consumption_state: Record<string, EventConsumptionEntry>;
 }
 
+// CR-117 — indexes the real `events` row by its `transition_definitions.
+// version_event` classification (VersionCreated/VersionPublished/etc.),
+// written by eventBus.publish() itself alongside the real event, never a
+// second publish. One row per version-classified hop; pure Revisions (null
+// version_event) get no row.
+export interface VersionEventRow {
+  id: string;
+  event_id: string;
+  tenant_id: string;
+  entity_type: string;
+  entity_id: string;
+  from_state: string | null;
+  to_state: string | null;
+  version_event: string;
+  occurred_at: string;
+  actor_id: string;
+  authority_badge: string | null;
+}
+
 export interface EventSubscriptionRow {
   event_type: string;
   handler_name: string;
